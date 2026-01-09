@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: socioprophet-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: socioprophet-web }
+  template:
+    metadata:
+      labels: { app: socioprophet-web }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/socioprophet/socioprophet-web:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http

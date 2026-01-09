@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: socioprophet
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: socioprophet-api
+            path: apps/api/kustomize/overlays/dev
+          - name: socioprophet-gateway
+            path: apps/gateway/kustomize/overlays/dev
+          - name: socioprophet-web
+            path: apps/socioprophet-web/kustomize/overlays/dev
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/socioprophet/socioprophet.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

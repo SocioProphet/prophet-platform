@@ -1,0 +1,37 @@
+name: ci
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Build API
+        run: |
+          cd apps/api/cmd/socioprophet-api && go build
+      - name: Build Gateway
+        run: |
+          cd apps/gateway/cmd/tritrpc-gateway && go build
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enable corepack
+        run: corepack enable
+      - name: Build
+        run: |
+          cd apps/socioprophet-web
+          pnpm install
+          pnpm build

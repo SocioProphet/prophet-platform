@@ -1,0 +1,7 @@
+{
+  "socioprophet.scmhost": {
+    "command": "python3",
+    "args": ["-u", "mcp/servers/scmhost_live.py"],
+    "env": {}
+  }
+}

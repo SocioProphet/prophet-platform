@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: socioprophet-api
+spec:
+  selector: { app: socioprophet-api }
+  ports:
+    - name: dummy
+      port: 9000
+      targetPort: 9000

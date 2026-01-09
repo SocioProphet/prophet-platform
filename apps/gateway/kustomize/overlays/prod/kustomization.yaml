@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/socioprophet/socioprophet-gateway
+    newName: ghcr.io/socioprophet/socioprophet-gateway
+    newTag: v0.1.0
