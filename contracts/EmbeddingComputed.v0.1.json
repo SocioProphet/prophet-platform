@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/EmbeddingComputed.v0.1.json",
+  "title": "EmbeddingComputed",
+  "type": "object",
+  "required": ["version","event_id","created_at","carrier_ref","topics","model_policy_ref","embedding_artifact_ref","vector_dim","receipt"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "carrier_ref": { "type": "string" },
+    "topics": { "type": "array", "items": { "type": "string" } },
+    "model_policy_ref": { "type": "string", "description": "Reference/hash to Slash-Topics Model_Selection_Policy used." },
+    "embedding_artifact_ref": { "type": "string", "description": "Reference/hash/location of embedding payload (vector bytes or serialized array)." },
+    "vector_dim": { "type": "integer", "minimum": 1 },
+    "receipt": {
+      "type": "object",
+      "required": ["hash","algo"],
+      "properties": {
+        "hash": { "type": "string" },
+        "algo": { "type": "string", "enum": ["sha256","blake3"] }
+      }
+    }
+  }
+}
