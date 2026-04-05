@@ -1,0 +1,91 @@
+define
+
+object-id sub attribute, value string;
+schema-ref sub attribute, value string;
+state sub attribute, value string;
+ts sub attribute, value datetime;
+hash sub attribute, value string;
+name sub attribute, value string;
+kind sub attribute, value string;
+confidence sub attribute, value double;
+text-value sub attribute, value string;
+json-value sub attribute, value string;
+external-id sub attribute, value string;
+valid-from sub attribute, value datetime;
+valid-to sub attribute, value datetime;
+
+entity-like sub entity,
+  owns object-id @key,
+  owns schema-ref,
+  owns state,
+  owns ts,
+  owns hash,
+  owns valid-from,
+  owns valid-to;
+
+semantic-entity sub entity-like,
+  owns kind,
+  owns name,
+  owns confidence,
+  owns external-id;
+
+capability sub entity-like,
+  owns kind,
+  owns name,
+  owns text-value;
+
+policy sub entity-like,
+  owns kind,
+  owns name,
+  owns text-value;
+
+claim-record sub entity-like,
+  owns kind,
+  owns confidence,
+  owns text-value,
+  owns json-value;
+
+observation-ref sub entity-like,
+  owns name;
+
+run-ref sub entity-like,
+  owns name;
+
+source-support sub relation,
+  relates supported-claim,
+  relates supporting-observation,
+  owns kind,
+  owns ts;
+
+semantic-assertion sub relation,
+  relates assertion-subject,
+  relates assertion-object,
+  owns kind,
+  owns confidence,
+  owns ts;
+
+provenance-link sub relation,
+  relates upstream-object,
+  relates downstream-object,
+  owns kind,
+  owns ts,
+  owns hash;
+
+capability-binding sub relation,
+  relates capability-holder,
+  relates granted-capability,
+  owns kind,
+  owns ts,
+  owns state,
+  owns valid-from,
+  owns valid-to;
+
+policy-binding sub relation,
+  relates bound-policy,
+  relates bound-subject,
+  relates bound-capability,
+  owns kind,
+  owns ts,
+  owns state,
+  owns valid-from,
+  owns valid-to;
