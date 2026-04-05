@@ -1,0 +1,14 @@
+{
+  "promotion_run_id": "run:promotion:demo:v1",
+  "input_snapshot_ref": "dolt://demo/commit/abc123",
+  "input_observation_ids": [
+    "obs:demo:1:v1"
+  ],
+  "ontology_ref": "sp://ontology/core/v1",
+  "mapping_ref": "sp://mappings/demo/v1",
+  "validator_refs": ["sp://validators/basic/v1"],
+  "outputs": {
+    "entities": ["ent:demo:1:v1"],
+    "claims": ["clm:demo:1:v1"]
+  }
+}
