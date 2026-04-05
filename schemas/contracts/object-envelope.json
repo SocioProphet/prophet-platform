@@ -1,0 +1,23 @@
+{
+  "$id": "sp://contracts/object-envelope/v1",
+  "type": "object",
+  "required": ["object_id", "object_kind", "schema_ref", "owner_store"],
+  "properties": {
+    "object_id": {"type": "string"},
+    "object_kind": {"type": "string"},
+    "schema_ref": {"type": "string"},
+    "owner_store": {"type": "string"},
+    "state": {"type": "string"},
+    "valid_from": {"type": "string", "format": "date-time"},
+    "valid_to": {"type": ["string", "null"], "format": "date-time"},
+    "tx_at": {"type": "string", "format": "date-time"},
+    "source_refs": {"type": "array", "items": {"type": "string"}},
+    "derived_from": {"type": "array", "items": {"type": "string"}},
+    "content_hash": {"type": "string"},
+    "identity_hash": {"type": "string"},
+    "lineage_hash": {"type": "string"},
+    "idempotency_key": {"type": "string"},
+    "promotion_run_id": {"type": ["string", "null"]},
+    "projection_manifest_id": {"type": ["string", "null"]}
+  }
+}
