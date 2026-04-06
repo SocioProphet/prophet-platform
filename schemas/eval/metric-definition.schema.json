@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/metric-definition.schema.json",
+  "title": "MetricDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric_definition_id",
+    "name",
+    "family",
+    "regime",
+    "unit",
+    "direction",
+    "value_type",
+    "normalizer"
+  ],
+  "properties": {
+    "metric_definition_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "family": {
+      "enum": [
+        "ontology_logic",
+        "semantic_compiler",
+        "task_performance",
+        "ranking_preference",
+        "grounding_factuality",
+        "agent_execution",
+        "safety_governance",
+        "operations_economics",
+        "calibration_uncertainty"
+      ]
+    },
+    "regime": {"enum": ["OWA_3WAY", "CWA_BINARY", "RANKED", "POLICY", "OPERATIONS"]},
+    "unit": {"type": "string", "minLength": 1},
+    "direction": {"enum": ["higher_better", "lower_better", "target_band"]},
+    "value_type": {"enum": ["scalar", "vector", "confusion_matrix", "distribution", "json"]},
+    "normalizer": {
+      "enum": [
+        "bounded_0_1",
+        "zscore",
+        "minmax",
+        "log_inverse_cost",
+        "latency_inverse",
+        "none"
+      ]
+    }
+  }
+}
