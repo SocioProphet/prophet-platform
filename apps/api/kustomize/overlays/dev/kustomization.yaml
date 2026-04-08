@@ -3,6 +3,11 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: ghcr.io/socioprophet/socioprophet-api
-    newName: ghcr.io/socioprophet/socioprophet-api
+  - name: ghcr.io/SocioProphet/socioprophet-api
+    newName: ghcr.io/SocioProphet/socioprophet-api
     newTag: dev
+configMapGenerator:
+  - name: api-config
+    behavior: merge
+    literals:
+      - TRITRPC_ALLOW_INSECURE_DEV_KEY=1

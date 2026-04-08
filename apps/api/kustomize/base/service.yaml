@@ -3,8 +3,10 @@ kind: Service
 metadata:
   name: socioprophet-api
 spec:
-  selector: { app: socioprophet-api }
+  selector:
+    app: socioprophet-api
   ports:
-    - name: dummy
+    - name: tritrpc
       port: 9000
       targetPort: 9000
+      protocol: TCP
