@@ -1,20 +1,7 @@
-# TritRPC Framing (Working Spec Excerpt)
+# TriTRPC Source of Truth
 
-> Goal: small, auditable message framing for RPC over UDS/TCP with replay guard.
+`prophet-platform` does **not** maintain an independent TriTRPC wire spec.
 
-**Frame (logical):**
-```
-| prelude (2B type, 4B len) | nonce (12B) | ciphertext (len) | tag (16B) |
-```
-- AEAD: ChaCha20-Poly1305 or AES-256-GCM (select via config)
-- Nonce: 96-bit with per-connection counter (reject reuse)
-- AAD: `{channel_id||crc16(payload_type||len)||ts32}` (example)
-- Replay guard: monotonic counter + LRU window
-- CRC16: optional lightweight redundancy for pre-decrypt sanity
+The normative transport source of truth is the upstream `SocioProphet/TriTRPC` repository, where **v1** is explicitly described as the stable interoperability surface and **vNext** remains experimental. The stable repo guarantees canonical encoding, deterministic fixtures, strict verification, and Go/Rust parity. The Go/Rust ports use **XChaCha20-Poly1305** with **24-byte nonces** for authenticated frames, and the readiness checklist says fixtures and repacking must reproduce identical bytes. The full spec copy in that repo also says the Go/Rust ports currently rely on explicit per-frame nonces rather than a rolling nonce scheme.
 
-**Message types (examples):**
-- `0x0001` Health.Ping
-- `0x0100` LLM.ChatStream (server-stream)
-- `0x0200` RAG.Query
-
-This repo’s API example runs plaintext `PING/PONG` to keep the example tiny. Swap in your TritRPC library as it matures.
+This repository only defines the **platform binding** needed to carry stable TriTRPC v1 envelopes over UDS/TCP streams. See `docs/TRITRPC_PLATFORM_BINDING.md`.
