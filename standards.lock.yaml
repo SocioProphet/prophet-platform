@@ -1,0 +1,236 @@
+apiVersion: prophet-platform.socioprophet.org/v1alpha1
+kind: StandardsLock
+metadata:
+  name: prophet-platform
+  purpose: external-standards-and-seed-lock
+spec:
+  status: draft
+  policy:
+    pinType: commit-sha
+    allowBranchPins: false
+    requireAdrForProfileChange: true
+    requireGeneratedArtifactDiffReview: true
+    defaultUpdateMode: manual
+  transport:
+    normativeProfile:
+      standard: tritrpc
+      profile: v1
+      mode: stable-only
+    experimentalProfiles:
+      tritrpc-vnext:
+        allowed: false
+        enableRequires:
+          - ADR approval
+          - feature flag
+          - parity report
+          - registry freeze decision
+  imports:
+    normative_standards:
+      tritrpc:
+        repo: SocioProphet/TriTRPC
+        class: transport-standard
+        channel: stable
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - spec/README-full-spec.md
+            - docs/integration_readiness_checklist.md
+          runtime_targets:
+            - apps/api
+            - apps/gateway
+            - apps/lampstand
+            - apps/agentplane
+            - apps/workspace-controller
+            - apps/identity-prime
+            - apps/hdt-gateway
+          generated_artifacts:
+            - contracts/transport/
+            - tools/tritrpc/
+        rules:
+          shadowSpecForbidden: true
+          localProfileOverridesForbidden: true
+
+      ontogenesis:
+        repo: SocioProphet/ontogenesis
+        class: ontology-constraints-pack
+        channel: controlled
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - README.md
+          generated_artifacts:
+            - contracts/ontology/
+            - contracts/policy/
+            - docs/generated/ontology/
+        rules:
+          directRuntimeAuthority: false
+          generatedArtifactsMustBeDiffed: true
+
+      semantic-serdes:
+        repo: SocioProphet/semantic-serdes
+        class: semantic-interop-pack
+        channel: controlled
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - README.md
+          generated_artifacts:
+            - contracts/semantic-serdes/
+            - examples/semantic-serdes/
+            - tools/validate_semantic_serdes.py
+        rules:
+          implicitLabelReuseForbidden: true
+          parityMatrixRequired: true
+
+      standards-storage:
+        repo: SocioProphet/socioprophet-standards-storage
+        class: storage-contracts-and-benchmarks
+        channel: controlled
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - README.md
+          generated_artifacts:
+            - contracts/storage/
+            - docs/generated/storage/
+            - benchmarks/
+        rules:
+          benchmarkBudgetRequired: true
+          systemOfRecordContractRequired: true
+
+    reference_inputs:
+      identity-prime-reference:
+        repo: SocioProphet/identity-is-prime-reference
+        class: design-reference
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - docs/20_FORMAL_SPEC.md
+            - docs/30_ARCHITECTURE_FOG_CITIZEN_CLOUD.md
+          generated_artifacts:
+            - contracts/identity/
+            - contracts/evidence/
+            - docs/generated/identity/
+        rules:
+          directRuntimeImport: false
+          codeMayBeCopiedVerbatim: false
+          useAsSourceForServiceDesign: true
+
+      hdt-reference:
+        repo: SocioProphet/human-digital-twin
+        class: design-reference
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          docs:
+            - README.md
+          generated_artifacts:
+            - contracts/export/
+            - contracts/capability/
+            - docs/generated/hdt/
+        rules:
+          directRuntimeImport: false
+          omegaIsNotIdentity: true
+          useAsSourceForGatewayDesign: true
+
+      cairnpath-mesh:
+        repo: SocioProphet/cairnpath-mesh
+        class: contract-reference
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          generated_artifacts:
+            - contracts/cairnpath/
+        rules:
+          runtimeService: false
+
+      graphbrain-contract:
+        repo: SocioProphet/graphbrain-contract
+        class: contract-reference
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        consume:
+          generated_artifacts:
+            - contracts/model/
+        rules:
+          runtimeService: false
+
+    service_seeds:
+      lampstand:
+        repo: SocioProphet/lampstand
+        class: service-seed
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        target: apps/lampstand
+        rules:
+          importAsService: true
+          directSubtreeCopyAllowed: false
+          mustAdoptTriTRPCv1: true
+          mustAdoptPlatformContracts: true
+
+      agentplane:
+        repo: SocioProphet/agentplane
+        class: service-seed
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        target: apps/agentplane
+        rules:
+          importAsService: true
+          emitEvidenceReceipts: true
+          mustAdoptPlatformContracts: true
+
+      sociosphere:
+        repo: SocioProphet/sociosphere
+        class: coordination-source
+        pin:
+          commit: REPLACE_WITH_PINNED_SHA
+          tag: null
+        target: apps/workspace-controller
+        rules:
+          wholeRepoImportForbidden: true
+          manifestLockRunnerRemainExternal: true
+          runtimeSubsetOnly: true
+
+  generated:
+    transportContractsDir: contracts/transport
+    evidenceContractsDir: contracts/evidence
+    identityContractsDir: contracts/identity
+    exportContractsDir: contracts/export
+    modelContractsDir: contracts/model
+    ontologyContractsDir: contracts/ontology
+  review:
+    requiredOwners:
+      - platform
+      - security
+      - contracts
+      - runtime
+    checklist:
+      - lock pin changed intentionally
+      - generated artifacts updated
+      - compatibility docs updated
+      - e2e smoke test updated
+      - ADR added for profile or topology changes
+
+services:
+  lampstand:
+    classification: local-daemon
+    repo: SocioProphet/lampstand
+    ref: REPLACE_WITH_PINNED_COMMIT
+    notes:
+      - upstream source staged under apps/lampstand/vendor/lampstand-src
+      - transport remains upstream-managed; platform wrapper stays transport-neutral

@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-import os, sys, json, urllib.request
+"""Tiny live SCM host placeholder for prophet-platform development."""
 
-# Minimal placeholder to demonstrate an MCP-style server stub.
-# In reality you'd use TritRPC UDS; this is a no-op example.
-def list_repos():
-    token = os.getenv("GITHUB_TOKEN", "")
-    if not token:
-        return {"ok": False, "error": "GITHUB_TOKEN not set"}
-    # Placeholder only (no network call here for sandbox safety)
-    return {"ok": True, "repos": ["socioprophet/socioprophet"]}
+import json
 
 if __name__ == "__main__":
-    print(json.dumps(list_repos()))
+    print(json.dumps({
+        "repo": "SocioProphet/prophet-platform",
+        "status": "placeholder",
+        "note": "Replace with live SCM integration when platform issue is opened."
+    }))
