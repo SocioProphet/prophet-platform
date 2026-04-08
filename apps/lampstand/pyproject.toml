@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prophet-platform-lampstand"
+version = "0.1.0"
+description = "Platform wrapper and receipt bridge for Lampstand"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pp-lampstand = "prophet_platform_lampstand.main:main"
