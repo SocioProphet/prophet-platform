@@ -13,3 +13,5 @@ dist/
 
 # Go
 /bin/
+apps/**/cmd/**/*-gateway
+apps/**/cmd/**/*-api
