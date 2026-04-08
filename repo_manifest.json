@@ -1,0 +1,52 @@
+{
+  "name": "prophet-platform",
+  "org": "SocioProphet",
+  "url": "https://github.com/SocioProphet/prophet-platform",
+  "purpose": "Platform/infrastructure management hub for SocioProphet — runtime services, GitOps wiring, and platform-level documentation.",
+  "non_goals": [
+    "Defining standards or governance norms (those live in dedicated standards repos).",
+    "Hosting canonical ontologies or semantic schemas (use socioprophet-standards-storage / TypeDB repos).",
+    "Acting as a documentation-only repository (socioprophet-docs handles narrative publishing)."
+  ],
+  "maturity": "alpha",
+  "status": "active",
+  "intended_users": [
+    "Platform engineers operating the SocioProphet runtime",
+    "Contributors integrating upstream contracts into the platform",
+    "Operators managing Kubernetes deployments via Argo CD"
+  ],
+  "primary_language": "Go",
+  "secondary_languages": ["TypeScript", "Python"],
+  "depends_on": [
+    "SocioProphet/TriTRPC",
+    "SocioProphet/socioprophet-standards-storage",
+    "SourceOS-Linux/sourceos-spec"
+  ],
+  "dependents": [
+    "SocioProphet/sociosphere"
+  ],
+  "docs": {
+    "readme": true,
+    "architecture": true,
+    "security_model": true,
+    "deployment": true,
+    "local_dev": true,
+    "runbook": true,
+    "troubleshooting": true,
+    "observability": true,
+    "reproducibility": true,
+    "roadmap": true,
+    "integration_map": true,
+    "adr": true,
+    "examples": false,
+    "api_reference": false,
+    "changelog": false
+  },
+  "docs_last_reviewed": "2026-04-08",
+  "adr_location": "adr/",
+  "ci": [
+    ".github/workflows/ci.yml",
+    ".github/workflows/validate.yml"
+  ],
+  "maintainers": ["SocioProphet"]
+}
