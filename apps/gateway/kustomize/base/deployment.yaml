@@ -5,28 +5,50 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: socioprophet-gateway }
+    matchLabels:
+      app: socioprophet-gateway
   template:
     metadata:
-      labels: { app: socioprophet-gateway }
+      labels:
+        app: socioprophet-gateway
     spec:
       containers:
         - name: gateway
-          image: ghcr.io/socioprophet/socioprophet-gateway:dev
+          image: ghcr.io/SocioProphet/socioprophet-gateway:dev
           imagePullPolicy: IfNotPresent
           env:
-            - name: TRITRPC_SOCK
+            - name: TRITRPC_TARGET_ADDR
               valueFrom:
-                configMapKeyRef: { name: gateway-config, key: TRITRPC_SOCK }
+                configMapKeyRef:
+                  name: gateway-config
+                  key: TRITRPC_TARGET_ADDR
             - name: GATEWAY_PORT
               valueFrom:
-                configMapKeyRef: { name: gateway-config, key: GATEWAY_PORT }
+                configMapKeyRef:
+                  name: gateway-config
+                  key: GATEWAY_PORT
+            - name: TRITRPC_ALLOW_INSECURE_DEV_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: gateway-config
+                  key: TRITRPC_ALLOW_INSECURE_DEV_KEY
+            - name: TRITRPC_KEY_HEX
+              valueFrom:
+                secretKeyRef:
+                  name: tritrpc-shared-key
+                  key: TRITRPC_KEY_HEX
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10002
           ports:
             - containerPort: 8080
               name: http
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
