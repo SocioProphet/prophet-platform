@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/metric-fact.schema.json",
+  "title": "MetricFact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metric_fact_id",
+    "ts",
+    "metric_definition_id",
+    "source_descriptor_id",
+    "provider_id",
+    "model_release_id",
+    "eval_regime",
+    "source_trust_class",
+    "freshness_days",
+    "reproduced_by_us"
+  ],
+  "properties": {
+    "metric_fact_id": {"type": "string"},
+    "ts": {"type": "string", "format": "date-time"},
+    "metric_definition_id": {"type": "string"},
+    "source_descriptor_id": {"type": "string"},
+    "provider_id": {"type": "string"},
+    "model_release_id": {"type": "string"},
+    "benchmark_suite_id": {"type": "string"},
+    "scenario_id": {"type": "string"},
+    "case_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "trial_id": {"type": "string"},
+    "context_slice_id": {"type": "string"},
+    "risk_tier": {"enum": ["low", "medium", "high", "critical"]},
+    "autonomy_tier": {"enum": ["chat_only", "tool_using_assistant", "tool_using_agent", "long_horizon_agent"]},
+    "eval_regime": {"enum": ["OWA_3WAY", "CWA_BINARY", "RANKED", "POLICY", "OPERATIONS"]},
+    "value_scalar": {"type": "number"},
+    "value_json": {"type": "object"},
+    "raw_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tp": {"type": "integer", "minimum": 0},
+        "fp": {"type": "integer", "minimum": 0},
+        "fn": {"type": "integer", "minimum": 0},
+        "tn": {"type": "integer", "minimum": 0}
+      }
+    },
+    "sample_n": {"type": "integer", "minimum": 0},
+    "trial_count": {"type": "integer", "minimum": 0},
+    "freshness_days": {"type": "integer", "minimum": 0},
+    "source_trust_class": {
+      "enum": [
+        "internal_reproduced",
+        "internal_live",
+        "independent_harness",
+        "official_provider",
+        "crowd_preference",
+        "third_party_analytics"
+      ]
+    },
+    "reproduced_by_us": {"type": "boolean"}
+  },
+  "oneOf": [
+    {"required": ["value_scalar"]},
+    {"required": ["value_json"]},
+    {"required": ["raw_counts"]}
+  ]
+}

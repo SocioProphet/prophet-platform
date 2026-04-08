@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eval-fabric-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eval-fabric-api
+  template:
+    metadata:
+      labels:
+        app: eval-fabric-api
+    spec:
+      containers:
+        - name: eval-fabric-api
+          image: ghcr.io/socioprophet/prophet-platform/eval-fabric-api:dev
+          ports:
+            - containerPort: 8080
+          env:
+            - name: POSTGRES_DSN
+              value: postgresql://prophet:prophet@postgres:5432/prophet_platform
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: CLICKHOUSE_PORT
+              value: "8123"
+            - name: CLICKHOUSE_DATABASE
+              value: default
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

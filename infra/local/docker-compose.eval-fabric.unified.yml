@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: prophet
+      POSTGRES_PASSWORD: prophet
+      POSTGRES_DB: prophet_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../datastores/postgres:/docker-entrypoint-initdb.d:ro
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - chdata:/var/lib/clickhouse
+      - ../datastores/clickhouse:/docker-entrypoint-initdb.d:ro
+
+  eval-fabric-api:
+    build:
+      context: ../../apps/eval-fabric-api
+      dockerfile: Dockerfile.unified
+    environment:
+      POSTGRES_DSN: postgresql://prophet:prophet@postgres:5432/prophet_platform
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DATABASE: default
+    ports:
+      - "8082:8080"
+    depends_on:
+      - postgres
+      - clickhouse
+
+volumes:
+  pgdata:
+  chdata:
