@@ -1,58 +1,53 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
 from pathlib import Path
-import sys
 import re
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-
-REQUIRED_DIRS = [
-    "apps",
-    "infra",
-    "docs",
+REQUIRED_DIRS = ["apps", "infra", "docs", "contracts", "tools"]
+REQUIRED_FILES = [
+    "go.work",
+    "docs/ARCHITECTURE.md",
+    "docs/TRITRPC_SPEC.md",
+    "docs/TRITRPC_PLATFORM_BINDING.md",
+    "apps/api/go.mod",
+    "apps/gateway/go.mod",
 ]
+SUSPECT_PATTERNS = [r"\bTODO\b", r"\bPLACEHOLDER\b", r"\n\.\.\.\n"]
 
-SUSPECT_PLACEHOLDER_PATTERNS = [
-    r"\bTODO\b",
-    r"\bPLACEHOLDER\b",
-    r"\n\.\.\.\n",
-]
 
-def fail(msg: str) -> "None":
+def fail(msg: str) -> None:
     print(f"ERR: {msg}", file=sys.stderr)
     raise SystemExit(2)
 
-def main() -> int:
-    # Directory requirements
-    for d in REQUIRED_DIRS:
-        if not (ROOT / d).exists():
-            fail(f"missing required directory: {d}")
 
-    # No .DS_Store
-    ds = list(ROOT.rglob(".DS_Store"))
-    if ds:
-        fail(f"found .DS_Store files: {len(ds)} — remove and add to .gitignore")
+for rel in REQUIRED_DIRS:
+    if not (ROOT / rel).exists():
+        fail(f"missing required directory: {rel}")
 
-    # Lightweight doc sanity: no obvious placeholders in top-level docs
-    doc_candidates = []
-    for rel in ("docs/ARCHITECTURE.md", "docs/SECURITY.md", "docs/TRITRPC_SPEC.md", "docs/ROADMAP.md"):
-        p = ROOT / rel
-        if p.exists():
-            doc_candidates.append(p)
+for rel in REQUIRED_FILES:
+    if not (ROOT / rel).exists():
+        fail(f"missing required file: {rel}")
 
-    for p in doc_candidates:
-        s = p.read_text(encoding="utf-8", errors="replace")
-        for pat in SUSPECT_PLACEHOLDER_PATTERNS:
-            if re.search(pat, s, flags=re.IGNORECASE):
-                fail(f"doc looks unfinished (matches {pat!r}): {p.relative_to(ROOT)}")
+for rel in ["README.md", "docs/ARCHITECTURE.md", "docs/TRITRPC_SPEC.md", "docs/TRITRPC_PLATFORM_BINDING.md"]:
+    text = (ROOT / rel).read_text(encoding="utf-8", errors="replace")
+    for pat in SUSPECT_PATTERNS:
+        if re.search(pat, text, flags=re.IGNORECASE):
+            fail(f"document looks unfinished ({pat!r}): {rel}")
 
-    # Ensure infra landing exists if infra/k8s present
-    if (ROOT / "infra/k8s").exists() and not (ROOT / "infra/README.md").exists():
-        # not fatal, but warn loudly
-        print("WARN: infra/k8s exists but infra/README.md missing (recommended)")
+readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="replace")
+if "`rpc/`" in readme or "`schemas/`" in readme:
+    fail("README still refers to legacy rpc/schemas paths")
 
-    print("OK: validate passed (required dirs present, no .DS_Store, docs look non-placeholder)")
-    return 0
+appset = (ROOT / "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml").read_text(encoding="utf-8", errors="replace")
+if "socioprophet/socioprophet.git" in appset:
+    fail("Argo appset still points at legacy socioprophet repo")
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+for gomod in [ROOT / "apps/api/go.mod", ROOT / "apps/gateway/go.mod"]:
+    text = gomod.read_text(encoding="utf-8", errors="replace")
+    if "socioprophet/apps" in text:
+        fail(f"legacy module path remains in {gomod.relative_to(ROOT)}")
+
+print("OK: validate passed")

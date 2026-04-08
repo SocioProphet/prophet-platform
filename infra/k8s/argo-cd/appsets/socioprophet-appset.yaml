@@ -22,8 +22,8 @@ spec:
         server: https://kubernetes.default.svc
         namespace: socioprophet
       source:
-        repoURL: https://github.com/socioprophet/socioprophet.git
-        targetRevision: HEAD
+        repoURL: https://github.com/SocioProphet/prophet-platform.git
+        targetRevision: main
         path: '{{path}}'
       syncPolicy:
         automated:
