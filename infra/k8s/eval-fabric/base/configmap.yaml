@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eval-fabric-api-config
+  labels:
+    app: eval-fabric-api
+data:
+  PROFILE_ID: profile.high_assurance_enterprise_agent
+  CLICKHOUSE_DATABASE: default

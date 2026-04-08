@@ -1,7 +1,7 @@
-go 1.22
+go 1.25.0
 
 use (
-    ./apps/api
-    ./apps/gateway
-    ./libs/go/tritrpcbridge
+	./apps/api
+	./apps/gateway
+	./libs/go/tritrpcbridge
 )

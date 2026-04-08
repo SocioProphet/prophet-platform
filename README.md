@@ -7,7 +7,7 @@ It is intentionally a **thin platform monorepo**:
 - `contracts/` contains platform-facing event, evidence, and receipt contracts consumed by runtime services
 - `docs/` contains platform-level guidance (architecture, transport binding, security, roadmap)
 - `infra/` contains deployment wiring (Kustomize, Argo CD appsets, namespaces, etc.)
-- `tools/` contains validation and smoke-test helpers
+- `tools/` contains validation and smoke-test helpers (`standards.lock.yaml` gates platform drift checks)
 - `libs/` contains small shared runtime bindings that adapt pinned upstream standards into platform code
 
 ## Why this repo exists

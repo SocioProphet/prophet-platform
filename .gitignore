@@ -13,3 +13,5 @@ dist/
 
 # Go
 /bin/
+apps/gateway/cmd/tritrpc-gateway/tritrpc-gateway
+apps/api/cmd/socioprophet-api/socioprophet-api

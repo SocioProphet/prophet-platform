@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "roots": [
+    {
+      "rootId": "root-demo-2026q1",
+      "algorithm": "Ed25519",
+      "status": "active",
+      "epoch": 1,
+      "validFrom": "2026-01-01T00:00:00Z",
+      "validTo": "2026-12-31T23:59:59Z"
+    }
+  ],
+  "policy": {
+    "defaultWitnessThreshold": 2,
+    "maxReceiptAgeSeconds": 86400
+  },
+  "revocations": {
+    "members": [],
+    "receipts": []
+  }
+}
