@@ -3,35 +3,62 @@
   "$id": "https://socioprophet.org/contracts/LensOutput.v0.1.json",
   "title": "LensOutput",
   "type": "object",
-  "required": ["version","event_id","created_at","lens_ref","scope_ref","inputs","outputs","receipt"],
+  "required": [
+    "version",
+    "event_id",
+    "created_at",
+    "lens_ref",
+    "scope_ref",
+    "inputs",
+    "outputs",
+    "receipt"
+  ],
   "properties": {
     "version": { "const": "0.1" },
     "event_id": { "type": "string" },
     "created_at": { "type": "string" },
-    "lens_ref": { "type": "string", "description": "Which semantic BI lens/recipe produced this output." },
-    "scope_ref": { "type": "string", "description": "Reference/hash to scope definition (topics, filters, time window)." },
+    "lens_ref": {
+      "type": "string",
+      "description": "Which semantic BI lens or recipe produced this output."
+    },
+    "scope_ref": {
+      "type": "string",
+      "description": "Reference/hash to scope definition."
+    },
     "inputs": {
       "type": "object",
-      "required": ["carrier_refs","embedding_refs"],
+      "required": ["carrier_refs", "embedding_refs"],
       "properties": {
-        "carrier_refs": { "type": "array", "items": { "type": "string" } },
-        "embedding_refs": { "type": "array", "items": { "type": "string" } }
+        "carrier_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "embedding_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       }
     },
     "outputs": {
       "type": "object",
       "required": ["artifact_refs"],
       "properties": {
-        "artifact_refs": { "type": "array", "items": { "type": "string" } },
-        "evidence_refs": { "type": "array", "items": { "type": "string" } }
+        "artifact_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       }
     },
     "receipt": {
       "type": "object",
-      "required": ["hash","algo"],
+      "required": ["hash", "algo"],
       "properties": {
         "hash": { "type": "string" },
-        "algo": { "type": "string", "enum": ["sha256","blake3"] }
+        "algo": { "type": "string", "enum": ["sha256", "blake3"] }
       }
     }
   }

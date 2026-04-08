@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ReceiptCatalogEntry.v0.1.json",
+  "title": "ReceiptCatalogEntry",
+  "type": "object",
+  "required": [
+    "version",
+    "entry_id",
+    "created_at",
+    "service_ref",
+    "event_type",
+    "subject_ref",
+    "envelope_ref",
+    "receipt_ref",
+    "payload_ref"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "entry_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "service_ref": { "type": "string" },
+    "event_type": { "type": "string" },
+    "status": { "type": "string" },
+    "subject_ref": { "type": "string" },
+    "scope_ref": { "type": "string" },
+    "envelope_ref": { "type": "string" },
+    "receipt_ref": { "type": "string" },
+    "payload_ref": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "classifiers": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

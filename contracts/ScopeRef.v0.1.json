@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ScopeRef.v0.1.json",
+  "title": "ScopeRef",
+  "type": "object",
+  "required": [
+    "version",
+    "scope_ref",
+    "created_at",
+    "realm",
+    "name"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "scope_ref": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "realm": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
