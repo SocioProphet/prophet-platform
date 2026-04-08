@@ -6,4 +6,5 @@ resources:
 configMapGenerator:
   - name: api-config
     literals:
-      - TRITRPC_SOCK=/tmp/socioprophet.sock
+      - TRITRPC_LISTEN_ADDR=tcp://0.0.0.0:9000
+      - TRITRPC_ALLOW_INSECURE_DEV_KEY=0

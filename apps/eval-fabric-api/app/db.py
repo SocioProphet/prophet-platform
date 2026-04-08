@@ -20,12 +20,12 @@ def pg_fetch(sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
-def ch_query(sql: str) -> list[dict[str, Any]]:
+def ch_query(sql: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     client = clickhouse_connect.get_client(
         host=CLICKHOUSE_HOST,
         port=CLICKHOUSE_PORT,
         database=CLICKHOUSE_DATABASE,
     )
-    result = client.query(sql)
+    result = client.query(sql, parameters=parameters or {})
     cols = list(result.column_names)
     return [dict(zip(cols, row)) for row in result.result_rows]

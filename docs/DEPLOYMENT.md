@@ -1,59 +1,19 @@
-# Deployment — Prophet Platform
+# Deployment
 
-## Overview
+## Dev / local host mode
 
-Prophet Platform uses **GitOps** with Argo CD and Kustomize for all environment deployments.
+Run the API and gateway as separate local processes.
+Use a shared Unix socket path:
 
----
+- API: `PLATFORM_RPC_LISTEN=unix:///tmp/socioprophet.sock`
+- Gateway: `PLATFORM_RPC_TARGET=unix:///tmp/socioprophet.sock`
 
-## Environments
+## Kubernetes bootstrap mode
 
-| Environment | Overlay path | Notes |
-|-------------|--------------|-------|
-| `dev`       | `infra/k8s/overlays/dev/` | Fast iteration; no TLS enforcement |
-| `prod`      | `infra/k8s/overlays/prod/` | Full mTLS + sealed secrets |
+Use separate Deployments and connect them over TCP:
 
----
+- API: `PLATFORM_RPC_LISTEN=tcp://0.0.0.0:9000`
+- Gateway: `PLATFORM_RPC_TARGET=tcp://socioprophet-api:9000`
 
-## How deployments work
-
-1. Changes merged to `main` automatically trigger CI (`.github/workflows/ci.yml`).
-2. CI builds and pushes container images.
-3. Argo CD detects the manifest change in `infra/k8s/` and syncs the target cluster.
-
----
-
-## Manual sync (emergency / first-time setup)
-
-```bash
-# Preview changes
-kubectl apply --dry-run=client -k infra/k8s/overlays/<env>
-
-# Apply
-kubectl apply -k infra/k8s/overlays/<env>
-
-# Or via Argo CD
-argocd app sync prophet-platform
-```
-
----
-
-## Secrets management
-
-All secrets are stored as Kubernetes Secrets and referenced from workload manifests.
-For production, use [sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) or equivalent.
-
-Key secret: `TRITRPC_AEAD_KEY` (32-byte hex) — see [RUNBOOK.md](RUNBOOK.md#rotating-secrets).
-
----
-
-## Rollback
-
-See [RUNBOOK.md](RUNBOOK.md#rolling-back-a-deployment).
-
----
-
-## Container image policy
-
-- Images are pinned by digest in production overlays.
-- Signature verification via Cosign/Sigstore is planned (see [ROADMAP.md](ROADMAP.md)).
+This is the only honest shape while API and gateway remain separate pods.
+If we later choose colocated sidecars or a shared pod, UDS can be restored for that profile.

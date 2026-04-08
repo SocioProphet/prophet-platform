@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/EvidenceReceipt.v0.1.json",
+  "title": "EvidenceReceipt",
+  "type": "object",
+  "required": [
+    "version",
+    "receipt_id",
+    "created_at",
+    "service_ref",
+    "action",
+    "status",
+    "subject_ref",
+    "hash",
+    "hash_algo"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "receipt_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "service_ref": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "succeeded",
+        "failed",
+        "denied",
+        "partial"
+      ]
+    },
+    "subject_ref": {
+      "type": "string"
+    },
+    "envelope_ref": {
+      "type": "string"
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "output_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "hash": {
+      "type": "string"
+    },
+    "hash_algo": {
+      "type": "string",
+      "enum": [
+        "sha256",
+        "blake3"
+      ]
+    },
+    "correlation_id": {
+      "type": "string"
+    }
+  }
+}

@@ -3,7 +3,8 @@ kind: Service
 metadata:
   name: socioprophet-gateway
 spec:
-  selector: { app: socioprophet-gateway }
+  selector:
+    app: socioprophet-gateway
   ports:
     - name: http
       port: 8080

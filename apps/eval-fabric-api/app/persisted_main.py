@@ -32,11 +32,11 @@ def _pg_fetch(sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
-def _ch_query(sql: str) -> list[dict[str, Any]]:
+def _ch_query(sql: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     if clickhouse_connect is None:
         raise RuntimeError("clickhouse-connect is not installed")
     client = clickhouse_connect.get_client(host=CLICKHOUSE_HOST, port=CLICKHOUSE_PORT, database=CLICKHOUSE_DATABASE)
-    result = client.query(sql)
+    result = client.query(sql, parameters=parameters or {})
     cols = list(result.column_names)
     return [dict(zip(cols, row)) for row in result.result_rows]
 
@@ -76,13 +76,14 @@ def frontier() -> dict[str, Any]:
 @app.get("/v1/models/{model_release_id}/dossier")
 def dossier(model_release_id: str) -> dict[str, Any]:
     rows = _ch_query(
-        f"""
+        """
         select metric_definition_id, value_scalar, sample_n, trial_count, ts
         from metric_facts
-        where model_release_id = '{model_release_id}'
+        where model_release_id = {model_release_id:String}
         order by ts desc
         limit 50
-        """
+        """,
+        {"model_release_id": model_release_id},
     )
     return {
         "model_release_id": model_release_id,

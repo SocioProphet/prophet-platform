@@ -3,6 +3,6 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: ghcr.io/socioprophet/socioprophet-gateway
-    newName: ghcr.io/socioprophet/socioprophet-gateway
+  - name: ghcr.io/SocioProphet/socioprophet-gateway
+    newName: ghcr.io/SocioProphet/socioprophet-gateway
     newTag: v0.1.0

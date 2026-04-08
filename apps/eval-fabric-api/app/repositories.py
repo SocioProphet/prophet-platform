@@ -4,25 +4,25 @@ from .db import ch_query, pg_fetch
 
 
 def get_frontier(profile_id: str = "profile.high_assurance_enterprise_agent", limit: int = 20):
-    sql = f"""
+    sql = """
         select profile_id, subject_id, score, rank, score_policy_id
         from profile_scores
-        where profile_id = '{profile_id}'
+        where profile_id = {profile_id:String}
         order by rank asc, score desc
-        limit {int(limit)}
+        limit {limit:UInt64}
     """
-    return ch_query(sql)
+    return ch_query(sql, {"profile_id": profile_id, "limit": int(limit)})
 
 
 def get_model_dossier(model_release_id: str, limit: int = 50):
-    sql = f"""
+    sql = """
         select metric_definition_id, value_scalar, sample_n, trial_count, ts
         from metric_facts
-        where model_release_id = '{model_release_id}'
+        where model_release_id = {model_release_id:String}
         order by ts desc
-        limit {int(limit)}
+        limit {limit:UInt64}
     """
-    return ch_query(sql)
+    return ch_query(sql, {"model_release_id": model_release_id, "limit": int(limit)})
 
 
 def get_competition_radar(limit: int = 50):

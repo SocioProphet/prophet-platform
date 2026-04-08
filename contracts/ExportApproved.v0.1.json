@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ExportApproved.v0.1.json",
+  "title": "ExportApproved",
+  "type": "object",
+  "required": [
+    "version",
+    "event_id",
+    "created_at",
+    "subject_ref",
+    "destination_ref",
+    "membrane_decision_ref",
+    "receipt"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "subject_ref": {
+      "type": "string"
+    },
+    "destination_ref": {
+      "type": "string"
+    },
+    "scope_ref": {
+      "type": "string"
+    },
+    "membrane_decision_ref": {
+      "type": "string"
+    },
+    "export_artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "hash",
+        "algo"
+      ],
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "algo": {
+          "type": "string",
+          "enum": [
+            "sha256",
+            "blake3"
+          ]
+        }
+      }
+    },
+    "evidence_receipt_ref": {
+      "type": "string"
+    }
+  }
+}

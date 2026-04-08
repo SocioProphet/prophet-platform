@@ -1,34 +1,34 @@
 # Prophet Platform (SocioProphet)
 
-This repository is the **platform/infrastructure management hub** for SocioProphet.
+This repository is the **runtime and deployment hub** for the SocioProphet platform.
 
-It is intentionally structured as a **thin platform monorepo**:
-- `apps/` contains deployable services (API, gateway, web portal, etc.)
+It is intentionally a **thin platform monorepo**:
+- `apps/` contains deployable services (API, gateway, web portal, search/index daemons, execution services)
+- `contracts/` contains platform-facing event, evidence, and receipt contracts consumed by runtime services
+- `docs/` contains platform-level guidance (architecture, transport binding, security, roadmap)
 - `infra/` contains deployment wiring (Kustomize, Argo CD appsets, namespaces, etc.)
-- `docs/` contains platform-level guidance (architecture, security, roadmap)
-- `rpc/` contains triRPC contracts used by apps and tooling
-- `schemas/` contains data/format schema references
+- `tools/` contains validation and smoke-test helpers (`standards.lock.yaml` gates platform drift checks)
+- `libs/` contains small shared runtime bindings that adapt pinned upstream standards into platform code
 
 ## Why this repo exists
 
-We keep **standards** and **governance** in dedicated standards repos (e.g. storage standards),
-and we keep **shipping platform code + infra wiring** here. This avoids a standards repo
-accidentally becoming a monolith while still giving us one coherent place to run/operate the platform.
+Standards and governance stay in dedicated upstream repositories. `prophet-platform` is where those standards become running services, concrete deployment topologies, and platform contracts.
 
 ## Quickstart
 
 ```bash
 make validate
+make smoke-health
 ```
 
 ## Reading order
 
-1) `docs/ARCHITECTURE.md`
-2) `docs/SECURITY.md`
-3) `rpc/`
-4) `infra/k8s/`
+1. `docs/ARCHITECTURE.md`
+2. `docs/TRITRPC_SPEC.md`
+3. `docs/TRITRPC_PLATFORM_BINDING.md`
+4. `contracts/`
+5. `infra/k8s/`
 
-## Notes on this seed
+## Notes on this phase
 
-This repo was seeded from an older infrastructure/platform scaffold. We preserved useful patterns
-(Argo CD + Kustomize, API/gateway split, portal wiring) and added a standards-style validation gate.
+This phase removes the plaintext `PING/PONG` bootstrap path and replaces it with a minimal **TriTRPC v1** runtime binding for internal service health traffic. The upstream `SocioProphet/TriTRPC` repository remains the normative transport source of truth; this repository only defines the platform-specific stream binding and deployment profile around that standard.

@@ -5,19 +5,34 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels: { app: socioprophet-api }
+    matchLabels:
+      app: socioprophet-api
   template:
     metadata:
-      labels: { app: socioprophet-api }
+      labels:
+        app: socioprophet-api
     spec:
       containers:
         - name: api
-          image: ghcr.io/socioprophet/socioprophet-api:dev
+          image: ghcr.io/SocioProphet/socioprophet-api:dev
           imagePullPolicy: IfNotPresent
           env:
-            - name: TRITRPC_SOCK
+            - name: TRITRPC_LISTEN_ADDR
               valueFrom:
-                configMapKeyRef: { name: api-config, key: TRITRPC_SOCK }
+                configMapKeyRef:
+                  name: api-config
+                  key: TRITRPC_LISTEN_ADDR
+            - name: TRITRPC_ALLOW_INSECURE_DEV_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: TRITRPC_ALLOW_INSECURE_DEV_KEY
+            - name: TRITRPC_KEY_HEX
+              valueFrom:
+                secretKeyRef:
+                  name: tritrpc-shared-key
+                  key: TRITRPC_KEY_HEX
+                  optional: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -25,10 +40,9 @@ spec:
             runAsUser: 10001
           ports:
             - containerPort: 9000
-              name: uds
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: tmp
-          emptyDir: {}
+              name: tritrpc
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 2
+            periodSeconds: 5

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/MembraneDecision.v0.1.json",
+  "title": "MembraneDecision",
+  "type": "object",
+  "required": [
+    "version",
+    "decision_id",
+    "created_at",
+    "subject_ref",
+    "decision",
+    "policy_refs",
+    "receipt"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "decision_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "subject_ref": {
+      "type": "string"
+    },
+    "scope_ref": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "redact",
+        "quarantine"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "hash",
+        "algo"
+      ],
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "algo": {
+          "type": "string",
+          "enum": [
+            "sha256",
+            "blake3"
+          ]
+        }
+      }
+    },
+    "evidence_receipt_ref": {
+      "type": "string"
+    }
+  }
+}

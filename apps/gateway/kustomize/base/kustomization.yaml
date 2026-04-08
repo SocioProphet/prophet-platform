@@ -6,5 +6,6 @@ resources:
 configMapGenerator:
   - name: gateway-config
     literals:
-      - TRITRPC_SOCK=/tmp/socioprophet.sock
+      - TRITRPC_TARGET_ADDR=tcp://socioprophet-api:9000
       - GATEWAY_PORT=8080
+      - TRITRPC_ALLOW_INSECURE_DEV_KEY=0

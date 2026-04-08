@@ -1,0 +1,13 @@
+[Unit]
+Description=Lampstand local indexing daemon
+After=default.target
+
+[Service]
+Type=simple
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/.local/bin/pp-lampstand upstream daemon --rpc auto
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

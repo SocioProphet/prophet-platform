@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/EventEnvelope.v0.1.json",
+  "title": "EventEnvelope",
+  "type": "object",
+  "required": [
+    "version",
+    "envelope_id",
+    "created_at",
+    "event_type",
+    "producer",
+    "subject_ref",
+    "payload_ref"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "envelope_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "RFC3339 / ISO-8601 timestamp"
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "producer": {
+      "type": "string",
+      "description": "service or component id"
+    },
+    "scope_ref": {
+      "type": "string"
+    },
+    "subject_ref": {
+      "type": "string"
+    },
+    "payload_ref": {
+      "type": "string",
+      "description": "ref/hash/path to payload artifact or inline object ref"
+    },
+    "receipt_ref": {
+      "type": "string"
+    },
+    "correlation_id": {
+      "type": "string"
+    },
+    "trace_id": {
+      "type": "string"
+    },
+    "classifiers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

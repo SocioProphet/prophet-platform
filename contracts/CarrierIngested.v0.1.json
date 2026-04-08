@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/CarrierIngested.v0.1.json",
+  "title": "CarrierIngested",
+  "type": "object",
+  "required": [
+    "version",
+    "event_id",
+    "created_at",
+    "service_ref",
+    "carrier_ref",
+    "source_path",
+    "receipt"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "service_ref": {
+      "type": "string"
+    },
+    "carrier_ref": {
+      "type": "string"
+    },
+    "source_path": {
+      "type": "string"
+    },
+    "content_sha256": {
+      "type": "string"
+    },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scope_ref": {
+      "type": "string"
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "hash",
+        "algo"
+      ],
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "algo": {
+          "type": "string",
+          "enum": [
+            "sha256",
+            "blake3"
+          ]
+        }
+      }
+    },
+    "evidence_receipt_ref": {
+      "type": "string"
+    }
+  }
+}
