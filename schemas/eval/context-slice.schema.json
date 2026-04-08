@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/context-slice.schema.json",
+  "title": "ContextSlice",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "context_slice_id",
+    "length_bucket",
+    "modality_mix",
+    "ontology_depth_bucket",
+    "relation_chain_bucket",
+    "ambiguity_bucket",
+    "tool_count_bucket",
+    "freshness_requirement",
+    "latency_budget",
+    "cost_budget",
+    "risk_tier",
+    "autonomy_tier",
+    "domain"
+  ],
+  "properties": {
+    "context_slice_id": {"type": "string"},
+    "length_bucket": {"type": "string"},
+    "modality_mix": {
+      "type": "array",
+      "items": {"enum": ["text", "code", "image", "audio", "video", "table"]},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "ontology_depth_bucket": {"type": "string"},
+    "relation_chain_bucket": {"type": "string"},
+    "ambiguity_bucket": {"type": "string"},
+    "tool_count_bucket": {"type": "string"},
+    "freshness_requirement": {"enum": ["live_or_recent", "recent", "historical", "none"]},
+    "latency_budget": {"enum": ["realtime", "interactive", "batch"]},
+    "cost_budget": {"enum": ["low", "medium", "high"]},
+    "risk_tier": {"enum": ["low", "medium", "high", "critical"]},
+    "autonomy_tier": {"enum": ["chat_only", "tool_using_assistant", "tool_using_agent", "long_horizon_agent"]},
+    "domain": {"type": "string"}
+  }
+}

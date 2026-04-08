@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/judge-descriptor.schema.json",
+  "title": "JudgeDescriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["judge_descriptor_id", "judge_type", "version"],
+  "properties": {
+    "judge_descriptor_id": {"type": "string"},
+    "judge_type": {"enum": ["human", "rule_based", "model_as_judge", "hybrid"]},
+    "version": {"type": "string"},
+    "model_release_id": {"type": "string"},
+    "rubric_ref": {"type": "string"},
+    "notes": {"type": "string"}
+  }
+}
