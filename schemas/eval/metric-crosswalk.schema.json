@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/metric-crosswalk.schema.json",
+  "title": "MetricCrosswalk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["metric_crosswalk_id", "source_descriptor_id", "source_metric_name", "canonical_metric_definition_id"],
+  "properties": {
+    "metric_crosswalk_id": {"type": "string"},
+    "source_descriptor_id": {"type": "string"},
+    "source_metric_name": {"type": "string"},
+    "canonical_metric_definition_id": {"type": "string"},
+    "transform_notes": {"type": "string"}
+  }
+}

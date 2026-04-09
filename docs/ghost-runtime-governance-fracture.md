@@ -1,19 +1,26 @@
 # Ghost runtime governance and fracture integration
 
 ## Purpose
-This note describes how the Ghost control-plane contracts integrate into the runtime and deployment hub.
+This note describes how the Ghost control-plane contracts integrate into the runtime/deployment hub.
 
-## Ownership boundaries
-- `socioprophet-standards-storage` owns schemas and standards text.
-- `TriTRPC` owns fixture contracts and transport semantics.
-- `prophet-platform` owns runtime wrappers, workflows, and deployment-facing integration.
+## Boundaries
+- Standards and schemas live upstream in `socioprophet-standards-storage`.
+- Transport fixture contracts live upstream in `TriTRPC`.
+- This repository owns runtime harnesses, orchestration wrappers, and CI workflows.
 
-## Minimum runtime lane
-The runtime lane should be able to:
-1. run a registry-governance ceremony,
-2. run a runtime fracture lane,
-3. combine both into one CI-visible result,
-4. publish machine-readable reports as workflow artifacts.
+## Runtime lane
+The minimum runtime lane should be able to:
+1. emit Ghost runtime events
+2. validate signed Ghost artifacts
+3. run a fracture/failure lane
+4. run a governance + registry ceremony lane
+5. combine both into one CI-visible result
 
-## Initial landing
-This repository adds small wrappers and a workflow so the lane is visible now and can be replaced by the concrete runtime implementations as the upstream standards and fixtures are imported.
+## Initial implementation shape
+This repo adds:
+- `tools/registry_governance_ceremony_runner_v0_2.py`
+- `tools/combined_governance_fracture_ci_harness_v0_4.py`
+- `.github/workflows/ghost-governance-fracture.yml`
+
+## Intended follow-up
+Replace these wrappers with the fully wired runtime implementations once the upstream standards and fixtures are landed and vendored or consumed through a stable package path.

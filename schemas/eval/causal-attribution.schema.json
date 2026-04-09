@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/causal-attribution.schema.json",
+  "title": "CausalAttribution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["causal_attribution_id", "subject_id", "window", "attributions"],
+  "properties": {
+    "causal_attribution_id": {"type": "string"},
+    "subject_id": {"type": "string"},
+    "window": {"type": "string"},
+    "attributions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "model_delta": {"type": "number"},
+        "scaffold_delta": {"type": "number"},
+        "ontology_delta": {"type": "number"},
+        "retrieval_delta": {"type": "number"},
+        "benchmark_drift": {"type": "number"},
+        "judge_drift": {"type": "number"}
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

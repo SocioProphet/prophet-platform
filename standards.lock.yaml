@@ -4,7 +4,7 @@ metadata:
   name: prophet-platform
   purpose: external-standards-and-seed-lock
 spec:
-  status: draft
+  status: pinned
   policy:
     pinType: commit-sha
     allowBranchPins: false
@@ -31,7 +31,7 @@ spec:
         class: transport-standard
         channel: stable
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 7b9dac0b2e027d99a5a530c52765590b931eecca
           tag: null
         consume:
           docs:
@@ -57,7 +57,7 @@ spec:
         class: ontology-constraints-pack
         channel: controlled
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 0a3f7b402d1af21d6699d3fe6a6e657b9882e5af
           tag: null
         consume:
           docs:
@@ -75,7 +75,7 @@ spec:
         class: semantic-interop-pack
         channel: controlled
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 448576a15848a8a99d8d09d40f87b406ebdbc3cc
           tag: null
         consume:
           docs:
@@ -93,7 +93,7 @@ spec:
         class: storage-contracts-and-benchmarks
         channel: controlled
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 11c9edb33a421f2fbe3377515281f7e964aedc08
           tag: null
         consume:
           docs:
@@ -111,7 +111,7 @@ spec:
         repo: SocioProphet/identity-is-prime-reference
         class: design-reference
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: f6547fd68d07202a75a30db8b15b5deaeff6a5bd
           tag: null
         consume:
           docs:
@@ -130,7 +130,7 @@ spec:
         repo: SocioProphet/human-digital-twin
         class: design-reference
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: faee188fbf0e9d853e5c41fe2c06f81dfbf67974
           tag: null
         consume:
           docs:
@@ -148,7 +148,7 @@ spec:
         repo: SocioProphet/cairnpath-mesh
         class: contract-reference
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: e32545e46e3090711ac33eda027d7d4125f25891
           tag: null
         consume:
           generated_artifacts:
@@ -160,7 +160,7 @@ spec:
         repo: SocioProphet/graphbrain-contract
         class: contract-reference
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 6ef13d31a63fda84983998348f140bb887eb36c0
           tag: null
         consume:
           generated_artifacts:
@@ -173,7 +173,7 @@ spec:
         repo: SocioProphet/lampstand
         class: service-seed
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 6498266c7d819410bc57bfcf3441edb4d806ca75
           tag: null
         target: apps/lampstand
         rules:
@@ -186,7 +186,7 @@ spec:
         repo: SocioProphet/agentplane
         class: service-seed
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: 2daa7511a51baf3c18bd2a0ac0a5d57e57d404a0
           tag: null
         target: apps/agentplane
         rules:
@@ -198,7 +198,7 @@ spec:
         repo: SocioProphet/sociosphere
         class: coordination-source
         pin:
-          commit: REPLACE_WITH_PINNED_SHA
+          commit: c92df58f0b64cb74c6ecf2623f84e5c5fcf7c185
           tag: null
         target: apps/workspace-controller
         rules:
@@ -230,7 +230,7 @@ services:
   lampstand:
     classification: local-daemon
     repo: SocioProphet/lampstand
-    ref: REPLACE_WITH_PINNED_COMMIT
+    ref: 6498266c7d819410bc57bfcf3441edb4d806ca75
     notes:
       - upstream source staged under apps/lampstand/vendor/lampstand-src
       - transport remains upstream-managed; platform wrapper stays transport-neutral

@@ -1,0 +1,12 @@
+{
+  "repro_ledger_entry_id": "repro_001",
+  "run_id": "run_001",
+  "prompt_pack_id": "promptpack.eval.v2",
+  "fixture_snapshot_id": "fixture_ranked_001@sha256:abc123",
+  "tool_bundle_id": "tools.bundle.prod.v5",
+  "seed_policy": "three_trial_fixed_seed_set",
+  "environment_hash": "sha256:env-001",
+  "methodology_snapshot_hash": "sha256:helm-capabilities-2026-04-01",
+  "replay_artifact_id": "replay_001",
+  "notes": "Example reproducibility ledger entry for eval fabric runs."
+}

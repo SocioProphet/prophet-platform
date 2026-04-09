@@ -28,7 +28,7 @@ spec:
               value: default
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 5

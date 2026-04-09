@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/storage/PromotionReceipt.v0.1.json",
+  "title": "PromotionReceipt",
+  "type": "object",
+  "required": ["version", "promotion_run_id", "observation_id", "claim_id", "status"],
+  "properties": {
+    "version": {"const": "0.1"},
+    "promotion_run_id": {"type": "string"},
+    "observation_id": {"type": "string"},
+    "entity_ids": {"type": "array", "items": {"type": "string"}},
+    "claim_id": {"type": "string"},
+    "typedb_query_ref": {"type": "string"},
+    "status": {"type": "string"},
+    "created_at": {"type": "string"}
+  }
+}

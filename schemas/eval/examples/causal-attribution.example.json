@@ -1,0 +1,14 @@
+{
+  "causal_attribution_id": "causal_001",
+  "subject_id": "model.semantic-stack.2026-04-05",
+  "window": "rolling_30d",
+  "attributions": {
+    "model_delta": 0.03,
+    "scaffold_delta": 0.01,
+    "ontology_delta": 0.02,
+    "retrieval_delta": 0.00,
+    "benchmark_drift": -0.01,
+    "judge_drift": 0.00
+  },
+  "notes": "Example attribution decomposition for a profile score movement window."
+}

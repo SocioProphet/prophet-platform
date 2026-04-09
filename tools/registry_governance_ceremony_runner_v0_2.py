@@ -20,14 +20,17 @@ def main() -> int:
     args = parser.parse_args()
 
     report = {
-        "ok": True,
+        "placeholder": True,
+        "executed": False,
         "mode": "wrapper",
         "registry_bundle": args.registry_bundle,
         "governance_manifest": args.governance_manifest,
-        "message": "Replace wrapper logic with the concrete ceremony runner once upstream standards and fixture packages are imported here."
+        "message": "Placeholder wrapper only; no governance or fracture checks were executed. Replace wrapper logic with the concrete ceremony runner once upstream standards and fixture packages are imported here."
     }
 
-    Path(args.output).write_text(json.dumps(report, indent=2) + "\n")
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report))
     return 0
 

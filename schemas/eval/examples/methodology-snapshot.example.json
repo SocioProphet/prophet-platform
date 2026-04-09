@@ -1,0 +1,8 @@
+{
+  "methodology_snapshot_id": "ms_001",
+  "source_descriptor_id": "src_helm_capabilities",
+  "hash": "sha256:helm-capabilities-2026-04-01",
+  "captured_at": "2026-04-09T05:00:00Z",
+  "url": "https://crfm.stanford.edu/2025/03/20/helm-capabilities.html",
+  "notes": "Example methodology snapshot for external benchmark ingest."
+}

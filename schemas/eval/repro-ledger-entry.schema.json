@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/repro-ledger-entry.schema.json",
+  "title": "ReproLedgerEntry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repro_ledger_entry_id",
+    "run_id",
+    "environment_hash",
+    "methodology_snapshot_hash"
+  ],
+  "properties": {
+    "repro_ledger_entry_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "prompt_pack_id": {"type": "string"},
+    "fixture_snapshot_id": {"type": "string"},
+    "tool_bundle_id": {"type": "string"},
+    "seed_policy": {"type": "string"},
+    "environment_hash": {"type": "string"},
+    "methodology_snapshot_hash": {"type": "string"},
+    "replay_artifact_id": {"type": "string"},
+    "notes": {"type": "string"}
+  }
+}
