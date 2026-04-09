@@ -2,15 +2,17 @@
 
 `apps/` contains deployable runtime services and applications.
 
-## Current
+## Current runtime surfaces
 
-* `api`
-* `gateway`
-* `socioprophet-web`
+* `api` — internal TriTRPC bootstrap service
+* `gateway` — browser-facing ingress relay
+* `socioprophet-web` — portal shell
+* `eval-fabric-api` — platform evaluation, observability, and intelligence lane
+* `knowledge-reason` — governed claim-evaluation ingress scaffold
+* `lampstand` — local-daemon integration target with platform receipt/catalog emission
 
-## Planned imports
+## Planned imports / promotions
 
-* `lampstand`
 * `agentplane`
 * `workspace-controller`
 * `identity-prime`
