@@ -24,7 +24,7 @@ It does **not** replace dedicated standards repos. Instead, it carries the execu
 
 ## Proposed repo landing points
 
-- `apps/eval-fabric-api/` — FastAPI starter surface for frontier, dossier, radar, and health routes
+- `apps/eval-fabric-api/` — FastAPI surface for frontier, dossier, radar, and health/readiness routes
 - `infra/local/docker-compose.eval-fabric.yml` — local dev services for Postgres, ClickHouse, and the API
 - `infra/datastores/postgres/` — transactional DDL for control-plane state
 - `infra/datastores/clickhouse/` — analytical DDL for hot metric facts and ranking views
@@ -70,9 +70,7 @@ Use Postgres for transactional and control-plane state:
 - context slices
 - eval runs
 - trials
-- score policies
 - competitor snapshots
-- alerts
 
 ### ClickHouse
 
@@ -88,13 +86,12 @@ Replay artifacts, prompt packs, methodology snapshots, and proof traces should l
 
 ## Initial API surfaces
 
-The starter API should expose:
+The canonical API should expose:
 - `/healthz`
+- `/readyz`
 - `/v1/frontier`
 - `/v1/models/{model_release_id}/dossier`
 - `/v1/competition/radar`
-
-These routes are intentionally thin and seeded. They are here to anchor the platform lane and make the repo operationally responsible for this surface.
 
 ## Security and responsibility posture
 
@@ -107,7 +104,7 @@ The evaluation fabric should follow the repo-wide platform posture:
 
 ## Next platform steps
 
-1. Replace seeded API payloads with persisted reads from Postgres and ClickHouse.
-2. Add migrations and ingestion workers.
-3. Add judge metadata, reproducibility ledger entries, and causal attribution records.
-4. Add cluster overlays once the local lane is stable.
+1. Emit platform `EventEnvelope` / `EvidenceReceipt` artifacts for fabric operations that materially publish or refresh scored views.
+2. Add judge metadata, reproducibility ledger entries, and causal attribution records.
+3. Add dashboard and portal integration for frontier, dossier, and radar surfaces.
+4. Add cluster overlays to the main platform inventory once the unified runtime and tests are stable.

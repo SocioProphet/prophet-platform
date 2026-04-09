@@ -25,7 +25,9 @@ services:
       context: ../../apps/eval-fabric-api
     environment:
       POSTGRES_DSN: postgresql://prophet:prophet@postgres:5432/prophet_platform
-      CLICKHOUSE_DSN: http://clickhouse:8123
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_DATABASE: default
     ports:
       - "8080:8080"
     depends_on:
