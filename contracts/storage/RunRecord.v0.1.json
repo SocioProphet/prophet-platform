@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/storage/RunRecord.v0.1.json",
+  "title": "RunRecord",
+  "type": "object",
+  "required": ["version", "run_id", "run_type", "started_at", "status"],
+  "properties": {
+    "version": {"const": "0.1"},
+    "run_id": {"type": "string"},
+    "run_type": {"type": "string"},
+    "started_at": {"type": "string"},
+    "ended_at": {"type": "string"},
+    "status": {"type": "string"},
+    "input_snapshot_ref": {"type": "string"},
+    "output_snapshot_ref": {"type": "string"},
+    "metrics": {"type": "object", "additionalProperties": true}
+  }
+}
