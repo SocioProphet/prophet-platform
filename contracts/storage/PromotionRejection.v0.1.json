@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/storage/PromotionRejection.v0.1.json",
+  "title": "PromotionRejection",
+  "type": "object",
+  "required": ["version", "rejection_id", "observation_id", "rejection_code", "rejection_reason"],
+  "properties": {
+    "version": {"const": "0.1"},
+    "rejection_id": {"type": "string"},
+    "observation_id": {"type": "string"},
+    "rejection_code": {"type": "string"},
+    "rejection_reason": {"type": "string"},
+    "validator_ref": {"type": "string"},
+    "created_at": {"type": "string"}
+  }
+}
