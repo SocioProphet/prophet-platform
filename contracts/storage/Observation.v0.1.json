@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/storage/Observation.v0.1.json",
+  "title": "Observation",
+  "type": "object",
+  "required": [
+    "version",
+    "observation_id",
+    "source_system",
+    "observed_at",
+    "normalized_payload",
+    "content_hash",
+    "identity_hash",
+    "state"
+  ],
+  "properties": {
+    "version": {"const": "0.1"},
+    "observation_id": {"type": "string"},
+    "source_system": {"type": "string"},
+    "source_record_id": {"type": "string"},
+    "observed_at": {"type": "string"},
+    "normalized_payload": {"type": "object", "additionalProperties": true},
+    "trust_class": {"type": "string"},
+    "content_hash": {"type": "string"},
+    "identity_hash": {"type": "string"},
+    "lineage_hash": {"type": "string"},
+    "state": {"type": "string"},
+    "created_at": {"type": "string"}
+  }
+}
