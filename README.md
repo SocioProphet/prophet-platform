@@ -26,8 +26,23 @@ make smoke-health
 1. `docs/ARCHITECTURE.md`
 2. `docs/TRITRPC_SPEC.md`
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
-4. `contracts/`
-5. `infra/k8s/`
+4. `docs/PLATFORM_EVAL_FABRIC.md`
+5. `contracts/`
+6. `infra/k8s/`
+
+## Evaluation fabric lane
+
+The platform also carries a first-class **evaluation, observability, and competition-intelligence lane**.
+
+Start here:
+- `docs/PLATFORM_EVAL_FABRIC.md`
+- `docs/LOCAL_DEV_EVAL_FABRIC.md`
+- `docs/EVAL_FABRIC_GOVERNANCE.md`
+- `apps/eval-fabric-api/`
+- `schemas/eval/`
+- `infra/local/docker-compose.eval-fabric.unified.yml`
+
+This lane is platform responsibility, not a detached benchmark pack. It owns the container, datastore, schema, and API bootstrap for platform-level ranking, replay, and intelligence work.
 
 ## Notes on this phase
 
