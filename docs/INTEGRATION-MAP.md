@@ -16,10 +16,17 @@ Pinned upstream inputs include:
 
 ## Current runtime layers
 
-- `apps/api` -> internal bootstrap service
+- `apps/api` -> internal TriTRPC bootstrap service
 - `apps/gateway` -> browser-facing ingress relay
 - `apps/socioprophet-web` -> portal shell
-- `apps/lampstand` -> local daemon integration target
+- `apps/eval-fabric-api` -> evaluation, observability, and intelligence lane backed by Postgres + ClickHouse
+- `apps/knowledge-reason` -> governed claim-evaluation ingress scaffold
+- `apps/lampstand` -> local-daemon integration target and receipt catalog emitter
+
+## Data and schema anchors
+
+- `contracts/` -> platform event, evidence, membrane, export, and receipt contracts
+- `schemas/eval/` -> eval-fabric metric, fact, context-slice, and judge schemas
 
 ## Contract spine
 
