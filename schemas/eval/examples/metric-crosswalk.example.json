@@ -1,0 +1,7 @@
+{
+  "metric_crosswalk_id": "crosswalk_001",
+  "source_descriptor_id": "src_provider_openai_system_card",
+  "source_metric_name": "SimpleQA accuracy",
+  "canonical_metric_definition_id": "md_factoid_accuracy",
+  "transform_notes": "Example mapping from a provider-facing benchmark label into the platform canonical metric registry."
+}
