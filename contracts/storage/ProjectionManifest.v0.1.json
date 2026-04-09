@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/storage/ProjectionManifest.v0.1.json",
+  "title": "ProjectionManifest",
+  "type": "object",
+  "required": ["version", "projection_manifest_id", "projection_kind", "generated_at", "object_count"],
+  "properties": {
+    "version": {"const": "0.1"},
+    "projection_manifest_id": {"type": "string"},
+    "projection_kind": {"type": "string"},
+    "generated_at": {"type": "string"},
+    "source_observation_id": {"type": "string"},
+    "source_claim_id": {"type": "string"},
+    "object_count": {"type": "integer", "minimum": 0},
+    "hash_rollup": {"type": "string"},
+    "target_store": {"type": "string"}
+  }
+}
