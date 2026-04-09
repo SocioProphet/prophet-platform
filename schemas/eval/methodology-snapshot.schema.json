@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/methodology-snapshot.schema.json",
+  "title": "MethodologySnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["methodology_snapshot_id", "source_descriptor_id", "hash", "captured_at"],
+  "properties": {
+    "methodology_snapshot_id": {"type": "string"},
+    "source_descriptor_id": {"type": "string"},
+    "hash": {"type": "string"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "url": {"type": "string"},
+    "notes": {"type": "string"}
+  }
+}
