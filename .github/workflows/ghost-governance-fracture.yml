@@ -9,6 +9,9 @@ on:
       - 'docs/ghost-runtime-governance-fracture.md'
       - '.github/workflows/ghost-governance-fracture.yml'
 
+permissions:
+  contents: read
+
 jobs:
   ghost-control-plane:
     runs-on: ubuntu-latest
