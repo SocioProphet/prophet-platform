@@ -28,6 +28,8 @@ services:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_DATABASE: default
+      EVAL_FABRIC_EMIT_RECEIPTS: "1"
+      SOCIOPROFIT_STATE_HOME: /tmp/prophet-platform-state
     ports:
       - "8080:8080"
     depends_on:

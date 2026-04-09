@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 import app.main as main
@@ -50,6 +52,22 @@ def test_frontier_uses_repository(monkeypatch):
     assert payload["profile_id"] == "profile.high_assurance_enterprise_agent"
     assert payload["subjects"] == expected
     assert payload["source"] == "clickhouse"
+
+
+def test_frontier_emits_receipt_headers(monkeypatch, tmp_path):
+    expected = [{"subject_id": "model.semantic-stack.2026-04-05", "score": 0.782, "rank": 2}]
+    monkeypatch.setenv("EVAL_FABRIC_EMIT_RECEIPTS", "1")
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.setattr(main.repositories, "get_frontier", lambda *args, **kwargs: expected)
+
+    resp = client.get("/v1/frontier")
+    assert resp.status_code == 200
+    payload_ref = resp.headers["X-Payload-Ref"]
+    event_ref = resp.headers["X-Event-Envelope-Ref"]
+    receipt_ref = resp.headers["X-Evidence-Receipt-Ref"]
+    assert Path(payload_ref.removeprefix("file://")).exists()
+    assert Path(event_ref.removeprefix("file://")).exists()
+    assert Path(receipt_ref.removeprefix("file://")).exists()
 
 
 def test_dossier_uses_repository(monkeypatch):

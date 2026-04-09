@@ -16,7 +16,7 @@ This repo is the platform and infrastructure hub. The evaluation fabric is not j
 It owns:
 - metric and score schemas used by platform services
 - local and cluster wiring for supporting datastores
-- seeded API surfaces for platform-level dashboards
+- API surfaces for platform-level dashboards
 - replay/provenance hooks for operational review
 - profile-based ranking logic for internal decision support
 
@@ -84,9 +84,10 @@ Use ClickHouse for analytical and time-series workloads:
 
 Replay artifacts, prompt packs, methodology snapshots, and proof traces should live outside these databases and be referenced by durable IDs.
 
-## Initial API surfaces
+The current local platform path now emits local `EventEnvelope` / `EvidenceReceipt` artifacts for business-route reads when receipt emission is enabled.
 
-The canonical API should expose:
+## Canonical API surfaces
+
 - `/healthz`
 - `/readyz`
 - `/v1/frontier`
@@ -104,7 +105,7 @@ The evaluation fabric should follow the repo-wide platform posture:
 
 ## Next platform steps
 
-1. Emit platform `EventEnvelope` / `EvidenceReceipt` artifacts for fabric operations that materially publish or refresh scored views.
+1. Route emitted eval-fabric artifacts into broader platform event/evidence consumers and dashboard refresh flows.
 2. Add judge metadata, reproducibility ledger entries, and causal attribution records.
 3. Add dashboard and portal integration for frontier, dossier, and radar surfaces.
 4. Add cluster overlays to the main platform inventory once the unified runtime and tests are stable.
