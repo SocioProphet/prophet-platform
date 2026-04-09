@@ -1,0 +1,32 @@
+name: ghost-governance-fracture
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/registry_governance_ceremony_runner_v0_2.py'
+      - 'tools/combined_governance_fracture_ci_harness_v0_4.py'
+      - 'docs/ghost-runtime-governance-fracture.md'
+      - '.github/workflows/ghost-governance-fracture.yml'
+
+jobs:
+  ghost-control-plane:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run registry governance ceremony wrapper
+        run: |
+          python tools/registry_governance_ceremony_runner_v0_2.py --output registry_governance_ceremony_report.json
+      - name: Run combined governance + fracture wrapper
+        run: |
+          python tools/combined_governance_fracture_ci_harness_v0_4.py --output combined_governance_fracture_ci_report.json
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-governance-fracture-reports
+          path: |
+            registry_governance_ceremony_report.json
+            combined_governance_fracture_ci_report.json
