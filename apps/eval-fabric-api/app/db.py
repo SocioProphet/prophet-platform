@@ -1,12 +1,38 @@
 from __future__ import annotations
 
 import os
+import time
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlparse
 
 import clickhouse_connect
 import psycopg
 from psycopg.rows import dict_row
+
+# Health check results are cached for this many seconds to avoid creating
+# a new DB connection on every K8s readiness probe (default period: 5 s).
+_HEALTH_TTL: float = float(os.getenv("HEALTH_CACHE_TTL_S", "10"))
+
+# { check_name -> (monotonic_timestamp, result_dict) }
+_health_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def clear_health_cache() -> None:
+    """Evict all cached health results. Intended for test isolation."""
+    _health_cache.clear()
+
+
+def _cached_health(key: str, fn: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+    now = time.monotonic()
+    entry = _health_cache.get(key)
+    if entry is not None:
+        ts, result = entry
+        if now - ts < _HEALTH_TTL:
+            return result
+    result = fn()
+    _health_cache[key] = (now, result)
+    return result
 
 
 def _postgres_dsn() -> str:
@@ -49,16 +75,20 @@ def ch_query(sql: str, parameters: dict[str, Any] | None = None) -> list[dict[st
 
 
 def pg_health() -> dict[str, Any]:
-    try:
-        rows = pg_fetch("select 1 as ok")
-        return {"ok": len(rows) == 1}
-    except Exception as exc:  # pragma: no cover
-        return {"ok": False, "error": str(exc)}
+    def _check() -> dict[str, Any]:
+        try:
+            rows = pg_fetch("select 1 as ok")
+            return {"ok": len(rows) == 1}
+        except Exception as exc:  # pragma: no cover
+            return {"ok": False, "error": str(exc)}
+    return _cached_health("postgres", _check)
 
 
 def ch_health() -> dict[str, Any]:
-    try:
-        rows = ch_query("select 1 as ok")
-        return {"ok": len(rows) == 1}
-    except Exception as exc:  # pragma: no cover
-        return {"ok": False, "error": str(exc)}
+    def _check() -> dict[str, Any]:
+        try:
+            rows = ch_query("select 1 as ok")
+            return {"ok": len(rows) == 1}
+        except Exception as exc:  # pragma: no cover
+            return {"ok": False, "error": str(exc)}
+    return _cached_health("clickhouse", _check)
