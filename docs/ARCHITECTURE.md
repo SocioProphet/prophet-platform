@@ -19,6 +19,24 @@ The current stable TriTRPC v1 Go port computes AEAD tags over the envelope and a
 - `apps/api`: minimal TriTRPC v1 service that accepts `platform.health.v1 / Health.Ping.REQ` and returns `Health.Ping.RES`.
 - `apps/gateway`: minimal HTTP edge that calls the internal health route over the platform TriTRPC binding.
 - `apps/socioprophet-web`: browser shell that hits the gateway.
+- `apps/eval-fabric-api`: platform evaluation, observability, and competition-intelligence API surface for frontier, dossier, radar, and health routes.
+
+## Evaluation and intelligence lane
+
+The evaluation fabric is part of platform responsibility. It is not a detached benchmark pack.
+
+Current platform landing points:
+- `apps/eval-fabric-api/`
+- `infra/datastores/postgres/`
+- `infra/datastores/clickhouse/`
+- `infra/local/docker-compose.eval-fabric.unified.yml`
+- `schemas/eval/`
+- `docs/PLATFORM_EVAL_FABRIC.md`
+
+Responsibility split:
+- **Postgres** holds transactional and control-plane state.
+- **ClickHouse** holds hot analytical metric facts and profile-score style outputs.
+- **Replay / provenance objects** are defined under `schemas/eval/` and are intended to be surfaced through API and score-pipeline work.
 
 ## Next service target
 

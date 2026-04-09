@@ -1,4 +1,4 @@
-# Roadmap (Initial 11 Steps)
+# Roadmap (Initial 14 Steps)
 
 1) Ship a minimal TritRPC library and drop it into `apps/api` (replace plaintext).
 2) Add AEAD key management (env→K8s Secret→sealed-secret).
@@ -11,3 +11,6 @@
 9) Wire Argo CD app-of-apps to dev/prod overlays.
 10) Add perf budget checks (latency/CPU/mem) to CI.
 11) Stand up canary deployments (progressive delivery) via Argo Rollouts.
+12) Promote the eval-fabric lane from local bootstrap to migration-backed platform service.
+13) Wire provenance and governance objects into score computation, replay, and competition-intelligence ingest.
+14) Surface reproduced-vs-claimed deltas and trust/freshness-aware ranking in platform dashboards.
