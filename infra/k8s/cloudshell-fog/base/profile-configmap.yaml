@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudshell-fog-profile
+  namespace: cloudshell-system
+  labels:
+    app.kubernetes.io/name: cloudshell-fog
+    app.kubernetes.io/part-of: prophet-platform
+data:
+  deployment_profile: standard
+  minimum_trust_tier: managed_cloud
+  strict_egress: "false"
+  require_fips_validated_crypto: "false"
+  notes: |
+    This ConfigMap is a platform-side deployment profile placeholder.
+    Upstream product/spec ownership remains in SocioProphet/cloudshell-fog.
