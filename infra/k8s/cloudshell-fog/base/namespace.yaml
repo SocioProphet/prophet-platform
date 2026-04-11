@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudshell-system
+  labels:
+    app.kubernetes.io/name: cloudshell-fog
+    app.kubernetes.io/part-of: prophet-platform
+    cloudshell.socioprophet.io/profile: standard
