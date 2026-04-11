@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudshell-fog-policy
+  namespace: cloudshell-system
+  labels:
+    app.kubernetes.io/name: cloudshell-fog
+    app.kubernetes.io/part-of: prophet-platform
+data:
+  policy.yaml: |
+    profiles:
+      - name: default
+        cpu: "500m"
+        memory: "512Mi"
+        storage: "1Gi"
+        max_ttl_seconds: 3600
+        max_sessions: 3
