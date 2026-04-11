@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/session-events-v0.json",
+  "title": "cloudshell-fog session event v0",
+  "type": "object",
+  "required": ["ts", "session_id", "subject", "type"],
+  "properties": {
+    "ts": {"type": "string", "format": "date-time"},
+    "session_id": {"type": "string"},
+    "subject": {"type": "string"},
+    "type": {
+      "type": "string",
+      "enum": [
+        "session.created",
+        "session.attached",
+        "session.terminated",
+        "placement.decided",
+        "runtime.allocated",
+        "policy.denied"
+      ]
+    },
+    "placement": {
+      "type": ["object", "null"],
+      "properties": {
+        "node_id": {"type": "string"},
+        "region": {"type": "string"},
+        "tier": {"type": "string"},
+        "trust_tier": {"type": "string"},
+        "fallback": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "details": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
