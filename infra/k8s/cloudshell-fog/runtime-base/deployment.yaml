@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshell-fog-gateway
+  namespace: cloudshell-system
+  labels:
+    app.kubernetes.io/name: cloudshell-fog
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: prophet-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudshell-fog-gateway
+  template:
+    metadata:
+      labels:
+        app: cloudshell-fog-gateway
+        app.kubernetes.io/name: cloudshell-fog
+        app.kubernetes.io/component: gateway
+        app.kubernetes.io/part-of: prophet-platform
+    spec:
+      serviceAccountName: cloudshell-fog-gateway
+      containers:
+        - name: gateway
+          image: ghcr.io/socioprophet/cloudshell-fog@sha256:REPLACE_WITH_PINNED_DIGEST
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: LISTEN_ADDR
+              value: ":8080"
+            - name: GATEWAY_URL
+              value: "wss://shell.example.com"
+            - name: POLICY_CONFIG
+              value: "/etc/cloudshell/config/policy.yaml"
+            - name: CLOUD_FALLBACK_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: cloudshell-fog-profile
+                  key: minimum_trust_tier
+            - name: OIDC_ISSUER_URL
+              value: "https://REPLACE_WITH_OIDC_ISSUER"
+            - name: OIDC_CLIENT_ID
+              value: "cloudshell-fog"
+          volumeMounts:
+            - name: policy-config
+              mountPath: /etc/cloudshell/config
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: policy-config
+          configMap:
+            name: cloudshell-fog-policy
