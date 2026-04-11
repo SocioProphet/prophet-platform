@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - target:
+      kind: ConfigMap
+      name: cloudshell-fog-profile
+    patch: |-
+      - op: replace
+        path: /data/deployment_profile
+        value: federal
+      - op: replace
+        path: /data/minimum_trust_tier
+        value: attested_fog
+      - op: replace
+        path: /data/strict_egress
+        value: "true"
+      - op: replace
+        path: /data/require_fips_validated_crypto
+        value: "true"
