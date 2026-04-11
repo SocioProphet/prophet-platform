@@ -39,7 +39,7 @@ Start here:
 - `docs/LOCAL_DEV_EVAL_FABRIC.md`
 - `docs/EVAL_FABRIC_GOVERNANCE.md`
 - `apps/eval-fabric-api/`
-- `schemas/eval/`
+- `schemas/eval/README.md` for the evaluation schema catalog, including metric/context schemas and governance/provenance schemas such as `ReproLedgerEntry`, `CausalAttribution`, `MethodologySnapshot`, and `MetricCrosswalk`
 - `infra/local/docker-compose.eval-fabric.unified.yml`
 
 This lane is platform responsibility, not a detached benchmark pack. It owns the container, datastore, schema, and API bootstrap for platform-level ranking, replay, and intelligence work.
