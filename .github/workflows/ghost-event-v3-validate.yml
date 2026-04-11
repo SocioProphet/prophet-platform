@@ -10,6 +10,9 @@ on:
       - 'docs/ghost-event-v3-runtime.md'
       - '.github/workflows/ghost-event-v3-validate.yml'
 
+permissions:
+  contents: read
+
 jobs:
   validate-ghost-event-v3:
     runs-on: ubuntu-latest
