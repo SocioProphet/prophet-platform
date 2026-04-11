@@ -1,0 +1,26 @@
+name: ghost-event-v3-validate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/validate_ghost_event_v3.py'
+      - 'tools/emit_ghost_event_v3_concrete.py'
+      - 'examples/ghost_event_v3.sample.json'
+      - 'docs/ghost-event-v3-runtime.md'
+      - '.github/workflows/ghost-event-v3-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ghost-event-v3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate sample GhostEventV3
+        run: |
+          python tools/validate_ghost_event_v3.py examples/ghost_event_v3.sample.json
