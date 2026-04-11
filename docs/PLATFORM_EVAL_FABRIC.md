@@ -25,7 +25,7 @@ It does **not** replace dedicated standards repos. Instead, it carries the execu
 ## Proposed repo landing points
 
 - `apps/eval-fabric-api/` — FastAPI starter surface for frontier, dossier, radar, and health routes
-- `infra/local/docker-compose.eval-fabric.yml` — local dev services for Postgres, ClickHouse, and the API
+- `infra/local/docker-compose.eval-fabric.unified.yml` — unified local dev services for Postgres, ClickHouse, and the API
 - `infra/datastores/postgres/` — transactional DDL for control-plane state
 - `infra/datastores/clickhouse/` — analytical DDL for hot metric facts and ranking views
 - `schemas/eval/` — canonical JSON schemas for metric definitions, metric facts, and context slices
