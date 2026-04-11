@@ -1,0 +1,26 @@
+{
+  "event_id": "evt_v3_runtime_0001",
+  "event_type": "layer_touch",
+  "run_id": "run_v3_runtime_0001",
+  "trace_id": "trace_v3_runtime_0001",
+  "span_id": "span_v3_runtime_0001",
+  "timestamp": "1970-01-01T00:00:00Z",
+  "layer_id": "S1",
+  "theta_ref": null,
+  "scope_ref": null,
+  "policy_ref": null,
+  "registry_ref": null,
+  "prime_registry_ref": "sp.prime_topic_registry.v1@1.1.0",
+  "prime_registry_state_hash": "sha256:REGISTRYSTATE",
+  "event_ir_hash": "sha256:EVENTIR",
+  "prime_vector": [
+    { "basis_index": 0, "topic_id": "topic:identity_prime", "prime": 2, "exponent": 1 }
+  ],
+  "artifact_refs": [],
+  "canonical_hash": null,
+  "payload": {
+    "step_name": "runtime",
+    "state_ref": "state:runtime",
+    "confidence": 1.0
+  }
+}
