@@ -1,13 +1,16 @@
-# Roadmap (Current 11 Steps)
+# Roadmap (Initial 14 Steps)
 
-1) Converge `eval-fabric-api` on one canonical default runtime and keep seeded/persisted alternates non-default.
-2) Replace placeholder pins in `standards.lock.yaml` with real commits and generated artifact diffs.
-3) Add AEAD key management (env -> K8s Secret -> sealed-secret / equivalent).
-4) Define formal IDL for TriTRPC and codegen stubs.
-5) Add structured logging with redaction + audit/correlation IDs.
-6) Wire eval-fabric outputs onto the platform `EventEnvelope` / `EvidenceReceipt` spine.
-7) Expose Lampstand discovery/receipt catalog through a platform service boundary.
-8) Introduce runtime receipt verification and policy flow for `knowledge-reason`.
-9) Wire Argo CD app-of-apps to dev/prod overlays, including additional services once they are canonicalized.
-10) Add perf budget checks (latency/CPU/memory) to CI.
-11) Stand up canary deployments / progressive delivery for cluster services.
+1) Ship a minimal TritRPC library and drop it into `apps/api` (replace plaintext).
+2) Add AEAD key management (env→K8s Secret→sealed-secret).
+3) Define formal IDL for TritRPC (proto-like schema) and codegen stubs.
+4) Implement server-streaming for LLM output.
+5) Add structured logging with redaction + audit IDs.
+6) Harden gateway with mTLS at the edge and strict route allow-list.
+7) Introduce multi-tenant authn/z (OIDC provider; edge only).
+8) Add e2e tests that spawn UDS server + gateway and probe basic RPCs.
+9) Wire Argo CD app-of-apps to dev/prod overlays.
+10) Add perf budget checks (latency/CPU/mem) to CI.
+11) Stand up canary deployments (progressive delivery) via Argo Rollouts.
+12) Promote the eval-fabric lane from local bootstrap to migration-backed platform service.
+13) Wire provenance and governance objects into score computation, replay, and competition-intelligence ingest.
+14) Surface reproduced-vs-claimed deltas and trust/freshness-aware ranking in platform dashboards.
