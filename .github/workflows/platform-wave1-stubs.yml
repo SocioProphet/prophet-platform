@@ -5,6 +5,9 @@ on:
   push:
     branches: [ platform-contracts-stubs ]
 
+permissions:
+  contents: read
+
 jobs:
   wave1-stubs:
     runs-on: ubuntu-latest
