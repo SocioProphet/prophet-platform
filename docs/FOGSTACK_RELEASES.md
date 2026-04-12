@@ -4,9 +4,11 @@ This document defines the smallest release-discipline surface for Fog Stack arti
 
 ## Scope of this phase
 
-This phase covers the initial upstream Access slice only:
+This phase currently covers the upstream Access and Knowledge slices:
 - `bundles/fogstack.access-v0.1.yaml`
 - `conformance/rulepacks/fogstack.access-v0.1.yaml`
+- `bundles/fogstack.knowledge-v0.1.yaml`
+- `conformance/rulepacks/fogstack.knowledge-v0.1.yaml`
 - `tools/fogstack_verify.py`
 - `tools/validate_fogstack.py`
 
@@ -21,7 +23,7 @@ Fog Stack artifacts inherit the same broad release posture as the platform, but 
 - `stable` — accepted shape with an established validation path
 - `deprecated` — superseded; removal announced in advance
 
-The initial Access slice is `preview`.
+The initial Access and Knowledge slices are `preview`.
 
 ## Minimum release conditions for a bundle
 
