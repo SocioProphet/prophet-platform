@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prophet-platform-semantic-bridge"
+version = "0.1.0"
+description = "Semantic contract validation bridge for Prophet Platform"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pp-semantic-bridge = "semantic_bridge.main:main"
