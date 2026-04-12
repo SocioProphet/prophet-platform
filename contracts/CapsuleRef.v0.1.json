@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/CapsuleRef.v0.1.json",
+  "title": "CapsuleRef",
+  "type": "object",
+  "required": [
+    "version",
+    "capsule_id",
+    "capsule_digest",
+    "capsule_version",
+    "namespace",
+    "policy_pack_refs"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "capsule_id": { "type": "string" },
+    "capsule_digest": { "type": "string" },
+    "capsule_version": { "type": "string" },
+    "namespace": { "type": "string" },
+    "policy_pack_refs": { "type": "array", "items": { "type": "string" } },
+    "signing": {
+      "type": "object",
+      "properties": {
+        "key_ref": { "type": "string" },
+        "sig_ref": { "type": "string" },
+        "algo": { "type": "string" }
+      }
+    }
+  }
+}
