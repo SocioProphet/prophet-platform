@@ -1,0 +1,64 @@
+schema_version: "fogstack.bundle/v0.1"
+kind: "FogStackBundle"
+metadata:
+  bundle_id: "fogstack.evaluation"
+  version: "0.1.0"
+  display_name: "Fog Stack Evaluation"
+  summary: "Platform evaluation, observability, and intelligence bundle deployed on Prophet Platform substrate."
+  source_repositories:
+    - "SocioProphet/prophet-platform"
+
+claims:
+  government_grade_hygiene: true
+  self_hostable: true
+  standalone_first_value: true
+  federated_supported: false
+  intelligent_mode: "suggest"
+
+runtime:
+  substrate: "prophet-platform"
+  service_classes:
+    - "cluster-service"
+  components:
+    - id: "apps/eval-fabric-api"
+      role: "evaluation-api"
+    - id: "infra/datastores/postgres"
+      role: "control-plane-datastore"
+    - id: "infra/datastores/clickhouse"
+      role: "analytics-datastore"
+
+contracts:
+  required:
+    - "EventEnvelope"
+    - "EvidenceReceipt"
+
+profiles:
+  supported:
+    - id: "local-dev"
+      status: "supported"
+      kubernetes_required: false
+      root_required: false
+    - id: "cluster-standard"
+      status: "supported"
+      kubernetes_required: true
+      root_required: false
+
+deployment:
+  minimum_nodes_for_first_value: 1
+  max_required_services: 3
+  install_time_target_minutes: 30
+
+security:
+  identities:
+    operator_identity: true
+    node_identity: true
+    workload_identity: true
+    peer_identity: false
+  supply_chain:
+    signed_artifacts: true
+    sbom_required: true
+    provenance_required: true
+
+lifecycle:
+  channel: "preview"
+  support_state: "community"

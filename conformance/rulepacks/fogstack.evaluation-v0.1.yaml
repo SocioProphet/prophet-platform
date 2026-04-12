@@ -1,0 +1,57 @@
+schema_version: "fogstack.rulepack/v0.1"
+kind: "FogStackRulepack"
+metadata:
+  rulepack_id: "fogstack.evaluation"
+  version: "0.1.0"
+  target_bundle_id: "fogstack.evaluation"
+
+rules:
+  - id: "EVAL-001"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.government_grade_hygiene"
+
+  - id: "EVAL-002"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.self_hostable"
+
+  - id: "EVAL-003"
+    severity: "critical"
+    check:
+      op: "path_not_in"
+      path: "claims.intelligent_mode"
+      values: ["unrestricted"]
+
+  - id: "EVAL-004"
+    severity: "error"
+    check:
+      op: "path_contains_all"
+      path: "runtime.service_classes"
+      values: ["cluster-service"]
+
+  - id: "EVAL-005"
+    severity: "error"
+    check:
+      op: "path_contains_all"
+      path: "contracts.required"
+      values: ["EventEnvelope", "EvidenceReceipt"]
+
+  - id: "EVAL-006"
+    severity: "critical"
+    check:
+      op: "supported_profiles_any_match"
+      path: "profiles.supported"
+      criteria:
+        id: "local-dev"
+        kubernetes_required: false
+        root_required: false
+
+  - id: "EVAL-007"
+    severity: "error"
+    check:
+      op: "path_lte"
+      path: "deployment.max_required_services"
+      value: 3
