@@ -1,0 +1,45 @@
+version: 1
+object_families:
+  environment_topology:
+    - site
+    - zone
+    - room
+    - node
+    - interface
+    - radio
+    - sensor
+    - trust_domain
+    - node_group
+    - topology_edge
+    - risk_zone
+    - deployment_profile
+  device_telemetry:
+    - device_model
+    - device_instance
+    - twin_state
+    - telemetry_stream
+    - flow
+    - interference_event
+    - posture_event
+    - network_denied_flow
+    - runtime_security_event
+  artifact_release:
+    - artifact
+    - provenance_record
+    - sbom_reference
+    - signature_record
+    - promotion_event
+    - compatibility_map
+    - environment_usage_record
+  identity_plane:
+    - principal
+    - capability
+    - delegation_contract
+    - attestation
+    - revocation
+required_deepdive_modes:
+  - repo_deepdive_report
+  - environment_deepdive_report
+  - artifact_release_deepdive_report
+  - room_controlplane_deepdive_report
+  - case_deepdive_report
