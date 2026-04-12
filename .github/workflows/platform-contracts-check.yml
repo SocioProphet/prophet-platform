@@ -5,6 +5,9 @@ on:
   push:
     branches: [ main, platform-contracts-stubs ]
 
+permissions:
+  contents: read
+
 jobs:
   platform-contracts-check:
     runs-on: ubuntu-latest
