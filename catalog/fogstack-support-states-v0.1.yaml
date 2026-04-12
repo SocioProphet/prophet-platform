@@ -1,0 +1,22 @@
+schema_version: "fogstack.support-state/v0.1"
+kind: "FogStackSupportStates"
+updated_from_branch: "fogstack-evaluation-v0-1"
+offerings:
+  - bundle_id: "fogstack.access"
+    version: "0.1.0"
+    channel: "preview"
+    support_state: "community"
+    review_unit: 25
+    lifecycle_status: "draft-upstream"
+  - bundle_id: "fogstack.knowledge"
+    version: "0.1.0"
+    channel: "preview"
+    support_state: "community"
+    review_unit: 26
+    lifecycle_status: "draft-upstream"
+  - bundle_id: "fogstack.evaluation"
+    version: "0.1.0"
+    channel: "preview"
+    support_state: "community"
+    review_unit: 27
+    lifecycle_status: "draft-upstream"
