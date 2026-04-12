@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshell-fog-gateway
+  namespace: cloudshell-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: gateway
+          env:
+            - name: CLOUD_FALLBACK_REGION
+              value: us-east-1
