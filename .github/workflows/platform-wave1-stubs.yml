@@ -1,0 +1,24 @@
+name: platform-wave1-stubs
+
+on:
+  pull_request:
+  push:
+    branches: [ platform-contracts-stubs ]
+
+jobs:
+  wave1-stubs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip fastapi==0.115.0 uvicorn==0.30.6 pytest
+
+      - name: Run Wave 1 stub smoke tests
+        run: pytest -q tests/platform_stubs/test_wave1_stubs.py
