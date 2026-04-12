@@ -1,0 +1,68 @@
+schema_version: "fogstack.rulepack/v0.1"
+kind: "FogStackRulepack"
+metadata:
+  rulepack_id: "fogstack.access"
+  version: "0.1.0"
+  target_bundle_id: "fogstack.access"
+
+rules:
+  - id: "ACCESS-001"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.government_grade_hygiene"
+
+  - id: "ACCESS-002"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.self_hostable"
+
+  - id: "ACCESS-003"
+    severity: "critical"
+    check:
+      op: "path_not_in"
+      path: "claims.intelligent_mode"
+      values: ["unrestricted"]
+
+  - id: "ACCESS-004"
+    severity: "error"
+    check:
+      op: "path_contains_all"
+      path: "runtime.service_classes"
+      values: ["edge-service", "cluster-service"]
+
+  - id: "ACCESS-005"
+    severity: "critical"
+    check:
+      op: "array_objects_field_contains_all"
+      path: "contracts.required"
+      field: ""
+      values: []
+    when:
+      path: "metadata.bundle_id"
+      equals: "__skip__"
+
+  - id: "ACCESS-006"
+    severity: "error"
+    check:
+      op: "path_contains_all"
+      path: "contracts.required"
+      values: ["EventEnvelope", "EvidenceReceipt", "MembraneDecision"]
+
+  - id: "ACCESS-007"
+    severity: "critical"
+    check:
+      op: "supported_profiles_any_match"
+      path: "profiles.supported"
+      criteria:
+        id: "local-dev"
+        kubernetes_required: false
+        root_required: false
+
+  - id: "ACCESS-008"
+    severity: "error"
+    check:
+      op: "path_lte"
+      path: "deployment.max_required_services"
+      value: 3
