@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/QueryRequest.v0.1.json",
+  "title": "QueryRequest",
+  "type": "object",
+  "required": ["version", "event_id", "created_at", "query_text", "scope_ref", "policy_tags"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "query_text": { "type": "string" },
+    "scope_ref": { "type": "string" },
+    "capsule_ref": { "type": "string" },
+    "intent": { "type": "string" },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "time_range": { "type": "string" },
+        "language": { "type": "string" },
+        "region": { "type": "string" }
+      }
+    },
+    "policy_tags": {
+      "type": "object",
+      "properties": {
+        "privacy_class": { "type": "string" },
+        "retention": { "type": "string" },
+        "redistribution": { "type": "string" }
+      }
+    }
+  }
+}

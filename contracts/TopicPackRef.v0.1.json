@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/TopicPackRef.v0.1.json",
+  "title": "TopicPackRef",
+  "type": "object",
+  "required": [
+    "version",
+    "pack_id",
+    "pack_digest",
+    "pack_version",
+    "policy_bundle_id",
+    "provenance_ref",
+    "locality_class",
+    "byte_size"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "pack_id": { "type": "string" },
+    "pack_digest": { "type": "string" },
+    "pack_version": { "type": "string" },
+    "policy_bundle_id": { "type": "string" },
+    "provenance_ref": { "type": "string" },
+    "locality_class": {
+      "type": "string",
+      "enum": ["hot-local", "warm-local", "shared-near", "remote-cold", "offline-archival"]
+    },
+    "byte_size": { "type": "integer", "minimum": 0 },
+    "ttl_s": { "type": "integer", "minimum": 0 },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  }
+}

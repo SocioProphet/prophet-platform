@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/SearchResultSet.v0.1.json",
+  "title": "SearchResultSet",
+  "type": "object",
+  "required": ["version", "event_id", "created_at", "query_ref", "hits", "provenance"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "query_ref": { "type": "string" },
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rank", "title", "url"],
+        "properties": {
+          "rank": { "type": "integer" },
+          "title": { "type": "string" },
+          "url": { "type": "string" },
+          "snippet": { "type": "string" },
+          "source": { "type": "string" },
+          "score": { "type": "number" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string" },
+        "provider_instance": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    },
+    "decision_trace_ref": { "type": "string" }
+  }
+}

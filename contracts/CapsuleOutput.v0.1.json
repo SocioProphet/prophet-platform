@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/CapsuleOutput.v0.1.json",
+  "title": "CapsuleOutput",
+  "type": "object",
+  "required": [
+    "version",
+    "event_id",
+    "created_at",
+    "capsule_ref",
+    "scope_ref",
+    "inputs",
+    "outputs",
+    "receipt"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "capsule_ref": { "type": "string" },
+    "scope_ref": { "type": "string" },
+    "topic_pack_refs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional: topic packs loaded as context inputs."
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["carrier_refs"],
+      "properties": {
+        "carrier_refs": { "type": "array", "items": { "type": "string" } },
+        "embedding_refs": { "type": "array", "items": { "type": "string" } },
+        "query_ref": { "type": "string" }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["artifact_refs"],
+      "properties": {
+        "artifact_refs": { "type": "array", "items": { "type": "string" } },
+        "evidence_refs": { "type": "array", "items": { "type": "string" } },
+        "decision_trace_ref": { "type": "string" }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["hash", "algo"],
+      "properties": {
+        "hash": { "type": "string" },
+        "algo": { "type": "string", "enum": ["sha256", "blake3"] }
+      }
+    }
+  }
+}
