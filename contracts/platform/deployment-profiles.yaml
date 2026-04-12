@@ -1,0 +1,19 @@
+version: 1
+profiles:
+  - key: p0-lab
+    purpose: local development, replay, seeded evals, fake environment telemetry
+  - key: p1-single-site
+    purpose: first real single-org operational deployment
+  - key: p2-private-mesh
+    purpose: multi-site private mesh with central hosted services
+  - key: p3-regional
+    purpose: regional or federated production posture
+channels:
+  - dev
+  - stage
+  - prod
+promotion_requirements:
+  require_digest: true
+  require_provenance: true
+  require_sbom: true
+  require_signature_state: true
