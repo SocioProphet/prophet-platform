@@ -1,0 +1,27 @@
+name: platform-contracts-check
+
+on:
+  pull_request:
+  push:
+    branches: [ main, platform-contracts-stubs ]
+
+permissions:
+  contents: read
+
+jobs:
+  platform-contracts-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: python -m pip install --upgrade pip pyyaml
+
+      - name: Validate platform contracts
+        run: python tools/render_platform_contracts.py
