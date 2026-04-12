@@ -1,0 +1,62 @@
+version: 1
+services:
+  - name: identity_policy
+    owner_repo: prophet-platform
+    wave: 1
+    class: core_service
+  - name: search_evidence
+    owner_repo: sherlock-search
+    wave: 1
+    class: core_service
+  - name: case_triage
+    owner_repo: sherlock-cases
+    wave: 1
+    class: core_service
+  - name: deepdive_orchestrator
+    owner_repo: prophet-platform
+    wave: 1
+    class: core_service
+  - name: dashboard_bff
+    owner_repo: prophet-platform
+    wave: 1
+    class: core_service
+  - name: topology_environment
+    owner_repo: sherlock-environment
+    wave: 2
+    class: core_service
+  - name: artifact_release
+    owner_repo: sherlock-artifacts
+    wave: 2
+    class: core_service
+  - name: evaluation_tournament
+    owner_repo: prophet-platform
+    wave: 1
+    class: core_service
+  - name: matrix_shell_integration
+    owner_repo: sherlock-shell
+    wave: 1
+    class: operator_app
+  - name: github_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
+  - name: gdrive_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
+  - name: artifact_registry_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
+  - name: kubeedge_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
+  - name: cilium_hubble_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
+  - name: tetragon_adapter
+    owner_repo: prophet-platform
+    wave: 3
+    class: adapter_service
