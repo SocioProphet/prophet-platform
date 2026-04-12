@@ -1,0 +1,53 @@
+imports:
+  - repo: SocioProphet/semantic-serdes
+    role: canonical cross-boundary event/context/surface contract layer
+    import_mode: mirror_schema_subset
+    local_path: contracts/imported/semantic-serdes/
+    required_objects:
+      - event-envelope.v1
+      - surface-projection.v1
+      - provenance-bundle.v1
+    pin: "<commit-or-tag>"
+    validation:
+      - jsonschema
+      - roundtrip-fixtures
+
+  - repo: SocioProphet/new-hope
+    role: carrier and membrane semantics
+    import_mode: mirror_schema_subset
+    local_path: contracts/imported/new-hope/
+    required_objects:
+      - carrier.v1
+      - ingress-decision.v1
+      - membrane-decision.v1
+    pin: "<commit-or-tag>"
+    validation:
+      - jsonschema
+      - membrane-fixtures
+
+  - repo: SocioProphet/memory-mesh
+    role: memory runtime API
+    import_mode: mirror_api_subset
+    local_path: contracts/imported/memory-mesh/
+    required_objects:
+      - memoryd.openapi.yaml
+      - memory-search.request
+      - memory-write.request
+    pin: "<commit-or-tag>"
+    validation:
+      - openapi-validate
+      - client-smoke
+
+references:
+  - repo: SocioProphet/ontogenesis
+    role: semantic governance, SHACL gates, registry
+    import_mode: pinned_reference
+    local_path: docs/ONTOGENESIS_ALIGNMENT.md
+    consumed_assets:
+      - registry.ttl
+      - registry.jsonld
+      - selected-shacl-bundles
+    pin: "<commit-or-tag>"
+    validation:
+      - shacl-gate
+      - registry-presence
