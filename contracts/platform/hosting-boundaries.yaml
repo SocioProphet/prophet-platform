@@ -1,0 +1,8 @@
+version: 1
+rules:
+  - search_logic_stays_in: sherlock-search
+  - room_governance_stays_in: sherlock-shell
+  - case_lifecycle_stays_in: sherlock-cases
+  - environment_logic_stays_in: sherlock-environment
+  - artifact_logic_stays_in: sherlock-artifacts
+  - platform_runtime_composition_stays_in: prophet-platform
