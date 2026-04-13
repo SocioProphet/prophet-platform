@@ -28,20 +28,20 @@ def state_home() -> Path:
     return Path.home() / ".local" / "state"
 
 
-def service_root() -> Path:
-    return state_home() / "prophet-platform" / SERVICE_DIR
+def platform_state_root() -> Path:
+    return state_home() / "prophet-platform"
 
 
 def payloads_root() -> Path:
-    return service_root() / "payloads"
+    return platform_state_root() / "payloads" / SERVICE_DIR
 
 
 def events_root() -> Path:
-    return service_root() / "events"
+    return platform_state_root() / "events" / SERVICE_DIR
 
 
 def receipts_root() -> Path:
-    return service_root() / "receipts"
+    return platform_state_root() / "receipts" / SERVICE_DIR
 
 
 def ensure_dirs() -> None:
