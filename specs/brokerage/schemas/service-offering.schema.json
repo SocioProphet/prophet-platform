@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "offering_id": { "type": "string" },
+    "service_class": { "type": "string" },
+    "owner_tower": { "type": "string" },
+    "default_blueprint_id": { "type": "string" },
+    "lifecycle_state": { "type": "string" }
+  },
+  "required": ["offering_id", "service_class", "owner_tower", "default_blueprint_id"]
+}
