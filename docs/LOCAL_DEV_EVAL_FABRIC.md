@@ -20,6 +20,16 @@ cd "$HOME/dev/prophet-platform" && docker compose -f infra/local/docker-compose.
 ## Health checks
 
 After startup:
+- API health: `http://localhost:8082/healthz`
+- Frontier endpoint: `http://localhost:8082/v1/frontier`
+- Dossier endpoint: `http://localhost:8082/v1/models/model.semantic-stack.2026-04-05/dossier`
+- Radar endpoint: `http://localhost:8082/v1/competition/radar`
+
+## Notes
+
+- The unified local path reads from Postgres and ClickHouse seed state.
+- Older compose variants remain in the repo as bootstrap history, but the unified path is the visible default going forward.
+- The next implementation step is replacing seed SQL and direct query logic with migrations, adapters, and ingestion workers.
 - Liveness: `http://localhost:8080/healthz`
 - Readiness: `http://localhost:8080/readyz`
 - Frontier endpoint: `http://localhost:8080/v1/frontier`
