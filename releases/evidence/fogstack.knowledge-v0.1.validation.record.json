@@ -1,0 +1,13 @@
+{
+  "kind": "FogStackValidationRecord",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.knowledge",
+  "version": "0.1.0",
+  "validation_path": "tools/validate_fogstack.py",
+  "status": "shape-only",
+  "source": "local",
+  "summary": {
+    "status": "pass",
+    "exit_code": 0
+  }
+}
