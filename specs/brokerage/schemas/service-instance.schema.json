@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "instance_id": { "type": "string" },
+    "service_offering_id": { "type": "string" },
+    "owner": { "type": "string" },
+    "state": { "type": "string" },
+    "cost_meter_id": { "type": "string" },
+    "evidence_pack": { "type": "string" }
+  },
+  "required": ["instance_id", "service_offering_id", "owner", "state"]
+}
