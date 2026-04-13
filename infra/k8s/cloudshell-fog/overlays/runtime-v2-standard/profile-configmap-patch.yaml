@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudshell-fog-profile
+  namespace: cloudshell-system
+data:
+  deployment_profile: standard
+  minimum_trust_tier: managed_cloud
+  cloud_fallback_region: us-east-1
+  strict_egress: "false"
+  require_fips_validated_crypto: "false"
