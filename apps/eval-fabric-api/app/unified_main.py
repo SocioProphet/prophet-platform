@@ -1,15 +1,30 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-from . import governance_repositories, intelligence_repositories, repositories
+from . import db, governance_repositories, intelligence_repositories, repositories
 
-app = FastAPI(title="Prophet Platform Eval Fabric", version="0.5.0")
+app = FastAPI(title="Prophet Platform Eval Fabric", version="0.5.1")
 
 
 @app.get("/healthz")
 def healthz() -> dict:
     return {"status": "ok", "service": "eval-fabric-api"}
+
+
+@app.get("/readyz")
+def readyz():
+    postgres = db.pg_health()
+    clickhouse = db.ch_health()
+    ok = bool(postgres.get("ok")) and bool(clickhouse.get("ok"))
+    payload = {
+        "status": "ok" if ok else "degraded",
+        "service": "eval-fabric-api",
+        "postgres": postgres,
+        "clickhouse": clickhouse,
+    }
+    return payload if ok else JSONResponse(status_code=503, content=payload)
 
 
 @app.get("/v1/frontier")
