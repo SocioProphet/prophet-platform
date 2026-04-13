@@ -11,9 +11,10 @@ Minimal platform reader service for emitted payload / `EventEnvelope` / `Evidenc
 - read recent receipt bundles for a service
 - fetch a specific bundle by correlation/stem
 - read recent catalog entries when the producer maintains a catalog (currently Lampstand)
-- bridge both current artifact layouts in the repo:
-  - `prophet-platform/<service>/{payloads,events,receipts}`
+- support the current canonical platform artifact layout:
   - `prophet-platform/{payloads,events,receipts}/<service>`
+- retain legacy compatibility for historical service-first layouts:
+  - `prophet-platform/<service>/{payloads,events,receipts}`
 
 ## Endpoints
 

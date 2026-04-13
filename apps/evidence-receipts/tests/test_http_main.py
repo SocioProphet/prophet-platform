@@ -14,14 +14,17 @@ client = TestClient(main.app)
 
 
 def _seed_eval_fabric(tmp_path: Path):
-    root = tmp_path / "prophet-platform" / "eval-fabric-api"
-    (root / "payloads").mkdir(parents=True, exist_ok=True)
-    (root / "events").mkdir(parents=True, exist_ok=True)
-    (root / "receipts").mkdir(parents=True, exist_ok=True)
+    base = tmp_path / "prophet-platform"
+    (base / "payloads" / "eval-fabric-api").mkdir(parents=True, exist_ok=True)
+    (base / "events" / "eval-fabric-api").mkdir(parents=True, exist_ok=True)
+    (base / "receipts" / "eval-fabric-api").mkdir(parents=True, exist_ok=True)
     corr = "corr-123"
-    (root / "payloads" / f"{corr}.payload.json").write_text('{"profile_id":"profile.high_assurance_enterprise_agent"}\n', encoding='utf-8')
-    (root / "events" / f"{corr}.event.json").write_text('{"event_type":"eval.fabric.frontier.read","payload_ref":"file://' + str((root / 'payloads' / f'{corr}.payload.json').resolve()) + '","created_at":"2026-04-09T00:00:00+00:00"}\n', encoding='utf-8')
-    (root / "receipts" / f"{corr}.receipt.json").write_text('{"status":"succeeded","action":"FrontierQuery","subject_ref":"profile://profile.high_assurance_enterprise_agent","created_at":"2026-04-09T00:00:00+00:00"}\n', encoding='utf-8')
+    payload_path = base / "payloads" / "eval-fabric-api" / f"{corr}.payload.json"
+    event_path = base / "events" / "eval-fabric-api" / f"{corr}.event.json"
+    receipt_path = base / "receipts" / "eval-fabric-api" / f"{corr}.receipt.json"
+    payload_path.write_text('{"profile_id":"profile.high_assurance_enterprise_agent"}\n', encoding='utf-8')
+    event_path.write_text('{"event_type":"eval.fabric.frontier.read","payload_ref":"file://' + str(payload_path.resolve()) + '","created_at":"2026-04-09T00:00:00+00:00"}\n', encoding='utf-8')
+    receipt_path.write_text('{"status":"succeeded","action":"FrontierQuery","subject_ref":"profile://profile.high_assurance_enterprise_agent","created_at":"2026-04-09T00:00:00+00:00"}\n', encoding='utf-8')
     return corr
 
 

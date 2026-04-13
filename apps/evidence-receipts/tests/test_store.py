@@ -26,6 +26,15 @@ def test_resolve_layout_type_first(monkeypatch, tmp_path):
     assert layout.receipt_dir == root
 
 
+def test_resolve_layout_prefers_type_first_when_both_exist(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    (tmp_path / "prophet-platform" / "eval-fabric-api" / "receipts").mkdir(parents=True)
+    type_first = tmp_path / "prophet-platform" / "receipts" / "eval-fabric-api"
+    type_first.mkdir(parents=True)
+    layout = store.resolve_layout("eval-fabric-api")
+    assert layout.receipt_dir == type_first
+
+
 def test_lampstand_bundle_uses_catalog(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
     base = tmp_path / "prophet-platform"
@@ -55,6 +64,26 @@ def test_lampstand_bundle_uses_catalog(monkeypatch, tmp_path):
     assert bundle["payload"]["carrier_ref"] == "carrier://sha256/abc"
     recent = store.list_recent_bundles(service="lampstand", limit=5)
     assert recent[0]["correlation_id"] == corr
+
+
+def test_eval_fabric_legacy_service_first_bundle(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    base = tmp_path / "prophet-platform" / "eval-fabric-api"
+    (base / "payloads").mkdir(parents=True, exist_ok=True)
+    (base / "events").mkdir(parents=True, exist_ok=True)
+    (base / "receipts").mkdir(parents=True, exist_ok=True)
+
+    corr = "legacy-ef-1"
+    payload_path = base / "payloads" / f"{corr}.payload.json"
+    event_path = base / "events" / f"{corr}.event.json"
+    receipt_path = base / "receipts" / f"{corr}.receipt.json"
+    payload_path.write_text(json.dumps({"profile_id": "profile.high_assurance_enterprise_agent"}) + "\n", encoding="utf-8")
+    event_path.write_text(json.dumps({"event_type": "eval.fabric.frontier.read", "payload_ref": f"file://{payload_path.resolve()}"}) + "\n", encoding="utf-8")
+    receipt_path.write_text(json.dumps({"status": "succeeded", "action": "FrontierQuery"}) + "\n", encoding="utf-8")
+
+    bundle = store.get_bundle(service="eval-fabric-api", correlation_id=corr)
+    assert bundle is not None
+    assert bundle["payload"]["profile_id"] == "profile.high_assurance_enterprise_agent"
 
 
 def test_list_services_detects_both_layouts(monkeypatch, tmp_path):

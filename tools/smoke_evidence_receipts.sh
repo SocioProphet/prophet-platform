@@ -7,21 +7,21 @@ STATE_ROOT="/tmp/prophet-platform-state"
 TMPDIR="$(mktemp -d)"
 trap 'docker compose -f "$COMPOSE" down -v >/dev/null 2>&1 || true; rm -rf "$TMPDIR" "$STATE_ROOT"' EXIT
 
-mkdir -p "$STATE_ROOT/prophet-platform/eval-fabric-api/payloads"
-mkdir -p "$STATE_ROOT/prophet-platform/eval-fabric-api/events"
-mkdir -p "$STATE_ROOT/prophet-platform/eval-fabric-api/receipts"
+mkdir -p "$STATE_ROOT/prophet-platform/payloads/eval-fabric-api"
+mkdir -p "$STATE_ROOT/prophet-platform/events/eval-fabric-api"
+mkdir -p "$STATE_ROOT/prophet-platform/receipts/eval-fabric-api"
 mkdir -p "$STATE_ROOT/prophet-platform/catalog/lampstand"
 mkdir -p "$STATE_ROOT/prophet-platform/payloads/lampstand"
 mkdir -p "$STATE_ROOT/prophet-platform/events/lampstand"
 mkdir -p "$STATE_ROOT/prophet-platform/receipts/lampstand"
 
-cat > "$STATE_ROOT/prophet-platform/eval-fabric-api/payloads/corr-ef.payload.json" <<'EOF'
+cat > "$STATE_ROOT/prophet-platform/payloads/eval-fabric-api/corr-ef.payload.json" <<'EOF'
 {"profile_id":"profile.high_assurance_enterprise_agent"}
 EOF
-cat > "$STATE_ROOT/prophet-platform/eval-fabric-api/events/corr-ef.event.json" <<EOF
-{"event_type":"eval.fabric.frontier.read","payload_ref":"file://$STATE_ROOT/prophet-platform/eval-fabric-api/payloads/corr-ef.payload.json","created_at":"2026-04-13T00:00:00+00:00"}
+cat > "$STATE_ROOT/prophet-platform/events/eval-fabric-api/corr-ef.event.json" <<EOF
+{"event_type":"eval.fabric.frontier.read","payload_ref":"file://$STATE_ROOT/prophet-platform/payloads/eval-fabric-api/corr-ef.payload.json","created_at":"2026-04-13T00:00:00+00:00"}
 EOF
-cat > "$STATE_ROOT/prophet-platform/eval-fabric-api/receipts/corr-ef.receipt.json" <<'EOF'
+cat > "$STATE_ROOT/prophet-platform/receipts/eval-fabric-api/corr-ef.receipt.json" <<'EOF'
 {"status":"succeeded","action":"FrontierQuery","subject_ref":"profile://profile.high_assurance_enterprise_agent","created_at":"2026-04-13T00:00:00+00:00"}
 EOF
 
@@ -67,5 +67,5 @@ assert "lampstand" in services["services"], services
 assert eval_recent["items"][0]["correlation_id"] == "corr-ef", eval_recent
 assert eval_bundle["payload"]["profile_id"] == "profile.high_assurance_enterprise_agent", eval_bundle
 assert lamp_catalog["items"][0]["correlation_id"] == "lamp-1", lamp_catalog
-print('{"ok": true, "gateway_proxy": true, "reader": true}')
+print('{"ok": true, "gateway_proxy": true, "reader": true, "layout": "type-first"}')
 PY

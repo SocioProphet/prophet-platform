@@ -59,12 +59,12 @@ def _layout_score(layout: Layout) -> int:
 
 
 def resolve_layout(service: str) -> Layout:
-    candidates = [_service_first_layout(service), _type_first_layout(service)]
+    candidates = [_type_first_layout(service), _service_first_layout(service)]
     scored = sorted(candidates, key=_layout_score, reverse=True)
     if _layout_score(scored[0]) > 0:
         return scored[0]
-    # default to service-first for new producers; it matches eval-fabric's current path
-    return _service_first_layout(service)
+    # default to type-first for canonical new producers
+    return _type_first_layout(service)
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
