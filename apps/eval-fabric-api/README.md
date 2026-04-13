@@ -21,8 +21,10 @@ The default runtime is the **unified** application path:
 - `/healthz` — process liveness only
 - `/readyz` — Postgres + ClickHouse readiness
 - `/v1/frontier` — profile-score frontier view (ClickHouse)
+- `/v1/frontier/provenance` — source-trust coverage and freshness by subject (ClickHouse)
 - `/v1/models/{model_release_id}/dossier` — model dossier facts (ClickHouse)
 - `/v1/competition/radar` — competitor radar view (Postgres)
+- `/v1/competition/reproduced-vs-claimed` — reproduced-vs-claimed competition state (Postgres)
 
 The default Dockerfile and default local compose stack point at this runtime.
 
