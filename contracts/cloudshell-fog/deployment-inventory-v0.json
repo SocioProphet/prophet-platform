@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/deployment-inventory-v0.json",
+  "title": "cloudshell-fog deployment inventory v0",
+  "type": "object",
+  "required": [
+    "profile",
+    "gateway_image",
+    "policy_bundle_path",
+    "secrets"
+  ],
+  "properties": {
+    "profile": {
+      "type": "string",
+      "enum": ["standard", "federal"]
+    },
+    "gateway_image": {
+      "type": "object",
+      "required": ["repository", "digest"],
+      "properties": {
+        "repository": {"type": "string"},
+        "digest": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"},
+        "fips_profile": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "policy_bundle_path": {
+      "type": "string"
+    },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "required_keys"],
+        "properties": {
+          "name": {"type": "string"},
+          "required_keys": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "source": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "federal_controls": {
+      "type": ["object", "null"],
+      "properties": {
+        "minimum_trust_tier": {"type": "string"},
+        "require_fips_validated_crypto": {"type": "boolean"},
+        "strict_egress": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
