@@ -20,21 +20,19 @@ cd "$HOME/dev/prophet-platform" && docker compose -f infra/local/docker-compose.
 ## Health checks
 
 After startup:
-- API health: `http://localhost:8082/healthz`
-- Frontier endpoint: `http://localhost:8082/v1/frontier`
-- Dossier endpoint: `http://localhost:8082/v1/models/model.semantic-stack.2026-04-05/dossier`
-- Radar endpoint: `http://localhost:8082/v1/competition/radar`
-
-## Notes
-
-- The unified local path reads from Postgres and ClickHouse seed state.
-- Older compose variants remain in the repo as bootstrap history, but the unified path is the visible default going forward.
-- The next implementation step is replacing seed SQL and direct query logic with migrations, adapters, and ingestion workers.
-- Liveness: `http://localhost:8080/healthz`
+- API health: `http://localhost:8080/healthz`
 - Readiness: `http://localhost:8080/readyz`
 - Frontier endpoint: `http://localhost:8080/v1/frontier`
 - Dossier endpoint: `http://localhost:8080/v1/models/model.semantic-stack.2026-04-05/dossier`
 - Radar endpoint: `http://localhost:8080/v1/competition/radar`
+
+## Notes
+
+- The unified local path reads from Postgres and ClickHouse seed state.
+- The default local stack uses the unified repository-backed runtime.
+- Postgres and ClickHouse are seeded for deterministic local smoke checks.
+- Older compose variants remain in the repo as bootstrap history, but the unified path is the visible default going forward.
+- The next implementation step is replacing seed SQL and direct query logic with migrations, adapters, and ingestion workers, and broader consumer integration.
 
 ## Receipt / evidence emission
 
@@ -51,12 +49,6 @@ New eval-fabric emissions use the canonical platform type-first layout under:
 - `/tmp/prophet-platform-state/prophet-platform/payloads/eval-fabric-api/`
 - `/tmp/prophet-platform-state/prophet-platform/events/eval-fabric-api/`
 - `/tmp/prophet-platform-state/prophet-platform/receipts/eval-fabric-api/`
-
-## Notes
-
-- The default local stack uses the unified repository-backed runtime.
-- Postgres and ClickHouse are seeded for deterministic local smoke checks.
-- The next implementation step is broader consumer integration and eventual removal of legacy service-first compatibility paths.
 
 ## Stop the stack
 

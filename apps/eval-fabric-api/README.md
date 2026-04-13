@@ -16,6 +16,7 @@ The preferred local development path is now the **unified DB-backed** entrypoint
 - app entrypoint: `app/unified_main.py`
 
 Legacy seeded and intermediate persisted variants remain in the repo as bootstrap history, but the unified path is the visible default for platform work going forward.
+
 The default runtime is the **unified** application path:
 - `/healthz` — process liveness only
 - `/readyz` — Postgres + ClickHouse readiness
