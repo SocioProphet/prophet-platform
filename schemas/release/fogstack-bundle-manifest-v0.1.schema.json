@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-bundle-manifest-v0.1.schema.json",
+  "title": "FogStackBundleManifest",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "bundle",
+    "rulepack",
+    "bundle_digest",
+    "rulepack_digest",
+    "channel",
+    "support_state",
+    "signed"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackBundleManifest" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "bundle": { "type": "string" },
+    "rulepack": { "type": "string" },
+    "bundle_digest": { "type": "string" },
+    "rulepack_digest": { "type": "string" },
+    "channel": { "enum": ["preview", "candidate", "stable", "deprecated"] },
+    "support_state": { "enum": ["community", "supported", "extended", "deprecated"] },
+    "signed": { "type": "boolean" },
+    "signature": {
+      "type": ["object", "null"],
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["cosign", "sigstore", "other"] },
+        "ref": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
