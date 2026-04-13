@@ -84,4 +84,17 @@ RECEIPT_PATH="${RECEIPT_REF#file://}"
 
 docker compose -f "$COMPOSE" exec -T eval-fabric-api sh -lc "test -f '$PAYLOAD_PATH' && test -f '$EVENT_PATH' && test -f '$RECEIPT_PATH'"
 
-echo '{"ok":true,"receipts_emitted":true}'
+case "$PAYLOAD_PATH" in
+  */payloads/eval-fabric-api/*) ;;
+  *) echo "unexpected payload layout: $PAYLOAD_PATH" >&2; exit 1 ;;
+esac
+case "$EVENT_PATH" in
+  */events/eval-fabric-api/*) ;;
+  *) echo "unexpected event layout: $EVENT_PATH" >&2; exit 1 ;;
+esac
+case "$RECEIPT_PATH" in
+  */receipts/eval-fabric-api/*) ;;
+  *) echo "unexpected receipt layout: $RECEIPT_PATH" >&2; exit 1 ;;
+esac
+
+echo '{"ok":true,"receipts_emitted":true,"layout":"type-first"}'

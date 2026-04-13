@@ -1,0 +1,6 @@
+{
+  "carrier_id": "carrier://sha256/example",
+  "decision": "admit",
+  "policy_ref": "policy://edge/default",
+  "timestamp": "2026-04-12T00:00:00Z"
+}

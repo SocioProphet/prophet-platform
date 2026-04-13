@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudshell-fog-runtime-v2-standard
+  namespace: argocd
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudshell-system
+  project: default
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
