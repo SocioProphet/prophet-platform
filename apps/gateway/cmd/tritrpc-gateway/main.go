@@ -3,8 +3,10 @@ package main
 import (
     "encoding/json"
     "fmt"
+    "io"
     "log"
     "net/http"
+    "net/url"
     "os"
     "strings"
     "time"
@@ -22,8 +24,18 @@ func main() {
 
     target := firstNonEmpty(os.Getenv("TRITRPC_TARGET_ADDR"), legacySockAddr())
     port := getenv("GATEWAY_PORT", "8080")
+    evidenceBase := strings.TrimRight(strings.TrimSpace(os.Getenv("EVIDENCE_RECEIPTS_BASE_URL")), "/")
+    client := &http.Client{Timeout: 5 * time.Second}
 
-    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+    mux := newMux(target, key, evidenceBase, client)
+    log.Printf("Gateway listening on :%s (TriTRPC v1 -> %s, evidence -> %s)", port, target, evidenceBase)
+    log.Fatal(http.ListenAndServe(":"+port, mux))
+}
+
+func newMux(target string, key [32]byte, evidenceBase string, client *http.Client) *http.ServeMux {
+    mux := http.NewServeMux()
+
+    mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
         pong, err := ping(target, key)
         if err != nil {
             log.Printf("health ping error: %v", err)
@@ -34,8 +46,66 @@ func main() {
         _ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "pong": pong.Pong, "service": pong.Service})
     })
 
-    log.Printf("Gateway listening on :%s (TriTRPC v1 → %s)", port, target)
-    log.Fatal(http.ListenAndServe(":"+port, nil))
+    if evidenceBase != "" {
+        mux.HandleFunc("/v1/evidence/services", proxyGET(client, evidenceBase, "/v1/services"))
+        mux.HandleFunc("/v1/evidence/receipts/recent", proxyGET(client, evidenceBase, "/v1/receipts/recent"))
+        mux.HandleFunc("/v1/evidence/catalog/recent", proxyGET(client, evidenceBase, "/v1/catalog/recent"))
+        mux.HandleFunc("/v1/evidence/receipts/", proxyDynamicGET(client, evidenceBase, "/v1/receipts/", "/v1/evidence/receipts/"))
+    }
+
+    return mux
+}
+
+func proxyGET(client *http.Client, baseURL, path string) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        target := baseURL + path
+        if raw := r.URL.RawQuery; raw != "" {
+            target += "?" + raw
+        }
+        doProxyGET(client, target, w, r)
+    }
+}
+
+func proxyDynamicGET(client *http.Client, baseURL, upstreamPrefix, routePrefix string) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        suffix := strings.TrimPrefix(r.URL.Path, routePrefix)
+        if suffix == r.URL.Path {
+            http.NotFound(w, r)
+            return
+        }
+        target := baseURL + upstreamPrefix + suffix
+        if raw := r.URL.RawQuery; raw != "" {
+            target += "?" + raw
+        }
+        doProxyGET(client, target, w, r)
+    }
+}
+
+func doProxyGET(client *http.Client, target string, w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodGet {
+        w.WriteHeader(http.StatusMethodNotAllowed)
+        return
+    }
+    req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
+    if err != nil {
+        w.WriteHeader(http.StatusBadGateway)
+        _ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+        return
+    }
+    resp, err := client.Do(req)
+    if err != nil {
+        w.WriteHeader(http.StatusBadGateway)
+        _ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+        return
+    }
+    defer resp.Body.Close()
+    for k, vals := range resp.Header {
+        for _, v := range vals {
+            w.Header().Add(k, v)
+        }
+    }
+    w.WriteHeader(resp.StatusCode)
+    _, _ = io.Copy(w, resp.Body)
 }
 
 func ping(target string, key [32]byte) (*binding.HealthPingResponse, error) {
@@ -93,4 +163,12 @@ func getenv(k, d string) string {
         return v
     }
     return d
+}
+
+func mustParse(raw string) *url.URL {
+    u, err := url.Parse(raw)
+    if err != nil {
+        panic(err)
+    }
+    return u
 }

@@ -5,7 +5,7 @@
 ## Current runtime surfaces
 
 * `api` — internal TriTRPC bootstrap service
-* `gateway` — browser-facing ingress relay
+* `gateway` — browser-facing ingress relay and thin proxy surface for selected platform readers
 * `socioprophet-web` — portal shell
 * `eval-fabric-api` — platform evaluation, observability, and intelligence lane
 * `knowledge-reason` — governed claim-evaluation ingress scaffold

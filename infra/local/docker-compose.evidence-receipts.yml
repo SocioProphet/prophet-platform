@@ -1,0 +1,23 @@
+services:
+  evidence-receipts:
+    build:
+      context: ../../apps/evidence-receipts
+    environment:
+      SOCIOPROFIT_STATE_HOME: /tmp/prophet-platform-state
+    volumes:
+      - /tmp/prophet-platform-state:/tmp/prophet-platform-state
+    ports:
+      - "8090:8080"
+
+  gateway:
+    build:
+      context: ../../apps/gateway
+    environment:
+      GATEWAY_PORT: "8080"
+      EVIDENCE_RECEIPTS_BASE_URL: http://evidence-receipts:8080
+      TRITRPC_ALLOW_INSECURE_DEV_KEY: "1"
+      TRITRPC_TARGET_ADDR: tcp://127.0.0.1:9
+    ports:
+      - "8088:8080"
+    depends_on:
+      - evidence-receipts

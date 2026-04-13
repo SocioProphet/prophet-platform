@@ -17,11 +17,18 @@ Minimal platform reader service for emitted payload / `EventEnvelope` / `Evidenc
 
 ## Endpoints
 
+Direct service endpoints:
 - `/healthz`
 - `/v1/services`
 - `/v1/receipts/recent?service=<name>&limit=<n>`
 - `/v1/receipts/{service}/{correlation_id}`
 - `/v1/catalog/recent?service=<name>&limit=<n>`
+
+Gateway-proxied endpoints:
+- `/v1/evidence/services`
+- `/v1/evidence/receipts/recent?service=<name>&limit=<n>`
+- `/v1/evidence/receipts/{service}/{correlation_id}`
+- `/v1/evidence/catalog/recent?service=<name>&limit=<n>`
 
 ## Limits
 
