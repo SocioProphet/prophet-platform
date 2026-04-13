@@ -40,7 +40,7 @@ Start here:
 - `docs/EVAL_FABRIC_GOVERNANCE.md`
 - `apps/eval-fabric-api/`
 - `schemas/eval/`
-- `infra/local/docker-compose.eval-fabric.unified.yml`
+- `infra/local/docker-compose.eval-fabric.yml`
 
 This lane is platform responsibility, not a detached benchmark pack. It owns the container, datastore, schema, and API bootstrap for platform-level ranking, replay, and intelligence work.
 

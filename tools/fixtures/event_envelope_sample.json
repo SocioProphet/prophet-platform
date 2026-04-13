@@ -1,0 +1,9 @@
+{
+  "event_id": "evt-001",
+  "event_kind": "carrier.ingested",
+  "producer": "apps/lampstand",
+  "timestamp": "2026-04-12T00:00:00Z",
+  "payload": {
+    "carrier_ref": "carrier://sha256/example"
+  }
+}

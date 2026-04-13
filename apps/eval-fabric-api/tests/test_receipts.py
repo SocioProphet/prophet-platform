@@ -37,6 +37,9 @@ def test_emit_artifacts_writes_bundle(monkeypatch, tmp_path):
     assert emission.payload_path.exists()
     assert emission.event_path.exists()
     assert emission.receipt_path.exists()
+    assert "/payloads/eval-fabric-api/" in str(emission.payload_path)
+    assert "/events/eval-fabric-api/" in str(emission.event_path)
+    assert "/receipts/eval-fabric-api/" in str(emission.receipt_path)
 
     event = json.loads(Path(emission.event_path).read_text(encoding="utf-8"))
     receipt = json.loads(Path(emission.receipt_path).read_text(encoding="utf-8"))

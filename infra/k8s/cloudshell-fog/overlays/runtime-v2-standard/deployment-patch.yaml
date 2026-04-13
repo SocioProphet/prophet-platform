@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudshell-fog-gateway
+  namespace: cloudshell-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: gateway
+          env:
+            - name: CLOUD_FALLBACK_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: cloudshell-fog-profile
+                  key: cloud_fallback_region
+            - name: USE_K8S
+              value: "1"
+            - name: SESSION_TOKEN_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloudshell-fog-secrets
+                  key: session-token-signing-key

@@ -1,0 +1,15 @@
+profile: standard
+gateway_image:
+  repository: ghcr.io/socioprophet/cloudshell-fog
+  digest: sha256:REPLACE_WITH_REAL_DIGEST
+  fips_profile: false
+policy_bundle_path: infra/policy/cloudshell-fog/kyverno
+secrets:
+  - name: cloudshell-fog-secrets
+    required_keys:
+      - session-token-signing-key
+    source: REPLACE_WITH_SECRET_MANAGER_OR_EXTERNAL_SECRET
+federal_controls:
+  minimum_trust_tier: managed_cloud
+  require_fips_validated_crypto: false
+  strict_egress: false
