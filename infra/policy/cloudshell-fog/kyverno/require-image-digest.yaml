@@ -1,0 +1,31 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: cloudshell-require-image-digest
+  annotations:
+    policies.kyverno.io/title: Require Image Digests
+    policies.kyverno.io/category: Supply Chain
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Require container images to use immutable digests rather than mutable tags.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-checksum
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: Images must use digests rather than mutable tags.
+        pattern:
+          spec:
+            containers:
+              - image: "*@*"
+            =(ephemeralContainers):
+              - image: "*@*"
+            =(initContainers):
+              - image: "*@*"
