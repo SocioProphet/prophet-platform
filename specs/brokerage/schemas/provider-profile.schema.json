@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "provider_id": { "type": "string" },
+    "provider_class": { "type": "string" },
+    "jurisdiction": { "type": "string" },
+    "risk_tier": { "type": "string" },
+    "status": { "type": "string" }
+  },
+  "required": ["provider_id", "provider_class", "status"]
+}
