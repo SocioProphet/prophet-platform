@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "requester": { "type": "string" },
+    "service": { "type": "string" },
+    "quantity": { "type": "integer" },
+    "status": { "type": "string" }
+  },
+  "required": ["id", "requester", "service", "quantity"]
+}
