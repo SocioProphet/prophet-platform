@@ -10,6 +10,7 @@
 * `eval-fabric-api` — platform evaluation, observability, and intelligence lane
 * `knowledge-reason` — governed claim-evaluation ingress scaffold
 * `lampstand` — local-daemon integration target with platform receipt/catalog emission
+* `evidence-receipts` — platform reader surface for emitted payload/event/receipt artifacts
 
 ## Planned imports / promotions
 
@@ -17,9 +18,8 @@
 * `workspace-controller`
 * `identity-prime`
 * `hdt-gateway`
-* `evidence-receipts`
 
 ## Rule
 
-If it is a runtime that ships, runs, scales, or emits receipts, it belongs under `apps/`.
+If it is a runtime that ships, runs, scales, or emits or consumes receipts, it belongs under `apps/`.
 If it is a standard, ontology, mapping pack, or reference model, it stays upstream and is consumed by pin.

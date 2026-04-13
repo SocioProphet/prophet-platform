@@ -22,6 +22,7 @@ Pinned upstream inputs include:
 - `apps/eval-fabric-api` -> evaluation, observability, and intelligence lane backed by Postgres + ClickHouse
 - `apps/knowledge-reason` -> governed claim-evaluation ingress scaffold
 - `apps/lampstand` -> local-daemon integration target and receipt catalog emitter
+- `apps/evidence-receipts` -> thin platform reader for emitted artifact bundles across current producer layouts
 
 ## Data and schema anchors
 

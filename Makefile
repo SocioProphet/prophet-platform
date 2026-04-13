@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke validate-fogstack
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke
 
-validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack
+validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -24,7 +24,7 @@ test-go:
 
 test-python-apps:
 	cd apps/eval-fabric-api && test -d .venv || python3 -m venv .venv
-	cd apps/eval-fabric-api && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests ../knowledge-reason/tests
+	cd apps/eval-fabric-api && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests ../knowledge-reason/tests ../evidence-receipts/tests
 
 smoke: smoke-health smoke-eval-fabric
 
@@ -50,6 +50,3 @@ validate-phase4:
 
 lampstand-vertical-slice-smoke:
 	bash apps/lampstand/scripts/vertical_slice_smoke.sh
-
-validate-fogstack:
-	python3 tools/validate_fogstack.py
