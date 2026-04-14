@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openai-research-mcp"
+version = "0.1.0"
+description = "Prophet Platform deep-research-compatible MCP runtime starter"
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["research_mcp*"]
