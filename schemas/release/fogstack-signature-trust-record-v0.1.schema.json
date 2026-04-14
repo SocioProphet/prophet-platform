@@ -35,6 +35,7 @@
     },
     "validation_record_ref": { "type": ["string", "null"] },
     "signature_verification_record_ref": { "type": ["string", "null"] },
+    "release_evidence_index_ref": { "type": ["string", "null"] },
     "key_ref": { "type": ["string", "null"] }
   },
   "additionalProperties": false
