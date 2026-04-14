@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-signature-trust-record-v0.1.schema.json",
+  "title": "FogStackSignatureTrustRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "manifest_ref",
+    "signature_ref",
+    "verification_method",
+    "status",
+    "summary"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackSignatureTrustRecord" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "manifest_ref": { "type": "string" },
+    "signature_ref": { "type": "string" },
+    "verification_method": { "enum": ["cosign", "sigstore", "other"] },
+    "status": { "enum": ["verified", "failed", "shape-only"] },
+    "summary": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["pass", "warn", "fail"] },
+        "message": { "type": ["string", "null"] },
+        "evidence_count": { "type": ["integer", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "validation_record_ref": { "type": ["string", "null"] },
+    "signature_verification_record_ref": { "type": ["string", "null"] },
+    "key_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
