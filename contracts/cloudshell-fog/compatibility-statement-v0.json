@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/compatibility-statement-v0.json",
+  "title": "cloudshell-fog compatibility statement v0",
+  "type": "object",
+  "required": [
+    "bundle_id",
+    "capability_source_repo",
+    "substrate_repo",
+    "supported_profiles",
+    "required_evidence"
+  ],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "const": "fogstack.access"
+    },
+    "capability_source_repo": {
+      "type": "string",
+      "const": "SocioProphet/cloudshell-fog"
+    },
+    "substrate_repo": {
+      "type": "string",
+      "const": "SocioProphet/prophet-platform"
+    },
+    "supported_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["access.local-eval", "access.cluster-gitops", "access.federated-edge"]
+      },
+      "minItems": 1
+    },
+    "runtime_classes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["edge-service", "cluster-service", "local-runtime"]
+      }
+    },
+    "required_evidence": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "support_channels": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "notes": {
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false
+}
