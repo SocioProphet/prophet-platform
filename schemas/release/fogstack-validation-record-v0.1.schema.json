@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-validation-record-v0.1.schema.json",
+  "title": "FogStackValidationRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "validation_path",
+    "source",
+    "summary"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackValidationRecord" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "validation_path": { "type": "string" },
+    "source": { "enum": ["local", "ci"] },
+    "status": { "enum": ["shape-only", "executed", "failed"] },
+    "summary": {
+      "type": "object",
+      "required": ["status", "exit_code"],
+      "properties": {
+        "status": { "enum": ["pass", "warn", "fail"] },
+        "exit_code": { "type": "integer" },
+        "checks_run": { "type": "integer" },
+        "warnings": { "type": "integer" },
+        "errors": { "type": "integer" },
+        "critical": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "evidence_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
