@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check platform-contracts-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke
 
-validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps
+validate: validate-repo drift-check standards-check topology-check platform-contracts-check test-go validate-phase4 test-python-apps
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -16,6 +16,9 @@ standards-check:
 
 topology-check:
 	python3 tools/check_transport_topology.py
+
+platform-contracts-check:
+	bash tools/run_platform_contracts_check.sh
 
 test-go:
 	go test ./libs/go/tritrpcbridge/...
