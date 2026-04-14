@@ -1,0 +1,13 @@
+{
+  "kind": "FogStackBundleManifest",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.evaluation",
+  "version": "0.1.0",
+  "bundle": "bundles/fogstack.evaluation-v0.1.yaml",
+  "rulepack": "conformance/rulepacks/fogstack.evaluation-v0.1.yaml",
+  "bundle_digest": "sha256:PLACEHOLDER",
+  "rulepack_digest": "sha256:PLACEHOLDER",
+  "channel": "preview",
+  "support_state": "community",
+  "signed": false
+}
