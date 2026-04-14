@@ -11,6 +11,7 @@
 * `knowledge-reason` — governed claim-evaluation ingress scaffold
 * `lampstand` — local-daemon integration target with platform receipt/catalog emission
 * `evidence-receipts` — platform reader surface for emitted payload/event/receipt artifacts
+* `evidence-console` — thin operator-facing surface over recent evidence and eval-fabric artifact views
 
 ## Planned imports / promotions
 
