@@ -1,0 +1,10 @@
+{
+  "tools": [
+    {
+      "type": "mcp",
+      "server_label": "openai-research-mcp",
+      "server_url": "https://mcp.example.com",
+      "require_approval": "never"
+    }
+  ]
+}
