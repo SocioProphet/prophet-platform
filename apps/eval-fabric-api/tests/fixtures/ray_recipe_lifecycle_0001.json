@@ -1,0 +1,29 @@
+{
+  "recipe_ref": "recipe://benchmark/ray/eval-fabric-001",
+  "version": "0.0.1",
+  "controller": "ray_orchestrator",
+  "data_references": [
+    "object://datasets/train",
+    "object://datasets/test",
+    "object://datasets/benchmark"
+  ],
+  "worker_topology": {
+    "train_workers": 4,
+    "tune_workers": 2,
+    "benchmark_workers": 2,
+    "serve_replicas": 2
+  },
+  "lifecycle": [
+    "ray_data_prepare",
+    "ray_train_fit",
+    "ray_tune_search",
+    "benchmark_evaluate",
+    "ray_serve_promote"
+  ],
+  "outputs": [
+    "event_envelope",
+    "evidence_receipt",
+    "benchmark_report",
+    "promotion_decision"
+  ]
+}
