@@ -25,14 +25,15 @@ func main() {
     target := firstNonEmpty(os.Getenv("TRITRPC_TARGET_ADDR"), legacySockAddr())
     port := getenv("GATEWAY_PORT", "8080")
     evidenceBase := strings.TrimRight(strings.TrimSpace(os.Getenv("EVIDENCE_RECEIPTS_BASE_URL")), "/")
+    consoleBase := strings.TrimRight(strings.TrimSpace(os.Getenv("EVIDENCE_CONSOLE_BASE_URL")), "/")
     client := &http.Client{Timeout: 5 * time.Second}
 
-    mux := newMux(target, key, evidenceBase, client)
-    log.Printf("Gateway listening on :%s (TriTRPC v1 -> %s, evidence -> %s)", port, target, evidenceBase)
+    mux := newMux(target, key, evidenceBase, consoleBase, client)
+    log.Printf("Gateway listening on :%s (TriTRPC v1 -> %s, evidence -> %s, console -> %s)", port, target, evidenceBase, consoleBase)
     log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
-func newMux(target string, key [32]byte, evidenceBase string, client *http.Client) *http.ServeMux {
+func newMux(target string, key [32]byte, evidenceBase string, consoleBase string, client *http.Client) *http.ServeMux {
     mux := http.NewServeMux()
 
     mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +52,14 @@ func newMux(target string, key [32]byte, evidenceBase string, client *http.Clien
         mux.HandleFunc("/v1/evidence/receipts/recent", proxyGET(client, evidenceBase, "/v1/receipts/recent"))
         mux.HandleFunc("/v1/evidence/catalog/recent", proxyGET(client, evidenceBase, "/v1/catalog/recent"))
         mux.HandleFunc("/v1/evidence/receipts/", proxyDynamicGET(client, evidenceBase, "/v1/receipts/", "/v1/evidence/receipts/"))
+    }
+
+    if consoleBase != "" {
+        mux.HandleFunc("/v1/console/frontier", proxyGET(client, consoleBase, "/v1/console/frontier"))
+        mux.HandleFunc("/v1/console/coverage", proxyGET(client, consoleBase, "/v1/console/coverage"))
+        mux.HandleFunc("/v1/console/recent-events", proxyGET(client, consoleBase, "/v1/console/recent-events"))
+        mux.HandleFunc("/v1/console/models/", proxyDynamicGET(client, consoleBase, "/v1/console/models/", "/v1/console/models/"))
+        mux.HandleFunc("/console/evidence", proxyGET(client, consoleBase, "/console/evidence"))
     }
 
     return mux

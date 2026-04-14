@@ -106,6 +106,20 @@ spec:
           benchmarkBudgetRequired: true
           systemOfRecordContractRequired: true
 
+      market-data-runtime-profile:
+        repo: SocioProphet/prophet-platform-standards
+        class: runtime-profile
+        channel: controlled
+        pin:
+          commit: c4b474d2f2438c3777518e68eb5557adf2e244a5
+          tag: null
+        consume:
+          docs:
+            - docs/profiles/market-data-runtime-profile-v0.md
+        rules:
+          storageAuthorityRemainsExternal: true
+          runtimeConformanceRequiredForMarketData: true
+
     reference_inputs:
       identity-prime-reference:
         repo: SocioProphet/identity-is-prime-reference

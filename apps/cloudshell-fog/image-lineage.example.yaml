@@ -1,0 +1,13 @@
+source_repo: SocioProphet/cloudshell-fog
+dockerfile_ref: main
+build_stages:
+  - name: go-build
+    base_image: golang:1.22-bookworm
+  - name: frontend-build
+    base_image: node:20-bookworm-slim
+  - name: runtime
+    base_image: gcr.io/distroless/static-debian12:nonroot
+runtime_base_image: gcr.io/distroless/static-debian12:nonroot
+notes: |
+  This lineage is derived from the current upstream Dockerfile.
+  It does not imply a production-published gateway digest exists yet.

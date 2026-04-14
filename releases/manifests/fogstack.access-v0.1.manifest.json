@@ -1,0 +1,14 @@
+{
+  "kind": "FogStackBundleManifest",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "bundle": "bundles/fogstack.access-v0.1.yaml",
+  "rulepack": "conformance/rulepacks/fogstack.access-v0.1.yaml",
+  "verification_helper": "tools/validate_fogstack.py",
+  "bundle_digest": "sha256:PLACEHOLDER",
+  "rulepack_digest": "sha256:PLACEHOLDER",
+  "channel": "preview",
+  "support_state": "community",
+  "signed": false
+}

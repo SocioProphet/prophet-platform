@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/image-lineage-v0.json",
+  "title": "cloudshell-fog image lineage v0",
+  "type": "object",
+  "required": ["source_repo", "dockerfile_ref", "build_stages", "runtime_base_image"],
+  "properties": {
+    "source_repo": {
+      "type": "string",
+      "const": "SocioProphet/cloudshell-fog"
+    },
+    "dockerfile_ref": {
+      "type": "string"
+    },
+    "build_stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "base_image"],
+        "properties": {
+          "name": {"type": "string"},
+          "base_image": {"type": "string"}
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "runtime_base_image": {
+      "type": "string"
+    },
+    "notes": {
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false
+}

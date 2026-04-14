@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-signature-verification-record-v0.1.schema.json",
+  "title": "FogStackSignatureVerificationRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "manifest_ref",
+    "status",
+    "summary"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackSignatureVerificationRecord" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "manifest_ref": { "type": "string" },
+    "status": { "enum": ["shape-only", "verified", "failed"] },
+    "summary": {
+      "type": "object",
+      "required": ["status", "exit_code"],
+      "properties": {
+        "status": { "enum": ["pass", "warn", "fail"] },
+        "exit_code": { "type": "integer" },
+        "checks_run": { "type": "integer" }
+      },
+      "additionalProperties": true
+    },
+    "signature_ref": { "type": ["string", "null"] },
+    "validation_record_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
