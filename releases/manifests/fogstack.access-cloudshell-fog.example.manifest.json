@@ -1,0 +1,28 @@
+{
+  "bundleId": "fogstack.access",
+  "bundleVersion": "0.1.0-example",
+  "capability": "cloudshell-fog",
+  "profile": "standard",
+  "source": {
+    "capabilityRepo": "SocioProphet/cloudshell-fog",
+    "substrateRepo": "SocioProphet/prophet-platform"
+  },
+  "artifacts": {
+    "gatewayImage": {
+      "repository": "ghcr.io/socioprophet/cloudshell-fog",
+      "digest": "sha256:REPLACE_WITH_REAL_DIGEST"
+    },
+    "componentVersionManifest": "apps/cloudshell-fog/component-version-manifest.example.yaml",
+    "compatibilityStatement": "contracts/cloudshell-fog/compatibility-statement-v0.json",
+    "deploymentInventory": "contracts/cloudshell-fog/deployment-inventory-v0.json",
+    "productionDecisionRecord": "apps/cloudshell-fog/production-decision-record.standard.example.yaml"
+  },
+  "evidence": {
+    "sbom": "REPLACE_WITH_SBOM_REFERENCE",
+    "provenance": "REPLACE_WITH_PROVENANCE_REFERENCE",
+    "signatureVerification": "REPLACE_WITH_SIGNATURE_VERIFICATION_REFERENCE"
+  },
+  "signed": false,
+  "signature": null,
+  "notes": "Use tools/attach_fogstack_manifest_signature.py to attach signature metadata after producing the unsigned manifest. Replace all placeholders before release use."
+}
