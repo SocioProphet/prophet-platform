@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/production-decision-record-v0.json",
+  "title": "cloudshell-fog production decision record v0",
+  "type": "object",
+  "required": [
+    "profile",
+    "gateway_digest",
+    "secret_source_profile",
+    "signature_trust_profile",
+    "policy_bundle_path",
+    "approved_by"
+  ],
+  "properties": {
+    "profile": {
+      "type": "string",
+      "enum": ["standard", "federal"]
+    },
+    "gateway_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$"
+    },
+    "fips_profile": {
+      "type": "boolean"
+    },
+    "secret_source_profile": {
+      "type": "string",
+      "enum": ["external-secret", "manual-bootstrap", "other-documented"]
+    },
+    "signature_trust_profile": {
+      "type": "string",
+      "enum": ["key-backed", "keyless"]
+    },
+    "policy_bundle_path": {
+      "type": "string"
+    },
+    "federal_fallback_region": {
+      "type": ["string", "null"]
+    },
+    "approved_by": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "notes": {
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,17 @@
+profile: federal
+gateway_digest: sha256:REPLACE_WITH_REAL_DIGEST
+fips_profile: true
+secret_source_profile: external-secret
+signature_trust_profile: key-backed
+policy_bundle_path: infra/policy/cloudshell-fog/kyverno
+federal_fallback_region: REPLACE_WITH_FEDERAL_FALLBACK_REGION
+approved_by:
+  - REPLACE_WITH_OPERATOR_OR_TEAM
+  - REPLACE_WITH_SECURITY_REVIEWER
+  - REPLACE_WITH_FEDERAL_COMPLIANCE_OWNER
+evidence_refs:
+  - REPLACE_WITH_SBOM_REFERENCE
+  - REPLACE_WITH_PROVENANCE_REFERENCE
+  - REPLACE_WITH_SIGNATURE_VERIFICATION_REFERENCE
+  - REPLACE_WITH_FIPS_CRYPTO_EVIDENCE_REFERENCE
+notes: Replace all placeholders before federal deployment promotion.
