@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/fogstack-access-profile-v0.json",
+  "title": "cloudshell-fog Fog Stack Access profile v0",
+  "type": "object",
+  "required": [
+    "bundle_id",
+    "primary_source_repo",
+    "primary_substrate_repo",
+    "required_contracts",
+    "required_evidence",
+    "supported_install_modes",
+    "security_requirements",
+    "identity_requirements",
+    "observability_requirements"
+  ],
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "const": "fogstack.access"
+    },
+    "primary_source_repo": {
+      "type": "string",
+      "const": "SocioProphet/cloudshell-fog"
+    },
+    "primary_substrate_repo": {
+      "type": "string",
+      "const": "SocioProphet/prophet-platform"
+    },
+    "required_contracts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["EventEnvelope", "EvidenceReceipt", "MembraneDecision", "ExportApproved", "ExportDenied"]
+      },
+      "minItems": 3
+    },
+    "required_evidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["bundle-manifest", "component-version-manifest", "sbom", "provenance-attestation", "compatibility-statement"]
+      },
+      "minItems": 5
+    },
+    "supported_install_modes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["local-eval", "kubernetes-direct", "argocd-gitops", "tekton-build-argocd-deploy"]
+      },
+      "minItems": 1
+    },
+    "security_requirements": {
+      "type": "object",
+      "required": ["artifact_signing_required", "sbom_required", "provenance_required", "least_privilege_required", "network_isolation_required", "pinned_image_digests_required_in_production"],
+      "properties": {
+        "artifact_signing_required": {"type": "boolean"},
+        "sbom_required": {"type": "boolean"},
+        "provenance_required": {"type": "boolean"},
+        "least_privilege_required": {"type": "boolean"},
+        "network_isolation_required": {"type": "boolean"},
+        "pinned_image_digests_required_in_production": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "identity_requirements": {
+      "type": "object",
+      "required": ["browser_edge", "session_attach", "operator_identity", "node_identity", "service_identity"],
+      "properties": {
+        "browser_edge": {"type": "string"},
+        "session_attach": {"type": "string"},
+        "operator_identity": {"type": "boolean"},
+        "node_identity": {"type": "boolean"},
+        "service_identity": {"type": "boolean"},
+        "peer_identity": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "observability_requirements": {
+      "type": "object",
+      "required": ["otel_required", "audit_events_required"],
+      "properties": {
+        "otel_required": {"type": "boolean"},
+        "audit_events_required": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 1
+        },
+        "health_endpoints_required": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
