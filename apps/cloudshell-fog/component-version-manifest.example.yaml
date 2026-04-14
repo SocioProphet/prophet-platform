@@ -1,0 +1,22 @@
+bundle_id: fogstack.access
+capability_source:
+  repo: SocioProphet/cloudshell-fog
+  ref: REPLACE_WITH_SOURCE_REF
+substrate:
+  repo: SocioProphet/prophet-platform
+  runtime_profile: standard
+runtime_components:
+  gateway_image:
+    repository: ghcr.io/socioprophet/cloudshell-fog
+    digest: sha256:REPLACE_WITH_REAL_DIGEST
+  policy_bundle:
+    path: infra/policy/cloudshell-fog/kyverno
+  runtime_overlay:
+    path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
+  runtime_application:
+    path: infra/argocd/cloudshell-fog-runtime-v2-standard-application.yaml
+evidence:
+  compatibility_statement: contracts/cloudshell-fog/compatibility-statement-v0.json
+  deployment_inventory: contracts/cloudshell-fog/deployment-inventory-v0.json
+  production_decision_record: apps/cloudshell-fog/production-decision-record.standard.yaml
+notes: Replace all placeholders before release packaging.
