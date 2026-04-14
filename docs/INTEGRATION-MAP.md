@@ -19,7 +19,7 @@ Pinned upstream inputs include:
 - `apps/api` -> internal TriTRPC bootstrap service
 - `apps/gateway` -> browser-facing ingress relay and thin platform proxy surface
 - `apps/socioprophet-web` -> portal shell
-- `apps/eval-fabric-api` -> evaluation, observability, and intelligence lane backed by Postgres + ClickHouse
+- `apps/eval-fabric-api` -> evaluation, observability, and intelligence lane backed by Postgres + ClickHouse; canonical runtime now lives in `app.main`
 - `apps/knowledge-reason` -> governed claim-evaluation ingress scaffold
 - `apps/lampstand` -> local-daemon integration target and receipt catalog emitter
 - `apps/evidence-receipts` -> thin platform reader for emitted artifact bundles across current producer layouts, with gateway-read proxy support
