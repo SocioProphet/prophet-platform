@@ -83,7 +83,12 @@ def test_ray_promotion_requires_expected_gates(test_block) -> None:
     assert test_block["expected_outputs"]["selected_action_profile"] == "tool_write"
 
 
-def test_business_routes_emit_evidence_for_lifecycle_surfaces(client: TestClient, ray_recipe) -> None:
+def test_business_routes_emit_evidence_for_lifecycle_surfaces(
+    client: TestClient, ray_recipe, logical_suite
+) -> None:
+    assert "/v1/frontier" in logical_suite["route_expectations"]
+    assert "/v1/competition/reproduced-vs-claimed" in logical_suite["route_expectations"]
+
     frontier = client.get("/v1/frontier")
     assert frontier.status_code == 200
     assert frontier.headers["X-Payload-Ref"] == "file:///tmp/payload.json"
