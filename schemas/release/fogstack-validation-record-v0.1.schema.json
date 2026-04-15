@@ -33,7 +33,11 @@
       },
       "additionalProperties": true
     },
-    "evidence_ref": { "type": ["string", "null"] }
+    "evidence_ref": { "type": ["string", "null"] },
+    "manifest_ref": { "type": ["string", "null"] },
+    "signature_verification_record_ref": { "type": ["string", "null"] },
+    "signature_trust_record_ref": { "type": ["string", "null"] },
+    "release_evidence_index_ref": { "type": ["string", "null"] }
   },
   "additionalProperties": false
 }
