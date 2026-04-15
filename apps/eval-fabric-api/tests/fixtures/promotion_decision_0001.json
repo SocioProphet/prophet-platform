@@ -1,0 +1,23 @@
+{
+  "promotion_decision_id": "promotion_decision_0001",
+  "subject_ref": "model://model.semantic-stack.2026-04-05",
+  "source_ref": "recipe://benchmark/ray/eval-fabric-001",
+  "current_stage": "L3_assist_mode",
+  "target_stage": "L4_supervised_actuation",
+  "decision": "approved_with_gates",
+  "required_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "evidence_refs": [
+    "event_envelope",
+    "evidence_receipt",
+    "benchmark_report"
+  ],
+  "promotion_window": "rolling_30d"
+}
