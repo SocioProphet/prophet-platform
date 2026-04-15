@@ -33,6 +33,8 @@ def make_entry(
     payload_ref: str,
     status: str,
     scope_ref: str | None = None,
+    zone_ref: str | None = None,
+    topic_ref: str | None = None,
     correlation_id: str | None = None,
     classifiers: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -50,6 +52,10 @@ def make_entry(
     }
     if scope_ref:
         entry["scope_ref"] = scope_ref
+    if zone_ref:
+        entry["zone_ref"] = zone_ref
+    if topic_ref:
+        entry["topic_ref"] = topic_ref
     if correlation_id:
         entry["correlation_id"] = correlation_id
     if classifiers:
