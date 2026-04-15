@@ -1,0 +1,132 @@
+name: FogStack Validation
+
+on:
+  pull_request:
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/fogstack_verify.py"
+      - "tools/validate_fogstack.py"
+      - "tools/emit_fogstack_validation_record.py"
+      - "tools/fogstack_validation_to_evidence.py"
+      - "docs/FOGSTACK_*.md"
+  push:
+    branches: [main]
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/fogstack_verify.py"
+      - "tools/validate_fogstack.py"
+      - "tools/emit_fogstack_validation_record.py"
+      - "tools/fogstack_validation_to_evidence.py"
+      - "docs/FOGSTACK_*.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-fogstack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml jsonschema pytest
+
+      - name: Run helper tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_validation_to_evidence.py
+
+      - name: Run native fogstack validation
+        run: |
+          mkdir -p artifacts
+          python3 tools/fogstack_verify.py bundles/fogstack.access-v0.1.yaml --json > artifacts/fogstack.access.verify.json
+          python3 tools/fogstack_verify.py bundles/fogstack.knowledge-v0.1.yaml --json > artifacts/fogstack.knowledge.verify.json
+          python3 tools/fogstack_verify.py bundles/fogstack.evaluation-v0.1.yaml --json > artifacts/fogstack.evaluation.verify.json
+
+      - name: Emit validation records
+        run: |
+          python3 tools/emit_fogstack_validation_record.py \
+            --verifier-json artifacts/fogstack.access.verify.json \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --source ci \
+            --evidence-ref artifact://ci/fogstack.access.verify.json \
+            --output artifacts/fogstack.access.validation.record.json
+
+          python3 tools/emit_fogstack_validation_record.py \
+            --verifier-json artifacts/fogstack.knowledge.verify.json \
+            --bundle-id fogstack.knowledge \
+            --version 0.1.0 \
+            --source ci \
+            --evidence-ref artifact://ci/fogstack.knowledge.verify.json \
+            --output artifacts/fogstack.knowledge.validation.record.json
+
+          python3 tools/emit_fogstack_validation_record.py \
+            --verifier-json artifacts/fogstack.evaluation.verify.json \
+            --bundle-id fogstack.evaluation \
+            --version 0.1.0 \
+            --source ci \
+            --evidence-ref artifact://ci/fogstack.evaluation.verify.json \
+            --output artifacts/fogstack.evaluation.validation.record.json
+
+      - name: Enforce pass
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          failed = []
+          for path in sorted(Path("artifacts").glob("*.validation.record.json")):
+              data = json.loads(path.read_text(encoding="utf-8"))
+              summary = data.get("summary") or {}
+              if summary.get("status") != "pass":
+                  failed.append({
+                      "file": str(path),
+                      "status": summary.get("status"),
+                      "exit_code": summary.get("exit_code"),
+                  })
+          if failed:
+              print("FogStack validation failures detected:")
+              for item in failed:
+                  print(item)
+              raise SystemExit(1)
+          print("All FogStack validations passed.")
+          PY
+
+      - name: Convert validation records to evidence artifacts
+        run: |
+          mkdir -p ci_state
+          python3 tools/fogstack_validation_to_evidence.py \
+            --records-dir artifacts \
+            --state-root ci_state \
+            --service fogstack-validation
+
+      - name: Upload validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-validation-records
+          path: artifacts/
+          if-no-files-found: error
+
+      - name: Upload evidence artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-validation-evidence
+          path: ci_state/
+          if-no-files-found: error

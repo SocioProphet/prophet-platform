@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "decision_id": { "type": "string" },
+    "subject_ref": { "type": "string" },
+    "decision": { "type": "string" },
+    "policy_pack_id": { "type": "string" },
+    "approved_by": { "type": "string" }
+  },
+  "required": ["decision_id", "subject_ref", "decision"]
+}

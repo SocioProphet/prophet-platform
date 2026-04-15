@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "cost_meter_id": { "type": "string" },
+    "instance_id": { "type": "string" },
+    "unit_type": { "type": "string" },
+    "billing_state": { "type": "string" },
+    "current_spend": { "type": "number" }
+  },
+  "required": ["cost_meter_id", "instance_id", "unit_type", "billing_state"]
+}

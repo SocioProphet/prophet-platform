@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "continuity_id": { "type": "string" },
+    "instance_id": { "type": "string" },
+    "recovery_objective": { "type": "string" },
+    "backup_profile": { "type": "string" },
+    "state": { "type": "string" }
+  },
+  "required": ["continuity_id", "instance_id", "recovery_objective", "state"]
+}
