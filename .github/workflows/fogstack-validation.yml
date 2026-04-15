@@ -27,6 +27,9 @@ on:
       - "tools/fogstack_validation_to_evidence.py"
       - "docs/FOGSTACK_*.md"
 
+permissions:
+  contents: read
+
 jobs:
   validate-fogstack:
     runs-on: ubuntu-latest
