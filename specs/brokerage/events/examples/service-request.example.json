@@ -1,0 +1,7 @@
+{
+  "id": "req-001",
+  "requester": "tower.alpha",
+  "service": "standard-app-environment",
+  "quantity": 1,
+  "status": "Submitted"
+}

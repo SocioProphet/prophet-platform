@@ -1,0 +1,8 @@
+{
+  "instance_id": "inst-001",
+  "service_offering_id": "off-std-env",
+  "owner": "tower.alpha.owner",
+  "state": "Active",
+  "cost_meter_id": "meter-001",
+  "evidence_pack": "evidence-001"
+}

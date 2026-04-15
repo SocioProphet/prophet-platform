@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "event_type": { "type": "string" },
+    "source": { "type": "string" },
+    "subject": { "type": "string" },
+    "time": { "type": "string" },
+    "data": { "type": "object" }
+  },
+  "required": ["event_type", "source", "subject", "time", "data"]
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "exception_id": { "type": "string" },
+    "scope_object": { "type": "string" },
+    "owner": { "type": "string" },
+    "expiry": { "type": "string" },
+    "state": { "type": "string" }
+  },
+  "required": ["exception_id", "scope_object", "owner", "state"]
+}
