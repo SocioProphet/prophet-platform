@@ -109,7 +109,7 @@ def make_handler(service: ResearchService):
                     return self._send(200, payload)
                 except ResearchMcpError as exc:
                     return self._send(exc.http_status, exc.to_dict())
-            self._send(404, {"error": "not_found"})
+            return self._send(404, {"error": "not_found"})
     return Handler
 
 
