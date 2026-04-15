@@ -1,0 +1,26 @@
+{
+  "gate_activation_record_id": "gate_activation_record_0001",
+  "action_ref": "action://eval-fabric/tool_write/logical_route",
+  "required_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "activated_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "failed_gates": [],
+  "policy_decision_ref": "policy://decision/eval-fabric-0001",
+  "approval_ref": "approval://operator/eval-fabric-0001",
+  "rollback_requirement": "required_before_side_effect"
+}
