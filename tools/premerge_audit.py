@@ -52,8 +52,8 @@ def main() -> int:
         print('branch is behind base and should be refreshed before merge')
         return 1
     if not changed:
-        print('no changed files detected')
-        return 1
+        print('no changed files detected; nothing to audit')
+        return 0
     return 0
 
 
