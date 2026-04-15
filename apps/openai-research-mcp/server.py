@@ -163,6 +163,7 @@ def main() -> int:
         try:
             server.serve_forever()
         except KeyboardInterrupt:
+            # Allow Ctrl+C to stop the server without printing a traceback.
             pass
         return 0
 
