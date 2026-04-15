@@ -113,7 +113,7 @@ def make_handler(service: ResearchService):
     return Handler
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("verify-bundle")
