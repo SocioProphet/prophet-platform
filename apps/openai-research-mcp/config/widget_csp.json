@@ -1,0 +1,9 @@
+{
+  "connectDomains": [
+    "https://mcp.example.com"
+  ],
+  "resourceDomains": [
+    "https://web-sandbox.oaiusercontent.com"
+  ],
+  "frameDomains": []
+}

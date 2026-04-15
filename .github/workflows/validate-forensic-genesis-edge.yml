@@ -1,0 +1,32 @@
+name: validate-forensic-genesis-edge
+
+on:
+  push:
+    paths:
+      - 'docs/FORENSIC_GENESIS_EDGE_IMPORT.md'
+      - 'docs/LOCAL-FORENSIC-GENESIS-EDGE.md'
+      - 'contracts/forensic-genesis/**'
+      - 'infra/local/docker-compose.forensic-genesis-edge.yml'
+      - 'tools/validate_forensic_genesis_edge.py'
+      - 'scripts/ci/run_forensic_genesis_edge_validations.sh'
+      - 'make/forensic-genesis-edge.mk'
+      - '.github/workflows/validate-forensic-genesis-edge.yml'
+  pull_request:
+    paths:
+      - 'docs/FORENSIC_GENESIS_EDGE_IMPORT.md'
+      - 'docs/LOCAL-FORENSIC-GENESIS-EDGE.md'
+      - 'contracts/forensic-genesis/**'
+      - 'infra/local/docker-compose.forensic-genesis-edge.yml'
+      - 'tools/validate_forensic_genesis_edge.py'
+      - 'scripts/ci/run_forensic_genesis_edge_validations.sh'
+      - 'make/forensic-genesis-edge.mk'
+      - '.github/workflows/validate-forensic-genesis-edge.yml'
+
+jobs:
+  validate-forensic-edge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate forensic genesis edge runtime surface
+        run: |
+          bash scripts/ci/run_forensic_genesis_edge_validations.sh

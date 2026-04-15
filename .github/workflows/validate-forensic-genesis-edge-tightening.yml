@@ -1,0 +1,27 @@
+name: validate-forensic-genesis-edge-tightening
+
+on:
+  push:
+    paths:
+      - 'contracts/forensic-genesis/STANDARDS_PIN.yaml'
+      - 'tools/validate_forensic_genesis_edge.py'
+      - 'tools/validate_forensic_genesis_edge_pin.py'
+      - 'scripts/ci/run_forensic_genesis_edge_validations.sh'
+      - '.github/workflows/validate-forensic-genesis-edge-tightening.yml'
+  pull_request:
+    paths:
+      - 'contracts/forensic-genesis/STANDARDS_PIN.yaml'
+      - 'tools/validate_forensic_genesis_edge.py'
+      - 'tools/validate_forensic_genesis_edge_pin.py'
+      - 'scripts/ci/run_forensic_genesis_edge_validations.sh'
+      - '.github/workflows/validate-forensic-genesis-edge-tightening.yml'
+
+jobs:
+  validate-forensic-edge-tightening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate forensic genesis edge runtime surface
+        run: bash scripts/ci/run_forensic_genesis_edge_validations.sh
+      - name: Validate forensic genesis edge standards pin
+        run: python3 tools/validate_forensic_genesis_edge_pin.py

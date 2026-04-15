@@ -1,0 +1,19 @@
+{
+  "tokens": {
+    "reader-token": {
+      "subject": "reader-1",
+      "organization": "demo-org",
+      "scopes": [
+        "documents:read"
+      ]
+    },
+    "export-token": {
+      "subject": "writer-1",
+      "organization": "demo-org",
+      "scopes": [
+        "documents:read",
+        "artifacts:write"
+      ]
+    }
+  }
+}

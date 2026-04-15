@@ -1,0 +1,43 @@
+{
+  "suite_id": "logical_statistical_suite_0001",
+  "upstream_refs": {
+    "standards_repo": "SocioProphet/socioprophet-agent-standards",
+    "profiles": [
+      "EVIDENCE_PROFILE_0001",
+      "CONTROL_GATING_GRADUATION_PROFILE_0001",
+      "ORCHESTRATION_RAY_PROFILE_0001",
+      "LOGICAL_STATISTICAL_PROFILE_0001",
+      "TEST_BUILDING_BLOCK_PROFILE_0001"
+    ],
+    "profile_manifest": "profiles/profile_manifest_0001.yaml",
+    "example_agent_spec": "examples/agent_spec_0001.json",
+    "example_ray_recipe": "examples/ray_recipe_lifecycle_0001.json",
+    "example_test_block": "examples/test_block_0001.json"
+  },
+  "route_expectations": [
+    "/v1/frontier",
+    "/v1/frontier/provenance",
+    "/v1/models/{model_release_id}/dossier",
+    "/v1/models/{model_release_id}/attribution",
+    "/v1/runs/{run_id}/provenance",
+    "/v1/governance/crosswalks",
+    "/v1/competition/reproduced-vs-claimed",
+    "/v1/competition/radar"
+  ],
+  "gate_activation_expectations": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "ray_lifecycle_expectations": [
+    "ray_data_prepare",
+    "ray_train_fit",
+    "ray_tune_search",
+    "benchmark_evaluate",
+    "ray_serve_promote"
+  ]
+}
