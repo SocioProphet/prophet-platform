@@ -1,0 +1,34 @@
+[
+  {
+    "id": "doc-citations-001",
+    "title": "Canonical URLs and citations",
+    "text": "Canonical URLs should remain stable across search, fetch, audit, and export.",
+    "url": "https://example.com/docs/canonical-urls",
+    "metadata": {
+      "topic": "citations"
+    },
+    "allowed_organizations": [
+      "demo-org"
+    ],
+    "tags": [
+      "canonical",
+      "citations"
+    ]
+  },
+  {
+    "id": "doc-sandbox-001",
+    "title": "Sandbox and workspace separation",
+    "text": "Browser sandbox, research service, and artifact workspace should be treated as separate planes.",
+    "url": "https://example.com/docs/sandbox-workspace",
+    "metadata": {
+      "topic": "sandbox"
+    },
+    "allowed_organizations": [
+      "demo-org"
+    ],
+    "tags": [
+      "sandbox",
+      "workspace"
+    ]
+  }
+]
