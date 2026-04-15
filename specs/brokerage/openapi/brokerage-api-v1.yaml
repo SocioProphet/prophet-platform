@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Brokerage API v1
+  version: 1.0.0
+  description: Resource surface for the Next Gen TOM brokerage model.
+servers:
+  - url: https://example.invalid
+paths:
+  /service-offerings:
+    get:
+      summary: List service offerings
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create service offering
+      responses:
+        '201':
+          description: Created
+  /service-blueprints:
+    get:
+      summary: List service blueprints
+      responses:
+        '200':
+          description: OK
+  /providers:
+    get:
+      summary: List providers
+      responses:
+        '200':
+          description: OK
+  /requests:
+    post:
+      summary: Submit service request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/service-request.schema.json'
+      responses:
+        '202':
+          description: Accepted
+  /policy-decisions:
+    post:
+      summary: Record policy decision
+      responses:
+        '201':
+          description: Created
+  /fulfillment-orders:
+    post:
+      summary: Start fulfillment order
+      responses:
+        '202':
+          description: Accepted
+  /service-instances:
+    get:
+      summary: List service instances
+      responses:
+        '200':
+          description: OK
+  /exceptions:
+    post:
+      summary: Submit exception request
+      responses:
+        '201':
+          description: Created
+  /evidence-packs:
+    get:
+      summary: List evidence packs
+      responses:
+        '200':
+          description: OK
+  /cost-meters:
+    get:
+      summary: List cost meters
+      responses:
+        '200':
+          description: OK
+  /continuity-records:
+    get:
+      summary: List continuity records
+      responses:
+        '200':
+          description: OK

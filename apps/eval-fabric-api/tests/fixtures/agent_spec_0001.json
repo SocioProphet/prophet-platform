@@ -1,0 +1,49 @@
+{
+  "agent_ref": "agent://socioprophet/example/retrieval-governed-operator",
+  "profiles": [
+    "evidence_profile_0001",
+    "control_gating_graduation_profile_0001",
+    "orchestration_ray_profile_0001"
+  ],
+  "control": {
+    "control_family": [
+      "policy_based",
+      "actor_critic",
+      "constrained_safe",
+      "goal_conditioned"
+    ],
+    "proposal_mode": "hybrid_llm_plus_symbolic",
+    "selection_mode": "gated_ranked_selection",
+    "reasoning_structure_discovery_mode": "task_level_structure_discovery",
+    "instance_execution_mode": "instance_level_structure_fill"
+  },
+  "gating": {
+    "gate_classes": ["hard_gate", "soft_gate", "graduation_gate"],
+    "action_profiles": {
+      "read_only": ["authorization_gate", "scope_gate", "policy_gate", "budget_gate"],
+      "tool_write": ["authorization_gate", "scope_gate", "policy_gate", "risk_gate", "evidence_gate", "approval_gate", "rollback_gate"]
+    }
+  },
+  "graduation": {
+    "current_stage": "L3_assist_mode",
+    "lane_scores": {
+      "capability": 3,
+      "safety_policy": 4,
+      "reliability_recovery": 3,
+      "observability_auditability": 4,
+      "provenance_reproducibility": 4,
+      "efficiency_budget": 3,
+      "human_oversight_acceptability": 4
+    }
+  },
+  "orchestration": {
+    "route_selection_surface": ["semantic_route", "logical_route", "retrieval_route", "execution_route"],
+    "ray_lifecycle": {
+      "data_surface": "ray_data",
+      "training_surface": "ray_train",
+      "tuning_surface": "ray_tune",
+      "serving_surface": "ray_serve",
+      "cluster_surface": "kuberay"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/cloudshell-fog/runtime-governance-binding-v0.json",
+  "title": "cloudshell-fog runtime governance binding v0",
+  "type": "object",
+  "required": [
+    "source_capability_repo",
+    "substrate_repo",
+    "gitops_adr_ref",
+    "signed_manifest_ref",
+    "trust_profile_ref",
+    "required_governance_features"
+  ],
+  "properties": {
+    "source_capability_repo": {
+      "type": "string",
+      "const": "SocioProphet/cloudshell-fog"
+    },
+    "substrate_repo": {
+      "type": "string",
+      "const": "SocioProphet/prophet-platform"
+    },
+    "gitops_adr_ref": {
+      "type": "string",
+      "const": "SocioProphet/prophet-platform-standards/adr/ADR-040-tekton-argocd-gitops.md"
+    },
+    "signed_manifest_ref": {
+      "type": "string",
+      "const": "SocioProphet/prophet-platform/docs/FOGSTACK_SIGNED_MANIFESTS.md"
+    },
+    "trust_profile_ref": {
+      "type": "string",
+      "const": "SocioProphet/sociosphere/protocol/agentic-workbench/v1/trust_profiles/control-plane.v0.1.json"
+    },
+    "required_governance_features": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "gitops-single-source-of-truth",
+          "tekton-build-and-attestation",
+          "argocd-reconciliation",
+          "signed-fogstack-manifest",
+          "attestation-and-evidence-references",
+          "fail-closed-policy",
+          "approval-quorum-for-higher-risk-classes",
+          "required-audit-and-ledger-events"
+        ]
+      },
+      "minItems": 4
+    },
+    "notes": {
+      "type": ["string", "null"]
+    }
+  },
+  "additionalProperties": false
+}

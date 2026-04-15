@@ -1,0 +1,35 @@
+{
+  "test_block_id": "test_block_0001",
+  "profile_refs": [
+    "logical_statistical_profile_0001",
+    "test_building_block_profile_0001",
+    "control_gating_graduation_profile_0001",
+    "orchestration_ray_profile_0001"
+  ],
+  "input_context": {
+    "task": "semantic route selection with weighted evidence and gate activation",
+    "evaluation_regime": "bounded_candidate_universe"
+  },
+  "expected_structure": {
+    "task_level": "discover route + weighted constraints + required gates",
+    "instance_level": "fill structure for current query and current policy context"
+  },
+  "expected_outputs": {
+    "selected_route": "logical_route",
+    "selected_action_profile": "tool_write"
+  },
+  "expected_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "expected_evidence_refs": [
+    "event_envelope",
+    "evidence_receipt",
+    "benchmark_report"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "event_type": "request.submitted",
+  "source": "brokerage.experience",
+  "subject": "req-001",
+  "time": "2026-04-14T12:00:00Z",
+  "data": {
+    "request_id": "req-001",
+    "requester": "tower.alpha",
+    "service": "standard-app-environment"
+  }
+}

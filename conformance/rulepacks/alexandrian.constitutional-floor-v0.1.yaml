@@ -1,0 +1,95 @@
+schema_version: "fogstack.rulepack/v0.1"
+kind: "FogStackRulepack"
+metadata:
+  rulepack_id: "alexandrian.constitutional-floor"
+  version: "0.1.0"
+  target_bundle_id: "alexandrian.constitutional-floor"
+
+rules:
+  - id: "ACF-001"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.constitutional_floor_present"
+
+  - id: "ACF-002"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.no_private_adult_minor_channels"
+
+  - id: "ACF-003"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "claims.guardian_visibility_required_by_default"
+
+  - id: "ACF-004"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "claims.delegation_non_transitive"
+
+  - id: "ACF-005"
+    severity: "error"
+    check:
+      op: "path_contains_all"
+      path: "contracts.required"
+      values:
+        - "AnonymousReputationReceipt"
+        - "LinkabilityScope"
+        - "MembraneDecision"
+
+  - id: "ACF-006"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "runtime.review_layers.M1.constitutional_floor_ref_required"
+
+  - id: "ACF-007"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "runtime.review_layers.M2.constitutional_floor_ref_required"
+
+  - id: "ACF-008"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "runtime.review_layers.M3.constitutional_floor_ref_required"
+
+  - id: "ACF-009"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "runtime.anonymous_reputation.scope_linkability_supported"
+
+  - id: "ACF-010"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "runtime.anonymous_reputation.revocation_supported"
+
+  - id: "ACF-011"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "runtime.anonymous_reputation.trace_open_supported"
+
+  - id: "ACF-012"
+    severity: "critical"
+    check:
+      op: "path_true"
+      path: "runtime.local_overlay_cannot_weaken_floor"
+
+  - id: "ACF-013"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "runtime.complaint_routing.enabled"
+
+  - id: "ACF-014"
+    severity: "error"
+    check:
+      op: "path_true"
+      path: "runtime.partner_certification.enforced"

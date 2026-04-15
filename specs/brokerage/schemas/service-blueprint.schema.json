@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "blueprint_id": { "type": "string" },
+    "version": { "type": "string" },
+    "workflow_id": { "type": "string" },
+    "service_class": { "type": "string" },
+    "policy_pack_ids": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["blueprint_id", "version", "workflow_id", "service_class"]
+}

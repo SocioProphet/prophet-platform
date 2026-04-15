@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "evidence_id": { "type": "string" },
+    "service_instance_id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "status": { "type": "string" },
+    "documents": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["evidence_id", "service_instance_id", "timestamp", "status"]
+}

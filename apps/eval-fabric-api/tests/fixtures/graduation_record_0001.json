@@ -1,0 +1,32 @@
+{
+  "graduation_record_id": "graduation_record_0001",
+  "agent_ref": "agent://socioprophet/example/retrieval-governed-operator",
+  "current_stage": "L3_assist_mode",
+  "target_stage": "L4_supervised_actuation",
+  "lane_scores": {
+    "capability": 3,
+    "safety_policy": 4,
+    "reliability_recovery": 3,
+    "observability_auditability": 4,
+    "provenance_reproducibility": 4,
+    "efficiency_budget": 3,
+    "human_oversight_acceptability": 4
+  },
+  "blocking_lanes": [],
+  "promotion_window": "rolling_30d",
+  "required_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "evidence_gate",
+    "approval_gate",
+    "rollback_gate"
+  ],
+  "evidence_refs": [
+    "event_envelope",
+    "evidence_receipt",
+    "benchmark_report",
+    "promotion_decision"
+  ]
+}

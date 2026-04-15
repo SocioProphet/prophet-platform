@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke validate-fogstack
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack
+validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -63,3 +63,6 @@ lampstand-vertical-slice-smoke:
 
 validate-fogstack:
 	python3 tools/validate_fogstack.py
+
+validate-storage-suite:
+	python3 tools/validate_storage_suite.py
