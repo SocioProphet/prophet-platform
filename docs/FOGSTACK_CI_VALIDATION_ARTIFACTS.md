@@ -11,7 +11,8 @@ Turn verifier output into a schema-conforming `FogStackValidationRecord` that ca
 1. run `python3 tools/validate_fogstack.py` or `python3 tools/fogstack_verify.py ... --json`
 2. capture the verifier JSON output
 3. run `python3 tools/emit_fogstack_validation_record.py` to convert that JSON into a `FogStackValidationRecord`
-4. write the record into a deterministic artifact location under CI workspace or release packaging output
+4. run `python3 tools/fogstack_validation_to_evidence.py` to convert validation records into canonical platform evidence artifacts
+5. upload both the validation records and evidence artifacts from CI
 
 ## Example
 
@@ -24,6 +25,10 @@ python3 tools/emit_fogstack_validation_record.py \
   --source ci \
   --evidence-ref artifact://ci/fogstack.access.verify.json \
   --output /tmp/fogstack.access.validation.record.json
+python3 tools/fogstack_validation_to_evidence.py \
+  --records-dir /tmp \
+  --state-root /tmp/ci_state \
+  --service fogstack-validation
 ```
 
 ## What counts as executed evidence
@@ -32,10 +37,18 @@ A record should only be treated as release evidence when:
 - `source` is `ci`
 - the underlying verifier JSON came from the native validation path
 - the bundle/rulepack on disk match the release candidate being published
+- the emitted evidence artifacts are derived from that same CI-produced validation record
 
-## Out of scope in this phase
+## Now in scope
 
-- automatic CI wiring
-- artifact upload/storage backend
+This phase now includes:
+- automatic GitHub Actions wiring for Fog Stack validation
+- CI-emitted validation records
+- CI-emitted canonical evidence artifacts
+- artifact upload from CI for both validation records and evidence bundles
+
+## Still out of scope
+
 - cryptographic signing of validation records
 - release-manifest back-linking automation
+- registry publication of release evidence
