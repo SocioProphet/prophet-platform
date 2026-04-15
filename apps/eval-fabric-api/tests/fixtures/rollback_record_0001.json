@@ -1,0 +1,18 @@
+{
+  "rollback_record_id": "rollback_record_0001",
+  "subject_ref": "service://eval-fabric-api/ray-serve",
+  "trigger_ref": "promotion_decision_0001",
+  "rollback_reason": "post-promotion policy regression",
+  "required_gates": [
+    "authorization_gate",
+    "scope_gate",
+    "policy_gate",
+    "risk_gate",
+    "rollback_gate"
+  ],
+  "evidence_refs": [
+    "event_envelope",
+    "evidence_receipt"
+  ],
+  "status": "rollback_ready"
+}
