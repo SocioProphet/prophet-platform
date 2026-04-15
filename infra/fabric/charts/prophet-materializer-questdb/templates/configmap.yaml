@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { include "prophet-materializer-questdb.fullname" . }-config
+  labels:
+    app.kubernetes.io/name: prophet-materializer-questdb
+    app.kubernetes.io/part-of: prophet-platform
+    socioprofit.com/atom: prophet-materializer-questdb
+data:
+  # Add non-secret config here
+  LOG_LEVEL: "info"

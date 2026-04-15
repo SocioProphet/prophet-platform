@@ -1,0 +1,15 @@
+job:
+  image: "ghcr.io/prophet-platform/train:0.1.0"
+  entrypoint: "python -m train.main --dataset-uri s3://lake/datasets/v1 --output-uri s3://models/run-123"
+  shutdownAfterJobFinishes: true
+
+rayCluster:
+  rayVersion: "2.53.0"
+  head:
+    cpu: "2"
+    memory: "4Gi"
+  worker:
+    replicas: 4
+    cpu: "4"
+    memory: "16Gi"
+    gpus: 1
