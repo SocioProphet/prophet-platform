@@ -11,6 +11,9 @@ on:
       - 'tools/validate_telemetry_package.py'
       - '.github/workflows/validate-telemetry.yml'
 
+permissions:
+  contents: read
+
 jobs:
   validate-telemetry:
     runs-on: ubuntu-latest
