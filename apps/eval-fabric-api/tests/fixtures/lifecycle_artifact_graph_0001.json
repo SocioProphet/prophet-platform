@@ -1,0 +1,19 @@
+{
+  "artifact_graph_id": "lifecycle_artifact_graph_0001",
+  "agent_ref": "agent://socioprophet/example/retrieval-governed-operator",
+  "edges": [
+    {"from": "recipe://benchmark/ray/eval-fabric-001", "to": "promotion_decision_0001", "type": "promotes"},
+    {"from": "promotion_decision_0001", "to": "gate_activation_record_0001", "type": "requires_gate_activation"},
+    {"from": "gate_activation_record_0001", "to": "graduation_record_0001", "type": "supports_graduation"},
+    {"from": "promotion_decision_0001", "to": "rollback_record_0001", "type": "rollback_ready"}
+  ],
+  "evidence_refs": [
+    "event_envelope",
+    "evidence_receipt",
+    "benchmark_report",
+    "promotion_decision",
+    "rollback_record",
+    "gate_activation_record",
+    "graduation_record"
+  ]
+}
