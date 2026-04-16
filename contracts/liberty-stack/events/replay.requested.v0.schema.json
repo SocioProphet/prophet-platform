@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "replay.requested.v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "emitted_at", "subject_ref", "replay_window_ref"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "emitted_at": {"type": "string"},
+    "subject_ref": {"type": "string"},
+    "replay_window_ref": {"type": "string"},
+    "reason": {"type": ["string", "null"]}
+  }
+}
