@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cutover.approved.v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "emitted_at", "subject_ref", "approval_ref"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "emitted_at": {"type": "string"},
+    "subject_ref": {"type": "string"},
+    "approval_ref": {"type": "string"},
+    "decision_record_ref": {"type": ["string", "null"]}
+  }
+}

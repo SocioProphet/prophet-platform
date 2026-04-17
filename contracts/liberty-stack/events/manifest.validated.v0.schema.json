@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "manifest.validated.v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "emitted_at", "manifest_id", "status"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "emitted_at": {"type": "string"},
+    "manifest_id": {"type": "string"},
+    "status": {"enum": ["pass", "warn", "fail"]},
+    "receipt_ref": {"type": ["string", "null"]}
+  }
+}

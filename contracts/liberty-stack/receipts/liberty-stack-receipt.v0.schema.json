@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "liberty-stack-receipt.v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "action", "subject_ref"],
+  "properties": {
+    "status": {"enum": ["succeeded", "failed", "blocked"]},
+    "action": {"type": "string"},
+    "subject_ref": {"type": "string"},
+    "evidence_bundle_ref": {"type": ["string", "null"]},
+    "verification_record_ref": {"type": ["string", "null"]},
+    "notes": {"type": ["string", "null"]}
+  }
+}
