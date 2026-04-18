@@ -1,0 +1,26 @@
+{
+  "service": "workflow-local-runner",
+  "correlation_id": "corr-example-bound-001",
+  "workflow_run": {
+    "runId": "run-example-bound-001",
+    "workflowRef": "workflow://agentic-workbench/demo-example-bound",
+    "workflowDigest": "sha256:0fe7287e778d169f7a301e9fdb5e356af77326da64c109134c673e7de3c68047",
+    "createdAt": "2026-04-16T07:00:00Z",
+    "status": "pending",
+    "inputDigest": "sha256:a9d7323b6b1d8e69a42f27cbcf23ba29e59760edc39dbcd96bd476201c96ab09"
+  },
+  "execution_envelope": {
+    "envelopeId": "env-example-bound-001",
+    "runId": "run-example-bound-001",
+    "stepId": "step-example-bound-001",
+    "subject": {
+      "spiffeId": "spiffe://sourceos.local/workbench/tester",
+      "aumDigest": "sha256:291fe26bea42f33f894c074b90e5d4d14b5242fda4d083ff1c06251bcde9b788"
+    },
+    "inputDigest": "sha256:a9d7323b6b1d8e69a42f27cbcf23ba29e59760edc39dbcd96bd476201c96ab09",
+    "policyDecisionRef": "policy-decision://example-bound-001"
+  },
+  "payload": {
+    "message": "example execute-and-materialize request"
+  }
+}
