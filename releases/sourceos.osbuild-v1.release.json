@@ -1,0 +1,51 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v1alpha1",
+  "kind": "PlatformReleaseDescriptor",
+  "metadata": {
+    "name": "sourceos-osbuild-v1",
+    "status": "draft"
+  },
+  "spec": {
+    "summary": "Consumer-side release descriptor for the SourceOS OS build / cybernetic boundary tranche.",
+    "dependsOn": {
+      "contracts": {
+        "repo": "SourceOS-Linux/sourceos-spec",
+        "mergeCommit": "025ebc02dcf6eeeb21340804fb5e60fe30cc7be8",
+        "objects": [
+          "OSImage",
+          "NodeBinding",
+          "CyberneticAssignment"
+        ]
+      },
+      "platformStandardsPr": {
+        "repo": "SocioProphet/prophet-platform-standards",
+        "number": 7
+      },
+      "policyFabricPr": {
+        "repo": "SocioProphet/policy-fabric",
+        "number": 20
+      },
+      "agentplanePr": {
+        "repo": "SocioProphet/agentplane",
+        "number": 40
+      }
+    },
+    "consume": {
+      "lockUpdatePending": true,
+      "lockTarget": "standards.lock.yaml",
+      "generatedArtifacts": [
+        "contracts/identity/",
+        "contracts/evidence/"
+      ],
+      "runtimeTargets": [
+        "apps/agentplane",
+        "apps/workspace-controller",
+        "apps/identity-prime"
+      ]
+    },
+    "notes": [
+      "This descriptor is intentionally draft-only until the sourceos-spec seam receives any final catalog/API polish.",
+      "The standards.lock pin update should be the last merge in the train."
+    ]
+  }
+}
