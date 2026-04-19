@@ -1,0 +1,13 @@
+[project]
+name = "liberty-stack-readout"
+version = "0.1.0"
+description = "Thin operator-facing readout surface for Liberty Stack receipts, verification records, and workflow events"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111",
+  "uvicorn>=0.30",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
