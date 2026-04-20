@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
+from .outbox import write_publication_record
 from .planner import load_publication_request, plan_publication_request
 from .resolver import resolve_topic
 
@@ -33,6 +35,24 @@ def cmd_plan_request(args):
     return 0 if plan.get("ok") else 2
 
 
+def cmd_enqueue_request(args):
+    request = load_publication_request(args.path)
+    plan = plan_publication_request(request)
+    if not plan.get("ok"):
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        return 2
+    result = write_publication_record(plan)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_enqueue_plan(args):
+    plan = json.loads(Path(args.path).read_text(encoding="utf-8"))
+    result = write_publication_record(plan)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="pp-zone-router")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -50,6 +70,14 @@ def build_parser():
     plan_request = sub.add_parser("plan-request")
     plan_request.add_argument("--path", required=True)
     plan_request.set_defaults(fn=cmd_plan_request)
+
+    enqueue_request = sub.add_parser("enqueue-request")
+    enqueue_request.add_argument("--path", required=True)
+    enqueue_request.set_defaults(fn=cmd_enqueue_request)
+
+    enqueue_plan = sub.add_parser("enqueue-plan")
+    enqueue_plan.add_argument("--path", required=True)
+    enqueue_plan.set_defaults(fn=cmd_enqueue_plan)
 
     return parser
 
