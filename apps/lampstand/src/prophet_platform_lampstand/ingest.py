@@ -10,6 +10,8 @@ from typing import Any
 from .catalog import append_entry, make_entry
 from .paths import ensure_service_dirs, payloads_root
 from .receipts import make_bundle, write_bundle, utc_now
+from .zone_enrich import enrich_ingest_result
+from .zone_publish import build_zone_publication_request
 
 
 def _sha256_file(path: Path) -> str:
@@ -30,6 +32,8 @@ def build_carrier_ingested(
     path: Path,
     scope_ref: str,
     service_ref: str = "apps/lampstand",
+    zone_ref: str = "zone://edge",
+    topic_ref: str | None = None,
 ) -> dict[str, Any]:
     content_sha256 = _sha256_file(path)
     event_id = str(uuid.uuid4())
@@ -44,11 +48,14 @@ def build_carrier_ingested(
         "content_sha256": content_sha256,
         "size_bytes": path.stat().st_size,
         "scope_ref": scope_ref,
+        "zone_ref": zone_ref,
         "receipt": {
             "hash": "",
             "algo": "sha256"
         }
     }
+    if topic_ref:
+        payload["topic_ref"] = topic_ref
     if mime:
         payload["mime_type"] = mime
     return payload
@@ -60,12 +67,20 @@ def ingest_path(
     scope_ref: str = "scope://local/default",
     service_ref: str = "apps/lampstand",
     classifiers: list[str] | None = None,
+    zone_ref: str = "zone://edge",
+    topic_ref: str | None = None,
 ) -> dict[str, Any]:
     path = Path(file_path).expanduser().resolve()
     if not path.exists() or not path.is_file():
         raise FileNotFoundError(path)
 
-    payload = build_carrier_ingested(path=path, scope_ref=scope_ref, service_ref=service_ref)
+    payload = build_carrier_ingested(
+        path=path,
+        scope_ref=scope_ref,
+        service_ref=service_ref,
+        zone_ref=zone_ref,
+        topic_ref=topic_ref,
+    )
     payload_path = _payload_path(payload["event_id"])
     payload_ref = f"file://{payload_path}"
 
@@ -75,6 +90,7 @@ def ingest_path(
         inferred_classifiers.append(f"suffix:{suffix}")
     inferred_classifiers.append("event:carrier.ingested")
     inferred_classifiers.append("service:lampstand")
+    inferred_classifiers.append(f"zone:{zone_ref.replace('zone://', '')}")
 
     bundle = make_bundle(
         event_type="carrier.ingested",
@@ -84,6 +100,8 @@ def ingest_path(
         payload_ref=payload_ref,
         service_ref=service_ref,
         scope_ref=scope_ref,
+        zone_ref=zone_ref,
+        topic_ref=topic_ref,
         correlation_id=payload["event_id"],
         classifiers=sorted(set(inferred_classifiers)),
         metrics={
@@ -109,6 +127,8 @@ def ingest_path(
         status=bundle.receipt["status"],
         subject_ref=bundle.envelope["subject_ref"],
         scope_ref=scope_ref,
+        zone_ref=zone_ref,
+        topic_ref=topic_ref,
         envelope_ref=f"file://{event_path.resolve()}",
         receipt_ref=f"file://{receipt_path.resolve()}",
         payload_ref=f"file://{payload_path.resolve()}",
@@ -117,7 +137,7 @@ def ingest_path(
     )
     catalog_path = append_entry(entry)
 
-    return {
+    result = {
         "ok": True,
         "carrier_ref": payload["carrier_ref"],
         "payload_path": str(payload_path),
@@ -126,3 +146,13 @@ def ingest_path(
         "catalog_path": str(catalog_path),
         "entry": entry,
     }
+    result = enrich_ingest_result(result, zone_ref=zone_ref, topic_ref=topic_ref)
+    result["publication_request"] = build_zone_publication_request(
+        carrier_ref=result["carrier_ref"],
+        event_path=result["event_path"],
+        receipt_path=result["receipt_path"],
+        catalog_path=result["catalog_path"],
+        zone_ref=zone_ref,
+        topic_ref=topic_ref,
+    )
+    return result

@@ -35,6 +35,8 @@ def make_bundle(
     payload_ref: str,
     service_ref: str = "apps/lampstand",
     scope_ref: str | None = None,
+    zone_ref: str | None = None,
+    topic_ref: str | None = None,
     correlation_id: str | None = None,
     classifiers: list[str] | None = None,
     policy_refs: list[str] | None = None,
@@ -58,6 +60,10 @@ def make_bundle(
     }
     if scope_ref:
         envelope["scope_ref"] = scope_ref
+    if zone_ref:
+        envelope["zone_ref"] = zone_ref
+    if topic_ref:
+        envelope["topic_ref"] = topic_ref
     if classifiers:
         envelope["classifiers"] = classifiers
 
@@ -80,6 +86,10 @@ def make_bundle(
         "hash_algo": "sha256",
         "correlation_id": correlation_id or envelope_id,
     }
+    if zone_ref:
+        receipt["zone_ref"] = zone_ref
+    if topic_ref:
+        receipt["topic_ref"] = topic_ref
 
     envelope["receipt_ref"] = f"receipt://{receipt_id}"
     return ReceiptBundle(envelope=envelope, receipt=receipt)

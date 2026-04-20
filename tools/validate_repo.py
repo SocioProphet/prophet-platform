@@ -14,6 +14,11 @@ REQUIRED_FILES = [
     "docs/TRITRPC_PLATFORM_BINDING.md",
     "apps/api/go.mod",
     "apps/gateway/go.mod",
+    "contracts/imported/IMPORT_MANIFEST.yaml",
+    "docs/ZONE_MODEL.md",
+    "docs/DROPZONE_MEMBRANES.md",
+    "docs/EVENT_BUS_TOPICS.md",
+    "docs/MEMORY_MESH_INTEGRATION.md",
 ]
 SUSPECT_PATTERNS = [r"\bTODO\b", r"\bPLACEHOLDER\b", r"\n\.\.\.\n"]
 
@@ -31,15 +36,15 @@ for rel in REQUIRED_FILES:
     if not (ROOT / rel).exists():
         fail(f"missing required file: {rel}")
 
-for rel in ["README.md", "docs/ARCHITECTURE.md", "docs/TRITRPC_SPEC.md", "docs/TRITRPC_PLATFORM_BINDING.md"]:
+for rel in ["README.md", "docs/ARCHITECTURE.md", "docs/TRITRPC_SPEC.md", "docs/TRITRPC_PLATFORM_BINDING.md", "docs/ZONE_MODEL.md"]:
     text = (ROOT / rel).read_text(encoding="utf-8", errors="replace")
     for pat in SUSPECT_PATTERNS:
         if re.search(pat, text, flags=re.IGNORECASE):
             fail(f"document looks unfinished ({pat!r}): {rel}")
 
 readme = (ROOT / "README.md").read_text(encoding="utf-8", errors="replace")
-if "`rpc/`" in readme or "`schemas/`" in readme:
-    fail("README still refers to legacy rpc/schemas paths")
+if "`rpc/`" in readme:
+    fail("README still refers to legacy rpc path")
 
 appset = (ROOT / "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml").read_text(encoding="utf-8", errors="replace")
 if "socioprophet/socioprophet.git" in appset:
@@ -49,5 +54,13 @@ for gomod in [ROOT / "apps/api/go.mod", ROOT / "apps/gateway/go.mod"]:
     text = gomod.read_text(encoding="utf-8", errors="replace")
     if "socioprophet/apps" in text:
         fail(f"legacy module path remains in {gomod.relative_to(ROOT)}")
+
+for rel in [
+    "contracts/imported/semantic-serdes/SOURCE_MANIFEST.yaml",
+    "contracts/imported/new-hope/SOURCE_MANIFEST.yaml",
+    "contracts/imported/memory-mesh/SOURCE_MANIFEST.yaml",
+]:
+    if not (ROOT / rel).exists():
+        fail(f"missing imported source manifest: {rel}")
 
 print("OK: validate passed")

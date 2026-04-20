@@ -41,11 +41,17 @@ def cmd_emit_receipt(args: argparse.Namespace) -> int:
         metrics={"note": args.note} if args.note else {},
     )
     event_path, receipt_path = write_bundle(bundle)
-    print(json.dumps({
-        "ok": True,
-        "event_path": str(event_path),
-        "receipt_path": str(receipt_path),
-    }, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "event_path": str(event_path),
+                "receipt_path": str(receipt_path),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
@@ -55,6 +61,8 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         scope_ref=args.scope_ref,
         service_ref=args.service_ref,
         classifiers=list(args.classifier or []),
+        zone_ref=args.zone_ref,
+        topic_ref=args.topic_ref,
     )
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
@@ -99,6 +107,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_ingest.add_argument("--path", required=True)
     p_ingest.add_argument("--scope-ref", default="scope://local/default")
     p_ingest.add_argument("--service-ref", default="apps/lampstand")
+    p_ingest.add_argument("--zone-ref", default="zone://edge")
+    p_ingest.add_argument("--topic-ref")
     p_ingest.add_argument("--classifier", action="append")
     p_ingest.set_defaults(fn=cmd_ingest)
 
