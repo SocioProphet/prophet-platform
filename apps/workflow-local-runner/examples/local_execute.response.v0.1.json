@@ -1,0 +1,14 @@
+{
+  "service": "workflow-local-runner",
+  "correlation_id": "corr-example-execute-001",
+  "subject_ref": "workflow-run://run-example-execute-001",
+  "payload_ref": "file:///tmp/prophet-platform/payloads/workflow-local-runner/corr-example-execute-001.payload.json",
+  "event_ref": "file:///tmp/prophet-platform/events/workflow-local-runner/corr-example-execute-001.event.json",
+  "receipt_ref": "file:///tmp/prophet-platform/receipts/workflow-local-runner/corr-example-execute-001.receipt.json",
+  "catalog_ref": "file:///tmp/prophet-platform/catalog/workflow-local-runner/receipt_catalog.jsonl",
+  "digests": {
+    "workflow_run_sha256": "ae6a18bba7833817e4cb4a265715bfe7dbb947e95d2d2e044d19768d90f877b8",
+    "execution_envelope_sha256": "35a4c762bd0d79b0918a78da25a7e506c5d8a232bc5f6e39ef307066ac760792",
+    "payload_sha256": "6265ef31384ea76f2f36fb69d7bda6215af8d94c8f4660da8689309b9a9e0411"
+  }
+}
