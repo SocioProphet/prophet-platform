@@ -13,11 +13,16 @@
 5. [LOCAL-DEV.md](LOCAL-DEV.md) — local development setup
 6. [RUNBOOK.md](RUNBOOK.md) — day-to-day operations
 7. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common problems and fixes
-8. [INTEGRATION-MAP.md](INTEGRATION-MAP.md) — cross-repo integration layer map
-9. [OBSERVABILITY.md](OBSERVABILITY.md) — logging, metrics, and tracing
-10. [REPRODUCIBILITY.md](REPRODUCIBILITY.md) — reproducible builds and dependency pinning
-11. [ROADMAP.md](ROADMAP.md) — planned improvements
-12. [STORAGE_INTEGRATION_BLUEPRINT.md](STORAGE_INTEGRATION_BLUEPRINT.md) — multi-store storage architecture
+8. [THIN_SLICE_SERVICES.md](../apps/THIN_SLICE_SERVICES.md) — local executable truth path for the thin-slice runtime
+9. [ZONE_MODEL.md](ZONE_MODEL.md) — policy-bound zone model for edge, workspace, platform, memory, ops, and export lanes
+10. [DROPZONE_MEMBRANES.md](DROPZONE_MEMBRANES.md) — ingress membrane outcomes and dropzone semantics
+11. [EVENT_BUS_TOPICS.md](EVENT_BUS_TOPICS.md) — initial zone-first topic taxonomy
+12. [MEMORY_MESH_INTEGRATION.md](MEMORY_MESH_INTEGRATION.md) — memory runtime integration stance
+13. [INTEGRATION-MAP.md](INTEGRATION-MAP.md) — cross-repo integration layer map
+14. [OBSERVABILITY.md](OBSERVABILITY.md) — logging, metrics, and tracing
+15. [REPRODUCIBILITY.md](REPRODUCIBILITY.md) — reproducible builds and dependency pinning
+16. [ROADMAP.md](ROADMAP.md) — planned improvements
+17. [STORAGE_INTEGRATION_BLUEPRINT.md](STORAGE_INTEGRATION_BLUEPRINT.md) — multi-store storage architecture
 
 ---
 
