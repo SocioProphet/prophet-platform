@@ -7,7 +7,7 @@ imports:
       - event-envelope.v1
       - surface-projection.v1
       - provenance-bundle.v1
-    pin: "<commit-or-tag>"
+    pin: "73dcafc7c71ed441df2e81c13b76db859b657199"
     validation:
       - jsonschema
       - roundtrip-fixtures
@@ -20,7 +20,7 @@ imports:
       - carrier.v1
       - ingress-decision.v1
       - membrane-decision.v1
-    pin: "<commit-or-tag>"
+    pin: "57cc29dd30e90c2bd990a0738ac2f9290a2da67b"
     validation:
       - jsonschema
       - membrane-fixtures
@@ -33,7 +33,7 @@ imports:
       - memoryd.openapi.yaml
       - memory-search.request
       - memory-write.request
-    pin: "<commit-or-tag>"
+    pin: "41ba1ff684a1cb8cf6d867b0202118fb3805c6ad"
     validation:
       - openapi-validate
       - client-smoke
@@ -47,7 +47,7 @@ references:
       - registry.ttl
       - registry.jsonld
       - selected-shacl-bundles
-    pin: "<commit-or-tag>"
+    pin: "45d61047678394abd8fe4dbec667e7ab3931be08"
     validation:
       - shacl-gate
       - registry-presence
