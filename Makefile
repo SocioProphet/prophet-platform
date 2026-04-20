@@ -1,4 +1,4 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke validate-fogstack validate-storage-suite
 
 validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
 
@@ -29,8 +29,10 @@ test-python-apps:
 	cd apps/evidence-receipts && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
 	cd apps/evidence-console && test -d .venv || python3 -m venv .venv
 	cd apps/evidence-console && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
+	cd apps/zone-router && test -d .venv || python3 -m venv .venv
+	cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
 
-smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke
+smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke
 
 smoke-health:
 	bash tools/smoke_tritrpc_health.sh
@@ -63,6 +65,12 @@ lampstand-vertical-slice-smoke:
 
 lampstand-zone-smoke:
 	python3 tools/smoke_lampstand_zone.py
+
+zone-router-publication-smoke:
+	python3 tools/smoke_zone_publication_plan.py
+
+zone-router-publication-enqueue-smoke:
+	python3 tools/smoke_zone_publication_enqueue.py
 
 validate-fogstack:
 	python3 tools/validate_fogstack.py

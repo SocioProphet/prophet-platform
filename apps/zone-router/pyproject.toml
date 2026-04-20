@@ -8,3 +8,6 @@ version = "0.1.0"
 description = "Zone-aware topic routing helpers for Prophet Platform"
 requires-python = ">=3.10"
 dependencies = []
+
+[project.scripts]
+pp-zone-router = "zone_router.main:main"
