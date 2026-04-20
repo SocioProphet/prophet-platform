@@ -1,0 +1,5 @@
+{
+  "service": "workflow-local-runner",
+  "correlation_id": "corr-example-execute-001",
+  "bundle_ref": "file:///tmp/prophet-platform/bundles/workflow-local-runner/corr-example-execute-001.bound_bundle.json"
+}
