@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZonePublicationRequest v0.1",
+  "type": "object",
+  "required": [
+    "carrier_ref",
+    "zone_ref",
+    "event_ref",
+    "receipt_ref",
+    "catalog_ref"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "carrier_ref": {
+      "type": "string"
+    },
+    "zone_ref": {
+      "type": "string"
+    },
+    "topic_ref": {
+      "type": "string"
+    },
+    "event_ref": {
+      "type": "string"
+    },
+    "receipt_ref": {
+      "type": "string"
+    },
+    "catalog_ref": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string"
+    }
+  }
+}
