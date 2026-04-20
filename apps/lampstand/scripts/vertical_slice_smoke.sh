@@ -16,6 +16,8 @@ EOF
 python3 -m prophet_platform_lampstand.main ingest \
   --path "$TMP/input/sample.txt" \
   --scope-ref "scope://local/default" \
+  --zone-ref "zone://edge" \
+  --topic-ref "zone.edge.carrier.ingested.v1" \
   --classifier "slice:phase4" \
   --classifier "service:lampstand"
 
