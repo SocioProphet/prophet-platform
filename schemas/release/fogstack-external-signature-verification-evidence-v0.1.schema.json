@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-external-signature-verification-evidence-v0.1.schema.json",
+  "title": "FogStackExternalSignatureVerificationEvidence",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "tool",
+    "status"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackExternalSignatureVerificationEvidence" },
+    "schema_version": { "const": "v0.1" },
+    "tool": { "enum": ["cosign", "sigstore", "other"] },
+    "status": { "enum": ["pass", "warn", "fail"] },
+    "message": { "type": ["string", "null"] },
+    "verified_digest": { "type": ["string", "null"] },
+    "evidence_count": { "type": ["integer", "null"] },
+    "key_ref": { "type": ["string", "null"] },
+    "raw_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
