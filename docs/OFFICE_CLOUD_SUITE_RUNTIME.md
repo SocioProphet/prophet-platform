@@ -16,6 +16,8 @@ The platform should own:
 - AI action routing and receipt emission
 - workflow runtime for office/document automations
 - deployment topology, namespaces, and service wiring
+- memory-backed recall and writeback hooks for office/document actions
+- cloud search and retrieval surfaces that can consume local-search and workspace-index signals
 
 ## Service set
 
@@ -26,6 +28,8 @@ Planned service surfaces:
 - `services/workspace-ai-orchestrator/`
 - `services/office-action-service/`
 - `services/workspace-agent-studio/`
+- adapter bindings to `memory-mesh`
+- search/runtime bindings that can consume `lampstand`-derived desktop discovery where appropriate
 
 ## Cross-repo integration
 
@@ -35,6 +39,7 @@ Planned service surfaces:
 - workspace office capability families
 - product parity expectations
 - user-facing and admin-facing semantics
+- where memory-backed recall and desktop/cloud search appear in the workspace UX
 
 ### Downstream host realization
 
@@ -44,6 +49,21 @@ Planned service surfaces:
 - local smoke tests
 - font and MIME integration
 - desktop office shell behavior
+- Lampstand desktop indexing/search handoff
+- local memory-mesh hooks where allowed by policy
+
+### Shared runtime dependencies
+
+`SocioProphet/memory-mesh` should act as the canonical memory runtime for:
+- recall-before-action
+- writeback-after-action
+- user and project continuity for office workflows
+- memory-backed agent flows for drafting, summarization, and task creation
+
+`SocioProphet/lampstand` should act as the canonical desktop indexing/search runtime for:
+- local office file discovery
+- inspectable local indexing health and stats
+- search handoff from SourceOS desktop into workspace office surfaces
 
 ## First runtime contracts
 
@@ -57,4 +77,4 @@ Those contracts should support local desktop and cloud editing paths without bin
 
 ## Editor posture
 
-The runtime should treat LibreOffice / Collabora as an editing and conversion engine, not as the total product. The workspace graph, AI orchestration, and document-control services belong at the platform layer.
+The runtime should treat LibreOffice / Collabora as an editing and conversion engine, not as the total product. The workspace graph, AI orchestration, memory hooks, and document-control services belong at the platform layer.
