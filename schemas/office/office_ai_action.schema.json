@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_ai_action.schema.json",
+  "title": "office_ai_action",
+  "type": "object",
+  "required": [
+    "action_id",
+    "action_type",
+    "approval_state"
+  ],
+  "properties": {
+    "action_id": {"type": "string"},
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "INSERT_TEXT",
+        "REPLACE_TEXT",
+        "SUMMARIZE",
+        "CREATE_FORMULA",
+        "CREATE_CHART",
+        "CREATE_SLIDE",
+        "ADD_COMMENT",
+        "ADD_SUGGESTION",
+        "EXPORT",
+        "CREATE_TASK",
+        "DRAFT_EMAIL"
+      ]
+    },
+    "target_document_id": {"type": "string"},
+    "target_region": {"type": "string"},
+    "prompt_ref": {"type": "string"},
+    "grounding_refs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "model_ref": {"type": "string"},
+    "proposed_change": {"type": "object"},
+    "approval_state": {
+      "type": "string",
+      "enum": ["PROPOSED", "APPROVED", "APPLIED", "REJECTED", "FAILED"]
+    }
+  },
+  "additionalProperties": false
+}
