@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace/workspace_flow_record.schema.json",
+  "title": "workspace_flow_record",
+  "type": "object",
+  "required": ["flow_id", "starter", "steps", "permissions", "enabled"],
+  "properties": {
+    "flow_id": {"type": "string"},
+    "starter": {"type": "object"},
+    "steps": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "variables": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "tools": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "approval_gates": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "schedule": {"type": "object"},
+    "permissions": {"type": "object"},
+    "audit_log_ref": {"type": "string"},
+    "enabled": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}
