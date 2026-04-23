@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/contracts/office/office.version_written.v0.schema.json",
+  "title": "office.version_written.v0",
+  "type": "object",
+  "required": ["event_id", "document_id", "session_id", "version_id", "created_at"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "session_id": {"type": "string"},
+    "version_id": {"type": "string"},
+    "writeback_hash": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
