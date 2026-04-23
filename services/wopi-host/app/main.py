@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 
+from services.wopi_host.app.file_store import FileBackedWOPIStore
 from services.wopi_host.app.store import store
 
 app = FastAPI(title="wopi-host", version="0.1.0")
+file_store = FileBackedWOPIStore("/tmp/sourceos-wopi-store")
 
 
 @app.get("/healthz")
@@ -44,4 +46,17 @@ def writeback(document_id: str) -> dict[str, object]:
         "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
         "status": "WRITTEN",
         "updated_at": state.updated_at,
+    }
+
+
+@app.post("/v0/wopi/file-writeback/{document_id}")
+def file_writeback(document_id: str) -> dict[str, object]:
+    state = file_store.writeback(document_id)
+    return {
+        "document_id": state.document_id,
+        "session_id": state.session_id,
+        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "status": "WRITTEN",
+        "updated_at": state.updated_at,
+        "store": "file",
     }
