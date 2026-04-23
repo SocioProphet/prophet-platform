@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/contracts/office/office.ai_action.proposed.v0.schema.json",
+  "title": "office.ai_action.proposed.v0",
+  "type": "object",
+  "required": ["event_id", "action_id", "document_id", "action_type", "created_at"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "action_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "action_type": {"type": "string"},
+    "model_ref": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

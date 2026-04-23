@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/contracts/office/office.lock_acquired.v0.schema.json",
+  "title": "office.lock_acquired.v0",
+  "type": "object",
+  "required": ["event_id", "document_id", "session_id", "lock_token", "created_at"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "session_id": {"type": "string"},
+    "lock_token": {"type": "string"},
+    "actor_id": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
