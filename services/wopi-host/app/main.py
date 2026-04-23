@@ -17,3 +17,23 @@ def check_file_info(document_id: str) -> dict[str, object]:
         "supports_update": True,
         "user_can_write": True,
     }
+
+
+@app.post("/v0/wopi/lock/{document_id}")
+def acquire_lock(document_id: str) -> dict[str, object]:
+    return {
+        "document_id": document_id,
+        "session_id": f"session-{document_id}",
+        "lock_token": f"lock-{document_id}",
+        "status": "LOCKED",
+    }
+
+
+@app.post("/v0/wopi/writeback/{document_id}")
+def writeback(document_id: str) -> dict[str, object]:
+    return {
+        "document_id": document_id,
+        "session_id": f"session-{document_id}",
+        "version_id": f"version-{document_id}-001",
+        "status": "WRITTEN",
+    }
