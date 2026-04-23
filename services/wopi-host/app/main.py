@@ -341,3 +341,23 @@ def document_summary(document_id: str) -> dict[str, object]:
         "version_records": [item for item in VERSION_RECORDS.values() if item["document_id"] == document_id],
         "writeback_records": [item for item in WRITEBACK_RECORDS.values() if item["document_id"] == document_id],
     }
+
+
+@app.get("/v0/wopi/get-file/{document_id}")
+def get_file(document_id: str):
+    payload = document_store.get_bytes(document_id)
+    if payload is None:
+        return Response(status_code=404)
+    return Response(content=payload, media_type="application/octet-stream")
+
+
+@app.post("/v0/wopi/put-file/{document_id}")
+def put_file(document_id: str, body: PutFileRequest) -> dict[str, object]:
+    document_store.put_bytes(document_id, body.payload.encode("utf-8"))
+    state = store.writeback(document_id)
+    return {
+        "document_id": state.document_id,
+        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "status": "WRITTEN",
+        "store": "payload",
+    }
