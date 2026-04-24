@@ -2,29 +2,104 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
+from .outbox import write_publication_record
+from .planner import load_publication_request, plan_publication_request
 from .resolver import resolve_topic
+from .semantic_gate import validate_plan, validate_record, validate_request
+
+
+def _emit_failure(stage, payload):
+    print(json.dumps({"ok": False, "stage": stage, "semantic_validation": payload}, indent=2, sort_keys=True))
+    return 2
 
 
 def cmd_plan(args):
-    topic = resolve_topic(args.zone_ref, args.event_type)
+    topic = args.topic_ref or resolve_topic(args.zone_ref, args.event_type)
     plan = {
         "ok": True,
         "zone_ref": args.zone_ref,
         "event_type": args.event_type,
         "topic": topic,
+        "publication_mode": "explicit" if args.topic_ref else "resolved",
         "carrier_ref": args.carrier_ref,
         "event_ref": args.event_ref,
         "receipt_ref": args.receipt_ref,
         "catalog_ref": args.catalog_ref,
     }
+    if args.topic_ref:
+        plan["topic_ref"] = args.topic_ref
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    plan["semantic_validation"] = {"plan": plan_validation}
     print(json.dumps(plan, indent=2, sort_keys=True))
     return 0
+
+
+def cmd_plan_request(args):
+    request = load_publication_request(args.path)
+    request_validation = validate_request(request)
+    if not request_validation.get("ok"):
+        return _emit_failure("request", request_validation)
+    plan = plan_publication_request(request)
+    if not plan.get("ok"):
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        return 2
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    plan["semantic_validation"] = {
+        "request": request_validation,
+        "plan": plan_validation,
+    }
+    print(json.dumps(plan, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_enqueue_request(args):
+    request = load_publication_request(args.path)
+    request_validation = validate_request(request)
+    if not request_validation.get("ok"):
+        return _emit_failure("request", request_validation)
+    plan = plan_publication_request(request)
+    if not plan.get("ok"):
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        return 2
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    result = write_publication_record(plan)
+    record_validation = validate_record(result["record"])
+    result["semantic_validation"] = {
+        "request": request_validation,
+        "plan": plan_validation,
+        "record": record_validation,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if record_validation.get("ok") else 2
+
+
+def cmd_enqueue_plan(args):
+    plan = json.loads(Path(args.path).read_text(encoding="utf-8"))
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    result = write_publication_record(plan)
+    record_validation = validate_record(result["record"])
+    result["semantic_validation"] = {
+        "plan": plan_validation,
+        "record": record_validation,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if record_validation.get("ok") else 2
 
 
 def build_parser():
     parser = argparse.ArgumentParser(prog="pp-zone-router")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
     plan = sub.add_parser("plan")
     plan.add_argument("--zone-ref", required=True)
     plan.add_argument("--event-type", required=True)
@@ -32,7 +107,21 @@ def build_parser():
     plan.add_argument("--event-ref", required=True)
     plan.add_argument("--receipt-ref", required=True)
     plan.add_argument("--catalog-ref", required=True)
+    plan.add_argument("--topic-ref")
     plan.set_defaults(fn=cmd_plan)
+
+    plan_request = sub.add_parser("plan-request")
+    plan_request.add_argument("--path", required=True)
+    plan_request.set_defaults(fn=cmd_plan_request)
+
+    enqueue_request = sub.add_parser("enqueue-request")
+    enqueue_request.add_argument("--path", required=True)
+    enqueue_request.set_defaults(fn=cmd_enqueue_request)
+
+    enqueue_plan = sub.add_parser("enqueue-plan")
+    enqueue_plan.add_argument("--path", required=True)
+    enqueue_plan.set_defaults(fn=cmd_enqueue_plan)
+
     return parser
 
 
