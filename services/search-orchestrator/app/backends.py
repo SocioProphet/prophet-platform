@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.models import LearningSearchRecord
+from app.policy import AcademyPolicyContext, academy_policy_evaluator
 from app.repositories import academy_repository
 
 
@@ -29,26 +30,21 @@ def ingest_academy_record(record: LearningSearchRecord) -> LearningSearchRecord:
     return academy_repository.ingest(record)
 
 
-def _allowed(values: list[str], candidate: str | None) -> bool:
-    if not values:
-        return True
-    return candidate is not None and candidate in values
-
-
 def academy_record_visible(
     record: LearningSearchRecord,
     actor_id: str,
     workspace_id: str | None = None,
     jurisdiction_id: str | None = None,
 ) -> bool:
-    visibility = record.visibility
-    if visibility is None:
-        return True
-    return (
-        _allowed(visibility.allowed_actor_ids, actor_id)
-        and _allowed(visibility.allowed_workspace_ids, workspace_id)
-        and _allowed(visibility.allowed_jurisdiction_ids, jurisdiction_id)
+    decision = academy_policy_evaluator.decide(
+        record,
+        AcademyPolicyContext(
+            actor_id=actor_id,
+            workspace_id=workspace_id,
+            jurisdiction_id=jurisdiction_id,
+        ),
     )
+    return decision.allowed
 
 
 def query_academy_records(

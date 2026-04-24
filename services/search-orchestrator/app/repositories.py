@@ -63,7 +63,39 @@ class JsonFileAcademySearchRepository(AcademySearchRepository):
         self._save([])
 
 
+class LampstandJsonlAcademySearchRepository(AcademySearchRepository):
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.exists():
+            self.path.write_text("", encoding="utf-8")
+
+    def ingest(self, record: LearningSearchRecord) -> LearningSearchRecord:
+        records = {item.header.object_id: item for item in self.list_records()}
+        records[record.header.object_id] = record
+        with self.path.open("w", encoding="utf-8") as handle:
+            for item in records.values():
+                handle.write(json.dumps(item.model_dump(mode="json"), sort_keys=False) + "\n")
+        return record
+
+    def list_records(self) -> list[LearningSearchRecord]:
+        records: list[LearningSearchRecord] = []
+        if not self.path.exists():
+            return records
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            records.append(LearningSearchRecord.model_validate(json.loads(line)))
+        return records
+
+    def clear(self) -> None:
+        self.path.write_text("", encoding="utf-8")
+
+
 def build_academy_repository() -> AcademySearchRepository:
+    lampstand_path = os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_JSONL")
+    if lampstand_path:
+        return LampstandJsonlAcademySearchRepository(Path(lampstand_path))
     path = os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_STORE")
     if path:
         return JsonFileAcademySearchRepository(Path(path))
