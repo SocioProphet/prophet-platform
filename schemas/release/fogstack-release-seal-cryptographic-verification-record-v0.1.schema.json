@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-release-seal-cryptographic-verification-record-v0.1.schema.json",
+  "title": "FogStackReleaseSealCryptographicVerificationRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "seal_ref",
+    "signature_ref",
+    "verification_tool",
+    "status",
+    "summary"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackReleaseSealCryptographicVerificationRecord" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "seal_ref": { "type": "string" },
+    "signature_ref": { "type": "string" },
+    "verification_tool": { "enum": ["cosign", "sigstore", "other"] },
+    "status": { "enum": ["verified", "failed", "shape-only"] },
+    "summary": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["pass", "warn", "fail"] },
+        "message": { "type": ["string", "null"] },
+        "verified_root_hash": { "type": ["string", "null"] },
+        "seal_root_hash_matches": { "type": ["boolean", "null"] },
+        "evidence_count": { "type": ["integer", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "seal_root_hash": { "type": ["string", "null"] },
+    "key_ref": { "type": ["string", "null"] },
+    "release_evidence_index_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

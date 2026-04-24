@@ -1,4 +1,4 @@
-from services.search_orchestrator.app.backends import query_platform_workspace
+from app.backends import query_platform_workspace
 
 
 def test_query_platform_workspace_returns_placeholder_result() -> None:
