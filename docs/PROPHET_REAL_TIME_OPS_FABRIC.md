@@ -14,7 +14,7 @@ v0.1 is report-only. Autonomous mutation is out of scope.
 4. Policy gate: policy-fabric evaluation before any recommendation can become executable.
 5. Agentplane bridge: approved proposals become action-lease candidates with evidence, rollback, and replay references.
 6. Evidence memory: memory-mesh persistence for operational recommendations and incident/action history.
-7. Search surface: lampstand indexing over services, incidents, proposals, receipts, and operational evidence.
+7. Search surface: lampstand indexing plus sherlock-search discovery over services, incidents, proposals, receipts, operational evidence, and chat-ops queries.
 8. DevSecOps intelligence: `global-devsecops-intelligence` supplies the AI4IT and ITOPS domain profile, taxonomy, mapping semantics, and operational graph projections.
 
 ## Repository ownership
@@ -33,6 +33,8 @@ v0.1 is report-only. Autonomous mutation is out of scope.
 
 `lampstand` owns local and platform search/index surfaces.
 
+`sherlock-search` owns the discovery and chat-ops retrieval plane over Ops Fabric events, proposals, evidence, and intelligence references.
+
 ## v0.1 contracts
 
 Tranche 1 introduces:
@@ -40,9 +42,9 @@ Tranche 1 introduces:
 - `EvidenceRef`
 - `TelemetryEvent`
 - `ActionProposal`
-- `ActionLease`
+- `HandoffCandidate`
 
-These contracts are intentionally small. They establish evidence references, source classification, proposal scoring inputs, policy status, and the lease handoff seam.
+These contracts are intentionally small. They establish evidence references, source classification, proposal scoring inputs, policy status, and the report-only handoff seam.
 
 ## Agent-native flow
 
@@ -52,9 +54,9 @@ These contracts are intentionally small. They establish evidence references, sou
 4. The observability graph links services, workloads, metrics, costs, security signals, and topology.
 5. The resource governor emits an `ActionProposal`.
 6. The proposal is policy checked.
-7. Allowed proposals may become `ActionLease` candidates.
+7. Allowed proposals may become report-only `HandoffCandidate` records.
 8. Evidence is written to memory surfaces.
-9. Search/index surfaces expose the proposal, evidence, and receipt chain.
+9. Search/index surfaces expose the proposal, evidence, and receipt chain for sherlock-search and chat-ops retrieval.
 10. Execution remains manual or supervised in v0.1.
 
 ## Initial proposal types
@@ -75,7 +77,7 @@ These contracts are intentionally small. They establish evidence references, sou
 
 ## Acceptance criteria
 
-- JSON schemas exist for core event, evidence, proposal, and lease contracts.
+- JSON schemas exist for core event, evidence, proposal, and report-only handoff contracts.
 - Example payloads exist for the first right-sizing scenario.
 - No autonomous mutation is introduced.
 - Every proposal includes evidence references, impact estimates, blast radius, reversibility, autonomy tier, and policy status.
