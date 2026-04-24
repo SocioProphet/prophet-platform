@@ -29,12 +29,42 @@ def ingest_academy_record(record: LearningSearchRecord) -> LearningSearchRecord:
     return academy_repository.ingest(record)
 
 
-def query_academy_records(text: str, enabled: bool = True) -> list[PlatformSearchResult]:
-    if not enabled or not text.strip():
+def _allowed(values: list[str], candidate: str | None) -> bool:
+    if not values:
+        return True
+    return candidate is not None and candidate in values
+
+
+def academy_record_visible(
+    record: LearningSearchRecord,
+    actor_id: str,
+    workspace_id: str | None = None,
+    jurisdiction_id: str | None = None,
+) -> bool:
+    visibility = record.visibility
+    if visibility is None:
+        return True
+    return (
+        _allowed(visibility.allowed_actor_ids, actor_id)
+        and _allowed(visibility.allowed_workspace_ids, workspace_id)
+        and _allowed(visibility.allowed_jurisdiction_ids, jurisdiction_id)
+    )
+
+
+def query_academy_records(
+    text: str,
+    enabled: bool = True,
+    actor_id: str | None = None,
+    workspace_id: str | None = None,
+    jurisdiction_id: str | None = None,
+) -> list[PlatformSearchResult]:
+    if not enabled or not text.strip() or actor_id is None:
         return []
     needle = text.lower()
     results: list[PlatformSearchResult] = []
     for record in academy_repository.list_records():
+        if not academy_record_visible(record, actor_id, workspace_id, jurisdiction_id):
+            continue
         haystack = " ".join([record.title, record.text, record.target_ref]).lower()
         if needle not in haystack:
             continue
