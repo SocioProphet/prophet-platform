@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from services.search_orchestrator.app.models import LearningSearchRecord
+from app.models import LearningSearchRecord
 
 
 @dataclass
@@ -24,8 +24,6 @@ ACADEMY_RECORDS: dict[str, LearningSearchRecord] = {}
 
 
 def ingest_academy_record(record: LearningSearchRecord) -> LearningSearchRecord:
-    if record.source != "ALEXANDRIAN_ACADEMY":
-        raise ValueError("academy records must use source ALEXANDRIAN_ACADEMY")
     ACADEMY_RECORDS[record.header.object_id] = record
     return record
 
