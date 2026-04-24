@@ -10,7 +10,8 @@
     "version",
     "algorithm",
     "release_root_hash",
-    "artifact_hashes"
+    "artifact_hashes",
+    "signed"
   ],
   "properties": {
     "kind": { "const": "FogStackReleaseSeal" },
@@ -31,6 +32,16 @@
         },
         "additionalProperties": false
       }
+    },
+    "signed": { "type": "boolean" },
+    "signature": {
+      "type": ["object", "null"],
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["cosign", "sigstore", "other"] },
+        "ref": { "type": "string" }
+      },
+      "additionalProperties": false
     },
     "notes": { "type": ["string", "null"] }
   },
