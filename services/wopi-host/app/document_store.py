@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 
 
@@ -19,3 +20,13 @@ class DocumentPayloadStore:
 
     def put_bytes(self, document_id: str, payload: bytes) -> None:
         self._path(document_id).write_bytes(payload)
+
+    def get_metadata(self, document_id: str) -> dict[str, object] | None:
+        payload = self.get_bytes(document_id)
+        if payload is None:
+            return None
+        return {
+            "document_id": document_id,
+            "size_bytes": len(payload),
+            "sha256": sha256(payload).hexdigest(),
+        }
