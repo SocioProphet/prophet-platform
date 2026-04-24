@@ -1,0 +1,51 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/equation_candidate.schema.json",
+  "type": "object",
+  "required": [
+    "kind",
+    "agent",
+    "candidate_id",
+    "truth_status",
+    "target_ref",
+    "engine",
+    "expression",
+    "fit",
+    "constraints",
+    "methodology_snapshot_ref",
+    "evidence_packet_ref",
+    "promotion_status"
+  ],
+  "properties": {
+    "kind": { "const": "equation_candidate" },
+    "agent": { "const": "Michael" },
+    "candidate_id": { "type": "string" },
+    "truth_status": { "enum": ["candidate_law"] },
+    "target_ref": { "type": "string" },
+    "engine": {
+      "type": "object",
+      "required": ["family", "version"],
+      "properties": {
+        "family": { "enum": ["pysr", "bingo", "dso"] },
+        "version": { "type": "string" }
+      }
+    },
+    "expression": {
+      "type": "object",
+      "required": ["canonical"],
+      "properties": {
+        "canonical": { "type": "string" },
+        "latex": { "type": "string" }
+      }
+    },
+    "symbols": { "type": "array" },
+    "constants": { "type": "array" },
+    "fit": { "type": "object" },
+    "stability": { "type": "object" },
+    "constraints": { "type": "object" },
+    "counterexamples": { "type": "array" },
+    "derived_soft_rules": { "type": "array" },
+    "methodology_snapshot_ref": { "type": "string" },
+    "evidence_packet_ref": { "type": "string" },
+    "promotion_status": { "enum": ["candidate", "promoted", "rejected", "held"] }
+  }
+}
