@@ -1,0 +1,70 @@
+schema_version: "fogstack.packs/v0.1"
+kind: "FogStackPacks"
+repository_strategy: "single-repo-for-now"
+canonical_repo: "SocioProphet/prophet-platform"
+packs:
+  - id: "fogstack.access"
+    label: "Fog Stack Access"
+    category: "product_surface"
+    readiness_pct: 70
+    repo_split_now: false
+    substrate_anchors:
+      - "apps/gateway"
+      - "apps/api"
+      - "cloudshell-fog"
+    notes: "Most mature customer-facing surface; remaining work is mostly trust/release hardening."
+  - id: "fogstack.knowledge"
+    label: "Fog Stack Knowledge"
+    category: "product_surface"
+    readiness_pct: 55
+    repo_split_now: false
+    substrate_anchors:
+      - "apps/knowledge-reason"
+      - "apps/lampstand"
+    notes: "Clear substrate anchors, but more composition-heavy and operationally mixed."
+  - id: "fogstack.evaluation"
+    label: "Fog Stack Evaluation"
+    category: "product_surface"
+    readiness_pct: 55
+    repo_split_now: false
+    substrate_anchors:
+      - "apps/eval-fabric-api"
+      - "docs/PLATFORM_EVAL_FABRIC.md"
+    notes: "Real platform surface, but still more internal than packaged."
+  - id: "fogstack.security"
+    label: "Fog Stack Security / Trust"
+    category: "shared_capability"
+    readiness_pct: 35
+    repo_split_now: false
+    substrate_anchors:
+      - "schemas/release/*"
+      - "tools/*fogstack*"
+    notes: "Strong platform capability, but not yet an independently packaged product surface."
+  - id: "fogstack.data"
+    label: "Fog Stack Data"
+    category: "packaging_view"
+    readiness_pct: 30
+    repo_split_now: false
+    substrate_anchors:
+      - "knowledge + evaluation surfaces"
+    notes: "Better treated as a packaging view over Knowledge + Evaluation than as a separate repo."
+  - id: "fogstack.ai"
+    label: "Fog Stack AI"
+    category: "future_pack"
+    readiness_pct: 20
+    repo_split_now: false
+    substrate_anchors: []
+    notes: "Not enough independent runtime/product surface yet."
+  - id: "fogstack.automation"
+    label: "Fog Stack Automation"
+    category: "future_pack"
+    readiness_pct: 20
+    repo_split_now: false
+    substrate_anchors: []
+    notes: "Workflow/orchestration is not yet a distinct first-class product surface."
+repo_split_triggers:
+  - "independent release cadence"
+  - "distinct operator lifecycle and deployment surface"
+  - "dedicated CI/test obligations that reduce overall complexity"
+  - "support burden distinct from the shared trust/release substrate"
+  - "ability to share trust/release graph without duplicating platform-wide evidence logic"
