@@ -105,3 +105,11 @@ def list_versions(document_id: str) -> dict[str, object]:
         "document_id": document_id,
         "versions": version_store.list_versions(document_id),
     }
+
+
+@app.get("/v0/wopi/payload-metadata/{document_id}")
+def payload_metadata(document_id: str):
+    metadata = document_store.get_metadata(document_id)
+    if metadata is None:
+        return Response(status_code=404)
+    return metadata
