@@ -31,6 +31,17 @@ class WorkloadTarget(BaseModel):
     zone: str | None = None
 
 
+class TelemetryEvent(BaseModel):
+    event_id: str
+    event_type: str
+    observed_at: str
+    subject: WorkloadTarget
+    source: dict[str, str]
+    measurements: dict[str, int | float | str | bool | None] = {}
+    evidence_refs: list[EvidenceRef] = []
+    intelligence_refs: list[IntelligenceRef] = []
+
+
 class WorkloadResourceSample(BaseModel):
     target: WorkloadTarget
     observed_at: str
@@ -72,3 +83,15 @@ class ActionProposal(BaseModel):
     autonomy_tier: str = "REPORT_ONLY"
     evidence_refs: list[EvidenceRef]
     intelligence_refs: list[IntelligenceRef] = []
+
+
+class SearchRecord(BaseModel):
+    result_id: str
+    source: str = "OPS_FABRIC"
+    entity_type: str
+    title: str
+    text: str
+    target_ref: str | None = None
+    evidence_ref_ids: list[str] = []
+    intelligence_ref_ids: list[str] = []
+    final_score: float = 1.0
