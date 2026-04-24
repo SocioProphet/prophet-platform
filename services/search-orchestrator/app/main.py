@@ -34,7 +34,7 @@ def search_query(body: SearchRequest) -> dict[str, object]:
         )
         results.append(result.model_dump())
 
-    for item in query_academy_records(text=body.text, enabled=enabled):
+    for item in query_academy_records(body.text, enabled, body.actor_id, body.workspace_id, body.jurisdiction_id):
         result = SearchResult(
             result_id=item.result_id,
             source=item.source,
