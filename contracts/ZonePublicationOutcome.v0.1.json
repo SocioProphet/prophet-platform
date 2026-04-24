@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZonePublicationOutcome v0.1",
+  "type": "object",
+  "required": [
+    "version",
+    "outcome_id",
+    "publication_id",
+    "created_at",
+    "service_ref",
+    "status",
+    "transport_ref",
+    "zone_ref",
+    "event_type",
+    "topic",
+    "publication_mode",
+    "carrier_ref",
+    "event_ref",
+    "receipt_ref",
+    "catalog_ref"
+  ],
+  "properties": {
+    "version": {"type": "string"},
+    "outcome_id": {"type": "string"},
+    "publication_id": {"type": "string"},
+    "created_at": {"type": "string"},
+    "service_ref": {"type": "string"},
+    "status": {"type": "string", "enum": ["published", "failed"]},
+    "transport_ref": {"type": "string"},
+    "zone_ref": {"type": "string"},
+    "event_type": {"type": "string"},
+    "topic": {"type": "string"},
+    "topic_ref": {"type": "string"},
+    "publication_mode": {"type": "string", "enum": ["explicit", "resolved"]},
+    "carrier_ref": {"type": "string"},
+    "event_ref": {"type": "string"},
+    "receipt_ref": {"type": "string"},
+    "catalog_ref": {"type": "string"}
+  }
+}

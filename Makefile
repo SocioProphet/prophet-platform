@@ -1,4 +1,4 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke zone-router-transport-publish-smoke validate-fogstack validate-storage-suite
 
 validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
 
@@ -31,8 +31,10 @@ test-python-apps:
 	cd apps/evidence-console && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
 	cd apps/zone-router && test -d .venv || python3 -m venv .venv
 	cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
+	cd apps/semantic-bridge && test -d .venv || python3 -m venv .venv
+	cd apps/semantic-bridge && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
 
-smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke
+smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke zone-router-transport-publish-smoke
 
 smoke-health:
 	bash tools/smoke_tritrpc_health.sh
@@ -71,6 +73,12 @@ zone-router-publication-smoke:
 
 zone-router-publication-enqueue-smoke:
 	python3 tools/smoke_zone_publication_enqueue.py
+
+semantic-bridge-zone-validation-smoke:
+	python3 tools/smoke_semantic_bridge_zone_validation.py
+
+zone-router-transport-publish-smoke:
+	python3 tools/smoke_zone_router_transport_publish.py
 
 validate-fogstack:
 	python3 tools/validate_fogstack.py

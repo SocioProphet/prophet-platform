@@ -7,6 +7,13 @@ from pathlib import Path
 from .outbox import write_publication_record
 from .planner import load_publication_request, plan_publication_request
 from .resolver import resolve_topic
+from .semantic_gate import validate_outcome, validate_plan, validate_record, validate_request
+from .transport import load_publication_record, write_publication_outcome
+
+
+def _emit_failure(stage, payload):
+    print(json.dumps({"ok": False, "stage": stage, "semantic_validation": payload}, indent=2, sort_keys=True))
+    return 2
 
 
 def cmd_plan(args):
@@ -24,33 +31,76 @@ def cmd_plan(args):
     }
     if args.topic_ref:
         plan["topic_ref"] = args.topic_ref
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    plan["semantic_validation"] = {"plan": plan_validation}
     print(json.dumps(plan, indent=2, sort_keys=True))
     return 0
 
 
 def cmd_plan_request(args):
     request = load_publication_request(args.path)
-    plan = plan_publication_request(request)
-    print(json.dumps(plan, indent=2, sort_keys=True))
-    return 0 if plan.get("ok") else 2
-
-
-def cmd_enqueue_request(args):
-    request = load_publication_request(args.path)
+    request_validation = validate_request(request)
+    if not request_validation.get("ok"):
+        return _emit_failure("request", request_validation)
     plan = plan_publication_request(request)
     if not plan.get("ok"):
         print(json.dumps(plan, indent=2, sort_keys=True))
         return 2
-    result = write_publication_record(plan)
-    print(json.dumps(result, indent=2, sort_keys=True))
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    plan["semantic_validation"] = {"request": request_validation, "plan": plan_validation}
+    print(json.dumps(plan, indent=2, sort_keys=True))
     return 0
+
+
+def cmd_enqueue_request(args):
+    request = load_publication_request(args.path)
+    request_validation = validate_request(request)
+    if not request_validation.get("ok"):
+        return _emit_failure("request", request_validation)
+    plan = plan_publication_request(request)
+    if not plan.get("ok"):
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        return 2
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
+    result = write_publication_record(plan)
+    record_validation = validate_record(result["record"])
+    result["semantic_validation"] = {
+        "request": request_validation,
+        "plan": plan_validation,
+        "record": record_validation,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if record_validation.get("ok") else 2
 
 
 def cmd_enqueue_plan(args):
     plan = json.loads(Path(args.path).read_text(encoding="utf-8"))
+    plan_validation = validate_plan(plan)
+    if not plan_validation.get("ok"):
+        return _emit_failure("plan", plan_validation)
     result = write_publication_record(plan)
+    record_validation = validate_record(result["record"])
+    result["semantic_validation"] = {"plan": plan_validation, "record": record_validation}
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0
+    return 0 if record_validation.get("ok") else 2
+
+
+def cmd_publish_record(args):
+    record = load_publication_record(args.path)
+    record_validation = validate_record(record)
+    if not record_validation.get("ok"):
+        return _emit_failure("record", record_validation)
+    result = write_publication_outcome(record, transport_ref=args.transport_ref)
+    outcome_validation = validate_outcome(result["outcome"])
+    result["semantic_validation"] = {"record": record_validation, "outcome": outcome_validation}
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if outcome_validation.get("ok") else 2
 
 
 def build_parser():
@@ -78,6 +128,11 @@ def build_parser():
     enqueue_plan = sub.add_parser("enqueue-plan")
     enqueue_plan.add_argument("--path", required=True)
     enqueue_plan.set_defaults(fn=cmd_enqueue_plan)
+
+    publish_record = sub.add_parser("publish-record")
+    publish_record.add_argument("--path", required=True)
+    publish_record.add_argument("--transport-ref", default="transport://local/jsonl")
+    publish_record.set_defaults(fn=cmd_publish_record)
 
     return parser
 
