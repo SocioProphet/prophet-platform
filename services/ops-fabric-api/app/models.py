@@ -19,7 +19,7 @@ class IntelligenceRef(BaseModel):
     profile_ref: str
     kind: str
     uri: str | None = None
-    confidence: float | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
     notes: str | None = None
 
 
@@ -37,9 +37,9 @@ class TelemetryEvent(BaseModel):
     observed_at: str
     subject: WorkloadTarget
     source: dict[str, str]
-    measurements: dict[str, int | float | str | bool | None] = {}
-    evidence_refs: list[EvidenceRef] = []
-    intelligence_refs: list[IntelligenceRef] = []
+    measurements: dict[str, int | float | str | bool | None] = Field(default_factory=dict)
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    intelligence_refs: list[IntelligenceRef] = Field(default_factory=list)
 
 
 class WorkloadResourceSample(BaseModel):
@@ -51,7 +51,7 @@ class WorkloadResourceSample(BaseModel):
     memory_p95_mib: int = Field(ge=0)
     monthly_cost_usd: float = 0.0
     evidence_refs: list[EvidenceRef]
-    intelligence_refs: list[IntelligenceRef] = []
+    intelligence_refs: list[IntelligenceRef] = Field(default_factory=list)
 
 
 class ProposalImpact(BaseModel):
@@ -59,14 +59,14 @@ class ProposalImpact(BaseModel):
     energy_delta_kwh_monthly: float | None = None
     slo_risk_delta: float
     security_risk_delta: float = 0.0
-    confidence: float
+    confidence: float = Field(ge=0, le=1)
 
 
 class ProposalRisk(BaseModel):
     blast_radius: str
     reversibility: str
     requires_human_approval: bool
-    notes: list[str] = []
+    notes: list[str] = Field(default_factory=list)
 
 
 class ActionProposal(BaseModel):
@@ -82,7 +82,7 @@ class ActionProposal(BaseModel):
     policy_status: str = "NOT_EVALUATED"
     autonomy_tier: str = "REPORT_ONLY"
     evidence_refs: list[EvidenceRef]
-    intelligence_refs: list[IntelligenceRef] = []
+    intelligence_refs: list[IntelligenceRef] = Field(default_factory=list)
 
 
 class SearchRecord(BaseModel):
@@ -92,6 +92,6 @@ class SearchRecord(BaseModel):
     title: str
     text: str
     target_ref: str | None = None
-    evidence_ref_ids: list[str] = []
-    intelligence_ref_ids: list[str] = []
-    final_score: float = 1.0
+    evidence_ref_ids: list[str] = Field(default_factory=list)
+    intelligence_ref_ids: list[str] = Field(default_factory=list)
+    final_score: float = Field(default=1.0, ge=0, le=1)
