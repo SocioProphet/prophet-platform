@@ -1,0 +1,26 @@
+{
+  "action": "StoragePromotionPipelineLive",
+  "correlation_id": "clm:user123-has_role-admin",
+  "created_at": "2026-04-24T19:23:13+00:00",
+  "envelope_ref": "event://b18c2eb6-68ae-4211-9963-acac33de4f4c",
+  "evidence_refs": [],
+  "hash": "d539bf5a8d876d1735f397ad14cd6fa997dbc6a28a8f441fd9d47d238a96cd67",
+  "hash_algo": "sha256",
+  "metrics": {
+    "edge_count": 1,
+    "entity_count": 2,
+    "observation_id": "obs:demo:1:v1",
+    "typedb_live_ok": false,
+    "typedb_live_requested": true
+  },
+  "output_refs": [
+    "claim://clm:user123-has_role-admin",
+    "projection://pmf:neo4j:clm:user123-has_role-admin"
+  ],
+  "policy_refs": [],
+  "receipt_id": "fef628fb-c303-4a87-a32e-7a1cfe896794",
+  "service_ref": "apps/storage-promotion",
+  "status": "succeeded",
+  "subject_ref": "claim://clm:user123-has_role-admin",
+  "version": "0.1"
+}
