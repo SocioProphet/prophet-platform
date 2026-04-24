@@ -1,13 +1,13 @@
 from fastapi.testclient import TestClient
 
-from app.backends import ACADEMY_RECORDS
+from app.backends import reset_academy_records
 from app.main import app
 
 client = TestClient(app)
 
 
 def setup_function() -> None:
-    ACADEMY_RECORDS.clear()
+    reset_academy_records()
 
 
 def academy_record() -> dict[str, object]:
