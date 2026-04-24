@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-release-seal-v0.1.schema.json",
+  "title": "FogStackReleaseSeal",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "algorithm",
+    "release_root_hash",
+    "artifact_hashes"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackReleaseSeal" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+    "version": { "type": "string" },
+    "algorithm": { "enum": ["sha256"] },
+    "release_root_hash": { "type": "string" },
+    "artifact_hashes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "ref", "hash"],
+        "properties": {
+          "label": { "type": "string" },
+          "ref": { "type": "string" },
+          "hash": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
