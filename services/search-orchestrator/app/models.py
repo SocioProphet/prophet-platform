@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, Field
 
 
 class SearchScope(BaseModel):
@@ -37,3 +39,29 @@ class SearchResult(BaseModel):
     path_or_uri: str | None = None
     score: SearchResultScore
     actions: SearchResultActions | None = None
+
+
+class AcademyRecordHeader(BaseModel):
+    object_id: str
+    object_type: str
+    object_version: str | None = None
+    created_at: str | None = None
+    created_by_contributor_id: str | None = None
+    created_by_role: str | None = None
+    status: str | None = None
+    policy_tags: list[str] = Field(default_factory=list)
+
+
+class LearningSearchRecord(BaseModel):
+    header: AcademyRecordHeader
+    source: Literal["ALEXANDRIAN_ACADEMY"]
+    entity_type: Literal["LEARNING_ACTION_EXPLANATION", "LEARNING_LOOP_RECORD"]
+    title: str
+    text: str
+    target_ref: str
+    evidence_ref_ids: list[str] = Field(default_factory=list)
+    memory_ref_ids: list[str] = Field(default_factory=list)
+    search_ref_ids: list[str] = Field(default_factory=list)
+    governance_ref_ids: list[str] = Field(default_factory=list)
+    agentplane_run_ref_ids: list[str] = Field(default_factory=list)
+    final_score: float = Field(default=1.0, ge=0, le=1)
