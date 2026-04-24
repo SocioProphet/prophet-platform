@@ -37,3 +37,29 @@ class SearchResult(BaseModel):
     path_or_uri: str | None = None
     score: SearchResultScore
     actions: SearchResultActions | None = None
+
+
+class AcademyRecordHeader(BaseModel):
+    object_id: str
+    object_type: str
+    object_version: str | None = None
+    created_at: str | None = None
+    created_by_contributor_id: str | None = None
+    created_by_role: str | None = None
+    status: str | None = None
+    policy_tags: list[str] = []
+
+
+class LearningSearchRecord(BaseModel):
+    header: AcademyRecordHeader
+    source: str
+    entity_type: str
+    title: str
+    text: str
+    target_ref: str
+    evidence_ref_ids: list[str] = []
+    memory_ref_ids: list[str] = []
+    search_ref_ids: list[str] = []
+    governance_ref_ids: list[str] = []
+    agentplane_run_ref_ids: list[str] = []
+    final_score: float = 1.0
