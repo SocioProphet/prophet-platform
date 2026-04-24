@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from services.search_orchestrator.app.backends import query_platform_workspace
 from services.search_orchestrator.app.models import SearchRequest, SearchResult, SearchResultScore
 
 app = FastAPI(title="search-orchestrator", version="0.1.0")
@@ -15,13 +16,16 @@ def search_query(body: SearchRequest) -> dict[str, object]:
     results: list[dict[str, object]] = []
     scope = body.scope or None
 
-    if scope is not None and scope.cloud_workspace and body.text.strip():
+    for item in query_platform_workspace(
+        text=body.text,
+        enabled=(scope is not None and scope.cloud_workspace),
+    ):
         result = SearchResult(
-            result_id=f"platform-{body.query_id}",
-            source="PLATFORM",
-            entity_type="DOCUMENT",
-            title=f"Workspace result placeholder for: {body.text}",
-            score=SearchResultScore(final=1.0),
+            result_id=item.result_id,
+            source=item.source,
+            entity_type=item.entity_type,
+            title=item.title,
+            score=SearchResultScore(final=item.final_score),
         )
         results.append(result.model_dump())
 
