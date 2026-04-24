@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI, Response, status
 
-from . import governance_repositories, intelligence_repositories, repositories
+from . import governance_repositories, intelligence_repositories, lifecycle_bundle, repositories
 from .db import ch_health, pg_health
 from .receipts import maybe_emit_artifacts
 
@@ -141,6 +141,21 @@ def model_attribution(model_release_id: str, response: Response, window: str = "
         payload=payload,
         classifiers=["route:attribution", "source:postgres"],
         metrics={"window": window}
+    )
+    return payload
+
+
+@app.get("/v1/models/{model_release_id}/lifecycle-bundle")
+def model_lifecycle_bundle(model_release_id: str, response: Response) -> dict:
+    payload = lifecycle_bundle.build_lifecycle_bundle(model_release_id=model_release_id)
+    _emit(
+        response,
+        event_type="eval.fabric.lifecycle.bundle.read",
+        action="LifecycleBundleQuery",
+        subject_ref=f"model://{model_release_id}",
+        payload=payload,
+        classifiers=["route:lifecycle-bundle", "source:runtime+builders"],
+        metrics={"artifact_count": 5},
     )
     return payload
 
