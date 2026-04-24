@@ -4,10 +4,12 @@ from pydantic import BaseModel
 from services.wopi_host.app.document_store import DocumentPayloadStore
 from services.wopi_host.app.file_store import FileBackedWOPIStore
 from services.wopi_host.app.store import store
+from services.wopi_host.app.version_store import DocumentVersionStore
 
 app = FastAPI(title="wopi-host", version="0.1.0")
 file_store = FileBackedWOPIStore("/tmp/sourceos-wopi-store")
 document_store = DocumentPayloadStore("/tmp/sourceos-wopi-docs")
+version_store = DocumentVersionStore("/tmp/sourceos-wopi-versions")
 
 
 class PutFileRequest(BaseModel):
@@ -49,10 +51,12 @@ def acquire_lock(document_id: str) -> dict[str, object]:
 @app.post("/v0/wopi/writeback/{document_id}")
 def writeback(document_id: str) -> dict[str, object]:
     state = store.writeback(document_id)
+    version_id = f"version-{state.document_id}-{state.version_counter:03d}"
+    version_store.append(document_id, version_id)
     return {
         "document_id": state.document_id,
         "session_id": state.session_id,
-        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "version_id": version_id,
         "status": "WRITTEN",
         "updated_at": state.updated_at,
     }
@@ -61,10 +65,12 @@ def writeback(document_id: str) -> dict[str, object]:
 @app.post("/v0/wopi/file-writeback/{document_id}")
 def file_writeback(document_id: str) -> dict[str, object]:
     state = file_store.writeback(document_id)
+    version_id = f"version-{state.document_id}-{state.version_counter:03d}"
+    version_store.append(document_id, version_id)
     return {
         "document_id": state.document_id,
         "session_id": state.session_id,
-        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "version_id": version_id,
         "status": "WRITTEN",
         "updated_at": state.updated_at,
         "store": "file",
@@ -83,9 +89,19 @@ def get_file(document_id: str):
 def put_file(document_id: str, body: PutFileRequest) -> dict[str, object]:
     document_store.put_bytes(document_id, body.payload.encode("utf-8"))
     state = store.writeback(document_id)
+    version_id = f"version-{state.document_id}-{state.version_counter:03d}"
+    version_store.append(document_id, version_id)
     return {
         "document_id": state.document_id,
-        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "version_id": version_id,
         "status": "WRITTEN",
         "store": "payload",
+    }
+
+
+@app.get("/v0/wopi/versions/{document_id}")
+def list_versions(document_id: str) -> dict[str, object]:
+    return {
+        "document_id": document_id,
+        "versions": version_store.list_versions(document_id),
     }
