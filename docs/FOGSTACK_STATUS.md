@@ -6,6 +6,21 @@ This document captures the current state of Fog Stack work inside `prophet-platf
 
 `prophet-platform` is the runtime and deployment substrate for platform services. Fog Stack lands here as the productization, conformance, release, and trust layer for deployable offerings built on that substrate.
 
+## Repository strategy decision
+
+Fog Stack should **not** split into separate repositories for AI, Data, Automation, Security, or other future pack categories yet.
+
+At the current stage, the trust/release machinery is still highly shared across all surfaces. Splitting now would mostly increase coordination overhead and fragment the release/trust graph before those categories have clearly independent lifecycles.
+
+The correct near-term move is:
+- keep the engineering and trust/release machinery in `prophet-platform`
+- track future pack categories here as product surfaces and readiness states
+- split into separate repos only when a pack has an independently justified lifecycle, release cadence, operator surface, and support burden
+
+See also:
+- `docs/FOGSTACK_PACKS.md`
+- `catalog/fogstack-packs-v0.1.yaml`
+
 ## Merged offering slices
 
 The following initial offering slices are already merged into `main`:
@@ -27,15 +42,26 @@ The following supporting slices are already merged into `main`:
 - signed-manifest verification helper via PR #58
 - signature trust evidence record via PR #62
 - release evidence index via PR #63
+- artifact backlinking via PR #68
+- cryptographic signature verification record via PR #76
+- external signature verification input normalization via PR #93
+- external signature verification runner via PR #134
+- release sealing via PR #136
 
 ## Current open review units
 
 As of this capture, the primary open Fog Stack review units are:
 
-- **PR #68** — release artifact backlinking
-- **PR #76** — cryptographic signature verification record
+- **PR #123** — release seal signature support
+- **PR #131** — pack taxonomy and readiness tracking
 
-These should be treated as the current active trust/release-engineering path.
+These should be treated as the current active product and trust/release-engineering path.
+
+## Product-pack readiness matrix
+
+The detailed matrix and pack taxonomy now live in:
+- `docs/FOGSTACK_PACKS.md`
+- `catalog/fogstack-packs-v0.1.yaml`
 
 ## Current trust graph shape
 
@@ -47,18 +73,19 @@ The release/trust graph now consists of these machine-readable artifacts:
 - signature trust record
 - cryptographic signature verification record
 - release evidence index
+- release seal
 
-The backlinking tranche under review is what turns those from parallel records into an explicitly linked graph.
+The remaining open trust/release PRs are what move this system from a linked graph to a more cryptographically grounded, tamper-evident release graph.
 
 ## Immediate next tranche
 
 After the current open PRs are accepted, the next release-engineering tranche should focus on:
 
-1. **Cryptographic verification execution** rather than only cryptographic verification record shape.
-2. **Automatic backlinking** and deterministic evidence-index production.
-3. **CI-emitted verified truth records** instead of shape-only local records.
-4. **Signed manifest publication and trust proof** rather than local trust structure only.
+1. **Seal-signature trust** rather than signed seal shape only.
+2. **CI-emitted verified truth records** instead of shape-only or local records.
+3. **Automatic artifact/backlink mutation** so the graph becomes self-updating under the release pipeline.
+4. **Seal publication and trust proof** rather than local trust structure only.
 
 ## Position in the maturity ladder
 
-Fog Stack in `prophet-platform` is now past initial offering definition. The active frontier is no longer offering taxonomy; it is release/trust hardening.
+Fog Stack in `prophet-platform` is now past initial offering definition. The active frontier is no longer offering taxonomy; it is release/trust hardening and future pack-boundary justification.
