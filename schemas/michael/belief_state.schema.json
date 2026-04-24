@@ -1,0 +1,55 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/belief_state.schema.json",
+  "type": "object",
+  "required": [
+    "kind",
+    "agent",
+    "belief_state_id",
+    "world_ref",
+    "ontology_context_ref",
+    "truth_status",
+    "engine",
+    "inputs",
+    "outputs",
+    "methodology_snapshot_ref",
+    "evidence_packet_ref",
+    "promotion_status"
+  ],
+  "properties": {
+    "kind": { "const": "belief_state" },
+    "agent": { "const": "Michael" },
+    "belief_state_id": { "type": "string" },
+    "world_ref": { "type": "string" },
+    "ontology_context_ref": { "type": "string" },
+    "truth_status": { "enum": ["believed_truth"] },
+    "engine": {
+      "type": "object",
+      "required": ["family", "version"],
+      "properties": {
+        "family": { "enum": ["psl", "problog", "deepproblog", "deepseaproblog", "scallop"] },
+        "version": { "type": "string" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "grounded_assertions": { "type": "array", "items": { "type": "string" } },
+        "observation_records": { "type": "array", "items": { "type": "string" } },
+        "rule_templates": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "posterior_atoms": { "type": "array" },
+        "weighted_rules": { "type": "array" },
+        "hypotheses": { "type": "array" }
+      }
+    },
+    "calibration": { "type": "object" },
+    "constraints": { "type": "object" },
+    "methodology_snapshot_ref": { "type": "string" },
+    "evidence_packet_ref": { "type": "string" },
+    "promotion_status": { "enum": ["candidate", "promoted", "rejected", "held"] }
+  }
+}

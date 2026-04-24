@@ -1,0 +1,20 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/evidence_packet.schema.json",
+  "type": "object",
+  "required": [
+    "kind",
+    "evidence_packet_id",
+    "subject_ref",
+    "methodology_snapshot_ref",
+    "evidence_refs"
+  ],
+  "properties": {
+    "kind": { "const": "evidence_packet" },
+    "evidence_packet_id": { "type": "string" },
+    "subject_ref": { "type": "string" },
+    "methodology_snapshot_ref": { "type": "string" },
+    "evidence_refs": { "type": "array" },
+    "metrics": { "type": "object" },
+    "notes": { "type": "array" }
+  }
+}

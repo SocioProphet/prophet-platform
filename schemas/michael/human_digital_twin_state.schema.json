@@ -1,0 +1,36 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/human_digital_twin_state.schema.json",
+  "type": "object",
+  "required": [
+    "kind",
+    "subject_ref",
+    "twin_ref",
+    "consent_envelope_ref",
+    "projection_bounds",
+    "memory_state_ref",
+    "cognition_state_ref",
+    "observation_refs",
+    "policy_status"
+  ],
+  "properties": {
+    "kind": { "const": "human_digital_twin_state" },
+    "subject_ref": { "type": "string" },
+    "twin_ref": { "type": "string" },
+    "consent_envelope_ref": { "type": "string" },
+    "projection_bounds": {
+      "type": "object",
+      "required": ["allowed_modalities", "allowed_purposes", "retention_policy"],
+      "properties": {
+        "allowed_modalities": { "type": "array" },
+        "allowed_purposes": { "type": "array" },
+        "retention_policy": { "type": "string" }
+      }
+    },
+    "memory_state_ref": { "type": "string" },
+    "cognition_state_ref": { "type": "string" },
+    "observation_refs": { "type": "array" },
+    "belief_state_refs": { "type": "array" },
+    "candidate_law_refs": { "type": "array" },
+    "policy_status": { "enum": ["active", "restricted", "revoked"] }
+  }
+}
