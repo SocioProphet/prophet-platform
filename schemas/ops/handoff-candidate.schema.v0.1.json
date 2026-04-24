@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/ops/handoff-candidate.schema.v0.1.json",
+  "title": "HandoffCandidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "handoff_id",
+    "proposal_id",
+    "created_at",
+    "target_plane",
+    "policy_decision_id",
+    "review_status",
+    "rollback_ref",
+    "evidence_refs"
+  ],
+  "properties": {
+    "handoff_id": {"type": "string", "minLength": 1},
+    "proposal_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "target_plane": {"type": "string", "enum": ["AGENTPLANE", "GITOPS", "MANUAL_REVIEW"]},
+    "policy_decision_id": {"type": "string", "minLength": 1},
+    "review_status": {"type": "string", "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED"]},
+    "rollback_ref": {"type": "string", "minLength": 1},
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "evidence-ref.schema.v0.1.json"},
+      "minItems": 1
+    },
+    "intelligence_refs": {
+      "type": "array",
+      "items": {"$ref": "intelligence-ref.schema.v0.1.json"},
+      "default": []
+    }
+  }
+}
