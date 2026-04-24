@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.models import LearningSearchRecord
+from app.repositories import academy_repository
 
 
 @dataclass
@@ -20,12 +21,12 @@ class PlatformSearchResult:
     draft_reply: bool = False
 
 
-ACADEMY_RECORDS: dict[str, LearningSearchRecord] = {}
+def reset_academy_records() -> None:
+    academy_repository.clear()
 
 
 def ingest_academy_record(record: LearningSearchRecord) -> LearningSearchRecord:
-    ACADEMY_RECORDS[record.header.object_id] = record
-    return record
+    return academy_repository.ingest(record)
 
 
 def query_academy_records(text: str, enabled: bool = True) -> list[PlatformSearchResult]:
@@ -33,7 +34,7 @@ def query_academy_records(text: str, enabled: bool = True) -> list[PlatformSearc
         return []
     needle = text.lower()
     results: list[PlatformSearchResult] = []
-    for record in ACADEMY_RECORDS.values():
+    for record in academy_repository.list_records():
         haystack = " ".join([record.title, record.text, record.target_ref]).lower()
         if needle not in haystack:
             continue
