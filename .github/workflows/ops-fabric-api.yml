@@ -1,0 +1,31 @@
+name: ops-fabric-api
+
+on:
+  pull_request:
+    paths:
+      - 'services/ops-fabric-api/**'
+      - '.github/workflows/ops-fabric-api.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/ops-fabric-api/**'
+      - '.github/workflows/ops-fabric-api.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          cd services/ops-fabric-api
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-test.txt
+      - name: Test
+        run: |
+          cd services/ops-fabric-api
+          pytest
