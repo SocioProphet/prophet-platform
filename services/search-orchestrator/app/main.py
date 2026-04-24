@@ -25,6 +25,8 @@ def search_query(body: SearchRequest) -> dict[str, object]:
             source=item.source,
             entity_type=item.entity_type,
             title=item.title,
+            snippet=item.snippet,
+            path_or_uri=item.path_or_uri,
             score=SearchResultScore(final=item.final_score),
         )
         results.append(result.model_dump())
