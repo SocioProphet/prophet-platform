@@ -20,9 +20,20 @@ class SearchResultScore(BaseModel):
     final: float
 
 
+class SearchResultActions(BaseModel):
+    open_local: bool = False
+    open_cloud: bool = False
+    summarize: bool = False
+    create_task: bool = False
+    draft_reply: bool = False
+
+
 class SearchResult(BaseModel):
     result_id: str
     source: str
     entity_type: str
     title: str
+    snippet: str | None = None
+    path_or_uri: str | None = None
     score: SearchResultScore
+    actions: SearchResultActions | None = None
