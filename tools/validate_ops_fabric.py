@@ -57,6 +57,13 @@ def read_json(path: str) -> dict:
     return data
 
 
+def require_terms(path: str, text: str) -> None:
+    normalized = text.lower()
+    for term in REQUIRED_DOC_TERMS.get(path, []):
+        if term.lower() not in normalized:
+            fail(f"{path} missing required term: {term}")
+
+
 def main() -> None:
     for path in REQUIRED_JSON:
         read_json(path)
@@ -68,9 +75,7 @@ def main() -> None:
         text = full.read_text(encoding="utf-8")
         if not text.strip():
             fail(f"empty required doc: {path}")
-        for term in REQUIRED_DOC_TERMS.get(path, []):
-            if term not in text:
-                fail(f"{path} missing required term: {term}")
+        require_terms(path, text)
 
     proposal = read_json("examples/ops/action-proposal-sample.v0.1.json")
     if proposal.get("policy_status") != "NOT_EVALUATED":
