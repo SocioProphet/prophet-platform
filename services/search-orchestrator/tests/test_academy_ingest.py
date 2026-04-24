@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from services.search_orchestrator.app.backends import ACADEMY_RECORDS
-from services.search_orchestrator.app.main import app
+from app.backends import ACADEMY_RECORDS
+from app.main import app
 
 client = TestClient(app)
 
