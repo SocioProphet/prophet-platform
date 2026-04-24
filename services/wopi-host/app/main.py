@@ -355,9 +355,19 @@ def get_file(document_id: str):
 def put_file(document_id: str, body: PutFileRequest) -> dict[str, object]:
     document_store.put_bytes(document_id, body.payload.encode("utf-8"))
     state = store.writeback(document_id)
+    version_id = f"version-{state.document_id}-{state.version_counter:03d}"
+    version_store.append(document_id, version_id)
     return {
         "document_id": state.document_id,
-        "version_id": f"version-{state.document_id}-{state.version_counter:03d}",
+        "version_id": version_id,
         "status": "WRITTEN",
         "store": "payload",
+    }
+
+
+@app.get("/v0/wopi/versions/{document_id}")
+def list_versions(document_id: str) -> dict[str, object]:
+    return {
+        "document_id": document_id,
+        "versions": version_store.list_versions(document_id),
     }
