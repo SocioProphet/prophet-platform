@@ -113,3 +113,16 @@ def payload_metadata(document_id: str):
     if metadata is None:
         return Response(status_code=404)
     return metadata
+
+
+@app.get("/v0/wopi/document-summary/{document_id}")
+def document_summary(document_id: str) -> dict[str, object]:
+    state = store.get(document_id)
+    metadata = document_store.get_metadata(document_id)
+    return {
+        "document_id": document_id,
+        "has_session": state is not None,
+        "version_counter": 0 if state is None else state.version_counter,
+        "versions": version_store.list_versions(document_id),
+        "payload_metadata": metadata,
+    }
