@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import os
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 
 from app.models import LearningSearchRecord
@@ -63,13 +67,7 @@ def build_academy_visibility_decision(
         "subject_ref": f"academy://search-record/{record.header.object_id}",
         "action_ref": "action://academy/search/read",
         "decision": "allow" if allowed else "deny",
-        "required_gates": [
-            "actor_gate",
-            "workspace_gate",
-            "jurisdiction_gate",
-            "policy_tag_gate",
-            "evidence_gate",
-        ],
+        "required_gates": ["actor_gate", "workspace_gate", "jurisdiction_gate", "policy_tag_gate", "evidence_gate"],
         "reason": reason,
         "visibility_scope": {
             "actor_id": context.actor_id,
@@ -79,6 +77,20 @@ def build_academy_visibility_decision(
         "validation_evidence": [str(request["request_id"])],
         "notes": ["Local fallback decision shaped to Policy Fabric Academy visibility contract."],
     }
+
+
+def policy_decision_from_payload(payload: dict[str, object], request: dict[str, object]) -> AcademyPolicyDecision:
+    decision_value = payload.get("decision")
+    allowed = decision_value == "allow"
+    reason = str(payload.get("reason", "policy fabric decision"))
+    decision_id = str(payload.get("policy_decision_id", "unknown"))
+    return AcademyPolicyDecision(
+        allowed=allowed,
+        reason=reason,
+        decision_ref=f"policy-fabric://decision/{decision_id}",
+        request=request,
+        decision=payload,
+    )
 
 
 class LocalVisibilityPolicyEvaluator(AcademyPolicyEvaluator):
@@ -106,13 +118,40 @@ class LocalVisibilityPolicyEvaluator(AcademyPolicyEvaluator):
             context=context,
             record=record,
         )
-        return AcademyPolicyDecision(
-            allowed=allowed,
-            reason=reason,
-            decision_ref=f"policy-fabric://decision/{decision['policy_decision_id']}",
-            request=request,
-            decision=decision,
+        return policy_decision_from_payload(decision, request)
+
+
+class HttpPolicyFabricEvaluator(AcademyPolicyEvaluator):
+    def __init__(self, endpoint: str, fallback: AcademyPolicyEvaluator | None = None, timeout_seconds: float = 2.0) -> None:
+        self.endpoint = endpoint
+        self.fallback = fallback or LocalVisibilityPolicyEvaluator()
+        self.timeout_seconds = timeout_seconds
+
+    def decide(self, record: LearningSearchRecord, context: AcademyPolicyContext) -> AcademyPolicyDecision:
+        request_payload = build_academy_visibility_request(record, context)
+        body = json.dumps(request_payload).encode("utf-8")
+        request = urllib.request.Request(
+            self.endpoint,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("Policy Fabric response must be a JSON object")
+            return policy_decision_from_payload(payload, request_payload)
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError):
+            return self.fallback.decide(record, context)
 
 
-academy_policy_evaluator: AcademyPolicyEvaluator = LocalVisibilityPolicyEvaluator()
+def build_academy_policy_evaluator() -> AcademyPolicyEvaluator:
+    endpoint = os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT")
+    if endpoint:
+        timeout = float(os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS", "2.0"))
+        return HttpPolicyFabricEvaluator(endpoint=endpoint, timeout_seconds=timeout)
+    return LocalVisibilityPolicyEvaluator()
+
+
+academy_policy_evaluator: AcademyPolicyEvaluator = build_academy_policy_evaluator()
