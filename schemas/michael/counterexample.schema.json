@@ -1,0 +1,22 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/counterexample.schema.json",
+  "type": "object",
+  "required": [
+    "kind",
+    "counterexample_id",
+    "candidate_ref",
+    "target_ref",
+    "observation_ref",
+    "reason"
+  ],
+  "properties": {
+    "kind": { "const": "counterexample" },
+    "counterexample_id": { "type": "string" },
+    "candidate_ref": { "type": "string" },
+    "target_ref": { "type": "string" },
+    "observation_ref": { "type": "string" },
+    "reason": { "type": "string" },
+    "evidence_packet_ref": { "type": "string" },
+    "created_at": { "type": "string" }
+  }
+}
