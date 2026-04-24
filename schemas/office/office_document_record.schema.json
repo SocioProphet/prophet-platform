@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_document_record.schema.json",
+  "title": "office_document_record",
+  "type": "object",
+  "required": [
+    "document_id",
+    "tenant_id",
+    "storage_uri",
+    "source_provider",
+    "current_format",
+    "canonical_format",
+    "permissions_ref",
+    "version_head"
+  ],
+  "properties": {
+    "document_id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "owner_id": {"type": "string"},
+    "storage_uri": {"type": "string"},
+    "source_provider": {
+      "type": "string",
+      "enum": ["SOURCEOS", "MICROSOFT", "GOOGLE", "IMPORTED", "UNKNOWN"]
+    },
+    "source_provider_id": {"type": "string"},
+    "source_mime_type": {"type": "string"},
+    "current_format": {"type": "string"},
+    "canonical_format": {
+      "type": "string",
+      "enum": ["ODF", "OOXML", "PDF", "MIXED"]
+    },
+    "permissions_ref": {"type": "string"},
+    "version_head": {"type": "string"},
+    "editor_binding": {
+      "type": "string",
+      "enum": ["LOCAL_LIBREOFFICE", "COLLABORA", "HEADLESS", "OTHER"]
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

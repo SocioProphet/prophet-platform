@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/search/sherlock_search_request.schema.json",
+  "title": "sherlock_search_request",
+  "type": "object",
+  "required": ["query_id", "actor_id", "text", "mode", "scope", "limit"],
+  "properties": {
+    "query_id": {"type": "string"},
+    "actor_id": {"type": "string"},
+    "text": {"type": "string"},
+    "mode": {
+      "type": "string",
+      "enum": ["KEYWORD", "SEMANTIC", "HYBRID"]
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "local_desktop": {"type": "boolean"},
+        "cloud_workspace": {"type": "boolean"},
+        "memory": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "filters": {"type": "object"},
+    "ranking": {"type": "object"},
+    "limit": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}

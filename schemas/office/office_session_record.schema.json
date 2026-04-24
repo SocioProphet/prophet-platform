@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_session_record.schema.json",
+  "title": "office_session_record",
+  "type": "object",
+  "required": [
+    "session_id",
+    "document_id",
+    "editor_binding",
+    "mode",
+    "status"
+  ],
+  "properties": {
+    "session_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "editor_binding": {
+      "type": "string",
+      "enum": ["COLLABORA", "LOCAL_LIBREOFFICE", "HEADLESS", "OTHER"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["VIEW", "EDIT", "PREVIEW"]
+    },
+    "participants": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "lock_token": {"type": "string"},
+    "version_head": {"type": "string"},
+    "status": {
+      "type": "string",
+      "enum": ["OPEN", "IDLE", "SAVING", "CONFLICT", "CLOSED", "FAILED"]
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/ops/telemetry-event.schema.v0.1.json",
+  "title": "TelemetryEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "observed_at", "subject", "source", "measurements"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "WORKLOAD_RESOURCE_SAMPLE",
+        "SERVICE_HEALTH_SAMPLE",
+        "TOPOLOGY_CHANGE",
+        "COST_SAMPLE",
+        "ENERGY_SAMPLE",
+        "SECURITY_SIGNAL",
+        "INCIDENT_SIGNAL",
+        "DEVSECOPS_INTELLIGENCE_SIGNAL"
+      ]
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "id": {"type": "string", "minLength": 1},
+        "namespace": {"type": "string"},
+        "cluster": {"type": "string"},
+        "zone": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system"],
+      "properties": {
+        "system": {"type": "string", "minLength": 1},
+        "adapter": {"type": "string"},
+        "version": {"type": "string"}
+      }
+    },
+    "ops_profile_ref": {"type": "string"},
+    "measurements": {
+      "type": "object",
+      "additionalProperties": {"type": ["number", "integer", "string", "boolean", "null"]}
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "evidence-ref.schema.v0.1.json"},
+      "default": []
+    },
+    "intelligence_refs": {
+      "type": "array",
+      "items": {"$ref": "intelligence-ref.schema.v0.1.json"},
+      "default": []
+    }
+  }
+}

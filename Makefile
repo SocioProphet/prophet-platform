@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check validate-ops-fabric test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check validate-ops-fabric test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -16,6 +16,9 @@ standards-check:
 
 topology-check:
 	python3 tools/check_transport_topology.py
+
+validate-ops-fabric:
+	python3 tools/validate_ops_fabric.py
 
 test-go:
 	go test ./libs/go/tritrpcbridge/...

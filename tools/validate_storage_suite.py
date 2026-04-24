@@ -11,6 +11,7 @@ CHECKS = [
     ROOT / "tools" / "validate_storage_vertical_slice.py",
     ROOT / "tools" / "validate_storage_receipts_vertical_slice.py",
     ROOT / "tools" / "validate_storage_live_typedb_mode.py",
+    ROOT / "tools" / "validate_storage_evidence_layout.py",
 ]
 
 
