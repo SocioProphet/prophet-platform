@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/ops/evidence-ref.schema.v0.1.json",
+  "title": "EvidenceRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidence_id", "kind", "source", "uri", "observed_at"],
+  "properties": {
+    "evidence_id": {"type": "string", "minLength": 1},
+    "kind": {
+      "type": "string",
+      "enum": [
+        "METRIC_WINDOW",
+        "TRACE_SAMPLE",
+        "TOPOLOGY_SNAPSHOT",
+        "COST_SAMPLE",
+        "ENERGY_SAMPLE",
+        "SECURITY_SIGNAL",
+        "POLICY_DECISION",
+        "RECEIPT",
+        "RUN_ARTIFACT",
+        "INTELLIGENCE_PROFILE"
+      ]
+    },
+    "source": {"type": "string", "minLength": 1},
+    "uri": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "digest": {"type": "string"},
+    "notes": {"type": "string"}
+  }
+}

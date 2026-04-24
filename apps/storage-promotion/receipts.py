@@ -10,37 +10,59 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+SERVICE_DIR = "storage-promotion"
+SERVICE_REF = "apps/storage-promotion"
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def digest_json(payload: dict[str, Any]) -> str:
-    body = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(body).hexdigest()
 
 
-def state_root() -> Path:
-    return Path(os.environ.get("STORAGE_PROMOTION_STATE_HOME", ".storage-promotion-state")).resolve()
+def state_home() -> Path:
+    if v := os.environ.get("SOCIOPROFIT_STATE_HOME"):
+        return Path(v)
+    if v := os.environ.get("STORAGE_PROMOTION_STATE_HOME"):
+        return Path(v)
+    return Path.home() / ".local" / "state"
+
+
+def platform_state_root() -> Path:
+    return state_home() / "prophet-platform"
+
+
+def payloads_root() -> Path:
+    return platform_state_root() / "payloads" / SERVICE_DIR
 
 
 def events_root() -> Path:
-    return state_root() / "events"
+    return platform_state_root() / "events" / SERVICE_DIR
 
 
 def receipts_root() -> Path:
-    return state_root() / "receipts"
+    return platform_state_root() / "receipts" / SERVICE_DIR
 
 
 def ensure_dirs() -> None:
-    events_root().mkdir(parents=True, exist_ok=True)
-    receipts_root().mkdir(parents=True, exist_ok=True)
+    for path in [payloads_root(), events_root(), receipts_root()]:
+        path.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass(frozen=True)
 class ReceiptBundle:
     envelope: dict[str, Any]
     receipt: dict[str, Any]
+
+
+def write_payload(payload: dict[str, Any], *, stem: str) -> tuple[Path, str]:
+    ensure_dirs()
+    path = payloads_root() / f"{stem}.payload.json"
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path, f"file://{path.resolve()}"
 
 
 def make_bundle(
@@ -50,7 +72,7 @@ def make_bundle(
     status: str,
     subject_ref: str,
     payload_ref: str,
-    service_ref: str = "apps/storage-promotion",
+    service_ref: str = SERVICE_REF,
     scope_ref: str | None = None,
     correlation_id: str | None = None,
     classifiers: list[str] | None = None,
@@ -104,7 +126,7 @@ def make_bundle(
 
 def write_bundle(bundle: ReceiptBundle, *, stem: str | None = None) -> tuple[Path, Path]:
     ensure_dirs()
-    stem = stem or bundle.envelope["envelope_id"]
+    stem = stem or bundle.envelope["correlation_id"]
     event_path = events_root() / f"{stem}.event.json"
     receipt_path = receipts_root() / f"{stem}.receipt.json"
     event_path.write_text(json.dumps(bundle.envelope, indent=2, sort_keys=True) + "\n", encoding="utf-8")

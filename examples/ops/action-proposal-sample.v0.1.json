@@ -1,0 +1,58 @@
+{
+  "proposal_id": "ops.proposal.0001",
+  "proposal_type": "RIGHTSIZE_WORKLOAD",
+  "created_at": "2026-04-24T17:46:00Z",
+  "target": {
+    "kind": "Workload",
+    "id": "sample-workload",
+    "namespace": "default",
+    "cluster": "p0-lab",
+    "zone": "local"
+  },
+  "summary": "Report-only right-sizing recommendation for a sample workload.",
+  "rationale": [
+    "Observed usage is materially lower than reserved capacity.",
+    "Global DevSecOps intelligence is attached as a domain profile reference.",
+    "Sherlock-search can retrieve this proposal through the platform search lane."
+  ],
+  "recommended_change": {
+    "mode": "REPORT_ONLY",
+    "patch_kind": "ResourceIntent",
+    "before": {"cpu_units": 1000, "memory_units": 2048},
+    "after": {"cpu_units": 500, "memory_units": 1024}
+  },
+  "impact_estimate": {
+    "cost_delta_monthly_usd": -42.0,
+    "energy_delta_kwh_monthly": -9.5,
+    "slo_risk_delta": 0.02,
+    "security_risk_delta": 0.0,
+    "confidence": 0.72
+  },
+  "risk": {
+    "blast_radius": "LOW",
+    "reversibility": "ROLLBACK_PATCH",
+    "requires_human_approval": true,
+    "notes": ["No mutation is permitted in v0.1."]
+  },
+  "policy_status": "NOT_EVALUATED",
+  "autonomy_tier": "REPORT_ONLY",
+  "evidence_refs": [
+    {
+      "evidence_id": "evidence.metric-window.0001",
+      "kind": "METRIC_WINDOW",
+      "source": "synthetic-v0",
+      "uri": "memory://ops-fixtures/metric-window/0001",
+      "observed_at": "2026-04-24T17:45:00Z",
+      "digest": "sha256:placeholder"
+    }
+  ],
+  "intelligence_refs": [
+    {
+      "intelligence_id": "gdi.profile.operational-exhaust-fusion.v0",
+      "source_repo": "SocioProphet/global-devsecops-intelligence",
+      "profile_ref": "profiles/operational-exhaust-fusion-profile.v0.yaml",
+      "kind": "OPERATIONAL_EXHAUST_FUSION",
+      "confidence": 0.7
+    }
+  ]
+}
