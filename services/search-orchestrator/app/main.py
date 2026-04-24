@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
-from services.search_orchestrator.app.backends import ingest_academy_record, query_academy_records, query_platform_workspace
-from services.search_orchestrator.app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore
+from app.backends import ingest_academy_record, query_academy_records, query_platform_workspace
+from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore
 
 app = FastAPI(title="search-orchestrator", version="0.1.0")
 
