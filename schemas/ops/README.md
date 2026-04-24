@@ -8,6 +8,6 @@ The contracts are deliberately small and report-only:
 - `intelligence-ref.schema.v0.1.json` references operations-domain intelligence from `global-devsecops-intelligence`.
 - `telemetry-event.schema.v0.1.json` captures normalized operational facts.
 - `action-proposal.schema.v0.1.json` represents a resource-governor recommendation.
-- `action-lease.schema.v0.1.json` represents an execution candidate for AgentPlane handoff.
+- `handoff-candidate.schema.v0.1.json` represents a report-only AgentPlane or GitOps handoff candidate.
 
 v0.1 does not permit autonomous mutation.
