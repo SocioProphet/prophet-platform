@@ -17,6 +17,7 @@ REQUIRED = [
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
     "releases/evidence/search-orchestrator.academy-bridge.validation.record.json",
     "releases/manifests/search-orchestrator.academy-bridge.manifest.json",
+    "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml",
 ]
 
 REQUIRED_TEXT = {
@@ -30,6 +31,12 @@ REQUIRED_TEXT = {
     "releases/evidence/search-orchestrator.academy-bridge.validation.record.json": [
         "search-orchestrator-academy-bridge",
         "test_academy_lampstand_deployment_smoke.py",
+    ],
+    "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml": [
+        "kind: ApplicationSet",
+        "search-orchestrator-academy-bridge",
+        "infra/k8s/search-orchestrator/overlays/policy",
+        "bundle: fogstack.knowledge",
     ],
 }
 
