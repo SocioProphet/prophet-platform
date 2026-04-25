@@ -49,6 +49,24 @@ Academy visibility is policy-gated. By default, the service uses the local fallb
 
 The live Policy Fabric adapter is endpoint-explicit. No endpoint is called unless configured.
 
+## Deployment profiles
+
+Runtime profile definitions live in `services/search-orchestrator/deploy/academy-bridge-profiles.yaml`.
+
+A local compose profile for Lampstand carrier mode lives at `infra/local/docker-compose.search-orchestrator.academy.yml`.
+
+Example local run:
+
+```bash
+docker compose -f infra/local/docker-compose.search-orchestrator.academy.yml up --build
+```
+
+Then inspect the active non-secret configuration:
+
+```bash
+curl http://127.0.0.1:8088/v1/search/debug/config
+```
+
 ## Runtime introspection
 
 `GET /v1/search/debug/config` returns non-secret runtime mode information:
@@ -70,3 +88,4 @@ The first implementation should be narrow and inspectable:
 - one platform-side execution seam
 - explicit Academy bridge modes
 - safe runtime introspection without secret disclosure
+- repeatable local deployment smoke for Lampstand carrier mode
