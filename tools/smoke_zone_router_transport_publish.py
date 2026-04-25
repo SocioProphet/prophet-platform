@@ -18,7 +18,8 @@ from prophet_platform_lampstand.ingest import ingest_path  # noqa: E402
 from zone_router.main import main as zone_router_main  # noqa: E402
 
 ZONE_REF = "zone://edge"
-TRANSPORT_REF = "transport://kafka/jsonl"
+SUCCESS_TRANSPORT = "transport://kafka/jsonl"
+FAIL_TRANSPORT = "transport://fail/test"
 
 
 def _run_zone_router(argv):
@@ -36,7 +37,7 @@ def main() -> int:
         os.environ["SOCIOPROFIT_RUNTIME_HOME"] = str(root / "run")
 
         sample = root / "sample.txt"
-        sample.write_text("zone router transport publish smoke\n", encoding="utf-8")
+        sample.write_text("zone router retry publish smoke\n", encoding="utf-8")
 
         ingest_result = ingest_path(file_path=str(sample), zone_ref=ZONE_REF)
         request_path = root / "publication_request.json"
@@ -48,18 +49,23 @@ def main() -> int:
             return rc_enqueue
 
         record_path = enqueue_payload["record_path"]
-        rc_publish, publish_payload = _run_zone_router(["publish-record", "--path", str(record_path), "--transport-ref", TRANSPORT_REF])
+        rc_fail, fail_payload = _run_zone_router(["publish-record", "--path", str(record_path), "--transport-ref", FAIL_TRANSPORT])
+        rc_success, success_payload = _run_zone_router(["publish-record", "--path", str(record_path), "--transport-ref", SUCCESS_TRANSPORT])
+
         checks = {
             "enqueue_ok": enqueue_payload.get("ok") is True,
-            "publish_ok": publish_payload.get("ok") is True,
-            "publish_status": publish_payload.get("outcome", {}).get("status") == "published",
-            "transport_ref": publish_payload.get("outcome", {}).get("transport_ref") == TRANSPORT_REF,
-            "transport_kind": publish_payload.get("outcome", {}).get("transport_kind") == "kafka-jsonl",
-            "delivery_path": Path(publish_payload.get("transport_result", {}).get("delivery_path", root / "missing")).exists(),
-            "topic_log_path": Path(publish_payload.get("transport_result", {}).get("topic_log_path", root / "missing")).exists(),
+            "first_failed": rc_fail == 2 and fail_payload.get("ok") is False,
+            "first_attempt": fail_payload.get("outcome", {}).get("attempt") == 1,
+            "failure_evidence": Path(fail_payload.get("failure_evidence", {}).get("evidence_path", root / "missing")).exists(),
+            "second_success": rc_success == 0 and success_payload.get("ok") is True,
+            "second_attempt": success_payload.get("outcome", {}).get("attempt") == 2,
+            "previous_outcome_ref": success_payload.get("outcome", {}).get("previous_outcome_ref") == fail_payload.get("outcome", {}).get("outcome_id"),
+            "transport_kind": success_payload.get("outcome", {}).get("transport_kind") == "kafka-jsonl",
+            "delivery_path": Path(success_payload.get("transport_result", {}).get("delivery_path", root / "missing")).exists(),
+            "topic_log_path": Path(success_payload.get("transport_result", {}).get("topic_log_path", root / "missing")).exists(),
         }
-        ok = rc_publish == 0 and all(checks.values())
-        print(json.dumps({"ok": ok, "checks": checks, "publish_payload": publish_payload}, indent=2, sort_keys=True))
+        ok = all(checks.values())
+        print(json.dumps({"ok": ok, "checks": checks, "failure_payload": fail_payload, "success_payload": success_payload}, indent=2, sort_keys=True))
         return 0 if ok else 2
 
 

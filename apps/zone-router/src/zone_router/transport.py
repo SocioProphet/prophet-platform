@@ -7,6 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .retry_state import (
+    last_outcome_for_publication,
+    next_attempt_for_publication,
+    write_failure_evidence,
+)
 from .transport_adapters import dispatch_transport
 
 
@@ -70,6 +75,8 @@ def write_publication_outcome(
     transport_kind: str | None = None,
     delivery: dict[str, Any] | None = None,
     error: str | None = None,
+    previous_outcome_ref: str | None = None,
+    retry_eligible: bool | None = None,
 ) -> dict[str, Any]:
     ensure_transport_dirs(service)
     outcome_id = str(uuid.uuid4())
@@ -96,6 +103,10 @@ def write_publication_outcome(
         outcome["topic_ref"] = record["topic_ref"]
     if transport_kind:
         outcome["transport_kind"] = transport_kind
+    if previous_outcome_ref:
+        outcome["previous_outcome_ref"] = previous_outcome_ref
+    if retry_eligible is not None:
+        outcome["retry_eligible"] = retry_eligible
     if status == "published":
         outcome["published_at"] = created_at
     if status == "failed":
@@ -135,25 +146,41 @@ def publish_publication_record(
     transport_ref: str = "transport://local/jsonl",
     service_ref: str = "apps/zone-router",
     service: str = "zone-router",
-    attempt: int = 1,
+    attempt: int | None = None,
 ) -> dict[str, Any]:
     ensure_transport_dirs(service)
+    previous_outcome = last_outcome_for_publication(record["publication_id"], service=service)
+    resolved_attempt = attempt if attempt is not None else next_attempt_for_publication(record["publication_id"], service=service)
+    previous_outcome_ref = previous_outcome.get("outcome_id") if previous_outcome else None
     transport_result = dispatch_transport(
         record,
         transport_ref=transport_ref,
         deliveries_root=delivery_adapters_root(service),
     )
     status = "published" if transport_result.get("ok") else "failed"
+    retry_eligible = status == "failed"
     outcome_result = write_publication_outcome(
         record,
         transport_ref=transport_ref,
         service_ref=service_ref,
         service=service,
         status=status,
-        attempt=attempt,
+        attempt=resolved_attempt,
         transport_kind=transport_result.get("adapter"),
         delivery=transport_result if transport_result.get("ok") else None,
         error=transport_result.get("error"),
+        previous_outcome_ref=previous_outcome_ref,
+        retry_eligible=retry_eligible,
     )
+    if status == "failed":
+        failure_evidence = write_failure_evidence(
+            record,
+            outcome_result["outcome"],
+            service_ref=service_ref,
+            service=service,
+            previous_outcome_ref=previous_outcome_ref,
+            retry_eligible=retry_eligible,
+        )
+        outcome_result["failure_evidence"] = failure_evidence
     outcome_result["transport_result"] = transport_result
     return outcome_result
