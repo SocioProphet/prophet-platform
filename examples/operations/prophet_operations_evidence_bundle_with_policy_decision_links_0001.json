@@ -1,0 +1,157 @@
+{
+  "kind": "ProphetOperationsEvidenceBundle",
+  "schema_version": "v0.1",
+  "bundle_id": "opsbundle-demo-0001",
+  "created_at": "2026-04-25T21:30:00Z",
+  "signals": [
+    {
+      "kind": "ProphetOperationalSignal",
+      "schema_version": "v0.1",
+      "signal_id": "opsig-restart-loop-worker-1",
+      "source": {
+        "system": "local-demo",
+        "emitter": "example",
+        "ref": null
+      },
+      "observed_at": "2026-04-25T21:29:00Z",
+      "subject": {
+        "id": "worker-1",
+        "type": "workload",
+        "name": "worker",
+        "namespace": "demo",
+        "owner_ref": "service:svc-api"
+      },
+      "signal": {
+        "name": "restart_loop",
+        "type": "event",
+        "value": true,
+        "unit": null,
+        "severity": "error"
+      },
+      "evidence_refs": [],
+      "raw_ref": "examples/operations/raw_worker_restart_loop.json",
+      "raw_sha256": "example-sha256-placeholder",
+      "notes": null
+    }
+  ],
+  "topology": {
+    "kind": "ProphetRuntimeTopologyEvidence",
+    "schema_version": "v0.1",
+    "topology_id": "topology-demo-0001",
+    "observed_at": "2026-04-25T21:29:00Z",
+    "scope": {
+      "environment": "demo",
+      "workspace_ref": "workspace:demo",
+      "release_ref": "release:demo",
+      "policy_ref": "policy://operations/default-action-gates/v1"
+    },
+    "nodes": [
+      {
+        "id": "svc-api",
+        "type": "service",
+        "name": "api",
+        "status": "degraded",
+        "metadata": {}
+      },
+      {
+        "id": "worker-1",
+        "type": "workload",
+        "name": "worker",
+        "status": "unhealthy",
+        "metadata": {}
+      }
+    ],
+    "edges": [
+      {
+        "from": "svc-api",
+        "to": "worker-1",
+        "type": "depends_on",
+        "observed_by": "example",
+        "metadata": {}
+      }
+    ],
+    "evidence_refs": [],
+    "raw_ref": "examples/operations/raw_worker_restart_loop.json",
+    "raw_sha256": "example-sha256-placeholder"
+  },
+  "health_assessments": [
+    {
+      "kind": "ProphetServiceHealthAssessment",
+      "schema_version": "v0.1",
+      "assessment_id": "health-worker-1",
+      "assessed_at": "2026-04-25T21:30:00Z",
+      "subject": {
+        "id": "worker-1",
+        "type": "workload",
+        "name": "worker"
+      },
+      "health": {
+        "state": "unhealthy",
+        "score": 0.2,
+        "summary": "worker is unhealthy.",
+        "reasons": [
+          "restart_loop severity=error"
+        ]
+      },
+      "input_signal_refs": [
+        "opsig-restart-loop-worker-1"
+      ],
+      "topology_ref": "topology-demo-0001",
+      "policy_ref": "policy://operations/default-action-gates/v1",
+      "evidence_refs": []
+    }
+  ],
+  "recommendations": [
+    {
+      "kind": "ProphetOptimizationRecommendation",
+      "schema_version": "v0.1",
+      "recommendation_id": "oprec-worker-1-isolate",
+      "created_at": "2026-04-25T21:30:00Z",
+      "subject": {
+        "id": "worker-1",
+        "type": "workload",
+        "name": "worker"
+      },
+      "action": {
+        "type": "isolate",
+        "intent": "restore_service_health",
+        "description": "isolate worker based on health assessment.",
+        "parameters": {}
+      },
+      "basis": {
+        "health_assessment_ref": "health-worker-1",
+        "topology_ref": "topology-demo-0001",
+        "signal_refs": [
+          "opsig-restart-loop-worker-1"
+        ],
+        "reason": "worker is unhealthy."
+      },
+      "policy_gate": {
+        "required": true,
+        "policy_ref": "policy://operations/default-action-gates/v1",
+        "decision_contract_ref": "schema://policy-fabric/contracts/prophet_operations_action_decision_v1.schema.json",
+        "decision_ref": "policy-fabric://prophet-operations-action-decision/v1/oprec-worker-1-isolate",
+        "decision": "pending"
+      },
+      "risk": {
+        "level": "high",
+        "notes": null
+      },
+      "evidence_refs": []
+    }
+  ],
+  "evidence_links": [
+    {
+      "kind": "ProphetOperationsEvidenceLink",
+      "schema_version": "v0.1",
+      "link_id": "opslink-demo-0001",
+      "from_ref": "artifact://prophet-platform/operations/opsbundle-demo-0001",
+      "to_ref": "policy-fabric://prophet-operations-action-decision/v1/oprec-worker-1-isolate",
+      "relationship": "requires_policy_decision",
+      "contract_ref": "schema://policy-fabric/contracts/prophet_operations_action_decision_v1.schema.json",
+      "recommendation_ref": "oprec-worker-1-isolate"
+    }
+  ],
+  "raw_ref": "examples/operations/raw_worker_restart_loop.json",
+  "raw_sha256": "example-sha256-placeholder"
+}
