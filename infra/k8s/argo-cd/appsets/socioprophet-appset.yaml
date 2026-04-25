@@ -13,6 +13,9 @@ spec:
             path: apps/gateway/kustomize/overlays/dev
           - name: socioprophet-web
             path: apps/socioprophet-web/kustomize/overlays/dev
+          - name: search-orchestrator-academy-bridge
+            path: infra/k8s/search-orchestrator/overlays/policy
+            bundle: fogstack.knowledge
   template:
     metadata:
       name: '{{name}}'
