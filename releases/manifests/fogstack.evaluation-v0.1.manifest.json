@@ -6,8 +6,8 @@
   "bundle": "bundles/fogstack.evaluation-v0.1.yaml",
   "rulepack": "conformance/rulepacks/fogstack.evaluation-v0.1.yaml",
   "verification_helper": "tools/validate_fogstack.py",
-  "bundle_digest": "sha256:PLACEHOLDER",
-  "rulepack_digest": "sha256:PLACEHOLDER",
+  "bundle_digest": "sha256:e2c06f31ffb2d856b050740f88c29206954148622e8b87c68efe004beb1ed473",
+  "rulepack_digest": "sha256:e5832ff75cb378f6eb7a29ca39c85f3e522c93260f8d63fe806ed6d163625deb",
   "channel": "preview",
   "support_state": "community",
   "signed": false
