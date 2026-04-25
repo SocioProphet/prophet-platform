@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/schemas/operations/prophet-operational-signal-v0.1.schema.json",
+  "title": "ProphetOperationalSignal",
+  "type": "object",
+  "required": ["kind", "schema_version", "signal_id", "source", "observed_at", "subject", "signal"],
+  "properties": {
+    "kind": { "const": "ProphetOperationalSignal" },
+    "schema_version": { "const": "v0.1" },
+    "signal_id": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "required": ["system", "emitter"],
+      "properties": {
+        "system": { "type": "string", "minLength": 1 },
+        "emitter": { "type": "string", "minLength": 1 },
+        "ref": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "name": { "type": ["string", "null"] },
+        "namespace": { "type": ["string", "null"] },
+        "owner_ref": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "signal": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["metric", "event", "log", "trace", "state", "health", "cost", "capacity", "security", "other"] },
+        "value": { "type": ["number", "string", "boolean", "object", "array", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "severity": { "enum": ["debug", "info", "notice", "warn", "error", "critical", "unknown"] }
+      },
+      "additionalProperties": true
+    },
+    "evidence_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+    "raw_ref": { "type": ["string", "null"] },
+    "raw_sha256": { "type": ["string", "null"] },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
