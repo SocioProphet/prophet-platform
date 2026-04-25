@@ -1,0 +1,58 @@
+profiles:
+  local_dev:
+    description: Process-local Academy records and local fallback policy evaluation.
+    environment: {}
+    expected_debug:
+      academy_repository_mode: in-memory
+      academy_policy_mode: local-fallback
+
+  json_file:
+    description: Durable single-file Academy search storage with local fallback policy evaluation.
+    environment:
+      SEARCH_ORCHESTRATOR_ACADEMY_STORE: /var/lib/prophet-platform/search-orchestrator/academy-search.json
+    expected_debug:
+      academy_repository_mode: json-file
+      academy_policy_mode: local-fallback
+
+  lampstand_jsonl:
+    description: Academy records exported to a JSONL file for Lampstand-style indexing.
+    environment:
+      SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_JSONL: /var/lib/prophet-platform/search-orchestrator/academy-search.jsonl
+    expected_debug:
+      academy_repository_mode: lampstand-jsonl
+      academy_policy_mode: local-fallback
+
+  lampstand_carrier:
+    description: Academy records materialized as Lampstand carrier payloads with receipt/catalog output.
+    environment:
+      SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR: /var/lib/prophet-platform/search-orchestrator/academy-carriers
+      SOCIOPROFIT_STATE_HOME: /var/lib/prophet-platform/state
+      SOCIOPROFIT_DATA_HOME: /var/lib/prophet-platform/data
+      SOCIOPROFIT_RUNTIME_HOME: /run/prophet-platform
+    expected_debug:
+      academy_repository_mode: lampstand-carrier
+      academy_policy_mode: local-fallback
+
+  lampstand_carrier_policy_fabric:
+    description: Lampstand carrier mode plus endpoint-explicit Policy Fabric visibility decisions.
+    environment:
+      SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR: /var/lib/prophet-platform/search-orchestrator/academy-carriers
+      SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT: http://policy-fabric:8080/v1/academy/search/visibility/decide
+      SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS: "2.0"
+      SOCIOPROFIT_STATE_HOME: /var/lib/prophet-platform/state
+      SOCIOPROFIT_DATA_HOME: /var/lib/prophet-platform/data
+      SOCIOPROFIT_RUNTIME_HOME: /run/prophet-platform
+    expected_debug:
+      academy_repository_mode: lampstand-carrier
+      academy_policy_mode: http-policy-fabric
+
+notes:
+  precedence:
+    - SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR
+    - SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_JSONL
+    - SEARCH_ORCHESTRATOR_ACADEMY_STORE
+    - in-memory default
+  safety:
+    - No live Policy Fabric endpoint is called unless SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT is set.
+    - The debug endpoint reports booleans and modes, not configured paths or endpoint URLs.
+    - Lampstand carrier mode writes only to configured local filesystem roots.
