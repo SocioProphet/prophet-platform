@@ -12,6 +12,8 @@ on:
       - "tools/validate_fogstack.py"
       - "tools/emit_fogstack_validation_record.py"
       - "tools/fogstack_validation_to_evidence.py"
+      - "tools/refresh_fogstack_manifest_digests.py"
+      - "tools/tests/test_refresh_fogstack_manifest_digests.py"
       - "docs/FOGSTACK_*.md"
   push:
     branches: [main]
@@ -25,6 +27,8 @@ on:
       - "tools/validate_fogstack.py"
       - "tools/emit_fogstack_validation_record.py"
       - "tools/fogstack_validation_to_evidence.py"
+      - "tools/refresh_fogstack_manifest_digests.py"
+      - "tools/tests/test_refresh_fogstack_manifest_digests.py"
       - "docs/FOGSTACK_*.md"
 
 permissions:
@@ -50,7 +54,14 @@ jobs:
 
       - name: Run helper tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_validation_to_evidence.py
+          python -m pytest -q tools/tests/test_fogstack_validation_to_evidence.py tools/tests/test_refresh_fogstack_manifest_digests.py
+
+      - name: Enforce manifest digests
+        run: |
+          python3 tools/refresh_fogstack_manifest_digests.py --check \
+            releases/manifests/fogstack.access-v0.1.manifest.json \
+            releases/manifests/fogstack.knowledge-v0.1.manifest.json \
+            releases/manifests/fogstack.evaluation-v0.1.manifest.json
 
       - name: Run native fogstack validation
         run: |
