@@ -1,0 +1,27 @@
+{
+  "manifest_id": "search-orchestrator.academy-bridge.v0.1",
+  "component": "services/search-orchestrator",
+  "release_lane": "academy-bridge",
+  "version": "0.1.0",
+  "artifacts": [
+    "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
+    "infra/local/docker-compose.search-orchestrator.academy.yml",
+    "infra/k8s/search-orchestrator/base/kustomization.yaml",
+    "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
+    "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
+    "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py"
+  ],
+  "capabilities": [
+    "academy-search-record-ingest",
+    "lampstand-carrier-mode",
+    "policy-fabric-visibility-mode",
+    "safe-runtime-debug-config"
+  ],
+  "safety_posture": [
+    "endpoint-explicit policy fabric calls",
+    "no learner action execution",
+    "no canon promotion",
+    "no memory writeback",
+    "non-secret runtime mode reporting"
+  ]
+}
