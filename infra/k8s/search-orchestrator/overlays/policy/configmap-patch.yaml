@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: search-orchestrator-config
+data:
+  SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT: http://policy-fabric:8080/v1/academy/search/visibility/decide
+  SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS: "2.0"
