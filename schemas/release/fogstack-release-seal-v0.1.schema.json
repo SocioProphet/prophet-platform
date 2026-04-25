@@ -43,6 +43,8 @@
       },
       "additionalProperties": false
     },
+    "release_evidence_index_ref": { "type": ["string", "null"] },
+    "release_seal_cryptographic_verification_record_ref": { "type": ["string", "null"] },
     "notes": { "type": ["string", "null"] }
   },
   "additionalProperties": false
