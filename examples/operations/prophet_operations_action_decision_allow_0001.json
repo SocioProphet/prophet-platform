@@ -1,0 +1,50 @@
+{
+  "kind": "ProphetOperationsActionDecision",
+  "schema_version": "v1",
+  "decision_id": "ops-decision-allow-0001",
+  "decided_at": "2026-04-25T21:40:00Z",
+  "recommendation_ref": "oprec-worker-1-isolate",
+  "subject": {
+    "id": "worker-1",
+    "type": "workload",
+    "name": "worker"
+  },
+  "proposed_action": {
+    "type": "isolate",
+    "intent": "restore_service_health",
+    "description": "Isolate worker after restart-loop health assessment.",
+    "parameters": {
+      "isolation_mode": "quarantine-network"
+    }
+  },
+  "decision": {
+    "outcome": "allow",
+    "reason": "Policy allows single-workload isolation for unhealthy restart-loop after explicit gate approval.",
+    "risk_level": "high",
+    "expires_at": "2026-04-25T22:40:00Z"
+  },
+  "basis": {
+    "policy_refs": [
+      "policy://operations/default-action-gates/v1"
+    ],
+    "health_assessment_ref": "health-worker-1",
+    "topology_ref": "topology-demo-0001",
+    "signal_refs": [
+      "opsig-restart-loop-worker-1"
+    ],
+    "evidence_refs": [
+      "artifact://prophet-platform/operations/opsbundle-demo-0001"
+    ]
+  },
+  "controls": {
+    "requires_human_approval": true,
+    "requires_change_window": false,
+    "max_execution_scope": "single-workload",
+    "rollback_required": true
+  },
+  "audit": {
+    "actor": "policy-fabric/example",
+    "mode": "hybrid",
+    "notes": "Allow example for platform-side executable recommendation validation."
+  }
+}

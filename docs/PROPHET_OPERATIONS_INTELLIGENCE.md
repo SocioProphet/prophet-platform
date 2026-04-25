@@ -9,6 +9,7 @@ This is not an integration with proprietary observability or optimization produc
 - service health assessment
 - policy-gated optimization recommendations
 - evidence links to governed Policy Fabric action decisions
+- local validation that blocks execution unless a matching allow decision exists
 
 ## First slice
 
@@ -35,6 +36,8 @@ raw local observation
   -> optimization recommendation
   -> Policy Fabric action decision reference
   -> evidence link
+  -> local decision validation
+  -> executable only when decision.outcome=allow
 ```
 
 The recommendation output is deliberately policy-gated. The helper does not execute remediation, mutate infrastructure, or grant authority. It emits evidence and proposed action intent for a later policy/evaluation layer.
@@ -68,6 +71,50 @@ The emitted evidence-link shape is:
 A checked-in example is available at:
 
 - `examples/operations/prophet_operations_evidence_bundle_with_policy_decision_links_0001.json`
+
+## Action decision enforcement
+
+`tools/validate_prophet_operations_policy_decisions.py` validates operations bundles against supplied `ProphetOperationsActionDecision` artifacts.
+
+Execution rule:
+
+- missing decision: blocked
+- `decision.outcome=pending`: blocked
+- `decision.outcome=manual_review`: blocked
+- `decision.outcome=defer`: blocked
+- `decision.outcome=deny`: blocked
+- `decision.outcome=unknown`: blocked
+- `decision.outcome=allow`: executable only if recommendation, subject, and action linkage match
+
+The validator also checks that the decision uses:
+
+- `kind=ProphetOperationsActionDecision`
+- `schema_version=v1`
+- `recommendation_ref=<recommendation_id>`
+- matching `subject.id` and `subject.type`, when present
+- matching `proposed_action.type` and `proposed_action.intent`, when present
+
+Example blocked validation:
+
+```bash
+python tools/validate_prophet_operations_policy_decisions.py \
+  --bundle examples/operations/prophet_operations_evidence_bundle_with_policy_decision_links_0001.json \
+  --decision examples/operations/prophet_operations_action_decision_manual_review_0001.json
+```
+
+Example executable validation:
+
+```bash
+python tools/validate_prophet_operations_policy_decisions.py \
+  --bundle examples/operations/prophet_operations_evidence_bundle_with_policy_decision_links_0001.json \
+  --decision examples/operations/prophet_operations_action_decision_allow_0001.json \
+  --require-executable
+```
+
+Checked-in decision examples:
+
+- `examples/operations/prophet_operations_action_decision_manual_review_0001.json`
+- `examples/operations/prophet_operations_action_decision_allow_0001.json`
 
 ## Input shape
 
@@ -115,4 +162,4 @@ This lane does not add:
 - scheduler mutation
 - live policy service calls
 
-Those are follow-on slices. The correct next step is to expose the emitted operations bundle through existing platform evidence surfaces and add a policy-decision ingest/example path once Policy Fabric decisions are produced by a live evaluator.
+Those are follow-on slices. The current enforcement surface is local: it proves that an operation recommendation cannot be treated as executable unless a supplied Policy Fabric decision artifact explicitly allows it and links to the recommendation consistently.
