@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy test-go test-python-apps smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy test-go validate-phase4 test-python-apps validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -39,6 +39,9 @@ test-python-apps:
 	cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
 	cd apps/semantic-bridge && test -d .venv || python3 -m venv .venv
 	cd apps/semantic-bridge && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
+
+test-tools:
+	python3 -m pytest -q tools/tests
 
 smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke
 
