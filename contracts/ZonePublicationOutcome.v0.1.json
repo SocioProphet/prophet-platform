@@ -38,6 +38,8 @@
     "receipt_ref": {"type": "string"},
     "catalog_ref": {"type": "string"},
     "attempt": {"type": "integer"},
+    "previous_outcome_ref": {"type": "string"},
+    "retry_eligible": {"type": "boolean"},
     "delivery_ref": {"type": "string"},
     "delivery_id": {"type": "string"},
     "topic_log_ref": {"type": "string"},
