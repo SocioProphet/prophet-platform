@@ -1,0 +1,127 @@
+name: FogStack Release Proof
+
+on:
+  pull_request:
+    paths:
+      - "catalog/fogstack-packs-v0.1.yaml"
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-release-proof.yml"
+  push:
+    branches: [main]
+    paths:
+      - "catalog/fogstack-packs-v0.1.yaml"
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-release-proof.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  release-proof:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run release proof tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_release_proof_pipeline.py
+
+      - name: Smoke release proof pipeline
+        run: |
+          mkdir -p artifacts/release-proof
+
+          python3 tools/emit_fogstack_release_seal.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --artifact manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --artifact validation releases/evidence/fogstack.access-v0.1.validation.record.json \
+            --output artifacts/release-proof/fogstack.access.seal.json
+
+          python3 tools/attach_fogstack_release_seal_signature.py \
+            --seal artifacts/release-proof/fogstack.access.seal.json \
+            --signature-type cosign \
+            --signature-ref artifact://release/fogstack.access-v0.1.seal.sig \
+            --output artifacts/release-proof/fogstack.access.seal.json
+
+          python3 tools/emit_fogstack_release_evidence_index.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --manifest-ref releases/manifests/fogstack.access-v0.1.manifest.json \
+            --validation-record-ref releases/evidence/fogstack.access-v0.1.validation.record.json \
+            --signature-verification-record-ref releases/evidence/fogstack.access-v0.1.signature-verification.record.json \
+            --signature-trust-record-ref releases/evidence/fogstack.access-v0.1.signature-trust.record.json \
+            --output artifacts/release-proof/fogstack.access.evidence.index.json
+
+          SEAL_HASH=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('artifacts/release-proof/fogstack.access.seal.json').read_text(encoding='utf-8'))
+          print(data['release_root_hash'])
+          PY
+          )
+
+          cat > artifacts/release-proof/mock_seal_verify.py <<'PY'
+          import json, os
+          print(json.dumps({
+              "status": "pass",
+              "verified_root_hash": os.environ["SEAL_HASH"],
+              "evidence_count": 1,
+          }))
+          PY
+
+          SEAL_HASH="$SEAL_HASH" python3 tools/run_fogstack_release_proof_pipeline.py \
+            --tool cosign \
+            --seal artifacts/release-proof/fogstack.access.seal.json \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --signature-ref artifact://release/fogstack.access-v0.1.seal.sig \
+            --evidence-output artifacts/release-proof/fogstack.access.seal.verify.json \
+            --seal-crypto-record artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json \
+            --evidence-index artifacts/release-proof/fogstack.access.evidence.index.json \
+            -- python3 artifacts/release-proof/mock_seal_verify.py
+
+      - name: Assert proof outputs linked
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          seal = json.loads(Path('artifacts/release-proof/fogstack.access.seal.json').read_text(encoding='utf-8'))
+          crypto = json.loads(Path('artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json').read_text(encoding='utf-8'))
+          index = json.loads(Path('artifacts/release-proof/fogstack.access.evidence.index.json').read_text(encoding='utf-8'))
+
+          assert crypto['status'] == 'verified', crypto
+          assert crypto['summary']['seal_root_hash_matches'] is True, crypto
+          assert seal['release_evidence_index_ref'].endswith('fogstack.access.evidence.index.json'), seal
+          assert seal['release_seal_cryptographic_verification_record_ref'].endswith('fogstack.access.seal.crypto-verification.record.json'), seal
+          assert index['release_seal_ref'].endswith('fogstack.access.seal.json'), index
+          assert index['release_seal_cryptographic_verification_record_ref'].endswith('fogstack.access.seal.crypto-verification.record.json'), index
+          print('FogStack release proof pipeline smoke passed.')
+          PY
+
+      - name: Upload release proof artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-release-proof-artifacts
+          path: artifacts/release-proof/
+          if-no-files-found: error
