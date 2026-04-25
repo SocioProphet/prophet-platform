@@ -22,6 +22,10 @@ def main() -> int:
     parser.add_argument("--evidence-output", required=True, type=Path)
     parser.add_argument("--seal-crypto-record", required=True, type=Path)
     parser.add_argument("--evidence-index", required=True, type=Path)
+    parser.add_argument("--canonical-contract-surface-ref")
+    parser.add_argument("--canonical-deployment-surface-ref")
+    parser.add_argument("--canonical-runtime-surface-ref")
+    parser.add_argument("--canonical-policy-surface-ref")
     parser.add_argument("command", nargs=argparse.REMAINDER, help="External seal verifier command, e.g. cosign verify ...")
     args = parser.parse_args()
 
@@ -52,6 +56,15 @@ def main() -> int:
         "--seal-crypto-record", str(args.seal_crypto_record),
         "--evidence-index", str(args.evidence_index),
     ]
+    if args.canonical_contract_surface_ref is not None:
+        link_cmd += ["--canonical-contract-surface-ref", args.canonical_contract_surface_ref]
+    if args.canonical_deployment_surface_ref is not None:
+        link_cmd += ["--canonical-deployment-surface-ref", args.canonical_deployment_surface_ref]
+    if args.canonical_runtime_surface_ref is not None:
+        link_cmd += ["--canonical-runtime-surface-ref", args.canonical_runtime_surface_ref]
+    if args.canonical_policy_surface_ref is not None:
+        link_cmd += ["--canonical-policy-surface-ref", args.canonical_policy_surface_ref]
+
     link = subprocess.run(link_cmd)
     if link.returncode != 0:
         raise SystemExit(link.returncode)
