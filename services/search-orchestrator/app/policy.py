@@ -29,6 +29,9 @@ class AcademyPolicyEvaluator:
     def decide(self, record: LearningSearchRecord, context: AcademyPolicyContext) -> AcademyPolicyDecision:
         raise NotImplementedError
 
+    def mode(self) -> str:
+        return self.__class__.__name__
+
 
 def build_academy_visibility_request(record: LearningSearchRecord, context: AcademyPolicyContext) -> dict[str, object]:
     visibility = record.visibility
@@ -120,6 +123,9 @@ class LocalVisibilityPolicyEvaluator(AcademyPolicyEvaluator):
         )
         return policy_decision_from_payload(decision, request)
 
+    def mode(self) -> str:
+        return "local-fallback"
+
 
 class HttpPolicyFabricEvaluator(AcademyPolicyEvaluator):
     def __init__(self, endpoint: str, fallback: AcademyPolicyEvaluator | None = None, timeout_seconds: float = 2.0) -> None:
@@ -145,6 +151,9 @@ class HttpPolicyFabricEvaluator(AcademyPolicyEvaluator):
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError):
             return self.fallback.decide(record, context)
 
+    def mode(self) -> str:
+        return "http-policy-fabric"
+
 
 def build_academy_policy_evaluator() -> AcademyPolicyEvaluator:
     endpoint = os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT")
@@ -152,6 +161,16 @@ def build_academy_policy_evaluator() -> AcademyPolicyEvaluator:
         timeout = float(os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS", "2.0"))
         return HttpPolicyFabricEvaluator(endpoint=endpoint, timeout_seconds=timeout)
     return LocalVisibilityPolicyEvaluator()
+
+
+def describe_academy_policy_evaluator() -> dict[str, object]:
+    return {
+        "mode": academy_policy_evaluator.mode(),
+        "configured": {
+            "policy_fabric_endpoint": bool(os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT")),
+            "timeout_seconds": float(os.environ.get("SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS", "2.0")),
+        },
+    }
 
 
 academy_policy_evaluator: AcademyPolicyEvaluator = build_academy_policy_evaluator()
