@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: search-orchestrator-config
+data:
+  SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR: /var/lib/prophet-platform/search-orchestrator/academy-carriers
+  SEARCH_ORCHESTRATOR_POLICY_FABRIC_TIMEOUT_SECONDS: "2.0"
+  SOCIOPROFIT_STATE_HOME: /var/lib/prophet-platform/state
+  SOCIOPROFIT_DATA_HOME: /var/lib/prophet-platform/data
+  SOCIOPROFIT_RUNTIME_HOME: /run/prophet-platform

@@ -14,6 +14,12 @@ def load_json(path: Path) -> dict:
     return data
 
 
+def normalize_command(command: list[str]) -> list[str]:
+    if command and command[0] == "--":
+        return command[1:]
+    return command
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run an external verifier for a Fog Stack release seal and emit the cryptographic verification record")
     parser.add_argument("--tool", required=True, choices=["cosign", "sigstore", "other"])
@@ -28,13 +34,14 @@ def main() -> int:
     parser.add_argument("command", nargs=argparse.REMAINDER, help="External verifier command, e.g. cosign verify ...")
     args = parser.parse_args()
 
-    if not args.command:
+    command = normalize_command(args.command)
+    if not command:
         raise SystemExit("ERR: external verifier command is required after '--'")
 
     seal = load_json(args.seal)
     seal_root_hash = seal.get("release_root_hash")
 
-    proc = subprocess.run(args.command, capture_output=True, text=True)
+    proc = subprocess.run(command, capture_output=True, text=True)
 
     if proc.stdout.strip():
         try:

@@ -6,6 +6,12 @@ import subprocess
 from pathlib import Path
 
 
+def normalize_command(command: list[str]) -> list[str]:
+    if command and command[0] == "--":
+        return command[1:]
+    return command
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the Fog Stack release proof pipeline for a sealed bundle")
     parser.add_argument("--tool", required=True, choices=["cosign", "sigstore", "other"])
@@ -19,7 +25,8 @@ def main() -> int:
     parser.add_argument("command", nargs=argparse.REMAINDER, help="External seal verifier command, e.g. cosign verify ...")
     args = parser.parse_args()
 
-    if not args.command:
+    command = normalize_command(args.command)
+    if not command:
         raise SystemExit("ERR: external seal verifier command is required after '--'")
 
     run_cmd = [
@@ -33,7 +40,7 @@ def main() -> int:
         "--evidence-output", str(args.evidence_output),
         "--record-output", str(args.seal_crypto_record),
         "--",
-    ] + args.command
+    ] + command
     proc = subprocess.run(run_cmd)
     if proc.returncode != 0:
         raise SystemExit(proc.returncode)
