@@ -4,9 +4,11 @@ metadata:
   bundle_id: "fogstack.knowledge"
   version: "0.1.0"
   display_name: "Fog Stack Knowledge"
-  summary: "Governed knowledge ingress and local indexing bundle deployed on Prophet Platform substrate."
+  summary: "Governed knowledge ingress, Academy search explanation retrieval, and local indexing bundle deployed on Prophet Platform substrate."
   source_repositories:
     - "SocioProphet/prophet-platform"
+    - "SocioProphet/alexandrian-academy"
+    - "SocioProphet/policy-fabric"
 
 claims:
   government_grade_hygiene: true
@@ -25,11 +27,16 @@ runtime:
       role: "governed-ingress"
     - id: "apps/lampstand"
       role: "local-index-daemon"
+    - id: "services/search-orchestrator"
+      role: "academy-search-bridge"
 
 contracts:
   required:
     - "EventEnvelope"
     - "EvidenceReceipt"
+    - "LearningSearchRecord"
+    - "AcademySearchVisibilityRequestV1"
+    - "AcademySearchVisibilityDecisionV1"
 
 profiles:
   supported:
@@ -41,11 +48,24 @@ profiles:
       status: "supported"
       kubernetes_required: true
       root_required: false
+    - id: "academy-carrier"
+      status: "supported"
+      kubernetes_required: true
+      root_required: false
+    - id: "academy-carrier-policy"
+      status: "supported"
+      kubernetes_required: true
+      root_required: false
 
 deployment:
   minimum_nodes_for_first_value: 1
-  max_required_services: 2
+  max_required_services: 3
   install_time_target_minutes: 30
+  argocd_appsets:
+    - "infra/argocd/appsets/search-orchestrator-academy-appset.yaml"
+  kustomize_overlays:
+    - "infra/k8s/search-orchestrator/overlays/carrier"
+    - "infra/k8s/search-orchestrator/overlays/policy"
 
 security:
   identities:
@@ -57,6 +77,9 @@ security:
     signed_artifacts: true
     sbom_required: true
     provenance_required: true
+  policy:
+    endpoint_explicit_policy_fabric: true
+    local_fallback_supported: true
 
 lifecycle:
   channel: "preview"
