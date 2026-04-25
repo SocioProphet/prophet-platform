@@ -1,0 +1,28 @@
+{
+  "validation_id": "search-orchestrator-academy-bridge-v0.1-validation",
+  "component": "services/search-orchestrator",
+  "release_lane": "academy-bridge",
+  "status": "passed",
+  "validated_artifacts": [
+    "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
+    "infra/local/docker-compose.search-orchestrator.academy.yml",
+    "infra/k8s/search-orchestrator/base/kustomization.yaml",
+    "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
+    "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml"
+  ],
+  "tests": [
+    "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
+    "services/search-orchestrator/tests/test_academy_lampstand_carrier_real_smoke.py",
+    "services/search-orchestrator/tests/test_debug_config.py"
+  ],
+  "evidence": [
+    "safe runtime config reports modes without paths or URLs",
+    "Lampstand carrier mode materializes Academy search records and emits carrier artifacts",
+    "deployment smoke verifies debug config, ingest, query, and carrier artifacts"
+  ],
+  "gates": [
+    "search-orchestrator workflow",
+    "platform validate workflow",
+    "premerge audit"
+  ]
+}
