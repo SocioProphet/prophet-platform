@@ -8,6 +8,7 @@ on:
       - "schemas/release/**"
       - "tools/*fogstack*"
       - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - "tools/tests/test_run_openssl_fogstack_release_seal_verifier.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-release-proof.yml"
   push:
@@ -18,6 +19,7 @@ on:
       - "schemas/release/**"
       - "tools/*fogstack*"
       - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - "tools/tests/test_run_openssl_fogstack_release_seal_verifier.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-release-proof.yml"
 
@@ -44,7 +46,7 @@ jobs:
 
       - name: Run release proof tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_release_proof_pipeline.py
+          python -m pytest -q tools/tests/test_fogstack_release_proof_pipeline.py tools/tests/test_run_openssl_fogstack_release_seal_verifier.py
 
       - name: Smoke release proof pipeline
         run: |
@@ -57,10 +59,14 @@ jobs:
             --artifact validation releases/evidence/fogstack.access-v0.1.validation.record.json \
             --output artifacts/release-proof/fogstack.access.seal.json
 
+          openssl genpkey -algorithm RSA -out artifacts/release-proof/private.pem
+          openssl pkey -in artifacts/release-proof/private.pem -pubout -out artifacts/release-proof/public.pem
+          openssl dgst -sha256 -sign artifacts/release-proof/private.pem -out artifacts/release-proof/fogstack.access.seal.sig artifacts/release-proof/fogstack.access.seal.json
+
           python3 tools/attach_fogstack_release_seal_signature.py \
             --seal artifacts/release-proof/fogstack.access.seal.json \
-            --signature-type cosign \
-            --signature-ref artifact://release/fogstack.access-v0.1.seal.sig \
+            --signature-type other \
+            --signature-ref artifacts/release-proof/fogstack.access.seal.sig \
             --output artifacts/release-proof/fogstack.access.seal.json
 
           python3 tools/emit_fogstack_release_evidence_index.py \
@@ -72,33 +78,20 @@ jobs:
             --signature-trust-record-ref releases/evidence/fogstack.access-v0.1.signature-trust.record.json \
             --output artifacts/release-proof/fogstack.access.evidence.index.json
 
-          SEAL_HASH=$(python3 - <<'PY'
-          import json
-          from pathlib import Path
-          data = json.loads(Path('artifacts/release-proof/fogstack.access.seal.json').read_text(encoding='utf-8'))
-          print(data['release_root_hash'])
-          PY
-          )
-
-          cat > artifacts/release-proof/mock_seal_verify.py <<'PY'
-          import json, os
-          print(json.dumps({
-              "status": "pass",
-              "verified_root_hash": os.environ["SEAL_HASH"],
-              "evidence_count": 1,
-          }))
-          PY
-
-          SEAL_HASH="$SEAL_HASH" python3 tools/run_fogstack_release_proof_pipeline.py \
-            --tool cosign \
+          python3 tools/run_fogstack_release_proof_pipeline.py \
+            --tool other \
             --seal artifacts/release-proof/fogstack.access.seal.json \
             --bundle-id fogstack.access \
             --version 0.1.0 \
-            --signature-ref artifact://release/fogstack.access-v0.1.seal.sig \
+            --signature-ref artifacts/release-proof/fogstack.access.seal.sig \
             --evidence-output artifacts/release-proof/fogstack.access.seal.verify.json \
             --seal-crypto-record artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json \
             --evidence-index artifacts/release-proof/fogstack.access.evidence.index.json \
-            -- python3 artifacts/release-proof/mock_seal_verify.py
+            -- python3 tools/run_openssl_fogstack_release_seal_verifier.py \
+              --seal artifacts/release-proof/fogstack.access.seal.json \
+              --signature artifacts/release-proof/fogstack.access.seal.sig \
+              --public-key artifacts/release-proof/public.pem \
+              --key-ref artifacts/release-proof/public.pem
 
       - name: Assert proof outputs linked
         run: |
