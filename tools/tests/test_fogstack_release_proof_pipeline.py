@@ -62,6 +62,11 @@ def test_release_proof_pipeline_links_seal_artifacts(tmp_path: Path) -> None:
     env = os.environ.copy()
     env["SEAL_HASH"] = seal_root_hash
 
+    contract_ref = "https://github.com/SocioProphet/api-spec/tree/master/fog"
+    deployment_ref = "https://github.com/SocioProphet/manifests/tree/master/fog"
+    runtime_ref = "https://github.com/SocioProphet/cloudshell-fog"
+    policy_ref = "https://github.com/SocioProphet/policy-fabric/tree/main/contracts"
+
     cmd = [
         sys.executable,
         "tools/run_fogstack_release_proof_pipeline.py",
@@ -81,6 +86,14 @@ def test_release_proof_pipeline_links_seal_artifacts(tmp_path: Path) -> None:
         str(seal_crypto_record),
         "--evidence-index",
         str(evidence_index),
+        "--canonical-contract-surface-ref",
+        contract_ref,
+        "--canonical-deployment-surface-ref",
+        deployment_ref,
+        "--canonical-runtime-surface-ref",
+        runtime_ref,
+        "--canonical-policy-surface-ref",
+        policy_ref,
         "--",
         sys.executable,
         str(mock_verify),
@@ -98,3 +111,7 @@ def test_release_proof_pipeline_links_seal_artifacts(tmp_path: Path) -> None:
     index_after = _read_json(evidence_index)
     assert index_after["release_seal_ref"] == str(seal)
     assert index_after["release_seal_cryptographic_verification_record_ref"] == str(seal_crypto_record)
+    assert index_after["canonical_contract_surface_ref"] == contract_ref
+    assert index_after["canonical_deployment_surface_ref"] == deployment_ref
+    assert index_after["canonical_runtime_surface_ref"] == runtime_ref
+    assert index_after["canonical_policy_surface_ref"] == policy_ref
