@@ -18,7 +18,6 @@ from zone_router.planner import plan_publication_request  # noqa: E402
 
 ZONE_REF = "zone://edge"
 TOPIC_REF = "topic://lampstand/lifecycle-smoke"
-EXPECTED_TOPIC = "zone.edge.carrier.ingested.v1"
 
 
 def path_from_file_uri(uri: str) -> Path:
@@ -65,8 +64,9 @@ def main() -> int:
             "request_has_zone": request.get("zone_ref") == ZONE_REF,
             "request_has_topic_ref": request.get("topic_ref") == TOPIC_REF,
             "plan_ok": plan.get("ok") is True,
-            "plan_mode_resolved": plan.get("publication_mode") == "resolved",
-            "plan_topic_expected": plan.get("topic") == EXPECTED_TOPIC,
+            "plan_mode_explicit": plan.get("publication_mode") == "explicit",
+            "plan_topic_expected": plan.get("topic") == TOPIC_REF,
+            "plan_topic_ref_expected": plan.get("topic_ref") == TOPIC_REF,
             "plan_event_type": plan.get("event_type") == "carrier.ingested",
         }
         ok = all(checks.values())
