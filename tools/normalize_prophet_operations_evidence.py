@@ -15,6 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
+POLICY_FABRIC_OPERATIONS_DECISION_CONTRACT = "schema://policy-fabric/contracts/prophet_operations_action_decision_v1.schema.json"
+DEFAULT_OPERATIONS_POLICY_REF = "policy://operations/default-action-gates/v1"
+
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -126,6 +129,10 @@ def assess_health(signal_records: Iterable[Dict[str, Any]], *, topology_ref: str
     return list(assessments.values())
 
 
+def policy_decision_ref_for(recommendation_id: str) -> str:
+    return f"policy-fabric://prophet-operations-action-decision/v1/{recommendation_id}"
+
+
 def recommend(assessments: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
     recommendations: List[Dict[str, Any]] = []
     for assessment in assessments:
@@ -134,10 +141,11 @@ def recommend(assessments: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
             continue
         action_type = "investigate" if state == "degraded" else "isolate"
         subject = assessment["subject"]
+        recommendation_id = _stable_id("oprec", {"assessment": assessment["assessment_id"], "action": action_type})
         rec = {
             "kind": "ProphetOptimizationRecommendation",
             "schema_version": "v0.1",
-            "recommendation_id": _stable_id("oprec", {"assessment": assessment["assessment_id"], "action": action_type}),
+            "recommendation_id": recommendation_id,
             "created_at": _utc_now(),
             "subject": subject,
             "action": {
@@ -152,12 +160,36 @@ def recommend(assessments: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "signal_refs": assessment.get("input_signal_refs", []),
                 "reason": assessment["health"].get("summary"),
             },
-            "policy_gate": {"required": True, "policy_ref": assessment.get("policy_ref"), "decision_ref": None, "decision": "pending"},
+            "policy_gate": {
+                "required": True,
+                "policy_ref": assessment.get("policy_ref") or DEFAULT_OPERATIONS_POLICY_REF,
+                "decision_contract_ref": POLICY_FABRIC_OPERATIONS_DECISION_CONTRACT,
+                "decision_ref": policy_decision_ref_for(recommendation_id),
+                "decision": "pending",
+            },
             "risk": {"level": "medium" if state == "degraded" else "high", "notes": None},
             "evidence_refs": assessment.get("evidence_refs", []),
         }
         recommendations.append(rec)
     return recommendations
+
+
+def evidence_links_for(bundle_id: str, recommendations: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    links: List[Dict[str, Any]] = []
+    for recommendation in recommendations:
+        links.append(
+            {
+                "kind": "ProphetOperationsEvidenceLink",
+                "schema_version": "v0.1",
+                "link_id": _stable_id("opslink", {"bundle_id": bundle_id, "recommendation": recommendation["recommendation_id"]}),
+                "from_ref": f"artifact://prophet-platform/operations/{bundle_id}",
+                "to_ref": recommendation["policy_gate"]["decision_ref"],
+                "relationship": "requires_policy_decision",
+                "contract_ref": recommendation["policy_gate"]["decision_contract_ref"],
+                "recommendation_ref": recommendation["recommendation_id"],
+            }
+        )
+    return links
 
 
 def normalize_document(raw: Dict[str, Any], *, raw_ref: str | None, raw_sha256: str | None) -> Dict[str, Any]:
@@ -168,15 +200,17 @@ def normalize_document(raw: Dict[str, Any], *, raw_ref: str | None, raw_sha256: 
     topology_ref = topology["topology_id"] if topology else None
     assessments = assess_health(signals, topology_ref=topology_ref)
     recommendations = recommend(assessments)
+    bundle_id = raw.get("bundle_id") or _stable_id("opsbundle", raw)
     return {
         "kind": "ProphetOperationsEvidenceBundle",
         "schema_version": "v0.1",
-        "bundle_id": raw.get("bundle_id") or _stable_id("opsbundle", raw),
+        "bundle_id": bundle_id,
         "created_at": _utc_now(),
         "signals": signals,
         "topology": topology,
         "health_assessments": assessments,
         "recommendations": recommendations,
+        "evidence_links": evidence_links_for(bundle_id, recommendations),
         "raw_ref": raw_ref,
         "raw_sha256": raw_sha256,
     }
