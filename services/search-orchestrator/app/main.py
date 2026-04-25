@@ -2,6 +2,8 @@ from fastapi import FastAPI
 
 from app.backends import ingest_academy_record, query_academy_records, query_platform_workspace
 from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore
+from app.policy import describe_academy_policy_evaluator
+from app.repositories import describe_academy_repository
 
 app = FastAPI(title="search-orchestrator", version="0.1.0")
 
@@ -9,6 +11,16 @@ app = FastAPI(title="search-orchestrator", version="0.1.0")
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok", "service": "search-orchestrator"}
+
+
+@app.get("/v1/search/debug/config")
+def debug_config() -> dict[str, object]:
+    return {
+        "service": "search-orchestrator",
+        "academy_repository": describe_academy_repository(),
+        "academy_policy": describe_academy_policy_evaluator(),
+        "redaction": "paths, URLs, and secrets are not returned",
+    }
 
 
 @app.post("/v1/search/ingest/academy", response_model=LearningSearchRecord)
