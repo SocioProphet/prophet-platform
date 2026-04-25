@@ -3,19 +3,24 @@
   "component": "services/search-orchestrator",
   "release_lane": "academy-bridge",
   "version": "0.1.0",
+  "bundle_ref": "bundles/fogstack.knowledge-v0.1.yaml",
+  "argocd_appset_ref": "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
   "artifacts": [
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
+    "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
+    "bundles/fogstack.knowledge-v0.1.yaml",
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py"
   ],
   "capabilities": [
     "academy-search-record-ingest",
     "lampstand-carrier-mode",
     "policy-fabric-visibility-mode",
-    "safe-runtime-debug-config"
+    "safe-runtime-debug-config",
+    "argocd-appset-deployment"
   ],
   "safety_posture": [
     "endpoint-explicit policy fabric calls",
