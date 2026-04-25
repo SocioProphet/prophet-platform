@@ -19,6 +19,9 @@ class AcademySearchRepository:
     def clear(self) -> None:
         raise NotImplementedError
 
+    def mode(self) -> str:
+        return self.__class__.__name__
+
 
 class InMemoryAcademySearchRepository(AcademySearchRepository):
     def __init__(self) -> None:
@@ -33,6 +36,9 @@ class InMemoryAcademySearchRepository(AcademySearchRepository):
 
     def clear(self) -> None:
         self._records.clear()
+
+    def mode(self) -> str:
+        return "in-memory"
 
 
 class JsonFileAcademySearchRepository(AcademySearchRepository):
@@ -64,6 +70,9 @@ class JsonFileAcademySearchRepository(AcademySearchRepository):
     def clear(self) -> None:
         self._save([])
 
+    def mode(self) -> str:
+        return "json-file"
+
 
 class LampstandJsonlAcademySearchRepository(AcademySearchRepository):
     def __init__(self, path: Path) -> None:
@@ -92,6 +101,9 @@ class LampstandJsonlAcademySearchRepository(AcademySearchRepository):
 
     def clear(self) -> None:
         self.path.write_text("", encoding="utf-8")
+
+    def mode(self) -> str:
+        return "lampstand-jsonl"
 
 
 class LampstandCarrierAcademySearchRepository(AcademySearchRepository):
@@ -156,6 +168,9 @@ class LampstandCarrierAcademySearchRepository(AcademySearchRepository):
         for path in self.payload_dir.glob("*.lampstand-ingest-result.json"):
             path.unlink()
 
+    def mode(self) -> str:
+        return "lampstand-carrier"
+
 
 def build_academy_repository() -> AcademySearchRepository:
     carrier_dir = os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR")
@@ -168,6 +183,18 @@ def build_academy_repository() -> AcademySearchRepository:
     if path:
         return JsonFileAcademySearchRepository(Path(path))
     return InMemoryAcademySearchRepository()
+
+
+def describe_academy_repository() -> dict[str, object]:
+    return {
+        "mode": academy_repository.mode(),
+        "configured": {
+            "json_file": bool(os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_STORE")),
+            "lampstand_jsonl": bool(os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_JSONL")),
+            "lampstand_carrier": bool(os.environ.get("SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR")),
+        },
+        "record_count": len(academy_repository.list_records()),
+    }
 
 
 academy_repository: AcademySearchRepository = build_academy_repository()
