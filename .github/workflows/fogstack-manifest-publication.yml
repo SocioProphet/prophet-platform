@@ -1,0 +1,64 @@
+name: FogStack Manifest Publication
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "releases/manifests/**"
+      - "tools/build_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_build_fogstack_manifest_publication_set.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-manifest-publication.yml"
+  push:
+    branches: [main]
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "releases/manifests/**"
+      - "tools/build_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_build_fogstack_manifest_publication_set.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-manifest-publication.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  manifest-publication:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run publication helper tests
+        run: |
+          python -m pytest -q tools/tests/test_build_fogstack_manifest_publication_set.py
+
+      - name: Build publishable manifest set
+        run: |
+          mkdir -p artifacts/manifest-publication
+          python3 tools/build_fogstack_manifest_publication_set.py \
+            --output-dir artifacts/manifest-publication \
+            --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --manifest releases/manifests/fogstack.knowledge-v0.1.manifest.json \
+            --manifest releases/manifests/fogstack.evaluation-v0.1.manifest.json
+
+      - name: Upload manifest publication artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-manifest-publication
+          path: artifacts/manifest-publication/
+          if-no-files-found: error
