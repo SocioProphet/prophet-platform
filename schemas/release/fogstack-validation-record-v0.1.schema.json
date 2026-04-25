@@ -37,7 +37,9 @@
     "manifest_ref": { "type": ["string", "null"] },
     "signature_verification_record_ref": { "type": ["string", "null"] },
     "signature_trust_record_ref": { "type": ["string", "null"] },
-    "release_evidence_index_ref": { "type": ["string", "null"] }
+    "release_evidence_index_ref": { "type": ["string", "null"] },
+    "release_seal_ref": { "type": ["string", "null"] },
+    "release_seal_cryptographic_verification_record_ref": { "type": ["string", "null"] }
   },
   "additionalProperties": false
 }
