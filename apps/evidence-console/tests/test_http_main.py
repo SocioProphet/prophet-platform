@@ -45,6 +45,14 @@ def test_recent_events_route(monkeypatch):
     assert resp.json() == expected
 
 
+def test_recent_telemetry_route(monkeypatch):
+    expected = {"service": "telemetry-runtime", "items": [{"event_type": "reliability.conversation.stream.completed"}]}
+    monkeypatch.setattr(main.service, "get_recent_telemetry_view", lambda service_name="telemetry-runtime", limit=25: expected)
+    resp = client.get("/v1/console/telemetry?limit=10&service_name=telemetry-runtime")
+    assert resp.status_code == 200
+    assert resp.json() == expected
+
+
 def test_console_ui_contains_fetch_targets():
     resp = client.get("/console/evidence")
     assert resp.status_code == 200
@@ -54,3 +62,4 @@ def test_console_ui_contains_fetch_targets():
     assert "/v1/console/models/model.semantic-stack.2026-04-05" in body
     assert "/v1/console/coverage" in body
     assert "/v1/console/recent-events" in body
+    assert "/v1/console/telemetry" in body

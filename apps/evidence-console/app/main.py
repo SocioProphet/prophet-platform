@@ -33,6 +33,11 @@ def recent_events(limit: int = 25, per_service_limit: int = 15) -> dict:
     return service.get_recent_events_view(limit=limit, per_service_limit=per_service_limit)
 
 
+@app.get("/v1/console/telemetry")
+def recent_telemetry(limit: int = 25, service_name: str = "telemetry-runtime") -> dict:
+    return service.get_recent_telemetry_view(service_name=service_name, limit=limit)
+
+
 @app.get("/console/evidence", response_class=HTMLResponse)
 def console_ui() -> str:
     return """<!doctype html>
@@ -67,6 +72,10 @@ def console_ui() -> str:
     <h2>Recent Events</h2>
     <pre id=\"recent\">loading...</pre>
   </section>
+  <section>
+    <h2>Recent Telemetry</h2>
+    <pre id=\"telemetry\">loading...</pre>
+  </section>
 
 <script>
 async function load(id, url) {
@@ -83,6 +92,7 @@ load('frontier', '/v1/console/frontier');
 load('model', '/v1/console/models/model.semantic-stack.2026-04-05');
 load('coverage', '/v1/console/coverage');
 load('recent', '/v1/console/recent-events');
+load('telemetry', '/v1/console/telemetry');
 </script>
 </body>
 </html>"""
