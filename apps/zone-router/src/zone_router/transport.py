@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .transport_adapters import dispatch_transport
+
 
 def _home_fallback(suffix: str) -> Path:
     return Path.home() / suffix
@@ -27,6 +29,10 @@ def transport_outbox_root(service: str = "zone-router") -> Path:
     return platform_state_root() / "transport-outbox" / service
 
 
+def delivery_adapters_root(service: str = "zone-router") -> Path:
+    return transport_outbox_root(service) / "deliveries"
+
+
 def outcome_records_root(service: str = "zone-router") -> Path:
     return transport_outbox_root(service) / "records"
 
@@ -41,6 +47,7 @@ def latest_outcome_path(service: str = "zone-router") -> Path:
 
 def ensure_transport_dirs(service: str = "zone-router") -> None:
     outcome_records_root(service).mkdir(parents=True, exist_ok=True)
+    delivery_adapters_root(service).mkdir(parents=True, exist_ok=True)
 
 
 def _utc_now() -> str:
@@ -59,14 +66,19 @@ def write_publication_outcome(
     service_ref: str = "apps/zone-router",
     service: str = "zone-router",
     status: str = "published",
+    attempt: int = 1,
+    transport_kind: str | None = None,
+    delivery: dict[str, Any] | None = None,
+    error: str | None = None,
 ) -> dict[str, Any]:
     ensure_transport_dirs(service)
     outcome_id = str(uuid.uuid4())
+    created_at = _utc_now()
     outcome = {
         "version": "0.1",
         "outcome_id": outcome_id,
         "publication_id": record["publication_id"],
-        "created_at": _utc_now(),
+        "created_at": created_at,
         "service_ref": service_ref,
         "status": status,
         "transport_ref": transport_ref,
@@ -78,9 +90,25 @@ def write_publication_outcome(
         "event_ref": record["event_ref"],
         "receipt_ref": record["receipt_ref"],
         "catalog_ref": record["catalog_ref"],
+        "attempt": attempt,
     }
     if record.get("topic_ref"):
         outcome["topic_ref"] = record["topic_ref"]
+    if transport_kind:
+        outcome["transport_kind"] = transport_kind
+    if status == "published":
+        outcome["published_at"] = created_at
+    if status == "failed":
+        outcome["failed_at"] = created_at
+    if error:
+        outcome["error"] = error
+    if delivery:
+        if delivery.get("delivery_path"):
+            outcome["delivery_ref"] = delivery["delivery_path"]
+        if delivery.get("topic_log_path"):
+            outcome["topic_log_ref"] = delivery["topic_log_path"]
+        if delivery.get("delivery", {}).get("delivery_id"):
+            outcome["delivery_id"] = delivery["delivery"]["delivery_id"]
 
     outcome_path = outcome_records_root(service) / f"{outcome_id}.outcome.json"
     outcome_path.write_text(json.dumps(outcome, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -93,9 +121,39 @@ def write_publication_outcome(
     latest_path.write_text(json.dumps({"latest_outcome": outcome}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     return {
-        "ok": True,
+        "ok": status == "published",
         "outcome_path": str(outcome_path),
         "log_path": str(log_path),
         "latest_path": str(latest_path),
         "outcome": outcome,
     }
+
+
+def publish_publication_record(
+    record: dict[str, Any],
+    *,
+    transport_ref: str = "transport://local/jsonl",
+    service_ref: str = "apps/zone-router",
+    service: str = "zone-router",
+    attempt: int = 1,
+) -> dict[str, Any]:
+    ensure_transport_dirs(service)
+    transport_result = dispatch_transport(
+        record,
+        transport_ref=transport_ref,
+        deliveries_root=delivery_adapters_root(service),
+    )
+    status = "published" if transport_result.get("ok") else "failed"
+    outcome_result = write_publication_outcome(
+        record,
+        transport_ref=transport_ref,
+        service_ref=service_ref,
+        service=service,
+        status=status,
+        attempt=attempt,
+        transport_kind=transport_result.get("adapter"),
+        delivery=transport_result if transport_result.get("ok") else None,
+        error=transport_result.get("error"),
+    )
+    outcome_result["transport_result"] = transport_result
+    return outcome_result

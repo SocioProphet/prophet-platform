@@ -8,7 +8,7 @@ from .outbox import write_publication_record
 from .planner import load_publication_request, plan_publication_request
 from .resolver import resolve_topic
 from .semantic_gate import validate_outcome, validate_plan, validate_record, validate_request
-from .transport import load_publication_record, write_publication_outcome
+from .transport import load_publication_record, publish_publication_record
 
 
 def _emit_failure(stage, payload):
@@ -96,11 +96,11 @@ def cmd_publish_record(args):
     record_validation = validate_record(record)
     if not record_validation.get("ok"):
         return _emit_failure("record", record_validation)
-    result = write_publication_outcome(record, transport_ref=args.transport_ref)
+    result = publish_publication_record(record, transport_ref=args.transport_ref)
     outcome_validation = validate_outcome(result["outcome"])
     result["semantic_validation"] = {"record": record_validation, "outcome": outcome_validation}
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0 if outcome_validation.get("ok") else 2
+    return 0 if result.get("ok") and outcome_validation.get("ok") else 2
 
 
 def build_parser():

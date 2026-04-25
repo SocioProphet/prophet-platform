@@ -18,6 +18,7 @@ from prophet_platform_lampstand.ingest import ingest_path  # noqa: E402
 from zone_router.main import main as zone_router_main  # noqa: E402
 
 ZONE_REF = "zone://edge"
+TRANSPORT_REF = "transport://kafka/jsonl"
 
 
 def _run_zone_router(argv):
@@ -47,14 +48,15 @@ def main() -> int:
             return rc_enqueue
 
         record_path = enqueue_payload["record_path"]
-        rc_publish, publish_payload = _run_zone_router(["publish-record", "--path", str(record_path)])
+        rc_publish, publish_payload = _run_zone_router(["publish-record", "--path", str(record_path), "--transport-ref", TRANSPORT_REF])
         checks = {
             "enqueue_ok": enqueue_payload.get("ok") is True,
             "publish_ok": publish_payload.get("ok") is True,
             "publish_status": publish_payload.get("outcome", {}).get("status") == "published",
-            "transport_ref": publish_payload.get("outcome", {}).get("transport_ref") == "transport://local/jsonl",
-            "semantic_record": publish_payload.get("semantic_validation", {}).get("record", {}).get("ok") is True,
-            "semantic_outcome": publish_payload.get("semantic_validation", {}).get("outcome", {}).get("ok") is True,
+            "transport_ref": publish_payload.get("outcome", {}).get("transport_ref") == TRANSPORT_REF,
+            "transport_kind": publish_payload.get("outcome", {}).get("transport_kind") == "kafka-jsonl",
+            "delivery_path": Path(publish_payload.get("transport_result", {}).get("delivery_path", root / "missing")).exists(),
+            "topic_log_path": Path(publish_payload.get("transport_result", {}).get("topic_log_path", root / "missing")).exists(),
         }
         ok = rc_publish == 0 and all(checks.values())
         print(json.dumps({"ok": ok, "checks": checks, "publish_payload": publish_payload}, indent=2, sort_keys=True))
