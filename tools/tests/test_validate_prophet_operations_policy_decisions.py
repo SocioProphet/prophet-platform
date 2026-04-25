@@ -67,3 +67,16 @@ def test_allow_decision_passes_when_executable_action_is_required():
     assert report["summary"]["blocked_count"] == 0
     assert report["summary"]["executable_count"] == 1
     assert report["executable_recommendations"] == ["oprec-worker-1-isolate"]
+
+
+def test_invalid_decision_shape_fails_policy_fabric_schema_validation(tmp_path: Path):
+    invalid = json.loads(allow_decision_path().read_text(encoding="utf-8"))
+    del invalid["basis"]
+    invalid_path = tmp_path / "invalid_decision.json"
+    invalid_path.write_text(json.dumps(invalid), encoding="utf-8")
+
+    result = run_validator("--bundle", str(bundle_path()), "--decision", str(invalid_path))
+
+    assert result.returncode != 0
+    assert "failed Policy Fabric schema validation" in result.stderr
+    assert "basis" in result.stderr

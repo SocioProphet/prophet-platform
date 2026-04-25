@@ -5,12 +5,13 @@ This validator enforces the first non-execution safety boundary for Prophet oper
 intelligence:
 
 - recommendations that require policy decisions must resolve to a matching decision artifact;
-- decision artifacts must use the Policy Fabric `ProphetOperationsActionDecision` shape;
+- decision artifacts must validate against the vendored Policy Fabric
+  `ProphetOperationsActionDecision` JSON Schema;
 - pending, deny, manual_review, defer, and unknown decisions are blocked for execution;
 - allow decisions are only executable when recommendation/action/subject linkage is consistent.
 
-The validator intentionally performs structural checks locally. It does not call a live Policy
-Fabric service and it does not execute remediation.
+The validator intentionally performs local checks. It does not call a live Policy Fabric service and
+it does not execute remediation.
 """
 
 from __future__ import annotations
@@ -19,6 +20,11 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
+
+import jsonschema
+
+ROOT = Path(__file__).resolve().parents[1]
+POLICY_FABRIC_DECISION_SCHEMA = ROOT / "schemas" / "external" / "policy-fabric" / "prophet_operations_action_decision_v1.schema.json"
 
 ALLOWED_EXECUTION_OUTCOME = "allow"
 BLOCKING_OUTCOMES = {"pending", "deny", "manual_review", "defer", "unknown"}
@@ -36,6 +42,12 @@ def load_json(path: Path) -> Dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def load_policy_fabric_schema() -> Dict[str, Any]:
+    if not POLICY_FABRIC_DECISION_SCHEMA.exists():
+        raise ValidationError(f"missing vendored Policy Fabric schema: {POLICY_FABRIC_DECISION_SCHEMA}")
+    return load_json(POLICY_FABRIC_DECISION_SCHEMA)
+
+
 def as_list(value: Any) -> List[Any]:
     if value is None:
         return []
@@ -44,9 +56,19 @@ def as_list(value: Any) -> List[Any]:
     return [value]
 
 
-def decision_index(decisions: Iterable[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def validate_decision_schema(decision: Dict[str, Any], schema: Dict[str, Any]) -> None:
+    try:
+        jsonschema.validate(decision, schema)
+    except jsonschema.ValidationError as exc:
+        decision_id = decision.get("decision_id", "<unknown>")
+        path = ".".join(str(part) for part in exc.absolute_path) or "<root>"
+        raise ValidationError(f"decision {decision_id} failed Policy Fabric schema validation at {path}: {exc.message}") from exc
+
+
+def decision_index(decisions: Iterable[Dict[str, Any]], schema: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     index: Dict[str, Dict[str, Any]] = {}
     for decision in decisions:
+        validate_decision_schema(decision, schema)
         if decision.get("kind") != EXPECTED_DECISION_KIND:
             raise ValidationError(f"decision has invalid kind: {decision.get('kind')}")
         if decision.get("schema_version") != EXPECTED_DECISION_VERSION:
@@ -95,7 +117,8 @@ def validate_bundle(bundle: Dict[str, Any], decisions: Iterable[Dict[str, Any]],
     if bundle.get("kind") != EXPECTED_BUNDLE_KIND:
         raise ValidationError(f"bundle has invalid kind: {bundle.get('kind')}")
 
-    decisions_by_rec = decision_index(decisions)
+    schema = load_policy_fabric_schema()
+    decisions_by_rec = decision_index(decisions, schema)
     checks: List[Dict[str, Any]] = []
     executable_recommendations: List[str] = []
     blocked_recommendations: List[Dict[str, str]] = []

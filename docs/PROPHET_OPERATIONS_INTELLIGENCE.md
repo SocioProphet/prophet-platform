@@ -10,6 +10,7 @@ This is not an integration with proprietary observability or optimization produc
 - policy-gated optimization recommendations
 - evidence links to governed Policy Fabric action decisions
 - local validation that blocks execution unless a matching allow decision exists
+- vendored Policy Fabric schema validation for operations action decisions
 
 ## First slice
 
@@ -36,6 +37,7 @@ raw local observation
   -> optimization recommendation
   -> Policy Fabric action decision reference
   -> evidence link
+  -> vendored Policy Fabric schema validation
   -> local decision validation
   -> executable only when decision.outcome=allow
 ```
@@ -86,13 +88,16 @@ Execution rule:
 - `decision.outcome=unknown`: blocked
 - `decision.outcome=allow`: executable only if recommendation, subject, and action linkage match
 
-The validator also checks that the decision uses:
+The validator checks decisions in two layers:
 
-- `kind=ProphetOperationsActionDecision`
-- `schema_version=v1`
-- `recommendation_ref=<recommendation_id>`
-- matching `subject.id` and `subject.type`, when present
-- matching `proposed_action.type` and `proposed_action.intent`, when present
+1. JSON Schema validation against the vendored Policy Fabric contract:
+   - `schemas/external/policy-fabric/prophet_operations_action_decision_v1.schema.json`
+2. Semantic linkage validation:
+   - `kind=ProphetOperationsActionDecision`
+   - `schema_version=v1`
+   - `recommendation_ref=<recommendation_id>`
+   - matching `subject.id` and `subject.type`, when present
+   - matching `proposed_action.type` and `proposed_action.intent`, when present
 
 Example blocked validation:
 
@@ -115,6 +120,18 @@ Checked-in decision examples:
 
 - `examples/operations/prophet_operations_action_decision_manual_review_0001.json`
 - `examples/operations/prophet_operations_action_decision_allow_0001.json`
+
+## Policy Fabric schema lock
+
+The platform vendors the Policy Fabric operations action decision schema from:
+
+- `SocioProphet/policy-fabric:contracts/prophet_operations_action_decision_v1.schema.json`
+
+The vendored platform copy lives at:
+
+- `schemas/external/policy-fabric/prophet_operations_action_decision_v1.schema.json`
+
+This gives `prophet-platform` a local, CI-runnable contract lock. It reduces silent drift between platform enforcement and the Policy Fabric decision shape. It does not replace live Policy Fabric service integration.
 
 ## Input shape
 
@@ -162,4 +179,4 @@ This lane does not add:
 - scheduler mutation
 - live policy service calls
 
-Those are follow-on slices. The current enforcement surface is local: it proves that an operation recommendation cannot be treated as executable unless a supplied Policy Fabric decision artifact explicitly allows it and links to the recommendation consistently.
+Those are follow-on slices. The current enforcement surface is local: it proves that an operation recommendation cannot be treated as executable unless a supplied Policy Fabric decision artifact validates against the vendored Policy Fabric schema, explicitly allows it, and links to the recommendation consistently.

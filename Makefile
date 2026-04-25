@@ -42,7 +42,7 @@ test-python-apps:
 
 test-tools:
 	test -d .venv-tools || python3 -m venv .venv-tools
-	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml && pytest -q tools/tests
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests
 
 smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke
 
