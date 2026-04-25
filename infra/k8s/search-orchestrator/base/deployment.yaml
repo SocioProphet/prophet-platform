@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-orchestrator
+  template:
+    metadata:
+      labels:
+        app: search-orchestrator
+    spec:
+      containers:
+        - name: search-orchestrator
+          image: ghcr.io/socioprophet/prophet-platform/search-orchestrator:dev
+          command: ["uvicorn"]
+          args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+          workingDir: /app/services/search-orchestrator
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: search-orchestrator-config
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: search-orchestrator-data
+              mountPath: /var/lib/prophet-platform
+            - name: search-orchestrator-runtime
+              mountPath: /run/prophet-platform
+      volumes:
+        - name: search-orchestrator-data
+          emptyDir: {}
+        - name: search-orchestrator-runtime
+          emptyDir: {}
