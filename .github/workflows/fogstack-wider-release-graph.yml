@@ -1,0 +1,170 @@
+name: FogStack Wider Release Graph
+
+on:
+  pull_request:
+    paths:
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_wider_release_graph.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-wider-release-graph.yml"
+  push:
+    branches: [main]
+    paths:
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_wider_release_graph.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-wider-release-graph.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  wider-release-graph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run wider release graph tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_wider_release_graph.py
+
+      - name: Smoke wider release graph mutation
+        run: |
+          mkdir -p artifacts/wider-release-graph
+
+          cp releases/manifests/fogstack.access-v0.1.manifest.json artifacts/wider-release-graph/manifest.json
+          cp releases/evidence/fogstack.access-v0.1.validation.record.json artifacts/wider-release-graph/validation.record.json
+
+          cat > artifacts/wider-release-graph/signature.verify.json <<'PY'
+          {
+            "summary": {
+              "status": "pass",
+              "exit_code": 0,
+              "checks_run": 1
+            }
+          }
+          PY
+
+          cat > artifacts/wider-release-graph/signature.trust.evidence.json <<'PY'
+          {
+            "status": "pass",
+            "message": null,
+            "evidence_count": 1
+          }
+          PY
+
+          python3 tools/emit_fogstack_signature_verification_record.py \
+            --verification-json artifacts/wider-release-graph/signature.verify.json \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --manifest-ref artifacts/wider-release-graph/manifest.json \
+            --signature-ref artifact://release/fogstack.access.sig \
+            --validation-record-ref artifacts/wider-release-graph/validation.record.json \
+            --output artifacts/wider-release-graph/signature-verification.record.json
+
+          python3 tools/emit_fogstack_signature_trust_record.py \
+            --verification-evidence artifacts/wider-release-graph/signature.trust.evidence.json \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --manifest-ref artifacts/wider-release-graph/manifest.json \
+            --signature-ref artifact://release/fogstack.access.sig \
+            --verification-method cosign \
+            --validation-record-ref artifacts/wider-release-graph/validation.record.json \
+            --signature-verification-record-ref artifacts/wider-release-graph/signature-verification.record.json \
+            --output artifacts/wider-release-graph/signature-trust.record.json
+
+          python3 tools/emit_fogstack_release_evidence_index.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --manifest-ref artifacts/wider-release-graph/manifest.json \
+            --validation-record-ref artifacts/wider-release-graph/validation.record.json \
+            --signature-verification-record-ref artifacts/wider-release-graph/signature-verification.record.json \
+            --signature-trust-record-ref artifacts/wider-release-graph/signature-trust.record.json \
+            --output artifacts/wider-release-graph/evidence.index.json
+
+          python3 tools/emit_fogstack_release_seal.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --artifact manifest artifacts/wider-release-graph/manifest.json \
+            --artifact validation artifacts/wider-release-graph/validation.record.json \
+            --output artifacts/wider-release-graph/release.seal.json
+
+          python3 tools/attach_fogstack_release_seal_signature.py \
+            --seal artifacts/wider-release-graph/release.seal.json \
+            --signature-type cosign \
+            --signature-ref artifact://release/fogstack.access.seal.sig \
+            --output artifacts/wider-release-graph/release.seal.json
+
+          SEAL_HASH=$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('artifacts/wider-release-graph/release.seal.json').read_text(encoding='utf-8'))
+          print(data['release_root_hash'])
+          PY
+          )
+
+          cat > artifacts/wider-release-graph/mock_seal_verify.py <<'PY'
+          import json, os
+          print(json.dumps({
+              "status": "pass",
+              "verified_root_hash": os.environ["SEAL_HASH"],
+              "evidence_count": 1,
+          }))
+          PY
+
+          SEAL_HASH="$SEAL_HASH" python3 tools/run_fogstack_release_proof_pipeline.py \
+            --tool cosign \
+            --seal artifacts/wider-release-graph/release.seal.json \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --signature-ref artifact://release/fogstack.access.seal.sig \
+            --evidence-output artifacts/wider-release-graph/seal.verify.json \
+            --seal-crypto-record artifacts/wider-release-graph/seal.crypto.record.json \
+            --evidence-index artifacts/wider-release-graph/evidence.index.json \
+            -- python3 artifacts/wider-release-graph/mock_seal_verify.py
+
+          python3 tools/link_fogstack_wider_release_graph.py \
+            --manifest artifacts/wider-release-graph/manifest.json \
+            --validation-record artifacts/wider-release-graph/validation.record.json \
+            --signature-verification-record artifacts/wider-release-graph/signature-verification.record.json \
+            --signature-trust-record artifacts/wider-release-graph/signature-trust.record.json \
+            --release-seal artifacts/wider-release-graph/release.seal.json \
+            --release-seal-crypto-record artifacts/wider-release-graph/seal.crypto.record.json
+
+      - name: Assert wider graph refs
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path('artifacts/wider-release-graph')
+          seal = str(base / 'release.seal.json')
+          crypto = str(base / 'seal.crypto.record.json')
+          for name in ['manifest.json', 'validation.record.json', 'signature-verification.record.json', 'signature-trust.record.json']:
+              data = json.loads((base / name).read_text(encoding='utf-8'))
+              assert data['release_seal_ref'] == seal, (name, data)
+              assert data['release_seal_cryptographic_verification_record_ref'] == crypto, (name, data)
+          print('FogStack wider release graph smoke passed.')
+          PY
+
+      - name: Upload wider release graph artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-wider-release-graph-artifacts
+          path: artifacts/wider-release-graph/
+          if-no-files-found: error
