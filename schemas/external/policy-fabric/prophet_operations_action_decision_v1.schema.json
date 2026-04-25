@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/prophet_operations_action_decision_v1.schema.json",
+  "title": "ProphetOperationsActionDecision",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "decision_id",
+    "decided_at",
+    "recommendation_ref",
+    "decision",
+    "basis"
+  ],
+  "properties": {
+    "kind": { "const": "ProphetOperationsActionDecision" },
+    "schema_version": { "const": "v1" },
+    "decision_id": { "type": "string", "minLength": 1 },
+    "decided_at": { "type": "string", "minLength": 1 },
+    "recommendation_ref": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "id": { "type": ["string", "null"] },
+        "type": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "proposed_action": {
+      "type": "object",
+      "properties": {
+        "type": { "type": ["string", "null"] },
+        "intent": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] },
+        "parameters": { "type": "object", "additionalProperties": true }
+      },
+      "additionalProperties": true
+    },
+    "decision": {
+      "type": "object",
+      "required": ["outcome"],
+      "properties": {
+        "outcome": { "enum": ["allow", "deny", "manual_review", "defer", "unknown"] },
+        "reason": { "type": ["string", "null"] },
+        "risk_level": { "enum": ["low", "medium", "high", "critical", "unknown"] },
+        "expires_at": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "basis": {
+      "type": "object",
+      "required": ["policy_refs"],
+      "properties": {
+        "policy_refs": { "type": "array", "items": { "type": "string" } },
+        "health_assessment_ref": { "type": ["string", "null"] },
+        "topology_ref": { "type": ["string", "null"] },
+        "signal_refs": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "default": [] }
+      },
+      "additionalProperties": true
+    },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "requires_human_approval": { "type": "boolean", "default": false },
+        "requires_change_window": { "type": "boolean", "default": false },
+        "max_execution_scope": { "type": ["string", "null"] },
+        "rollback_required": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "actor": { "type": ["string", "null"] },
+        "mode": { "enum": ["automated", "human", "hybrid", "unknown"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
