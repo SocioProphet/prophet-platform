@@ -1,0 +1,81 @@
+name: FogStack Manifest Promotion
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "releases/manifests/**"
+      - "tools/build_fogstack_manifest_publication_set.py"
+      - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_build_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-manifest-promotion.yml"
+  push:
+    branches: [main]
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "releases/manifests/**"
+      - "tools/build_fogstack_manifest_publication_set.py"
+      - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_build_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-manifest-promotion.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  manifest-promotion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+
+      - name: Run publication and promotion tests
+        run: |
+          python -m pytest -q \
+            tools/tests/test_build_fogstack_manifest_publication_set.py \
+            tools/tests/test_promote_fogstack_manifest_publication_set.py
+
+      - name: Build canonical publication set
+        run: |
+          mkdir -p artifacts/manifest-promotion/base artifacts/manifest-promotion/promoted
+          python3 tools/build_fogstack_manifest_publication_set.py \
+            --output-dir artifacts/manifest-promotion/base \
+            --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --manifest releases/manifests/fogstack.knowledge-v0.1.manifest.json \
+            --manifest releases/manifests/fogstack.evaluation-v0.1.manifest.json
+
+      - name: Promote publication set to candidate/supported
+        run: |
+          python3 tools/promote_fogstack_manifest_publication_set.py \
+            --input-dir artifacts/manifest-promotion/base \
+            --output-dir artifacts/manifest-promotion/promoted \
+            --support-catalog catalog/fogstack-support-states-v0.1.yaml \
+            --target-channel candidate \
+            --target-support-state supported
+
+      - name: Upload promoted manifest set
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-manifest-promotion
+          path: artifacts/manifest-promotion/
+          if-no-files-found: error
