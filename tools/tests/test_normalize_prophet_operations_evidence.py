@@ -4,6 +4,10 @@ import sys
 from pathlib import Path
 
 
+POLICY_FABRIC_DECISION_CONTRACT = "schema://policy-fabric/contracts/prophet_operations_action_decision_v1.schema.json"
+DEFAULT_OPERATIONS_POLICY_REF = "policy://operations/default-action-gates/v1"
+
+
 def test_normalize_prophet_operations_evidence(tmp_path: Path):
     raw = {
         "source": {"system": "local-demo", "emitter": "unit-test"},
@@ -42,3 +46,17 @@ def test_normalize_prophet_operations_evidence(tmp_path: Path):
     assert len(bundle["recommendations"]) == 2
     assert all(item["policy_gate"]["required"] for item in bundle["recommendations"])
     assert {item["action"]["type"] for item in bundle["recommendations"]} == {"investigate", "isolate"}
+
+    for recommendation in bundle["recommendations"]:
+        gate = recommendation["policy_gate"]
+        assert gate["policy_ref"] == DEFAULT_OPERATIONS_POLICY_REF
+        assert gate["decision_contract_ref"] == POLICY_FABRIC_DECISION_CONTRACT
+        assert gate["decision_ref"].startswith("policy-fabric://prophet-operations-action-decision/v1/oprec-")
+        assert gate["decision"] == "pending"
+
+    assert len(bundle["evidence_links"]) == len(bundle["recommendations"])
+    linked_recommendations = {link["recommendation_ref"] for link in bundle["evidence_links"]}
+    assert linked_recommendations == {item["recommendation_id"] for item in bundle["recommendations"]}
+    assert all(link["relationship"] == "requires_policy_decision" for link in bundle["evidence_links"])
+    assert all(link["contract_ref"] == POLICY_FABRIC_DECISION_CONTRACT for link in bundle["evidence_links"])
+    assert all(link["to_ref"].startswith("policy-fabric://prophet-operations-action-decision/v1/oprec-") for link in bundle["evidence_links"])
