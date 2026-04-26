@@ -1,0 +1,28 @@
+name: provider-binding-validation
+
+on:
+  pull_request:
+    paths:
+      - "specs/brokerage/schemas/provider-binding.schema.json"
+      - "specs/brokerage/events/examples/provider-binding.example.json"
+      - "tools/validate_provider_binding_examples.py"
+      - ".github/workflows/provider-binding-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "specs/brokerage/schemas/provider-binding.schema.json"
+      - "specs/brokerage/events/examples/provider-binding.example.json"
+      - "tools/validate_provider_binding_examples.py"
+      - ".github/workflows/provider-binding-validation.yml"
+
+jobs:
+  validate-provider-binding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate ProviderBinding example
+        run: python tools/validate_provider_binding_examples.py
