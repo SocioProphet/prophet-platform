@@ -71,3 +71,5 @@ def test_promote_fogstack_manifest_publication_set_updates_channel_and_support_s
     assert promoted_index['promotion']['channel'] == 'candidate'
     assert promoted_index['promotion']['support_state'] == 'supported'
     assert promoted_index['manifests'][0]['lifecycle_status'] == 'merged-upstream'
+    assert promoted_index['manifests'][0]['previous_channel'] == 'preview'
+    assert promoted_index['manifests'][0]['previous_support_state'] == 'community'
