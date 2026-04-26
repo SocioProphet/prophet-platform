@@ -10,6 +10,8 @@ on:
       - "tools/smoke_sourceos_m2_lifecycle_proof.py"
       - "tools/publish_sourceos_m2_filesystem_registry.py"
       - "tools/smoke_sourceos_m2_filesystem_registry.py"
+      - "tools/convert_nlboot_manifest_to_sourceos_bootreleaseset.py"
+      - "tools/smoke_nlboot_to_sourceos_bootreleaseset.py"
       - ".github/workflows/sourceos-contracts.yml"
   push:
     branches:
@@ -22,6 +24,8 @@ on:
       - "tools/smoke_sourceos_m2_lifecycle_proof.py"
       - "tools/publish_sourceos_m2_filesystem_registry.py"
       - "tools/smoke_sourceos_m2_filesystem_registry.py"
+      - "tools/convert_nlboot_manifest_to_sourceos_bootreleaseset.py"
+      - "tools/smoke_nlboot_to_sourceos_bootreleaseset.py"
       - ".github/workflows/sourceos-contracts.yml"
 
 jobs:
@@ -40,3 +44,5 @@ jobs:
         run: python tools/smoke_sourceos_m2_lifecycle_proof.py
       - name: Smoke SourceOS M2 filesystem registry
         run: python tools/smoke_sourceos_m2_filesystem_registry.py
+      - name: Smoke nlboot BootReleaseSet adapter
+        run: python tools/smoke_nlboot_to_sourceos_bootreleaseset.py

@@ -1,0 +1,16 @@
+{
+  "manifest_id": "urn:srcos:boot-manifest:m2-demo-recovery",
+  "boot_release_set_id": "urn:srcos:boot-release-set:m2-demo-recovery-2026-04-26",
+  "base_release_set_ref": "urn:srcos:release-set:m2-demo-2026-04-26",
+  "boot_mode": "recovery",
+  "artifacts": {
+    "kernel_ref": "urn:srcos:artifact:m2-demo-kernel",
+    "initrd_ref": "urn:srcos:artifact:m2-demo-initrd",
+    "rootfs_ref": "urn:srcos:artifact:m2-demo-rootfs"
+  },
+  "signature_ref": "urn:srcos:signature:m2-demo-recovery",
+  "signer_ref": "urn:srcos:key:sourceos-demo-signing-key-v0",
+  "signature_algorithm": "rsa-pss-sha256",
+  "crypto_profile": "fips-140-3-compatible",
+  "signature_hex": "7335ffa2b904c00ddd62cf7ff6cfaeec6147454476b7acf6aedc537a541768be3b323e3d0493d4372a976945d9161e1faecf6cb77fdd09e897e14c7327895ae0c7c65179ff4fe900af547cf517903847e05b680c69711d40b0c5a3413e5e9708b1db3f866c94921bd3d21d37f6f3d299ea34432f0b0312717ea5cff76edc93a6d632f5263a89e8e6b62d2e2f78306c3c30577ee6c3d659d55da504736097b909c96362899685c1d3124d37e40afe3665889d51fc57a55bc36312d992777a469c4775849f0c4be1741f7b155b1f875d2cb32e19a80d12c86a85fb64b392e06ecbbf315882a92d2a695ac8b20b875c0bcf547834b461"
+}
