@@ -1,0 +1,28 @@
+schema_version: "fogstack.manifest-promotion-policy/v0.1"
+kind: "FogStackManifestPromotionPolicy"
+defaults:
+  require_explicit_target_channel: true
+  require_explicit_target_support_state: true
+allowed_transitions:
+  preview:
+    community:
+      candidate:
+        - supported
+        - community
+  candidate:
+    supported:
+      stable:
+        - supported
+    community:
+      stable:
+        - supported
+  stable:
+    supported:
+      extended:
+        - extended
+      deprecated:
+        - deprecated
+  extended:
+    extended:
+      deprecated:
+        - deprecated
