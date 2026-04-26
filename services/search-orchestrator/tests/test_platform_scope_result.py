@@ -24,3 +24,7 @@ def test_cloud_workspace_scope_returns_platform_result() -> None:
     assert payload['results'][0]['entity_type'] == 'DOCUMENT'
     assert payload['results'][0]['snippet'] == 'Matched workspace content for query: budget'
     assert payload['results'][0]['path_or_uri'] == 'workspace://documents/budget'
+    assert payload['results'][0]['actions']['open_cloud'] is True
+    assert payload['results'][0]['actions']['summarize'] is True
+    assert payload['results'][0]['actions']['create_task'] is True
+    assert payload['results'][0]['actions']['draft_reply'] is False
