@@ -1,0 +1,112 @@
+name: FogStack Filesystem Registry
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_publication_index.py"
+      - "tools/check_fogstack_registry_publication_index.py"
+      - "tools/publish_fogstack_filesystem_registry.py"
+      - "tools/check_fogstack_filesystem_registry.py"
+      - "tools/tests/test_fogstack_registry_publication_index.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-filesystem-registry.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_publication_index.py"
+      - "tools/check_fogstack_registry_publication_index.py"
+      - "tools/publish_fogstack_filesystem_registry.py"
+      - "tools/check_fogstack_filesystem_registry.py"
+      - "tools/tests/test_fogstack_registry_publication_index.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-filesystem-registry.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  filesystem-registry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run filesystem registry tests
+        run: |
+          python -m pytest -q \
+            tools/tests/test_fogstack_registry_publication_index.py \
+            tools/tests/test_fogstack_filesystem_registry.py
+
+      - name: Build filesystem registry smoke artifacts
+        run: |
+          mkdir -p artifacts/filesystem-registry/input artifacts/filesystem-registry/output
+
+          cp releases/manifests/fogstack.access-v0.1.manifest.json artifacts/filesystem-registry/input/fogstack.access-v0.1.manifest.json
+
+          cat > artifacts/filesystem-registry/input/manifest-publication-set.json <<'JSON'
+          {
+            "kind": "FogStackManifestPublicationSet",
+            "schema_version": "v0.1",
+            "manifests": [
+              {
+                "bundle_id": "fogstack.access",
+                "version": "0.1.0",
+                "ref": "artifacts/filesystem-registry/input/fogstack.access-v0.1.manifest.json",
+                "signed": false
+              }
+            ]
+          }
+          JSON
+
+          cat > artifacts/filesystem-registry/input/publication-gate.record.json <<'JSON'
+          {
+            "kind": "FogStackReleasePublicationGateRecord",
+            "schema_version": "v0.1",
+            "status": "pass",
+            "checks": []
+          }
+          JSON
+
+          python3 tools/build_fogstack_registry_publication_index.py \
+            --registry-uri file://artifacts/filesystem-registry/output \
+            --publication-set artifacts/filesystem-registry/input/manifest-publication-set.json \
+            --publication-gate-record artifacts/filesystem-registry/input/publication-gate.record.json \
+            --artifact manifest-access artifacts/filesystem-registry/input/fogstack.access-v0.1.manifest.json \
+            --output artifacts/filesystem-registry/input/registry-publication.index.json
+
+          python3 tools/check_fogstack_registry_publication_index.py \
+            --index artifacts/filesystem-registry/input/registry-publication.index.json
+
+          python3 tools/publish_fogstack_filesystem_registry.py \
+            --index artifacts/filesystem-registry/input/registry-publication.index.json \
+            --registry-root artifacts/filesystem-registry/output \
+            --bundle-id fogstack.access \
+            --version 0.1.0
+
+          python3 tools/check_fogstack_filesystem_registry.py \
+            --registry-root artifacts/filesystem-registry/output \
+            --bundle-id fogstack.access \
+            --version 0.1.0
+
+      - name: Upload filesystem registry artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-filesystem-registry
+          path: artifacts/filesystem-registry/
+          if-no-files-found: error
