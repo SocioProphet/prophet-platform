@@ -22,8 +22,8 @@ def main() -> int:
         tmp_path = Path(tmp)
         proof_dir = tmp_path / "proof"
         generated_boot_release = tmp_path / "boot-release-set.from-nlboot.json"
-        boot_plan = tmp_path / "nlboot-plan.json"
         fingerprint = tmp_path / "synthetic-boot-fingerprint.json"
+        boot_plan = ROOT / "contracts" / "sourceos" / "examples" / "nlboot-plan.m2-demo.recovery.json"
 
         subprocess.run([
             sys.executable,
@@ -43,25 +43,8 @@ def main() -> int:
             str(generated_boot_release),
         ], check=True)
 
-        # Synthetic equivalent of nlboot-plan output; this stays side-effect-free.
-        boot_plan.write_text(json.dumps({
-            "ok": True,
-            "plan": {
-                "action": "boot-recovery",
-                "manifest_id": "urn:srcos:boot-manifest:m2-demo-recovery",
-                "boot_release_set_id": "sbrs-nlboot-m2-demo-recovery-0001",
-                "release_set_ref": "srset-m2-demo-0001",
-                "artifacts": {
-                    "kernel_ref": "urn:srcos:artifact:m2-demo-kernel",
-                    "initrd_ref": "urn:srcos:artifact:m2-demo-initrd",
-                    "rootfs_ref": "urn:srcos:artifact:m2-demo-rootfs"
-                },
-                "authorized_by": "urn:srcos:enrollment-token:m2-demo-recovery",
-                "signature_algorithm": "rsa-pss-sha256",
-                "crypto_profile": "fips-140-3-compatible",
-                "execute": False
-            }
-        }, indent=2) + "\n", encoding="utf-8")
+        if load(boot_plan).get("plan", {}).get("execute") is not False:
+            raise SystemExit("ERR: captured nlboot-plan fixture must remain execute=false")
 
         subprocess.run([
             sys.executable,
