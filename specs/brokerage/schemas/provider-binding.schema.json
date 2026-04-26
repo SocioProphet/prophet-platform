@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "binding_id": { "type": "string" },
+    "service_class": { "type": "string" },
+    "provider_class": {
+      "type": "string",
+      "enum": ["internal-shared-service", "private-cloud", "public-cloud", "saas", "partner-managed-service", "legacy-adapter"]
+    },
+    "provider_id": { "type": "string" },
+    "blueprint_id": { "type": "string" },
+    "policy_pack_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "portability_tier": {
+      "type": "string",
+      "enum": ["P0-governed-native", "P1-contract-compatible", "P2-blueprint-portable", "P3-operationally-portable", "P4-exit-tested"]
+    },
+    "native_features_exposed": { "type": "array", "items": { "type": "string" } },
+    "evidence_profile_id": { "type": "string" },
+    "cost_meter_profile_id": { "type": "string" },
+    "continuity_profile_id": { "type": "string" },
+    "exit_plan_ref": { "type": "string" },
+    "approval_state": { "type": "string", "enum": ["Draft", "UnderReview", "Approved", "Suspended", "Retired"] },
+    "owner": { "type": "string" }
+  },
+  "required": ["binding_id", "service_class", "provider_class", "provider_id", "blueprint_id", "policy_pack_ids", "portability_tier", "evidence_profile_id", "cost_meter_profile_id", "continuity_profile_id", "exit_plan_ref", "approval_state", "owner"]
+}
