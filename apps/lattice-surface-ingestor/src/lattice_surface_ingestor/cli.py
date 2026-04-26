@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .ingest import ingest_surface
+from .store import write_record_set
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -43,13 +44,26 @@ def ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def store(args: argparse.Namespace) -> int:
+    record_set = load_json(args.record_set)
+    written = write_record_set(record_set, args.output_dir)
+    print(json.dumps({"written": [str(path) for path in written]}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Ingest Lattice product-surface handoff objects")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
     ingest_parser = subparsers.add_parser("ingest", help="Normalize handoff objects into PlatformAssetRecordSet")
     ingest_parser.add_argument("inputs", type=Path, nargs="+")
     ingest_parser.add_argument("--output", type=Path, help="Optional path for deterministic JSON output")
     ingest_parser.set_defaults(func=ingest)
+
+    store_parser = subparsers.add_parser("store", help="Write PlatformAssetRecordSet into deterministic per-asset files")
+    store_parser.add_argument("record_set", type=Path)
+    store_parser.add_argument("output_dir", type=Path)
+    store_parser.set_defaults(func=store)
     return parser
 
 
