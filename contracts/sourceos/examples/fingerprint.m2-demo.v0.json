@@ -1,0 +1,62 @@
+{
+  "schema_version": "sourceos.fingerprint/v0",
+  "kind": "SourceOSFingerprint",
+  "id": "sfp-m2-demo-000001",
+  "observed_at": "2026-04-26T18:39:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device-m2-demo",
+    "device_claim": "did:key:z6Mkm2demo"
+  },
+  "system": {
+    "architecture": "aarch64",
+    "kernel": "sourceos-m2-demo-kernel-0001",
+    "boot_mode": "normal",
+    "system_base_ref": "ostree:sourceos/m2/silverblue-gnome/dev/0001",
+    "rollback_available": true
+  },
+  "runtime": {
+    "isolation": "host",
+    "libc": "glibc",
+    "shell": "bash",
+    "tool_dialect": "gnu",
+    "pid1": "systemd",
+    "container_runtime": "podman-rootless",
+    "hypervisor": "none"
+  },
+  "lsm": {
+    "selinux_visible": true,
+    "selinux_mode": "enforcing",
+    "apparmor_visible": false,
+    "landlock_visible": true,
+    "host_enforced_possible": true
+  },
+  "policy": {
+    "policy_bundle_ref": "policy:sourceos-m2-demo-v0",
+    "release_set_ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+    "boot_release_set_ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json",
+    "capability_manifest_ref": "policy:sourceos-agent-standard-v0",
+    "network_scope": "restricted",
+    "filesystem_scope": "scoped"
+  },
+  "provenance": {
+    "config_source_refs": [
+      "contracts/sourceos/examples/config-source.m2-demo.v0.json"
+    ],
+    "closure_refs": [
+      "nix:closure:user/macos-like-gnome/0001",
+      "nix:closure:agent/base-tools/0001"
+    ],
+    "artifact_digests": [
+      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "evidence_refs": [
+      "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+      "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json"
+    ]
+  },
+  "compliance": {
+    "status": "compliant",
+    "reasons": []
+  }
+}
