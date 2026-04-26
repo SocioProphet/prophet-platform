@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-orchestrator
+spec:
+  template:
+    spec:
+      containers:
+        - name: search-orchestrator
+          env:
+            - name: SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: search-orchestrator-policy-fabric
+                  key: endpoint
+                  optional: false

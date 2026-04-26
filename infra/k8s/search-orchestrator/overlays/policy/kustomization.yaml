@@ -4,3 +4,4 @@ resources:
   - ../carrier
 patches:
   - path: configmap-patch.yaml
+  - path: deployment-patch.yaml
