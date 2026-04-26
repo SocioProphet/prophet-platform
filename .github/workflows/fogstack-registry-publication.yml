@@ -1,0 +1,138 @@
+name: FogStack Registry Publication
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "releases/manifests/**"
+      - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_publication_index.py"
+      - "tools/check_fogstack_registry_publication_index.py"
+      - "tools/tests/test_fogstack_registry_publication_index.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-registry-publication.yml"
+  push:
+    branches: [main]
+    paths:
+      - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "releases/manifests/**"
+      - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_publication_index.py"
+      - "tools/check_fogstack_registry_publication_index.py"
+      - "tools/tests/test_fogstack_registry_publication_index.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-registry-publication.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-publication:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+
+      - name: Run registry publication tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_registry_publication_index.py
+
+      - name: Build registry-ready publication inputs
+        run: |
+          mkdir -p artifacts/registry-publication/promoted/manifests artifacts/registry-publication/gate
+
+          cp releases/manifests/fogstack.access-v0.1.manifest.json artifacts/registry-publication/promoted/manifests/fogstack.access-v0.1.manifest.json
+          cp releases/manifests/fogstack.knowledge-v0.1.manifest.json artifacts/registry-publication/promoted/manifests/fogstack.knowledge-v0.1.manifest.json
+          cp releases/manifests/fogstack.evaluation-v0.1.manifest.json artifacts/registry-publication/promoted/manifests/fogstack.evaluation-v0.1.manifest.json
+
+          cat > artifacts/registry-publication/promoted/manifest-publication-set.json <<'JSON'
+          {
+            "kind": "FogStackManifestPublicationSet",
+            "schema_version": "v0.1",
+            "promotion": {
+              "channel": "candidate",
+              "support_state": "supported"
+            },
+            "manifests": [
+              {
+                "bundle_id": "fogstack.access",
+                "version": "0.1.0",
+                "ref": "artifacts/registry-publication/promoted/manifests/fogstack.access-v0.1.manifest.json",
+                "signed": false,
+                "channel": "candidate",
+                "support_state": "supported"
+              },
+              {
+                "bundle_id": "fogstack.knowledge",
+                "version": "0.1.0",
+                "ref": "artifacts/registry-publication/promoted/manifests/fogstack.knowledge-v0.1.manifest.json",
+                "signed": false,
+                "channel": "candidate",
+                "support_state": "supported"
+              },
+              {
+                "bundle_id": "fogstack.evaluation",
+                "version": "0.1.0",
+                "ref": "artifacts/registry-publication/promoted/manifests/fogstack.evaluation-v0.1.manifest.json",
+                "signed": false,
+                "channel": "candidate",
+                "support_state": "supported"
+              }
+            ]
+          }
+          JSON
+
+          cat > artifacts/registry-publication/gate/publication-gate.record.json <<'JSON'
+          {
+            "kind": "FogStackReleasePublicationGateRecord",
+            "schema_version": "v0.1",
+            "publication_set_ref": "artifacts/registry-publication/promoted/manifest-publication-set.json",
+            "approval_record_ref": "artifacts/registry-publication/gate/approval.record.json",
+            "approval_signature_verification_ref": "artifacts/registry-publication/gate/approval.signature-verification.json",
+            "release_identity_ref": "artifacts/registry-publication/gate/release-identity.json",
+            "status": "pass",
+            "checks": [
+              {"id": "PUBGATE-001", "status": "pass", "message": "approval status matches policy"},
+              {"id": "PUBGATE-002", "status": "pass", "message": "approval signature verification passed"},
+              {"id": "PUBGATE-003", "status": "pass", "message": "release identity is allowed"},
+              {"id": "PUBGATE-004", "status": "pass", "message": "publication set kind is valid"}
+            ]
+          }
+          JSON
+
+      - name: Build registry publication index
+        run: |
+          python3 tools/build_fogstack_registry_publication_index.py \
+            --registry-uri artifact://ci/fogstack-registry \
+            --publication-set artifacts/registry-publication/promoted/manifest-publication-set.json \
+            --publication-gate-record artifacts/registry-publication/gate/publication-gate.record.json \
+            --artifact manifest-publication-set artifacts/registry-publication/promoted/manifest-publication-set.json \
+            --artifact publication-gate-record artifacts/registry-publication/gate/publication-gate.record.json \
+            --artifact manifest-access artifacts/registry-publication/promoted/manifests/fogstack.access-v0.1.manifest.json \
+            --artifact manifest-knowledge artifacts/registry-publication/promoted/manifests/fogstack.knowledge-v0.1.manifest.json \
+            --artifact manifest-evaluation artifacts/registry-publication/promoted/manifests/fogstack.evaluation-v0.1.manifest.json \
+            --output artifacts/registry-publication/fogstack-registry-publication.index.json
+
+      - name: Check registry publication index
+        run: |
+          python3 tools/check_fogstack_registry_publication_index.py \
+            --index artifacts/registry-publication/fogstack-registry-publication.index.json
+
+      - name: Upload registry publication artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-registry-publication
+          path: artifacts/registry-publication/
+          if-no-files-found: error
