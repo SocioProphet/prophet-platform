@@ -4,16 +4,16 @@ This document captures the current state of Fog Stack work inside `prophet-platf
 
 ## Repository role
 
-`prophet-platform` is the runtime and deployment substrate for platform services. Fog Stack lands here as the productization, conformance, release, and trust layer for deployable offerings built on that substrate.
+`prophet-platform` is the runtime and deployment substrate for platform services. Fog Stack lands here as the productization, conformance, release, publication, and trust layer for deployable offerings built on that substrate.
 
 ## Repository strategy decision
 
 Fog Stack should **not** split into separate repositories for AI, Data, Automation, Security, or other future pack categories yet.
 
-At the current stage, the trust/release machinery is still highly shared across all surfaces. Splitting now would mostly increase coordination overhead and fragment the release/trust graph before those categories have clearly independent lifecycles.
+At the current stage, the trust/release/publication machinery is still highly shared across all surfaces. Splitting now would mostly increase coordination overhead and fragment the release/trust graph before those categories have clearly independent lifecycles.
 
 The correct near-term move is:
-- keep the engineering and trust/release machinery in `prophet-platform`
+- keep the engineering and trust/release/publication machinery in `prophet-platform`
 - track future pack categories here as product surfaces and readiness states
 - split into separate repos only when a pack has an independently justified lifecycle, release cadence, operator surface, and support burden
 
@@ -47,25 +47,51 @@ The following supporting slices are already merged into `main`:
 - external signature verification input normalization via PR #93
 - external signature verification runner via PR #134
 - release sealing via PR #136
+- release seal signature support via PR #143
+- release seal cryptographic verification record via PR #148
+- release seal verification runner via PR #151
+- release seal artifact linking via PR #153
+- release proof pipeline runner via PR #159
+- release proof CI workflow via PR #160
+- wider release graph linking via PR #161 and refreshed follow-up PR #165
+- wider release graph CI workflow via PR #163
+- openssl-backed release proof verification via PR #164
+- wider release proof pipeline runner via PR #167
+- canonical manifest digest refresh and CI enforcement via PR #169
+- manifest publication path via PR #171
+- manifest promotion path via PR #175
+- manifest promotion policy enforcement via PR #200
+- manifest promotion approval enforcement via PR #202
+- manifest promotion approval cryptographic verification via PR #207
+- release publication gate via PR #211
+- registry publication index via PR #212
+- filesystem registry adapter via PR #215
 
-## Current open review units
+## Current active frontier
 
-As of this capture, the primary open Fog Stack review units are:
+Fog Stack is past initial offering definition and past local trust-graph construction. The active frontier is now release publication and registry hardening.
 
-- **PR #123** — release seal signature support
-- **PR #131** — pack taxonomy and readiness tracking
+The current release path is:
 
-These should be treated as the current active product and trust/release-engineering path.
+1. validate bundles and rulepacks
+2. emit validation records
+3. refresh canonical manifest digests
+4. build a manifest publication set
+5. promote the publication set through policy
+6. require approval and approval-signature verification
+7. emit a release publication gate record
+8. build a registry publication index
+9. publish the gated index and referenced artifacts to a filesystem registry layout
 
 ## Product-pack readiness matrix
 
-The detailed matrix and pack taxonomy now live in:
+The detailed matrix and pack taxonomy live in:
 - `docs/FOGSTACK_PACKS.md`
 - `catalog/fogstack-packs-v0.1.yaml`
 
-## Current trust graph shape
+## Current trust/publication graph shape
 
-The release/trust graph now consists of these machine-readable artifacts:
+The release/trust/publication graph now consists of these machine-readable artifacts:
 
 - release manifest
 - validation record
@@ -74,18 +100,30 @@ The release/trust graph now consists of these machine-readable artifacts:
 - cryptographic signature verification record
 - release evidence index
 - release seal
+- release seal signature metadata
+- release seal cryptographic verification record
+- release proof pipeline outputs
+- wider release graph links
+- manifest publication set
+- promoted manifest publication set
+- promotion policy record/check result
+- promotion approval record
+- promotion approval cryptographic verification record
+- release publication gate record
+- registry publication index
+- filesystem registry publication/check artifacts
 
-The remaining open trust/release PRs are what move this system from a linked graph to a more cryptographically grounded, tamper-evident release graph.
+## Known gaps and next tranches
 
-## Immediate next tranche
+The next release-engineering tranche should focus on:
 
-After the current open PRs are accepted, the next release-engineering tranche should focus on:
-
-1. **Seal-signature trust** rather than signed seal shape only.
-2. **CI-emitted verified truth records** instead of shape-only or local records.
-3. **Automatic artifact/backlink mutation** so the graph becomes self-updating under the release pipeline.
-4. **Seal publication and trust proof** rather than local trust structure only.
+1. **Network registry publication** beyond filesystem registry export.
+2. **Signed registry root metadata** so registry consumers can verify the registry root, not just individual artifact records.
+3. **Rollback and revocation indexes** for promoted or published artifact sets.
+4. **Signature verification pipeline exit-code hygiene** so digest mismatch and malformed input fail hard at the CLI layer.
+5. **Status and registry docs kept current** whenever publication gates or registry adapters land.
+6. **External identity-provider / KMS / HSM integration** for release identity and signing keys when the workflow moves beyond local demo-grade keys.
 
 ## Position in the maturity ladder
 
-Fog Stack in `prophet-platform` is now past initial offering definition. The active frontier is no longer offering taxonomy; it is release/trust hardening and future pack-boundary justification.
+Fog Stack in `prophet-platform` is now in release-publication hardening. It has moved from offering taxonomy and local trust records into gated, CI-backed, registry-ready artifact publication surfaces. The immediate risk is stale status documentation or weak CLI semantics causing operators to misread publication readiness.
