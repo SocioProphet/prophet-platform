@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -19,6 +19,11 @@ topology-check:
 
 lattice-surfaces-check:
 	python3 tools/validate_lattice_surfaces.py
+
+lattice-surface-ingestor-smoke:
+	cd apps/lattice-surface-ingestor && test -d .venv || python3 -m venv .venv
+	cd apps/lattice-surface-ingestor && . .venv/bin/activate && python -m pip install --upgrade pip pytest && PYTHONPATH=src pytest -q tests
+	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli ingest contracts/lattice/boot-release-set.v1.example.json contracts/lattice/runtime-asset.v1.example.json >/tmp/lattice-surface-records.json
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py
