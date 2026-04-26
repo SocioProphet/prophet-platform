@@ -1,0 +1,76 @@
+name: search-orchestrator-image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/search-orchestrator/**'
+      - '.github/workflows/search-orchestrator-image.yml'
+  pull_request:
+    paths:
+      - 'services/search-orchestrator/**'
+      - '.github/workflows/search-orchestrator-image.yml'
+      - 'tools/validate_search_orchestrator_image_release.py'
+      - 'releases/images/search-orchestrator.image-lock.example.json'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image for pull request
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/search-orchestrator/Dockerfile
+          push: false
+          tags: ghcr.io/socioprophet/prophet-platform/search-orchestrator:pr-${{ github.event.pull_request.number }}
+
+      - name: Build and push image
+        if: github.event_name == 'push'
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/search-orchestrator/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/socioprophet/prophet-platform/search-orchestrator:main
+            ghcr.io/socioprophet/prophet-platform/search-orchestrator:${{ github.sha }}
+
+      - name: Emit digest evidence
+        if: github.event_name == 'push'
+        run: |
+          mkdir -p image-evidence
+          cat > image-evidence/search-orchestrator-image.json <<EOF
+          {
+            "image": "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+            "source_sha": "${{ github.sha }}",
+            "digest": "${{ steps.build.outputs.digest }}",
+            "pinned_ref": "ghcr.io/socioprophet/prophet-platform/search-orchestrator@${{ steps.build.outputs.digest }}"
+          }
+          EOF
+
+      - name: Upload digest evidence
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-orchestrator-image-evidence
+          path: image-evidence/search-orchestrator-image.json

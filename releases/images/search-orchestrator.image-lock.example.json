@@ -1,0 +1,10 @@
+{
+  "image_lock_id": "search-orchestrator-image-lock-example",
+  "component": "services/search-orchestrator",
+  "image": "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+  "source_sha": "REPLACE_WITH_GIT_SHA",
+  "digest": "sha256:REPLACE_WITH_IMAGE_DIGEST",
+  "pinned_ref": "ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:REPLACE_WITH_IMAGE_DIGEST",
+  "workflow": ".github/workflows/search-orchestrator-image.yml",
+  "status": "example"
+}
