@@ -6,6 +6,11 @@
   "bundle_ref": "bundles/fogstack.knowledge-v0.1.yaml",
   "argocd_appset_ref": "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
   "artifacts": [
+    "services/search-orchestrator/Dockerfile",
+    ".github/workflows/search-orchestrator-image.yml",
+    "releases/images/search-orchestrator.image-lock.example.json",
+    "tools/render_search_orchestrator_image_patch.py",
+    "tools/validate_search_orchestrator_image_release.py",
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
@@ -34,7 +39,9 @@
     "operator-rollout-checklist",
     "release-readout",
     "kubernetes-production-hardening",
-    "non-secret-runtime-metrics"
+    "non-secret-runtime-metrics",
+    "image-build-publish",
+    "digest-pinned-image-rendering"
   ],
   "safety_posture": [
     "endpoint-explicit policy fabric calls",
@@ -44,6 +51,7 @@
     "dropped linux capabilities",
     "persistent carrier storage",
     "namespace-scoped network policy",
+    "digest-pinned production image workflow",
     "no learner action execution",
     "no canon promotion",
     "no memory writeback",
