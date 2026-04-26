@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-registry-publication-index-v0.1.schema.json",
+  "title": "FogStackRegistryPublicationIndex",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "registry_uri",
+    "publication_set_ref",
+    "publication_set_digest",
+    "publication_gate_record_ref",
+    "publication_gate_record_digest",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackRegistryPublicationIndex" },
+    "schema_version": { "const": "v0.1" },
+    "registry_uri": { "type": "string" },
+    "publication_set_ref": { "type": "string" },
+    "publication_set_digest": { "type": "string" },
+    "publication_gate_record_ref": { "type": "string" },
+    "publication_gate_record_digest": { "type": "string" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "ref", "digest"],
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" },
+          "digest": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
