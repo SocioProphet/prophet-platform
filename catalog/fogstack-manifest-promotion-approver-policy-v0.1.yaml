@@ -1,0 +1,12 @@
+schema_version: "fogstack.manifest-promotion-approver-policy/v0.1"
+kind: "FogStackManifestPromotionApproverPolicy"
+required_roles:
+  - "release-manager"
+  - "security-reviewer"
+approvers:
+  - id: "release-manager"
+    roles:
+      - "release-manager"
+  - id: "security-reviewer"
+    roles:
+      - "security-reviewer"
