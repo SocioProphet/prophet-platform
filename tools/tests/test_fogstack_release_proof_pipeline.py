@@ -81,6 +81,14 @@ def test_release_proof_pipeline_links_seal_artifacts(tmp_path: Path) -> None:
         str(seal_crypto_record),
         "--evidence-index",
         str(evidence_index),
+        "--canonical-contract-surface-ref",
+        "schema://fogstack/access/contracts/v0.1",
+        "--canonical-deployment-surface-ref",
+        "k8s://fogstack/access/deployment/v0.1",
+        "--canonical-runtime-surface-ref",
+        "runtime://fogstack/access/runtime/v0.1",
+        "--canonical-policy-surface-ref",
+        "policy://fogstack/access/policy/v0.1",
         "--",
         sys.executable,
         str(mock_verify),
@@ -98,3 +106,7 @@ def test_release_proof_pipeline_links_seal_artifacts(tmp_path: Path) -> None:
     index_after = _read_json(evidence_index)
     assert index_after["release_seal_ref"] == str(seal)
     assert index_after["release_seal_cryptographic_verification_record_ref"] == str(seal_crypto_record)
+    assert index_after["canonical_contract_surface_ref"] == "schema://fogstack/access/contracts/v0.1"
+    assert index_after["canonical_deployment_surface_ref"] == "k8s://fogstack/access/deployment/v0.1"
+    assert index_after["canonical_runtime_surface_ref"] == "runtime://fogstack/access/runtime/v0.1"
+    assert index_after["canonical_policy_surface_ref"] == "policy://fogstack/access/policy/v0.1"
