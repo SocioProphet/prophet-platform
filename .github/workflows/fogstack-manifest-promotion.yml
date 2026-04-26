@@ -100,8 +100,8 @@ jobs:
           python3 tools/emit_fogstack_manifest_promotion_approval_record.py \
             --promotion-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
             --required-approvals 2 \
-            --approval release-manager:release-manager:approved candidate promotion \
-            --approval security-reviewer:security-reviewer:approved release evidence \
+            --approval 'release-manager:release-manager:approved candidate promotion' \
+            --approval 'security-reviewer:security-reviewer:approved release evidence' \
             --signature-type other \
             --signature-ref artifact://ci/fogstack.manifest-promotion.approval.sig \
             --output artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json
