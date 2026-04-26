@@ -9,13 +9,21 @@
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
+    "infra/k8s/search-orchestrator/base/serviceaccount-rbac.yaml",
+    "infra/k8s/search-orchestrator/base/pvc.yaml",
+    "infra/k8s/search-orchestrator/base/networkpolicy.yaml",
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
+    "infra/k8s/search-orchestrator/overlays/policy/policy-fabric-secret.example.yaml",
+    "infra/k8s/search-orchestrator/overlays/policy/policy-fabric.externalsecret.example.yaml",
     "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
     "bundles/fogstack.knowledge-v0.1.yaml",
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
+    "services/search-orchestrator/tests/test_debug_metrics.py",
     "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_ROLLOUT_CHECKLIST.md",
-    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_RELEASE_READOUT.md"
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_RELEASE_READOUT.md",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_PRODUCTION_HARDENING.md",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_OBSERVABILITY.md"
   ],
   "capabilities": [
     "academy-search-record-ingest",
@@ -24,13 +32,21 @@
     "safe-runtime-debug-config",
     "argocd-appset-deployment",
     "operator-rollout-checklist",
-    "release-readout"
+    "release-readout",
+    "kubernetes-production-hardening",
+    "non-secret-runtime-metrics"
   ],
   "safety_posture": [
     "endpoint-explicit policy fabric calls",
+    "secret-backed policy fabric endpoint",
+    "non-root workload",
+    "read-only root filesystem",
+    "dropped linux capabilities",
+    "persistent carrier storage",
+    "namespace-scoped network policy",
     "no learner action execution",
     "no canon promotion",
     "no memory writeback",
-    "non-secret runtime mode reporting"
+    "non-secret runtime mode and metrics reporting"
   ]
 }
