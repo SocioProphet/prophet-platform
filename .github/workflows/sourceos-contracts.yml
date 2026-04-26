@@ -6,6 +6,8 @@ on:
       - "contracts/sourceos/**"
       - "docs/SOURCEOS_*.md"
       - "tools/validate_sourceos_contracts.py"
+      - "tools/build_sourceos_m2_lifecycle_proof.py"
+      - "tools/smoke_sourceos_m2_lifecycle_proof.py"
       - ".github/workflows/sourceos-contracts.yml"
   push:
     branches:
@@ -14,6 +16,8 @@ on:
       - "contracts/sourceos/**"
       - "docs/SOURCEOS_*.md"
       - "tools/validate_sourceos_contracts.py"
+      - "tools/build_sourceos_m2_lifecycle_proof.py"
+      - "tools/smoke_sourceos_m2_lifecycle_proof.py"
       - ".github/workflows/sourceos-contracts.yml"
 
 jobs:
@@ -28,3 +32,5 @@ jobs:
         run: python -m pip install jsonschema
       - name: Validate SourceOS contracts
         run: python tools/validate_sourceos_contracts.py
+      - name: Smoke SourceOS M2 lifecycle proof
+        run: python tools/smoke_sourceos_m2_lifecycle_proof.py
