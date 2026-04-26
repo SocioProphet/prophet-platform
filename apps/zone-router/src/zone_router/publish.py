@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .outbox import publication_outbox_root
+from .transport_adapters import deliver_publication_record
 
 
 def _utc_now() -> str:
@@ -41,6 +42,13 @@ def publish_publication_record(
 ) -> dict[str, Any]:
     path = Path(record_path).expanduser().resolve()
     record = load_publication_record(path)
+    delivery_result = deliver_publication_record(
+        record=record,
+        publication_record_ref=str(path),
+        transport_ref=transport_ref,
+        service=service,
+    )
+    delivery = delivery_result["delivery"]
     outcome_id = str(uuid.uuid4())
     outcome = {
         "version": "0.1",
@@ -50,6 +58,10 @@ def publish_publication_record(
         "zone_ref": record["zone_ref"],
         "topic": record["topic"],
         "transport_ref": transport_ref,
+        "transport_kind": delivery["transport_kind"],
+        "delivery_ref": delivery_result["delivery_path"],
+        "delivery_id": delivery["delivery_id"],
+        "topic_log_ref": delivery_result["topic_log_path"],
         "publication_record_ref": str(path),
         "carrier_ref": record.get("carrier_ref"),
         "event_ref": record.get("event_ref"),
@@ -70,4 +82,7 @@ def publish_publication_record(
         "outcome_path": str(outcome_path),
         "log_path": str(log_path),
         "outcome": outcome,
+        "delivery": delivery,
+        "delivery_path": delivery_result["delivery_path"],
+        "topic_log_path": delivery_result["topic_log_path"],
     }

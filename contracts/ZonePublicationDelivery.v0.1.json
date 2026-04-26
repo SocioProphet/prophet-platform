@@ -1,42 +1,31 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://socioprophet.com/contracts/ZonePublicationOutcome.v0.1.json",
-  "title": "ZonePublicationOutcome",
+  "$id": "https://socioprophet.com/contracts/ZonePublicationDelivery.v0.1.json",
+  "title": "ZonePublicationDelivery",
   "type": "object",
   "required": [
     "version",
-    "outcome_id",
+    "delivery_id",
     "publication_id",
-    "status",
-    "zone_ref",
-    "topic",
     "transport_ref",
     "transport_kind",
-    "delivery_ref",
-    "delivery_id",
-    "topic_log_ref",
+    "topic",
     "publication_record_ref",
-    "published_at"
+    "delivered_at"
   ],
   "properties": {
     "version": { "const": "0.1" },
-    "outcome_id": { "type": "string", "minLength": 1 },
+    "delivery_id": { "type": "string", "minLength": 1 },
     "publication_id": { "type": "string", "minLength": 1 },
-    "status": { "enum": ["published", "failed"] },
-    "zone_ref": { "type": "string", "minLength": 1 },
-    "topic": { "type": "string", "minLength": 1 },
     "transport_ref": { "type": "string", "minLength": 1 },
     "transport_kind": { "type": "string", "minLength": 1 },
-    "delivery_ref": { "type": "string", "minLength": 1 },
-    "delivery_id": { "type": "string", "minLength": 1 },
-    "topic_log_ref": { "type": "string", "minLength": 1 },
+    "topic": { "type": "string", "minLength": 1 },
     "publication_record_ref": { "type": "string", "minLength": 1 },
     "carrier_ref": { "type": ["string", "null"] },
     "event_ref": { "type": ["string", "null"] },
     "receipt_ref": { "type": ["string", "null"] },
     "catalog_ref": { "type": ["string", "null"] },
-    "published_at": { "type": "string", "minLength": 1 },
-    "error": { "type": ["string", "null"] }
+    "delivered_at": { "type": "string", "minLength": 1 }
   },
   "additionalProperties": true
 }
