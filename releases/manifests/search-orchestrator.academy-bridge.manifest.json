@@ -8,8 +8,10 @@
   "artifacts": [
     "services/search-orchestrator/Dockerfile",
     ".github/workflows/search-orchestrator-image.yml",
+    ".github/workflows/search-orchestrator-image-pin.yml",
     "releases/images/search-orchestrator.image-lock.example.json",
     "tools/render_search_orchestrator_image_patch.py",
+    "tools/apply_search_orchestrator_image_lock.py",
     "tools/validate_search_orchestrator_image_release.py",
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
@@ -25,6 +27,7 @@
     "bundles/fogstack.knowledge-v0.1.yaml",
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
     "services/search-orchestrator/tests/test_debug_metrics.py",
+    "tools/tests/test_apply_search_orchestrator_image_lock.py",
     "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_ROLLOUT_CHECKLIST.md",
     "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_RELEASE_READOUT.md",
     "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_PRODUCTION_HARDENING.md",
@@ -41,7 +44,8 @@
     "kubernetes-production-hardening",
     "non-secret-runtime-metrics",
     "image-build-publish",
-    "digest-pinned-image-rendering"
+    "digest-pinned-image-rendering",
+    "automated-image-pin-pr"
   ],
   "safety_posture": [
     "endpoint-explicit policy fabric calls",
@@ -52,6 +56,7 @@
     "persistent carrier storage",
     "namespace-scoped network policy",
     "digest-pinned production image workflow",
+    "automated post-build digest pin pull request",
     "no learner action execution",
     "no canon promotion",
     "no memory writeback",

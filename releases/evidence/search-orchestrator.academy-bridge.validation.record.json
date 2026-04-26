@@ -6,8 +6,10 @@
   "validated_artifacts": [
     "services/search-orchestrator/Dockerfile",
     ".github/workflows/search-orchestrator-image.yml",
+    ".github/workflows/search-orchestrator-image-pin.yml",
     "releases/images/search-orchestrator.image-lock.example.json",
     "tools/render_search_orchestrator_image_patch.py",
+    "tools/apply_search_orchestrator_image_lock.py",
     "tools/validate_search_orchestrator_image_release.py",
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
@@ -31,7 +33,8 @@
     "services/search-orchestrator/tests/test_academy_lampstand_carrier_real_smoke.py",
     "services/search-orchestrator/tests/test_debug_config.py",
     "services/search-orchestrator/tests/test_debug_metrics.py",
-    "tools/tests/test_search_orchestrator_image_patch.py"
+    "tools/tests/test_search_orchestrator_image_patch.py",
+    "tools/tests/test_apply_search_orchestrator_image_lock.py"
   ],
   "evidence": [
     "safe runtime config reports modes without paths or URLs",
@@ -45,11 +48,13 @@
     "Policy Fabric endpoint is sourced from Secret/ExternalSecret examples rather than ConfigMap",
     "debug metrics endpoint reports counters without actor ids, queries, URLs, paths, or secrets",
     "Search Orchestrator image workflow builds/publishes GHCR image and emits digest evidence",
-    "image lock renderer converts digest evidence into a digest-pinned deployment patch"
+    "image lock renderer converts digest evidence into a digest-pinned deployment patch",
+    "image pin workflow converts successful main image-build evidence into an automated pinning pull request"
   ],
   "gates": [
     "search-orchestrator workflow",
     "search-orchestrator-image workflow",
+    "search-orchestrator-image-pin workflow",
     "platform validate workflow",
     "premerge audit",
     "FogStack release evidence validation"
