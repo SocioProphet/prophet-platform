@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-release-publication-gate-record-v0.1.schema.json",
+  "title": "FogStackReleasePublicationGateRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "publication_set_ref",
+    "approval_record_ref",
+    "approval_signature_verification_ref",
+    "release_identity_ref",
+    "status",
+    "checks"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackReleasePublicationGateRecord" },
+    "schema_version": { "const": "v0.1" },
+    "publication_set_ref": { "type": "string" },
+    "approval_record_ref": { "type": "string" },
+    "approval_signature_verification_ref": { "type": "string" },
+    "release_identity_ref": { "type": "string" },
+    "status": { "enum": ["pass", "fail"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "message"],
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "enum": ["pass", "fail"] },
+          "message": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
