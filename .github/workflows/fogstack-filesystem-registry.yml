@@ -5,10 +5,13 @@ on:
   pull_request:
     paths:
       - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
       - "tools/build_fogstack_registry_publication_index.py"
       - "tools/check_fogstack_registry_publication_index.py"
       - "tools/publish_fogstack_filesystem_registry.py"
       - "tools/check_fogstack_filesystem_registry.py"
+      - "tools/build_fogstack_filesystem_registry_root.py"
+      - "tools/check_fogstack_filesystem_registry_root.py"
       - "tools/tests/test_fogstack_registry_publication_index.py"
       - "tools/tests/test_fogstack_filesystem_registry.py"
       - "docs/FOGSTACK_*.md"
@@ -17,10 +20,13 @@ on:
     branches: [main]
     paths:
       - "schemas/release/fogstack-registry-publication-index-v0.1.schema.json"
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
       - "tools/build_fogstack_registry_publication_index.py"
       - "tools/check_fogstack_registry_publication_index.py"
       - "tools/publish_fogstack_filesystem_registry.py"
       - "tools/check_fogstack_filesystem_registry.py"
+      - "tools/build_fogstack_filesystem_registry_root.py"
+      - "tools/check_fogstack_filesystem_registry_root.py"
       - "tools/tests/test_fogstack_registry_publication_index.py"
       - "tools/tests/test_fogstack_filesystem_registry.py"
       - "docs/FOGSTACK_*.md"
@@ -103,6 +109,13 @@ jobs:
             --registry-root artifacts/filesystem-registry/output \
             --bundle-id fogstack.access \
             --version 0.1.0
+
+          python3 tools/build_fogstack_filesystem_registry_root.py \
+            --registry-root artifacts/filesystem-registry/output \
+            --registry-uri file://artifacts/filesystem-registry/output
+
+          python3 tools/check_fogstack_filesystem_registry_root.py \
+            --registry-root artifacts/filesystem-registry/output
 
       - name: Upload filesystem registry artifacts
         uses: actions/upload-artifact@v4
