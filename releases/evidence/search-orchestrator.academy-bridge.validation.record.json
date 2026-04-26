@@ -10,7 +10,9 @@
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
     "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
-    "bundles/fogstack.knowledge-v0.1.yaml"
+    "bundles/fogstack.knowledge-v0.1.yaml",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_ROLLOUT_CHECKLIST.md",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_RELEASE_READOUT.md"
   ],
   "tests": [
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
@@ -22,7 +24,9 @@
     "Lampstand carrier mode materializes Academy search records and emits carrier artifacts",
     "deployment smoke verifies debug config, ingest, query, and carrier artifacts",
     "ArgoCD ApplicationSet declares carrier and Policy Fabric deployment variants",
-    "fogstack.knowledge bundle includes services/search-orchestrator as the Academy search bridge"
+    "fogstack.knowledge bundle includes services/search-orchestrator as the Academy search bridge",
+    "rollout checklist defines prerequisites, sync order, health gates, rollback, and failure modes",
+    "release readout summarizes Academy to Search Orchestrator to Lampstand to Policy Fabric to FogStack evidence path"
   ],
   "gates": [
     "search-orchestrator workflow",
