@@ -8,6 +8,8 @@ on:
       - "tools/validate_sourceos_contracts.py"
       - "tools/build_sourceos_m2_lifecycle_proof.py"
       - "tools/smoke_sourceos_m2_lifecycle_proof.py"
+      - "tools/publish_sourceos_m2_filesystem_registry.py"
+      - "tools/smoke_sourceos_m2_filesystem_registry.py"
       - ".github/workflows/sourceos-contracts.yml"
   push:
     branches:
@@ -18,6 +20,8 @@ on:
       - "tools/validate_sourceos_contracts.py"
       - "tools/build_sourceos_m2_lifecycle_proof.py"
       - "tools/smoke_sourceos_m2_lifecycle_proof.py"
+      - "tools/publish_sourceos_m2_filesystem_registry.py"
+      - "tools/smoke_sourceos_m2_filesystem_registry.py"
       - ".github/workflows/sourceos-contracts.yml"
 
 jobs:
@@ -34,3 +38,5 @@ jobs:
         run: python tools/validate_sourceos_contracts.py
       - name: Smoke SourceOS M2 lifecycle proof
         run: python tools/smoke_sourceos_m2_lifecycle_proof.py
+      - name: Smoke SourceOS M2 filesystem registry
+        run: python tools/smoke_sourceos_m2_filesystem_registry.py
