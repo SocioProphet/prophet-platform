@@ -7,11 +7,14 @@ on:
       - "bundles/**"
       - "conformance/**"
       - "catalog/fogstack-support-states-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "releases/manifests/**"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/check_fogstack_manifest_promotion_policy.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
   push:
@@ -20,11 +23,14 @@ on:
       - "bundles/**"
       - "conformance/**"
       - "catalog/fogstack-support-states-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "releases/manifests/**"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/check_fogstack_manifest_promotion_policy.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
+      - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
 
@@ -53,7 +59,8 @@ jobs:
         run: |
           python -m pytest -q \
             tools/tests/test_build_fogstack_manifest_publication_set.py \
-            tools/tests/test_promote_fogstack_manifest_publication_set.py
+            tools/tests/test_promote_fogstack_manifest_publication_set.py \
+            tools/tests/test_check_fogstack_manifest_promotion_policy.py
 
       - name: Build canonical publication set
         run: |
@@ -72,6 +79,12 @@ jobs:
             --support-catalog catalog/fogstack-support-states-v0.1.yaml \
             --target-channel candidate \
             --target-support-state supported
+
+      - name: Enforce promotion policy
+        run: |
+          python3 tools/check_fogstack_manifest_promotion_policy.py \
+            --publication-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
+            --policy-catalog catalog/fogstack-manifest-promotion-policy-v0.1.yaml
 
       - name: Upload promoted manifest set
         uses: actions/upload-artifact@v4
