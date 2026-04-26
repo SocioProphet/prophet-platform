@@ -16,6 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "contracts" / "sourceos"
 DEFAULT_OUT = ROOT / "artifacts" / "sourceos" / "m2-lifecycle-proof"
 STAMP = "2026-04-26T15:30:00Z"
+NLBOOT_MANIFEST_ID = "urn:srcos:boot-manifest:m2-demo-recovery"
+NLBOOT_BOOT_RELEASE_SET_ID = "urn:srcos:boot-release-set:m2-demo-recovery-2026-04-26"
+NLBOOT_BASE_RELEASE_SET_REF = "urn:srcos:release-set:m2-demo-2026-04-26"
+NLBOOT_TOKEN_ID = "urn:srcos:enrollment-token:m2-demo-recovery"
+NLBOOT_SIGNER_REF = "urn:srcos:key:sourceos-demo-signing-key-v0"
 
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
@@ -97,11 +102,11 @@ def build_objects() -> dict[str, dict[str, Any]]:
         "support_state": "experimental",
         "system": {
             "base_kind": "ostree",
-            "base_ref": "ostree:sourceos/m2/silverblue-gnome/dev/0001",
+            "base_ref": NLBOOT_BASE_RELEASE_SET_REF,
             "architecture": "aarch64",
             "platform_targets": ["apple_silicon_m2"],
             "host_integration_surface": "hisc-sourceos-m2-v0",
-            "rollback_refs": ["ostree:sourceos/m2/silverblue-gnome/dev/0000"],
+            "rollback_refs": ["urn:srcos:release-set:m2-demo-rollback-2026-04-26"],
         },
         "user": {
             "experience_profile": "xp-macos-like-gnome-v0",
@@ -132,7 +137,7 @@ def build_objects() -> dict[str, dict[str, Any]]:
         "schema_version": "sourceos.boot-release-set/v0",
         "kind": "SourceOSBootReleaseSet",
         "id": "sbrs-m2-demo-recovery-0001",
-        "description": "M2 demo SourceOS recovery/install/live boot release set.",
+        "description": "M2 demo SourceOS recovery/install/live boot release set aligned to SociOS-Linux/nlboot examples/m2-demo.",
         "created_at": STAMP,
         "channel": "dev",
         "parent_release_set_ref": "srset-m2-demo-0001",
@@ -142,15 +147,43 @@ def build_objects() -> dict[str, dict[str, Any]]:
             {"platform": "uefi", "entry_kind": "ipxe", "entry_ref": "ipxe:sourceos/recovery/0001", "notes": "Generic parity path for later PC/Purism support."},
         ],
         "artifacts": [
-            {"name": "sourceos-recovery-kernel", "artifact_kind": "kernel", "uri": "artifact:sourceos/m2/recovery/kernel/0001", "digest": "sha256:" + "0" * 64, "size_bytes": 0},
-            {"name": "sourceos-recovery-initrd", "artifact_kind": "initrd", "uri": "artifact:sourceos/m2/recovery/initrd/0001", "digest": "sha256:" + "1" * 64, "size_bytes": 0},
-            {"name": "sourceos-recovery-manifest", "artifact_kind": "manifest", "uri": "artifact:sourceos/m2/recovery/manifest/0001", "digest": "sha256:" + "2" * 64, "size_bytes": 0},
+            {"name": "sourceos-recovery-kernel", "artifact_kind": "kernel", "uri": "urn:srcos:artifact:m2-demo-kernel", "digest": "sha256:" + "0" * 64, "size_bytes": 0},
+            {"name": "sourceos-recovery-initrd", "artifact_kind": "initrd", "uri": "urn:srcos:artifact:m2-demo-initrd", "digest": "sha256:" + "1" * 64, "size_bytes": 0},
+            {"name": "sourceos-recovery-rootfs", "artifact_kind": "rootfs", "uri": "urn:srcos:artifact:m2-demo-rootfs", "digest": "sha256:" + "2" * 64, "size_bytes": 0},
+            {"name": "nlboot-recovery-manifest", "artifact_kind": "manifest", "uri": NLBOOT_MANIFEST_ID, "digest": "sha256:" + "3" * 64, "size_bytes": 0},
         ],
         "authorization": {"mode": "single_use_code", "token_binding": "device_claim", "ttl_seconds": 900, "requires_online_redemption": True},
         "capabilities": {"disk_write": "scoped", "network": "restricted", "kexec": "allowed", "rollback": "allowed", "enrollment": "allowed"},
         "proof_requirements": {"emit_fingerprint": True, "emit_manifest_hashes": True, "emit_boot_log_ref": True, "required_report_endpoint": "tritrpc:sourceos.boot.proof.report"},
         "offline_fallback": {"allowed": True, "last_known_good_ref": "sbrs-m2-demo-recovery-0000", "max_age_seconds": 604800},
         "signatures": [{"key_id": "sourceos-demo-signing-key-v0", "algorithm": "ed25519", "signature_ref": "sig:sourceos-m2-demo-recovery-0001"}],
+    }
+
+    nlboot_crosswalk = {
+        "schema_version": "sourceos.nlboot-crosswalk/v0",
+        "kind": "SourceOSNlbootCrosswalk",
+        "id": "snx-m2-demo-0001",
+        "created_at": STAMP,
+        "source_repo": "SociOS-Linux/nlboot",
+        "fixture_path": "examples/m2-demo",
+        "nlboot_manifest_id": NLBOOT_MANIFEST_ID,
+        "nlboot_token_id": NLBOOT_TOKEN_ID,
+        "nlboot_signer_ref": NLBOOT_SIGNER_REF,
+        "release_set": {"sourceos_id": release_set["id"], "nlboot_ref": NLBOOT_BASE_RELEASE_SET_REF},
+        "boot_release_set": {"sourceos_id": boot_release_set["id"], "nlboot_ref": NLBOOT_BOOT_RELEASE_SET_ID},
+        "artifact_map": [
+            {"sourceos_name": "sourceos-recovery-kernel", "nlboot_ref": "urn:srcos:artifact:m2-demo-kernel"},
+            {"sourceos_name": "sourceos-recovery-initrd", "nlboot_ref": "urn:srcos:artifact:m2-demo-initrd"},
+            {"sourceos_name": "sourceos-recovery-rootfs", "nlboot_ref": "urn:srcos:artifact:m2-demo-rootfs"},
+        ],
+        "safety_boundary": [
+            "nlboot fixture remains side-effect-free",
+            "no artifact fetching",
+            "no host mutation",
+            "no disk writes",
+            "no kexec execution",
+            "plans remain execute=false",
+        ],
     }
 
     fingerprint = {
@@ -188,6 +221,7 @@ def build_objects() -> dict[str, dict[str, Any]]:
         "config-source.json": config_source,
         "release-set.json": release_set,
         "boot-release-set.json": boot_release_set,
+        "nlboot-crosswalk.json": nlboot_crosswalk,
         "fingerprint.json": fingerprint,
         "compliance-result.json": compliance_result,
     }
@@ -210,7 +244,8 @@ def main() -> int:
 
     if not args.no_validate:
         for name, document in objects.items():
-            validate(schema_by_file[name], document)
+            if name in schema_by_file:
+                validate(schema_by_file[name], document)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for name, document in objects.items():
@@ -220,13 +255,14 @@ def main() -> int:
         "config-source.json": "SourceOSConfigSource",
         "release-set.json": "SourceOSReleaseSet",
         "boot-release-set.json": "SourceOSBootReleaseSet",
+        "nlboot-crosswalk.json": "SourceOSNlbootCrosswalk",
         "fingerprint.json": "SourceOSFingerprint",
         "compliance-result.json": "SourceOSComplianceResult",
     }
     artifacts = []
     for name in objects:
         path = args.output_dir / name
-        artifacts.append({"name": name.removesuffix(".json"), "kind": kind_by_file[name], "path": name, "schema_ref": f"contracts/sourceos/{schema_by_file[name]}", "digest": sha256_ref(path)})
+        artifacts.append({"name": name.removesuffix(".json"), "kind": kind_by_file[name], "path": name, "schema_ref": f"contracts/sourceos/{schema_by_file[name]}" if name in schema_by_file else "docs/SOURCEOS_NLBOOT_CROSSWALK.md", "digest": sha256_ref(path)})
 
     proof_index = {
         "schema_version": "sourceos.proof-index/v0",
@@ -234,10 +270,10 @@ def main() -> int:
         "id": "spi-m2-demo-0001",
         "created_at": STAMP,
         "proof_kind": "m2_lifecycle_demo",
-        "summary": "Deterministic local SourceOS M2 lifecycle proof bundle covering ConfigSource, ReleaseSet, BootReleaseSet, Fingerprint, and ComplianceResult.",
+        "summary": "Deterministic local SourceOS M2 lifecycle proof bundle covering ConfigSource, ReleaseSet, BootReleaseSet, nlboot fixture crosswalk, Fingerprint, and ComplianceResult.",
         "artifacts": artifacts,
-        "sociosphere_registration_ref": "SocioProphet/sociosphere#190",
-        "notes": ["This is a deterministic local proof fixture, not a live boot execution record.", "nlboot implementation output can be mapped into the BootReleaseSet shape later."],
+        "sociosphere_registration_ref": "SocioProphet/sociosphere#196",
+        "notes": ["This is a deterministic local proof fixture, not a live boot execution record.", "The nlboot crosswalk maps prophet-platform SourceOS contracts to SociOS-Linux/nlboot examples/m2-demo."],
     }
     if not args.no_validate:
         validate("proof-index.v0.schema.json", proof_index)
