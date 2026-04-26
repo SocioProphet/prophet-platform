@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/sourceos/fingerprint.v0.schema.json",
+  "title": "SourceOS Fingerprint v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "id",
+    "observed_at",
+    "subject",
+    "system",
+    "runtime",
+    "policy",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": { "const": "sourceos.fingerprint/v0" },
+    "kind": { "const": "SourceOSFingerprint" },
+    "id": { "type": "string", "pattern": "^sfp-[a-z0-9][a-z0-9._-]{5,127}$" },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_id"],
+      "properties": {
+        "subject_kind": { "type": "string", "enum": ["device", "user_workspace", "agent_workspace", "boot_environment"] },
+        "subject_id": { "type": "string", "minLength": 1 },
+        "device_claim": { "type": "string" }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "kernel", "boot_mode"],
+      "properties": {
+        "architecture": { "type": "string" },
+        "kernel": { "type": "string" },
+        "boot_mode": { "type": "string", "enum": ["normal", "live", "installer", "rescue", "rollback", "recovery", "unknown"] },
+        "system_base_ref": { "type": "string" },
+        "rollback_available": { "type": "boolean" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isolation", "libc", "shell", "tool_dialect"],
+      "properties": {
+        "isolation": { "type": "string", "enum": ["host", "container", "vm", "layered", "microvm_mesh", "boot_env", "unknown"] },
+        "libc": { "type": "string", "enum": ["glibc", "musl", "bionic", "unknown", "not_applicable"] },
+        "shell": { "type": "string" },
+        "tool_dialect": { "type": "string", "enum": ["gnu", "busybox", "bsd", "mixed", "unknown"] },
+        "pid1": { "type": "string" },
+        "container_runtime": { "type": "string" },
+        "hypervisor": { "type": "string" }
+      }
+    },
+    "lsm": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "selinux_visible": { "type": "boolean" },
+        "selinux_mode": { "type": "string", "enum": ["enforcing", "permissive", "disabled", "not_visible", "unknown"] },
+        "apparmor_visible": { "type": "boolean" },
+        "landlock_visible": { "type": "boolean" },
+        "host_enforced_possible": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_bundle_ref", "release_set_ref"],
+      "properties": {
+        "policy_bundle_ref": { "type": "string" },
+        "release_set_ref": { "type": "string" },
+        "boot_release_set_ref": { "type": "string" },
+        "capability_manifest_ref": { "type": "string" },
+        "network_scope": { "type": "string", "enum": ["none", "restricted", "full", "unknown"] },
+        "filesystem_scope": { "type": "string", "enum": ["none", "portal_only", "scoped", "full", "unknown"] }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_refs"],
+      "properties": {
+        "config_source_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "closure_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "artifact_digests": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "string", "enum": ["unknown", "compliant", "noncompliant", "degraded"] },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
