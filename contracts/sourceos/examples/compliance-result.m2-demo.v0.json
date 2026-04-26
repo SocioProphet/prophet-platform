@@ -1,0 +1,49 @@
+{
+  "schema_version": "sourceos.compliance-result/v0",
+  "kind": "SourceOSComplianceResult",
+  "id": "scr-m2-demo-000001",
+  "evaluated_at": "2026-04-26T18:40:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device-m2-demo",
+    "device_claim": "did:key:z6Mkm2demo"
+  },
+  "release_set_ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+  "boot_release_set_ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json",
+  "fingerprint_ref": "contracts/sourceos/examples/fingerprint.m2-demo.v0.json",
+  "policy_bundle_ref": "policy/sourceos/m2-demo-policy.v0.json",
+  "status": "compliant",
+  "summary": "M2 demo device fingerprint matches assigned SourceOS release set and boot release set references.",
+  "checks": [
+    {
+      "id": "release-set-ref-match",
+      "status": "pass",
+      "severity": "critical",
+      "message": "Observed fingerprint release set reference matches assigned release set.",
+      "expected_ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+      "observed_ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json"
+    },
+    {
+      "id": "boot-release-set-ref-match",
+      "status": "pass",
+      "severity": "critical",
+      "message": "Observed boot release set reference matches assigned boot release set.",
+      "expected_ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json",
+      "observed_ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json"
+    },
+    {
+      "id": "network-scope-policy",
+      "status": "pass",
+      "severity": "error",
+      "message": "Observed network scope is restricted for the M2 demo lifecycle proof.",
+      "expected_ref": "network:restricted",
+      "observed_ref": "network:restricted"
+    }
+  ],
+  "evidence_refs": [
+    "contracts/sourceos/examples/fingerprint.m2-demo.v0.json",
+    "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+    "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json"
+  ],
+  "remediation_refs": []
+}
