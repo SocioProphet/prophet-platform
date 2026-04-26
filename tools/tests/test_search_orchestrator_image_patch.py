@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+from pathlib import Path
 
-from tools.render_search_orchestrator_image_patch import IMAGE, main
+MODULE_PATH = Path(__file__).resolve().parents[1] / "render_search_orchestrator_image_patch.py"
+SPEC = importlib.util.spec_from_file_location("render_search_orchestrator_image_patch", MODULE_PATH)
+assert SPEC is not None and SPEC.loader is not None
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+
+IMAGE = MODULE.IMAGE
+main = MODULE.main
 
 
 def test_image_patch_renderer_writes_pinned_image(tmp_path, monkeypatch) -> None:
