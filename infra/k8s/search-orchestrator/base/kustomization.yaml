@@ -5,3 +5,5 @@ resources:
   - deployment.yaml
   - service.yaml
   - configmap.yaml
+  - serviceaccount-rbac.yaml
+  - pvc.yaml
