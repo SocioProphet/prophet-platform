@@ -22,6 +22,10 @@ def main() -> int:
     parser.add_argument("--seal", required=True, type=Path)
     parser.add_argument("--seal-crypto-record", required=True, type=Path)
     parser.add_argument("--evidence-index", required=True, type=Path)
+    parser.add_argument("--canonical-contract-surface-ref")
+    parser.add_argument("--canonical-deployment-surface-ref")
+    parser.add_argument("--canonical-runtime-surface-ref")
+    parser.add_argument("--canonical-policy-surface-ref")
     args = parser.parse_args()
 
     seal = load_json(args.seal)
@@ -35,6 +39,14 @@ def main() -> int:
 
     evidence_index["release_seal_ref"] = str(args.seal)
     evidence_index["release_seal_cryptographic_verification_record_ref"] = str(args.seal_crypto_record)
+    if args.canonical_contract_surface_ref is not None:
+        evidence_index["canonical_contract_surface_ref"] = args.canonical_contract_surface_ref
+    if args.canonical_deployment_surface_ref is not None:
+        evidence_index["canonical_deployment_surface_ref"] = args.canonical_deployment_surface_ref
+    if args.canonical_runtime_surface_ref is not None:
+        evidence_index["canonical_runtime_surface_ref"] = args.canonical_runtime_surface_ref
+    if args.canonical_policy_surface_ref is not None:
+        evidence_index["canonical_policy_surface_ref"] = args.canonical_policy_surface_ref
 
     write_json(args.seal, seal)
     write_json(args.seal_crypto_record, seal_crypto)
