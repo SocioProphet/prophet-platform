@@ -1,0 +1,56 @@
+{
+  "schema_version": "sourceos.fingerprint/v0",
+  "kind": "SourceOSFingerprint",
+  "id": "sfp-m2-demo-0001",
+  "observed_at": "2026-04-26T15:30:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device:m2-demo",
+    "device_claim": "device-claim:m2-demo-public-key-fingerprint"
+  },
+  "system": {
+    "architecture": "aarch64",
+    "kernel": "sourceos-demo-kernel",
+    "boot_mode": "normal",
+    "system_base_ref": "ostree:sourceos/m2/silverblue-gnome/dev/0001",
+    "rollback_available": true
+  },
+  "runtime": {
+    "isolation": "host",
+    "libc": "glibc",
+    "shell": "bash",
+    "tool_dialect": "gnu",
+    "pid1": "systemd"
+  },
+  "lsm": {
+    "selinux_visible": false,
+    "selinux_mode": "not_visible",
+    "apparmor_visible": false,
+    "landlock_visible": false,
+    "host_enforced_possible": true
+  },
+  "policy": {
+    "policy_bundle_ref": "policy:sourceos-m2-demo-v0",
+    "release_set_ref": "srset-m2-demo-0001",
+    "boot_release_set_ref": "sbrs-m2-demo-recovery-0001",
+    "capability_manifest_ref": "capabilities:sourceos-m2-demo-0001",
+    "network_scope": "restricted",
+    "filesystem_scope": "scoped"
+  },
+  "provenance": {
+    "config_source_refs": ["scfg-m2-demo-local"],
+    "closure_refs": [
+      "nix:closure:user/macos-like-gnome/0001",
+      "nix:closure:agent/base-tools/0001"
+    ],
+    "artifact_digests": [
+      "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    ],
+    "evidence_refs": ["evidence:sourceos-m2-demo-fingerprint-0001"]
+  },
+  "compliance": {
+    "status": "compliant",
+    "reasons": ["Observed release, policy, architecture, and rollback state match assigned demo release."]
+  }
+}
