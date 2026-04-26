@@ -8,17 +8,22 @@ on:
       - "conformance/**"
       - "catalog/fogstack-support-states-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "releases/manifests/**"
       - "schemas/release/fogstack-manifest-promotion-approval-record-v0.1.schema.json"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
       - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/check_fogstack_manifest_promotion_approver_policy.py"
       - "tools/emit_fogstack_manifest_promotion_approval_record.py"
       - "tools/check_fogstack_manifest_promotion_approval_record.py"
+      - "tools/run_openssl_fogstack_manifest_promotion_approval_verifier.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
       - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
+      - "tools/tests/test_check_fogstack_manifest_promotion_approver_policy.py"
       - "tools/tests/test_fogstack_manifest_promotion_approval_record.py"
+      - "tools/tests/test_run_openssl_fogstack_manifest_promotion_approval_verifier.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
   push:
@@ -28,17 +33,22 @@ on:
       - "conformance/**"
       - "catalog/fogstack-support-states-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "releases/manifests/**"
       - "schemas/release/fogstack-manifest-promotion-approval-record-v0.1.schema.json"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
       - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/check_fogstack_manifest_promotion_approver_policy.py"
       - "tools/emit_fogstack_manifest_promotion_approval_record.py"
       - "tools/check_fogstack_manifest_promotion_approval_record.py"
+      - "tools/run_openssl_fogstack_manifest_promotion_approval_verifier.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
       - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
+      - "tools/tests/test_check_fogstack_manifest_promotion_approver_policy.py"
       - "tools/tests/test_fogstack_manifest_promotion_approval_record.py"
+      - "tools/tests/test_run_openssl_fogstack_manifest_promotion_approval_verifier.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
 
@@ -69,7 +79,9 @@ jobs:
             tools/tests/test_build_fogstack_manifest_publication_set.py \
             tools/tests/test_promote_fogstack_manifest_publication_set.py \
             tools/tests/test_check_fogstack_manifest_promotion_policy.py \
-            tools/tests/test_fogstack_manifest_promotion_approval_record.py
+            tools/tests/test_check_fogstack_manifest_promotion_approver_policy.py \
+            tools/tests/test_fogstack_manifest_promotion_approval_record.py \
+            tools/tests/test_run_openssl_fogstack_manifest_promotion_approval_verifier.py
 
       - name: Build canonical publication set
         run: |
@@ -103,15 +115,35 @@ jobs:
             --approval 'release-manager:release-manager:approved candidate promotion' \
             --approval 'security-reviewer:security-reviewer:approved release evidence' \
             --signature-type other \
-            --signature-ref artifact://ci/fogstack.manifest-promotion.approval.sig \
+            --signature-ref artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.sig \
             --output artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json
 
-      - name: Enforce signed promotion approval
+      - name: Enforce approval metadata and approver policy
         run: |
           python3 tools/check_fogstack_manifest_promotion_approval_record.py \
             --approval-record artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json \
             --promotion-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
             --require-signed
+
+          python3 tools/check_fogstack_manifest_promotion_approver_policy.py \
+            --approval-record artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json \
+            --approver-policy catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml
+
+      - name: Sign and verify promotion approval record
+        run: |
+          openssl genpkey -algorithm RSA -out artifacts/manifest-promotion/approval/private.pem
+          openssl pkey -in artifacts/manifest-promotion/approval/private.pem -pubout -out artifacts/manifest-promotion/approval/public.pem
+          openssl dgst -sha256 \
+            -sign artifacts/manifest-promotion/approval/private.pem \
+            -out artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.sig \
+            artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json
+
+          python3 tools/run_openssl_fogstack_manifest_promotion_approval_verifier.py \
+            --approval-record artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json \
+            --signature artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.sig \
+            --public-key artifacts/manifest-promotion/approval/public.pem \
+            --key-ref artifacts/manifest-promotion/approval/public.pem \
+            --output artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.signature-verification.json
 
       - name: Upload promoted manifest set
         uses: actions/upload-artifact@v4
