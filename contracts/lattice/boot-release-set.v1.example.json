@@ -1,0 +1,26 @@
+{
+  "apiVersion": "sourceos.dev/v1",
+  "kind": "BootReleaseSet",
+  "metadata": {
+    "name": "sourceos-recovery-demo",
+    "version": "0.1.0",
+    "createdAt": "2026-04-26T00:00:00Z",
+    "labels": {"surface": "fog-boot", "stage": "demo"}
+  },
+  "spec": {
+    "releaseSetRef": "prophet-lattice/releases/sourceos-demo/0.1.0",
+    "platforms": ["apple-silicon"],
+    "channels": ["recovery"],
+    "artifacts": [
+      {"name": "kernel", "role": "kernel", "uri": "https://example.invalid/kernel", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+      {"name": "initrd", "role": "initrd", "uri": "https://example.invalid/initrd", "sha256": "1111111111111111111111111111111111111111111111111111111111111111"}
+    ],
+    "policy": {"network": "enrollment-only", "diskWrite": "recovery-only", "tokenRequired": true, "allowedActions": ["announce", "enroll", "fetch", "verify", "repair", "attest"]},
+    "evidence": {"correlationId": "platform-boot-demo", "requiredReports": ["device-claim", "manifest-hash", "verification-result", "selected-channel", "boot-mode", "measurement", "attestation"]},
+    "provenance": {"builderId": "sourceos-boot", "sourceRefs": ["SourceOS-Linux/sourceos-boot"], "attestations": ["slsa", "in-toto"]},
+    "trust": {"model": "tuf", "rootRef": "trust-root-demo", "metadataRef": "tuf-metadata-demo", "threshold": 1},
+    "signature": {"type": "sigstore", "bundleRef": "demo-bundle", "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"},
+    "antiRollback": {"minimumVersion": "0.1.0", "allowOfflineFallback": true, "allowedRollbackRefs": []},
+    "telemetry": {"traceRequired": true, "metricSet": ["boot-duration", "verify-duration", "download-bytes", "action-result"]}
+  }
+}
