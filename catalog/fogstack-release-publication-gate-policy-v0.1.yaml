@@ -1,0 +1,10 @@
+schema_version: "fogstack.release-publication-gate-policy/v0.1"
+kind: "FogStackReleasePublicationGatePolicy"
+requirements:
+  approval_status: "approved"
+  approval_signature_status: "pass"
+  require_release_identity: true
+allowed_release_identities:
+  - id: "github-actions"
+    issuer: "github-actions"
+    subject: "SocioProphet/prophet-platform/.github/workflows/fogstack-manifest-promotion.yml"
