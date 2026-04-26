@@ -1,0 +1,61 @@
+name: FogStack Release Proof Canonical Refs
+
+on:
+  pull_request:
+    paths:
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - ".github/workflows/fogstack-release-proof-canonical-refs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "releases/**"
+      - "schemas/release/**"
+      - "tools/*fogstack*"
+      - "tools/tests/test_fogstack_release_proof_pipeline.py"
+      - ".github/workflows/fogstack-release-proof-canonical-refs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+      - run: python -m pytest -q tools/tests/test_fogstack_release_proof_pipeline.py
+      - run: |
+          mkdir -p artifacts/release-proof
+          CONTRACT_REF="https://github.com/SocioProphet/api-spec/tree/master/fog"
+          DEPLOYMENT_REF="https://github.com/SocioProphet/manifests/tree/master/fog"
+          RUNTIME_REF="https://github.com/SocioProphet/cloudshell-fog"
+          POLICY_REF="https://github.com/SocioProphet/policy-fabric/tree/main/contracts"
+          python3 tools/emit_fogstack_release_seal.py --bundle-id fogstack.access --version 0.1.0 --artifact manifest releases/manifests/fogstack.access-v0.1.manifest.json --artifact validation releases/evidence/fogstack.access-v0.1.validation.record.json --output artifacts/release-proof/fogstack.access.seal.json
+          openssl genpkey -algorithm RSA -out artifacts/release-proof/private.pem
+          openssl pkey -in artifacts/release-proof/private.pem -pubout -out artifacts/release-proof/public.pem
+          openssl dgst -sha256 -sign artifacts/release-proof/private.pem -out artifacts/release-proof/fogstack.access.seal.sig artifacts/release-proof/fogstack.access.seal.json
+          python3 tools/attach_fogstack_release_seal_signature.py --seal artifacts/release-proof/fogstack.access.seal.json --signature-type other --signature-ref artifacts/release-proof/fogstack.access.seal.sig --output artifacts/release-proof/fogstack.access.seal.json
+          python3 tools/emit_fogstack_release_evidence_index.py --bundle-id fogstack.access --version 0.1.0 --manifest-ref releases/manifests/fogstack.access-v0.1.manifest.json --validation-record-ref releases/evidence/fogstack.access-v0.1.validation.record.json --signature-verification-record-ref releases/evidence/fogstack.access-v0.1.signature-verification.record.json --signature-trust-record-ref releases/evidence/fogstack.access-v0.1.signature-trust.record.json --output artifacts/release-proof/fogstack.access.evidence.index.json
+          python3 tools/run_fogstack_release_proof_pipeline.py --tool other --seal artifacts/release-proof/fogstack.access.seal.json --bundle-id fogstack.access --version 0.1.0 --signature-ref artifacts/release-proof/fogstack.access.seal.sig --evidence-output artifacts/release-proof/fogstack.access.seal.verify.json --seal-crypto-record artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json --evidence-index artifacts/release-proof/fogstack.access.evidence.index.json --canonical-contract-surface-ref "$CONTRACT_REF" --canonical-deployment-surface-ref "$DEPLOYMENT_REF" --canonical-runtime-surface-ref "$RUNTIME_REF" --canonical-policy-surface-ref "$POLICY_REF" -- python3 tools/run_openssl_fogstack_release_seal_verifier.py --seal artifacts/release-proof/fogstack.access.seal.json --signature artifacts/release-proof/fogstack.access.seal.sig --public-key artifacts/release-proof/public.pem --key-ref artifacts/release-proof/public.pem
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          contract_ref='https://github.com/SocioProphet/api-spec/tree/master/fog'
+          deployment_ref='https://github.com/SocioProphet/manifests/tree/master/fog'
+          runtime_ref='https://github.com/SocioProphet/cloudshell-fog'
+          policy_ref='https://github.com/SocioProphet/policy-fabric/tree/main/contracts'
+          index=json.loads(Path('artifacts/release-proof/fogstack.access.evidence.index.json').read_text())
+          assert index['canonical_contract_surface_ref']==contract_ref
+          assert index['canonical_deployment_surface_ref']==deployment_ref
+          assert index['canonical_runtime_surface_ref']==runtime_ref
+          assert index['canonical_policy_surface_ref']==policy_ref
+          print('Canonical refs smoke passed.')
+          PY
