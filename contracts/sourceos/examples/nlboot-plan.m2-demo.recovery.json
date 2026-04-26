@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "plan": {
+    "action": "boot-recovery",
+    "manifest_id": "urn:srcos:boot-manifest:m2-demo-recovery",
+    "boot_release_set_id": "sbrs-nlboot-m2-demo-recovery-0001",
+    "release_set_ref": "srset-m2-demo-0001",
+    "artifacts": {
+      "kernel_ref": "urn:srcos:artifact:m2-demo-kernel",
+      "initrd_ref": "urn:srcos:artifact:m2-demo-initrd",
+      "rootfs_ref": "urn:srcos:artifact:m2-demo-rootfs"
+    },
+    "authorized_by": "urn:srcos:enrollment-token:m2-demo-recovery",
+    "signature_algorithm": "rsa-pss-sha256",
+    "crypto_profile": "fips-140-3-compatible",
+    "execute": false
+  }
+}
