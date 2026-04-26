@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy validate-lampstand-lifecycle validate-zone-stack-audit zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy validate-lampstand-lifecycle validate-zone-stack-audit zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy validate-lampstand-lifecycle validate-zone-stack-audit zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check validate-ops-fabric validate-search-academy-deploy validate-lampstand-lifecycle validate-zone-stack-audit zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -35,6 +35,9 @@ zone-router-publication-local-publish-smoke:
 zone-router-publication-failure-evidence-smoke:
 	python3 tools/smoke_zone_publication_failure_evidence.py
 
+zone-router-publication-retry-state-smoke:
+	python3 tools/smoke_zone_publication_retry_state.py
+
 test-go:
 	go test ./libs/go/tritrpcbridge/...
 	go test ./apps/api/...
@@ -56,7 +59,7 @@ test-tools:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests
 
-smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke semantic-bridge-zone-validation-smoke
+smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke semantic-bridge-zone-validation-smoke
 
 smoke-health:
 	bash tools/smoke_tritrpc_health.sh
