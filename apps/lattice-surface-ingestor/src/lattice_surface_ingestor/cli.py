@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .enrich import enrich_record_set
 from .ingest import ingest_surface
 from .store import write_record_set
 
@@ -44,6 +45,13 @@ def ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def enrich(args: argparse.Namespace) -> int:
+    record_set = load_json(args.record_set)
+    payload = enrich_record_set(record_set)
+    emit_payload(payload, args.output)
+    return 0
+
+
 def store(args: argparse.Namespace) -> int:
     record_set = load_json(args.record_set)
     written = write_record_set(record_set, args.output_dir)
@@ -59,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_parser.add_argument("inputs", type=Path, nargs="+")
     ingest_parser.add_argument("--output", type=Path, help="Optional path for deterministic JSON output")
     ingest_parser.set_defaults(func=ingest)
+
+    enrich_parser = subparsers.add_parser("enrich", help="Generate deterministic search/topic/governance/modeling enrichments")
+    enrich_parser.add_argument("record_set", type=Path)
+    enrich_parser.add_argument("--output", type=Path, help="Optional path for enrichment JSON output")
+    enrich_parser.set_defaults(func=enrich)
 
     store_parser = subparsers.add_parser("store", help="Write PlatformAssetRecordSet into deterministic per-asset files")
     store_parser.add_argument("record_set", type=Path)
