@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/ZonePublicationDelivery.v0.1.json",
+  "title": "ZonePublicationDelivery",
+  "type": "object",
+  "required": [
+    "version",
+    "delivery_id",
+    "publication_id",
+    "transport_ref",
+    "transport_kind",
+    "topic",
+    "publication_record_ref",
+    "delivered_at"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "delivery_id": { "type": "string", "minLength": 1 },
+    "publication_id": { "type": "string", "minLength": 1 },
+    "transport_ref": { "type": "string", "minLength": 1 },
+    "transport_kind": { "type": "string", "minLength": 1 },
+    "topic": { "type": "string", "minLength": 1 },
+    "publication_record_ref": { "type": "string", "minLength": 1 },
+    "carrier_ref": { "type": ["string", "null"] },
+    "event_ref": { "type": ["string", "null"] },
+    "receipt_ref": { "type": ["string", "null"] },
+    "catalog_ref": { "type": ["string", "null"] },
+    "delivered_at": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": true
+}
