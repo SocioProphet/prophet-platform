@@ -1,0 +1,14 @@
+{
+  "token_id": "urn:srcos:enrollment-token:m2-demo-recovery",
+  "purpose": "recovery",
+  "audience": {
+    "subject_kind": "device",
+    "subject_id": "urn:srcos:device:m2-local-demo"
+  },
+  "release_set_ref": "urn:srcos:release-set:m2-demo-2026-04-26",
+  "boot_release_set_ref": "urn:srcos:boot-release-set:m2-demo-recovery-2026-04-26",
+  "one_time_use": true,
+  "issued_at": "2026-04-26T14:31:00Z",
+  "expires_at": "2026-04-26T14:46:00Z",
+  "status": "issued"
+}
