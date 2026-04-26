@@ -1,0 +1,25 @@
+{
+  "$id": "https://socioprophet.org/schema/michael/causal_attribution_delta.schema.json",
+  "type": "object",
+  "required": [
+    "subject_id",
+    "window",
+    "attributions"
+  ],
+  "properties": {
+    "subject_id": { "type": "string" },
+    "window": { "type": "string" },
+    "attributions": {
+      "type": "object",
+      "properties": {
+        "belief_delta": { "type": "number" },
+        "rule_delta": { "type": "number" },
+        "law_delta": { "type": "number" },
+        "constraint_delta": { "type": "number" },
+        "model_delta": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "notes": { "type": ["string", "null"] }
+  }
+}
