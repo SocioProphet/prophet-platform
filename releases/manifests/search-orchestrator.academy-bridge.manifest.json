@@ -13,14 +13,18 @@
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
     "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
     "bundles/fogstack.knowledge-v0.1.yaml",
-    "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py"
+    "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_ROLLOUT_CHECKLIST.md",
+    "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_RELEASE_READOUT.md"
   ],
   "capabilities": [
     "academy-search-record-ingest",
     "lampstand-carrier-mode",
     "policy-fabric-visibility-mode",
     "safe-runtime-debug-config",
-    "argocd-appset-deployment"
+    "argocd-appset-deployment",
+    "operator-rollout-checklist",
+    "release-readout"
   ],
   "safety_posture": [
     "endpoint-explicit policy fabric calls",
