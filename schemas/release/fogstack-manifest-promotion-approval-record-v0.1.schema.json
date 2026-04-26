@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-manifest-promotion-approval-record-v0.1.schema.json",
+  "title": "FogStackManifestPromotionApprovalRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "promotion_set_ref",
+    "promotion_set_digest",
+    "status",
+    "required_approvals",
+    "approvals",
+    "signed"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackManifestPromotionApprovalRecord" },
+    "schema_version": { "const": "v0.1" },
+    "promotion_set_ref": { "type": "string" },
+    "promotion_set_digest": { "type": "string" },
+    "target_channel": { "type": ["string", "null"] },
+    "target_support_state": { "type": ["string", "null"] },
+    "status": { "enum": ["approved", "rejected", "shape-only"] },
+    "required_approvals": { "type": "integer", "minimum": 1 },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["approver", "role"],
+        "properties": {
+          "approver": { "type": "string" },
+          "role": { "type": "string" },
+          "statement": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "signed": { "type": "boolean" },
+    "signature": {
+      "type": ["object", "null"],
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["cosign", "sigstore", "other"] },
+        "ref": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}
