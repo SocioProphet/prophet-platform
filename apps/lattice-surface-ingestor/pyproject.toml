@@ -1,0 +1,12 @@
+[project]
+name = "prophet-lattice-surface-ingestor"
+version = "0.1.0"
+description = "Side-effect-free ingestor for Prophet Lattice product-surface handoff objects."
+requires-python = ">=3.11"
+
+[project.scripts]
+lattice-surface-ingest = "lattice_surface_ingestor.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
