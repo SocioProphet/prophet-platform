@@ -8,7 +8,9 @@
     "infra/local/docker-compose.search-orchestrator.academy.yml",
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
-    "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml"
+    "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
+    "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
+    "bundles/fogstack.knowledge-v0.1.yaml"
   ],
   "tests": [
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
@@ -18,11 +20,14 @@
   "evidence": [
     "safe runtime config reports modes without paths or URLs",
     "Lampstand carrier mode materializes Academy search records and emits carrier artifacts",
-    "deployment smoke verifies debug config, ingest, query, and carrier artifacts"
+    "deployment smoke verifies debug config, ingest, query, and carrier artifacts",
+    "ArgoCD ApplicationSet declares carrier and Policy Fabric deployment variants",
+    "fogstack.knowledge bundle includes services/search-orchestrator as the Academy search bridge"
   ],
   "gates": [
     "search-orchestrator workflow",
     "platform validate workflow",
-    "premerge audit"
+    "premerge audit",
+    "FogStack release evidence validation"
   ]
 }

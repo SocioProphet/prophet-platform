@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: search-orchestrator-academy
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - name: search-orchestrator-academy-carrier
+            namespace: prophet-platform
+            path: infra/k8s/search-orchestrator/overlays/carrier
+          - name: search-orchestrator-academy-policy
+            namespace: prophet-platform
+            path: infra/k8s/search-orchestrator/overlays/policy
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform.git
+        targetRevision: main
+        path: '{{path}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

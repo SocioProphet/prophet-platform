@@ -6,8 +6,8 @@
   "bundle": "bundles/fogstack.knowledge-v0.1.yaml",
   "rulepack": "conformance/rulepacks/fogstack.knowledge-v0.1.yaml",
   "verification_helper": "tools/validate_fogstack.py",
-  "bundle_digest": "sha256:e32a4f060059e1e19bd3d745d58891a53722614196cd19f96045c6ca8c788bef",
-  "rulepack_digest": "sha256:4bc939d6a23cc6a15ed1d2bad0cfc9e6b56661199bd67eb0b050b6d171b0e2e4",
+  "bundle_digest": "sha256:dd9ca91ac4ab3872f77cc6bbb53c1d9b34d2245ca9b76a92b816108a0fb10766",
+  "rulepack_digest": "sha256:c6d1925336176809907b31b7d681d648a133dd9c274286a42b2f9c2f3e8aba48",
   "channel": "preview",
   "support_state": "community",
   "signed": false

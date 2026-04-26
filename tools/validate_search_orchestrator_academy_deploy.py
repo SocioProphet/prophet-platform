@@ -12,6 +12,8 @@ REQUIRED = [
     "infra/k8s/search-orchestrator/overlays/lab/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
+    "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
+    "bundles/fogstack.knowledge-v0.1.yaml",
     "services/search-orchestrator/deploy/academy-bridge-profiles.yaml",
     "infra/local/docker-compose.search-orchestrator.academy.yml",
     "services/search-orchestrator/tests/test_academy_lampstand_deployment_smoke.py",
@@ -28,9 +30,28 @@ REQUIRED_TEXT = {
     "infra/k8s/search-orchestrator/overlays/policy/configmap-patch.yaml": [
         "SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT",
     ],
+    "infra/argocd/appsets/search-orchestrator-academy-appset.yaml": [
+        "search-orchestrator-academy-carrier",
+        "search-orchestrator-academy-policy",
+        "infra/k8s/search-orchestrator/overlays/carrier",
+        "infra/k8s/search-orchestrator/overlays/policy",
+    ],
+    "bundles/fogstack.knowledge-v0.1.yaml": [
+        "services/search-orchestrator",
+        "academy-search-bridge",
+        "LearningSearchRecord",
+        "AcademySearchVisibilityRequestV1",
+        "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
+    ],
     "releases/evidence/search-orchestrator.academy-bridge.validation.record.json": [
         "search-orchestrator-academy-bridge",
         "test_academy_lampstand_deployment_smoke.py",
+        "search-orchestrator-academy-appset.yaml",
+    ],
+    "releases/manifests/search-orchestrator.academy-bridge.manifest.json": [
+        "search-orchestrator.academy-bridge.v0.1",
+        "search-orchestrator-academy-appset.yaml",
+        "fogstack.knowledge-v0.1.yaml",
     ],
     "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml": [
         "kind: ApplicationSet",

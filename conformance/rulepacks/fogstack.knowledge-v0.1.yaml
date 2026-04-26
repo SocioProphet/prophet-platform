@@ -54,4 +54,4 @@ rules:
     check:
       op: "path_lte"
       path: "deployment.max_required_services"
-      value: 2
+      value: 3
