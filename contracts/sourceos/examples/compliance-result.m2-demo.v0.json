@@ -1,0 +1,43 @@
+{
+  "schema_version": "sourceos.compliance-result/v0",
+  "kind": "SourceOSComplianceResult",
+  "id": "scr-m2-demo-0001",
+  "evaluated_at": "2026-04-26T15:30:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device:m2-demo"
+  },
+  "expected": {
+    "release_set_ref": "srset-m2-demo-0001",
+    "boot_release_set_ref": "sbrs-m2-demo-recovery-0001",
+    "policy_bundle_ref": "policy:sourceos-m2-demo-v0"
+  },
+  "observed": {
+    "fingerprint_ref": "sfp-m2-demo-0001",
+    "release_set_ref": "srset-m2-demo-0001",
+    "boot_release_set_ref": "sbrs-m2-demo-recovery-0001",
+    "policy_bundle_ref": "policy:sourceos-m2-demo-v0"
+  },
+  "status": "compliant",
+  "checks": [
+    {
+      "name": "release-set-match",
+      "status": "pass",
+      "expected": "srset-m2-demo-0001",
+      "observed": "srset-m2-demo-0001"
+    },
+    {
+      "name": "policy-bundle-match",
+      "status": "pass",
+      "expected": "policy:sourceos-m2-demo-v0",
+      "observed": "policy:sourceos-m2-demo-v0"
+    },
+    {
+      "name": "rollback-available",
+      "status": "pass",
+      "expected": "true",
+      "observed": "true"
+    }
+  ],
+  "evidence_refs": ["evidence:sourceos-m2-demo-compliance-0001"]
+}

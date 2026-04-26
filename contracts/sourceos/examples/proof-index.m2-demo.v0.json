@@ -1,0 +1,45 @@
+{
+  "schema_version": "sourceos.proof-index/v0",
+  "kind": "SourceOSProofIndex",
+  "id": "spi-m2-demo-0001",
+  "created_at": "2026-04-26T15:30:00Z",
+  "proof_kind": "m2_lifecycle_demo",
+  "summary": "Deterministic local SourceOS M2 lifecycle proof bundle covering ConfigSource, ReleaseSet, BootReleaseSet, Fingerprint, and ComplianceResult.",
+  "artifacts": [
+    {
+      "name": "config-source",
+      "kind": "SourceOSConfigSource",
+      "path": "config-source.json",
+      "schema_ref": "contracts/sourceos/config-source.v0.schema.json"
+    },
+    {
+      "name": "release-set",
+      "kind": "SourceOSReleaseSet",
+      "path": "release-set.json",
+      "schema_ref": "contracts/sourceos/release-set.v0.schema.json"
+    },
+    {
+      "name": "boot-release-set",
+      "kind": "SourceOSBootReleaseSet",
+      "path": "boot-release-set.json",
+      "schema_ref": "contracts/sourceos/boot-release-set.v0.schema.json"
+    },
+    {
+      "name": "fingerprint",
+      "kind": "SourceOSFingerprint",
+      "path": "fingerprint.json",
+      "schema_ref": "contracts/sourceos/fingerprint.v0.schema.json"
+    },
+    {
+      "name": "compliance-result",
+      "kind": "SourceOSComplianceResult",
+      "path": "compliance-result.json",
+      "schema_ref": "contracts/sourceos/compliance-result.v0.schema.json"
+    }
+  ],
+  "sociosphere_registration_ref": "SocioProphet/sociosphere#190",
+  "notes": [
+    "This is a deterministic local proof fixture, not a live boot execution record.",
+    "nlboot implementation output can be mapped into the BootReleaseSet shape later."
+  ]
+}

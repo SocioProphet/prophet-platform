@@ -19,8 +19,10 @@ EXAMPLE_DIR = SCHEMA_DIR / "examples"
 SCHEMA_EXAMPLES = {
     "release-set.v0.schema.json": ["release-set.m2-demo.v0.json"],
     "boot-release-set.v0.schema.json": ["boot-release-set.m2-demo.v0.json"],
-    "fingerprint.v0.schema.json": [],
-    "config-source.v0.schema.json": [],
+    "fingerprint.v0.schema.json": ["fingerprint.m2-demo.v0.json"],
+    "config-source.v0.schema.json": ["config-source.m2-demo.v0.json"],
+    "compliance-result.v0.schema.json": ["compliance-result.m2-demo.v0.json"],
+    "proof-index.v0.schema.json": ["proof-index.m2-demo.v0.json"],
 }
 
 

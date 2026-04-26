@@ -1,0 +1,48 @@
+{
+  "schema_version": "sourceos.config-source/v0",
+  "kind": "SourceOSConfigSource",
+  "id": "scfg-m2-demo-local",
+  "source_type": "git",
+  "location": {
+    "canonical_ref": "git:local/sourceos-m2-demo#main",
+    "local_path": "~/dev/sourceos-m2-demo",
+    "remote_url": "https://github.com/SocioProphet/sourceos-workspace.git"
+  },
+  "nix": {
+    "entry_kind": "flake",
+    "entry_ref": "flake.nix",
+    "lock_ref": "flake.lock",
+    "outputs": [
+      "packages.aarch64-linux.sourceosM2System",
+      "packages.aarch64-linux.macosLikeUserProfile",
+      "packages.aarch64-linux.agentBaseTools"
+    ]
+  },
+  "refs": {
+    "allowed_refs": ["main", "feature/*", "release/*", "refs/tags/*"],
+    "stable_ref": "main",
+    "branch_channel_map": {
+      "main": "stable",
+      "feature/*": "dev",
+      "release/*": "candidate"
+    }
+  },
+  "update_policy": {
+    "mode": "pull",
+    "requires_signature_verification": false,
+    "required_status_checks": [],
+    "build_trigger": "manual"
+  },
+  "token_policy": {
+    "token_ref": "secret:none",
+    "token_kind": "none",
+    "storage_rule": "not_applicable",
+    "redaction_required": true,
+    "allowed_ref_writes": []
+  },
+  "cache_policy": {
+    "local_cache": true,
+    "remote_cache": false,
+    "trusted_cache_keys": []
+  }
+}
