@@ -12,9 +12,18 @@ spec:
       labels:
         app: search-orchestrator
     spec:
+      serviceAccountName: search-orchestrator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: search-orchestrator
           image: ghcr.io/socioprophet/prophet-platform/search-orchestrator:dev
+          imagePullPolicy: IfNotPresent
           command: ["uvicorn"]
           args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
           workingDir: /app/services/search-orchestrator
@@ -23,6 +32,18 @@ spec:
           envFrom:
             - configMapRef:
                 name: search-orchestrator-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           readinessProbe:
             httpGet:
               path: /healthz
@@ -40,8 +61,13 @@ spec:
               mountPath: /var/lib/prophet-platform
             - name: search-orchestrator-runtime
               mountPath: /run/prophet-platform
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: search-orchestrator-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: search-orchestrator-data
         - name: search-orchestrator-runtime
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
