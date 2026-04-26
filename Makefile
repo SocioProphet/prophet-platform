@@ -23,7 +23,9 @@ lattice-surfaces-check:
 lattice-surface-ingestor-smoke:
 	cd apps/lattice-surface-ingestor && test -d .venv || python3 -m venv .venv
 	cd apps/lattice-surface-ingestor && . .venv/bin/activate && python -m pip install --upgrade pip pytest && PYTHONPATH=src pytest -q tests
-	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli ingest contracts/lattice/boot-release-set.v1.example.json contracts/lattice/runtime-asset.v1.example.json >/tmp/lattice-surface-records.json
+	mkdir -p build/lattice-surface-ingestor
+	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli ingest contracts/lattice/boot-release-set.v1.example.json contracts/lattice/runtime-asset.v1.example.json --output build/lattice-surface-ingestor/lattice-surface-records.json
+	test -s build/lattice-surface-ingestor/lattice-surface-records.json
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py

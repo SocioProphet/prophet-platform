@@ -37,3 +37,19 @@ def test_ingestor_cli_emits_record_set(capsys) -> None:
     emitted = json.loads(capsys.readouterr().out)
     assert emitted["kind"] == "PlatformAssetRecordSet"
     assert len(emitted["records"]) == 2
+
+
+def test_ingestor_cli_writes_deterministic_record_set(tmp_path) -> None:
+    output = tmp_path / "records" / "lattice-surface-records.json"
+    rc = main([
+        "ingest",
+        str(ROOT / "contracts" / "lattice" / "boot-release-set.v1.example.json"),
+        str(ROOT / "contracts" / "lattice" / "runtime-asset.v1.example.json"),
+        "--output",
+        str(output),
+    ])
+    assert rc == 0
+    emitted = json.loads(output.read_text(encoding="utf-8"))
+    assert emitted["apiVersion"] == "prophet.socioprophet.dev/v1"
+    assert emitted["kind"] == "PlatformAssetRecordSet"
+    assert [record["assetKind"] for record in emitted["records"]] == ["boot-release-set", "runtime-asset"]

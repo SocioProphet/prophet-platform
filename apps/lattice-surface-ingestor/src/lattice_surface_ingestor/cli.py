@@ -19,14 +19,27 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def ingest(args: argparse.Namespace) -> int:
-    records = [ingest_surface(load_json(path)).to_dict() for path in args.inputs]
-    payload: dict[str, Any] = {
+def build_record_set(inputs: list[Path]) -> dict[str, Any]:
+    records = [ingest_surface(load_json(path)).to_dict() for path in inputs]
+    return {
         "apiVersion": "prophet.socioprophet.dev/v1",
         "kind": "PlatformAssetRecordSet",
         "records": records,
     }
-    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def emit_payload(payload: dict[str, Any], output: Path | None) -> None:
+    rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    if output is None:
+        print(rendered, end="")
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(rendered, encoding="utf-8")
+
+
+def ingest(args: argparse.Namespace) -> int:
+    payload = build_record_set(args.inputs)
+    emit_payload(payload, args.output)
     return 0
 
 
@@ -35,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     ingest_parser = subparsers.add_parser("ingest", help="Normalize handoff objects into PlatformAssetRecordSet")
     ingest_parser.add_argument("inputs", type=Path, nargs="+")
+    ingest_parser.add_argument("--output", type=Path, help="Optional path for deterministic JSON output")
     ingest_parser.set_defaults(func=ingest)
     return parser
 
