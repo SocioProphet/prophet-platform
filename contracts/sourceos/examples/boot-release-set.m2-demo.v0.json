@@ -1,0 +1,78 @@
+{
+  "schema_version": "sourceos.boot-release-set/v0",
+  "kind": "SourceOSBootReleaseSet",
+  "id": "sbrs-m2-demo-recovery-0001",
+  "description": "M2 demo SourceOS recovery/install/live boot release set.",
+  "created_at": "2026-04-26T15:00:00Z",
+  "channel": "dev",
+  "parent_release_set_ref": "srset-m2-demo-0001",
+  "boot_modes": ["live", "installer", "recovery", "rollback"],
+  "platform_entrypoints": [
+    {
+      "platform": "apple_silicon",
+      "entry_kind": "asahi_installer_entry",
+      "entry_ref": "installer-tree:sourceos/m2/recovery/0001",
+      "notes": "Expected to be packaged as a boot-picker-visible installer/recovery entry via the Apple Silicon/Asahi-compatible path."
+    },
+    {
+      "platform": "uefi",
+      "entry_kind": "ipxe",
+      "entry_ref": "ipxe:sourceos/recovery/0001",
+      "notes": "Generic parity path for later PC/Purism support."
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "sourceos-recovery-kernel",
+      "artifact_kind": "kernel",
+      "uri": "artifact:sourceos/m2/recovery/kernel/0001",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "size_bytes": 0
+    },
+    {
+      "name": "sourceos-recovery-initrd",
+      "artifact_kind": "initrd",
+      "uri": "artifact:sourceos/m2/recovery/initrd/0001",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "size_bytes": 0
+    },
+    {
+      "name": "sourceos-recovery-manifest",
+      "artifact_kind": "manifest",
+      "uri": "artifact:sourceos/m2/recovery/manifest/0001",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "size_bytes": 0
+    }
+  ],
+  "authorization": {
+    "mode": "single_use_code",
+    "token_binding": "device_claim",
+    "ttl_seconds": 900,
+    "requires_online_redemption": true
+  },
+  "capabilities": {
+    "disk_write": "scoped",
+    "network": "restricted",
+    "kexec": "allowed",
+    "rollback": "allowed",
+    "enrollment": "allowed"
+  },
+  "proof_requirements": {
+    "emit_fingerprint": true,
+    "emit_manifest_hashes": true,
+    "emit_boot_log_ref": true,
+    "required_report_endpoint": "tritrpc:sourceos.boot.proof.report"
+  },
+  "offline_fallback": {
+    "allowed": true,
+    "last_known_good_ref": "sbrs-m2-demo-recovery-0000",
+    "max_age_seconds": 604800
+  },
+  "signatures": [
+    {
+      "key_id": "sourceos-demo-signing-key-v0",
+      "algorithm": "ed25519",
+      "signature_ref": "sig:sourceos-m2-demo-recovery-0001"
+    }
+  ]
+}
