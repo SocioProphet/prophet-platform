@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
+from app.metrics import increment
 from app.models import LearningSearchRecord
 
 
@@ -31,6 +32,18 @@ class AcademyPolicyEvaluator:
 
     def mode(self) -> str:
         return self.__class__.__name__
+
+
+def record_decision_metrics(decision: AcademyPolicyDecision, *, source: str) -> AcademyPolicyDecision:
+    increment("policy_decision_allow_total" if decision.allowed else "policy_decision_deny_total")
+    if source == "remote":
+        increment("policy_decision_remote_total")
+    elif source == "fallback":
+        increment("policy_decision_fallback_total")
+        increment("policy_decision_local_total")
+    else:
+        increment("policy_decision_local_total")
+    return decision
 
 
 def build_academy_visibility_request(record: LearningSearchRecord, context: AcademyPolicyContext) -> dict[str, object]:
@@ -121,7 +134,7 @@ class LocalVisibilityPolicyEvaluator(AcademyPolicyEvaluator):
             context=context,
             record=record,
         )
-        return policy_decision_from_payload(decision, request)
+        return record_decision_metrics(policy_decision_from_payload(decision, request), source="local")
 
     def mode(self) -> str:
         return "local-fallback"
@@ -147,9 +160,11 @@ class HttpPolicyFabricEvaluator(AcademyPolicyEvaluator):
                 payload = json.loads(response.read().decode("utf-8"))
             if not isinstance(payload, dict):
                 raise ValueError("Policy Fabric response must be a JSON object")
-            return policy_decision_from_payload(payload, request_payload)
+            return record_decision_metrics(policy_decision_from_payload(payload, request_payload), source="remote")
         except (OSError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, json.JSONDecodeError):
-            return self.fallback.decide(record, context)
+            decision = self.fallback.decide(record, context)
+            increment("policy_decision_fallback_total")
+            return decision
 
     def mode(self) -> str:
         return "http-policy-fabric"
