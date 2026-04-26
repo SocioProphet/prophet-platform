@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.backends import ingest_academy_record, query_academy_records, query_platform_workspace
-from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore
+from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultActions, SearchResultScore
 from app.policy import describe_academy_policy_evaluator
 from app.repositories import describe_academy_repository
 
@@ -28,6 +28,15 @@ def ingest_academy(body: LearningSearchRecord) -> LearningSearchRecord:
     return ingest_academy_record(body)
 
 
+def _actions_for(item) -> SearchResultActions:
+    return SearchResultActions(
+        open_cloud=item.open_cloud,
+        summarize=item.summarize,
+        create_task=item.create_task,
+        draft_reply=item.draft_reply,
+    )
+
+
 @app.post("/v0/search/query")
 def search_query(body: SearchRequest) -> dict[str, object]:
     results: list[dict[str, object]] = []
@@ -43,6 +52,7 @@ def search_query(body: SearchRequest) -> dict[str, object]:
             snippet=item.snippet,
             path_or_uri=item.path_or_uri,
             score=SearchResultScore(final=item.final_score),
+            actions=_actions_for(item),
         )
         results.append(result.model_dump())
 
@@ -55,6 +65,7 @@ def search_query(body: SearchRequest) -> dict[str, object]:
             snippet=item.snippet,
             path_or_uri=item.path_or_uri,
             score=SearchResultScore(final=item.final_score),
+            actions=_actions_for(item),
         )
         results.append(result.model_dump())
 
