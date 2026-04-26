@@ -50,7 +50,7 @@ Recommended production policy:
 
 ### Network policy
 
-The base network policy restricts:
+The base Kubernetes `NetworkPolicy` restricts:
 
 - ingress to port `8080` from the `prophet-platform` namespace;
 - egress to Kubernetes DNS;
@@ -92,7 +92,7 @@ The following files must remain validated by `tools/validate_search_orchestrator
 - base deployment;
 - service account and RBAC;
 - PVC;
-- network policy;
+- NetworkPolicy;
 - policy Secret and ExternalSecret examples;
 - carrier and policy overlays;
 - rollout checklist;
