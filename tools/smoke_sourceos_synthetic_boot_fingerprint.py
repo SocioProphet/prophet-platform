@@ -23,6 +23,7 @@ def main() -> int:
         proof_dir = tmp_path / "proof"
         generated_boot_release = tmp_path / "boot-release-set.from-nlboot.json"
         fingerprint = tmp_path / "synthetic-boot-fingerprint.json"
+        compliance = tmp_path / "boot-fingerprint-compliance.json"
         boot_plan = ROOT / "contracts" / "sourceos" / "examples" / "nlboot-plan.m2-demo.recovery.json"
 
         subprocess.run([
@@ -59,21 +60,31 @@ def main() -> int:
             str(fingerprint),
         ], check=True)
 
+        subprocess.run([
+            sys.executable,
+            str(ROOT / "tools" / "check_sourceos_boot_fingerprint_compliance.py"),
+            "--release-set",
+            str(proof_dir / "release-set.json"),
+            "--boot-release-set",
+            str(generated_boot_release),
+            "--fingerprint",
+            str(fingerprint),
+            "--output",
+            str(compliance),
+        ], check=True)
+
         document = load(fingerprint)
         if document.get("kind") != "SourceOSFingerprint":
             raise SystemExit("ERR: synthetic boot output is not a SourceOSFingerprint")
-        if document.get("subject", {}).get("subject_kind") != "boot_environment":
-            raise SystemExit("ERR: synthetic boot fingerprint subject is not boot_environment")
-        if document.get("runtime", {}).get("isolation") != "boot_env":
-            raise SystemExit("ERR: synthetic boot fingerprint runtime isolation is not boot_env")
-        if document.get("system", {}).get("boot_mode") != "recovery":
-            raise SystemExit("ERR: synthetic boot fingerprint boot_mode is not recovery")
-        if document.get("policy", {}).get("release_set_ref") != "srset-m2-demo-0001":
-            raise SystemExit("ERR: synthetic boot fingerprint release_set_ref mismatch")
-        if document.get("policy", {}).get("boot_release_set_ref") != "sbrs-nlboot-m2-demo-recovery-0001":
-            raise SystemExit("ERR: synthetic boot fingerprint boot_release_set_ref mismatch")
-        if document.get("compliance", {}).get("status") != "compliant":
-            raise SystemExit("ERR: synthetic boot fingerprint did not report compliant")
+        result = load(compliance)
+        if result.get("kind") != "SourceOSBootFingerprintComplianceResult":
+            raise SystemExit("ERR: compliance output kind mismatch")
+        if result.get("status") != "pass":
+            raise SystemExit("ERR: boot fingerprint compliance did not pass")
+        checks = {item.get("name"): item.get("status") for item in result.get("checks", [])}
+        for required in ["release-set-ref", "boot-release-set-ref", "policy-bundle-ref", "runtime-isolation", "boot-mode"]:
+            if checks.get(required) != "pass":
+                raise SystemExit(f"ERR: compliance check did not pass: {required}")
 
     print("SourceOS synthetic boot fingerprint smoke passed.")
     return 0
