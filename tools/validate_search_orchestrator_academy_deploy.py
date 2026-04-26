@@ -5,6 +5,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED = [
+    "services/search-orchestrator/Dockerfile",
+    ".github/workflows/search-orchestrator-image.yml",
+    "releases/images/search-orchestrator.image-lock.example.json",
+    "tools/render_search_orchestrator_image_patch.py",
+    "tools/validate_search_orchestrator_image_release.py",
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
     "infra/k8s/search-orchestrator/base/deployment.yaml",
     "infra/k8s/search-orchestrator/base/service.yaml",
@@ -33,6 +38,32 @@ REQUIRED = [
 ]
 
 REQUIRED_TEXT = {
+    "services/search-orchestrator/Dockerfile": [
+        "FROM python:3.12-slim",
+        "USER 10001:10001",
+        "uvicorn",
+    ],
+    ".github/workflows/search-orchestrator-image.yml": [
+        "docker/build-push-action",
+        "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+        "steps.build.outputs.digest",
+        "search-orchestrator-image-evidence",
+    ],
+    "releases/images/search-orchestrator.image-lock.example.json": [
+        "search-orchestrator-image-lock-example",
+        "pinned_ref",
+        "sha256:REPLACE_WITH_IMAGE_DIGEST",
+    ],
+    "tools/render_search_orchestrator_image_patch.py": [
+        "Render a digest-pinned Search Orchestrator deployment patch",
+        "pinned_ref",
+        "Deployment",
+    ],
+    "tools/validate_search_orchestrator_image_release.py": [
+        "search-orchestrator image release artifacts validated",
+        "pinned_ref",
+        "digest form",
+    ],
     "infra/k8s/search-orchestrator/base/kustomization.yaml": [
         "serviceaccount-rbac.yaml",
         "pvc.yaml",
@@ -113,12 +144,16 @@ REQUIRED_TEXT = {
     "releases/evidence/search-orchestrator.academy-bridge.validation.record.json": [
         "test_debug_metrics.py",
         "networkpolicy.yaml",
+        "search-orchestrator-image.yml",
+        "search-orchestrator.image-lock.example.json",
         "SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_PRODUCTION_HARDENING.md",
         "SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_OBSERVABILITY.md",
     ],
     "releases/manifests/search-orchestrator.academy-bridge.manifest.json": [
         "networkpolicy.yaml",
         "test_debug_metrics.py",
+        "search-orchestrator-image.yml",
+        "search-orchestrator.image-lock.example.json",
         "SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_PRODUCTION_HARDENING.md",
         "SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_OBSERVABILITY.md",
     ],
