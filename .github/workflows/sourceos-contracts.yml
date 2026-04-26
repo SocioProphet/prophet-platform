@@ -12,6 +12,8 @@ on:
       - "tools/smoke_sourceos_m2_filesystem_registry.py"
       - "tools/convert_nlboot_manifest_to_sourceos_bootreleaseset.py"
       - "tools/smoke_nlboot_to_sourceos_bootreleaseset.py"
+      - "tools/emit_sourceos_synthetic_boot_fingerprint.py"
+      - "tools/smoke_sourceos_synthetic_boot_fingerprint.py"
       - ".github/workflows/sourceos-contracts.yml"
   push:
     branches:
@@ -26,6 +28,8 @@ on:
       - "tools/smoke_sourceos_m2_filesystem_registry.py"
       - "tools/convert_nlboot_manifest_to_sourceos_bootreleaseset.py"
       - "tools/smoke_nlboot_to_sourceos_bootreleaseset.py"
+      - "tools/emit_sourceos_synthetic_boot_fingerprint.py"
+      - "tools/smoke_sourceos_synthetic_boot_fingerprint.py"
       - ".github/workflows/sourceos-contracts.yml"
 
 jobs:
@@ -46,3 +50,5 @@ jobs:
         run: python tools/smoke_sourceos_m2_filesystem_registry.py
       - name: Smoke nlboot BootReleaseSet adapter
         run: python tools/smoke_nlboot_to_sourceos_bootreleaseset.py
+      - name: Smoke SourceOS synthetic boot fingerprint
+        run: python tools/smoke_sourceos_synthetic_boot_fingerprint.py
