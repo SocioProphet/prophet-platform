@@ -25,8 +25,10 @@ lattice-surface-ingestor-smoke:
 	cd apps/lattice-surface-ingestor && . .venv/bin/activate && python -m pip install --upgrade pip pytest && PYTHONPATH=src pytest -q tests
 	mkdir -p build/lattice-surface-ingestor
 	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli ingest contracts/lattice/boot-release-set.v1.example.json contracts/lattice/runtime-asset.v1.example.json --output build/lattice-surface-ingestor/lattice-surface-records.json
+	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli enrich build/lattice-surface-ingestor/lattice-surface-records.json --output build/lattice-surface-ingestor/lattice-surface-enrichments.json
 	PYTHONPATH=apps/lattice-surface-ingestor/src python3 -m lattice_surface_ingestor.cli store build/lattice-surface-ingestor/lattice-surface-records.json build/lattice-surface-ingestor/store
 	test -s build/lattice-surface-ingestor/lattice-surface-records.json
+	test -s build/lattice-surface-ingestor/lattice-surface-enrichments.json
 	test -s build/lattice-surface-ingestor/store/manifest.json
 
 validate-ops-fabric:
