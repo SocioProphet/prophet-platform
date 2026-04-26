@@ -1,0 +1,187 @@
+{
+  "ledger_version": "v1",
+  "program": "gaia-ofif-meshlab-control-tower",
+  "updated_at": "2026-04-26T23:45:00Z",
+  "status": "active-build-planning",
+  "overall_completion_estimate": 0.12,
+  "workstreams": [
+    {
+      "id": "ws-gaia-world-model",
+      "name": "GAIA geospatial/world model",
+      "repo": "SocioProphet/gaia-world-model",
+      "status": "in-progress",
+      "completion_estimate": 0.24,
+      "completed": [
+        "OFIF integration contract",
+        "OFIF mapping schemas",
+        "soil intelligence use case",
+        "Lampstand integration contract",
+        "Sherlock integration contract",
+        "Lattice Forge integration contract",
+        "CyberConnector successor strategy",
+        "Princeton PlanetLab successor strategy",
+        "navigation infrastructure strategy",
+        "navigation schemas and fixtures",
+        "open industrial IoT / supply-chain control tower strategy"
+      ],
+      "next": [
+        "state-of-the-art integration map",
+        "model/simulation/data product schemas",
+        "control tower schemas",
+        "mesh schemas"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-ofif",
+      "name": "OFIF field intelligence",
+      "repo": "SocioProphet/orion-field-intelligence",
+      "status": "in-progress",
+      "completion_estimate": 0.16,
+      "completed": [
+        "GAIA integration contract",
+        "GAIA ontology binding stubs",
+        "canonical observation fixture"
+      ],
+      "next": [
+        "Home IoT event binding",
+        "SensorThings/SOSA binding",
+        "asset health event fixture",
+        "navigation anomaly event fixture"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-lampstand",
+      "name": "Lampstand local sampling/percolation",
+      "repo": "SocioProphet/lampstand",
+      "status": "planned-from-gaia-contracts",
+      "completion_estimate": 0.08,
+      "completed": [
+        "GAIA-side local state integration contract",
+        "GAIA-side LocalStateRecord schema",
+        "GAIA-side PercolationEnvelope schema"
+      ],
+      "next": [
+        "mirror schemas into Lampstand",
+        "add local-state Sherlock fixture",
+        "add local LiDAR sample percolation fixture"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-sherlock",
+      "name": "Sherlock discovery",
+      "repo": "SocioProphet/sherlock-search",
+      "status": "in-progress",
+      "completion_estimate": 0.18,
+      "completed": [
+        "native geospatial/evidence result schema",
+        "GAIA soil decision-card result example",
+        "dependency-free validator",
+        "CI workflow for geospatial result examples",
+        "tracking issue for GAIA/OFIF/Lattice/Lampstand source/entity support"
+      ],
+      "next": [
+        "navigation decision-card result example",
+        "runtime asset result example",
+        "static example record endpoint",
+        "spatial/temporal/evidence scoring contract"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-lattice-forge",
+      "name": "Lattice Forge runtime provenance",
+      "repo": "SocioProphet/lattice-forge",
+      "status": "issue-opened-fixture-in-gaia",
+      "completion_estimate": 0.10,
+      "completed": [
+        "GAIA-side runtime asset fixture",
+        "tracking issue for GAIA/OFIF soil-intelligence runtime path"
+      ],
+      "next": [
+        "mirror GAIA soil runtime asset into Lattice Forge",
+        "add navigation LiDAR runtime asset",
+        "add control tower anomaly runtime asset"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-meshrush",
+      "name": "MeshRush graph-native agent operation",
+      "repo": "SocioProphet/meshrush",
+      "status": "mapped-not-yet-integrated",
+      "completion_estimate": 0.05,
+      "completed": [
+        "charter and ecosystem boundary inspected",
+        "role mapped into master plan"
+      ],
+      "next": [
+        "add GAIA/OFIF/Home IoT graph ops integration doc",
+        "soil graph diffusion example",
+        "navigation corridor graph crystallization example"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-sourceos-edge-homeiot",
+      "name": "SourceOS / nlboot / KubeEdge / Home IoT",
+      "repo": "multiple",
+      "status": "conceptual-mapped",
+      "completion_estimate": 0.04,
+      "completed": [
+        "role mapped into master plan"
+      ],
+      "next": [
+        "MESHRUSH_KUBEEDGE_HOME_IOT_INTEGRATION doc",
+        "HomeFabricRecord schema",
+        "DeviceTwinRecord schema",
+        "AutomationPolicyRecord schema"
+      ],
+      "blockers": [
+        "exact home IoT repo location not yet identified"
+      ]
+    },
+    {
+      "id": "ws-control-tower",
+      "name": "Open industrial IoT and supply-chain control tower",
+      "repo": "SocioProphet/gaia-world-model",
+      "status": "strategy-added",
+      "completion_estimate": 0.06,
+      "completed": [
+        "open industrial IoT / supply-chain control tower strategy"
+      ],
+      "next": [
+        "AssetTwinRecord schema",
+        "AssetHealthObservation schema",
+        "InventoryEvent schema",
+        "ControlTowerDecisionCard schema"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-sociosphere-governance",
+      "name": "SocioSphere governance",
+      "repo": "SocioProphet/sociosphere",
+      "status": "pending",
+      "completion_estimate": 0.03,
+      "completed": [],
+      "next": [
+        "register master plan capability map",
+        "add validation gate plan for cross-repo schemas",
+        "add KubeEdge optional edge substrate governance doc"
+      ],
+      "blockers": []
+    }
+  ],
+  "reporting_contract": {
+    "each_turn_must_report": [
+      "files changed",
+      "commits or issues created",
+      "workstream progress",
+      "blockers or uncertainty",
+      "next two concrete actions"
+    ]
+  }
+}
