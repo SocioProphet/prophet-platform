@@ -63,8 +63,14 @@ def main() -> int:
         version = data.get("version")
         cat_item = catalog_map.get((bundle_id, version), {})
 
-        data["channel"] = args.target_channel or cat_item.get("channel") or data.get("channel")
-        data["support_state"] = args.target_support_state or cat_item.get("support_state") or data.get("support_state")
+        previous_channel = data.get("channel")
+        previous_support_state = data.get("support_state")
+
+        target_channel = args.target_channel or cat_item.get("channel") or previous_channel
+        target_support_state = args.target_support_state or cat_item.get("support_state") or previous_support_state
+
+        data["channel"] = target_channel
+        data["support_state"] = target_support_state
 
         out_path = out_manifests_dir / src.name
         out_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
@@ -75,8 +81,10 @@ def main() -> int:
                 "version": version,
                 "ref": str(out_path),
                 "signed": data.get("signed"),
-                "channel": data.get("channel"),
-                "support_state": data.get("support_state"),
+                "previous_channel": previous_channel,
+                "previous_support_state": previous_support_state,
+                "channel": target_channel,
+                "support_state": target_support_state,
                 "lifecycle_status": cat_item.get("lifecycle_status"),
             }
         )
