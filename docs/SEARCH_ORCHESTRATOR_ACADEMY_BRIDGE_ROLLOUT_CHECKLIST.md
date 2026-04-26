@@ -28,7 +28,7 @@ It does not authorize learner action execution, Canon promotion, policy grant cr
 4. `infra/k8s/search-orchestrator/overlays/policy` is available for carrier plus live Policy Fabric deployments.
 5. `infra/argocd/appsets/search-orchestrator-academy-appset.yaml` is committed and visible to ArgoCD.
 6. Lampstand storage roots are writable by the Search Orchestrator workload when carrier mode is enabled.
-7. Policy Fabric endpoint is reachable only when the policy overlay is selected.
+7. Policy Fabric endpoint is reachable only when the policy overlay is selected, and is configured through `SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT`.
 8. `GET /v1/search/debug/config` must not expose paths, URLs, or secrets.
 
 ## Recommended rollout order
@@ -52,7 +52,7 @@ It does not authorize learner action execution, Canon promotion, policy grant cr
 11. Verify `/v1/search/debug/config` reports:
    - `academy_repository.mode == lampstand-carrier`;
    - `academy_policy.mode == http-policy-fabric`;
-   - Policy Fabric endpoint configured as a boolean, not as a URL string.
+   - `SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT` configured as a boolean, not as a URL string.
 12. Run allowed and denied visibility fixtures to verify Policy Fabric behavior.
 
 ## Health gates
@@ -81,7 +81,7 @@ Preferred rollback sequence:
 | Failure | Likely cause | Remediation |
 | --- | --- | --- |
 | Debug config leaks URL/path/secret | Regression in debug config serializer | Block rollout, patch redaction test, do not deploy. |
-| `academy_policy.mode` remains `local-fallback` under policy overlay | Policy Fabric endpoint variable missing | Check ConfigMap/Secret overlay and ArgoCD rendered manifest. |
+| `academy_policy.mode` remains `local-fallback` under policy overlay | `SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT` missing | Check ConfigMap/Secret overlay and ArgoCD rendered manifest. |
 | Policy queries deny all records | Policy Fabric endpoint reachable but returning deny | Inspect Policy Fabric decision record; fall back to carrier-only overlay if necessary. |
 | Carrier artifacts not emitted | Lampstand carrier directory or state root misconfigured | Check `SEARCH_ORCHESTRATOR_ACADEMY_LAMPSTAND_CARRIER_DIR` and `SOCIOPROFIT_STATE_HOME`. |
 | Query returns record without expected scope | Visibility filter or policy evaluator regression | Block rollout; run visibility tests and inspect emitted policy decision shape. |
