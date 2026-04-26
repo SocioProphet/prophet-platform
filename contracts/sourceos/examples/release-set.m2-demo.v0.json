@@ -1,0 +1,53 @@
+{
+  "schema_version": "sourceos.release-set/v0",
+  "kind": "SourceOSReleaseSet",
+  "id": "srset-m2-demo-0001",
+  "description": "M2 demo release set for SourceOS system/user/agent lifecycle proof.",
+  "created_at": "2026-04-26T15:00:00Z",
+  "channel": "dev",
+  "support_state": "experimental",
+  "system": {
+    "base_kind": "ostree",
+    "base_ref": "ostree:sourceos/m2/silverblue-gnome/dev/0001",
+    "architecture": "aarch64",
+    "platform_targets": ["apple_silicon_m2"],
+    "host_integration_surface": "hisc-sourceos-m2-v0",
+    "rollback_refs": ["ostree:sourceos/m2/silverblue-gnome/dev/0000"]
+  },
+  "user": {
+    "experience_profile": "xp-macos-like-gnome-v0",
+    "ux_archetype": "macos_like",
+    "desktop": "gnome",
+    "closure_refs": ["nix:closure:user/macos-like-gnome/0001"],
+    "degraded_parity_notes": []
+  },
+  "agent": {
+    "default_isolation": "container",
+    "environment_refs": ["nix:closure:agent/base-tools/0001"],
+    "capability_policy_ref": "policy:sourceos-agent-standard-v0",
+    "risk_policy_ref": "policy:sourceos-risk-isolation-v0"
+  },
+  "policy": {
+    "policy_bundle_ref": "policy:sourceos-m2-demo-v0",
+    "crypto_profile": "standard",
+    "required_signatures": 1
+  },
+  "assignment": {
+    "scope_kind": "device",
+    "scope_id": "device:m2-demo"
+  },
+  "provenance": {
+    "config_sources": ["scfg-m2-demo-local"],
+    "bom_ref": "bom:sourceos-m2-demo-0001",
+    "build_ref": "build:sourceos-m2-demo-0001",
+    "sbom_refs": ["sbom:sourceos-m2-demo-0001"],
+    "evidence_refs": ["evidence:sourceos-m2-demo-build-0001"]
+  },
+  "signatures": [
+    {
+      "key_id": "sourceos-demo-signing-key-v0",
+      "algorithm": "ed25519",
+      "signature_ref": "sig:sourceos-m2-demo-0001"
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/sourceos/boot-release-set.v0.schema.json",
+  "title": "SourceOS BootReleaseSet v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "id",
+    "created_at",
+    "channel",
+    "boot_modes",
+    "platform_entrypoints",
+    "artifacts",
+    "authorization",
+    "proof_requirements",
+    "signatures"
+  ],
+  "properties": {
+    "schema_version": { "const": "sourceos.boot-release-set/v0" },
+    "kind": { "const": "SourceOSBootReleaseSet" },
+    "id": { "type": "string", "pattern": "^sbrs-[a-z0-9][a-z0-9._-]{5,127}$" },
+    "description": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "channel": { "type": "string", "enum": ["dev", "candidate", "stable", "extended", "deprecated"] },
+    "parent_release_set_ref": { "type": "string" },
+    "boot_modes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["live", "installer", "rescue", "rollback", "recovery"] }
+    },
+    "platform_entrypoints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["platform", "entry_kind", "entry_ref"],
+        "properties": {
+          "platform": { "type": "string", "enum": ["apple_silicon", "uefi", "bios", "vm", "generic"] },
+          "entry_kind": { "type": "string", "enum": ["asahi_installer_entry", "apple_boot_picker_os", "ipxe", "uefi_httpboot", "iso", "disk_image", "vm_image"] },
+          "entry_ref": { "type": "string", "minLength": 1 },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "artifact_kind", "uri", "digest"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "artifact_kind": { "type": "string", "enum": ["kernel", "initrd", "rootfs", "installer_tree", "boot_script", "manifest", "recovery_userland", "other"] },
+          "uri": { "type": "string", "minLength": 1 },
+          "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "size_bytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "token_binding", "ttl_seconds"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["none", "single_use_code", "device_claim", "mtls", "signed_offline_blob"] },
+        "token_binding": { "type": "string", "enum": ["none", "device_claim", "device_identity", "user_session", "org_policy"] },
+        "ttl_seconds": { "type": "integer", "minimum": 0 },
+        "requires_online_redemption": { "type": "boolean" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "disk_write": { "type": "string", "enum": ["denied", "scoped", "full"] },
+        "network": { "type": "string", "enum": ["none", "restricted", "full"] },
+        "kexec": { "type": "string", "enum": ["denied", "allowed"] },
+        "rollback": { "type": "string", "enum": ["denied", "allowed"] },
+        "enrollment": { "type": "string", "enum": ["denied", "allowed"] }
+      }
+    },
+    "proof_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emit_fingerprint", "emit_manifest_hashes", "emit_boot_log_ref"],
+      "properties": {
+        "emit_fingerprint": { "type": "boolean" },
+        "emit_manifest_hashes": { "type": "boolean" },
+        "emit_boot_log_ref": { "type": "boolean" },
+        "required_report_endpoint": { "type": "string" }
+      }
+    },
+    "offline_fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "last_known_good_ref": { "type": "string" },
+        "max_age_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key_id", "algorithm", "signature_ref"],
+        "properties": {
+          "key_id": { "type": "string", "minLength": 1 },
+          "algorithm": { "type": "string", "enum": ["ed25519", "sigstore", "gpg", "x509"] },
+          "signature_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/sourceos/release-set.v0.schema.json",
+  "title": "SourceOS ReleaseSet v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "id",
+    "created_at",
+    "channel",
+    "support_state",
+    "system",
+    "user",
+    "agent",
+    "policy",
+    "provenance",
+    "signatures"
+  ],
+  "properties": {
+    "schema_version": { "const": "sourceos.release-set/v0" },
+    "kind": { "const": "SourceOSReleaseSet" },
+    "id": { "type": "string", "pattern": "^srset-[a-z0-9][a-z0-9._-]{5,127}$" },
+    "description": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "channel": { "type": "string", "enum": ["dev", "candidate", "stable", "extended", "deprecated"] },
+    "support_state": { "type": "string", "enum": ["experimental", "community", "supported", "extended", "deprecated"] },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_kind", "base_ref", "architecture", "rollback_refs"],
+      "properties": {
+        "base_kind": { "type": "string", "enum": ["ostree", "rpm-ostree", "bootc", "nixos-generation", "external"] },
+        "base_ref": { "type": "string", "minLength": 1 },
+        "architecture": { "type": "string", "enum": ["aarch64", "x86_64", "multi"] },
+        "platform_targets": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "host_integration_surface": { "type": "string" },
+        "rollback_refs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["experience_profile", "closure_refs"],
+      "properties": {
+        "experience_profile": { "type": "string", "minLength": 1 },
+        "ux_archetype": { "type": "string", "enum": ["macos_like", "windows_like", "linux_native", "minimal", "custom"] },
+        "desktop": { "type": "string", "enum": ["gnome", "kde", "sway", "hyprland", "none", "custom"] },
+        "closure_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "degraded_parity_notes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_isolation", "environment_refs", "capability_policy_ref"],
+      "properties": {
+        "default_isolation": { "type": "string", "enum": ["container", "vm", "layered", "microvm_mesh", "none"] },
+        "environment_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "capability_policy_ref": { "type": "string", "minLength": 1 },
+        "risk_policy_ref": { "type": "string" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_bundle_ref", "crypto_profile"],
+      "properties": {
+        "policy_bundle_ref": { "type": "string", "minLength": 1 },
+        "crypto_profile": { "type": "string", "enum": ["standard", "fips140_3_mode"] },
+        "required_signatures": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scope_kind": { "type": "string", "enum": ["device", "user", "group", "project", "organization", "fleet"] },
+        "scope_id": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_sources", "bom_ref", "build_ref"],
+      "properties": {
+        "config_sources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "bom_ref": { "type": "string", "minLength": 1 },
+        "build_ref": { "type": "string", "minLength": 1 },
+        "sbom_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key_id", "algorithm", "signature_ref"],
+        "properties": {
+          "key_id": { "type": "string", "minLength": 1 },
+          "algorithm": { "type": "string", "enum": ["ed25519", "sigstore", "gpg", "x509"] },
+          "signature_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

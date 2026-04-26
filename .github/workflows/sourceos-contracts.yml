@@ -1,0 +1,30 @@
+name: SourceOS contracts
+
+on:
+  pull_request:
+    paths:
+      - "contracts/sourceos/**"
+      - "docs/SOURCEOS_*.md"
+      - "tools/validate_sourceos_contracts.py"
+      - ".github/workflows/sourceos-contracts.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/sourceos/**"
+      - "docs/SOURCEOS_*.md"
+      - "tools/validate_sourceos_contracts.py"
+      - ".github/workflows/sourceos-contracts.yml"
+
+jobs:
+  validate-sourceos-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validation dependency
+        run: python -m pip install jsonschema
+      - name: Validate SourceOS contracts
+        run: python tools/validate_sourceos_contracts.py

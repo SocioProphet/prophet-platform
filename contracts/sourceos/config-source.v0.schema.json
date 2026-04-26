@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/sourceos/config-source.v0.schema.json",
+  "title": "SourceOS ConfigSource v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "id",
+    "source_type",
+    "location",
+    "nix",
+    "refs",
+    "update_policy",
+    "token_policy"
+  ],
+  "properties": {
+    "schema_version": { "const": "sourceos.config-source/v0" },
+    "kind": { "const": "SourceOSConfigSource" },
+    "id": { "type": "string", "pattern": "^scfg-[a-z0-9][a-z0-9._-]{5,127}$" },
+    "source_type": { "type": "string", "enum": ["git", "local_path", "archive", "catalog"] },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_ref"],
+      "properties": {
+        "canonical_ref": { "type": "string", "minLength": 1 },
+        "local_path": { "type": "string" },
+        "remote_url": { "type": "string" },
+        "mirror_url": { "type": "string" }
+      }
+    },
+    "nix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_kind", "entry_ref"],
+      "properties": {
+        "entry_kind": { "type": "string", "enum": ["flake", "pinned_nixpkgs", "none"] },
+        "entry_ref": { "type": "string", "minLength": 1 },
+        "lock_ref": { "type": "string" },
+        "outputs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed_refs", "stable_ref"],
+      "properties": {
+        "allowed_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "stable_ref": { "type": "string" },
+        "branch_channel_map": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "enum": ["dev", "candidate", "stable", "extended", "deprecated"] }
+        }
+      }
+    },
+    "update_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "requires_signature_verification", "build_trigger"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["manual", "pull", "pr", "push"] },
+        "requires_signature_verification": { "type": "boolean" },
+        "required_status_checks": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "build_trigger": { "type": "string", "enum": ["manual", "on_ref_change", "on_tag", "scheduled"] }
+      }
+    },
+    "token_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token_ref", "token_kind", "storage_rule"],
+      "properties": {
+        "token_ref": { "type": "string", "minLength": 1 },
+        "token_kind": { "type": "string", "enum": ["none", "read", "issue", "write_ref", "ephemeral_session"] },
+        "storage_rule": { "type": "string", "enum": ["secret_door", "device_keychain", "org_secret_store", "not_applicable"] },
+        "redaction_required": { "type": "boolean" },
+        "allowed_ref_writes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "cache_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local_cache": { "type": "boolean" },
+        "remote_cache": { "type": "boolean" },
+        "trusted_cache_keys": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    }
+  }
+}
