@@ -1,0 +1,55 @@
+{
+  "schema_version": "sourceos.proof-index/v0",
+  "kind": "SourceOSProofIndex",
+  "id": "spi-m2-demo-000001",
+  "created_at": "2026-04-26T18:40:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device-m2-demo"
+  },
+  "release_set_ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+  "boot_release_set_ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json",
+  "config_source_refs": [
+    "contracts/sourceos/examples/config-source.m2-demo.v0.json"
+  ],
+  "entries": [
+    {
+      "kind": "release_set",
+      "ref": "contracts/sourceos/examples/release-set.m2-demo.v0.json",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "required": true
+    },
+    {
+      "kind": "boot_release_set",
+      "ref": "contracts/sourceos/examples/boot-release-set.m2-demo.v0.json",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "required": true
+    },
+    {
+      "kind": "config_source",
+      "ref": "contracts/sourceos/examples/config-source.m2-demo.v0.json",
+      "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "required": true
+    },
+    {
+      "kind": "fingerprint",
+      "ref": "contracts/sourceos/examples/fingerprint.m2-demo.v0.json",
+      "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "required": true
+    },
+    {
+      "kind": "compliance_result",
+      "ref": "contracts/sourceos/examples/compliance-result.m2-demo.v0.json",
+      "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "required": true
+    }
+  ],
+  "root_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signatures": [
+    {
+      "key_id": "sourceos-demo-signing-key-v0",
+      "algorithm": "ed25519",
+      "signature_ref": "sig:sourceos-m2-demo-proof-index-0001"
+    }
+  ]
+}
