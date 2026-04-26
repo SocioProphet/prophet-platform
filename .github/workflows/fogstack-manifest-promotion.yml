@@ -9,12 +9,16 @@ on:
       - "catalog/fogstack-support-states-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "releases/manifests/**"
+      - "schemas/release/fogstack-manifest-promotion-approval-record-v0.1.schema.json"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
       - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/emit_fogstack_manifest_promotion_approval_record.py"
+      - "tools/check_fogstack_manifest_promotion_approval_record.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
       - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
+      - "tools/tests/test_fogstack_manifest_promotion_approval_record.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
   push:
@@ -25,12 +29,16 @@ on:
       - "catalog/fogstack-support-states-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "releases/manifests/**"
+      - "schemas/release/fogstack-manifest-promotion-approval-record-v0.1.schema.json"
       - "tools/build_fogstack_manifest_publication_set.py"
       - "tools/promote_fogstack_manifest_publication_set.py"
       - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/emit_fogstack_manifest_promotion_approval_record.py"
+      - "tools/check_fogstack_manifest_promotion_approval_record.py"
       - "tools/tests/test_build_fogstack_manifest_publication_set.py"
       - "tools/tests/test_promote_fogstack_manifest_publication_set.py"
       - "tools/tests/test_check_fogstack_manifest_promotion_policy.py"
+      - "tools/tests/test_fogstack_manifest_promotion_approval_record.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-manifest-promotion.yml"
 
@@ -55,16 +63,17 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest pyyaml
 
-      - name: Run publication and promotion tests
+      - name: Run publication, promotion, policy, and approval tests
         run: |
           python -m pytest -q \
             tools/tests/test_build_fogstack_manifest_publication_set.py \
             tools/tests/test_promote_fogstack_manifest_publication_set.py \
-            tools/tests/test_check_fogstack_manifest_promotion_policy.py
+            tools/tests/test_check_fogstack_manifest_promotion_policy.py \
+            tools/tests/test_fogstack_manifest_promotion_approval_record.py
 
       - name: Build canonical publication set
         run: |
-          mkdir -p artifacts/manifest-promotion/base artifacts/manifest-promotion/promoted
+          mkdir -p artifacts/manifest-promotion/base artifacts/manifest-promotion/promoted artifacts/manifest-promotion/approval
           python3 tools/build_fogstack_manifest_publication_set.py \
             --output-dir artifacts/manifest-promotion/base \
             --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
@@ -85,6 +94,24 @@ jobs:
           python3 tools/check_fogstack_manifest_promotion_policy.py \
             --publication-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
             --policy-catalog catalog/fogstack-manifest-promotion-policy-v0.1.yaml
+
+      - name: Emit signed promotion approval record
+        run: |
+          python3 tools/emit_fogstack_manifest_promotion_approval_record.py \
+            --promotion-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
+            --required-approvals 2 \
+            --approval 'release-manager:release-manager:approved candidate promotion' \
+            --approval 'security-reviewer:security-reviewer:approved release evidence' \
+            --signature-type other \
+            --signature-ref artifact://ci/fogstack.manifest-promotion.approval.sig \
+            --output artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json
+
+      - name: Enforce signed promotion approval
+        run: |
+          python3 tools/check_fogstack_manifest_promotion_approval_record.py \
+            --approval-record artifacts/manifest-promotion/approval/fogstack.manifest-promotion.approval.record.json \
+            --promotion-set artifacts/manifest-promotion/promoted/manifest-publication-set.json \
+            --require-signed
 
       - name: Upload promoted manifest set
         uses: actions/upload-artifact@v4
