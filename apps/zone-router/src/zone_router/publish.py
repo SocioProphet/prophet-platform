@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .outbox import publication_outbox_root
+from .retry_state import next_attempt_state, retry_eligible
 from .transport_adapters import deliver_publication_record
 
 
@@ -36,6 +37,7 @@ def load_publication_record(path: str | Path) -> dict[str, Any]:
 
 def _write_outcome(outcome: dict[str, Any], *, service: str) -> dict[str, Any]:
     outcome_path = _outcomes_root(service) / f"{outcome['outcome_id']}.publication-outcome.json"
+    outcome["outcome_ref"] = str(outcome_path)
     outcome_path.write_text(json.dumps(outcome, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     log_path = _outcome_log_path(service)
@@ -43,6 +45,17 @@ def _write_outcome(outcome: dict[str, Any], *, service: str) -> dict[str, Any]:
         fh.write(json.dumps(outcome, sort_keys=True) + "\n")
 
     return {"outcome_path": str(outcome_path), "log_path": str(log_path)}
+
+
+def _attempt_fields(publication_id: str, *, service: str) -> dict[str, Any]:
+    state = next_attempt_state(publication_id, service=service)
+    return {
+        "attempt": state["attempt"],
+        "previous_outcome_id": state["previous_outcome_id"],
+        "previous_outcome_status": state["previous_outcome_status"],
+        "previous_outcome_ref": state["previous_outcome_ref"],
+        "retry_after_failure": state["retry_after_failure"],
+    }
 
 
 def publish_publication_record(
@@ -53,6 +66,7 @@ def publish_publication_record(
 ) -> dict[str, Any]:
     path = Path(record_path).expanduser().resolve()
     record = load_publication_record(path)
+    attempt_fields = _attempt_fields(record["publication_id"], service=service)
     delivery_result = deliver_publication_record(
         record=record,
         publication_record_ref=str(path),
@@ -82,7 +96,9 @@ def publish_publication_record(
             "published_at": None,
             "failed_at": failure["failed_at"],
             "error": delivery_result["error"],
+            **attempt_fields,
         }
+        outcome["retry_eligible"] = retry_eligible(outcome)
         refs = _write_outcome(outcome, service=service)
         return {
             "ok": False,
@@ -114,7 +130,9 @@ def publish_publication_record(
         "catalog_ref": record.get("catalog_ref"),
         "published_at": _utc_now(),
         "error": None,
+        **attempt_fields,
     }
+    outcome["retry_eligible"] = retry_eligible(outcome)
     refs = _write_outcome(outcome, service=service)
 
     return {
