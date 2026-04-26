@@ -1,0 +1,70 @@
+name: search-orchestrator-image-pin
+
+on:
+  workflow_run:
+    workflows:
+      - search-orchestrator-image
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  pin:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: search-orchestrator-image-evidence
+          path: image-evidence
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply image lock
+        run: |
+          python3 tools/apply_search_orchestrator_image_lock.py \
+            --evidence image-evidence/search-orchestrator-image.json \
+            --lock-output releases/images/search-orchestrator.image-lock.json \
+            --patch-output infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml
+
+      - name: Validate image release artifacts
+        run: |
+          python3 tools/validate_search_orchestrator_image_release.py
+
+      - name: Create pinning pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/search-orchestrator-image-pin
+          delete-branch: true
+          title: "release(search): pin search orchestrator image digest"
+          commit-message: "release(search): pin search orchestrator image digest"
+          body: |
+            ## Summary
+
+            Pins the Search Orchestrator image digest from the successful `search-orchestrator-image` workflow run.
+
+            ## Scope
+
+            - Updates `releases/images/search-orchestrator.image-lock.json`
+            - Updates the digest-pinned Kustomize image patch
+            - Keeps the example lock unchanged
+
+            ## Safety posture
+
+            - Digest pin only
+            - No runtime route behavior change
+            - No learner action execution
+            - No Canon promotion
+            - No policy grant creation
+            - No memory writeback
+          add-paths: |
+            releases/images/search-orchestrator.image-lock.json
+            infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml
