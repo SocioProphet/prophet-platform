@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check test-go smoke-health validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check test-go smoke-health validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke
 
-validate: validate-repo drift-check standards-check topology-check test-go
+validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check test-go
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -16,6 +16,9 @@ standards-check:
 
 topology-check:
 	python3 tools/check_transport_topology.py
+
+lattice-surfaces-check:
+	python3 tools/validate_lattice_surfaces.py
 
 test-go:
 	go test ./libs/go/tritrpcbridge/...
