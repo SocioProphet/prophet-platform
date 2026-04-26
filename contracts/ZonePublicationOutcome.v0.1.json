@@ -12,11 +12,8 @@
     "topic",
     "transport_ref",
     "transport_kind",
-    "delivery_ref",
-    "delivery_id",
-    "topic_log_ref",
     "publication_record_ref",
-    "published_at"
+    "error"
   ],
   "properties": {
     "version": { "const": "0.1" },
@@ -27,16 +24,29 @@
     "topic": { "type": "string", "minLength": 1 },
     "transport_ref": { "type": "string", "minLength": 1 },
     "transport_kind": { "type": "string", "minLength": 1 },
-    "delivery_ref": { "type": "string", "minLength": 1 },
-    "delivery_id": { "type": "string", "minLength": 1 },
-    "topic_log_ref": { "type": "string", "minLength": 1 },
+    "delivery_ref": { "type": ["string", "null"] },
+    "delivery_id": { "type": ["string", "null"] },
+    "topic_log_ref": { "type": ["string", "null"] },
+    "failure_ref": { "type": ["string", "null"] },
+    "failure_id": { "type": ["string", "null"] },
     "publication_record_ref": { "type": "string", "minLength": 1 },
     "carrier_ref": { "type": ["string", "null"] },
     "event_ref": { "type": ["string", "null"] },
     "receipt_ref": { "type": ["string", "null"] },
     "catalog_ref": { "type": ["string", "null"] },
-    "published_at": { "type": "string", "minLength": 1 },
+    "published_at": { "type": ["string", "null"] },
+    "failed_at": { "type": ["string", "null"] },
     "error": { "type": ["string", "null"] }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "published" } } },
+      "then": { "required": ["delivery_ref", "delivery_id", "topic_log_ref", "published_at"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": { "required": ["failure_ref", "failure_id", "failed_at"] }
+    }
+  ],
   "additionalProperties": true
 }

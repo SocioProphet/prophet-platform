@@ -34,6 +34,17 @@ def load_publication_record(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def _write_outcome(outcome: dict[str, Any], *, service: str) -> dict[str, Any]:
+    outcome_path = _outcomes_root(service) / f"{outcome['outcome_id']}.publication-outcome.json"
+    outcome_path.write_text(json.dumps(outcome, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    log_path = _outcome_log_path(service)
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(outcome, sort_keys=True) + "\n")
+
+    return {"outcome_path": str(outcome_path), "log_path": str(log_path)}
+
+
 def publish_publication_record(
     *,
     record_path: str | Path,
@@ -48,8 +59,42 @@ def publish_publication_record(
         transport_ref=transport_ref,
         service=service,
     )
-    delivery = delivery_result["delivery"]
     outcome_id = str(uuid.uuid4())
+
+    if not delivery_result.get("ok"):
+        failure = delivery_result["failure"]
+        outcome = {
+            "version": "0.1",
+            "outcome_id": outcome_id,
+            "publication_id": record["publication_id"],
+            "status": "failed",
+            "zone_ref": record["zone_ref"],
+            "topic": record["topic"],
+            "transport_ref": transport_ref,
+            "transport_kind": failure["transport_kind"],
+            "failure_ref": delivery_result["failure_path"],
+            "failure_id": failure["failure_id"],
+            "publication_record_ref": str(path),
+            "carrier_ref": record.get("carrier_ref"),
+            "event_ref": record.get("event_ref"),
+            "receipt_ref": record.get("receipt_ref"),
+            "catalog_ref": record.get("catalog_ref"),
+            "published_at": None,
+            "failed_at": failure["failed_at"],
+            "error": delivery_result["error"],
+        }
+        refs = _write_outcome(outcome, service=service)
+        return {
+            "ok": False,
+            "outcome_path": refs["outcome_path"],
+            "log_path": refs["log_path"],
+            "outcome": outcome,
+            "failure": failure,
+            "failure_path": delivery_result["failure_path"],
+            "error": delivery_result["error"],
+        }
+
+    delivery = delivery_result["delivery"]
     outcome = {
         "version": "0.1",
         "outcome_id": outcome_id,
@@ -70,17 +115,12 @@ def publish_publication_record(
         "published_at": _utc_now(),
         "error": None,
     }
-    outcome_path = _outcomes_root(service) / f"{outcome_id}.publication-outcome.json"
-    outcome_path.write_text(json.dumps(outcome, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-    log_path = _outcome_log_path(service)
-    with log_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(outcome, sort_keys=True) + "\n")
+    refs = _write_outcome(outcome, service=service)
 
     return {
         "ok": True,
-        "outcome_path": str(outcome_path),
-        "log_path": str(log_path),
+        "outcome_path": refs["outcome_path"],
+        "log_path": refs["log_path"],
         "outcome": outcome,
         "delivery": delivery,
         "delivery_path": delivery_result["delivery_path"],
