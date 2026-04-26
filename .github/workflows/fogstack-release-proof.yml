@@ -52,6 +52,11 @@ jobs:
         run: |
           mkdir -p artifacts/release-proof
 
+          CONTRACT_REF="https://github.com/SocioProphet/api-spec/tree/master/fog"
+          DEPLOYMENT_REF="https://github.com/SocioProphet/manifests/tree/master/fog"
+          RUNTIME_REF="https://github.com/SocioProphet/cloudshell-fog"
+          POLICY_REF="https://github.com/SocioProphet/policy-fabric/tree/main/contracts"
+
           python3 tools/emit_fogstack_release_seal.py \
             --bundle-id fogstack.access \
             --version 0.1.0 \
@@ -87,6 +92,10 @@ jobs:
             --evidence-output artifacts/release-proof/fogstack.access.seal.verify.json \
             --seal-crypto-record artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json \
             --evidence-index artifacts/release-proof/fogstack.access.evidence.index.json \
+            --canonical-contract-surface-ref "$CONTRACT_REF" \
+            --canonical-deployment-surface-ref "$DEPLOYMENT_REF" \
+            --canonical-runtime-surface-ref "$RUNTIME_REF" \
+            --canonical-policy-surface-ref "$POLICY_REF" \
             -- python3 tools/run_openssl_fogstack_release_seal_verifier.py \
               --seal artifacts/release-proof/fogstack.access.seal.json \
               --signature artifacts/release-proof/fogstack.access.seal.sig \
@@ -99,6 +108,11 @@ jobs:
           import json
           from pathlib import Path
 
+          contract_ref = 'https://github.com/SocioProphet/api-spec/tree/master/fog'
+          deployment_ref = 'https://github.com/SocioProphet/manifests/tree/master/fog'
+          runtime_ref = 'https://github.com/SocioProphet/cloudshell-fog'
+          policy_ref = 'https://github.com/SocioProphet/policy-fabric/tree/main/contracts'
+
           seal = json.loads(Path('artifacts/release-proof/fogstack.access.seal.json').read_text(encoding='utf-8'))
           crypto = json.loads(Path('artifacts/release-proof/fogstack.access.seal.crypto-verification.record.json').read_text(encoding='utf-8'))
           index = json.loads(Path('artifacts/release-proof/fogstack.access.evidence.index.json').read_text(encoding='utf-8'))
@@ -109,6 +123,10 @@ jobs:
           assert seal['release_seal_cryptographic_verification_record_ref'].endswith('fogstack.access.seal.crypto-verification.record.json'), seal
           assert index['release_seal_ref'].endswith('fogstack.access.seal.json'), index
           assert index['release_seal_cryptographic_verification_record_ref'].endswith('fogstack.access.seal.crypto-verification.record.json'), index
+          assert index['canonical_contract_surface_ref'] == contract_ref, index
+          assert index['canonical_deployment_surface_ref'] == deployment_ref, index
+          assert index['canonical_runtime_surface_ref'] == runtime_ref, index
+          assert index['canonical_policy_surface_ref'] == policy_ref, index
           print('FogStack release proof pipeline smoke passed.')
           PY
 
