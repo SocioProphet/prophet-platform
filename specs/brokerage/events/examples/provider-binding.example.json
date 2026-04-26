@@ -1,0 +1,23 @@
+{
+  "binding_id": "binding-standard-app-env-public-cloud-001",
+  "service_class": "environment",
+  "provider_class": "public-cloud",
+  "provider_id": "provider.public-cloud.primary",
+  "blueprint_id": "blueprint.standard-app-environment.v1",
+  "policy_pack_ids": [
+    "policy.identity.baseline.v1",
+    "policy.cost-allocation.required.v1",
+    "policy.observability.required.v1"
+  ],
+  "portability_tier": "P2-blueprint-portable",
+  "native_features_exposed": [
+    "managed-network-policy",
+    "provider-native-secrets-integration"
+  ],
+  "evidence_profile_id": "evidence.standard-environment.v1",
+  "cost_meter_profile_id": "cost.environment-day.v1",
+  "continuity_profile_id": "continuity.standard-devtest.v1",
+  "exit_plan_ref": "exit.redeploy-from-blueprint.v1",
+  "approval_state": "Approved",
+  "owner": "platform-brokerage"
+}
