@@ -29,7 +29,40 @@ Platform responsibility:
 - ingest RuntimeAsset metadata;
 - expose approved runtimes to projects, deployment spaces, notebooks, agents, and shell sessions;
 - require provenance, SBOM, signature, scan, compatibility, telemetry, and promotion fields;
-- link runtime use to NotebookSession, AgentAsset, ModelAsset, PipelineAsset, and EvidenceBundle objects.
+- link runtime use to NotebookSession, NotebookSurfacePlane, AgentAsset, ModelAsset, PipelineAsset, and EvidenceBundle objects.
+
+### Lattice Studio notebook surfaces
+
+Consumer repo: `SocioProphet/prophet-platform`
+
+Platform object: `NotebookSurfacePlane v1`
+
+Design rule:
+
+- Lattice Studio must not hard-code Jupyter as the notebook ontology.
+- Notebook surfaces are adapter-based and bind to `RuntimeAsset.spec.compatibility.surfaces`.
+- RuntimeAsset fixtures must retain `jupyter` as a legacy compatibility alias while advertising concrete adapter surfaces.
+
+Required notebook/workbench adapter surfaces:
+
+```text
+jupyter
+jupyterlab
+zeppelin
+observable
+plutojl
+quarto
+lattice-studio
+```
+
+Adapter responsibilities:
+
+- `jupyterlab`: default scientific notebook adapter.
+- `zeppelin`: collaborative analytics, Spark, SQL, Scala, Python, and R workflows.
+- `observable`: browser-native reactive visualization and data storytelling.
+- `plutojl`: Julia/reactive scientific computing workflows.
+- `quarto`: reproducible technical publishing, dashboards, books, slides, and notebook-derived reports.
+- `lattice-studio`: governed workbench surface binding RuntimeAsset, NotebookSession, catalog inputs, policies, and evidence.
 
 ## Validation contract
 
@@ -45,13 +78,15 @@ The check validates platform-facing example payloads under:
 contracts/lattice/
 ```
 
+Lattice Studio tests also guard adapter drift by requiring RuntimeAsset fixtures to cover every active NotebookSurfacePlane adapter.
+
 ## Dependency direction
 
 The platform consumes product-surface contracts. It does not own the implementation details of boot/recovery or runtime construction.
 
 - `sourceos-boot` owns boot/recovery implementation.
 - `lattice-forge` owns runtime construction and evidence sidecars.
-- `prophet-platform` owns platform ingestion, assignment, policy binding, and evidence correlation.
+- `prophet-platform` owns platform ingestion, assignment, policy binding, notebook surface orchestration, session records, and evidence correlation.
 - `sourceos-spec` should become the canonical home for stable shared schemas once these contracts harden.
 
 ## Doctrine
