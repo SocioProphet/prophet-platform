@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T19:58:00Z",
+  "updated_at": "2026-04-27T20:08:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.356,
+  "overall_completion_estimate": 0.367,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -63,8 +63,8 @@
       "id": "ws-prophet-platform-requirements",
       "name": "Prophet Platform requirements and OSM API",
       "repo": "SocioProphet/prophet-platform",
-      "status": "osm-api-openapi-scaffold-added",
-      "completion_estimate": 0.72,
+      "status": "osm-api-receipts-added",
+      "completion_estimate": 0.76,
       "completed": [
         "master plan",
         "progress ledger",
@@ -81,13 +81,17 @@
         "OSM Map API Kubernetes deployment/service scaffold",
         "OSM Map API OpenAPI required-path contract",
         "OSM Map API OpenAPI contract checker",
-        "OSM Map API OpenAPI check wired into CI"
+        "OSM Map API OpenAPI check wired into CI",
+        "OSM Map API response receipt helpers",
+        "OSM Map API response receipts wired into endpoints",
+        "OSM Map API receipt assertions added to tests",
+        "OSM Map API OpenAPI description hardened for attribution/provenance terms"
       ],
       "next": [
         "add product acceptance criteria for runtime admission hooks",
         "connect platform requirements to SocioSphere governance lanes",
         "add generated OpenAPI contract artifact if CI generation is accepted",
-        "add service-level security/evidence receipts for OSM API responses"
+        "add service-level cryptographic signing plan for OSM API receipts"
       ],
       "blockers": []
     },
@@ -314,8 +318,8 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "osm-source-attribution-validation-added",
-      "completion_estimate": 0.34,
+      "status": "strict-osm-source-attribution-validation-added",
+      "completion_estimate": 0.39,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
@@ -328,15 +332,18 @@
         "OSM source attribution standard",
         "OSM source attribution policy",
         "OSM source attribution validator",
-        "OSM source attribution CI"
+        "OSM source attribution CI",
+        "strict cross-repo OSM attribution validation workflow"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
         "add KubeEdge optional edge substrate governance doc",
         "add source-exposure check mapping for new program repos",
-        "run strict mounted-fixture attribution validation in workspace CI"
+        "verify strict mounted-fixture attribution workflow has cross-repo checkout access"
       ],
-      "blockers": []
+      "blockers": [
+        "strict cross-repo OSM attribution workflow may require GitHub token access to GAIA and Sherlock private repos"
+      ]
     }
   ],
   "reporting_contract": {
