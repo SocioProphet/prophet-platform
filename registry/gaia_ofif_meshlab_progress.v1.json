@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T20:08:00Z",
+  "updated_at": "2026-04-27T20:24:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.367,
+  "overall_completion_estimate": 0.379,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -63,8 +63,8 @@
       "id": "ws-prophet-platform-requirements",
       "name": "Prophet Platform requirements and OSM API",
       "repo": "SocioProphet/prophet-platform",
-      "status": "osm-api-receipts-added",
-      "completion_estimate": 0.76,
+      "status": "osm-api-receipt-digests-added",
+      "completion_estimate": 0.8,
       "completed": [
         "master plan",
         "progress ledger",
@@ -85,13 +85,18 @@
         "OSM Map API response receipt helpers",
         "OSM Map API response receipts wired into endpoints",
         "OSM Map API receipt assertions added to tests",
-        "OSM Map API OpenAPI description hardened for attribution/provenance terms"
+        "OSM Map API OpenAPI description hardened for attribution/provenance terms",
+        "OSM Map API response receipt signing plan",
+        "OSM Map API response receipt schema",
+        "OSM Map API deterministic receipt digest utility",
+        "OSM Map API receipt digest attachment",
+        "OSM Map API receipt digest stability tests"
       ],
       "next": [
         "add product acceptance criteria for runtime admission hooks",
         "connect platform requirements to SocioSphere governance lanes",
         "add generated OpenAPI contract artifact if CI generation is accepted",
-        "add service-level cryptographic signing plan for OSM API receipts"
+        "add gateway/release signing integration after platform signing boundary is selected"
       ],
       "blockers": []
     },
@@ -237,22 +242,27 @@
     {
       "id": "ws-sourceos-edge-smartspaces",
       "name": "SourceOS / nlboot / KubeEdge / Smart Spaces",
-      "repo": "multiple / undecided domain home",
-      "status": "domain-boundary-open",
-      "completion_estimate": 0.06,
+      "repo": "SocioSphere / multiple / undecided domain home",
+      "status": "kubeedge-governance-defined",
+      "completion_estimate": 0.16,
       "completed": [
         "role mapped into master plan",
         "Smart Spaces / Built Environment recognized as broader than home IoT",
-        "Smart Spaces domain-home decision record added"
+        "Smart Spaces domain-home decision record added",
+        "KubeEdge optional edge substrate governance doc",
+        "KubeEdge optional substrate capability-map lane",
+        "KubeEdge optional substrate change-propagation rule",
+        "KubeEdge propagation rule required by change-rule validator"
       ],
       "next": [
         "decide first-contract home: prophet-platform vs gaia-world-model vs sociosphere vs new repo",
         "evaluate Brick/Haystack/RealEstateCore/BACnet/Matter/Home Assistant interfaces",
         "define candidate object list without committing schemas to wrong repo",
-        "add SourceOS/KubeEdge optional substrate doc in SocioSphere"
+        "select concrete KubeEdge fleet/site use case before implementation"
       ],
       "blockers": [
-        "domain home intentionally undecided; do not create speculative implementation files"
+        "domain home intentionally undecided; do not create speculative Smart Spaces implementation files",
+        "KubeEdge is optional and should not be implemented until a concrete fleet/site need exists"
       ]
     },
     {
@@ -318,8 +328,8 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "strict-osm-source-attribution-validation-added",
-      "completion_estimate": 0.39,
+      "status": "kubeedge-and-osm-governance-added",
+      "completion_estimate": 0.44,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
@@ -333,16 +343,21 @@
         "OSM source attribution policy",
         "OSM source attribution validator",
         "OSM source attribution CI",
-        "strict cross-repo OSM attribution validation workflow"
+        "strict cross-repo OSM attribution validation workflow",
+        "KubeEdge optional edge substrate governance doc",
+        "KubeEdge optional edge substrate capability-map lane",
+        "KubeEdge optional edge substrate propagation rule",
+        "KubeEdge propagation rule validator alignment"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
-        "add KubeEdge optional edge substrate governance doc",
         "add source-exposure check mapping for new program repos",
-        "verify strict mounted-fixture attribution workflow has cross-repo checkout access"
+        "verify strict mounted-fixture attribution workflow has cross-repo checkout access",
+        "add KubeEdge readiness record schema only after concrete fleet/site use case"
       ],
       "blockers": [
-        "strict cross-repo OSM attribution workflow may require GitHub token access to GAIA and Sherlock private repos"
+        "strict cross-repo OSM attribution workflow may require GitHub token access to GAIA and Sherlock private repos",
+        "capability-map validator lane hardening attempt was blocked by connector safety layer before reaching GitHub"
       ]
     }
   ],
