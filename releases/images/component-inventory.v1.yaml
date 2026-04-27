@@ -1,0 +1,124 @@
+# Prophet Platform container component inventory v1
+#
+# This inventory tracks runnable components and their container build substrate.
+# It is governed by docs/CONTAINER_BUILD_SUBSTRATE.md.
+
+schema_version: v1
+owner: prophet-platform
+standards:
+  - docs/CONTAINER_BUILD_SUBSTRATE.md
+  - SocioProphet/socioprophet-standards-storage:standards/evidence-bundle-standard.v1.md
+  - SocioProphet/socioprophet-standards-storage:standards/evaluation-record-standard.v1.md
+  - SocioProphet/socioprophet-standards-knowledge:standards/evaluation-fabric-standard.v1.md
+  - SocioProphet/sociosphere:standards/angel-of-the-lord/README.md
+
+components:
+  - id: search_orchestrator
+    name: Search Orchestrator
+    source_path: services/search-orchestrator
+    component_type: service
+    runtime_class: platform
+    build_context: .
+    containerfile: services/search-orchestrator/Dockerfile
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: search-orchestrator
+    tags:
+      - main
+      - sha
+    workflow: .github/workflows/search-orchestrator-image.yml
+    current_status: existing_buildx_ghcr_digest_evidence
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Existing workflow builds and pushes to GHCR and emits digest evidence. SBOM/provenance/scan gates should be added or verified in follow-up.
+
+  - id: socioprophet_api
+    name: SocioProphet API
+    source_path: apps/api/cmd/socioprophet-api
+    component_type: go_service
+    runtime_class: platform
+    build_context: .
+    containerfile: apps/api/Dockerfile
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: socioprophet-api
+    tags:
+      - main
+      - sha
+    workflow: .github/workflows/socioprophet-api-image.yml
+    current_status: needs_declared_container_build
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Source entrypoint exists under apps/api/cmd/socioprophet-api. Containerfile/workflow must be added or confirmed before promotion.
+
+  - id: tritrpc_gateway
+    name: TriTRPC Gateway
+    source_path: apps/gateway/cmd/tritrpc-gateway
+    component_type: go_service
+    runtime_class: platform
+    build_context: .
+    containerfile: apps/gateway/Dockerfile
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: tritrpc-gateway
+    tags:
+      - main
+      - sha
+    workflow: .github/workflows/tritrpc-gateway-image.yml
+    current_status: needs_declared_container_build
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Source entrypoint exists under apps/gateway/cmd/tritrpc-gateway. Containerfile/workflow must be added or confirmed before promotion.
+
+  - id: beam_pipeline_components
+    name: Beam Pipeline Components
+    source_path: TBD
+    component_type: beam_pipeline
+    runtime_class: beam
+    build_context: TBD
+    containerfile: TBD
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: TBD
+    tags:
+      - main
+      - sha
+    workflow: TBD
+    current_status: planned
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Beam is canonical for durable data processing. Add concrete components when pipeline sources are introduced.
+
+  - id: ray_learning_components
+    name: Ray Learning Components
+    source_path: TBD
+    component_type: ray_service
+    runtime_class: ray
+    build_context: TBD
+    containerfile: TBD
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: TBD
+    tags:
+      - main
+      - sha
+    workflow: TBD
+    current_status: planned
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Ray Train/Tune/RLlib/Serve/KubeRay components must carry RayLearningRun and EvaluationRecord references.
