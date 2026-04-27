@@ -64,6 +64,35 @@ Adapter responsibilities:
 - `quarto`: reproducible technical publishing, dashboards, books, slides, and notebook-derived reports.
 - `lattice-studio`: governed workbench surface binding RuntimeAsset, NotebookSession, catalog inputs, policies, and evidence.
 
+### Lattice Studio experience doctrine
+
+Lattice Studio should feel like NotebookLM-class source-grounded synthesis plus executable governed workbench infrastructure.
+
+The product target is:
+
+```text
+NotebookLM-style source grounding
++ Gemini/Notebook-style project organization
++ governed executable notebooks
++ catalog/runtime/policy/evidence binding
++ agentic reproduction and publication workflows
+```
+
+Experience implications:
+
+- A project notebook is a source-grounded workspace, not just an `.ipynb` file.
+- Sources include documents, datasets, catalog assets, model assets, repositories, policies, contracts, previous notebook sessions, and evidence bundles.
+- Every answer, summary, chart, report, or generated artifact should be traceable to source objects and evidence records.
+- Notebook surfaces must support executable analysis, not only conversational synthesis.
+- Users should be able to move from source review to query, analytics, visualization, modeling, agent execution, report generation, and reproducible publication without changing metadata identity.
+- Lattice Studio must exceed consumer NotebookLM-style workflows by adding runtime governance, reproducible execution, signed provenance, SBOM-aware runtimes, project/org policy, and replayable evidence.
+
+Minimum experience loop:
+
+```text
+collect sources -> bind catalog/runtime/policy -> ask/summarize/compare -> execute notebook/runtime -> emit evidence -> publish/replay/promote
+```
+
 ## Validation contract
 
 `make validate` now includes `lattice-surfaces-check`, implemented by:
