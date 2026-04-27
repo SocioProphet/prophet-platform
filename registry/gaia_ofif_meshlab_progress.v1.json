@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T05:42:00Z",
+  "updated_at": "2026-04-27T19:58:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.345,
+  "overall_completion_estimate": 0.356,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.56,
+      "completion_estimate": 0.57,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -48,13 +48,14 @@
         "OSM route graph manifest schema",
         "OSM route graph executable entrypoint",
         "OSM route graph CI proof",
-        "OSM route graph checked-in fixture"
+        "OSM route graph checked-in fixture",
+        "OSM Lattice admission decision recorded"
       ],
       "next": [
         "model/simulation/data product schemas",
         "navigation LiDAR executable entrypoint",
-        "OSM runtime admission decision for Lattice Forge",
-        "cross-repo validation gates"
+        "cross-repo validation gates",
+        "strict mounted-fixture attribution validation"
       ],
       "blockers": []
     },
@@ -62,8 +63,8 @@
       "id": "ws-prophet-platform-requirements",
       "name": "Prophet Platform requirements and OSM API",
       "repo": "SocioProphet/prophet-platform",
-      "status": "osm-api-scaffold-added",
-      "completion_estimate": 0.64,
+      "status": "osm-api-openapi-scaffold-added",
+      "completion_estimate": 0.72,
       "completed": [
         "master plan",
         "progress ledger",
@@ -77,13 +78,16 @@
         "OSM Map API endpoint tests",
         "OSM Map API CI",
         "OSM Map API container scaffold",
-        "OSM Map API Kubernetes deployment/service scaffold"
+        "OSM Map API Kubernetes deployment/service scaffold",
+        "OSM Map API OpenAPI required-path contract",
+        "OSM Map API OpenAPI contract checker",
+        "OSM Map API OpenAPI check wired into CI"
       ],
       "next": [
         "add product acceptance criteria for runtime admission hooks",
         "connect platform requirements to SocioSphere governance lanes",
-        "define map UI acceptance tests",
-        "add generated OpenAPI contract artifact"
+        "add generated OpenAPI contract artifact if CI generation is accepted",
+        "add service-level security/evidence receipts for OSM API responses"
       ],
       "blockers": []
     },
@@ -153,8 +157,8 @@
       "id": "ws-lattice-forge",
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
-      "status": "runtime-boundary-defined-first-entrypoints-exist",
-      "completion_estimate": 0.22,
+      "status": "osm-admission-issue-open",
+      "completion_estimate": 0.26,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
@@ -163,16 +167,18 @@
         "OSM runtime admission boundaries defined in GAIA",
         "OSM ingestion executable entrypoint exists in GAIA",
         "OSM tile export executable entrypoint exists in GAIA",
-        "OSM route graph executable entrypoint exists in GAIA"
+        "OSM route graph executable entrypoint exists in GAIA",
+        "Lattice Forge issue #7 opened for OSM runtime admission criteria"
       ],
       "next": [
+        "define OSM RuntimeAsset target structure in Lattice Forge",
         "decide whether OSM ingestion/tile/route runtimes are mature enough for Lattice Forge assets",
         "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
-        "implement navigation LiDAR runtime entrypoint before adding Lattice asset",
-        "implement soil runtime packaging boundary before mirroring soil asset"
+        "implement navigation LiDAR runtime entrypoint before adding Lattice asset"
       ],
       "blockers": [
-        "do not add speculative runtime fixtures before executable entrypoints and validation commands exist"
+        "do not add speculative runtime fixtures before executable entrypoints and validation commands exist",
+        "OSM runtimes not admitted until packaging, SBOM, signing, malformed-input corpus, rollback test, and source-attribution governance are reviewed"
       ]
     },
     {
