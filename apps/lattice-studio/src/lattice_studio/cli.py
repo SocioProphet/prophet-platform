@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI for Lattice Studio governed notebook sessions, catalog assets, and local/PaaS lanes."""
+"""CLI for Lattice Studio governed notebook sessions, catalog assets, workspace sources, and local/PaaS lanes."""
 
 from __future__ import annotations
 
@@ -27,8 +27,17 @@ from .notebook_plane import (
 )
 from .ontogenesis import demo_ontogenesis_context, ontogenesis_evidence, ontogenesis_to_platform_record
 from .paas import create_deployment_plan, deployment_evidence, deployment_to_platform_record
-from .platform_records import catalog_asset_to_platform_record, notebook_session_to_platform_record, platform_record_set
+from .platform_records import (
+    catalog_asset_to_platform_record,
+    notebook_session_to_platform_record,
+    platform_record_set,
+    workspace_action_receipt_to_platform_record,
+    workspace_source_to_platform_record,
+)
 from .session import create_session, load_json, write_session_bundle
+
+ROOT = Path(__file__).resolve().parents[3]
+WORKSPACE_CONTRACTS = ROOT / "contracts" / "workspace"
 
 
 def create_notebook_session(args: argparse.Namespace) -> int:
@@ -68,12 +77,47 @@ def emit_platform_records(args: argparse.Namespace) -> int:
         records.append(catalog_asset_to_platform_record(load_json(path)))
     for path in args.notebook_session:
         records.append(notebook_session_to_platform_record(load_json(path)))
+    for path in args.workspace_source:
+        records.append(workspace_source_to_platform_record(load_json(path)))
+    for path in args.workspace_receipt:
+        records.append(workspace_action_receipt_to_platform_record(load_json(path)))
     for path in args.platform_record:
         records.append(load_json(path))
     payload = platform_record_set(records)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"written": [str(args.output)], "recordCount": len(records)}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_workspace_demo(args: argparse.Namespace) -> int:
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    source_names = [
+        "workspace-source.document.json",
+        "workspace-source.sheet.json",
+        "workspace-source.slide.json",
+    ]
+    receipt_name = "workspace-action-receipt.publish-report.json"
+    written: list[Path] = []
+    records: list[dict] = []
+
+    for name in source_names:
+        source = load_json(WORKSPACE_CONTRACTS / name)
+        output_path = args.output_dir / name
+        output_path.write_text(json.dumps(source, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        written.append(output_path)
+        records.append(workspace_source_to_platform_record(source))
+
+    receipt = load_json(WORKSPACE_CONTRACTS / receipt_name)
+    receipt_path = args.output_dir / receipt_name
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    written.append(receipt_path)
+    records.append(workspace_action_receipt_to_platform_record(receipt))
+
+    record_set_path = args.output_dir / "workspace-platform-records.json"
+    record_set_path.write_text(json.dumps(platform_record_set(records), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    written.append(record_set_path)
+    print(json.dumps({"written": [str(path) for path in written], "recordCount": len(records)}, indent=2, sort_keys=True))
     return 0
 
 
@@ -209,7 +253,7 @@ def emit_execution(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, local dev, and PaaS lanes")
+    parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, workspace sources, local dev, and PaaS lanes")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     create_parser = subparsers.add_parser("create-session", help="Create a governed NotebookSession bundle")
@@ -225,9 +269,15 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_parser.add_argument("--output-dir", type=Path, required=True)
     catalog_parser.set_defaults(func=emit_demo_catalog)
 
+    workspace_parser = subparsers.add_parser("emit-workspace-demo", help="Emit demo WorkspaceSource and WorkspaceActionReceipt artifacts")
+    workspace_parser.add_argument("--output-dir", type=Path, required=True)
+    workspace_parser.set_defaults(func=emit_workspace_demo)
+
     records_parser = subparsers.add_parser("emit-platform-records", help="Convert Studio artifacts into PlatformAssetRecordSet")
     records_parser.add_argument("--catalog-asset", type=Path, action="append", default=[])
     records_parser.add_argument("--notebook-session", type=Path, action="append", default=[])
+    records_parser.add_argument("--workspace-source", type=Path, action="append", default=[])
+    records_parser.add_argument("--workspace-receipt", type=Path, action="append", default=[])
     records_parser.add_argument("--platform-record", type=Path, action="append", default=[])
     records_parser.add_argument("--output", type=Path, required=True)
     records_parser.set_defaults(func=emit_platform_records)
