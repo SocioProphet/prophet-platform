@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.dev/prophet-platform/workspace-synthesis-artifact.v1.schema.json",
+  "title": "WorkspaceSynthesisArtifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "artifactId", "bindingId", "notebookSessionId", "runtimeAssetId", "sourceIds", "outputKind", "title", "claims", "policyRef", "evidenceCorrelationId", "createdAt"],
+  "properties": {
+    "apiVersion": {"const": "studio.socioprophet.dev/v1"},
+    "kind": {"const": "WorkspaceSynthesisArtifact"},
+    "artifactId": {"type": "string", "pattern": "^workspace-synthesis:[a-fA-F0-9]{16}$"},
+    "bindingId": {"type": "string", "pattern": "^workspace-binding:[a-fA-F0-9]{16}$"},
+    "notebookSessionId": {"type": "string", "pattern": "^notebook-session:[a-fA-F0-9]{16}$"},
+    "runtimeAssetId": {"type": "string", "pattern": "^runtime-asset:[a-z0-9][a-z0-9.-]{1,62}:[v]?[0-9]+\\.[0-9]+\\.[0-9]+([-.+][A-Za-z0-9.-]+)?$"},
+    "sourceIds": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^workspace-source:[a-z0-9][a-z0-9:._/@-]{1,160}$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "outputKind": {"enum": ["source-grounded-brief", "analysis-report", "presentation-outline", "dataset-summary", "model-card", "meeting-packet", "publication-draft"]},
+    "title": {"type": "string", "minLength": 1},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claimId", "text", "sourceIds"],
+        "properties": {
+          "claimId": {"type": "string", "minLength": 1},
+          "text": {"type": "string", "minLength": 1},
+          "sourceIds": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^workspace-source:[a-z0-9][a-z0-9:._/@-]{1,160}$"},
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "policyRef": {"type": "string", "minLength": 1},
+    "evidenceCorrelationId": {"type": "string", "minLength": 1},
+    "createdAt": {"type": "string", "format": "date-time"}
+  }
+}
