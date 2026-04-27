@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T23:18:00Z",
+  "updated_at": "2026-04-27T23:30:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.393,
+  "overall_completion_estimate": 0.404,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.61,
+      "completion_estimate": 0.64,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -54,12 +54,15 @@
         "LiDAR-derived infrastructure asset fixture",
         "LiDAR feature extraction CI proof",
         "navigation LiDAR runtime boundary marked executable",
-        "LiDAR-derived output added to contract validation"
+        "LiDAR-derived output added to contract validation",
+        "NavigationSafetyCase schema",
+        "advisory LiDAR navigation safety-case fixture",
+        "navigation safety-case invariants added to contract validation"
       ],
       "next": [
-        "model/simulation/data product schemas",
-        "navigation safety-case schema",
         "LiDAR malformed-input and rollback fixture corpus",
+        "validated navigation safety-case example with explicit approval path",
+        "model/simulation/data product schemas",
         "cross-repo validation gates"
       ],
       "blockers": []
@@ -148,21 +151,22 @@
       "name": "Sherlock discovery",
       "repo": "SocioProphet/sherlock-search",
       "status": "in-progress",
-      "completion_estimate": 0.27,
+      "completion_estimate": 0.32,
       "completed": [
         "native geospatial/evidence result schema",
         "GAIA soil decision-card result example",
         "GAIA navigation control-tower result example",
         "GAIA mesh experiment result example",
         "GAIA OSM-derived road layer result example",
+        "GAIA LiDAR-derived infrastructure evidence result example",
         "dependency-free validator",
-        "CI workflow for geospatial result examples",
+        "CI workflow for all geospatial/evidence examples",
         "tracking issue for GAIA/OFIF/Lattice/Lampstand source/entity support"
       ],
       "next": [
         "runtime asset search result fixture once runtime boundary has executable entrypoints",
         "static example record endpoint",
-        "LiDAR-derived infrastructure search fixture",
+        "navigation safety-case search fixture if separate result is needed",
         "smart-space search examples only after domain home is settled"
       ],
       "blockers": []
