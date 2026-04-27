@@ -5,8 +5,11 @@ from lattice_studio.cli import main
 from lattice_studio.platform_records import (
     platform_record_set,
     workspace_action_receipt_to_platform_record,
+    workspace_source_binding_to_platform_record,
     workspace_source_to_platform_record,
+    workspace_synthesis_artifact_to_platform_record,
 )
+from lattice_studio.workspace_flow import demo_workspace_flow, synthesis_evidence
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKSPACE_EXAMPLES = ROOT / "contracts" / "workspace"
@@ -61,26 +64,84 @@ def test_workspace_sources_and_receipt_share_evidence_spine() -> None:
     assert receipt["spec"]["outputDigest"].startswith("sha256:")
 
 
+def test_workspace_flow_binds_sources_session_synthesis_and_receipt() -> None:
+    flow = demo_workspace_flow()
+    source_ids = {source["metadata"]["sourceId"] for source in flow["sources"]}
+    session = flow["session"]
+    binding = flow["binding"]
+    synthesis = flow["synthesis"]
+    evidence = flow["synthesisEvidence"]
+    receipt = flow["receipt"]
+
+    assert session["kind"] == "NotebookSession"
+    assert set(session["catalogInputs"]) == source_ids
+    assert binding["kind"] == "WorkspaceSourceBinding"
+    assert set(binding["sourceIds"]) == source_ids
+    assert binding["notebookSessionId"] == session["sessionId"]
+    assert binding["runtimeAssetId"] == session["runtimeAssetId"]
+    assert synthesis["kind"] == "WorkspaceSynthesisArtifact"
+    assert set(synthesis["sourceIds"]) == source_ids
+    assert synthesis["bindingId"] == binding["bindingId"]
+    assert synthesis["notebookSessionId"] == session["sessionId"]
+    assert evidence == synthesis_evidence(type("Artifact", (), synthesis)())
+    assert receipt["kind"] == "WorkspaceActionReceipt"
+    assert set(receipt["spec"]["inputSourceIds"]) == source_ids
+    assert receipt["spec"]["outputArtifactIds"] == [synthesis["artifactId"]]
+    assert receipt["spec"]["outputDigest"] == evidence["artifactDigest"]
+
+
+def test_workspace_binding_and_synthesis_convert_to_platform_records() -> None:
+    flow = demo_workspace_flow()
+    binding_record = workspace_source_binding_to_platform_record(flow["binding"])
+    synthesis_record = workspace_synthesis_artifact_to_platform_record(flow["synthesis"])
+
+    assert binding_record["assetKind"] == "workspace-source-binding"
+    assert binding_record["assetId"] == flow["binding"]["bindingId"]
+    assert "notebook-session" in binding_record["compatibilitySurfaces"]
+    assert synthesis_record["assetKind"] == "workspace-synthesis-artifact"
+    assert synthesis_record["assetId"] == flow["synthesis"]["artifactId"]
+    assert "source-grounded-synthesis" in synthesis_record["compatibilitySurfaces"]
+    assert "workspace-publication" in synthesis_record["compatibilitySurfaces"]
+
+
 def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
     output_dir = tmp_path / "workspace-demo"
     rc = main(["emit-workspace-demo", "--output-dir", str(output_dir)])
     assert rc == 0
 
     expected = {
-        "workspace-source.document.json",
-        "workspace-source.sheet.json",
-        "workspace-source.slide.json",
+        "workspace-source.docs_demo-brief.json",
+        "workspace-source.sheets_demo-dataset.json",
+        "workspace-source.slides_demo-report.json",
+        "notebook-session.json",
+        "workspace-source-binding.json",
+        "workspace-synthesis-artifact.json",
+        "workspace-synthesis-evidence.json",
         "workspace-action-receipt.publish-report.json",
         "workspace-platform-records.json",
     }
     assert expected == {path.name for path in output_dir.iterdir()}
 
+    session = json.loads((output_dir / "notebook-session.json").read_text(encoding="utf-8"))
+    binding = json.loads((output_dir / "workspace-source-binding.json").read_text(encoding="utf-8"))
+    synthesis = json.loads((output_dir / "workspace-synthesis-artifact.json").read_text(encoding="utf-8"))
+    evidence = json.loads((output_dir / "workspace-synthesis-evidence.json").read_text(encoding="utf-8"))
+    receipt = json.loads((output_dir / "workspace-action-receipt.publish-report.json").read_text(encoding="utf-8"))
     record_set = json.loads((output_dir / "workspace-platform-records.json").read_text(encoding="utf-8"))
+
+    assert session["kind"] == "NotebookSession"
+    assert binding["notebookSessionId"] == session["sessionId"]
+    assert synthesis["bindingId"] == binding["bindingId"]
+    assert evidence["artifactId"] == synthesis["artifactId"]
+    assert receipt["spec"]["outputDigest"] == evidence["artifactDigest"]
     assert record_set["kind"] == "PlatformAssetRecordSet"
-    assert len(record_set["records"]) == 4
+    assert len(record_set["records"]) == 7
     assert {record["assetKind"] for record in record_set["records"]} == {
         "workspace-docs",
         "workspace-sheets",
         "workspace-slides",
+        "notebook-session",
+        "workspace-source-binding",
+        "workspace-synthesis-artifact",
         "workspace-action-publish",
     }
