@@ -3,6 +3,7 @@ from pathlib import Path
 
 from lattice_studio.catalog import catalog_evidence, demo_catalog_assets
 from lattice_studio.cli import main
+from lattice_studio.platform_records import catalog_asset_to_platform_record, notebook_session_to_platform_record, platform_record_set
 from lattice_studio.session import create_session, evidence_for_session, load_json
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -105,3 +106,50 @@ def test_lattice_studio_cli_writes_demo_catalog_bundles(tmp_path) -> None:
         evidence_doc = json.loads((asset_dir / "catalog-asset-evidence.json").read_text(encoding="utf-8"))
         assert asset_doc["kind"] == "CatalogAsset"
         assert evidence_doc["kind"] == "CatalogAssetEvidence"
+
+
+def test_studio_outputs_convert_to_platform_asset_records() -> None:
+    catalog_records = [catalog_asset_to_platform_record(asset.to_dict()) for asset in demo_catalog_assets()]
+    runtime_asset = load_json(RUNTIME_ASSET)
+    session = create_session(
+        project_id="demo-project",
+        user_id="demo-user",
+        runtime_asset=runtime_asset,
+        catalog_inputs=["catalog://datasets/demo-csv@0.1.0"],
+    )
+    session_record = notebook_session_to_platform_record(session.to_dict())
+    record_set = platform_record_set([*catalog_records, session_record])
+
+    assert record_set["kind"] == "PlatformAssetRecordSet"
+    assert len(record_set["records"]) == 5
+    kinds = {record["assetKind"] for record in record_set["records"]}
+    assert {"catalog-data", "catalog-ml-model", "catalog-application", "catalog-service", "notebook-session"} == kinds
+
+
+def test_lattice_studio_cli_emits_platform_records(tmp_path) -> None:
+    catalog_dir = tmp_path / "catalog"
+    session_dir = tmp_path / "session"
+    records_path = tmp_path / "studio-platform-records.json"
+    assert main(["emit-demo-catalog", "--output-dir", str(catalog_dir)]) == 0
+    assert main([
+        "create-session",
+        "--project-id",
+        "demo-project",
+        "--user-id",
+        "demo-user",
+        "--runtime-asset",
+        str(RUNTIME_ASSET),
+        "--catalog-input",
+        "catalog://datasets/demo-csv@0.1.0",
+        "--output-dir",
+        str(session_dir),
+    ]) == 0
+    catalog_asset_paths = sorted(str(path) for path in catalog_dir.glob("*/catalog-asset.json"))
+    args = ["emit-platform-records"]
+    for path in catalog_asset_paths:
+        args.extend(["--catalog-asset", path])
+    args.extend(["--notebook-session", str(session_dir / "notebook-session.json"), "--output", str(records_path)])
+    assert main(args) == 0
+    emitted = json.loads(records_path.read_text(encoding="utf-8"))
+    assert emitted["kind"] == "PlatformAssetRecordSet"
+    assert len(emitted["records"]) == 5
