@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T04:50:00Z",
+  "updated_at": "2026-04-27T05:04:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.301,
+  "overall_completion_estimate": 0.314,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.49,
+      "completion_estimate": 0.52,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -42,12 +42,14 @@
         "OSM tile export runtime boundary",
         "OSM-like input fixture",
         "OSM ingestion executable entrypoint",
-        "OSM ingestion CI proof"
+        "OSM ingestion CI proof",
+        "OSM tile export executable entrypoint",
+        "OSM tile export CI proof"
       ],
       "next": [
         "model/simulation/data product schemas",
         "OSM route graph executable entrypoint",
-        "OSM tile export executable entrypoint",
+        "navigation LiDAR executable entrypoint",
         "cross-repo validation gates"
       ],
       "blockers": []
@@ -141,18 +143,19 @@
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
       "status": "runtime-boundary-defined-first-entrypoints-exist",
-      "completion_estimate": 0.18,
+      "completion_estimate": 0.2,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
         "GAIA runtime boundary admission rule defined",
         "control tower anomaly executable entrypoint exists in GAIA",
         "OSM runtime admission boundaries defined in GAIA",
-        "OSM ingestion executable entrypoint exists in GAIA"
+        "OSM ingestion executable entrypoint exists in GAIA",
+        "OSM tile export executable entrypoint exists in GAIA"
       ],
       "next": [
-        "decide whether OSM ingestion runtime is mature enough for Lattice Forge asset",
-        "implement OSM tile export executable before adding tile runtime asset",
+        "decide whether OSM ingestion/tile runtimes are mature enough for Lattice Forge assets",
+        "implement OSM route graph executable before adding route runtime asset",
         "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
         "implement navigation LiDAR runtime entrypoint before adding Lattice asset"
       ],
