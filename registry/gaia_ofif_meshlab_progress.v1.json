@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T05:04:00Z",
+  "updated_at": "2026-04-27T05:18:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.314,
+  "overall_completion_estimate": 0.326,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.52,
+      "completion_estimate": 0.55,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -44,12 +44,15 @@
         "OSM ingestion executable entrypoint",
         "OSM ingestion CI proof",
         "OSM tile export executable entrypoint",
-        "OSM tile export CI proof"
+        "OSM tile export CI proof",
+        "OSM route graph manifest schema",
+        "OSM route graph executable entrypoint",
+        "OSM route graph CI proof"
       ],
       "next": [
         "model/simulation/data product schemas",
-        "OSM route graph executable entrypoint",
         "navigation LiDAR executable entrypoint",
+        "OSM runtime admission decision for Lattice Forge",
         "cross-repo validation gates"
       ],
       "blockers": []
@@ -58,21 +61,22 @@
       "id": "ws-prophet-platform-requirements",
       "name": "Prophet Platform requirements",
       "repo": "SocioProphet/prophet-platform",
-      "status": "osm-control-surface-added",
-      "completion_estimate": 0.42,
+      "status": "osm-static-api-added",
+      "completion_estimate": 0.52,
       "completed": [
         "master plan",
         "progress ledger",
         "Smart Spaces domain-home decision record",
         "OpenStreetMap platform requirements",
         "OpenStreetMap map/tile/routing acceptance criteria",
-        "OpenStreetMap control-surface requirements"
+        "OpenStreetMap control-surface requirements",
+        "OpenStreetMap static fixture API/demo requirements"
       ],
       "next": [
         "add product acceptance criteria for runtime admission hooks",
         "connect platform requirements to SocioSphere governance lanes",
         "define map UI acceptance tests",
-        "define static fixture API demo path"
+        "implement static fixture API demo path"
       ],
       "blockers": []
     },
@@ -143,7 +147,7 @@
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
       "status": "runtime-boundary-defined-first-entrypoints-exist",
-      "completion_estimate": 0.2,
+      "completion_estimate": 0.22,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
@@ -151,13 +155,14 @@
         "control tower anomaly executable entrypoint exists in GAIA",
         "OSM runtime admission boundaries defined in GAIA",
         "OSM ingestion executable entrypoint exists in GAIA",
-        "OSM tile export executable entrypoint exists in GAIA"
+        "OSM tile export executable entrypoint exists in GAIA",
+        "OSM route graph executable entrypoint exists in GAIA"
       ],
       "next": [
-        "decide whether OSM ingestion/tile runtimes are mature enough for Lattice Forge assets",
-        "implement OSM route graph executable before adding route runtime asset",
+        "decide whether OSM ingestion/tile/route runtimes are mature enough for Lattice Forge assets",
         "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
-        "implement navigation LiDAR runtime entrypoint before adding Lattice asset"
+        "implement navigation LiDAR runtime entrypoint before adding Lattice asset",
+        "implement soil runtime packaging boundary before mirroring soil asset"
       ],
       "blockers": [
         "do not add speculative runtime fixtures before executable entrypoints and validation commands exist"
