@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T20:24:00Z",
+  "updated_at": "2026-04-27T23:18:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.379,
+  "overall_completion_estimate": 0.393,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.57,
+      "completion_estimate": 0.61,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -49,13 +49,18 @@
         "OSM route graph executable entrypoint",
         "OSM route graph CI proof",
         "OSM route graph checked-in fixture",
-        "OSM Lattice admission decision recorded"
+        "OSM Lattice admission decision recorded",
+        "navigation LiDAR executable entrypoint",
+        "LiDAR-derived infrastructure asset fixture",
+        "LiDAR feature extraction CI proof",
+        "navigation LiDAR runtime boundary marked executable",
+        "LiDAR-derived output added to contract validation"
       ],
       "next": [
         "model/simulation/data product schemas",
-        "navigation LiDAR executable entrypoint",
-        "cross-repo validation gates",
-        "strict mounted-fixture attribution validation"
+        "navigation safety-case schema",
+        "LiDAR malformed-input and rollback fixture corpus",
+        "cross-repo validation gates"
       ],
       "blockers": []
     },
@@ -157,7 +162,7 @@
       "next": [
         "runtime asset search result fixture once runtime boundary has executable entrypoints",
         "static example record endpoint",
-        "spatial/temporal/evidence scoring contract",
+        "LiDAR-derived infrastructure search fixture",
         "smart-space search examples only after domain home is settled"
       ],
       "blockers": []
@@ -166,8 +171,8 @@
       "id": "ws-lattice-forge",
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
-      "status": "osm-admission-issue-open",
-      "completion_estimate": 0.26,
+      "status": "osm-and-lidar-admission-issues-open",
+      "completion_estimate": 0.29,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
@@ -177,17 +182,19 @@
         "OSM ingestion executable entrypoint exists in GAIA",
         "OSM tile export executable entrypoint exists in GAIA",
         "OSM route graph executable entrypoint exists in GAIA",
-        "Lattice Forge issue #7 opened for OSM runtime admission criteria"
+        "Lattice Forge issue #7 opened for OSM runtime admission criteria",
+        "Lattice Forge issue #8 opened for navigation LiDAR runtime admission criteria"
       ],
       "next": [
         "define OSM RuntimeAsset target structure in Lattice Forge",
-        "decide whether OSM ingestion/tile/route runtimes are mature enough for Lattice Forge assets",
+        "define LiDAR RuntimeAsset target structure in Lattice Forge",
         "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
-        "implement navigation LiDAR runtime entrypoint before adding Lattice asset"
+        "implement soil runtime packaging boundary before mirroring soil asset"
       ],
       "blockers": [
         "do not add speculative runtime fixtures before executable entrypoints and validation commands exist",
-        "OSM runtimes not admitted until packaging, SBOM, signing, malformed-input corpus, rollback test, and source-attribution governance are reviewed"
+        "OSM runtimes not admitted until packaging, SBOM, signing, malformed-input corpus, rollback test, and source-attribution governance are reviewed",
+        "LiDAR runtime not admitted until packaging, SBOM, signing, malformed-input tests, calibration/platform preservation tests, rollback tests, and safety-case boundary are reviewed"
       ]
     },
     {
@@ -243,8 +250,8 @@
       "id": "ws-sourceos-edge-smartspaces",
       "name": "SourceOS / nlboot / KubeEdge / Smart Spaces",
       "repo": "SocioSphere / multiple / undecided domain home",
-      "status": "kubeedge-governance-defined",
-      "completion_estimate": 0.16,
+      "status": "edge-host-lifecycle-validated",
+      "completion_estimate": 0.28,
       "completed": [
         "role mapped into master plan",
         "Smart Spaces / Built Environment recognized as broader than home IoT",
@@ -252,13 +259,18 @@
         "KubeEdge optional edge substrate governance doc",
         "KubeEdge optional substrate capability-map lane",
         "KubeEdge optional substrate change-propagation rule",
-        "KubeEdge propagation rule required by change-rule validator"
+        "KubeEdge propagation rule required by change-rule validator",
+        "SourceOS/nlboot edge host lifecycle governance doc",
+        "EdgeHostLifecycleBinding schema",
+        "edge host lifecycle binding fixture",
+        "edge host lifecycle validator",
+        "edge host lifecycle CI"
       ],
       "next": [
-        "decide first-contract home: prophet-platform vs gaia-world-model vs sociosphere vs new repo",
+        "select concrete KubeEdge fleet/site use case before implementation",
+        "connect edge host lifecycle binding to SourceOS/nlboot release artifacts",
         "evaluate Brick/Haystack/RealEstateCore/BACnet/Matter/Home Assistant interfaces",
-        "define candidate object list without committing schemas to wrong repo",
-        "select concrete KubeEdge fleet/site use case before implementation"
+        "define candidate Smart Spaces object list without committing schemas to wrong repo"
       ],
       "blockers": [
         "domain home intentionally undecided; do not create speculative Smart Spaces implementation files",
@@ -328,8 +340,8 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "kubeedge-and-osm-governance-added",
-      "completion_estimate": 0.44,
+      "status": "edge-host-lifecycle-governance-added",
+      "completion_estimate": 0.51,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
@@ -347,13 +359,16 @@
         "KubeEdge optional edge substrate governance doc",
         "KubeEdge optional edge substrate capability-map lane",
         "KubeEdge optional edge substrate propagation rule",
-        "KubeEdge propagation rule validator alignment"
+        "KubeEdge propagation rule validator alignment",
+        "SourceOS/nlboot edge host lifecycle governance doc",
+        "EdgeHostLifecycleBinding schema and fixture",
+        "edge host lifecycle validator and CI"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
         "add source-exposure check mapping for new program repos",
         "verify strict mounted-fixture attribution workflow has cross-repo checkout access",
-        "add KubeEdge readiness record schema only after concrete fleet/site use case"
+        "connect edge host lifecycle binding to real SourceOS/nlboot release artifacts"
       ],
       "blockers": [
         "strict cross-repo OSM attribution workflow may require GitHub token access to GAIA and Sherlock private repos",
