@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T05:18:00Z",
+  "updated_at": "2026-04-27T05:42:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.326,
+  "overall_completion_estimate": 0.345,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.55,
+      "completion_estimate": 0.56,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -47,7 +47,8 @@
         "OSM tile export CI proof",
         "OSM route graph manifest schema",
         "OSM route graph executable entrypoint",
-        "OSM route graph CI proof"
+        "OSM route graph CI proof",
+        "OSM route graph checked-in fixture"
       ],
       "next": [
         "model/simulation/data product schemas",
@@ -59,10 +60,10 @@
     },
     {
       "id": "ws-prophet-platform-requirements",
-      "name": "Prophet Platform requirements",
+      "name": "Prophet Platform requirements and OSM API",
       "repo": "SocioProphet/prophet-platform",
-      "status": "osm-static-api-added",
-      "completion_estimate": 0.52,
+      "status": "osm-api-scaffold-added",
+      "completion_estimate": 0.64,
       "completed": [
         "master plan",
         "progress ledger",
@@ -70,13 +71,19 @@
         "OpenStreetMap platform requirements",
         "OpenStreetMap map/tile/routing acceptance criteria",
         "OpenStreetMap control-surface requirements",
-        "OpenStreetMap static fixture API/demo requirements"
+        "OpenStreetMap static fixture API/demo requirements",
+        "OSM Map API production-grade scaffold",
+        "OSM Map API FastAPI service package",
+        "OSM Map API endpoint tests",
+        "OSM Map API CI",
+        "OSM Map API container scaffold",
+        "OSM Map API Kubernetes deployment/service scaffold"
       ],
       "next": [
         "add product acceptance criteria for runtime admission hooks",
         "connect platform requirements to SocioSphere governance lanes",
         "define map UI acceptance tests",
-        "implement static fixture API demo path"
+        "add generated OpenAPI contract artifact"
       ],
       "blockers": []
     },
@@ -301,8 +308,8 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "capability-map-validation-added",
-      "completion_estimate": 0.28,
+      "status": "osm-source-attribution-validation-added",
+      "completion_estimate": 0.34,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
@@ -311,13 +318,17 @@
         "capability map governance validator",
         "capability map governance CI",
         "OpenStreetMap validation lane",
-        "OpenStreetMap change propagation rule"
+        "OpenStreetMap change propagation rule",
+        "OSM source attribution standard",
+        "OSM source attribution policy",
+        "OSM source attribution validator",
+        "OSM source attribution CI"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
         "add KubeEdge optional edge substrate governance doc",
         "add source-exposure check mapping for new program repos",
-        "add OSM attribution/source-exposure validation"
+        "run strict mounted-fixture attribution validation in workspace CI"
       ],
       "blockers": []
     }
