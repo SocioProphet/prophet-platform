@@ -1,0 +1,21 @@
+{
+  "contract_version": "v0",
+  "service": "osm-map-api",
+  "required_paths": [
+    {"path": "/healthz", "method": "get"},
+    {"path": "/readyz", "method": "get"},
+    {"path": "/map-layers", "method": "get"},
+    {"path": "/map-layers/{layer_id}", "method": "get"},
+    {"path": "/features/by-osm/{osm_type}/{osm_id}", "method": "get"},
+    {"path": "/features/by-h3/{h3_cell}", "method": "get"},
+    {"path": "/route-graphs/osm", "method": "get"},
+    {"path": "/runtime-boundaries/osm", "method": "get"},
+    {"path": "/governance/osm", "method": "get"},
+    {"path": "/search/osm-demo", "method": "get"}
+  ],
+  "required_safety_terms": [
+    "advisory",
+    "OpenStreetMap",
+    "attribution"
+  ]
+}
