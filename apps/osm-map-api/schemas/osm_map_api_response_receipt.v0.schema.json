@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/prophet-platform/osm-map-api/schemas/osm_map_api_response_receipt.v0.schema.json",
+  "title": "OSM Map API Response Receipt v0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_version",
+    "service",
+    "response_kind",
+    "source_refs",
+    "provenance_refs_present",
+    "attribution",
+    "safety_boundary",
+    "integrity"
+  ],
+  "properties": {
+    "receipt_version": {"type": "string", "const": "v0"},
+    "service": {"type": "string", "const": "osm-map-api"},
+    "response_kind": {"type": "string"},
+    "source_refs": {"type": "array", "items": {"type": "string"}},
+    "provenance_refs_present": {"type": "boolean"},
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "present", "texts", "license_refs"],
+      "properties": {
+        "required": {"type": "boolean", "const": true},
+        "present": {"type": "boolean"},
+        "texts": {"type": "array", "items": {"type": "string"}},
+        "license_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "route_safety_status": {"type": ["string", "null"], "enum": ["advisory", "validated", "restricted", "not-for-navigation", "unknown", null]},
+    "safety_boundary": {"type": "string"},
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signed", "note"],
+      "properties": {
+        "signed": {"type": "boolean"},
+        "note": {"type": "string"},
+        "digest": {"type": "string"},
+        "canonicalization": {"type": "string"}
+      }
+    }
+  }
+}
