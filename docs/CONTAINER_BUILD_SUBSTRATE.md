@@ -7,6 +7,7 @@ Consumes:
 - SocioProphet/socioprophet-standards-storage: `standards/evaluation-record-standard.v1.md`
 - SocioProphet/socioprophet-standards-knowledge: `standards/evaluation-fabric-standard.v1.md`
 - SocioProphet/socioprophet-standards-knowledge: `standards/ray-learning-ecosystem-standard.v1.md`
+- SocioProphet/socioprophet-standards-knowledge: `standards/immutable-image-substrate-standard.v1.md`
 - SocioProphet/sociosphere: `standards/angel-of-the-lord/README.md`
 - `docs/SOURCEOS_CONTROL_PLANE_CONTRACTS.md`
 
@@ -29,17 +30,41 @@ Prophet Platform container images are designed to deploy onto the SourceOS syste
 The canonical host/system substrate is:
 
 ```text
-FCOS / Fedora CoreOS, Silverblue, or compatible OSTree immutable Fedora-family substrate
+FCOS / Fedora CoreOS, Silverblue, Kinoite, or compatible OSTree immutable Fedora-family substrate
 ```
 
 This aligns with the SourceOS control-plane contract, which defines SourceOS as an immutable OSTree/Silverblue/CoreOS-style system plane with Nix-managed lifecycle and policy above it.
 
-Ubuntu, Debian, or other mutable general-purpose distributions must not be introduced as the assumed host substrate for Prophet Platform deployment. They may appear only as:
+Ubuntu, Debian, Alpine, or other mutable general-purpose distributions must not be introduced as the assumed host substrate for Prophet Platform deployment. They may appear only as:
 
 - upstream development compatibility references;
 - temporary local developer environments;
 - explicitly documented non-canonical compatibility lanes;
 - container builder stages when justified and not leaked into runtime or host assumptions.
+
+## Immutable image family selection
+
+The platform must distinguish immutable host images, recovery images, service images, Beam/Ray workload images, and Nix user/agent closures. These are not interchangeable.
+
+| Need | Preferred substrate | Bloat control |
+|---|---|---|
+| Headless/server host | FCOS/CoreOS-like OSTree image | No desktop, no app suites, no toolchains |
+| Desktop/workstation host | Silverblue/Kinoite/OSTree desktop host | Only host integration primitives; DE/app choice lives in Nix user closures |
+| Recovery/install/rollback | Minimal SourceOS recovery image | Only network, enrollment, fetch, verify, apply, rollback |
+| API/gateway/service | scratch/distroless/Wolfi/UBI-minimal OCI | No package manager, shell, compiler, or mutable runtime unless justified |
+| Durable data pipeline | Beam pipeline image | Beam lineage and replayability evidence required |
+| Ray learning/serving | Ray/KubeRay workload image | Consumes Beam-produced datasets; Ray Data is local adapter |
+| User apps and DEs | Nix user closure | Choice without system-plane bloat |
+| Agent tools/runtimes | Nix agent closure or isolated OCI/microVM | Policy-governed capability and rollback |
+
+## Desktop/server bloat rule
+
+Desktop and server substrates must remain role-specific:
+
+- Server images use FCOS/CoreOS-like immutable hosts and should not include desktop stack packages.
+- Desktop host images use Silverblue/Kinoite-style immutable hosts and should include only graphics/audio/portal/session primitives needed to host user-plane closures.
+- GNOME, KDE, macOS-like, Windows-like, developer toolchains, browsers, office apps, model tools, and agent runtimes must compile into Nix-managed user or agent closures unless a host-integration exception is approved.
+- Exceptions require an evidence record, owner, expiration or migration target, and Angel review when release or source-exposure risk applies.
 
 ## Container runtime image rule
 
@@ -50,7 +75,7 @@ Service container images should be minimal, reproducible OCI artifacts with dige
 - UBI/RHEL/Fedora-family minimal images where Fedora-family compatibility is required;
 - Nix-built or apko-built images where deterministic closure evidence is required.
 
-If a Debian/Ubuntu-derived runtime image is used, the component inventory must include a justification and migration target. Such an image is not the SourceOS host substrate.
+If a Debian/Ubuntu/Alpine-derived runtime image is used, the component inventory must include a justification and migration target. Such an image is not the SourceOS host substrate.
 
 ## Purpose
 
@@ -63,7 +88,7 @@ This contract covers:
 - Ray/KubeRay services where model learning or serving is involved;
 - Beam pipeline containers where durable data processing is involved;
 - Fog Stack packs and SourceOS control-plane components when packaged here;
-- any future service under `services/` or `apps/`.
+- any future service under `services/` or `apps`.
 
 ## Canonical build doctrine
 
@@ -80,11 +105,12 @@ id: stable component identifier
 name: human readable name
 source_path: repository path
 component_type: go_service | python_service | worker | ray_service | beam_pipeline | cli | gateway | api | ui | other
+image_family: fcos_server | silverblue_desktop | sourceos_recovery | minimal_service_oci | beam_pipeline | ray_learning | nix_user_agent_closure | other
 build_context: repository-relative path
 containerfile: Dockerfile | Containerfile | apko | ko | nix2container | other
-runtime_base: scratch | distroless | wolfi | ubi_minimal | fedora_minimal | nix | other
-runtime_base_justification: required when runtime_base is other, debian, or ubuntu
-host_substrate: fcos | silverblue | ostree_fedora_family | sourceos_system_plane
+runtime_base: scratch | distroless | wolfi | ubi_minimal | fedora_minimal | nix | ostree | other
+runtime_base_justification: required when runtime_base is other, debian, ubuntu, or alpine
+host_substrate: fcos | silverblue | kinoite | ostree_fedora_family | sourceos_system_plane
 image_registry: ghcr.io/socioprophet/prophet-platform
 image_name: image name without tag
 tags: main, sha, semver, channel, or release tags
@@ -105,12 +131,13 @@ id: stable identifier
 component_id: ContainerComponent id
 source_sha: git commit SHA
 workflow_ref: CI workflow, local build, or release process
-build_tool: docker_buildx | ko | apko | nix | buildpacks | bazel | other
+build_tool: docker_buildx | ko | apko | nix | buildpacks | bazel | ostree_compose | other
+image_family: immutable image family
 image_ref: tag reference
 image_digest: immutable digest
 pinned_ref: image@digest
 runtime_base: runtime base family
-host_substrate_target: FCOS/Silverblue/OSTree Fedora-family target
+host_substrate_target: FCOS/Silverblue/Kinoite/OSTree Fedora-family target
 sbom_ref: SBOM artifact reference
 provenance_ref: SLSA/in-toto/build provenance reference when available
 vulnerability_scan_ref: scan artifact reference
@@ -136,7 +163,7 @@ Every production or demo image must:
 1. build from a declared context and Containerfile/Dockerfile/build mechanism;
 2. publish or produce an immutable digest;
 3. emit a pinned `image@digest` reference;
-4. identify its runtime base and canonical FCOS/Silverblue/OSTree deployment target;
+4. identify its image family, runtime base, and canonical FCOS/Silverblue/Kinoite/OSTree deployment target;
 5. produce build evidence;
 6. produce an SBOM where supported;
 7. produce provenance where supported;
@@ -184,13 +211,16 @@ Ray Serve and KubeRay are the primary path. Clipper is legacy-reference only.
 
 ## Blocking conditions
 
-A container image must not be promoted when:
+A container or immutable image must not be promoted when:
 
-- image digest is missing;
+- image digest or closure hash is missing;
 - build evidence is missing;
 - component is absent from inventory;
-- host substrate is not FCOS/Silverblue/OSTree Fedora-family or SourceOS system plane;
-- runtime base is Debian/Ubuntu-derived without explicit justification and migration target;
+- image family is missing or wrong for the intended role;
+- host substrate is not FCOS/Silverblue/Kinoite/OSTree Fedora-family or SourceOS system plane;
+- server images include desktop payload without an approved exception;
+- desktop host images include app/toolchain/agent bloat outside host integration primitives;
+- runtime base is Debian/Ubuntu/Alpine-derived without explicit justification and migration target;
 - SBOM/provenance is required but missing;
 - vulnerability findings are blocker/high and unresolved;
 - evaluation record is missing;
@@ -209,10 +239,10 @@ Initial repo-visible targets include:
   current_status: existing_buildx_ghcr_digest_evidence
 - id: socioprophet_api
   source_path: apps/api/cmd/socioprophet-api
-  current_status: needs_declared_container_build
+  current_status: deployable_buildx_ghcr_digest_evidence
 - id: tritrpc_gateway
   source_path: apps/gateway/cmd/tritrpc-gateway
-  current_status: needs_declared_container_build
+  current_status: deployable_buildx_ghcr_digest_evidence
 ```
 
-Additional services, workers, Ray components, Beam components, and Fog Stack packs must be added as they become runnable components.
+Additional desktop host images, server host images, recovery images, services, workers, Ray components, Beam components, and Fog Stack packs must be added as they become runnable components.
