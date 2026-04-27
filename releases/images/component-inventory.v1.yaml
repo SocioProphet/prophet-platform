@@ -5,8 +5,10 @@
 
 schema_version: v1
 owner: prophet-platform
+canonical_host_substrate: fcos_silverblue_ostree_fedora_family
 standards:
   - docs/CONTAINER_BUILD_SUBSTRATE.md
+  - docs/SOURCEOS_CONTROL_PLANE_CONTRACTS.md
   - SocioProphet/socioprophet-standards-storage:standards/evidence-bundle-standard.v1.md
   - SocioProphet/socioprophet-standards-storage:standards/evaluation-record-standard.v1.md
   - SocioProphet/socioprophet-standards-knowledge:standards/evaluation-fabric-standard.v1.md
@@ -20,6 +22,9 @@ components:
     runtime_class: platform
     build_context: .
     containerfile: services/search-orchestrator/Dockerfile
+    runtime_base: unknown_existing
+    runtime_base_justification: Existing image workflow predates substrate hardening; verify and migrate to scratch/distroless/Wolfi/UBI-minimal as appropriate.
+    host_substrate: fcos_silverblue_ostree_fedora_family
     image_registry: ghcr.io/socioprophet/prophet-platform
     image_name: search-orchestrator
     tags:
@@ -42,20 +47,23 @@ components:
     runtime_class: platform
     build_context: .
     containerfile: apps/api/Dockerfile
+    runtime_base: scratch
+    runtime_base_justification: Static Go binary with no runtime userspace; suitable for FCOS/Silverblue/OSTree host deployment.
+    host_substrate: fcos_silverblue_ostree_fedora_family
     image_registry: ghcr.io/socioprophet/prophet-platform
     image_name: socioprophet-api
     tags:
       - main
       - sha
     workflow: .github/workflows/socioprophet-api-image.yml
-    current_status: needs_declared_container_build
+    current_status: deployable_buildx_ghcr_digest_evidence
     digest_required: true
     sbom_required: true
     provenance_required: true
     vulnerability_scan_required: true
     evaluation_record_required: true
     angel_required: conditional
-    notes: Source entrypoint exists under apps/api/cmd/socioprophet-api. Containerfile/workflow must be added or confirmed before promotion.
+    notes: Scratch runtime image. Builder stage is not host substrate and must not be interpreted as SourceOS system plane.
 
   - id: tritrpc_gateway
     name: TriTRPC Gateway
@@ -64,20 +72,23 @@ components:
     runtime_class: platform
     build_context: .
     containerfile: apps/gateway/Dockerfile
+    runtime_base: scratch
+    runtime_base_justification: Static Go binary with no runtime userspace; suitable for FCOS/Silverblue/OSTree host deployment.
+    host_substrate: fcos_silverblue_ostree_fedora_family
     image_registry: ghcr.io/socioprophet/prophet-platform
     image_name: tritrpc-gateway
     tags:
       - main
       - sha
     workflow: .github/workflows/tritrpc-gateway-image.yml
-    current_status: needs_declared_container_build
+    current_status: deployable_buildx_ghcr_digest_evidence
     digest_required: true
     sbom_required: true
     provenance_required: true
     vulnerability_scan_required: true
     evaluation_record_required: true
     angel_required: conditional
-    notes: Source entrypoint exists under apps/gateway/cmd/tritrpc-gateway. Containerfile/workflow must be added or confirmed before promotion.
+    notes: Scratch runtime image. Builder stage is not host substrate and must not be interpreted as SourceOS system plane.
 
   - id: beam_pipeline_components
     name: Beam Pipeline Components
@@ -86,6 +97,9 @@ components:
     runtime_class: beam
     build_context: TBD
     containerfile: TBD
+    runtime_base: TBD
+    runtime_base_justification: TBD
+    host_substrate: fcos_silverblue_ostree_fedora_family
     image_registry: ghcr.io/socioprophet/prophet-platform
     image_name: TBD
     tags:
@@ -108,6 +122,9 @@ components:
     runtime_class: ray
     build_context: TBD
     containerfile: TBD
+    runtime_base: TBD
+    runtime_base_justification: TBD
+    host_substrate: fcos_silverblue_ostree_fedora_family
     image_registry: ghcr.io/socioprophet/prophet-platform
     image_name: TBD
     tags:
