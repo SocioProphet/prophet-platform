@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-26T23:58:00Z",
+  "updated_at": "2026-04-27T00:18:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.145,
+  "overall_completion_estimate": 0.153,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -39,17 +39,18 @@
       "name": "OFIF field intelligence",
       "repo": "SocioProphet/orion-field-intelligence",
       "status": "in-progress",
-      "completion_estimate": 0.16,
+      "completion_estimate": 0.18,
       "completed": [
         "GAIA integration contract",
         "GAIA ontology binding stubs",
-        "canonical observation fixture"
+        "canonical observation fixture",
+        "asset health event fixture"
       ],
       "next": [
-        "Home IoT event binding",
         "SensorThings/SOSA binding",
-        "asset health event fixture",
-        "navigation anomaly event fixture"
+        "navigation anomaly event fixture",
+        "asset health event validation",
+        "smart-space event boundary decision after domain home is settled"
       ],
       "blockers": []
     },
@@ -76,19 +77,20 @@
       "name": "Sherlock discovery",
       "repo": "SocioProphet/sherlock-search",
       "status": "in-progress",
-      "completion_estimate": 0.18,
+      "completion_estimate": 0.21,
       "completed": [
         "native geospatial/evidence result schema",
         "GAIA soil decision-card result example",
+        "GAIA navigation control-tower result example",
         "dependency-free validator",
         "CI workflow for geospatial result examples",
         "tracking issue for GAIA/OFIF/Lattice/Lampstand source/entity support"
       ],
       "next": [
-        "navigation decision-card result example",
-        "runtime asset result example",
+        "runtime asset search result fixture once runtime boundary is defined",
         "static example record endpoint",
-        "spatial/temporal/evidence scoring contract"
+        "spatial/temporal/evidence scoring contract",
+        "smart-space search examples only after domain home is settled"
       ],
       "blockers": []
     },
@@ -96,18 +98,21 @@
       "id": "ws-lattice-forge",
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
-      "status": "issue-opened-fixture-in-gaia",
+      "status": "runtime-boundary-required",
       "completion_estimate": 0.1,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path"
       ],
       "next": [
-        "mirror GAIA soil runtime asset into Lattice Forge",
-        "add navigation LiDAR runtime asset",
-        "add control tower anomaly runtime asset"
+        "define GAIA soil runtime boundary before mirroring fixture into Lattice Forge",
+        "define navigation LiDAR runtime boundary before adding Lattice asset",
+        "define control tower anomaly runtime boundary before adding Lattice asset",
+        "add runtime validation examples only after boundary definition"
       ],
-      "blockers": []
+      "blockers": [
+        "do not add speculative runtime fixtures before executable boundary is defined"
+      ]
     },
     {
       "id": "ws-meshrush",
@@ -120,49 +125,55 @@
         "role mapped into master plan"
       ],
       "next": [
-        "add GAIA/OFIF/Home IoT graph ops integration doc",
+        "add GAIA/OFIF graph ops integration doc",
         "soil graph diffusion example",
-        "navigation corridor graph crystallization example"
+        "navigation corridor graph crystallization example",
+        "smart-space graph example only after domain home is settled"
       ],
       "blockers": []
     },
     {
-      "id": "ws-sourceos-edge-homeiot",
-      "name": "SourceOS / nlboot / KubeEdge / Home IoT",
-      "repo": "multiple",
-      "status": "conceptual-mapped",
-      "completion_estimate": 0.04,
+      "id": "ws-sourceos-edge-smartspaces",
+      "name": "SourceOS / nlboot / KubeEdge / Smart Spaces",
+      "repo": "multiple / undecided domain home",
+      "status": "domain-boundary-open",
+      "completion_estimate": 0.06,
       "completed": [
-        "role mapped into master plan"
+        "role mapped into master plan",
+        "Smart Spaces / Built Environment recognized as broader than home IoT",
+        "Smart Spaces domain-home decision record added"
       ],
       "next": [
-        "MESHRUSH_KUBEEDGE_HOME_IOT_INTEGRATION doc",
-        "HomeFabricRecord schema",
-        "DeviceTwinRecord schema",
-        "AutomationPolicyRecord schema"
+        "decide first-contract home: prophet-platform vs gaia-world-model vs sociosphere vs new repo",
+        "evaluate Brick/Haystack/RealEstateCore/BACnet/Matter/Home Assistant interfaces",
+        "define candidate object list without committing schemas to wrong repo",
+        "add SourceOS/KubeEdge optional substrate doc in SocioSphere"
       ],
       "blockers": [
-        "exact home IoT repo location not yet identified"
+        "domain home intentionally undecided; do not create speculative implementation files"
       ]
     },
     {
       "id": "ws-control-tower",
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "base-schemas-added",
-      "completion_estimate": 0.18,
+      "status": "fixtures-started",
+      "completion_estimate": 0.22,
       "completed": [
         "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
         "AssetHealthObservation schema",
         "InventoryEvent schema",
-        "ControlTowerDecisionCard schema"
-      ],
-      "next": [
+        "ControlTowerDecisionCard schema",
         "navigation asset health decision-card fixture",
         "OFIF asset health event fixture",
-        "Sherlock control tower result fixture",
-        "Lattice control tower anomaly runtime fixture"
+        "Sherlock control tower result fixture"
+      ],
+      "next": [
+        "WorkOrderCandidate schema",
+        "InventoryNodeRecord schema",
+        "RiskExposureRecord schema",
+        "control tower anomaly runtime boundary definition before adding Lattice asset"
       ],
       "blockers": []
     },
