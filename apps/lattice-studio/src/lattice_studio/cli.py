@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from .catalog import catalog_evidence, demo_catalog_assets
+from .platform_records import catalog_asset_to_platform_record, notebook_session_to_platform_record, platform_record_set
 from .session import create_session, load_json, write_session_bundle
 
 
@@ -43,6 +44,19 @@ def emit_demo_catalog(args: argparse.Namespace) -> int:
     return 0
 
 
+def emit_platform_records(args: argparse.Namespace) -> int:
+    records = []
+    for path in args.catalog_asset:
+        records.append(catalog_asset_to_platform_record(load_json(path)))
+    for path in args.notebook_session:
+        records.append(notebook_session_to_platform_record(load_json(path)))
+    payload = platform_record_set(records)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(args.output)], "recordCount": len(records)}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions and catalog assets")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -59,6 +73,12 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_parser = subparsers.add_parser("emit-demo-catalog", help="Emit demo CatalogAsset bundles for data, ML, app, and service assets")
     catalog_parser.add_argument("--output-dir", type=Path, required=True)
     catalog_parser.set_defaults(func=emit_demo_catalog)
+
+    records_parser = subparsers.add_parser("emit-platform-records", help="Convert Studio catalog/session artifacts into PlatformAssetRecordSet")
+    records_parser.add_argument("--catalog-asset", type=Path, action="append", default=[])
+    records_parser.add_argument("--notebook-session", type=Path, action="append", default=[])
+    records_parser.add_argument("--output", type=Path, required=True)
+    records_parser.set_defaults(func=emit_platform_records)
     return parser
 
 
