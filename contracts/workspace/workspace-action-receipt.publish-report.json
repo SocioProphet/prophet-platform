@@ -1,0 +1,27 @@
+{
+  "apiVersion": "workspace.socioprophet.dev/v1",
+  "kind": "WorkspaceActionReceipt",
+  "metadata": {
+    "actionId": "workspace-action:publish/demo-report",
+    "createdAt": "2026-04-27T00:00:00Z",
+    "labels": {"surface": "docs", "demo": "lattice-studio"}
+  },
+  "spec": {
+    "actorId": "user:demo-user",
+    "surface": "docs",
+    "actionType": "publish",
+    "inputSourceIds": [
+      "workspace-source:docs/demo-brief",
+      "workspace-source:sheets/demo-dataset",
+      "workspace-source:slides/demo-report"
+    ],
+    "outputArtifactIds": ["workspace-publication:docs/generated-demo-report"],
+    "runtimeAssetId": "runtime-asset:prophet-python-ml:0.1.0",
+    "notebookSessionId": "notebook-session:demo1234567890abcd",
+    "policyRef": "policy://workspace/demo",
+    "evidenceCorrelationId": "workspace-action:publish/demo-report",
+    "outputDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "publicationRef": "workspace://docs/generated-demo-report",
+    "shareScope": "project"
+  }
+}
