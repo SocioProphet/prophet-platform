@@ -96,6 +96,51 @@ def test_filesystem_registry_root_build_and_check(tmp_path: Path) -> None:
     ], check=True)
 
 
+def test_registry_rollback_revocation_index_build_and_check(tmp_path: Path) -> None:
+    registry_root = build_registry(tmp_path)
+
+    subprocess.run([
+        sys.executable,
+        "tools/build_fogstack_registry_rollback_revocation_index.py",
+        "--registry-root", str(registry_root),
+        "--registry-uri", "file://registry/fogstack",
+        "--preferred-rollback-target", "fogstack.access/0.1.0",
+    ], check=True)
+
+    index_path = registry_root / "rollback-revocation.index.json"
+    assert index_path.exists()
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    assert index["kind"] == "FogStackRegistryRollbackRevocationIndex"
+    assert index["rollback_targets"][0]["status"] == "preferred"
+    assert index["revocations"] == []
+
+    subprocess.run([
+        sys.executable,
+        "tools/check_fogstack_registry_rollback_revocation_index.py",
+        "--registry-root", str(registry_root),
+    ], check=True)
+
+
+def test_registry_rollback_revocation_index_rejects_revoked_rollback_target(tmp_path: Path) -> None:
+    registry_root = build_registry(tmp_path)
+
+    subprocess.run([
+        sys.executable,
+        "tools/build_fogstack_registry_rollback_revocation_index.py",
+        "--registry-root", str(registry_root),
+        "--registry-uri", "file://registry/fogstack",
+        "--rollback-target", "fogstack.access/0.1.0",
+        "--revoke", "fogstack.access/0.1.0",
+    ], check=True)
+
+    proc = subprocess.run([
+        sys.executable,
+        "tools/check_fogstack_registry_rollback_revocation_index.py",
+        "--registry-root", str(registry_root),
+    ])
+    assert proc.returncode != 0
+
+
 def test_filesystem_registry_root_check_rejects_tampered_pointer(tmp_path: Path) -> None:
     registry_root = build_registry(tmp_path)
     subprocess.run([
