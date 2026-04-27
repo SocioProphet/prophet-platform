@@ -1,0 +1,82 @@
+name: socioprophet-api-image
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/api/**'
+      - 'libs/go/tritrpcbridge/**'
+      - '.github/workflows/socioprophet-api-image.yml'
+      - 'releases/images/component-inventory.v1.yaml'
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'libs/go/tritrpcbridge/**'
+      - '.github/workflows/socioprophet-api-image.yml'
+      - 'releases/images/component-inventory.v1.yaml'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image for pull request
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: ghcr.io/socioprophet/prophet-platform/socioprophet-api:pr-${{ github.event.pull_request.number }}
+
+      - name: Build and push image
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/socioprophet/prophet-platform/socioprophet-api:main
+            ghcr.io/socioprophet/prophet-platform/socioprophet-api:${{ github.sha }}
+
+      - name: Emit digest evidence
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p image-evidence
+          cat > image-evidence/socioprophet-api-image.json <<EOF
+          {
+            "component_id": "socioprophet_api",
+            "image": "ghcr.io/socioprophet/prophet-platform/socioprophet-api",
+            "source_sha": "${{ github.sha }}",
+            "digest": "${{ steps.build.outputs.digest }}",
+            "pinned_ref": "ghcr.io/socioprophet/prophet-platform/socioprophet-api@${{ steps.build.outputs.digest }}",
+            "runtime_base": "scratch",
+            "host_substrate_target": "fcos_silverblue_ostree_fedora_family"
+          }
+          EOF
+
+      - name: Upload digest evidence
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: socioprophet-api-image-evidence
+          path: image-evidence/socioprophet-api-image.json
