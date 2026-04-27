@@ -37,13 +37,21 @@ lattice-studio-smoke:
 	mkdir -p build/lattice-studio
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-demo-catalog --output-dir build/lattice-studio/catalog
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/demo --output-dir build/lattice-studio/session
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --output build/lattice-studio/studio-platform-records.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-atlas-context --output-dir build/lattice-studio/atlas
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-paas-plan --name demo-inference-service --kind service --source-ref git://SocioProphet/demo-inference-service#main --build-mode buildpack --runtime-asset-id runtime-asset:prophet-python-ml:0.1.0 --catalog-asset-ref catalog://services/demo-inference-service@0.1.0 --environment preview --target-platform kubernetes --route https://demo-inference.preview.example.invalid --policy-ref policy://lattice-studio/paas-demo --output-dir build/lattice-studio/paas
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-local-dev --workspace-ref workspace://demo --atlas-context-ref atlas-context:demo --paas-deployment-ref paas-deployment:demo --output-dir build/lattice-studio/local-dev
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --output build/lattice-studio/studio-platform-records.json
 	test -s build/lattice-studio/session/notebook-session.json
 	test -s build/lattice-studio/session/notebook-session-evidence.json
 	test -s build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json
 	test -s build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json
 	test -s build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json
 	test -s build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json
+	test -s build/lattice-studio/atlas/atlas-context.json
+	test -s build/lattice-studio/paas/paas-deployment-plan.json
+	test -s build/lattice-studio/local-dev/local-dev-session.json
+	test -s build/lattice-studio/memory-events.json
 	test -s build/lattice-studio/studio-platform-records.json
 
 validate-ops-fabric:
