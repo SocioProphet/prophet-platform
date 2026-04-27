@@ -1,0 +1,25 @@
+{
+  "apiVersion": "workspace.socioprophet.dev/v1",
+  "kind": "WorkspaceSource",
+  "metadata": {
+    "sourceId": "workspace-source:docs/demo-brief",
+    "name": "Demo research brief",
+    "createdAt": "2026-04-27T00:00:00Z",
+    "labels": {"surface": "docs", "demo": "lattice-studio"}
+  },
+  "spec": {
+    "surface": "docs",
+    "sourceType": "document",
+    "ownerScope": "user:demo-user",
+    "projectScope": "project:demo-project",
+    "backendRef": "gdocs://demo-brief",
+    "versionRef": "v0.1.0",
+    "contentDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "modifiedAt": "2026-04-27T00:00:00Z",
+    "policyRef": "policy://workspace/demo",
+    "retentionPolicyRef": "retention://workspace/default",
+    "evidenceCorrelationId": "workspace-source:docs/demo-brief",
+    "sourceUri": "workspace://docs/demo-brief",
+    "tags": ["brief", "source-grounding", "lattice-studio"]
+  }
+}
