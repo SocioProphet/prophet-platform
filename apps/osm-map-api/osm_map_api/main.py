@@ -26,7 +26,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version="0.1.0",
         description=(
             "Read-only fixture-backed API for OpenStreetMap-derived GAIA map layers, "
-            "feature bindings, advisory route graphs, runtime-boundary state, and governance state."
+            "feature bindings, advisory route graphs, attribution receipts, runtime-boundary "
+            "state, provenance state, and governance state."
         ),
     )
     app.state.repository = repo
