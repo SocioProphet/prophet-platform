@@ -31,5 +31,8 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      - name: Check OpenAPI contract
+        run: python3 scripts/check_openapi_contract.py
+
       - name: Compile package
         run: python3 -m compileall osm_map_api
