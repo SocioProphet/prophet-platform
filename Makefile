@@ -35,9 +35,14 @@ lattice-studio-smoke:
 	cd apps/lattice-studio && test -d .venv || python3 -m venv .venv
 	cd apps/lattice-studio && . .venv/bin/activate && python -m pip install --upgrade pip pytest && PYTHONPATH=src pytest -q tests
 	mkdir -p build/lattice-studio
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv --policy-ref policy://lattice-studio/demo --output-dir build/lattice-studio/session
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-demo-catalog --output-dir build/lattice-studio/catalog
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/demo --output-dir build/lattice-studio/session
 	test -s build/lattice-studio/session/notebook-session.json
 	test -s build/lattice-studio/session/notebook-session-evidence.json
+	test -s build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json
+	test -s build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json
+	test -s build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json
+	test -s build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py
