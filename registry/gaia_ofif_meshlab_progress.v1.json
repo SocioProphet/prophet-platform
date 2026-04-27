@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T03:58:00Z",
+  "updated_at": "2026-04-27T04:25:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.259,
+  "overall_completion_estimate": 0.275,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.39,
+      "completion_estimate": 0.44,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -32,13 +32,37 @@
         "contract fixture validation CI",
         "runtime boundary definitions",
         "control tower anomaly executable entrypoint",
-        "control tower anomaly CI validation"
+        "control tower anomaly CI validation",
+        "OpenStreetMap integration contract",
+        "OSM feature binding schema and fixture",
+        "Map tile layer manifest schema and fixture",
+        "OSM fixtures added to contract validation"
       ],
       "next": [
         "model/simulation/data product schemas",
         "additional runtime executable entrypoints",
-        "cross-repo validation gates",
-        "MeshRush graph-view validation"
+        "OSM ingestion/runtime boundary definition",
+        "cross-repo validation gates"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "ws-prophet-platform-requirements",
+      "name": "Prophet Platform requirements",
+      "repo": "SocioProphet/prophet-platform",
+      "status": "osm-requirements-added",
+      "completion_estimate": 0.22,
+      "completed": [
+        "master plan",
+        "progress ledger",
+        "Smart Spaces domain-home decision record",
+        "OpenStreetMap platform requirements"
+      ],
+      "next": [
+        "turn OSM requirements into dashboard/control-surface requirements",
+        "add product acceptance criteria for map/route/tile surfaces",
+        "add runtime admission requirement hooks",
+        "connect platform requirements to SocioSphere governance lanes"
       ],
       "blockers": []
     },
@@ -76,7 +100,7 @@
       "next": [
         "mirror schemas into Lampstand",
         "add local-state Sherlock fixture",
-        "add local LiDAR sample percolation fixture"
+        "add local OSM/LiDAR sample percolation fixture"
       ],
       "blockers": []
     },
@@ -85,12 +109,13 @@
       "name": "Sherlock discovery",
       "repo": "SocioProphet/sherlock-search",
       "status": "in-progress",
-      "completion_estimate": 0.24,
+      "completion_estimate": 0.27,
       "completed": [
         "native geospatial/evidence result schema",
         "GAIA soil decision-card result example",
         "GAIA navigation control-tower result example",
         "GAIA mesh experiment result example",
+        "GAIA OSM-derived road layer result example",
         "dependency-free validator",
         "CI workflow for geospatial result examples",
         "tracking issue for GAIA/OFIF/Lattice/Lampstand source/entity support"
@@ -116,10 +141,10 @@
         "control tower anomaly executable entrypoint exists in GAIA"
       ],
       "next": [
+        "define OSM ingestion/tile/runtime boundary before adding Lattice asset",
         "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
         "implement navigation LiDAR runtime entrypoint before adding Lattice asset",
-        "implement soil runtime packaging boundary before mirroring soil asset",
-        "add runtime validation examples only after executable boundary is real"
+        "implement soil runtime packaging boundary before mirroring soil asset"
       ],
       "blockers": [
         "do not add speculative runtime fixtures before executable entrypoints and validation commands exist"
@@ -259,20 +284,22 @@
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
       "status": "capability-map-validation-added",
-      "completion_estimate": 0.24,
+      "completion_estimate": 0.28,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
         "validation lane definitions",
         "readiness-state vocabulary",
         "capability map governance validator",
-        "capability map governance CI"
+        "capability map governance CI",
+        "OpenStreetMap validation lane",
+        "OpenStreetMap change propagation rule"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
         "add KubeEdge optional edge substrate governance doc",
         "add source-exposure check mapping for new program repos",
-        "add change-propagation rules for schema/fixture changes"
+        "add OSM attribution/source-exposure validation"
       ],
       "blockers": []
     }
