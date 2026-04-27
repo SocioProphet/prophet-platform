@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T03:48:00Z",
+  "updated_at": "2026-04-27T03:58:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.252,
+  "overall_completion_estimate": 0.259,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -151,8 +151,8 @@
       "id": "ws-agentplane",
       "name": "Agentplane governed execution adapter",
       "repo": "SocioProphet/agentplane",
-      "status": "pr-open-ci-green",
-      "completion_estimate": 0.24,
+      "status": "pr-open-ci-green-merge-blocked-by-status-context",
+      "completion_estimate": 0.26,
       "completed": [
         "MeshRush adapter contract proposed in PR #54",
         "MeshRush execution candidate schema added in PR #54",
@@ -160,16 +160,18 @@
         "MeshRush candidate validator added in PR #54",
         "MeshRush candidate validation workflow added in PR #54",
         "PR #54 ci check succeeded",
-        "PR #54 MeshRush Candidate check succeeded"
+        "PR #54 MeshRush Candidate check succeeded",
+        "PR #54 lint workflow job succeeded"
       ],
       "next": [
-        "merge Agentplane PR #54 after review/merge approval",
+        "resolve required lint status-context mismatch for PR #54",
+        "merge Agentplane PR #54 after branch protection recognizes lint",
         "connect advisory candidate to existing Bundle/ValidationArtifact model",
-        "validate advisory artifacts are non-runnable in normal demo path",
         "connect approval_required boundary to existing bundle/evidence lifecycle"
       ],
       "blockers": [
-        "main branch requires PR merge approval"
+        "merge API still reports required status check lint is expected even though lint Actions job succeeded",
+        "combined status API returns no legacy statuses for PR head"
       ]
     },
     {
@@ -256,13 +258,15 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "capability-map-added",
-      "completion_estimate": 0.16,
+      "status": "capability-map-validation-added",
+      "completion_estimate": 0.24,
       "completed": [
         "GAIA/OFIF/MeshLab governance integration doc",
         "machine-readable capability map registry",
         "validation lane definitions",
-        "readiness-state vocabulary"
+        "readiness-state vocabulary",
+        "capability map governance validator",
+        "capability map governance CI"
       ],
       "next": [
         "wire capability map into existing topology/dependency checks",
