@@ -56,10 +56,26 @@ def notebook_session_to_platform_record(session_doc: dict[str, Any]) -> dict[str
 
 
 def platform_record_set(records: list[dict[str, Any]]) -> dict[str, Any]:
+    flattened: list[dict[str, Any]] = []
+    for record in records:
+        kind = record.get("kind")
+        if kind == "PlatformAssetRecord":
+            flattened.append(record)
+            continue
+        if kind == "PlatformAssetRecordSet":
+            nested = record.get("records")
+            if not isinstance(nested, list):
+                raise ValueError("PlatformAssetRecordSet.records must be a list")
+            for item in nested:
+                if not isinstance(item, dict) or item.get("kind") != "PlatformAssetRecord":
+                    raise ValueError("PlatformAssetRecordSet.records must contain PlatformAssetRecord objects")
+                flattened.append(item)
+            continue
+        raise ValueError(f"unsupported platform record kind: {kind!r}")
     return {
         "apiVersion": "prophet.socioprophet.dev/v1",
         "kind": "PlatformAssetRecordSet",
-        "records": records,
+        "records": flattened,
     }
 
 
