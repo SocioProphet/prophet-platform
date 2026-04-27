@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T00:31:00Z",
+  "updated_at": "2026-04-27T00:46:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.172,
+  "overall_completion_estimate": 0.187,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.31,
+      "completion_estimate": 0.34,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -26,12 +26,15 @@
         "state-of-the-art integration map",
         "control tower base schemas",
         "control tower operational schemas",
-        "mesh base schemas"
+        "mesh base schemas",
+        "mesh and control tower fixtures",
+        "contract fixture validation script",
+        "contract fixture validation CI"
       ],
       "next": [
         "model/simulation/data product schemas",
-        "mesh fixtures",
-        "control tower validation fixtures",
+        "Sherlock mesh experiment result fixture",
+        "runtime boundary definitions",
         "cross-repo validation gates"
       ],
       "blockers": []
@@ -159,8 +162,8 @@
       "id": "ws-control-tower",
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "operational-schemas-added",
-      "completion_estimate": 0.29,
+      "status": "fixtures-and-validation-started",
+      "completion_estimate": 0.34,
       "completed": [
         "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
@@ -172,13 +175,16 @@
         "RiskExposureRecord schema",
         "navigation asset health decision-card fixture",
         "OFIF asset health event fixture",
-        "Sherlock control tower result fixture"
-      ],
-      "next": [
-        "control tower fixture validation",
+        "Sherlock control tower result fixture",
         "WorkOrderCandidate fixture",
         "InventoryNode fixture",
-        "control tower anomaly runtime boundary definition before adding Lattice asset"
+        "control tower fixture validation started"
+      ],
+      "next": [
+        "RiskExposure fixture",
+        "control tower anomaly runtime boundary definition before adding Lattice asset",
+        "WorkOrderCandidate to approval lifecycle fixture",
+        "InventoryEvent to InventoryNode consistency fixture"
       ],
       "blockers": []
     },
@@ -186,19 +192,23 @@
       "id": "ws-meshlab",
       "name": "MeshLab / PlanetLab successor mesh contracts",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "base-schemas-added",
-      "completion_estimate": 0.2,
+      "status": "fixtures-and-validation-started",
+      "completion_estimate": 0.32,
       "completed": [
         "MeshNodeRecord schema",
         "SliceAllocationRecord schema",
         "MeshTelemetryEnvelope schema",
-        "MeshExperimentManifest schema"
-      ],
-      "next": [
-        "soil-intelligence mesh experiment fixture",
+        "MeshExperimentManifest schema",
         "mesh node fixture",
         "slice allocation fixture",
-        "Sherlock mesh experiment result fixture"
+        "soil-intelligence mesh experiment fixture",
+        "mesh fixture validation started"
+      ],
+      "next": [
+        "MeshTelemetry fixture",
+        "Sherlock mesh experiment result fixture",
+        "MeshRush graph view fixture",
+        "SocioSphere mesh registration issue/doc"
       ],
       "blockers": []
     },
