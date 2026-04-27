@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T00:46:00Z",
+  "updated_at": "2026-04-27T00:58:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.187,
+  "overall_completion_estimate": 0.201,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.34,
+      "completion_estimate": 0.37,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -29,13 +29,14 @@
         "mesh base schemas",
         "mesh and control tower fixtures",
         "contract fixture validation script",
-        "contract fixture validation CI"
+        "contract fixture validation CI",
+        "runtime boundary definitions"
       ],
       "next": [
         "model/simulation/data product schemas",
-        "Sherlock mesh experiment result fixture",
-        "runtime boundary definitions",
-        "cross-repo validation gates"
+        "runtime executable entrypoints",
+        "cross-repo validation gates",
+        "MeshRush graph-view fixture"
       ],
       "blockers": []
     },
@@ -82,17 +83,18 @@
       "name": "Sherlock discovery",
       "repo": "SocioProphet/sherlock-search",
       "status": "in-progress",
-      "completion_estimate": 0.21,
+      "completion_estimate": 0.24,
       "completed": [
         "native geospatial/evidence result schema",
         "GAIA soil decision-card result example",
         "GAIA navigation control-tower result example",
+        "GAIA mesh experiment result example",
         "dependency-free validator",
         "CI workflow for geospatial result examples",
         "tracking issue for GAIA/OFIF/Lattice/Lampstand source/entity support"
       ],
       "next": [
-        "runtime asset search result fixture once runtime boundary is defined",
+        "runtime asset search result fixture once runtime boundary has executable entrypoints",
         "static example record endpoint",
         "spatial/temporal/evidence scoring contract",
         "smart-space search examples only after domain home is settled"
@@ -103,20 +105,21 @@
       "id": "ws-lattice-forge",
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
-      "status": "runtime-boundary-required",
-      "completion_estimate": 0.1,
+      "status": "runtime-boundary-defined-no-assets-yet",
+      "completion_estimate": 0.12,
       "completed": [
         "GAIA-side runtime asset fixture",
-        "tracking issue for GAIA/OFIF soil-intelligence runtime path"
+        "tracking issue for GAIA/OFIF soil-intelligence runtime path",
+        "GAIA runtime boundary admission rule defined"
       ],
       "next": [
-        "define GAIA soil runtime boundary before mirroring fixture into Lattice Forge",
-        "define navigation LiDAR runtime boundary before adding Lattice asset",
-        "define control tower anomaly runtime boundary before adding Lattice asset",
-        "add runtime validation examples only after boundary definition"
+        "implement executable entrypoint before mirroring soil runtime into Lattice Forge",
+        "implement navigation LiDAR runtime entrypoint before adding Lattice asset",
+        "implement control tower anomaly runtime entrypoint before adding Lattice asset",
+        "add runtime validation examples only after executable boundary is real"
       ],
       "blockers": [
-        "do not add speculative runtime fixtures before executable boundary is defined"
+        "do not add speculative runtime fixtures before executable entrypoints and validation commands exist"
       ]
     },
     {
@@ -162,8 +165,8 @@
       "id": "ws-control-tower",
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "fixtures-and-validation-started",
-      "completion_estimate": 0.34,
+      "status": "fixtures-and-validation-expanded",
+      "completion_estimate": 0.38,
       "completed": [
         "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
@@ -178,13 +181,14 @@
         "Sherlock control tower result fixture",
         "WorkOrderCandidate fixture",
         "InventoryNode fixture",
-        "control tower fixture validation started"
+        "RiskExposure fixture",
+        "control tower fixture validation expanded"
       ],
       "next": [
-        "RiskExposure fixture",
-        "control tower anomaly runtime boundary definition before adding Lattice asset",
         "WorkOrderCandidate to approval lifecycle fixture",
-        "InventoryEvent to InventoryNode consistency fixture"
+        "InventoryEvent to InventoryNode consistency fixture",
+        "control tower anomaly executable entrypoint",
+        "control tower runtime validation command"
       ],
       "blockers": []
     },
@@ -192,8 +196,8 @@
       "id": "ws-meshlab",
       "name": "MeshLab / PlanetLab successor mesh contracts",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "fixtures-and-validation-started",
-      "completion_estimate": 0.32,
+      "status": "fixtures-and-validation-expanded",
+      "completion_estimate": 0.4,
       "completed": [
         "MeshNodeRecord schema",
         "SliceAllocationRecord schema",
@@ -202,13 +206,15 @@
         "mesh node fixture",
         "slice allocation fixture",
         "soil-intelligence mesh experiment fixture",
-        "mesh fixture validation started"
-      ],
-      "next": [
         "MeshTelemetry fixture",
         "Sherlock mesh experiment result fixture",
+        "mesh fixture validation expanded"
+      ],
+      "next": [
         "MeshRush graph view fixture",
-        "SocioSphere mesh registration issue/doc"
+        "SocioSphere mesh registration issue/doc",
+        "mesh experiment execution proof script",
+        "mesh telemetry validation command"
       ],
       "blockers": []
     },
