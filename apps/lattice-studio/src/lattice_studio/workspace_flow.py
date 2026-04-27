@@ -20,7 +20,7 @@ from typing import Any
 
 from .session import NotebookSession, create_session, load_json
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 WORKSPACE_CONTRACTS = ROOT / "contracts" / "workspace"
 RUNTIME_ASSET = ROOT / "apps" / "lattice-studio" / "examples" / "runtime-asset.prophet-python-ml.json"
 WORKSPACE_SOURCE_FIXTURES = [
