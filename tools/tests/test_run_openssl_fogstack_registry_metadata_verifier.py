@@ -142,4 +142,3 @@ def test_openssl_registry_metadata_verifier_rejects_shape_only_signature(tmp_pat
 
     proc = run_verify(metadata_path, signature, public_key, tmp_path / "verification.json")
     assert proc.returncode != 0
-}
