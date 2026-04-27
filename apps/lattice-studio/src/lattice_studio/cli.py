@@ -330,3 +330,17 @@ def build_parser() -> argparse.ArgumentParser:
     execution_parser.add_argument("--output-dir", type=Path, required=True)
     execution_parser.set_defaults(func=emit_execution)
     return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return args.func(args)
+    except Exception as exc:  # noqa: BLE001
+        print(f"lattice-studio: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
