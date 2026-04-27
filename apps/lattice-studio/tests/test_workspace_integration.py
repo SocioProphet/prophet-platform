@@ -8,7 +8,7 @@ from lattice_studio.platform_records import (
 )
 
 ROOT = Path(__file__).resolve().parents[3]
-WORKSPACE_EXAMPLES = ROOT.parent / "prophet-workspace" / "examples"
+WORKSPACE_EXAMPLES = ROOT / "contracts" / "workspace"
 
 
 def _fixture(name: str) -> dict:
