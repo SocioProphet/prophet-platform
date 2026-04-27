@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T01:08:00Z",
+  "updated_at": "2026-04-27T02:50:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.218,
+  "overall_completion_estimate": 0.229,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -129,21 +129,42 @@
       "id": "ws-meshrush",
       "name": "MeshRush graph-native agent operation",
       "repo": "SocioProphet/meshrush",
-      "status": "integration-started",
-      "completion_estimate": 0.14,
+      "status": "validation-started",
+      "completion_estimate": 0.2,
       "completed": [
         "charter and ecosystem boundary inspected",
         "role mapped into master plan",
         "GAIA/OFIF/Mesh graph ops integration doc",
-        "soil intelligence crystallization fixture"
+        "soil intelligence crystallization fixture",
+        "dependency-light MeshRush fixture validator",
+        "MeshRush crystallization fixture CI"
       ],
       "next": [
         "navigation corridor graph crystallization example",
-        "dependency-light MeshRush fixture validator",
-        "Agentplane adapter contract",
+        "Agentplane adapter PR merge",
+        "Agentplane candidate fixture",
         "smart-space graph example only after domain home is settled"
       ],
       "blockers": []
+    },
+    {
+      "id": "ws-agentplane",
+      "name": "Agentplane governed execution adapter",
+      "repo": "SocioProphet/agentplane",
+      "status": "pr-open",
+      "completion_estimate": 0.08,
+      "completed": [
+        "MeshRush adapter contract proposed in PR #54"
+      ],
+      "next": [
+        "merge Agentplane PR #54 after checks/review",
+        "add Agentplane candidate schema or fixture for MeshRush advisory artifact",
+        "validate advisory artifacts are non-runnable",
+        "connect approval_required boundary to existing bundle/evidence lifecycle"
+      ],
+      "blockers": [
+        "main branch requires PR and lint status check"
+      ]
     },
     {
       "id": "ws-sourceos-edge-smartspaces",
