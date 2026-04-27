@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .atlas import atlas_evidence, atlas_to_platform_record, demo_atlas_context
 from .catalog import catalog_evidence, demo_catalog_assets
+from .execution import demo_execution_record, execution_evidence, execution_to_platform_record
 from .lampstand import (
     context_pack_for_results,
     demo_local_search_results,
@@ -172,6 +173,19 @@ def emit_lampstand_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+def emit_execution(args: argparse.Namespace) -> int:
+    execution = demo_execution_record()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    execution_path = args.output_dir / "execution-record.json"
+    evidence_path = args.output_dir / "execution-evidence.json"
+    record_path = args.output_dir / "execution-platform-record.json"
+    execution_path.write_text(json.dumps(execution.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(execution_evidence(execution), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(execution_to_platform_record(execution), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(execution_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, local dev, and PaaS lanes")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -235,6 +249,10 @@ def build_parser() -> argparse.ArgumentParser:
     lampstand_parser.add_argument("--workspace-ref", required=True)
     lampstand_parser.add_argument("--output-dir", type=Path, required=True)
     lampstand_parser.set_defaults(func=emit_lampstand_demo)
+
+    execution_parser = subparsers.add_parser("emit-execution", help="Emit demo ExecutionRecord lineage artifacts")
+    execution_parser.add_argument("--output-dir", type=Path, required=True)
+    execution_parser.set_defaults(func=emit_execution)
     return parser
 
 
