@@ -8,7 +8,7 @@
   },
   "spec": {
     "runtimeClass": "notebook",
-    "languages": ["python"],
+    "languages": ["python", "javascript", "sql"],
     "build": {"system": "nix", "entrypoint": "runtimes/prophet-python-ml/flake.nix", "builderId": "lattice-forge-nix-builder"},
     "artifacts": [{"name": "runtime-closure", "role": "nix-closure", "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"}],
     "provenance": {"attestations": ["slsa", "in-toto"], "sourceRefs": ["SocioProphet/lattice-forge"], "builderId": "lattice-forge-nix-builder"},
@@ -16,7 +16,21 @@
     "signature": {"type": "sigstore", "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"},
     "scan": {"vulnerability": "not-run", "license": "not-run", "policy": "not-run"},
     "policy": {"network": "restricted", "secrets": "scoped", "accelerators": ["cpu"], "defaultIsolation": "container"},
-    "compatibility": {"surfaces": ["jupyter", "ray", "beam", "agentplane", "sourceos-user", "prophet-platform"]},
+    "compatibility": {
+      "surfaces": [
+        "jupyter",
+        "jupyterlab",
+        "zeppelin",
+        "observable",
+        "quarto",
+        "lattice-studio",
+        "ray",
+        "beam",
+        "agentplane",
+        "sourceos-user",
+        "prophet-platform"
+      ]
+    },
     "telemetry": {"traceRequired": true, "metricSet": ["build-duration", "scan-duration", "artifact-size", "promotion-result"]},
     "promotion": {"channel": "dev", "rollbackRef": "runtime/prophet-python-ml/0.0.1"}
   }
