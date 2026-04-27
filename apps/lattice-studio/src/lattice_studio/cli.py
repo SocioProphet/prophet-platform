@@ -18,6 +18,7 @@ from .lampstand import (
 )
 from .local_dev import create_local_dev_session, local_dev_to_platform_record
 from .memory import memory_event, memory_event_set
+from .ontogenesis import demo_ontogenesis_context, ontogenesis_evidence, ontogenesis_to_platform_record
 from .paas import create_deployment_plan, deployment_evidence, deployment_to_platform_record
 from .platform_records import catalog_asset_to_platform_record, notebook_session_to_platform_record, platform_record_set
 from .session import create_session, load_json, write_session_bundle
@@ -78,6 +79,19 @@ def emit_atlas_context(args: argparse.Namespace) -> int:
     context_path.write_text(json.dumps(context.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     evidence_path.write_text(json.dumps(atlas_evidence(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     record_path.write_text(json.dumps(atlas_to_platform_record(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(context_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_ontogenesis_context(args: argparse.Namespace) -> int:
+    context = demo_ontogenesis_context()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    context_path = args.output_dir / "ontogenesis-context.json"
+    evidence_path = args.output_dir / "ontogenesis-context-evidence.json"
+    record_path = args.output_dir / "ontogenesis-platform-record.json"
+    context_path.write_text(json.dumps(context.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(ontogenesis_evidence(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(ontogenesis_to_platform_record(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"written": [str(context_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
     return 0
 
@@ -185,6 +199,10 @@ def build_parser() -> argparse.ArgumentParser:
     atlas_parser = subparsers.add_parser("emit-atlas-context", help="Emit demo Atlas integration context")
     atlas_parser.add_argument("--output-dir", type=Path, required=True)
     atlas_parser.set_defaults(func=emit_atlas_context)
+
+    ontogenesis_parser = subparsers.add_parser("emit-ontogenesis-context", help="Emit demo Ontogenesis semantic-governance context")
+    ontogenesis_parser.add_argument("--output-dir", type=Path, required=True)
+    ontogenesis_parser.set_defaults(func=emit_ontogenesis_context)
 
     paas_parser = subparsers.add_parser("emit-paas-plan", help="Emit Cloud Foundry-style PaaS-over-Kubernetes deployment plan")
     paas_parser.add_argument("--name", required=True)
