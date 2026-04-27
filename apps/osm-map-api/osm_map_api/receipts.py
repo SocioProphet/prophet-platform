@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from .receipt_digest import attach_digest
 
 Receipt = dict[str, Any]
 Artifact = dict[str, Any]
@@ -75,7 +76,7 @@ def response_receipt(kind: str, artifacts: list[Artifact]) -> Receipt:
     attribution_present = bool(attribution_texts and license_refs)
     safety_status = "advisory" if "advisory" in route_statuses else (route_statuses[0] if route_statuses else None)
 
-    return {
+    receipt = {
         "receipt_version": "v0",
         "service": "osm-map-api",
         "response_kind": kind,
@@ -94,6 +95,7 @@ def response_receipt(kind: str, artifacts: list[Artifact]) -> Receipt:
             "note": "Unsigned service receipt; gateway or release pipeline may add cryptographic attestation later.",
         },
     }
+    return attach_digest(receipt)
 
 
 def with_artifact_receipt(kind: str, artifact: Artifact) -> Artifact:
