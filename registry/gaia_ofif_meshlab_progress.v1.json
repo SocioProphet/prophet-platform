@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-26T23:45:00Z",
+  "updated_at": "2026-04-26T23:58:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.12,
+  "overall_completion_estimate": 0.145,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.24,
+      "completion_estimate": 0.28,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -22,13 +22,15 @@
         "Princeton PlanetLab successor strategy",
         "navigation infrastructure strategy",
         "navigation schemas and fixtures",
-        "open industrial IoT / supply-chain control tower strategy"
+        "open industrial IoT / supply-chain control tower strategy",
+        "state-of-the-art integration map",
+        "control tower base schemas"
       ],
       "next": [
-        "state-of-the-art integration map",
         "model/simulation/data product schemas",
-        "control tower schemas",
-        "mesh schemas"
+        "mesh schemas",
+        "control tower fixtures",
+        "cross-repo validation gates"
       ],
       "blockers": []
     },
@@ -95,7 +97,7 @@
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
       "status": "issue-opened-fixture-in-gaia",
-      "completion_estimate": 0.10,
+      "completion_estimate": 0.1,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path"
@@ -147,16 +149,20 @@
       "id": "ws-control-tower",
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "strategy-added",
-      "completion_estimate": 0.06,
+      "status": "base-schemas-added",
+      "completion_estimate": 0.18,
       "completed": [
-        "open industrial IoT / supply-chain control tower strategy"
-      ],
-      "next": [
+        "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
         "AssetHealthObservation schema",
         "InventoryEvent schema",
         "ControlTowerDecisionCard schema"
+      ],
+      "next": [
+        "navigation asset health decision-card fixture",
+        "OFIF asset health event fixture",
+        "Sherlock control tower result fixture",
+        "Lattice control tower anomaly runtime fixture"
       ],
       "blockers": []
     },
