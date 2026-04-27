@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from lattice_studio.cli import main
 from lattice_studio.notebook_plane import (
@@ -7,6 +8,12 @@ from lattice_studio.notebook_plane import (
     notebook_plane_to_platform_record,
     notebook_surface_evidence,
 )
+
+ROOT = Path(__file__).resolve().parents[3]
+RUNTIME_FIXTURES = [
+    ROOT / "apps" / "lattice-studio" / "examples" / "runtime-asset.prophet-python-ml.json",
+    ROOT / "contracts" / "lattice" / "runtime-asset.v1.example.json",
+]
 
 
 def test_notebook_surface_plane_includes_required_adapters() -> None:
@@ -26,6 +33,18 @@ def test_notebook_surface_plane_includes_required_adapters() -> None:
     assert "reactive-cells" in adapters["plutojl"]["capabilities"]
     assert adapters["quarto"]["role"] == "technical-publishing"
     assert "publishing" in adapters["quarto"]["capabilities"]
+
+
+def test_runtime_asset_fixtures_cover_every_notebook_adapter() -> None:
+    plane = demo_notebook_surface_plane()
+    adapters = {adapter.adapter for adapter in plane.adapters}
+
+    for fixture in RUNTIME_FIXTURES:
+        runtime_asset = json.loads(fixture.read_text(encoding="utf-8"))
+        surfaces = set(runtime_asset["spec"]["compatibility"]["surfaces"])
+        assert adapters <= surfaces, f"{fixture} is missing notebook adapter surfaces: {sorted(adapters - surfaces)}"
+        assert "jupyter" in surfaces, f"{fixture} must retain the legacy jupyter compatibility alias"
+        assert "lattice-studio" in surfaces, f"{fixture} must advertise the Lattice Studio surface"
 
 
 def test_spawn_requests_cover_every_notebook_adapter() -> None:
