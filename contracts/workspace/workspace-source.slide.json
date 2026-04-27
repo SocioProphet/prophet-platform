@@ -1,0 +1,25 @@
+{
+  "apiVersion": "workspace.socioprophet.dev/v1",
+  "kind": "WorkspaceSource",
+  "metadata": {
+    "sourceId": "workspace-source:slides/demo-report",
+    "name": "Demo report deck",
+    "createdAt": "2026-04-27T00:00:00Z",
+    "labels": {"surface": "slides", "demo": "lattice-studio"}
+  },
+  "spec": {
+    "surface": "slides",
+    "sourceType": "presentation",
+    "ownerScope": "user:demo-user",
+    "projectScope": "project:demo-project",
+    "backendRef": "gslides://demo-report",
+    "versionRef": "v0.1.0",
+    "contentDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "modifiedAt": "2026-04-27T00:00:00Z",
+    "policyRef": "policy://workspace/demo",
+    "retentionPolicyRef": "retention://workspace/default",
+    "evidenceCorrelationId": "workspace-source:slides/demo-report",
+    "sourceUri": "workspace://slides/demo-report",
+    "tags": ["report", "slides", "publication"]
+  }
+}
