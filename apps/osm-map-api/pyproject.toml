@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "osm-map-api"
 version = "0.1.0"
@@ -14,6 +18,10 @@ test = [
   "pytest>=8,<9",
   "httpx>=0.27,<1.0"
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["osm_map_api*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
