@@ -8,6 +8,7 @@ Consumes:
 - SocioProphet/socioprophet-standards-knowledge: `standards/evaluation-fabric-standard.v1.md`
 - SocioProphet/socioprophet-standards-knowledge: `standards/ray-learning-ecosystem-standard.v1.md`
 - SocioProphet/sociosphere: `standards/angel-of-the-lord/README.md`
+- `docs/SOURCEOS_CONTROL_PLANE_CONTRACTS.md`
 
 ## Current observed substrate
 
@@ -19,7 +20,37 @@ This repository already contains at least one container image build workflow:
 - digest evidence emitted as an uploaded artifact
 - pinned image reference emitted as `image@digest`
 
-That is the correct pattern but it must become repo-wide and component-addressable.
+That is the correct image evidence pattern but it must become repo-wide and component-addressable.
+
+## Host/system substrate rule
+
+Prophet Platform container images are designed to deploy onto the SourceOS system plane, not to define the host operating system.
+
+The canonical host/system substrate is:
+
+```text
+FCOS / Fedora CoreOS, Silverblue, or compatible OSTree immutable Fedora-family substrate
+```
+
+This aligns with the SourceOS control-plane contract, which defines SourceOS as an immutable OSTree/Silverblue/CoreOS-style system plane with Nix-managed lifecycle and policy above it.
+
+Ubuntu, Debian, or other mutable general-purpose distributions must not be introduced as the assumed host substrate for Prophet Platform deployment. They may appear only as:
+
+- upstream development compatibility references;
+- temporary local developer environments;
+- explicitly documented non-canonical compatibility lanes;
+- container builder stages when justified and not leaked into runtime or host assumptions.
+
+## Container runtime image rule
+
+Service container images should be minimal, reproducible OCI artifacts with digest evidence. Runtime images should prefer minimal, hardened, non-Ubuntu bases when practical, such as:
+
+- `scratch` or distroless/static images for static Go binaries;
+- Wolfi/Chainguard-style minimal images where supply-chain policy permits;
+- UBI/RHEL/Fedora-family minimal images where Fedora-family compatibility is required;
+- Nix-built or apko-built images where deterministic closure evidence is required.
+
+If a Debian/Ubuntu-derived runtime image is used, the component inventory must include a justification and migration target. Such an image is not the SourceOS host substrate.
 
 ## Purpose
 
@@ -37,7 +68,7 @@ This contract covers:
 ## Canonical build doctrine
 
 ```text
-component source -> deterministic container build -> image digest -> SBOM/provenance -> evaluation record -> Angel review where required -> promotion or remediation
+component source -> deterministic container build -> image digest -> SBOM/provenance -> evaluation record -> Angel review where required -> FCOS/Silverblue deployment target -> promotion or remediation
 ```
 
 ## Required object: ContainerComponent
@@ -51,6 +82,9 @@ source_path: repository path
 component_type: go_service | python_service | worker | ray_service | beam_pipeline | cli | gateway | api | ui | other
 build_context: repository-relative path
 containerfile: Dockerfile | Containerfile | apko | ko | nix2container | other
+runtime_base: scratch | distroless | wolfi | ubi_minimal | fedora_minimal | nix | other
+runtime_base_justification: required when runtime_base is other, debian, or ubuntu
+host_substrate: fcos | silverblue | ostree_fedora_family | sourceos_system_plane
 image_registry: ghcr.io/socioprophet/prophet-platform
 image_name: image name without tag
 tags: main, sha, semver, channel, or release tags
@@ -75,6 +109,8 @@ build_tool: docker_buildx | ko | apko | nix | buildpacks | bazel | other
 image_ref: tag reference
 image_digest: immutable digest
 pinned_ref: image@digest
+runtime_base: runtime base family
+host_substrate_target: FCOS/Silverblue/OSTree Fedora-family target
 sbom_ref: SBOM artifact reference
 provenance_ref: SLSA/in-toto/build provenance reference when available
 vulnerability_scan_ref: scan artifact reference
@@ -100,13 +136,14 @@ Every production or demo image must:
 1. build from a declared context and Containerfile/Dockerfile/build mechanism;
 2. publish or produce an immutable digest;
 3. emit a pinned `image@digest` reference;
-4. produce build evidence;
-5. produce an SBOM where supported;
-6. produce provenance where supported;
-7. run component-level tests or smoke checks;
-8. run vulnerability/supply-chain checks where supported;
-9. be promotable or rejectable through an evaluation record;
-10. pass Angel of the Lord review when release, public exposure, runtime policy, or source-exposure risk requires it.
+4. identify its runtime base and canonical FCOS/Silverblue/OSTree deployment target;
+5. produce build evidence;
+6. produce an SBOM where supported;
+7. produce provenance where supported;
+8. run component-level tests or smoke checks;
+9. run vulnerability/supply-chain checks where supported;
+10. be promotable or rejectable through an evaluation record;
+11. pass Angel of the Lord review when release, public exposure, runtime policy, or source-exposure risk requires it.
 
 ## Runtime-specific requirements
 
@@ -152,6 +189,8 @@ A container image must not be promoted when:
 - image digest is missing;
 - build evidence is missing;
 - component is absent from inventory;
+- host substrate is not FCOS/Silverblue/OSTree Fedora-family or SourceOS system plane;
+- runtime base is Debian/Ubuntu-derived without explicit justification and migration target;
 - SBOM/provenance is required but missing;
 - vulnerability findings are blocker/high and unresolved;
 - evaluation record is missing;
