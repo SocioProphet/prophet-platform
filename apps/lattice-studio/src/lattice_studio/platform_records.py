@@ -1,9 +1,10 @@
 """Convert Lattice Studio outputs into PlatformAssetRecord objects.
 
 This module bridges the Studio/catalog/workspace slice into the existing Lattice
-metadata spine. Catalog assets, notebook sessions, workspace sources, and
-workspace action receipts become the same canonical PlatformAssetRecord identity
-shape used by runtime and boot product surfaces.
+metadata spine. Catalog assets, notebook sessions, workspace sources, workspace
+source bindings, synthesis artifacts, and workspace action receipts become the
+same canonical PlatformAssetRecord identity shape used by runtime and boot
+product surfaces.
 """
 
 from __future__ import annotations
@@ -83,6 +84,62 @@ def workspace_source_to_platform_record(source_doc: dict[str, Any]) -> dict[str,
             "sherlock-search",
             "slash-topics",
             surface,
+        ],
+    }
+
+
+def workspace_source_binding_to_platform_record(binding_doc: dict[str, Any]) -> dict[str, Any]:
+    if binding_doc.get("kind") != "WorkspaceSourceBinding":
+        raise ValueError("workspace binding document kind must be WorkspaceSourceBinding")
+    binding_id = _required_str(binding_doc, "bindingId")
+    return {
+        "apiVersion": "prophet.socioprophet.dev/v1",
+        "kind": "PlatformAssetRecord",
+        "assetId": binding_id,
+        "assetKind": "workspace-source-binding",
+        "name": binding_id,
+        "version": "0.1.0",
+        "sourceApiVersion": _required_str(binding_doc, "apiVersion"),
+        "sourceKind": "WorkspaceSourceBinding",
+        "producerRepo": "SocioProphet/prophet-platform",
+        "policyRef": binding_doc.get("policyRef"),
+        "evidenceCorrelationId": binding_doc.get("evidenceCorrelationId"),
+        "promotionChannel": "workspace-demo",
+        "compatibilitySurfaces": [
+            "lattice-studio",
+            "prophet-workspace",
+            "prophet-platform",
+            "notebook-session",
+            "workspace-source",
+            "evidence-bundle",
+        ],
+    }
+
+
+def workspace_synthesis_artifact_to_platform_record(artifact_doc: dict[str, Any]) -> dict[str, Any]:
+    if artifact_doc.get("kind") != "WorkspaceSynthesisArtifact":
+        raise ValueError("workspace synthesis document kind must be WorkspaceSynthesisArtifact")
+    artifact_id = _required_str(artifact_doc, "artifactId")
+    return {
+        "apiVersion": "prophet.socioprophet.dev/v1",
+        "kind": "PlatformAssetRecord",
+        "assetId": artifact_id,
+        "assetKind": "workspace-synthesis-artifact",
+        "name": _required_str(artifact_doc, "title"),
+        "version": "0.1.0",
+        "sourceApiVersion": _required_str(artifact_doc, "apiVersion"),
+        "sourceKind": "WorkspaceSynthesisArtifact",
+        "producerRepo": "SocioProphet/prophet-platform",
+        "policyRef": artifact_doc.get("policyRef"),
+        "evidenceCorrelationId": artifact_doc.get("evidenceCorrelationId"),
+        "promotionChannel": "workspace-demo",
+        "compatibilitySurfaces": [
+            "lattice-studio",
+            "prophet-workspace",
+            "prophet-platform",
+            "source-grounded-synthesis",
+            "workspace-publication",
+            "evidence-bundle",
         ],
     }
 
