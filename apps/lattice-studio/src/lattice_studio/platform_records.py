@@ -1,8 +1,9 @@
 """Convert Lattice Studio outputs into PlatformAssetRecord objects.
 
-This module bridges the Studio/catalog slice into the existing Lattice metadata
-spine. Catalog assets and notebook sessions become the same canonical
-PlatformAssetRecord identity shape used by runtime and boot product surfaces.
+This module bridges the Studio/catalog/workspace slice into the existing Lattice
+metadata spine. Catalog assets, notebook sessions, workspace sources, and
+workspace action receipts become the same canonical PlatformAssetRecord identity
+shape used by runtime and boot product surfaces.
 """
 
 from __future__ import annotations
@@ -51,7 +52,69 @@ def notebook_session_to_platform_record(session_doc: dict[str, Any]) -> dict[str
         "policyRef": session_doc.get("policyRef"),
         "evidenceCorrelationId": session_id,
         "promotionChannel": "session-demo",
-        "compatibilitySurfaces": ["lattice-studio", "jupyter", "prophet-platform", "sherlock-search", "slash-topics"],
+        "compatibilitySurfaces": ["lattice-studio", "jupyter", "jupyterlab", "prophet-platform", "sherlock-search", "slash-topics"],
+    }
+
+
+def workspace_source_to_platform_record(source_doc: dict[str, Any]) -> dict[str, Any]:
+    if source_doc.get("kind") != "WorkspaceSource":
+        raise ValueError("workspace source document kind must be WorkspaceSource")
+    metadata = _required_dict(source_doc, "metadata")
+    spec = _required_dict(source_doc, "spec")
+    source_id = _required_str(metadata, "sourceId")
+    surface = _required_str(spec, "surface")
+    return {
+        "apiVersion": "prophet.socioprophet.dev/v1",
+        "kind": "PlatformAssetRecord",
+        "assetId": source_id,
+        "assetKind": f"workspace-{surface}",
+        "name": _required_str(metadata, "name"),
+        "version": spec.get("versionRef") or "0.1.0",
+        "sourceApiVersion": _required_str(source_doc, "apiVersion"),
+        "sourceKind": "WorkspaceSource",
+        "producerRepo": "SocioProphet/prophet-workspace",
+        "policyRef": spec.get("policyRef"),
+        "evidenceCorrelationId": spec.get("evidenceCorrelationId"),
+        "promotionChannel": "workspace-demo",
+        "compatibilitySurfaces": [
+            "lattice-studio",
+            "prophet-workspace",
+            "prophet-platform",
+            "sherlock-search",
+            "slash-topics",
+            surface,
+        ],
+    }
+
+
+def workspace_action_receipt_to_platform_record(receipt_doc: dict[str, Any]) -> dict[str, Any]:
+    if receipt_doc.get("kind") != "WorkspaceActionReceipt":
+        raise ValueError("workspace receipt document kind must be WorkspaceActionReceipt")
+    metadata = _required_dict(receipt_doc, "metadata")
+    spec = _required_dict(receipt_doc, "spec")
+    action_id = _required_str(metadata, "actionId")
+    surface = _required_str(spec, "surface")
+    action_type = _required_str(spec, "actionType")
+    return {
+        "apiVersion": "prophet.socioprophet.dev/v1",
+        "kind": "PlatformAssetRecord",
+        "assetId": action_id,
+        "assetKind": f"workspace-action-{action_type}",
+        "name": action_id,
+        "version": "0.1.0",
+        "sourceApiVersion": _required_str(receipt_doc, "apiVersion"),
+        "sourceKind": "WorkspaceActionReceipt",
+        "producerRepo": "SocioProphet/prophet-workspace",
+        "policyRef": spec.get("policyRef"),
+        "evidenceCorrelationId": spec.get("evidenceCorrelationId"),
+        "promotionChannel": "workspace-demo",
+        "compatibilitySurfaces": [
+            "lattice-studio",
+            "prophet-workspace",
+            "prophet-platform",
+            "evidence-bundle",
+            surface,
+        ],
     }
 
 
