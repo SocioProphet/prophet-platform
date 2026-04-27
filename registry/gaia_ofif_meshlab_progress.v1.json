@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T02:50:00Z",
+  "updated_at": "2026-04-27T03:34:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.229,
+  "overall_completion_estimate": 0.238,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -151,19 +151,24 @@
       "id": "ws-agentplane",
       "name": "Agentplane governed execution adapter",
       "repo": "SocioProphet/agentplane",
-      "status": "pr-open",
-      "completion_estimate": 0.08,
+      "status": "pr-open-expanded",
+      "completion_estimate": 0.18,
       "completed": [
-        "MeshRush adapter contract proposed in PR #54"
+        "MeshRush adapter contract proposed in PR #54",
+        "MeshRush execution candidate schema added in PR #54",
+        "MeshRush advisory candidate fixture added in PR #54",
+        "MeshRush candidate validator added in PR #54",
+        "MeshRush candidate validation workflow added in PR #54"
       ],
       "next": [
         "merge Agentplane PR #54 after checks/review",
-        "add Agentplane candidate schema or fixture for MeshRush advisory artifact",
-        "validate advisory artifacts are non-runnable",
+        "connect advisory candidate to existing Bundle/ValidationArtifact model",
+        "validate advisory artifacts are non-runnable in normal demo path",
         "connect approval_required boundary to existing bundle/evidence lifecycle"
       ],
       "blockers": [
-        "main branch requires PR and lint status check"
+        "main branch requires PR and lint status check",
+        "combined status API returned no statuses yet for PR head"
       ]
     },
     {
