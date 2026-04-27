@@ -1,0 +1,42 @@
+name: FogStack Registry Metadata Signatures
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
+      - "schemas/release/fogstack-registry-rollback-revocation-index-v0.1.schema.json"
+      - "tools/run_openssl_fogstack_registry_metadata_verifier.py"
+      - "tools/tests/test_run_openssl_fogstack_registry_metadata_verifier.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-registry-metadata-signatures.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
+      - "schemas/release/fogstack-registry-rollback-revocation-index-v0.1.schema.json"
+      - "tools/run_openssl_fogstack_registry_metadata_verifier.py"
+      - "tools/tests/test_run_openssl_fogstack_registry_metadata_verifier.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-registry-metadata-signatures.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-metadata-signatures:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+      - name: Run registry metadata signature tests
+        run: |
+          python -m pytest -q tools/tests/test_run_openssl_fogstack_registry_metadata_verifier.py
