@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from osm_map_api.main import create_app
+from osm_map_api.receipt_digest import attach_digest, receipt_digest
 from osm_map_api.settings import Settings
 
 
@@ -134,11 +135,36 @@ def assert_receipt(receipt: dict, *, response_kind: str, attribution: bool = Tru
     assert receipt["response_kind"] == response_kind
     assert receipt["attribution"]["required"] is True
     assert receipt["integrity"]["signed"] is False
+    assert receipt["integrity"]["canonicalization"] == "json-sort-keys-no-whitespace-v0"
+    assert receipt["integrity"]["digest"].startswith("sha256:")
+    assert receipt_digest(receipt) == receipt["integrity"]["digest"]
     if attribution:
         assert receipt["attribution"]["present"] is True
         assert "© OpenStreetMap contributors" in receipt["attribution"]["texts"]
         assert "ODbL-1.0" in receipt["attribution"]["license_refs"]
         assert receipt["provenance_refs_present"] is True
+
+
+def test_receipt_digest_is_stable_and_ignores_existing_digest() -> None:
+    receipt = {
+        "receipt_version": "v0",
+        "service": "osm-map-api",
+        "response_kind": "test",
+        "source_refs": ["osm://way/424242"],
+        "provenance_refs_present": True,
+        "attribution": {
+            "required": True,
+            "present": True,
+            "texts": ["© OpenStreetMap contributors"],
+            "license_refs": ["ODbL-1.0"],
+        },
+        "route_safety_status": "advisory",
+        "safety_boundary": "OSM-derived routing is advisory unless separately validated.",
+        "integrity": {"signed": False, "note": "unsigned"},
+    }
+    first = attach_digest(receipt)
+    second = attach_digest({**first, "integrity": {**first["integrity"], "digest": "sha256:bad"}})
+    assert first["integrity"]["digest"] == second["integrity"]["digest"]
 
 
 def test_health_and_readiness(tmp_path: Path) -> None:
