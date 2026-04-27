@@ -9,7 +9,7 @@ from lattice_studio.platform_records import (
     workspace_source_to_platform_record,
     workspace_synthesis_artifact_to_platform_record,
 )
-from lattice_studio.workspace_flow import demo_workspace_flow, synthesis_evidence
+from lattice_studio.workspace_flow import demo_workspace_flow
 
 ROOT = Path(__file__).resolve().parents[3]
 WORKSPACE_EXAMPLES = ROOT / "contracts" / "workspace"
@@ -83,7 +83,13 @@ def test_workspace_flow_binds_sources_session_synthesis_and_receipt() -> None:
     assert set(synthesis["sourceIds"]) == source_ids
     assert synthesis["bindingId"] == binding["bindingId"]
     assert synthesis["notebookSessionId"] == session["sessionId"]
-    assert evidence == synthesis_evidence(type("Artifact", (), synthesis)())
+    assert evidence["kind"] == "WorkspaceSynthesisEvidence"
+    assert evidence["artifactId"] == synthesis["artifactId"]
+    assert evidence["bindingId"] == binding["bindingId"]
+    assert evidence["notebookSessionId"] == session["sessionId"]
+    assert evidence["runtimeAssetId"] == session["runtimeAssetId"]
+    assert set(evidence["sourceIds"]) == source_ids
+    assert evidence["artifactDigest"].startswith("sha256:")
     assert receipt["kind"] == "WorkspaceActionReceipt"
     assert set(receipt["spec"]["inputSourceIds"]) == source_ids
     assert receipt["spec"]["outputArtifactIds"] == [synthesis["artifactId"]]
