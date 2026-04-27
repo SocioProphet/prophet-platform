@@ -19,6 +19,12 @@ from .lampstand import (
 )
 from .local_dev import create_local_dev_session, local_dev_to_platform_record
 from .memory import memory_event, memory_event_set
+from .notebook_plane import (
+    demo_notebook_surface_plane,
+    demo_spawn_requests,
+    notebook_plane_to_platform_record,
+    notebook_surface_evidence,
+)
 from .ontogenesis import demo_ontogenesis_context, ontogenesis_evidence, ontogenesis_to_platform_record
 from .paas import create_deployment_plan, deployment_evidence, deployment_to_platform_record
 from .platform_records import catalog_asset_to_platform_record, notebook_session_to_platform_record, platform_record_set
@@ -94,6 +100,22 @@ def emit_ontogenesis_context(args: argparse.Namespace) -> int:
     evidence_path.write_text(json.dumps(ontogenesis_evidence(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     record_path.write_text(json.dumps(ontogenesis_to_platform_record(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"written": [str(context_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_notebook_plane(args: argparse.Namespace) -> int:
+    plane = demo_notebook_surface_plane()
+    requests = demo_spawn_requests()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    plane_path = args.output_dir / "notebook-surface-plane.json"
+    requests_path = args.output_dir / "notebook-spawn-requests.json"
+    evidence_path = args.output_dir / "notebook-surface-evidence.json"
+    record_path = args.output_dir / "notebook-plane-platform-record.json"
+    plane_path.write_text(json.dumps(plane.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    requests_path.write_text(json.dumps({"apiVersion": "studio.socioprophet.dev/v1", "kind": "NotebookSurfaceSpawnRequestSet", "requests": [request.to_dict() for request in requests]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(notebook_surface_evidence(plane, requests), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(notebook_plane_to_platform_record(plane), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(plane_path), str(requests_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
     return 0
 
 
@@ -217,6 +239,10 @@ def build_parser() -> argparse.ArgumentParser:
     ontogenesis_parser = subparsers.add_parser("emit-ontogenesis-context", help="Emit demo Ontogenesis semantic-governance context")
     ontogenesis_parser.add_argument("--output-dir", type=Path, required=True)
     ontogenesis_parser.set_defaults(func=emit_ontogenesis_context)
+
+    notebook_plane_parser = subparsers.add_parser("emit-notebook-plane", help="Emit Notebook Surface Plane and adapter spawn requests")
+    notebook_plane_parser.add_argument("--output-dir", type=Path, required=True)
+    notebook_plane_parser.set_defaults(func=emit_notebook_plane)
 
     paas_parser = subparsers.add_parser("emit-paas-plan", help="Emit Cloud Foundry-style PaaS-over-Kubernetes deployment plan")
     paas_parser.add_argument("--name", required=True)
