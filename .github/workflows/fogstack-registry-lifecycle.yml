@@ -1,0 +1,42 @@
+name: FogStack Registry Lifecycle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/release/fogstack-registry-rollback-revocation-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_rollback_revocation_index.py"
+      - "tools/check_fogstack_registry_rollback_revocation_index.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-registry-lifecycle.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/release/fogstack-registry-rollback-revocation-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_rollback_revocation_index.py"
+      - "tools/check_fogstack_registry_rollback_revocation_index.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-registry-lifecycle.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+      - name: Run filesystem registry lifecycle tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_filesystem_registry.py

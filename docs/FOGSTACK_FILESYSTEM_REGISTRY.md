@@ -18,6 +18,10 @@ The registry-root builder writes:
 
 - `<registry-root>/registry-root.json`
 
+The registry lifecycle builder writes:
+
+- `<registry-root>/rollback-revocation.index.json`
+
 The release pointer includes:
 
 - bundle id
@@ -34,6 +38,13 @@ The registry root includes:
 - a root digest computed over canonical JSON
 - signature metadata in shape-only form for this tranche
 
+The rollback/revocation index includes:
+
+- rollback target release pointers and digests
+- revocation or suspension entries for release pointers
+- lifecycle index digest over canonical JSON
+- signature metadata in shape-only form for this tranche
+
 ## Minimal flow
 
 1. build a gated registry publication index with `tools/build_fogstack_registry_publication_index.py`
@@ -42,6 +53,8 @@ The registry root includes:
 4. verify the filesystem registry release with `tools/check_fogstack_filesystem_registry.py`
 5. build registry-root metadata with `tools/build_fogstack_filesystem_registry_root.py`
 6. check registry-root metadata with `tools/check_fogstack_filesystem_registry_root.py`
+7. build rollback/revocation lifecycle metadata with `tools/build_fogstack_registry_rollback_revocation_index.py`
+8. check rollback/revocation lifecycle metadata with `tools/check_fogstack_registry_rollback_revocation_index.py`
 
 ## Registry root semantics
 
@@ -49,19 +62,30 @@ The registry root is the consumer-facing catalog root for a filesystem registry 
 
 This tranche uses shape-only signature metadata. It establishes the object and checker path without claiming KMS/HSM-backed registry-root signing.
 
+## Rollback and revocation semantics
+
+The rollback/revocation index records release lifecycle state outside the immutable release pointer itself.
+
+Rollback targets are releases that operators may return to. A rollback target may be `eligible`, `preferred`, or `deprecated`.
+
+Revocations are releases that consumers should not select. A revocation may be `revoked` or `suspended` and must carry a reason.
+
+A release must not be both a rollback target and a revocation entry in the same lifecycle index. The checker enforces that conflict rule and validates pointer digests against the filesystem registry.
+
 ## What this phase provides
 
 - concrete external-consumable registry layout
 - digest-checked artifact copy into the registry
 - release pointer for lookup
 - registry-root metadata covering release pointers and publication indexes
-- dedicated CI workflow for registry-root behavior
+- rollback/revocation lifecycle metadata for registry consumers
+- dedicated CI workflows for registry-root and registry-lifecycle behavior
 
 ## What this phase does not yet provide
 
 - authenticated network registry publication
-- cryptographic registry-root signature verification
-- rollback or revocation index publication
+- cryptographic registry-root or lifecycle-index signature verification
 - registry replication or mirror policy
+- policy-engine selection of rollback targets
 
 Those remain later steps.
