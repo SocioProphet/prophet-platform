@@ -1,24 +1,128 @@
 # Prophet Platform container component inventory v1
 #
-# This inventory tracks runnable components and their container build substrate.
-# It is governed by docs/CONTAINER_BUILD_SUBSTRATE.md.
+# This inventory tracks runnable components and their container/image build substrate.
+# It is governed by docs/CONTAINER_BUILD_SUBSTRATE.md and must remain aligned
+# with docs/SOURCEOS_M2_LIFECYCLE_PROOF.md.
 
 schema_version: v1
 owner: prophet-platform
 canonical_host_substrate: fcos_silverblue_ostree_fedora_family
+m2_lifecycle_proof:
+  doc: docs/SOURCEOS_M2_LIFECYCLE_PROOF.md
+  generator: tools/build_sourceos_m2_lifecycle_proof.py
+  smoke_test: tools/smoke_sourceos_m2_lifecycle_proof.py
+  default_artifact_dir: artifacts/sourceos/m2-lifecycle-proof
+  generated_objects:
+    - config-source.json
+    - release-set.json
+    - boot-release-set.json
+    - nlboot-crosswalk.json
+    - fingerprint.json
+    - compliance-result.json
+    - proof-index.json
 standards:
   - docs/CONTAINER_BUILD_SUBSTRATE.md
   - docs/SOURCEOS_CONTROL_PLANE_CONTRACTS.md
+  - docs/SOURCEOS_M2_LIFECYCLE_PROOF.md
+  - docs/SOURCEOS_NLBOOT_CROSSWALK.md
   - SocioProphet/socioprophet-standards-storage:standards/evidence-bundle-standard.v1.md
   - SocioProphet/socioprophet-standards-storage:standards/evaluation-record-standard.v1.md
   - SocioProphet/socioprophet-standards-knowledge:standards/evaluation-fabric-standard.v1.md
+  - SocioProphet/socioprophet-standards-knowledge:standards/immutable-image-substrate-standard.v1.md
   - SocioProphet/sociosphere:standards/angel-of-the-lord/README.md
 
 components:
+  - id: sourceos_m2_lifecycle_proof
+    name: SourceOS M2 Lifecycle Proof Generator
+    source_path: tools/build_sourceos_m2_lifecycle_proof.py
+    component_type: proof_generator
+    image_family: sourceos_recovery
+    runtime_class: sourceos
+    build_context: repo_local
+    containerfile: not_applicable
+    runtime_base: host_python
+    runtime_base_justification: Deterministic repo-local proof generator; not a deployable runtime image. It produces validated contract artifacts without boot, disk writes, GitHub token use, or nlboot execution.
+    host_substrate: fcos_silverblue_ostree_fedora_family
+    image_registry: not_applicable
+    image_name: not_applicable
+    tags: []
+    workflow: TBD
+    current_status: deterministic_local_proof_existing
+    digest_required: true
+    sbom_required: false
+    provenance_required: true
+    vulnerability_scan_required: false
+    evaluation_record_required: true
+    angel_required: conditional
+    generated_artifacts:
+      - artifacts/sourceos/m2-lifecycle-proof/config-source.json
+      - artifacts/sourceos/m2-lifecycle-proof/release-set.json
+      - artifacts/sourceos/m2-lifecycle-proof/boot-release-set.json
+      - artifacts/sourceos/m2-lifecycle-proof/nlboot-crosswalk.json
+      - artifacts/sourceos/m2-lifecycle-proof/fingerprint.json
+      - artifacts/sourceos/m2-lifecycle-proof/compliance-result.json
+      - artifacts/sourceos/m2-lifecycle-proof/proof-index.json
+    notes: This is the existing M2 lifecycle proof spine and must not be bypassed by generic container hardening work.
+
+  - id: sourceos_m2_recovery_boot_release_set
+    name: SourceOS M2 Recovery BootReleaseSet
+    source_path: contracts/sourceos and tools/build_sourceos_m2_lifecycle_proof.py
+    component_type: boot_release_set
+    image_family: sourceos_recovery
+    runtime_class: sourceos
+    build_context: future_boot_artifact_pipeline
+    containerfile: TBD
+    runtime_base: minimal_recovery
+    runtime_base_justification: BootReleaseSet target for live/install/recovery/rollback behavior; currently represented as deterministic proof artifact, not a live boot image.
+    host_substrate: fcos_silverblue_ostree_fedora_family
+    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_name: sourceos-m2-recovery
+    tags:
+      - dev
+      - sha
+    workflow: TBD
+    current_status: proof_artifact_only_not_live_boot
+    digest_required: true
+    sbom_required: true
+    provenance_required: true
+    vulnerability_scan_required: true
+    evaluation_record_required: true
+    angel_required: true
+    related_artifacts:
+      - boot-release-set.json
+      - nlboot-crosswalk.json
+      - proof-index.json
+    notes: docs/SOURCEOS_M2_LIFECYCLE_PROOF.md explicitly says this does not yet prove Apple Silicon boot-picker entry, nlboot execution, or disk writes. Those are separate implementation tranches.
+
+  - id: sourceos_nlboot_crosswalk
+    name: SourceOS nlboot Crosswalk
+    source_path: tools/build_sourceos_m2_lifecycle_proof.py
+    component_type: protocol_crosswalk
+    image_family: sourceos_recovery
+    runtime_class: sourceos
+    build_context: repo_local
+    containerfile: not_applicable
+    runtime_base: host_python
+    runtime_base_justification: Side-effect-free mapping from prophet-platform SourceOS contracts to SociOS-Linux/nlboot examples/m2-demo.
+    host_substrate: fcos_silverblue_ostree_fedora_family
+    image_registry: not_applicable
+    image_name: not_applicable
+    tags: []
+    workflow: TBD
+    current_status: deterministic_crosswalk_existing
+    digest_required: true
+    sbom_required: false
+    provenance_required: true
+    vulnerability_scan_required: false
+    evaluation_record_required: true
+    angel_required: conditional
+    notes: Safety boundary is explicit: no artifact fetching, host mutation, disk writes, kexec, or execution plans with execute=true.
+
   - id: search_orchestrator
     name: Search Orchestrator
     source_path: services/search-orchestrator
     component_type: service
+    image_family: minimal_service_oci
     runtime_class: platform
     build_context: .
     containerfile: services/search-orchestrator/Dockerfile
@@ -44,6 +148,7 @@ components:
     name: SocioProphet API
     source_path: apps/api/cmd/socioprophet-api
     component_type: go_service
+    image_family: minimal_service_oci
     runtime_class: platform
     build_context: .
     containerfile: apps/api/Dockerfile
@@ -69,6 +174,7 @@ components:
     name: TriTRPC Gateway
     source_path: apps/gateway/cmd/tritrpc-gateway
     component_type: go_service
+    image_family: minimal_service_oci
     runtime_class: platform
     build_context: .
     containerfile: apps/gateway/Dockerfile
@@ -94,6 +200,7 @@ components:
     name: Beam Pipeline Components
     source_path: TBD
     component_type: beam_pipeline
+    image_family: beam_pipeline
     runtime_class: beam
     build_context: TBD
     containerfile: TBD
@@ -119,6 +226,7 @@ components:
     name: Ray Learning Components
     source_path: TBD
     component_type: ray_service
+    image_family: ray_learning
     runtime_class: ray
     build_context: TBD
     containerfile: TBD
