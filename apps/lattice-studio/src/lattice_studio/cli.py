@@ -32,12 +32,12 @@ from .platform_records import (
     notebook_session_to_platform_record,
     platform_record_set,
     workspace_action_receipt_to_platform_record,
+    workspace_source_binding_to_platform_record,
     workspace_source_to_platform_record,
+    workspace_synthesis_artifact_to_platform_record,
 )
 from .session import create_session, load_json, write_session_bundle
-
-ROOT = Path(__file__).resolve().parents[4]
-WORKSPACE_CONTRACTS = ROOT / "contracts" / "workspace"
+from .workspace_flow import demo_workspace_flow, write_workspace_flow_bundle
 
 
 def create_notebook_session(args: argparse.Namespace) -> int:
@@ -79,6 +79,10 @@ def emit_platform_records(args: argparse.Namespace) -> int:
         records.append(notebook_session_to_platform_record(load_json(path)))
     for path in args.workspace_source:
         records.append(workspace_source_to_platform_record(load_json(path)))
+    for path in args.workspace_binding:
+        records.append(workspace_source_binding_to_platform_record(load_json(path)))
+    for path in args.workspace_synthesis:
+        records.append(workspace_synthesis_artifact_to_platform_record(load_json(path)))
     for path in args.workspace_receipt:
         records.append(workspace_action_receipt_to_platform_record(load_json(path)))
     for path in args.platform_record:
@@ -91,29 +95,17 @@ def emit_platform_records(args: argparse.Namespace) -> int:
 
 
 def emit_workspace_demo(args: argparse.Namespace) -> int:
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    source_names = [
-        "workspace-source.document.json",
-        "workspace-source.sheet.json",
-        "workspace-source.slide.json",
-    ]
-    receipt_name = "workspace-action-receipt.publish-report.json"
-    written: list[Path] = []
-    records: list[dict] = []
-
-    for name in source_names:
-        source = load_json(WORKSPACE_CONTRACTS / name)
-        output_path = args.output_dir / name
-        output_path.write_text(json.dumps(source, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        written.append(output_path)
-        records.append(workspace_source_to_platform_record(source))
-
-    receipt = load_json(WORKSPACE_CONTRACTS / receipt_name)
-    receipt_path = args.output_dir / receipt_name
-    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    written.append(receipt_path)
-    records.append(workspace_action_receipt_to_platform_record(receipt))
-
+    flow = demo_workspace_flow()
+    written = write_workspace_flow_bundle(args.output_dir)
+    records = [workspace_source_to_platform_record(source) for source in flow["sources"]]
+    records.extend(
+        [
+            notebook_session_to_platform_record(flow["session"]),
+            workspace_source_binding_to_platform_record(flow["binding"]),
+            workspace_synthesis_artifact_to_platform_record(flow["synthesis"]),
+            workspace_action_receipt_to_platform_record(flow["receipt"]),
+        ]
+    )
     record_set_path = args.output_dir / "workspace-platform-records.json"
     record_set_path.write_text(json.dumps(platform_record_set(records), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     written.append(record_set_path)
@@ -269,7 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_parser.add_argument("--output-dir", type=Path, required=True)
     catalog_parser.set_defaults(func=emit_demo_catalog)
 
-    workspace_parser = subparsers.add_parser("emit-workspace-demo", help="Emit demo WorkspaceSource and WorkspaceActionReceipt artifacts")
+    workspace_parser = subparsers.add_parser("emit-workspace-demo", help="Emit workspace source-grounded synthesis demo artifacts")
     workspace_parser.add_argument("--output-dir", type=Path, required=True)
     workspace_parser.set_defaults(func=emit_workspace_demo)
 
@@ -277,6 +269,8 @@ def build_parser() -> argparse.ArgumentParser:
     records_parser.add_argument("--catalog-asset", type=Path, action="append", default=[])
     records_parser.add_argument("--notebook-session", type=Path, action="append", default=[])
     records_parser.add_argument("--workspace-source", type=Path, action="append", default=[])
+    records_parser.add_argument("--workspace-binding", type=Path, action="append", default=[])
+    records_parser.add_argument("--workspace-synthesis", type=Path, action="append", default=[])
     records_parser.add_argument("--workspace-receipt", type=Path, action="append", default=[])
     records_parser.add_argument("--platform-record", type=Path, action="append", default=[])
     records_parser.add_argument("--output", type=Path, required=True)
