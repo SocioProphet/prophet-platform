@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from lattice_studio.cli import main
 from lattice_studio.platform_records import (
     platform_record_set,
     workspace_action_receipt_to_platform_record,
@@ -58,3 +59,28 @@ def test_workspace_sources_and_receipt_share_evidence_spine() -> None:
     assert receipt["spec"]["runtimeAssetId"] == "runtime-asset:prophet-python-ml:0.1.0"
     assert receipt["spec"]["notebookSessionId"].startswith("notebook-session:")
     assert receipt["spec"]["outputDigest"].startswith("sha256:")
+
+
+def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
+    output_dir = tmp_path / "workspace-demo"
+    rc = main(["emit-workspace-demo", "--output-dir", str(output_dir)])
+    assert rc == 0
+
+    expected = {
+        "workspace-source.document.json",
+        "workspace-source.sheet.json",
+        "workspace-source.slide.json",
+        "workspace-action-receipt.publish-report.json",
+        "workspace-platform-records.json",
+    }
+    assert expected == {path.name for path in output_dir.iterdir()}
+
+    record_set = json.loads((output_dir / "workspace-platform-records.json").read_text(encoding="utf-8"))
+    assert record_set["kind"] == "PlatformAssetRecordSet"
+    assert len(record_set["records"]) == 4
+    assert {record["assetKind"] for record in record_set["records"]} == {
+        "workspace-docs",
+        "workspace-sheets",
+        "workspace-slides",
+        "workspace-action-publish",
+    }
