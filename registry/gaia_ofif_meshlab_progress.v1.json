@@ -1,9 +1,9 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T03:34:00Z",
+  "updated_at": "2026-04-27T03:48:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.238,
+  "overall_completion_estimate": 0.252,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
@@ -151,24 +151,25 @@
       "id": "ws-agentplane",
       "name": "Agentplane governed execution adapter",
       "repo": "SocioProphet/agentplane",
-      "status": "pr-open-expanded",
-      "completion_estimate": 0.18,
+      "status": "pr-open-ci-green",
+      "completion_estimate": 0.24,
       "completed": [
         "MeshRush adapter contract proposed in PR #54",
         "MeshRush execution candidate schema added in PR #54",
         "MeshRush advisory candidate fixture added in PR #54",
         "MeshRush candidate validator added in PR #54",
-        "MeshRush candidate validation workflow added in PR #54"
+        "MeshRush candidate validation workflow added in PR #54",
+        "PR #54 ci check succeeded",
+        "PR #54 MeshRush Candidate check succeeded"
       ],
       "next": [
-        "merge Agentplane PR #54 after checks/review",
+        "merge Agentplane PR #54 after review/merge approval",
         "connect advisory candidate to existing Bundle/ValidationArtifact model",
         "validate advisory artifacts are non-runnable in normal demo path",
         "connect approval_required boundary to existing bundle/evidence lifecycle"
       ],
       "blockers": [
-        "main branch requires PR and lint status check",
-        "combined status API returned no statuses yet for PR head"
+        "main branch requires PR merge approval"
       ]
     },
     {
@@ -255,13 +256,19 @@
       "id": "ws-sociosphere-governance",
       "name": "SocioSphere governance",
       "repo": "SocioProphet/sociosphere",
-      "status": "pending",
-      "completion_estimate": 0.03,
-      "completed": [],
+      "status": "capability-map-added",
+      "completion_estimate": 0.16,
+      "completed": [
+        "GAIA/OFIF/MeshLab governance integration doc",
+        "machine-readable capability map registry",
+        "validation lane definitions",
+        "readiness-state vocabulary"
+      ],
       "next": [
-        "register master plan capability map",
-        "add validation gate plan for cross-repo schemas",
-        "add KubeEdge optional edge substrate governance doc"
+        "wire capability map into existing topology/dependency checks",
+        "add KubeEdge optional edge substrate governance doc",
+        "add source-exposure check mapping for new program repos",
+        "add change-propagation rules for schema/fixture changes"
       ],
       "blockers": []
     }
