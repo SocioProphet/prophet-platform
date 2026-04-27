@@ -36,7 +36,7 @@ from .platform_records import (
 )
 from .session import create_session, load_json, write_session_bundle
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 WORKSPACE_CONTRACTS = ROOT / "contracts" / "workspace"
 
 
