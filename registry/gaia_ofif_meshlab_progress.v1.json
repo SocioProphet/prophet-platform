@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T00:58:00Z",
+  "updated_at": "2026-04-27T01:08:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.201,
+  "overall_completion_estimate": 0.218,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.37,
+      "completion_estimate": 0.39,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -30,13 +30,15 @@
         "mesh and control tower fixtures",
         "contract fixture validation script",
         "contract fixture validation CI",
-        "runtime boundary definitions"
+        "runtime boundary definitions",
+        "control tower anomaly executable entrypoint",
+        "control tower anomaly CI validation"
       ],
       "next": [
         "model/simulation/data product schemas",
-        "runtime executable entrypoints",
+        "additional runtime executable entrypoints",
         "cross-repo validation gates",
-        "MeshRush graph-view fixture"
+        "MeshRush graph-view validation"
       ],
       "blockers": []
     },
@@ -105,17 +107,18 @@
       "id": "ws-lattice-forge",
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
-      "status": "runtime-boundary-defined-no-assets-yet",
-      "completion_estimate": 0.12,
+      "status": "runtime-boundary-defined-first-entrypoint-exists",
+      "completion_estimate": 0.14,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
-        "GAIA runtime boundary admission rule defined"
+        "GAIA runtime boundary admission rule defined",
+        "control tower anomaly executable entrypoint exists in GAIA"
       ],
       "next": [
-        "implement executable entrypoint before mirroring soil runtime into Lattice Forge",
+        "define whether control tower anomaly runtime is mature enough for Lattice Forge asset",
         "implement navigation LiDAR runtime entrypoint before adding Lattice asset",
-        "implement control tower anomaly runtime entrypoint before adding Lattice asset",
+        "implement soil runtime packaging boundary before mirroring soil asset",
         "add runtime validation examples only after executable boundary is real"
       ],
       "blockers": [
@@ -126,16 +129,18 @@
       "id": "ws-meshrush",
       "name": "MeshRush graph-native agent operation",
       "repo": "SocioProphet/meshrush",
-      "status": "mapped-not-yet-integrated",
-      "completion_estimate": 0.05,
+      "status": "integration-started",
+      "completion_estimate": 0.14,
       "completed": [
         "charter and ecosystem boundary inspected",
-        "role mapped into master plan"
+        "role mapped into master plan",
+        "GAIA/OFIF/Mesh graph ops integration doc",
+        "soil intelligence crystallization fixture"
       ],
       "next": [
-        "add GAIA/OFIF graph ops integration doc",
-        "soil graph diffusion example",
         "navigation corridor graph crystallization example",
+        "dependency-light MeshRush fixture validator",
+        "Agentplane adapter contract",
         "smart-space graph example only after domain home is settled"
       ],
       "blockers": []
@@ -165,8 +170,8 @@
       "id": "ws-control-tower",
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
-      "status": "fixtures-and-validation-expanded",
-      "completion_estimate": 0.38,
+      "status": "first-runtime-entrypoint-added",
+      "completion_estimate": 0.44,
       "completed": [
         "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
@@ -182,13 +187,15 @@
         "WorkOrderCandidate fixture",
         "InventoryNode fixture",
         "RiskExposure fixture",
-        "control tower fixture validation expanded"
+        "control tower fixture validation expanded",
+        "deterministic anomaly scoring entrypoint",
+        "anomaly scoring CI proof"
       ],
       "next": [
         "WorkOrderCandidate to approval lifecycle fixture",
         "InventoryEvent to InventoryNode consistency fixture",
-        "control tower anomaly executable entrypoint",
-        "control tower runtime validation command"
+        "decide Lattice admission for control tower runtime",
+        "control tower runtime asset only after admission decision"
       ],
       "blockers": []
     },
@@ -211,7 +218,7 @@
         "mesh fixture validation expanded"
       ],
       "next": [
-        "MeshRush graph view fixture",
+        "MeshRush graph view fixture validation",
         "SocioSphere mesh registration issue/doc",
         "mesh experiment execution proof script",
         "mesh telemetry validation command"
