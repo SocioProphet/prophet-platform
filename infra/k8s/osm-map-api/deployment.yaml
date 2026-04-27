@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osm-map-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: osm-map-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: osm-map-api
+        app.kubernetes.io/part-of: prophet-platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: osm-map-api
+          image: ghcr.io/socioprophet/osm-map-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8088
+          env:
+            - name: OSM_MAP_API_HOST
+              value: 0.0.0.0
+            - name: OSM_MAP_API_PORT
+              value: "8088"
+            - name: GAIA_FIXTURE_ROOT
+              value: /fixtures/gaia-world-model
+            - name: SHERLOCK_FIXTURE_ROOT
+              value: /fixtures/sherlock-search
+            - name: SOCIOSPHERE_FIXTURE_ROOT
+              value: /fixtures/sociosphere
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: gaia-fixtures
+              mountPath: /fixtures/gaia-world-model
+              readOnly: true
+            - name: sherlock-fixtures
+              mountPath: /fixtures/sherlock-search
+              readOnly: true
+            - name: sociosphere-fixtures
+              mountPath: /fixtures/sociosphere
+              readOnly: true
+      volumes:
+        - name: gaia-fixtures
+          configMap:
+            name: osm-map-api-gaia-fixtures
+            optional: false
+        - name: sherlock-fixtures
+          configMap:
+            name: osm-map-api-sherlock-fixtures
+            optional: false
+        - name: sociosphere-fixtures
+          configMap:
+            name: osm-map-api-sociosphere-fixtures
+            optional: false
