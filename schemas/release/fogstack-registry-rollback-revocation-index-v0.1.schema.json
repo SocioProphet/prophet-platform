@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-registry-rollback-revocation-index-v0.1.schema.json",
+  "title": "FogStackRegistryRollbackRevocationIndex",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "registry_uri",
+    "generated_at",
+    "rollback_targets",
+    "revocations",
+    "index_digest",
+    "signatures"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackRegistryRollbackRevocationIndex" },
+    "schema_version": { "const": "v0.1" },
+    "registry_uri": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "rollback_targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bundle_id", "version", "pointer_ref", "pointer_digest", "status"],
+        "properties": {
+          "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+          "version": { "type": "string", "minLength": 1 },
+          "pointer_ref": { "type": "string", "minLength": 1 },
+          "pointer_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "status": { "type": "string", "enum": ["eligible", "preferred", "deprecated"] },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "revocations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bundle_id", "version", "pointer_ref", "pointer_digest", "revocation_status", "reason"],
+        "properties": {
+          "bundle_id": { "type": "string", "pattern": "^fogstack\\.[a-z0-9_.-]+$" },
+          "version": { "type": "string", "minLength": 1 },
+          "pointer_ref": { "type": "string", "minLength": 1 },
+          "pointer_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "revocation_status": { "type": "string", "enum": ["revoked", "suspended"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "effective_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "index_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key_id", "algorithm", "signature_ref"],
+        "properties": {
+          "key_id": { "type": "string", "minLength": 1 },
+          "algorithm": { "type": "string", "enum": ["ed25519", "sigstore", "gpg", "x509", "shape-only"] },
+          "signature_ref": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
