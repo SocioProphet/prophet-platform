@@ -1,0 +1,42 @@
+name: FogStack Filesystem Registry Root
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
+      - "tools/build_fogstack_filesystem_registry_root.py"
+      - "tools/check_fogstack_filesystem_registry_root.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-filesystem-registry-root.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/release/fogstack-filesystem-registry-root-v0.1.schema.json"
+      - "tools/build_fogstack_filesystem_registry_root.py"
+      - "tools/check_fogstack_filesystem_registry_root.py"
+      - "tools/tests/test_fogstack_filesystem_registry.py"
+      - "docs/FOGSTACK_FILESYSTEM_REGISTRY.md"
+      - ".github/workflows/fogstack-filesystem-registry-root.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-root:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+      - name: Run filesystem registry root tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_filesystem_registry.py
