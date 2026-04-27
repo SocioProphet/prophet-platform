@@ -10,6 +10,12 @@ from pathlib import Path
 
 from .atlas import atlas_evidence, atlas_to_platform_record, demo_atlas_context
 from .catalog import catalog_evidence, demo_catalog_assets
+from .lampstand import (
+    context_pack_for_results,
+    demo_local_search_results,
+    local_search_result_to_platform_record,
+    promotion_proposals_for_results,
+)
 from .local_dev import create_local_dev_session, local_dev_to_platform_record
 from .memory import memory_event, memory_event_set
 from .paas import create_deployment_plan, deployment_evidence, deployment_to_platform_record
@@ -132,6 +138,26 @@ def emit_memory(args: argparse.Namespace) -> int:
     return 0
 
 
+def emit_lampstand_demo(args: argparse.Namespace) -> int:
+    results = demo_local_search_results()
+    context_pack = context_pack_for_results(results, workspace_ref=args.workspace_ref)
+    proposals = promotion_proposals_for_results(results)
+    platform_records = [local_search_result_to_platform_record(result) for result in results]
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = args.output_dir / "lampstand-local-search-results.json"
+    context_path = args.output_dir / "lampstand-context-pack.json"
+    proposals_path = args.output_dir / "datahub-promotion-proposals.json"
+    records_path = args.output_dir / "lampstand-platform-records.json"
+
+    results_path.write_text(json.dumps({"apiVersion": "studio.socioprophet.dev/v1", "kind": "LampstandLocalSearchResultSet", "results": [result.to_dict() for result in results]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    context_path.write_text(json.dumps(context_pack.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    proposals_path.write_text(json.dumps({"apiVersion": "studio.socioprophet.dev/v1", "kind": "DataHubPromotionProposalSet", "proposals": [proposal.to_dict() for proposal in proposals]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    records_path.write_text(json.dumps(platform_record_set(platform_records), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(results_path), str(context_path), str(proposals_path), str(records_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, local dev, and PaaS lanes")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -186,6 +212,11 @@ def build_parser() -> argparse.ArgumentParser:
     memory_parser.add_argument("--link", action="append", default=[])
     memory_parser.add_argument("--output", type=Path, required=True)
     memory_parser.set_defaults(func=emit_memory)
+
+    lampstand_parser = subparsers.add_parser("emit-lampstand-demo", help="Emit Lampstand local-search DataHub promotion demo artifacts")
+    lampstand_parser.add_argument("--workspace-ref", required=True)
+    lampstand_parser.add_argument("--output-dir", type=Path, required=True)
+    lampstand_parser.set_defaults(func=emit_lampstand_demo)
     return parser
 
 
