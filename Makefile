@@ -69,7 +69,7 @@ lattice-studio-smoke:
 	test -s build/lattice-studio/paas/paas-deployment-plan.json
 	test -s build/lattice-studio/local-dev/local-dev-session.json
 	test -s build/lattice-studio/execution/execution-record.json
-	test -s build/lattice-studio/execution-evidence.json || test -s build/lattice-studio/execution/execution-evidence.json
+	test -s build/lattice-studio/execution/execution-evidence.json
 	test -s build/lattice-studio/memory-events.json
 	test -s build/lattice-studio/studio-platform-records.json
 	test -s build/lattice-studio/studio-platform-record-enrichments.json
