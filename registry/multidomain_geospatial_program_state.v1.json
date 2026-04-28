@@ -184,6 +184,20 @@
       "admission_state": "candidate_not_admitted",
       "evidence_bundle": true,
       "negative_tests": true
+    },
+    {
+      "runtime_id": "runtime:sensitive-geo-policy-eval:v0",
+      "name": "gaia-sensitive-geo-policy-eval-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/sensitive_geo_policy_eval.py",
+      "input_fixture": "fixtures/multidomain/sensitive-geo-policy.sample.v1.json + fixtures/multidomain/multi-domain-fusion-event.sample.v1.json",
+      "output_record": "gaia.sensitive_geo_policy_eval.output",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_SENSITIVE_GEO_POLICY_EVAL.md",
+      "ci_workflow": ".github/workflows/sensitive-geo-policy-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-sensitive-geo-policy-eval-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
     }
   ],
   "active_blockers": [
@@ -202,35 +216,36 @@
     }
   ],
   "progress": {
-    "composite_standards_spec_percent": 65,
-    "composite_implementation_readiness_percent": 57,
+    "composite_standards_spec_percent": 67,
+    "composite_implementation_readiness_percent": 61,
     "workstreams": {
       "standards_alignment": 63,
-      "storage_event_data_contracts": 51,
-      "knowledge_ontology_provenance": 48,
-      "agent_runtime_conformance": 54,
+      "storage_event_data_contracts": 52,
+      "knowledge_ontology_provenance": 49,
+      "agent_runtime_conformance": 56,
       "platform_product_requirements": 54,
-      "gaia_implementation_alignment": 90,
+      "gaia_implementation_alignment": 92,
       "sociosphere_governance_enforcement": 50,
       "sherlock_discovery_alignment": 55,
-      "lattice_runtime_admission_readiness": 57,
+      "lattice_runtime_admission_readiness": 61,
       "space_telemetry_satellite_data": 48,
       "earth_observation_satellite_products": 48,
       "maritime_shipping_intelligence": 38,
       "air_domain_awareness": 42,
-      "defense_public_safety_governance": 36,
+      "defense_public_safety_governance": 44,
       "smart_spaces_built_environment": 10,
       "sensor_fusion_field_observation": 42,
-      "multi_domain_fusion": 24,
-      "network_resilience_accountability": 38
+      "multi_domain_fusion": 30,
+      "network_resilience_accountability": 45,
+      "sensitive_geo_policy_governance": 45
     }
   },
   "next_best_actions": [
-    "Add sensitive_geo_policy_eval.py for SensitiveGeoPolicyRecord",
     "Add MultiDomainFusionEvent executable runtime proof",
+    "Add accountability ledger schema and fixture for effects-linked and defense/public-safety runtime governance",
     "Resolve Agentplane PR #62 branch-protection lint context mismatch",
     "Begin packaging/SBOM/signing path for one Lattice runtime candidate without admitting it prematurely",
-    "Add accountability ledger schema and fixture for effects-linked and defense/public-safety runtime governance",
-    "Add network_resilience sections to each live-capable GAIA runtime boundary"
+    "Add network_resilience sections to each live-capable GAIA runtime boundary",
+    "Add Sherlock discovery record for sensitive geospatial policy evaluation output"
   ]
 }
