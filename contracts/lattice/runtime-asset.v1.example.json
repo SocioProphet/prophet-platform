@@ -30,6 +30,7 @@
         "jupyterlab",
         "zeppelin",
         "observable",
+        "plutojl",
         "quarto",
         "lattice-studio",
         "ray",

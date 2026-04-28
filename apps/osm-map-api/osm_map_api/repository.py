@@ -90,6 +90,18 @@ class OSMArtifactRepository:
         if route_graph.get("safety_status") != "advisory":
             raise ArtifactError("OSM route graph must be advisory in fixture mode")
 
+    @staticmethod
+    def _is_osm_validation_lane(lane: dict[str, Any]) -> bool:
+        lane_id = str(lane.get("id", "")).lower()
+        lane_role = str(lane.get("role", "")).lower()
+        return (
+            "osm" in lane_id
+            or "openstreetmap" in lane_id
+            or "open-street-map" in lane_id
+            or "openstreetmap" in lane_role
+            or "open-street-map" in lane_role
+        )
+
     def osm_feature_binding(self) -> dict[str, Any]:
         artifact = self._load_json(self.osm_feature_binding_path)
         self._assert_attribution(artifact)
@@ -167,7 +179,9 @@ class OSMArtifactRepository:
     def governance_osm(self) -> dict[str, Any]:
         capability_map = self.sociosphere_capability_map()
         lanes = capability_map.get("validation_lanes", [])
-        osm_lanes = [lane for lane in lanes if isinstance(lane, dict) and "osm" in lane.get("id", "")]
+        osm_lanes = [
+            lane for lane in lanes if isinstance(lane, dict) and self._is_osm_validation_lane(lane)
+        ]
         return {
             "validation_lanes": osm_lanes,
             "source": "SocioProphet/sociosphere:registry/gaia-ofif-meshlab-capability-map.v1.json",
