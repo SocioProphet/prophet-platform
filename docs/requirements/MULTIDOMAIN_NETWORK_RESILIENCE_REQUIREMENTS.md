@@ -1,13 +1,23 @@
-# Multi-Domain Network Resilience Requirements
+# Multi-Domain Network Resilience and Accountability Requirements
 
-Status: Draft v0.1
+Status: Draft v0.2
 Scope: Prophet Platform, GAIA, SocioSphere, Sherlock, Agentplane, Lattice Forge
 
 ## Purpose
 
-This document converts protocol and network-layer lessons from modern sensor-to-decision systems into defensive, governance-oriented platform requirements.
+This document converts protocol and network-layer lessons from modern sensor-to-decision and sensor-to-effects systems into governance-oriented platform requirements.
 
-This is not a weapon tasking, targeting, or evasion specification. The platform may support authorized sensing, monitoring, resilience, emergency response, environmental intelligence, infrastructure operations, and customer-owned operational awareness. It must not implement ungoverned targeting, autonomous weapon tasking, sensitive-site exploitation, or unauthorized tracking workflows.
+The point is not to pretend defense, public-safety, or effects-linked stacks do not exist. The point is to make them accountable. The platform may support authorized sensing, monitoring, resilience, emergency response, environmental intelligence, infrastructure operations, logistics, public-safety accountability, defense governance, and customer-owned operational awareness.
+
+The platform must not implement ungoverned targeting, autonomous weapon tasking, sensitive-site exploitation, evasion workflows, unauthorized tracking, or any execution path that bypasses policy approval, human authority, auditability, and legal basis.
+
+## Governance posture
+
+Defense/effects-linked systems are in governance scope.
+
+Ungoverned effects execution is out of execution scope.
+
+This distinction is mandatory. Runtime boundaries, network profiles, source feeds, identity overlays, decision artifacts, and operator actions must all be visible to governance. A system that can influence operational outcomes requires stronger accountability, not weaker observability.
 
 ## Source posture
 
@@ -20,7 +30,7 @@ The motivating network patterns are:
 5. Failure modes caused by provider policy, cloud outage, RF disruption, GNSS/PNT failure, stale data, and software orchestration faults.
 6. Runtime evidence and replay becoming mandatory for trust.
 
-The platform adopts these as resilience and governance requirements, not as shooter-control requirements.
+The platform adopts these as resilience, accountability, and governance requirements. It does not adopt them as ungated shooter-control requirements.
 
 ## Required platform abstractions
 
@@ -130,17 +140,39 @@ The following conditions require explicit governance review before production us
 - restricted or customer-owned data;
 - sensitive geospatial data;
 - defense/public-safety data;
+- effects-linked operational context;
 - unmasks or precision restoration;
 - writes to canonical stores;
 - data export outside the workspace boundary;
 - automatic work-order creation;
 - any advisory artifact that could be mistaken for an operational command.
 
+### 8. Accountability ledger requirements
+
+Any effects-linked or defense/public-safety runtime MUST produce or reference an accountability ledger entry.
+
+The entry SHOULD include:
+
+- operator or service identity;
+- authority/legal basis reference;
+- mission or incident context reference;
+- source data refs;
+- evidence bundle refs;
+- policy bundle hash;
+- human approval state when required;
+- redaction/masking state;
+- freshness and PNT state;
+- model/runtime version;
+- replay procedure;
+- downstream action or non-action disposition.
+
+A runtime that cannot produce accountability evidence must remain blocked from production admission.
+
 ## Required integration updates
 
 ### GAIA
 
-GAIA runtime boundary docs SHOULD add a `network_resilience` section for every live-capable runtime.
+GAIA runtime boundary docs SHOULD add a `network_resilience` and `accountability` section for every live-capable runtime.
 
 The section should declare:
 
@@ -149,7 +181,9 @@ The section should declare:
 - time/freshness semantics;
 - source attribution;
 - failure mode registry;
-- evidence/replay posture.
+- evidence/replay posture;
+- accountability ledger posture;
+- human approval posture where relevant.
 
 ### SocioSphere
 
@@ -161,7 +195,9 @@ SocioSphere SHOULD validate that production runtime candidates include:
 - data license/redistribution policy;
 - sensitive-geospatial handling;
 - evidence/replay references;
-- compliance doc references.
+- compliance doc references;
+- authority/legal basis reference where defense/public-safety data is involved;
+- accountability ledger output when effects-linked context exists.
 
 ### Agentplane
 
@@ -171,11 +207,13 @@ Agentplane SHOULD refuse execution candidates that:
 - lack network/secret posture declarations;
 - request live external feeds without policy authorization;
 - request sensitive-geospatial unmasking without approval;
-- attempt automatic unsafe tasking.
+- attempt unsafe automatic tasking;
+- omit required human approval state;
+- omit accountability ledger references where effects-linked context exists.
 
 ### Lattice Forge
 
-Lattice Forge candidate records SHOULD remain `candidate_not_admitted` until packaging, SBOM, signing, rollback tests, malformed-input tests, network posture, and evidence contract validation are complete.
+Lattice Forge candidate records SHOULD remain `candidate_not_admitted` until packaging, SBOM, signing, rollback tests, malformed-input tests, network posture, evidence contract validation, and accountability requirements are complete.
 
 ### Sherlock
 
@@ -186,11 +224,12 @@ Sherlock discovery records SHOULD expose:
 - confidence;
 - evidence refs;
 - network/source posture tags;
-- privacy and safety tier.
+- privacy and safety tier;
+- accountability ledger refs when present.
 
 ## Non-goals
 
-The following are explicitly out of scope:
+The following are explicitly out of scope for execution:
 
 - autonomous weapon tasking;
 - target selection;
@@ -198,16 +237,18 @@ The following are explicitly out of scope:
 - evasion guidance;
 - bypassing communications restrictions;
 - unauthorized tracking;
-- precision restoration for sensitive locations without policy authorization.
+- precision restoration for sensitive locations without policy authorization;
+- executing any effects-linked workflow without authority, policy, evidence, and audit.
 
 ## Acceptance criteria
 
 The platform can claim first-pass conformance when:
 
-1. every live-capable runtime boundary includes a network resilience section;
+1. every live-capable runtime boundary includes network resilience and accountability sections;
 2. runtime evidence bundles include network posture and secret posture;
 3. Lattice candidate validation fails if a candidate lacks safety boundary or remaining admission requirements;
 4. Agentplane refuses execution candidates that lack evidence/replay metadata;
 5. SocioSphere can validate standards compliance and source-governance requirements;
 6. Sherlock exposes provenance and freshness in discovery records;
-7. no runtime is admitted to production solely from a fixture proof.
+7. no runtime is admitted to production solely from a fixture proof;
+8. defense/public-safety and effects-linked contexts produce accountability ledger refs before production use.
