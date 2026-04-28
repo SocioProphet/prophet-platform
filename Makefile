@@ -46,7 +46,7 @@ lattice-studio-smoke:
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-local-dev --workspace-ref workspace://demo --atlas-context-ref atlas-context:demo --paas-deployment-ref paas-deployment:demo --output-dir build/lattice-studio/local-dev
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-execution --output-dir build/lattice-studio/execution
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --subject lampstand://local-search/demo --subject ontogenesis://lattice-studio/demo --subject execution://demo --subject notebook-plane://lattice-studio --subject workspace-synthesis://demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/notebook-plane/notebook-plane-platform-record.json --platform-record build/lattice-studio/workspace/workspace-platform-records.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-platform-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --platform-record build/lattice-studio/execution/execution-platform-record.json --output build/lattice-studio/studio-platform-records.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/notebook-plane/notebook-plane-platform-record.json --platform-record build/lattice-studio/workspace/workspace-platform-records.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-platform-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --platform-record build/lattice-studio/execution/execution-platform-record.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json
 	test -s build/lattice-studio/session/notebook-session.json
 	test -s build/lattice-studio/session/notebook-session-evidence.json
 	test -s build/lattice-studio/notebook-plane/notebook-surface-plane.json
@@ -57,6 +57,7 @@ lattice-studio-smoke:
 	test -s build/lattice-studio/workspace/workspace-synthesis-evidence.json
 	test -s build/lattice-studio/workspace/workspace-action-receipt.publish-report.json
 	test -s build/lattice-studio/workspace/workspace-platform-records.json
+	test -s build/lattice-studio/workspace/workspace-platform-record-enrichments.json
 	test -s build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json
 	test -s build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json
 	test -s build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json
@@ -68,9 +69,10 @@ lattice-studio-smoke:
 	test -s build/lattice-studio/paas/paas-deployment-plan.json
 	test -s build/lattice-studio/local-dev/local-dev-session.json
 	test -s build/lattice-studio/execution/execution-record.json
-	test -s build/lattice-studio/execution/execution-evidence.json
+	test -s build/lattice-studio/execution-evidence.json || test -s build/lattice-studio/execution/execution-evidence.json
 	test -s build/lattice-studio/memory-events.json
 	test -s build/lattice-studio/studio-platform-records.json
+	test -s build/lattice-studio/studio-platform-record-enrichments.json
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py
