@@ -1,8 +1,8 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T10:48:00Z",
-  "status": "agentplane-merged-ci-verification-pending",
+  "updated_at": "2026-04-28T11:48:00Z",
+  "status": "p0-verification-mostly-green-prophet-validate-blocked",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
     "OSM Map API demo runbook exists for operator execution and is not executed by the assistant from chat",
@@ -15,87 +15,48 @@
     "Agentplane receives advisory and approval-required candidate fixtures",
     "Lattice runtime admission remains blocked until hardened"
   ],
-  "landed_this_closure_pass": [
-    {
-      "repo": "SocioProphet/prophet-platform",
-      "artifact": "docs/closure/GAIA_OSM_CORE_THESIS_RETIREMENT_PLAN.md",
-      "status": "landed"
-    },
-    {
-      "repo": "SocioProphet/prophet-platform",
-      "artifact": "docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md",
-      "status": "landed-operator-runbook-not-assistant-local-execution"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "pull/54",
-      "status": "merged",
-      "merge_commit": "a1ab5b81dd06c0675736e087df12d8b4504e4ec9"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "examples/meshrush/navigation-corridor-lidar-review-candidate.v0.1.json",
-      "status": "merged-via-pr-54"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "scripts/validate_meshrush_candidate.py",
-      "status": "expanded-and-merged-via-pr-54"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "issues/63",
-      "status": "closed-completed"
-    },
-    {
-      "repo": "SocioProphet/gaia-world-model",
-      "artifact": "navigation/lidar_rollback_receipt.py",
-      "status": "landed"
-    },
-    {
-      "repo": "SocioProphet/gaia-world-model",
-      "artifact": ".github/workflows/contract-fixtures.yml",
-      "status": "fixed-on-main-with-lidar-rollback-receipt-proof",
-      "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903"
-    }
-  ],
   "verification_state": {
     "agentplane_pr_54": {
       "state": "merged",
       "final_head": "9286aa37fdbe733f40fa041f32a8895b1716dd3c",
       "merge_commit": "a1ab5b81dd06c0675736e087df12d8b4504e4ec9",
-      "visible_checks_before_merge": [
-        "ci: success",
-        "lint: success",
-        "MeshRush Candidate: success"
-      ],
-      "copilot_review": "passed contract semantics, approval-boundary safety, candidate validation, and workflow behavior",
-      "blocker_issue": "SocioProphet/agentplane#63 closed completed"
+      "visible_checks_before_merge": ["ci: success", "lint: success", "MeshRush Candidate: success"],
+      "copilot_review": "passed contract semantics, approval-boundary safety, candidate validation, and workflow behavior"
     },
     "gaia_contract_fixtures": {
-      "state": "ci_wiring_fixed_status_not_surfaced_by_connector",
-      "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903",
-      "status_api": "no statuses returned",
-      "workflow_run_api": "no runs returned for commit",
-      "note": "Workflow includes LiDAR rollback receipt proof. Connector did not surface workflow state; do not claim checks passed until GitHub Actions confirms."
+      "state": "green_on_pr_scoped_verification",
+      "verification_pr": "SocioProphet/gaia-world-model#9",
+      "head": "7d2e616d6eaebb011ddfefeb40d9db2df3909696",
+      "checks": [
+        "Contract Fixtures: success",
+        "Validate registry examples: success",
+        "validate-gaia: success"
+      ]
     },
     "osm_map_api": {
-      "state": "implementation_landed_status_not_surfaced_by_connector",
-      "reference_commit": "e14d272015fad285b8d51aecda567fc03326599f",
-      "status_api": "no statuses returned",
-      "workflow_run_api": "no runs returned for commit"
+      "state": "p0_specific_workflow_green_repo_wide_validate_blocked",
+      "verification_pr": "SocioProphet/prophet-platform#252",
+      "head": "af20ec46f644c95d65762be4fa3561fe585e7cfe",
+      "p0_checks": ["OSM Map API: success", "ci: success", "platform-contracts-check: success", "premerge-audit: success"],
+      "repo_wide_blocker": "validate workflow failure in lattice-studio-smoke: contracts/lattice/runtime-asset.v1.example.json missing notebook adapter surface plutojl",
+      "copilot_repair_requested_comment": 4334904014,
+      "note": "The OSM governance lane detection bug was fixed on PR #252; OSM Map API workflow is green. Repo-wide validate is unrelated but blocks clean merge until fixed."
     },
     "sherlock_geospatial_result": {
-      "state": "all-example-validation-implementation-landed-status-not-surfaced-by-connector",
-      "reference_commit": "1e52f519c53ee2b55f4deae5a3881a08b4543a0c",
-      "status_api": "no statuses returned",
-      "workflow_run_api": "no runs returned for commit"
+      "state": "green_on_pr_scoped_verification",
+      "verification_pr": "SocioProphet/sherlock-search#15",
+      "head": "49996b612b3d1854eac745a4b8995884589b4428",
+      "checks": [
+        "Geospatial Evidence Result Proof: success",
+        "lattice-platform-assets: success",
+        "federated-query-platform-assets: success"
+      ]
     },
     "meshrush_crystallization": {
-      "state": "all-fixture-validation-implementation-landed-status-not-surfaced-by-connector",
-      "reference_commit": "225044586b738c83280f1cc7620707d868b0aefb",
-      "status_api": "no statuses returned",
-      "workflow_run_api": "no runs returned for commit"
+      "state": "green_on_pr_scoped_verification",
+      "verification_branch": "verify/p0-crystallization-fixtures",
+      "head": "95d443751258db829f76937166fa3541ad02c359",
+      "checks": ["CI: success", "Crystallization Fixtures: success"]
     },
     "static_demo_runbook": {
       "state": "operator-runbook-available-not-executed-by-assistant",
@@ -103,10 +64,8 @@
     }
   },
   "remaining_p0": [
-    "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
-    "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
-    "Confirm Sherlock geospatial-result workflow green after all-example validation",
-    "Confirm MeshRush crystallization workflow green after all-fixture validation"
+    "Resolve Prophet Platform PR #252 repo-wide validate failure or explicitly scope P0 closure to OSM Map API workflow only",
+    "Merge or otherwise preserve the OSM governance lane detection fix from PR #252"
   ],
   "operator_optional_validation": [
     "Run docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md against local checkouts if desired; not executed by assistant from chat"
