@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: prophet-lattice-studio
-Version: 0.1.0
-Summary: Governed notebook/session workbench surface for Prophet Lattice.
-Requires-Python: >=3.11
