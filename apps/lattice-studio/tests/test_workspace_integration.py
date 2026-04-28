@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from lattice_studio.cli import main
+from lattice_studio.enrichment import enrich_record_set
 from lattice_studio.platform_records import (
     platform_record_set,
     workspace_action_receipt_to_platform_record,
@@ -110,6 +111,29 @@ def test_workspace_binding_and_synthesis_convert_to_platform_records() -> None:
     assert "workspace-publication" in synthesis_record["compatibilitySurfaces"]
 
 
+def test_workspace_record_enrichments_include_search_topics_and_governance() -> None:
+    flow = demo_workspace_flow()
+    records = [workspace_source_to_platform_record(source) for source in flow["sources"]]
+    records.extend(
+        [
+            workspace_source_binding_to_platform_record(flow["binding"]),
+            workspace_synthesis_artifact_to_platform_record(flow["synthesis"]),
+            workspace_action_receipt_to_platform_record(flow["receipt"]),
+        ]
+    )
+    enrichment_set = enrich_record_set(platform_record_set(records))
+    by_asset_id = {item["assetId"]: item for item in enrichment_set["enrichments"]}
+    synthesis_enrichment = by_asset_id[flow["synthesis"]["artifactId"]]
+
+    assert enrichment_set["kind"] == "PlatformAssetRecordEnrichmentSet"
+    assert len(enrichment_set["enrichments"]) == 6
+    assert synthesis_enrichment["search"]["docType"] == "lattice.platformAssetRecord"
+    assert "/workspace/synthesis" in synthesis_enrichment["slashTopics"]
+    assert "/source-grounded-synthesis" in synthesis_enrichment["slashTopics"]
+    assert synthesis_enrichment["newHope"]["membraneStatus"] == "source-grounding-candidate"
+    assert synthesis_enrichment["governance"]["evidenceCompleteness"] == "policy-and-evidence-linked"
+
+
 def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
     output_dir = tmp_path / "workspace-demo"
     rc = main(["emit-workspace-demo", "--output-dir", str(output_dir)])
@@ -124,6 +148,7 @@ def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
         "workspace-synthesis-artifact.json",
         "workspace-synthesis-evidence.json",
         "workspace-action-receipt.publish-report.json",
+        "workspace-platform-record-enrichments.json",
         "workspace-platform-records.json",
     }
     assert expected == {path.name for path in output_dir.iterdir()}
@@ -134,6 +159,7 @@ def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
     evidence = json.loads((output_dir / "workspace-synthesis-evidence.json").read_text(encoding="utf-8"))
     receipt = json.loads((output_dir / "workspace-action-receipt.publish-report.json").read_text(encoding="utf-8"))
     record_set = json.loads((output_dir / "workspace-platform-records.json").read_text(encoding="utf-8"))
+    enrichment_set = json.loads((output_dir / "workspace-platform-record-enrichments.json").read_text(encoding="utf-8"))
 
     assert session["kind"] == "NotebookSession"
     assert binding["notebookSessionId"] == session["sessionId"]
@@ -142,6 +168,8 @@ def test_cli_emits_workspace_demo_bundle(tmp_path) -> None:
     assert receipt["spec"]["outputDigest"] == evidence["artifactDigest"]
     assert record_set["kind"] == "PlatformAssetRecordSet"
     assert len(record_set["records"]) == 7
+    assert enrichment_set["kind"] == "PlatformAssetRecordEnrichmentSet"
+    assert len(enrichment_set["enrichments"]) == 7
     assert {record["assetKind"] for record in record_set["records"]} == {
         "workspace-docs",
         "workspace-sheets",
