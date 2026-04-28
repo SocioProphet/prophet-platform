@@ -13,6 +13,8 @@
       "infrastructure monitoring",
       "logistics and supply-chain visibility",
       "customer-owned operational awareness",
+      "defense governance and accountability",
+      "effects-linked accountability ledgers",
       "standards conformance",
       "runtime evidence and replay"
     ],
@@ -22,7 +24,8 @@
       "sensitive-site exploitation",
       "unauthorized tracking",
       "autonomous weapon tasking",
-      "bypassing policy approval gates"
+      "bypassing policy approval gates",
+      "effects-linked execution without authority, policy, evidence, and audit"
     ],
     "default_runtime_posture": "fixture proof only unless a separate governed live-source runtime profile exists"
   },
@@ -167,6 +170,20 @@
       "admission_state": "candidate_not_admitted",
       "evidence_bundle": true,
       "negative_tests": true
+    },
+    {
+      "runtime_id": "runtime:telemetry-ingest:v0",
+      "name": "gaia-telemetry-ingest-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/telemetry_ingest.py",
+      "input_fixture": "fixtures/multidomain/telemetry-packet-input.sample.v1.json",
+      "output_record": "TelemetryObservation",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_TELEMETRY_INGEST.md",
+      "ci_workflow": ".github/workflows/telemetry-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-telemetry-ingest-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
     }
   ],
   "active_blockers": [
@@ -181,44 +198,39 @@
       "id": "lattice-runtime-admission-not-complete",
       "repo": "SocioProphet/lattice-forge",
       "status": "intentional_gate",
-      "details": "runtime candidates require packaging, SBOM, signing, rollback tests, expanded malformed-input corpus, Agentplane integration, and SocioSphere remote compliance before admission"
-    },
-    {
-      "id": "sociosphere-remote-compliance-not-implemented",
-      "repo": "SocioProphet/sociosphere",
-      "status": "open",
-      "details": "local compliance registry validation exists; remote GitHub existence checks are not implemented yet"
+      "details": "runtime candidates require packaging, SBOM, signing, rollback tests, expanded malformed-input corpus, Agentplane integration, SocioSphere remote compliance, and accountability ledger handling before admission"
     }
   ],
   "progress": {
-    "composite_standards_spec_percent": 62,
-    "composite_implementation_readiness_percent": 52,
+    "composite_standards_spec_percent": 65,
+    "composite_implementation_readiness_percent": 57,
     "workstreams": {
-      "standards_alignment": 62,
-      "storage_event_data_contracts": 49,
-      "knowledge_ontology_provenance": 47,
-      "agent_runtime_conformance": 52,
-      "platform_product_requirements": 49,
-      "gaia_implementation_alignment": 88,
-      "sociosphere_governance_enforcement": 40,
+      "standards_alignment": 63,
+      "storage_event_data_contracts": 51,
+      "knowledge_ontology_provenance": 48,
+      "agent_runtime_conformance": 54,
+      "platform_product_requirements": 54,
+      "gaia_implementation_alignment": 90,
+      "sociosphere_governance_enforcement": 50,
       "sherlock_discovery_alignment": 55,
-      "lattice_runtime_admission_readiness": 52,
-      "space_telemetry_satellite_data": 34,
+      "lattice_runtime_admission_readiness": 57,
+      "space_telemetry_satellite_data": 48,
       "earth_observation_satellite_products": 48,
       "maritime_shipping_intelligence": 38,
       "air_domain_awareness": 42,
-      "defense_public_safety_governance": 24,
+      "defense_public_safety_governance": 36,
       "smart_spaces_built_environment": 10,
       "sensor_fusion_field_observation": 42,
-      "multi_domain_fusion": 24
+      "multi_domain_fusion": 24,
+      "network_resilience_accountability": 38
     }
   },
   "next_best_actions": [
-    "Implement SocioSphere remote GitHub compliance verification for implementation docs",
-    "Add telemetry_ingest.py for TelemetryObservation",
     "Add sensitive_geo_policy_eval.py for SensitiveGeoPolicyRecord",
     "Add MultiDomainFusionEvent executable runtime proof",
     "Resolve Agentplane PR #62 branch-protection lint context mismatch",
-    "Begin packaging/SBOM/signing path for one Lattice runtime candidate without admitting it prematurely"
+    "Begin packaging/SBOM/signing path for one Lattice runtime candidate without admitting it prematurely",
+    "Add accountability ledger schema and fixture for effects-linked and defense/public-safety runtime governance",
+    "Add network_resilience sections to each live-capable GAIA runtime boundary"
   ]
 }
