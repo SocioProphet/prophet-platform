@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .atlas import atlas_evidence, atlas_to_platform_record, demo_atlas_context
 from .catalog import catalog_evidence, demo_catalog_assets
+from .enrichment import enrich_record_set
 from .execution import demo_execution_record, execution_evidence, execution_to_platform_record
 from .lampstand import (
     context_pack_for_results,
@@ -90,7 +91,12 @@ def emit_platform_records(args: argparse.Namespace) -> int:
     payload = platform_record_set(records)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({"written": [str(args.output)], "recordCount": len(records)}, indent=2, sort_keys=True))
+    written = [str(args.output)]
+    if args.enrich_output:
+        args.enrich_output.parent.mkdir(parents=True, exist_ok=True)
+        args.enrich_output.write_text(json.dumps(enrich_record_set(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        written.append(str(args.enrich_output))
+    print(json.dumps({"written": written, "recordCount": len(records)}, indent=2, sort_keys=True))
     return 0
 
 
@@ -106,9 +112,13 @@ def emit_workspace_demo(args: argparse.Namespace) -> int:
             workspace_action_receipt_to_platform_record(flow["receipt"]),
         ]
     )
+    record_set = platform_record_set(records)
     record_set_path = args.output_dir / "workspace-platform-records.json"
-    record_set_path.write_text(json.dumps(platform_record_set(records), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_set_path.write_text(json.dumps(record_set, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     written.append(record_set_path)
+    enrichment_path = args.output_dir / "workspace-platform-record-enrichments.json"
+    enrichment_path.write_text(json.dumps(enrich_record_set(record_set), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    written.append(enrichment_path)
     print(json.dumps({"written": [str(path) for path in written], "recordCount": len(records)}, indent=2, sort_keys=True))
     return 0
 
@@ -274,6 +284,7 @@ def build_parser() -> argparse.ArgumentParser:
     records_parser.add_argument("--workspace-receipt", type=Path, action="append", default=[])
     records_parser.add_argument("--platform-record", type=Path, action="append", default=[])
     records_parser.add_argument("--output", type=Path, required=True)
+    records_parser.add_argument("--enrich-output", type=Path)
     records_parser.set_defaults(func=emit_platform_records)
 
     atlas_parser = subparsers.add_parser("emit-atlas-context", help="Emit demo Atlas integration context")
