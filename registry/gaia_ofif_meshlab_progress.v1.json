@@ -1,16 +1,16 @@
 {
   "ledger_version": "v1",
   "program": "gaia-ofif-meshlab-control-tower",
-  "updated_at": "2026-04-27T23:30:00Z",
+  "updated_at": "2026-04-27T23:50:00Z",
   "status": "active-build-planning",
-  "overall_completion_estimate": 0.404,
+  "overall_completion_estimate": 0.416,
   "workstreams": [
     {
       "id": "ws-gaia-world-model",
       "name": "GAIA geospatial/world model",
       "repo": "SocioProphet/gaia-world-model",
       "status": "in-progress",
-      "completion_estimate": 0.64,
+      "completion_estimate": 0.68,
       "completed": [
         "OFIF integration contract",
         "OFIF mapping schemas",
@@ -57,13 +57,18 @@
         "LiDAR-derived output added to contract validation",
         "NavigationSafetyCase schema",
         "advisory LiDAR navigation safety-case fixture",
-        "navigation safety-case invariants added to contract validation"
+        "navigation safety-case invariants added to contract validation",
+        "LiDAR runtime rollback plan schema",
+        "LiDAR runtime rollback plan fixture",
+        "malformed LiDAR input fixture",
+        "LiDAR malformed-input fail-closed CI proof",
+        "LiDAR rollback invariants added to contract validation"
       ],
       "next": [
-        "LiDAR malformed-input and rollback fixture corpus",
         "validated navigation safety-case example with explicit approval path",
         "model/simulation/data product schemas",
-        "cross-repo validation gates"
+        "cross-repo validation gates",
+        "LiDAR rollback execution proof"
       ],
       "blockers": []
     },
@@ -151,7 +156,7 @@
       "name": "Sherlock discovery",
       "repo": "SocioProphet/sherlock-search",
       "status": "in-progress",
-      "completion_estimate": 0.32,
+      "completion_estimate": 0.34,
       "completed": [
         "native geospatial/evidence result schema",
         "GAIA soil decision-card result example",
@@ -176,7 +181,7 @@
       "name": "Lattice Forge runtime provenance",
       "repo": "SocioProphet/lattice-forge",
       "status": "osm-and-lidar-admission-issues-open",
-      "completion_estimate": 0.29,
+      "completion_estimate": 0.3,
       "completed": [
         "GAIA-side runtime asset fixture",
         "tracking issue for GAIA/OFIF soil-intelligence runtime path",
@@ -205,20 +210,23 @@
       "id": "ws-meshrush",
       "name": "MeshRush graph-native agent operation",
       "repo": "SocioProphet/meshrush",
-      "status": "validation-started",
-      "completion_estimate": 0.2,
+      "status": "navigation-crystallization-added",
+      "completion_estimate": 0.3,
       "completed": [
         "charter and ecosystem boundary inspected",
         "role mapped into master plan",
         "GAIA/OFIF/Mesh graph ops integration doc",
         "soil intelligence crystallization fixture",
         "dependency-light MeshRush fixture validator",
-        "MeshRush crystallization fixture CI"
+        "MeshRush crystallization fixture CI",
+        "navigation corridor LiDAR crystallization fixture",
+        "MeshRush validator expanded to all graph-view fixtures",
+        "approval-boundary handling tag validation"
       ],
       "next": [
-        "navigation corridor graph crystallization example",
         "Agentplane adapter PR merge",
-        "Agentplane candidate fixture",
+        "Agentplane candidate fixture for navigation corridor review",
+        "mesh experiment execution proof script",
         "smart-space graph example only after domain home is settled"
       ],
       "blockers": []
@@ -286,7 +294,7 @@
       "name": "Open industrial IoT and supply-chain control tower",
       "repo": "SocioProphet/gaia-world-model",
       "status": "first-runtime-entrypoint-added",
-      "completion_estimate": 0.44,
+      "completion_estimate": 0.46,
       "completed": [
         "open industrial IoT / supply-chain control tower strategy",
         "AssetTwinRecord schema",
@@ -304,7 +312,8 @@
         "RiskExposure fixture",
         "control tower fixture validation expanded",
         "deterministic anomaly scoring entrypoint",
-        "anomaly scoring CI proof"
+        "anomaly scoring CI proof",
+        "navigation corridor MeshRush fixture links control-tower risk/work-order evidence"
       ],
       "next": [
         "WorkOrderCandidate to approval lifecycle fixture",
@@ -319,7 +328,7 @@
       "name": "MeshLab / PlanetLab successor mesh contracts",
       "repo": "SocioProphet/gaia-world-model",
       "status": "fixtures-and-validation-expanded",
-      "completion_estimate": 0.4,
+      "completion_estimate": 0.42,
       "completed": [
         "MeshNodeRecord schema",
         "SliceAllocationRecord schema",
@@ -330,13 +339,14 @@
         "soil-intelligence mesh experiment fixture",
         "MeshTelemetry fixture",
         "Sherlock mesh experiment result fixture",
-        "mesh fixture validation expanded"
+        "mesh fixture validation expanded",
+        "navigation LiDAR graph-view fixture linked to MeshRush"
       ],
       "next": [
-        "MeshRush graph view fixture validation",
         "SocioSphere mesh registration issue/doc",
         "mesh experiment execution proof script",
-        "mesh telemetry validation command"
+        "mesh telemetry validation command",
+        "navigation MeshRush to Agentplane candidate fixture"
       ],
       "blockers": []
     },
