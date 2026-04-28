@@ -1,8 +1,17 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T11:48:00Z",
-  "status": "p0-verification-mostly-green-prophet-validate-blocked",
+  "updated_at": "2026-04-28T12:36:00Z",
+  "status": "p0-closed-core-thesis-retired",
+  "completion": {
+    "overall_core_thesis_closure": 1.0,
+    "gaia_world_model_p0": 1.0,
+    "prophet_platform_osm_api_p0": 1.0,
+    "sherlock_geospatial_p0": 1.0,
+    "meshrush_crystallization_p0": 1.0,
+    "agentplane_adapter_p0": 1.0,
+    "operator_local_demo_optional": 0.0
+  },
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
     "OSM Map API demo runbook exists for operator execution and is not executed by the assistant from chat",
@@ -26,35 +35,41 @@
     "gaia_contract_fixtures": {
       "state": "green_on_pr_scoped_verification",
       "verification_pr": "SocioProphet/gaia-world-model#9",
+      "verification_pr_state": "closed_unmerged",
       "head": "7d2e616d6eaebb011ddfefeb40d9db2df3909696",
-      "checks": [
-        "Contract Fixtures: success",
-        "Validate registry examples: success",
-        "validate-gaia: success"
-      ]
+      "checks": ["Contract Fixtures: success", "Validate registry examples: success", "validate-gaia: success"]
     },
     "osm_map_api": {
-      "state": "p0_specific_workflow_green_repo_wide_validate_blocked",
-      "verification_pr": "SocioProphet/prophet-platform#252",
-      "head": "af20ec46f644c95d65762be4fa3561fe585e7cfe",
-      "p0_checks": ["OSM Map API: success", "ci: success", "platform-contracts-check: success", "premerge-audit: success"],
-      "repo_wide_blocker": "validate workflow failure in lattice-studio-smoke: contracts/lattice/runtime-asset.v1.example.json missing notebook adapter surface plutojl",
-      "copilot_repair_requested_comment": 4334904014,
-      "note": "The OSM governance lane detection bug was fixed on PR #252; OSM Map API workflow is green. Repo-wide validate is unrelated but blocks clean merge until fixed."
+      "state": "fixed_and_merged",
+      "fix_pr": "SocioProphet/prophet-platform#252",
+      "merge_commit": "6fe57aed134aa327962614d3fa7e59066b212227",
+      "final_head": "702fdc06f82ad9d1db44e2fa5659086d69cb0c0d",
+      "checks": [
+        "OSM Map API: success",
+        "validate: success",
+        "ci: success",
+        "platform-contracts-check: success",
+        "premerge-audit: success",
+        "brokerage-validation: success",
+        "platform-wave1-stubs: success"
+      ],
+      "fixes": [
+        "OSM governance lane detection recognizes gaia-openstreetmap-bindings/OpenStreetMap lanes",
+        "Lattice runtime asset compatibility includes plutojl",
+        "*.egg-info/ ignored to avoid accidental build artifact commits"
+      ]
     },
     "sherlock_geospatial_result": {
       "state": "green_on_pr_scoped_verification",
       "verification_pr": "SocioProphet/sherlock-search#15",
+      "verification_pr_state": "closed_unmerged",
       "head": "49996b612b3d1854eac745a4b8995884589b4428",
-      "checks": [
-        "Geospatial Evidence Result Proof: success",
-        "lattice-platform-assets: success",
-        "federated-query-platform-assets: success"
-      ]
+      "checks": ["Geospatial Evidence Result Proof: success", "lattice-platform-assets: success", "federated-query-platform-assets: success"]
     },
     "meshrush_crystallization": {
       "state": "green_on_pr_scoped_verification",
-      "verification_branch": "verify/p0-crystallization-fixtures",
+      "verification_pr": "SocioProphet/meshrush#4",
+      "verification_pr_state": "closed_unmerged",
       "head": "95d443751258db829f76937166fa3541ad02c359",
       "checks": ["CI: success", "Crystallization Fixtures: success"]
     },
@@ -63,14 +78,17 @@
       "note": "No assistant access to local checkouts is assumed. Verification in chat is limited to GitHub artifacts and exposed workflow/PR state."
     }
   },
-  "remaining_p0": [
-    "Resolve Prophet Platform PR #252 repo-wide validate failure or explicitly scope P0 closure to OSM Map API workflow only",
-    "Merge or otherwise preserve the OSM governance lane detection fix from PR #252"
-  ],
+  "remaining_p0": [],
   "operator_optional_validation": [
     "Run docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md against local checkouts if desired; not executed by assistant from chat"
   ],
-  "do_not_expand_until_p0_done": [
+  "next_allowed_scope_after_p0": [
+    "Estate-wide multi-agent GitOps operating model and policy registry",
+    "OSM API product UI/demo surface if explicitly requested",
+    "Lattice RuntimeAsset admission target-shape docs without admission",
+    "Production OSM/tiles/point-cloud hardening only after explicit scope reopen"
+  ],
+  "still_blocked_without_scope_reopen": [
     "Smart Spaces schema placement",
     "Production OSM tile generation backend",
     "Lattice RuntimeAsset admission",
