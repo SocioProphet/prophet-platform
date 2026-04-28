@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.dev/prophet-platform/workspace-synthesis-evidence.v1.schema.json",
+  "title": "WorkspaceSynthesisEvidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apiVersion", "kind", "artifactId", "bindingId", "notebookSessionId", "runtimeAssetId", "sourceIds", "artifactDigest", "evidenceReports"],
+  "properties": {
+    "apiVersion": {"const": "studio.socioprophet.dev/v1"},
+    "kind": {"const": "WorkspaceSynthesisEvidence"},
+    "artifactId": {"type": "string", "pattern": "^workspace-synthesis:[a-fA-F0-9]{16}$"},
+    "bindingId": {"type": "string", "pattern": "^workspace-binding:[a-fA-F0-9]{16}$"},
+    "notebookSessionId": {"type": "string", "pattern": "^notebook-session:[a-fA-F0-9]{16}$"},
+    "runtimeAssetId": {"type": "string", "pattern": "^runtime-asset:[a-z0-9][a-z0-9.-]{1,62}:[v]?[0-9]+\\.[0-9]+\\.[0-9]+([-.+][A-Za-z0-9.-]+)?$"},
+    "sourceIds": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^workspace-source:[a-z0-9][a-z0-9:._/@-]{1,160}$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "artifactDigest": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"},
+    "evidenceReports": {
+      "type": "array",
+      "items": {"enum": ["workspace-source-binding", "runtime-binding", "source-grounded-claims", "publication-ready-output", "policy-binding", "workspace-publication"]},
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}
