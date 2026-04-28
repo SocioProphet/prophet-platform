@@ -117,15 +117,18 @@ def make_fixture_roots(tmp_path: Path) -> tuple[Path, Path, Path]:
     return gaia, sherlock, sociosphere
 
 
-def make_client(tmp_path: Path) -> TestClient:
-    gaia, sherlock, sociosphere = make_fixture_roots(tmp_path)
-    app = create_app(
-        Settings(
-            gaia_fixture_root=gaia,
-            sherlock_fixture_root=sherlock,
-            sociosphere_fixture_root=sociosphere,
-        )
+def settings_for_roots(gaia: Path, sherlock: Path, sociosphere: Path, **kwargs) -> Settings:
+    return Settings(
+        gaia_fixture_root=gaia,
+        sherlock_fixture_root=sherlock,
+        sociosphere_fixture_root=sociosphere,
+        **kwargs,
     )
+
+
+def make_client(tmp_path: Path, **settings_kwargs) -> TestClient:
+    gaia, sherlock, sociosphere = make_fixture_roots(tmp_path)
+    app = create_app(settings_for_roots(gaia, sherlock, sociosphere, **settings_kwargs))
     return TestClient(app)
 
 
@@ -171,6 +174,51 @@ def test_health_and_readiness(tmp_path: Path) -> None:
     client = make_client(tmp_path)
     assert client.get("/healthz").json() == {"status": "ok"}
     assert client.get("/readyz").json() == {"status": "ready"}
+
+
+def test_cors_is_disabled_by_default(tmp_path: Path) -> None:
+    client = make_client(tmp_path)
+    response = client.options(
+        "/map-layers",
+        headers={
+            "Origin": "http://localhost:5174",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 405
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_allows_configured_vue_shell_origin(tmp_path: Path) -> None:
+    client = make_client(
+        tmp_path,
+        cors_allowed_origins=("http://localhost:5174", "https://app.socioprophet.local"),
+    )
+    preflight = client.options(
+        "/map-layers",
+        headers={
+            "Origin": "http://localhost:5174",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == "http://localhost:5174"
+    response = client.get("/map-layers", headers={"Origin": "http://localhost:5174"})
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5174"
+
+
+def test_cors_rejects_unlisted_browser_origin(tmp_path: Path) -> None:
+    client = make_client(tmp_path, cors_allowed_origins=("http://localhost:5174",))
+    preflight = client.options(
+        "/map-layers",
+        headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 400
+    assert "access-control-allow-origin" not in preflight.headers
 
 
 def test_map_layer_catalog_preserves_attribution_and_receipts(tmp_path: Path) -> None:
