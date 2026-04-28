@@ -1,7 +1,7 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T03:30:00Z",
+  "updated_at": "2026-04-28T03:42:00Z",
   "status": "retirement-path-defined-implementation-landed-verification-pending",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
@@ -44,7 +44,8 @@
     {
       "repo": "SocioProphet/gaia-world-model",
       "artifact": ".github/workflows/contract-fixtures.yml",
-      "status": "updated-with-lidar-rollback-receipt-proof"
+      "status": "fixed-on-main-with-lidar-rollback-receipt-proof",
+      "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903"
     }
   ],
   "verification_state": {
@@ -56,11 +57,14 @@
         "lint: success",
         "MeshRush Candidate: success"
       ],
-      "blocker": "merge API still expects required lint status context despite visible lint Actions job success"
+      "merge_attempt": "failed: Required status check lint is expected",
+      "auto_merge_attempt": "failed: auto-merge is not enabled for repository",
+      "blocker": "branch protection expects a lint status context not satisfied by the visible successful lint Actions workflow"
     },
     "gaia_contract_fixtures": {
-      "state": "implementation_landed_status_not_surfaced_by_connector",
-      "note": "Connector returned no workflow runs for the relevant GAIA CI-update commit; do not claim checks passed until GitHub Actions confirms."
+      "state": "ci_wiring_fixed_status_not_surfaced_by_connector",
+      "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903",
+      "note": "Workflow now includes LiDAR rollback receipt proof. Connector returned no workflow runs for the commit; do not claim checks passed until GitHub Actions confirms."
     },
     "osm_map_api": {
       "state": "implementation_landed_previous_tests_defined_status_not_rechecked_in_this_pass"
