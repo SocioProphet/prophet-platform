@@ -1,11 +1,11 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T10:42:00Z",
-  "status": "agentplane-merged-verification-pending",
+  "updated_at": "2026-04-28T10:48:00Z",
+  "status": "agentplane-merged-ci-verification-pending",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
-    "OSM Map API demo runbook succeeds against local checkouts",
+    "OSM Map API demo runbook exists for operator execution and is not executed by the assistant from chat",
     "OSM attribution and source refs are visible in API responses",
     "OSM feature inspection by OSM ID and H3 works",
     "OSM route graph remains advisory",
@@ -24,7 +24,7 @@
     {
       "repo": "SocioProphet/prophet-platform",
       "artifact": "docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md",
-      "status": "landed"
+      "status": "landed-operator-runbook-not-assistant-local-execution"
     },
     {
       "repo": "SocioProphet/agentplane",
@@ -77,7 +77,7 @@
       "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903",
       "status_api": "no statuses returned",
       "workflow_run_api": "no runs returned for commit",
-      "note": "Workflow now includes LiDAR rollback receipt proof. Connector did not surface workflow state; do not claim checks passed until GitHub Actions confirms."
+      "note": "Workflow includes LiDAR rollback receipt proof. Connector did not surface workflow state; do not claim checks passed until GitHub Actions confirms."
     },
     "osm_map_api": {
       "state": "implementation_landed_status_not_surfaced_by_connector",
@@ -96,14 +96,20 @@
       "reference_commit": "225044586b738c83280f1cc7620707d868b0aefb",
       "status_api": "no statuses returned",
       "workflow_run_api": "no runs returned for commit"
+    },
+    "static_demo_runbook": {
+      "state": "operator-runbook-available-not-executed-by-assistant",
+      "note": "No assistant access to local checkouts is assumed. Verification in chat is limited to GitHub artifacts and exposed workflow/PR state."
     }
   },
   "remaining_p0": [
     "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
     "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
     "Confirm Sherlock geospatial-result workflow green after all-example validation",
-    "Confirm MeshRush crystallization workflow green after all-fixture validation",
-    "Run the static demo runbook against local checkouts"
+    "Confirm MeshRush crystallization workflow green after all-fixture validation"
+  ],
+  "operator_optional_validation": [
+    "Run docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md against local checkouts if desired; not executed by assistant from chat"
   ],
   "do_not_expand_until_p0_done": [
     "Smart Spaces schema placement",
