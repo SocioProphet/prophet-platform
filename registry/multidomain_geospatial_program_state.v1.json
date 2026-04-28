@@ -1,0 +1,224 @@
+{
+  "registry_id": "socioprophet.multidomain-geospatial.program-state.v1",
+  "version": "v1",
+  "status": "active",
+  "updated_at": "2026-04-27",
+  "purpose": "Canonical control ledger for the SocioProphet multi-domain geospatial intelligence program across standards, GAIA, Sherlock, SocioSphere, Agentplane, Lattice Forge, and Prophet Platform.",
+  "safety_boundary": {
+    "allowed_scope": [
+      "authorized analysis",
+      "public safety",
+      "humanitarian response",
+      "environmental intelligence",
+      "infrastructure monitoring",
+      "logistics and supply-chain visibility",
+      "customer-owned operational awareness",
+      "standards conformance",
+      "runtime evidence and replay"
+    ],
+    "disallowed_scope": [
+      "ungoverned targeting",
+      "evasion workflows",
+      "sensitive-site exploitation",
+      "unauthorized tracking",
+      "autonomous weapon tasking",
+      "bypassing policy approval gates"
+    ],
+    "default_runtime_posture": "fixture proof only unless a separate governed live-source runtime profile exists"
+  },
+  "standards_authorities": [
+    {
+      "repo": "SocioProphet/prophet-platform-standards",
+      "primary_refs": [
+        "docs/standards/070-multidomain-geospatial-standards-alignment.md",
+        "registry/multidomain-geospatial-standards-map.v1.json"
+      ],
+      "validation": "make multidomain-geospatial-validate"
+    },
+    {
+      "repo": "SocioProphet/socioprophet-standards-storage",
+      "primary_refs": [
+        "docs/standards/096-multidomain-geospatial-storage-contracts.md",
+        "schemas/jsonschema/multidomain/multidomain_geospatial_record.v1.schema.json"
+      ],
+      "validation": "make multidomain-geospatial-validate"
+    },
+    {
+      "repo": "SocioProphet/socioprophet-standards-knowledge",
+      "primary_refs": [
+        "docs/standards/080-multidomain-geospatial-knowledge-context.md",
+        "schemas/jsonschema/multidomain/multidomain_geospatial_knowledge_artifact.v1.schema.json"
+      ],
+      "validation": "make multidomain-geospatial-validate"
+    },
+    {
+      "repo": "SocioProphet/socioprophet-agent-standards",
+      "primary_refs": [
+        "docs/standards/020-multidomain-geospatial-agent-runtime.md",
+        "schemas/jsonschema/multidomain/geospatial_agent_runtime_profile.v1.schema.json",
+        "schemas/jsonschema/multidomain/geospatial_runtime_evidence_bundle.v1.schema.json"
+      ],
+      "validation": "make multidomain-geospatial-agent-validate"
+    }
+  ],
+  "implementation_repos": [
+    {
+      "repo": "SocioProphet/prophet-platform",
+      "role": "product requirements, APIs, dashboards, acceptance criteria, runtime boundary requirements, program state ledger",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "committed"
+    },
+    {
+      "repo": "SocioProphet/gaia-world-model",
+      "role": "domain schemas, fixtures, deterministic runtime proofs, runtime boundary docs",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "committed"
+    },
+    {
+      "repo": "SocioProphet/sociosphere",
+      "role": "governance registries, compliance validation, source trust, policy gates, change propagation",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "committed"
+    },
+    {
+      "repo": "SocioProphet/sherlock-search",
+      "role": "discovery records and search fixtures for geospatial evidence artifacts",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "committed"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "role": "approval-gated execution candidates, runtime evidence/replay governance",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "open_pr",
+      "pr": 62,
+      "blocker": "GitHub branch protection expects legacy lint status context even when lint workflow succeeds"
+    },
+    {
+      "repo": "SocioProphet/lattice-forge",
+      "role": "runtime candidate packaging and admission registry",
+      "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
+      "state": "committed"
+    }
+  ],
+  "gaia_multidomain_records": [
+    "SpaceAssetRecord",
+    "EarthObservationProductRecord",
+    "VesselTrackObservation",
+    "TelemetryObservation",
+    "AirTrackObservation",
+    "SensitiveGeoPolicyRecord",
+    "SensorObservationEnvelope",
+    "MultiDomainFusionEvent"
+  ],
+  "runtime_proofs": [
+    {
+      "runtime_id": "runtime:stac-ingest:v0",
+      "name": "gaia-stac-ingest-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/stac_ingest.py",
+      "input_fixture": "fixtures/multidomain/stac-item-input.sample.v1.json",
+      "output_record": "EarthObservationProductRecord",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_STAC_INGEST.md",
+      "ci_workflow": ".github/workflows/multidomain-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-stac-ingest-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
+    },
+    {
+      "runtime_id": "runtime:ais-ingest:v0",
+      "name": "gaia-ais-ingest-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/ais_ingest.py",
+      "input_fixture": "fixtures/multidomain/ais-message-input.sample.v1.json",
+      "output_record": "VesselTrackObservation",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_AIS_INGEST.md",
+      "ci_workflow": ".github/workflows/multidomain-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-ais-ingest-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
+    },
+    {
+      "runtime_id": "runtime:adsb-ingest:v0",
+      "name": "gaia-adsb-ingest-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/adsb_ingest.py",
+      "input_fixture": "fixtures/multidomain/adsb-message-input.sample.v1.json",
+      "output_record": "AirTrackObservation",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_ADSB_INGEST.md",
+      "ci_workflow": ".github/workflows/multidomain-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-adsb-ingest-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
+    },
+    {
+      "runtime_id": "runtime:sensorthings-ingest:v0",
+      "name": "gaia-sensorthings-ingest-runtime",
+      "repo": "SocioProphet/gaia-world-model",
+      "entrypoint": "multidomain/sensorthings_ingest.py",
+      "input_fixture": "fixtures/multidomain/sensorthings-observation-input.sample.v1.json",
+      "output_record": "SensorObservationEnvelope",
+      "boundary_doc": "docs/integrations/RUNTIME_BOUNDARY_SENSORTHINGS_INGEST.md",
+      "ci_workflow": ".github/workflows/multidomain-runtime.yml",
+      "lattice_candidate": "SocioProphet/lattice-forge:registry/runtime-candidates/gaia-sensorthings-ingest-runtime.candidate.v1.json",
+      "admission_state": "candidate_not_admitted",
+      "evidence_bundle": true,
+      "negative_tests": true
+    }
+  ],
+  "active_blockers": [
+    {
+      "id": "agentplane-pr-62-lint-context",
+      "repo": "SocioProphet/agentplane",
+      "pr": 62,
+      "status": "blocked_by_branch_protection_context_mismatch",
+      "details": "lint and ci workflow runs completed successfully, but merge API still reports required status check lint is expected"
+    },
+    {
+      "id": "lattice-runtime-admission-not-complete",
+      "repo": "SocioProphet/lattice-forge",
+      "status": "intentional_gate",
+      "details": "runtime candidates require packaging, SBOM, signing, rollback tests, expanded malformed-input corpus, Agentplane integration, and SocioSphere remote compliance before admission"
+    },
+    {
+      "id": "sociosphere-remote-compliance-not-implemented",
+      "repo": "SocioProphet/sociosphere",
+      "status": "open",
+      "details": "local compliance registry validation exists; remote GitHub existence checks are not implemented yet"
+    }
+  ],
+  "progress": {
+    "composite_standards_spec_percent": 62,
+    "composite_implementation_readiness_percent": 52,
+    "workstreams": {
+      "standards_alignment": 62,
+      "storage_event_data_contracts": 49,
+      "knowledge_ontology_provenance": 47,
+      "agent_runtime_conformance": 52,
+      "platform_product_requirements": 49,
+      "gaia_implementation_alignment": 88,
+      "sociosphere_governance_enforcement": 40,
+      "sherlock_discovery_alignment": 55,
+      "lattice_runtime_admission_readiness": 52,
+      "space_telemetry_satellite_data": 34,
+      "earth_observation_satellite_products": 48,
+      "maritime_shipping_intelligence": 38,
+      "air_domain_awareness": 42,
+      "defense_public_safety_governance": 24,
+      "smart_spaces_built_environment": 10,
+      "sensor_fusion_field_observation": 42,
+      "multi_domain_fusion": 24
+    }
+  },
+  "next_best_actions": [
+    "Implement SocioSphere remote GitHub compliance verification for implementation docs",
+    "Add telemetry_ingest.py for TelemetryObservation",
+    "Add sensitive_geo_policy_eval.py for SensitiveGeoPolicyRecord",
+    "Add MultiDomainFusionEvent executable runtime proof",
+    "Resolve Agentplane PR #62 branch-protection lint context mismatch",
+    "Begin packaging/SBOM/signing path for one Lattice runtime candidate without admitting it prematurely"
+  ]
+}
