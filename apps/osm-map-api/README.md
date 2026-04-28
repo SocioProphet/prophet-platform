@@ -17,6 +17,7 @@ This is not a production tile server. It is a strict API boundary that can run a
 5. Fail readiness if required fixture roots are absent.
 6. Preserve provenance/source refs in every response.
 7. Keep Lattice runtime assets gated until executable runtime admission is approved.
+8. Permit browser access only from explicitly configured origins.
 
 ## Runtime configuration
 
@@ -30,6 +31,51 @@ Optional:
 
 - `OSM_MAP_API_HOST` — default `127.0.0.1`.
 - `OSM_MAP_API_PORT` — default `8088`.
+- `OSM_MAP_API_CORS_ALLOWED_ORIGINS` — comma-separated browser origins allowed to call the API. Empty by default, which disables CORS preflight handling.
+- `OSM_MAP_API_CORS_ALLOW_CREDENTIALS` — `true` only when the configured browser origin must send credentials. Default `false`.
+
+## Browser / Vue shell integration
+
+The Vue product shell calls the API through `VITE_GAIA_MAP_API_BASE`.
+
+Local development shape:
+
+```bash
+cd apps/osm-map-api
+export GAIA_FIXTURE_ROOT="$HOME/dev/gaia-world-model"
+export SHERLOCK_FIXTURE_ROOT="$HOME/dev/sherlock-search"
+export SOCIOSPHERE_FIXTURE_ROOT="$HOME/dev/sociosphere"
+export OSM_MAP_API_HOST=127.0.0.1
+export OSM_MAP_API_PORT=8088
+export OSM_MAP_API_CORS_ALLOWED_ORIGINS="http://localhost:5174"
+python3 -m osm_map_api
+```
+
+Then the Vue shell should set:
+
+```bash
+VITE_GAIA_MAP_API_BASE=http://127.0.0.1:8088
+```
+
+The current Vue shell also supports deterministic demo fallback mode. Fallback mode is for product demonstration when this API is not reachable; it is not a production data plane and it does not replace API readiness.
+
+Suggested environment mapping:
+
+| Environment | `VITE_GAIA_MAP_API_BASE` | `OSM_MAP_API_CORS_ALLOWED_ORIGINS` |
+| --- | --- | --- |
+| local API direct | `http://127.0.0.1:8088` | `http://localhost:5174` |
+| local Vite proxy | `/api` | not required if same-origin proxy is used |
+| preview/staging | staging API URL | staging app origin |
+| production | production API URL or same-origin gateway path | production app origin |
+
+Do not use `*` with credentialed browser access. Prefer explicit origins and same-origin gateway/proxy deployment when possible.
+
+## Health and readiness
+
+- `GET /healthz` reports process liveness only.
+- `GET /readyz` verifies required fixture roots and fails with `503` when the API cannot serve the GAIA/OSM fixture-backed contract.
+
+The Vue shell may render demo fallback when the API is not ready, but operators should still treat `/readyz != ready` as a backend issue.
 
 ## Endpoints
 
