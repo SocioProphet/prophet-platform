@@ -35,6 +35,7 @@ REQUIRED_RUNTIME_IDS = {
     "runtime:adsb-ingest:v0",
     "runtime:sensorthings-ingest:v0",
     "runtime:telemetry-ingest:v0",
+    "runtime:sensitive-geo-policy-eval:v0",
 }
 REQUIRED_STANDARDS = {
     "SocioProphet/prophet-platform-standards",
