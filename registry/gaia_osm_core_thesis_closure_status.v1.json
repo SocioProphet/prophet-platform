@@ -1,0 +1,87 @@
+{
+  "registry_version": "v1",
+  "program": "gaia-osm-core-thesis",
+  "updated_at": "2026-04-28T03:30:00Z",
+  "status": "retirement-path-defined-implementation-landed-verification-pending",
+  "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
+  "retirement_criteria": [
+    "OSM Map API demo runbook succeeds against local checkouts",
+    "OSM attribution and source refs are visible in API responses",
+    "OSM feature inspection by OSM ID and H3 works",
+    "OSM route graph remains advisory",
+    "LiDAR-derived evidence has advisory safety case and rollback plan",
+    "Sherlock validates OSM and LiDAR evidence records",
+    "MeshRush validates soil and navigation graph-view crystallization fixtures",
+    "Agentplane receives advisory and approval-required candidate fixtures",
+    "Lattice runtime admission remains blocked until hardened"
+  ],
+  "landed_this_closure_pass": [
+    {
+      "repo": "SocioProphet/prophet-platform",
+      "artifact": "docs/closure/GAIA_OSM_CORE_THESIS_RETIREMENT_PLAN.md",
+      "status": "landed"
+    },
+    {
+      "repo": "SocioProphet/prophet-platform",
+      "artifact": "docs/runbooks/GAIA_OSM_STATIC_DEMO_RUNBOOK.md",
+      "status": "landed"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "artifact": "examples/meshrush/navigation-corridor-lidar-review-candidate.v0.1.json",
+      "status": "landed-on-pr-54-branch"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "artifact": "scripts/validate_meshrush_candidate.py",
+      "status": "expanded-on-pr-54-branch"
+    },
+    {
+      "repo": "SocioProphet/gaia-world-model",
+      "artifact": "navigation/lidar_rollback_receipt.py",
+      "status": "landed"
+    },
+    {
+      "repo": "SocioProphet/gaia-world-model",
+      "artifact": ".github/workflows/contract-fixtures.yml",
+      "status": "updated-with-lidar-rollback-receipt-proof"
+    }
+  ],
+  "verification_state": {
+    "agentplane_pr_54": {
+      "state": "open_mergeable_checks_green_branch_protection_blocked",
+      "current_head": "865d7409202c68f720669d126867bb5fa56e1561",
+      "visible_checks": [
+        "ci: success",
+        "lint: success",
+        "MeshRush Candidate: success"
+      ],
+      "blocker": "merge API still expects required lint status context despite visible lint Actions job success"
+    },
+    "gaia_contract_fixtures": {
+      "state": "implementation_landed_status_not_surfaced_by_connector",
+      "note": "Connector returned no workflow runs for the relevant GAIA CI-update commit; do not claim checks passed until GitHub Actions confirms."
+    },
+    "osm_map_api": {
+      "state": "implementation_landed_previous_tests_defined_status_not_rechecked_in_this_pass"
+    },
+    "mesh_and_sherlock": {
+      "state": "validators_updated_status_not_rechecked_in_this_pass"
+    }
+  },
+  "remaining_p0": [
+    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker",
+    "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
+    "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
+    "Confirm Sherlock geospatial-result workflow green after all-example validation",
+    "Confirm MeshRush crystallization workflow green after all-fixture validation",
+    "Run the static demo runbook against local checkouts"
+  ],
+  "do_not_expand_until_p0_done": [
+    "Smart Spaces schema placement",
+    "Production OSM tile generation backend",
+    "Lattice RuntimeAsset admission",
+    "Live Overpass/PBF ingestion",
+    "Safety-critical navigation validation"
+  ]
+}
