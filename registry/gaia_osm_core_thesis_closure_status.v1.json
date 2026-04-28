@@ -1,8 +1,8 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T03:49:00Z",
-  "status": "retirement-path-defined-implementation-landed-verification-pending",
+  "updated_at": "2026-04-28T10:42:00Z",
+  "status": "agentplane-merged-verification-pending",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
     "OSM Map API demo runbook succeeds against local checkouts",
@@ -28,13 +28,24 @@
     },
     {
       "repo": "SocioProphet/agentplane",
+      "artifact": "pull/54",
+      "status": "merged",
+      "merge_commit": "a1ab5b81dd06c0675736e087df12d8b4504e4ec9"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
       "artifact": "examples/meshrush/navigation-corridor-lidar-review-candidate.v0.1.json",
-      "status": "landed-on-pr-54-branch"
+      "status": "merged-via-pr-54"
     },
     {
       "repo": "SocioProphet/agentplane",
       "artifact": "scripts/validate_meshrush_candidate.py",
-      "status": "expanded-on-pr-54-branch"
+      "status": "expanded-and-merged-via-pr-54"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "artifact": "issues/63",
+      "status": "closed-completed"
     },
     {
       "repo": "SocioProphet/gaia-world-model",
@@ -46,32 +57,20 @@
       "artifact": ".github/workflows/contract-fixtures.yml",
       "status": "fixed-on-main-with-lidar-rollback-receipt-proof",
       "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "issues/63",
-      "status": "opened-p0-branch-protection-blocker"
-    },
-    {
-      "repo": "SocioProphet/agentplane",
-      "artifact": "pull/54#issuecomment-4332213553",
-      "status": "copilot-remediation-requested"
     }
   ],
   "verification_state": {
     "agentplane_pr_54": {
-      "state": "open_mergeable_checks_green_branch_protection_blocked_copilot_requested",
-      "current_head": "865d7409202c68f720669d126867bb5fa56e1561",
-      "visible_checks": [
+      "state": "merged",
+      "final_head": "9286aa37fdbe733f40fa041f32a8895b1716dd3c",
+      "merge_commit": "a1ab5b81dd06c0675736e087df12d8b4504e4ec9",
+      "visible_checks_before_merge": [
         "ci: success",
         "lint: success",
         "MeshRush Candidate: success"
       ],
-      "merge_attempt": "failed: Required status check lint is expected",
-      "auto_merge_attempt": "failed: auto-merge is not enabled for repository",
-      "tracking_issue": "SocioProphet/agentplane#63",
-      "copilot_comment_id": 4332213553,
-      "blocker": "branch protection expects a lint status context not satisfied by the visible successful lint Actions workflow"
+      "copilot_review": "passed contract semantics, approval-boundary safety, candidate validation, and workflow behavior",
+      "blocker_issue": "SocioProphet/agentplane#63 closed completed"
     },
     "gaia_contract_fixtures": {
       "state": "ci_wiring_fixed_status_not_surfaced_by_connector",
@@ -100,7 +99,6 @@
     }
   },
   "remaining_p0": [
-    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker tracked by SocioProphet/agentplane#63 and Copilot comment 4332213553",
     "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
     "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
     "Confirm Sherlock geospatial-result workflow green after all-example validation",
