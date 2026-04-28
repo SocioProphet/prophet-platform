@@ -1,7 +1,7 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T03:42:00Z",
+  "updated_at": "2026-04-28T03:45:00Z",
   "status": "retirement-path-defined-implementation-landed-verification-pending",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
@@ -46,6 +46,11 @@
       "artifact": ".github/workflows/contract-fixtures.yml",
       "status": "fixed-on-main-with-lidar-rollback-receipt-proof",
       "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "artifact": "issues/63",
+      "status": "opened-p0-branch-protection-blocker"
     }
   ],
   "verification_state": {
@@ -59,22 +64,37 @@
       ],
       "merge_attempt": "failed: Required status check lint is expected",
       "auto_merge_attempt": "failed: auto-merge is not enabled for repository",
+      "tracking_issue": "SocioProphet/agentplane#63",
       "blocker": "branch protection expects a lint status context not satisfied by the visible successful lint Actions workflow"
     },
     "gaia_contract_fixtures": {
       "state": "ci_wiring_fixed_status_not_surfaced_by_connector",
       "commit": "fa95a64910e42f49728c3c46dd4615bcdf719903",
-      "note": "Workflow now includes LiDAR rollback receipt proof. Connector returned no workflow runs for the commit; do not claim checks passed until GitHub Actions confirms."
+      "status_api": "no statuses returned",
+      "workflow_run_api": "no runs returned for commit",
+      "note": "Workflow now includes LiDAR rollback receipt proof. Connector did not surface workflow state; do not claim checks passed until GitHub Actions confirms."
     },
     "osm_map_api": {
-      "state": "implementation_landed_previous_tests_defined_status_not_rechecked_in_this_pass"
+      "state": "implementation_landed_status_not_surfaced_by_connector",
+      "reference_commit": "e14d272015fad285b8d51aecda567fc03326599f",
+      "status_api": "no statuses returned",
+      "workflow_run_api": "no runs returned for commit"
     },
-    "mesh_and_sherlock": {
-      "state": "validators_updated_status_not_rechecked_in_this_pass"
+    "sherlock_geospatial_result": {
+      "state": "all-example-validation-implementation-landed-status-not-surfaced-by-connector",
+      "reference_commit": "1e52f519c53ee2b55f4deae5a3881a08b4543a0c",
+      "status_api": "no statuses returned",
+      "workflow_run_api": "no runs returned for commit"
+    },
+    "meshrush_crystallization": {
+      "state": "all-fixture-validation-implementation-landed-status-not-surfaced-by-connector",
+      "reference_commit": "225044586b738c83280f1cc7620707d868b0aefb",
+      "status_api": "no statuses returned",
+      "workflow_run_api": "no runs returned for commit"
     }
   },
   "remaining_p0": [
-    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker",
+    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker tracked by SocioProphet/agentplane#63",
     "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
     "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
     "Confirm Sherlock geospatial-result workflow green after all-example validation",
