@@ -1,0 +1,111 @@
+{
+  "apiVersion": "modality.socioprophet.dev/v1",
+  "kind": "FunctionalServiceRegistry",
+  "metadata": {
+    "name": "prophet-platform-functional-services",
+    "version": "0.1.0"
+  },
+  "spec": {
+    "services": [
+      {
+        "serviceId": "service://socioprophet/holmes/default@0.1.0",
+        "surface": "language",
+        "status": "bootstrap",
+        "sourceRepos": ["SocioProphet/holmes", "SocioProphet/sherlock-search", "SocioProphet/prophet-core-query"],
+        "evidenceRequirements": ["version", "doctor", "self-test", "emit-evidence", "promotion-record"],
+        "promotion": {"state": "bootstrap", "rollbackRef": "rollback://socioprophet/holmes/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://sourceos/model-carry/sourceos-ai@0.1.0",
+        "surface": "sourceos-carry",
+        "status": "bootstrap",
+        "sourceRepos": ["SourceOS-Linux/sourceos-model-carry"],
+        "evidenceRequirements": ["version", "doctor", "self-test", "emit-evidence", "carry-validate"],
+        "promotion": {"state": "bootstrap", "rollbackRef": "rollback://sourceos/sourceos-ai/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/speech/default@0.1.0",
+        "surface": "speech",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/speechlab", "SocioProphet/speechlab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/speech/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/ocr/default@0.1.0",
+        "surface": "ocr",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/ocrlab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/ocr/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/image/default@0.1.0",
+        "surface": "image",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/imagelab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/image/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/video/default@0.1.0",
+        "surface": "video",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/videolab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/video/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/translation/default@0.1.0",
+        "surface": "translation",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/translationlab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/translation/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/modality/embedding/default@0.1.0",
+        "surface": "embedding",
+        "status": "experimental",
+        "sourceRepos": ["SociOS-Linux/embeddinglab"],
+        "evidenceRequirements": ["service-manifest", "eval-fixture", "promotion-record"],
+        "promotion": {"state": "experimental", "rollbackRef": "rollback://socioprophet/modality/embedding/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/model-router/default@0.1.0",
+        "surface": "routing",
+        "status": "bootstrap",
+        "sourceRepos": ["SocioProphet/model-router"],
+        "evidenceRequirements": ["route-policy", "route-decision", "promotion-record"],
+        "promotion": {"state": "bootstrap", "rollbackRef": "rollback://socioprophet/model-router/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/guardrail-fabric/default@0.1.0",
+        "surface": "guardrail",
+        "status": "bootstrap",
+        "sourceRepos": ["SocioProphet/guardrail-fabric"],
+        "evidenceRequirements": ["policy", "decision", "promotion-record"],
+        "promotion": {"state": "bootstrap", "rollbackRef": "rollback://socioprophet/guardrail-fabric/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      },
+      {
+        "serviceId": "service://socioprophet/agent-registry/default@0.1.0",
+        "surface": "agent-registry",
+        "status": "bootstrap",
+        "sourceRepos": ["SocioProphet/agent-registry"],
+        "evidenceRequirements": ["agent-spec", "identity", "session-record", "promotion-record"],
+        "promotion": {"state": "bootstrap", "rollbackRef": "rollback://socioprophet/agent-registry/default@0.1.0"},
+        "sourceosCarryPolicy": {"role": "carry-only", "mayReplaceServiceArtifact": false, "mayPromoteModel": false}
+      }
+    ]
+  }
+}
