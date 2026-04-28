@@ -1,0 +1,29 @@
+name: Multi-Domain Geospatial Program State
+
+on:
+  pull_request:
+    paths:
+      - 'registry/multidomain_geospatial_program_state.v1.json'
+      - 'tools/validate_multidomain_geospatial_program_state.py'
+      - '.github/workflows/multidomain-geospatial-program-state.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'registry/multidomain_geospatial_program_state.v1.json'
+      - 'tools/validate_multidomain_geospatial_program_state.py'
+      - '.github/workflows/multidomain-geospatial-program-state.yml'
+
+jobs:
+  validate:
+    name: Validate program state ledger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Validate program state
+        run: python3 tools/validate_multidomain_geospatial_program_state.py
