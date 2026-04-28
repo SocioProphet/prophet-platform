@@ -34,6 +34,7 @@ REQUIRED_RUNTIME_IDS = {
     "runtime:ais-ingest:v0",
     "runtime:adsb-ingest:v0",
     "runtime:sensorthings-ingest:v0",
+    "runtime:telemetry-ingest:v0",
 }
 REQUIRED_STANDARDS = {
     "SocioProphet/prophet-platform-standards",
@@ -95,6 +96,8 @@ def main() -> int:
             fail(f"safety_boundary missing {key}")
     if "ungoverned targeting" not in safety.get("disallowed_scope", []):
         fail("safety_boundary must explicitly disallow ungoverned targeting")
+    if "effects-linked execution without authority, policy, evidence, and audit" not in safety.get("disallowed_scope", []):
+        fail("safety_boundary must explicitly disallow effects-linked execution without accountability")
 
     standards = {entry.get("repo") for entry in data["standards_authorities"] if isinstance(entry, dict)}
     missing_standards = sorted(REQUIRED_STANDARDS - standards)
