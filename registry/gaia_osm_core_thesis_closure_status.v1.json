@@ -1,7 +1,7 @@
 {
   "registry_version": "v1",
   "program": "gaia-osm-core-thesis",
-  "updated_at": "2026-04-28T03:45:00Z",
+  "updated_at": "2026-04-28T03:49:00Z",
   "status": "retirement-path-defined-implementation-landed-verification-pending",
   "core_thesis": "Demo-able GAIA world-model map system using OpenStreetMap base geography, GAIA bindings, map/tile API, feature inspection, LiDAR-derived evidence, safety boundaries, Sherlock discovery, MeshRush graph crystallization, and Agentplane approval-gated review candidates.",
   "retirement_criteria": [
@@ -51,11 +51,16 @@
       "repo": "SocioProphet/agentplane",
       "artifact": "issues/63",
       "status": "opened-p0-branch-protection-blocker"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "artifact": "pull/54#issuecomment-4332213553",
+      "status": "copilot-remediation-requested"
     }
   ],
   "verification_state": {
     "agentplane_pr_54": {
-      "state": "open_mergeable_checks_green_branch_protection_blocked",
+      "state": "open_mergeable_checks_green_branch_protection_blocked_copilot_requested",
       "current_head": "865d7409202c68f720669d126867bb5fa56e1561",
       "visible_checks": [
         "ci: success",
@@ -65,6 +70,7 @@
       "merge_attempt": "failed: Required status check lint is expected",
       "auto_merge_attempt": "failed: auto-merge is not enabled for repository",
       "tracking_issue": "SocioProphet/agentplane#63",
+      "copilot_comment_id": 4332213553,
       "blocker": "branch protection expects a lint status context not satisfied by the visible successful lint Actions workflow"
     },
     "gaia_contract_fixtures": {
@@ -94,7 +100,7 @@
     }
   },
   "remaining_p0": [
-    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker tracked by SocioProphet/agentplane#63",
+    "Resolve or explicitly waive Agentplane PR #54 branch-protection/context blocker tracked by SocioProphet/agentplane#63 and Copilot comment 4332213553",
     "Confirm GAIA Contract Fixtures workflow green after LiDAR rollback receipt proof",
     "Confirm Prophet Platform OSM Map API workflow green after receipt digest changes",
     "Confirm Sherlock geospatial-result workflow green after all-example validation",
