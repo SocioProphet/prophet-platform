@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from .receipts import response_receipt, with_artifact_receipt
 from .repository import ArtifactError, OSMArtifactRepository
@@ -13,6 +14,21 @@ from .settings import Settings
 
 def repository(request: Request) -> OSMArtifactRepository:
     return request.app.state.repository
+
+
+def _configure_cors(app: FastAPI, settings: Settings) -> None:
+    """Enable browser access only when allowed origins are configured."""
+
+    if not settings.cors_allowed_origins:
+        return
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.cors_allowed_origins),
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=["GET", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+        expose_headers=["Content-Type"],
+    )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -30,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "state, provenance state, and governance state."
         ),
     )
+    _configure_cors(app, resolved_settings)
     app.state.repository = repo
 
     @app.get("/healthz", tags=["health"])
