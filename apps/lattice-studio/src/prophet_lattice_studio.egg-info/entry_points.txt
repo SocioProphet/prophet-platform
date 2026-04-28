@@ -1,0 +1,2 @@
+[console_scripts]
+lattice-studio = lattice_studio.cli:main
