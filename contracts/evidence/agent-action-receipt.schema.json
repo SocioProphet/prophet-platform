@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/agent-action-receipt.schema.json",
+  "title": "AgentActionReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "receiptId", "agentId", "action", "status", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "receiptId": { "type": "string", "minLength": 1 },
+    "agentId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "action": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["planned", "started", "completed", "failed", "blocked", "requires_review"] },
+    "authorityRef": { "type": "string" },
+    "policyDecisionRefs": { "type": "array", "items": { "type": "string" } },
+    "inputRefs": { "type": "array", "items": { "type": "string" } },
+    "outputRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" }
+  }
+}
