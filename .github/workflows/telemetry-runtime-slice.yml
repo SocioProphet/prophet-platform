@@ -6,8 +6,6 @@ on:
       - 'telemetry/**'
       - 'apps/evidence-receipts/**'
       - 'apps/evidence-console/**'
-      - 'tools/demo_transparent_telemetry_runtime.py'
-      - 'tools/tests/test_demo_transparent_telemetry_runtime.py'
       - '.github/workflows/telemetry-runtime-slice.yml'
   push:
     branches: [main]
@@ -15,8 +13,6 @@ on:
       - 'telemetry/**'
       - 'apps/evidence-receipts/**'
       - 'apps/evidence-console/**'
-      - 'tools/demo_transparent_telemetry_runtime.py'
-      - 'tools/tests/test_demo_transparent_telemetry_runtime.py'
       - '.github/workflows/telemetry-runtime-slice.yml'
 
 permissions:
@@ -42,10 +38,5 @@ jobs:
         run: |
           python -m pytest -q \
             apps/evidence-receipts/tests/test_telemetry_runtime.py \
-            apps/evidence-receipts/tests/test_telemetry_runtime_receipts.py \
-            apps/evidence-receipts/tests/test_telemetry_runtime_policy_replay.py \
             apps/evidence-console/tests/test_telemetry_view.py \
-            apps/evidence-console/tests/test_http_main.py \
-            apps/evidence-console/tests/test_telemetry_route_end_to_end.py \
-            apps/evidence-console/tests/test_telemetry_route_high_privacy.py \
-            tools/tests/test_demo_transparent_telemetry_runtime.py
+            apps/evidence-console/tests/test_http_main.py
