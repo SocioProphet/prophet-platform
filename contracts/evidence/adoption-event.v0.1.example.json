@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "v0.1",
+  "eventId": "adopt-0001",
+  "correlationId": "pi-demo-0001",
+  "eventType": "playbook_completion",
+  "occurredAt": "2026-04-29T15:20:00Z",
+  "actor": {
+    "type": "agent",
+    "id": "opportunity-review-agent",
+    "role": "review-packet-generator"
+  },
+  "workspace": {
+    "id": "workroom-demo-0001",
+    "type": "demo",
+    "tenantId": "tenant-demo"
+  },
+  "capability": {
+    "id": "workspace-os",
+    "playbookId": "client-opportunity-review",
+    "agentId": "opportunity-review-agent",
+    "repo": "SocioProphet/prophet-workspace"
+  },
+  "outcome": {
+    "status": "completed",
+    "timeSavedSecondsEstimate": 600,
+    "cycleTimeDeltaSeconds": -300,
+    "confidence": 0.82,
+    "businessMetric": "demoGateCompletionPercent",
+    "businessMetricDelta": 16.7
+  },
+  "evidenceRefs": [
+    {
+      "kind": "agent-run",
+      "ref": "agentplane://runs/pi-demo-0001",
+      "hash": "sha256:demo"
+    }
+  ],
+  "labels": {
+    "program": "professional-intelligence-os",
+    "gate": "gate-3"
+  }
+}

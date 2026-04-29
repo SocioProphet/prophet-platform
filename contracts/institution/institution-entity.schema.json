@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/institution-entity.schema.json",
+  "title": "InstitutionEntity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entityId", "entityType", "displayName"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "entityId": { "type": "string" },
+    "entityType": {
+      "type": "string",
+      "enum": ["person", "organization", "client", "matter", "deal", "fund", "asset", "contract", "workspace", "policy", "obligation", "decision", "agent"]
+    },
+    "displayName": { "type": "string" },
+    "canonicalRef": { "type": "string" },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["system", "ref"],
+        "properties": {
+          "system": { "type": "string" },
+          "ref": { "type": "string" },
+          "retrievedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "attributes": { "type": "object", "additionalProperties": true },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sensitivity": { "type": "string", "enum": ["public", "internal", "confidential", "restricted", "sealed"] },
+        "jurisdiction": { "type": "string" },
+        "retentionClass": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "hash": { "type": "string" }
+      }
+    }
+  }
+}

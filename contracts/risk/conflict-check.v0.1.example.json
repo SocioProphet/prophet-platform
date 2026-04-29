@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "v0.1",
+  "checkId": "conflict-demo-0001",
+  "workspaceId": "workroom-demo-0001",
+  "requestedAction": "create-workroom",
+  "subjects": [
+    {
+      "entityId": "org-demo-0001",
+      "role": "client",
+      "displayName": "Example Organization"
+    }
+  ],
+  "signals": [
+    {
+      "signalType": "ai_use",
+      "severity": "medium",
+      "description": "Generated summary action requires approval before release.",
+      "sourceRef": "obligation://obl-demo-0001",
+      "evidenceHash": "sha256:demo"
+    }
+  ],
+  "result": {
+    "decision": "needs_review",
+    "reviewQueue": "policy-review",
+    "reviewerRole": "policy-reviewer",
+    "explanation": "A policy-sensitive action requires review before workroom output release."
+  },
+  "policyDecisionRefs": [
+    "policy-decision://policy-demo-ai-use/decision-0001"
+  ],
+  "evidenceRefs": [
+    "evidence://conflict-demo-0001"
+  ]
+}

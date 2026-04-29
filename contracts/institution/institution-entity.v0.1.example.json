@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "v0.1",
+  "entityId": "org-demo-0001",
+  "entityType": "organization",
+  "displayName": "Example Organization",
+  "canonicalRef": "entity://organization/org-demo-0001",
+  "sourceRefs": [
+    {
+      "system": "sherlock-search",
+      "ref": "search-packet://pi-demo-0001",
+      "retrievedAt": "2026-04-29T15:20:00Z"
+    }
+  ],
+  "attributes": {
+    "sector": "professional-services",
+    "region": "demo"
+  },
+  "classification": {
+    "sensitivity": "internal",
+    "jurisdiction": "US",
+    "retentionClass": "demo"
+  },
+  "provenance": {
+    "createdAt": "2026-04-29T15:20:00Z",
+    "updatedAt": "2026-04-29T15:20:00Z",
+    "createdBy": "DelEx",
+    "hash": "sha256:demo"
+  }
+}
