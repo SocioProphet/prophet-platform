@@ -1,0 +1,140 @@
+{
+  "delta_version": "v1",
+  "program": "gaia-ofif-meshlab-control-tower",
+  "recorded_at": "2026-04-29T18:45:00Z",
+  "delta_kind": "completion-state-correction",
+  "supersedes_delta": "registry/gaia_map_swarm_progress_delta_2026-04-29.v1.json",
+  "summary": {
+    "status": "gaia-map-browser-product-and-cross-repo-evidence-chain-merged-through-control-plane",
+    "reason": "Upstream merges landed after the earlier progress delta was recorded. This delta preserves append-only audit posture while correcting the now-stale gated states.",
+    "completed_swarm_items": 6,
+    "implemented_but_gated_swarm_items": 0,
+    "primary_remaining_gates": []
+  },
+  "newly_completed_since_prior_delta": [
+    {
+      "repo": "SocioProphet/socioprophet",
+      "pr": 294,
+      "title": "Promote GAIA map Vue shell into socioprophet-web",
+      "merge_commit": "7f0552d2f76839ff6c68da6b790b0844a86ff0f3",
+      "workstream": "socioprophet-web-vue-shell",
+      "readiness_movement": "canonical org repository now contains non-destructive client-vue promotion with GAIA /map, fallback mode, usability controls, README, env template, and scoped product-build gate"
+    },
+    {
+      "repo": "SocioProphet/socioprophet",
+      "pr": 298,
+      "title": "Define Vue app shell deployment split",
+      "merge_commit": "f6136c3cf6d066e56917e08b4985a5e0b16dd871",
+      "workstream": "socioprophet-web-deployment",
+      "readiness_movement": "deployment decision record now keeps Vue app shell separate from public marketing/docs surface and documents route ownership plus GAIA API environment posture"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "pr": 69,
+      "title": "Add GAIA map workbench review candidate",
+      "merge_commit": "7832526b1b86dd9fcf0d7c220566ecb934882c01",
+      "workstream": "agentplane-review-candidates",
+      "readiness_movement": "Agentplane now has advisory evidence-only review candidate for GAIA /map workbench graph-view; branch protection lint context issue resolved"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "issue": 71,
+      "title": "Unblock required legacy lint status for GAIA map review candidate PR",
+      "status": "closed",
+      "readiness_movement": "branch-protection/status-context mismatch was resolved and PR #69 merged"
+    }
+  ],
+  "canonical_completed_prs": [
+    "mdheller/socioprophet-web#10",
+    "mdheller/socioprophet-web#12",
+    "mdheller/socioprophet-web#16",
+    "SocioProphet/socioprophet#294",
+    "SocioProphet/socioprophet#298",
+    "SocioProphet/prophet-platform#259",
+    "SocioProphet/prophet-platform#261",
+    "SocioProphet/gaia-world-model#13",
+    "SocioProphet/sherlock-search#18",
+    "SocioProphet/meshrush#6",
+    "SocioProphet/agentplane#69",
+    "SociOS-Linux/nlboot#7",
+    "SocioProphet/sociosphere#213"
+  ],
+  "closed_codex_tasks": [
+    "mdheller/socioprophet-web#15",
+    "SocioProphet/prophet-platform#258",
+    "SocioProphet/gaia-world-model#12",
+    "SocioProphet/sherlock-search#17",
+    "SocioProphet/meshrush#5",
+    "SocioProphet/agentplane#68"
+  ],
+  "readiness_updates": [
+    {
+      "workstream": "socioprophet-web-vue-shell",
+      "status": "canonical-org-shell-merged",
+      "completion_estimate": 0.92,
+      "next": [
+        "visual review against old React shell reference",
+        "wire deployment implementation according to CLIENT_VUE_DEPLOYMENT_SPLIT decision",
+        "connect production/staging GAIA API base URL once hosting target is selected"
+      ]
+    },
+    {
+      "workstream": "prophet-platform-osm-api",
+      "status": "browser-integration-hardened-and-ledger-recorded",
+      "completion_estimate": 0.9,
+      "next": [
+        "choose gateway/direct API deployment shape",
+        "add signed response receipt integration after signing boundary is selected"
+      ]
+    },
+    {
+      "workstream": "gaia-world-model",
+      "status": "real-data-adapter-contract-planned-and-ledger-recorded",
+      "completion_estimate": 0.72,
+      "next": [
+        "select first real adapter family for schema/fixture work",
+        "keep live ingestion blocked until validation lanes exist"
+      ]
+    },
+    {
+      "workstream": "sherlock-discovery",
+      "status": "gaia-map-evidence-enriched-and-ledger-recorded",
+      "completion_estimate": 0.44,
+      "next": [
+        "serve canonical evidence record through API/control-plane surface when ownership is selected"
+      ]
+    },
+    {
+      "workstream": "meshrush-graph-view",
+      "status": "gaia-map-crystallization-added-and-ledger-recorded",
+      "completion_estimate": 0.44,
+      "next": [
+        "add execution-proof or replay helper only after advisory boundary remains explicit"
+      ]
+    },
+    {
+      "workstream": "agentplane",
+      "status": "gaia-map-review-candidate-merged",
+      "completion_estimate": 0.38,
+      "next": [
+        "connect review candidate into higher-level control-plane queue when Agentplane admission semantics are promoted"
+      ]
+    },
+    {
+      "workstream": "sourceos-nlboot",
+      "status": "safe-plan-control-metadata-added-and-ledger-recorded",
+      "completion_estimate": 0.36,
+      "next": [
+        "connect nlboot plan metadata to SourceOS release artifact records",
+        "add non-mutating BootReleaseSet receipt/chain planning before executor work"
+      ]
+    }
+  ],
+  "non_claims": [
+    "No production tile server has been implemented.",
+    "No live OSM ingestion has been implemented.",
+    "No safety-critical navigation claim has been made.",
+    "No Lattice RuntimeAsset has been admitted for OSM or LiDAR runtimes.",
+    "No host-mutating nlboot executor has been implemented."
+  ]
+}
