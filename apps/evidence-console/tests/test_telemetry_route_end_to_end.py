@@ -71,10 +71,10 @@ def _read_recent_from_state(tmp_path: Path, service: str, limit: int = 25) -> li
     for receipt_path in receipt_dir.glob("*.receipt.json"):
         correlation_id = receipt_path.name[: -len(".receipt.json")]
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        event_path = event_dir / f"{{correlation_id}}.event.json"
-        event = json.loads(event_path.read_text(encoding="utf-8")) if event_path.exists() else {{}}
-        payload_path = payload_dir / f"{{correlation_id}}.payload.json"
-        items.append({{
+        event_path = event_dir / f"{correlation_id}.event.json"
+        event = json.loads(event_path.read_text(encoding="utf-8")) if event_path.exists() else {}
+        payload_path = payload_dir / f"{correlation_id}.payload.json"
+        items.append({
             "service": service,
             "correlation_id": correlation_id,
             "created_at": receipt.get("created_at") or event.get("created_at"),
@@ -82,10 +82,10 @@ def _read_recent_from_state(tmp_path: Path, service: str, limit: int = 25) -> li
             "action": receipt.get("action"),
             "event_type": event.get("event_type"),
             "subject_ref": receipt.get("subject_ref") or event.get("subject_ref"),
-            "receipt_ref": f"file://{{receipt_path.resolve()}}",
-            "event_ref": f"file://{{event_path.resolve()}}" if event_path.exists() else None,
-            "payload_ref": f"file://{{payload_path.resolve()}}" if payload_path.exists() else None,
-        }})
+            "receipt_ref": f"file://{receipt_path.resolve()}",
+            "event_ref": f"file://{event_path.resolve()}" if event_path.exists() else None,
+            "payload_ref": f"file://{payload_path.resolve()}" if payload_path.exists() else None,
+        })
     items.sort(key=lambda item: datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00")), reverse=True)
     return items[:limit]
 
@@ -106,7 +106,7 @@ def test_telemetry_route_reflects_blocked_optional_analytics_and_allowed_reliabi
     items = payload["items"]
     assert len(items) == 2
 
-    by_event = {{item["event_type"]: item for item in items}}
+    by_event = {item["event_type"]: item for item in items}
     assert by_event["analytics.turn.rendered.summary"]["status"] == "blocked"
     assert by_event["analytics.turn.rendered.summary"]["action"] == "BLOCK"
     assert by_event["reliability.conversation.stream.completed"]["status"] == "recorded"
