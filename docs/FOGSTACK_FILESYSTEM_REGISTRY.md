@@ -36,14 +36,14 @@ The registry root includes:
 - release pointer references and digests
 - registry publication index references and digests
 - a root digest computed over canonical JSON
-- signature metadata in shape-only form for this tranche
+- signature metadata, either `shape-only` or `openssl-rsa-sha256`
 
 The rollback/revocation index includes:
 
 - rollback target release pointers and digests
 - revocation or suspension entries for release pointers
 - lifecycle index digest over canonical JSON
-- signature metadata in shape-only form for this tranche
+- signature metadata, either `shape-only` or `openssl-rsa-sha256`
 
 ## Minimal flow
 
@@ -55,12 +55,11 @@ The rollback/revocation index includes:
 6. check registry-root metadata with `tools/check_fogstack_filesystem_registry_root.py`
 7. build rollback/revocation lifecycle metadata with `tools/build_fogstack_registry_rollback_revocation_index.py`
 8. check rollback/revocation lifecycle metadata with `tools/check_fogstack_registry_rollback_revocation_index.py`
+9. verify registry metadata signatures with `tools/run_openssl_fogstack_registry_metadata_verifier.py`
 
 ## Registry root semantics
 
 The registry root is the consumer-facing catalog root for a filesystem registry export. It does not replace per-release pointer checks. Instead, it lets consumers verify that the exported registry root consistently names the release pointers and publication indexes available in the registry.
-
-This tranche uses shape-only signature metadata. It establishes the object and checker path without claiming KMS/HSM-backed registry-root signing.
 
 ## Rollback and revocation semantics
 
@@ -72,6 +71,19 @@ Revocations are releases that consumers should not select. A revocation may be `
 
 A release must not be both a rollback target and a revocation entry in the same lifecycle index. The checker enforces that conflict rule and validates pointer digests against the filesystem registry.
 
+## Registry metadata signature verification
+
+`tools/run_openssl_fogstack_registry_metadata_verifier.py` verifies detached OpenSSL RSA/SHA-256 signatures over canonicalized registry metadata.
+
+The canonical payload is the metadata JSON with `signatures` set to an empty array and encoded with sorted keys and compact separators. This makes verification stable across formatting changes while keeping the signature metadata out of the signed payload.
+
+This local verification tranche supports:
+
+- `FogStackFilesystemRegistryRoot`
+- `FogStackRegistryRollbackRevocationIndex`
+- `openssl-rsa-sha256` signature entries
+- tamper rejection for modified metadata
+
 ## What this phase provides
 
 - concrete external-consumable registry layout
@@ -79,12 +91,13 @@ A release must not be both a rollback target and a revocation entry in the same 
 - release pointer for lookup
 - registry-root metadata covering release pointers and publication indexes
 - rollback/revocation lifecycle metadata for registry consumers
-- dedicated CI workflows for registry-root and registry-lifecycle behavior
+- local OpenSSL verification for registry metadata signatures
+- dedicated CI workflows for registry-root, registry-lifecycle, and registry metadata signature behavior
 
 ## What this phase does not yet provide
 
 - authenticated network registry publication
-- cryptographic registry-root or lifecycle-index signature verification
+- KMS/HSM-backed production signing keys
 - registry replication or mirror policy
 - policy-engine selection of rollback targets
 

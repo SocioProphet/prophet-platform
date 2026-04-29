@@ -62,7 +62,7 @@
         "required": ["key_id", "algorithm", "signature_ref"],
         "properties": {
           "key_id": { "type": "string", "minLength": 1 },
-          "algorithm": { "type": "string", "enum": ["ed25519", "sigstore", "gpg", "x509", "shape-only"] },
+          "algorithm": { "type": "string", "enum": ["ed25519", "sigstore", "gpg", "x509", "openssl-rsa-sha256", "shape-only"] },
           "signature_ref": { "type": "string", "minLength": 1 }
         }
       }
