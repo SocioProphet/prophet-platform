@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/adoption-event.schema.json",
+  "title": "AdoptionEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "eventType",
+    "occurredAt",
+    "actor",
+    "workspace",
+    "capability",
+    "outcome"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "eventId": { "type": "string", "minLength": 8 },
+    "correlationId": { "type": "string" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "workflow_started",
+        "workflow_completed",
+        "agent_output_accepted",
+        "agent_output_edited",
+        "agent_output_rejected",
+        "human_escalation",
+        "policy_block",
+        "approval_completed",
+        "source_trusted",
+        "source_disputed",
+        "workspace_reuse",
+        "playbook_completion",
+        "demo_acceptance",
+        "kpi_movement"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["human", "agent", "system"] },
+        "id": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["client", "matter", "deal", "asset", "fund", "project", "initiative", "demo"] },
+        "tenantId": { "type": "string" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "playbookId": { "type": "string" },
+        "agentId": { "type": "string" },
+        "repo": { "type": "string" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["started", "accepted", "edited", "rejected", "blocked", "escalated", "completed", "measured"] },
+        "timeSavedSecondsEstimate": { "type": "integer", "minimum": 0 },
+        "cycleTimeDeltaSeconds": { "type": "integer" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "businessMetric": { "type": "string" },
+        "businessMetricDelta": { "type": "number" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" },
+          "hash": { "type": "string" }
+        }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}
