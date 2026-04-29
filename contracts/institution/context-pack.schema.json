@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InstitutionContextPack",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["kind", "id"],
+  "properties": {
+    "kind": { "const": "InstitutionContextPack" },
+    "id": { "type": "string", "minLength": 1 },
+    "subjectRef": { "type": "string" },
+    "contextRefs": { "type": "array", "items": { "type": "string" } }
+  }
+}
