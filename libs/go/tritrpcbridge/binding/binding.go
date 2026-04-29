@@ -115,11 +115,24 @@ func WriteRecord(w io.Writer, nonce [24]byte, frame []byte) error {
     hdr := make([]byte, recordHeaderSize)
     binary.BigEndian.PutUint32(hdr[:4], uint32(len(frame)))
     copy(hdr[4:], nonce[:])
-    if _, err := w.Write(hdr); err != nil {
+    if err := writeFull(w, hdr); err != nil {
         return err
     }
-    _, err := w.Write(frame)
-    return err
+    return writeFull(w, frame)
+}
+
+func writeFull(w io.Writer, p []byte) error {
+    for len(p) > 0 {
+        n, err := w.Write(p)
+        if err != nil {
+            return err
+        }
+        if n <= 0 {
+            return io.ErrShortWrite
+        }
+        p = p[n:]
+    }
+    return nil
 }
 
 func ReadRecord(r io.Reader) (nonce [24]byte, frame []byte, err error) {
