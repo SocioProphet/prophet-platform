@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InstitutionRelationship",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["kind", "id", "sourceRef", "targetRef"],
+  "properties": {
+    "kind": { "const": "InstitutionRelationship" },
+    "id": { "type": "string", "minLength": 1 },
+    "sourceRef": { "type": "string", "minLength": 1 },
+    "targetRef": { "type": "string", "minLength": 1 },
+    "relationshipType": { "type": "string" }
+  }
+}
