@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/obligation.schema.json",
+  "title": "Obligation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "obligationId",
+    "obligationType",
+    "source",
+    "subject",
+    "action",
+    "effect"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "obligationId": { "type": "string" },
+    "obligationType": {
+      "type": "string",
+      "enum": [
+        "confidentiality",
+        "ai_use_restriction",
+        "billing_guideline",
+        "approval_requirement",
+        "data_handling",
+        "workspace_access",
+        "information_barrier",
+        "retention",
+        "disclosure",
+        "economic_adjustment",
+        "other"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["contract", "guideline", "policy", "matter", "deal", "manual", "other"] },
+        "ref": { "type": "string" },
+        "section": { "type": "string" },
+        "hash": { "type": "string" }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entityId"],
+      "properties": {
+        "entityId": { "type": "string" },
+        "role": { "type": "string" },
+        "workspaceId": { "type": "string" }
+      }
+    },
+    "beneficiary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entityId": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verb"],
+      "properties": {
+        "verb": { "type": "string" },
+        "resourceClass": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "effect": { "type": "string", "enum": ["allow", "deny", "require_approval", "escalate", "record", "notify"] },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenantId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "jurisdiction": { "type": "string" },
+        "resourceTags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "effectiveTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startsAt": { "type": "string", "format": "date-time" },
+        "endsAt": { "type": "string", "format": "date-time" },
+        "amends": { "type": "string" }
+      }
+    },
+    "policyMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policyFamily": { "type": "string" },
+        "policyId": { "type": "string" },
+        "policyVersion": { "type": "string" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": { "type": "string" },
+          "ref": { "type": "string" },
+          "hash": { "type": "string" }
+        }
+      }
+    }
+  }
+}
