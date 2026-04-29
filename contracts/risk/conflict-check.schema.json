@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/conflict-check.schema.json",
+  "title": "ConflictCheck",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "checkId", "workspaceId", "requestedAction", "subjects", "result"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "checkId": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "requestedAction": { "type": "string" },
+    "subjects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entityId", "role"],
+        "properties": {
+          "entityId": { "type": "string" },
+          "role": { "type": "string" },
+          "displayName": { "type": "string" }
+        }
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["signalType", "severity", "description"],
+        "properties": {
+          "signalType": { "type": "string", "enum": ["prior_work", "opposing_party", "related_party", "restricted_list", "relationship", "employee_interest", "confidentiality", "data_use", "ai_use", "other"] },
+          "severity": { "type": "string", "enum": ["info", "low", "medium", "high", "blocking"] },
+          "description": { "type": "string" },
+          "sourceRef": { "type": "string" },
+          "evidenceHash": { "type": "string" }
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision"],
+      "properties": {
+        "decision": { "type": "string", "enum": ["clear", "needs_review", "blocked", "insufficient_context"] },
+        "reviewQueue": { "type": "string" },
+        "reviewerRole": { "type": "string" },
+        "explanation": { "type": "string" }
+      }
+    },
+    "policyDecisionRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+  }
+}
