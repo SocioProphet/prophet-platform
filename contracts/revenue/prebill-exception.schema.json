@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/prebill-exception.schema.json",
+  "title": "PrebillException",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "exceptionId", "workroomId", "exceptionType", "status", "openedAt"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "exceptionId": { "type": "string", "minLength": 1 },
+    "workroomId": { "type": "string", "minLength": 1 },
+    "exceptionType": { "type": "string", "enum": ["guideline", "rate", "narrative", "missing_evidence", "write_down", "write_off", "realization_risk", "other"] },
+    "status": { "type": "string", "enum": ["open", "reviewing", "approved", "rejected", "resolved", "closed"] },
+    "openedAt": { "type": "string", "format": "date-time" },
+    "closedAt": { "type": "string", "format": "date-time" },
+    "ownerId": { "type": "string" },
+    "description": { "type": "string" },
+    "workCaptureEventRefs": { "type": "array", "items": { "type": "string" } },
+    "policyRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "resolution": { "type": "string" }
+  }
+}
