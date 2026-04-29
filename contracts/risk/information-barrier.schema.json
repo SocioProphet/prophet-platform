@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InformationBarrier",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["kind", "id", "scopeRef"],
+  "properties": {
+    "kind": { "const": "InformationBarrier" },
+    "id": { "type": "string", "minLength": 1 },
+    "scopeRef": { "type": "string", "minLength": 1 },
+    "blockedRefs": { "type": "array", "items": { "type": "string" } }
+  }
+}
