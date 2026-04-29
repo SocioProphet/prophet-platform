@@ -1,0 +1,42 @@
+name: telemetry-runtime-slice
+
+on:
+  pull_request:
+    paths:
+      - 'telemetry/**'
+      - 'apps/evidence-receipts/**'
+      - 'apps/evidence-console/**'
+      - '.github/workflows/telemetry-runtime-slice.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'telemetry/**'
+      - 'apps/evidence-receipts/**'
+      - 'apps/evidence-console/**'
+      - '.github/workflows/telemetry-runtime-slice.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  telemetry-runtime-slice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install runtime slice dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            -r apps/evidence-receipts/requirements.txt \
+            -r apps/evidence-receipts/requirements-test.txt \
+            -r apps/evidence-console/requirements.txt \
+            -r apps/evidence-console/requirements-test.txt
+      - name: Run telemetry runtime slice tests
+        run: |
+          python -m pytest -q \
+            apps/evidence-receipts/tests/test_telemetry_runtime.py \
+            apps/evidence-console/tests/test_telemetry_view.py \
+            apps/evidence-console/tests/test_http_main.py

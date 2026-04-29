@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from . import client
+from . import client, telemetry_view
 
 
 def _parse_created_at(value: str | None) -> datetime:
@@ -80,3 +80,7 @@ def get_recent_events_view(limit: int = 25, per_service_limit: int = 15) -> dict
         "services": services,
         "items": items,
     }
+
+
+def get_recent_telemetry_view(service_name: str = "telemetry-runtime", limit: int = 25) -> dict[str, Any]:
+    return telemetry_view.get_recent_telemetry_view(service=service_name, limit=limit)
