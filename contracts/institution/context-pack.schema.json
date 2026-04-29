@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/context-pack.schema.json",
+  "title": "InstitutionContextPack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contextPackId", "scope", "entities"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "contextPackId": { "type": "string", "minLength": 1 },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["scopeId", "scopeType"],
+      "properties": {
+        "scopeId": { "type": "string", "minLength": 1 },
+        "scopeType": { "type": "string", "enum": ["user", "workspace", "client", "matter", "deal", "project", "institution"] }
+      }
+    },
+    "entities": { "type": "array", "items": { "type": "string" } },
+    "relationshipRefs": { "type": "array", "items": { "type": "string" } },
+    "policyRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  }
+}

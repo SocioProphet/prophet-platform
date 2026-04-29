@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/workroom.schema.json",
+  "title": "Workroom",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workroomId", "workroomType", "title", "status"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "workroomId": { "type": "string", "minLength": 1 },
+    "workroomType": { "type": "string", "enum": ["client", "matter", "deal", "fund", "asset", "project", "initiative", "internal"] },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["draft", "active", "archived", "closed"] },
+    "ownerId": { "type": "string" },
+    "participantRefs": { "type": "array", "items": { "type": "string" } },
+    "contextPackRefs": { "type": "array", "items": { "type": "string" } },
+    "policyRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/information-barrier.schema.json",
+  "title": "InformationBarrier",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "barrierId", "name", "scope", "rules", "status"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "barrierId": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "scope": { "type": "object", "additionalProperties": true },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleId", "effect"],
+        "properties": {
+          "ruleId": { "type": "string", "minLength": 1 },
+          "effect": { "type": "string", "enum": ["allow", "deny", "review"] },
+          "subjectRefs": { "type": "array", "items": { "type": "string" } },
+          "resourceRefs": { "type": "array", "items": { "type": "string" } },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "status": { "type": "string", "enum": ["draft", "active", "suspended", "retired"] },
+    "owner": { "type": "string" },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+  }
+}

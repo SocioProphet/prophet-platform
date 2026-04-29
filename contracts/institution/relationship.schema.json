@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/relationship.schema.json",
+  "title": "InstitutionRelationship",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "relationshipId", "sourceEntityId", "targetEntityId", "relationshipType"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "relationshipId": { "type": "string", "minLength": 1 },
+    "sourceEntityId": { "type": "string", "minLength": 1 },
+    "targetEntityId": { "type": "string", "minLength": 1 },
+    "relationshipType": { "type": "string", "minLength": 1 },
+    "direction": { "type": "string", "enum": ["directed", "undirected"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "effectiveFrom": { "type": "string", "format": "date-time" },
+    "effectiveTo": { "type": "string", "format": "date-time" },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "attributes": { "type": "object", "additionalProperties": true }
+  }
+}
