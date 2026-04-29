@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/work-capture-event.schema.json",
+  "title": "WorkCaptureEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "workroomId", "actorId", "capturedAt", "workType"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "workroomId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "workType": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "durationMinutes": { "type": "integer", "minimum": 0 },
+    "matterRef": { "type": "string" },
+    "clientRef": { "type": "string" },
+    "policyRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "billingDisposition": { "type": "string", "enum": ["billable", "non_billable", "write_off", "review_required"] }
+  }
+}
