@@ -7,6 +7,12 @@ from pathlib import Path
 from .outbox import write_publication_record
 from .planner import load_publication_request, plan_publication_request
 from .resolver import resolve_topic
+from . import semantic_gate as gate
+
+
+def _fail(name, result):
+    print(json.dumps({"ok": False, "check": name, "result": result}, indent=2, sort_keys=True))
+    return 2
 
 
 def cmd_plan(args):
@@ -24,33 +30,60 @@ def cmd_plan(args):
     }
     if args.topic_ref:
         plan["topic_ref"] = args.topic_ref
+    plan_check = gate.validate_plan(plan)
+    if not plan_check.get("ok"):
+        return _fail("plan", plan_check)
+    plan["checks"] = {"plan": plan_check}
     print(json.dumps(plan, indent=2, sort_keys=True))
     return 0
 
 
 def cmd_plan_request(args):
     request = load_publication_request(args.path)
-    plan = plan_publication_request(request)
-    print(json.dumps(plan, indent=2, sort_keys=True))
-    return 0 if plan.get("ok") else 2
-
-
-def cmd_enqueue_request(args):
-    request = load_publication_request(args.path)
+    request_check = gate.validate_request(request)
+    if not request_check.get("ok"):
+        return _fail("request", request_check)
     plan = plan_publication_request(request)
     if not plan.get("ok"):
         print(json.dumps(plan, indent=2, sort_keys=True))
         return 2
-    result = write_publication_record(plan)
-    print(json.dumps(result, indent=2, sort_keys=True))
+    plan_check = gate.validate_plan(plan)
+    if not plan_check.get("ok"):
+        return _fail("plan", plan_check)
+    plan["checks"] = {"request": request_check, "plan": plan_check}
+    print(json.dumps(plan, indent=2, sort_keys=True))
     return 0
+
+
+def cmd_enqueue_request(args):
+    request = load_publication_request(args.path)
+    request_check = gate.validate_request(request)
+    if not request_check.get("ok"):
+        return _fail("request", request_check)
+    plan = plan_publication_request(request)
+    if not plan.get("ok"):
+        print(json.dumps(plan, indent=2, sort_keys=True))
+        return 2
+    plan_check = gate.validate_plan(plan)
+    if not plan_check.get("ok"):
+        return _fail("plan", plan_check)
+    result = write_publication_record(plan)
+    record_check = gate.validate_record(result["record"])
+    result["checks"] = {"request": request_check, "plan": plan_check, "record": record_check}
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if record_check.get("ok") else 2
 
 
 def cmd_enqueue_plan(args):
     plan = json.loads(Path(args.path).read_text(encoding="utf-8"))
+    plan_check = gate.validate_plan(plan)
+    if not plan_check.get("ok"):
+        return _fail("plan", plan_check)
     result = write_publication_record(plan)
+    record_check = gate.validate_record(result["record"])
+    result["checks"] = {"plan": plan_check, "record": record_check}
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0
+    return 0 if record_check.get("ok") else 2
 
 
 def build_parser():
