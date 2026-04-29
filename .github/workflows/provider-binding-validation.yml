@@ -16,6 +16,9 @@ on:
       - "tools/validate_provider_binding_examples.py"
       - ".github/workflows/provider-binding-validation.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate-provider-binding:
     runs-on: ubuntu-latest
