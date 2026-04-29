@@ -1,0 +1,163 @@
+apiVersion: socioprophet.io/v1alpha1
+kind: ProfessionalIntelligenceManifest
+metadata:
+  name: professional-intelligence-os
+  owner: SocioProphet
+  status: seed
+  created: "2026-04-29"
+  description: >-
+    Cross-repo alignment manifest for the Professional Intelligence OS product spine.
+    This binds DelEx delivery governance, Prophet Platform runtime, Prophet Workspace
+    workrooms, and governed AI/policy/model services into one executable architecture.
+
+principles:
+  - DelEx governs delivery, readiness, KPIs, boards, playbooks, and acceptance evidence.
+  - Prophet Platform hosts runtime services, service contracts, deployment wiring, and smoke tests.
+  - Prophet Workspace owns user-facing workrooms and professional collaboration surfaces.
+  - Agent/model/policy/memory/contract repos own specialized governed service semantics.
+  - Every material AI or workflow action emits evidence and adoption telemetry.
+
+capabilities:
+  institutionContextEngine:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/prophet-platform
+      - SocioProphet/memory-mesh
+      - SocioProphet/ontogenesis
+      - SocioProphet/regis-entity-graph
+      - SocioProphet/sherlock-search
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/institution/context-pack.schema.json
+      - contracts/institution/institution-entity.schema.json
+    notes: Compiles scoped institutional context for users, workspaces, agents, and playbooks.
+
+  institutionGraph:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/regis-entity-graph
+      - SocioProphet/ontogenesis
+      - SocioProphet/semantic-serdes
+      - SocioProphet/lattice-forge
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/institution/institution-entity.schema.json
+      - contracts/institution/relationship.schema.json
+    notes: Canonical graph of people, orgs, clients, matters, deals, assets, relationships, obligations, decisions, and evidence.
+
+  agentFabric:
+    status: active-fragmented
+    ownerRepos:
+      - SocioProphet/agentplane
+      - SocioProphet/agent-registry
+      - SocioProphet/model-router
+      - SocioProphet/guardrail-fabric
+      - SocioProphet/model-governance-ledger
+      - SocioProphet/memory-mesh
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/evidence/agent-action-receipt.schema.json
+    notes: Governed agent execution with identity, authority, routing, guardrails, memory, evals, and replay evidence.
+
+  conflictEngine:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/regis-entity-graph
+      - SocioProphet/policy-fabric
+      - SocioProphet/guardrail-fabric
+      - SocioProphet/prophet-platform
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/risk/conflict-check.schema.json
+    notes: Entity, relationship, matter, deal, employee, restricted-list, ownership, and AI/data-use conflict review.
+
+  obligationLedger:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/contractforge
+      - SocioProphet/policy-fabric
+      - SocioProphet/model-governance-ledger
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/policy/obligation.schema.json
+    notes: Machine-readable contractual, client-term, billing, confidentiality, data-use, and AI-use obligations.
+
+  ethicalWalls:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/policy-fabric
+      - SocioProphet/guardrail-fabric
+      - SocioProphet/prophet-workspace
+      - SocioProphet/prophet-platform
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/risk/information-barrier.schema.json
+    notes: Permission-aware boundaries across documents, memory, graph edges, workspaces, tools, prompts, and model context.
+
+  workspaceOS:
+    status: active-seed
+    ownerRepos:
+      - SocioProphet/prophet-workspace
+      - SocioProphet/sherlock-search
+      - SocioProphet/speechlab
+      - SocioProphet/orion-field-intelligence
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/workspace/workroom.schema.json
+    notes: Professional workrooms for clients, matters, deals, funds, assets, projects, and initiatives.
+
+  adoptionTelemetry:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/delivery-excellence
+      - SocioProphet/delivery-excellence-automation
+      - SocioProphet/prophet-platform
+      - SocioProphet/prophet-workspace
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/evidence/adoption-event.schema.json
+    notes: Usage, trust, acceptance, edits, escalations, cycle time, demo acceptance, and KPI movement.
+
+  revenueIntegrity:
+    status: proposed
+    ownerRepos:
+      - SocioProphet/contractforge
+      - SocioProphet/policy-fabric
+      - SocioProphet/prophet-workspace
+      - SocioProphet/delivery-excellence
+    runtimeRepo: SocioProphet/prophet-platform
+    contractPaths:
+      - contracts/revenue/work-capture-event.schema.json
+      - contracts/revenue/prebill-exception.schema.json
+    notes: Work capture, billing guideline enforcement, prebill review, realization risk, and leakage reduction.
+
+verticalPacks:
+  legal:
+    status: seed
+    playbooks:
+      - legal/new-matter-intake
+      - legal/conflicts-clearance
+  privateCapital:
+    status: seed
+    playbooks:
+      - private-capital/deal-screening
+      - private-capital/ic-memo
+  realAssets:
+    status: seed
+    playbooks:
+      - real-assets/asset-diligence
+  revenue:
+    status: seed
+    playbooks:
+      - revenue/prebill-review
+
+demoAcceptance:
+  required:
+    - playbook_loaded
+    - institution_context_resolved
+    - policy_or_obligation_checked
+    - agent_step_executed
+    - evidence_receipt_emitted
+    - adoption_event_emitted
+    - workspace_workroom_created_or_updated
+    - smoke_test_passed
