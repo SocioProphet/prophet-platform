@@ -8,7 +8,15 @@ def load_manifest(event_type: str) -> dict[str, Any]:
 
 
 def reduce_event(event_type: str, payload: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-    return {"event": event_type, "fields": dict(payload), "action": "ALLOW"}
+    subject = payload.get("subject_ref")
+    if subject is None:
+        subject = event_type
+    return {
+        "event": event_type,
+        "fields": dict(payload),
+        "action": "ALLOW",
+        "subject_ref": str(subject),
+    }
 
 
 def emit_event_bundle(service: str, event_type: str, payload: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
