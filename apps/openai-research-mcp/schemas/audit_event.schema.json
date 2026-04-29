@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuditEvent",
+  "type": "object",
+  "required": ["ts", "event"],
+  "properties": {
+    "ts": {"type": "string"},
+    "event": {"type": "string"},
+    "subject": {"type": ["string", "null"]},
+    "organization": {"type": ["string", "null"]},
+    "document_id": {"type": "string"},
+    "results": {"type": "array", "items": {"type": "string"}},
+    "url": {"type": "string"},
+    "artifact_id": {"type": "string"}
+  },
+  "additionalProperties": true
+}

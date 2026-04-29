@@ -1,0 +1,24 @@
+name: openai-research-mcp-smoke
+
+on:
+  pull_request:
+    paths:
+      - 'apps/openai-research-mcp/**'
+      - '.github/workflows/openai-research-mcp-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/openai-research-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run bundle smoke tests
+        run: bash scripts/run_tests.sh
