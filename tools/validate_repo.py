@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,14 @@ SUSPECT_PATTERNS = [r"\bTODO\b", r"\bPLACEHOLDER\b", r"\n\.\.\.\n"]
 def fail(msg: str) -> None:
     print(f"ERR: {msg}", file=sys.stderr)
     raise SystemExit(2)
+
+
+def run_professional_intelligence_validation() -> None:
+    validator = ROOT / "tools/validate_professional_intelligence.py"
+    if validator.exists():
+        result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
+        if result.returncode != 0:
+            fail("Professional Intelligence validation failed")
 
 
 for rel in REQUIRED_DIRS:
@@ -62,5 +71,7 @@ for rel in [
 ]:
     if not (ROOT / rel).exists():
         fail(f"missing imported source manifest: {rel}")
+
+run_professional_intelligence_validation()
 
 print("OK: validate passed")
