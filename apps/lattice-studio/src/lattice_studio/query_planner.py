@@ -2,7 +2,19 @@
 
 The planner proves routing decisions without executing remote queries. It binds a
 query language to the governed backend declared by FederatedQueryPlane and emits
-route, policy, catalog, and safety evidence.
+route, policy, catalog, memory, lab, and safety evidence.
+
+Architecture rule: Slash Topics and New Hope are not merely peer backends.
+Every nontrivial query is routed through a governance envelope first:
+
+1. Slash Topics provides explicit topic scope, topic pack, and memory posture.
+2. New Hope provides membrane admission and carrier/runtime policy semantics.
+3. Memory Mesh records scoped recall/writeback/evidence policy without storing raw
+   sensitive payloads by default.
+4. Lab profiles define model/customization inputs for embeddings, NLP, image,
+   speech, and vision without executing lab runtimes during dry-run planning.
+5. Physical routing selects Sherlock, Drill, SPARQL, Cypher, Atomese, Lampstand,
+   or other backend lanes only after that envelope is present.
 """
 
 from __future__ import annotations
@@ -19,6 +31,30 @@ RouteDecisionStatus = Literal["routable", "blocked"]
 
 
 @dataclass(frozen=True)
+class QueryGovernanceEnvelope:
+    envelope_id: str
+    topic_scope_ref: str
+    topic_pack_ref: str
+    membrane_ref: str
+    memory_profile_ref: str
+    memory_event_ref: str
+    lab_profile_refs: list[str]
+    required_sequence: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "envelopeId": self.envelope_id,
+            "topicScopeRef": self.topic_scope_ref,
+            "topicPackRef": self.topic_pack_ref,
+            "membraneRef": self.membrane_ref,
+            "memoryProfileRef": self.memory_profile_ref,
+            "memoryEventRef": self.memory_event_ref,
+            "labProfileRefs": self.lab_profile_refs,
+            "requiredSequence": self.required_sequence,
+        }
+
+
+@dataclass(frozen=True)
 class QueryRouteRequest:
     request_id: str
     language: QueryLanguage
@@ -26,6 +62,7 @@ class QueryRouteRequest:
     catalog_scope: str
     actor_ref: str
     policy_ref: str
+    governance: QueryGovernanceEnvelope
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -35,6 +72,7 @@ class QueryRouteRequest:
             "catalogScope": self.catalog_scope,
             "actorRef": self.actor_ref,
             "policyRef": self.policy_ref,
+            "governanceEnvelope": self.governance.to_dict(),
         }
 
 
@@ -48,6 +86,8 @@ class QueryRouteDecision:
     endpoint_ref: str | None
     policy_ref: str | None
     catalog_scope: list[str]
+    governance_envelope_ref: str
+    governance_sequence: list[str]
     reason: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -60,6 +100,8 @@ class QueryRouteDecision:
             "endpointRef": self.endpoint_ref,
             "policyRef": self.policy_ref,
             "catalogScope": self.catalog_scope,
+            "governanceEnvelopeRef": self.governance_envelope_ref,
+            "governanceSequence": self.governance_sequence,
             "reason": self.reason,
         }
 
@@ -83,8 +125,15 @@ class QueryRoutingDryRunPlan:
             "createdAt": self.created_at,
             "boundary": [
                 "dry-run-only",
+                "slash-topic-scope-required",
+                "newhope-membrane-required",
+                "memory-mesh-context-bound",
+                "lab-profile-bound",
                 "no-remote-query-execution",
                 "no-local-index-read",
+                "no-memory-writeback",
+                "no-embedding-job",
+                "no-lab-runtime-call",
                 "no-sql-submission",
                 "no-sparql-submission",
                 "no-cypher-submission",
@@ -102,26 +151,67 @@ def _digest(prefix: str, payload: dict[str, Any]) -> str:
     return f"{prefix}:" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
 
 
+def demo_query_governance_envelope(topic: str = "/lattice/federated-query") -> QueryGovernanceEnvelope:
+    payload = {"topic": topic, "membrane": "query-admission", "memory": "scoped-recall"}
+    return QueryGovernanceEnvelope(
+        envelope_id=_digest("query-governance", payload),
+        topic_scope_ref=f"slash-topic://{topic.strip('/')}",
+        topic_pack_ref="slash-topics://packs/lattice-federated-query@0.1.0",
+        membrane_ref="newhope://membranes/query-admission@0.1.0",
+        memory_profile_ref="memory-mesh://profiles/slash-topic-scoped-recall@0.1.0",
+        memory_event_ref="memory-mesh://events/query-route-dry-run",
+        lab_profile_refs=[
+            "lab://nlp-lab/default",
+            "lab://embedding-lab/default",
+            "lab://image-lab/default",
+            "lab://speech-lab/default",
+            "lab://vision-lab/default",
+        ],
+        required_sequence=[
+            "slash-topic-scope",
+            "newhope-membrane-admission",
+            "memory-mesh-recall-policy",
+            "lab-profile-selection",
+            "physical-backend-route",
+        ],
+    )
+
+
+def _blocked_decision(request: QueryRouteRequest, reason: str) -> QueryRouteDecision:
+    payload = {"requestId": request.request_id, "language": request.language, "status": "blocked", "reason": reason}
+    return QueryRouteDecision(
+        decision_id=_digest("query-route", payload),
+        request_id=request.request_id,
+        status="blocked",
+        backend_id=None,
+        backend_kind=None,
+        endpoint_ref=None,
+        policy_ref=None,
+        catalog_scope=[],
+        governance_envelope_ref=request.governance.envelope_id,
+        governance_sequence=request.governance.required_sequence,
+        reason=reason,
+    )
+
+
 def route_query(request: QueryRouteRequest) -> QueryRouteDecision:
+    if not request.governance.topic_scope_ref.startswith("slash-topic://"):
+        return _blocked_decision(request, "Missing Slash Topic scope.")
+    if not request.governance.membrane_ref.startswith("newhope://membranes/"):
+        return _blocked_decision(request, "Missing New Hope membrane admission reference.")
+    if not request.governance.memory_profile_ref.startswith("memory-mesh://profiles/"):
+        return _blocked_decision(request, "Missing Memory Mesh scoped memory profile.")
+    if not request.governance.lab_profile_refs:
+        return _blocked_decision(request, "Missing lab profile references.")
+
     plane = demo_federated_query_plane()
     candidates = [backend for backend in plane.backends if backend.language == request.language]
     if not candidates:
-        payload = {"requestId": request.request_id, "language": request.language, "status": "blocked"}
-        return QueryRouteDecision(
-            decision_id=_digest("query-route", payload),
-            request_id=request.request_id,
-            status="blocked",
-            backend_id=None,
-            backend_kind=None,
-            endpoint_ref=None,
-            policy_ref=None,
-            catalog_scope=[],
-            reason=f"No backend registered for language {request.language}.",
-        )
+        return _blocked_decision(request, f"No backend registered for language {request.language}.")
     backend = candidates[0]
     scope_allowed = request.catalog_scope in backend.catalog_scope or request.catalog_scope == "*"
     status: RouteDecisionStatus = "routable" if scope_allowed else "blocked"
-    reason = "Catalog scope is allowed for selected backend." if scope_allowed else "Requested catalog scope is outside selected backend policy scope."
+    reason = "Catalog scope is allowed after Slash Topics, New Hope, Memory Mesh, and lab-profile envelope checks." if scope_allowed else "Requested catalog scope is outside selected backend policy scope."
     payload = {"requestId": request.request_id, "backendId": backend.backend_id, "status": status}
     return QueryRouteDecision(
         decision_id=_digest("query-route", payload),
@@ -132,6 +222,8 @@ def route_query(request: QueryRouteRequest) -> QueryRouteDecision:
         endpoint_ref=backend.endpoint_ref,
         policy_ref=backend.policy_ref,
         catalog_scope=backend.catalog_scope,
+        governance_envelope_ref=request.governance.envelope_id,
+        governance_sequence=request.governance.required_sequence,
         reason=reason,
     )
 
@@ -152,8 +244,9 @@ def demo_query_route_requests() -> list[QueryRouteRequest]:
         ("lampstand-local-query", "LOCAL SEARCH 'notebook promotion' LIMIT 20", "catalog://local-files"),
     ]
     requests: list[QueryRouteRequest] = []
+    governance = demo_query_governance_envelope()
     for language, query, scope in raw:
-        payload = {"language": language, "scope": scope, "query": query}
+        payload = {"language": language, "scope": scope, "query": query, "governance": governance.envelope_id}
         requests.append(
             QueryRouteRequest(
                 request_id=_digest("query-request", payload),
@@ -162,6 +255,7 @@ def demo_query_route_requests() -> list[QueryRouteRequest]:
                 catalog_scope=scope,
                 actor_ref="actor://lattice-studio/demo",
                 policy_ref="policy://query/federated",
+                governance=governance,
             )
         )
     return requests
@@ -193,7 +287,10 @@ def query_routing_evidence(plan: QueryRoutingDryRunPlan) -> dict[str, Any]:
         "routableCount": sum(1 for decision in plan.decisions if decision.status == "routable"),
         "evidenceReports": [
             "dry-run-only",
-            "no-remote-query-execution",
+            "slash-topic-scope-required",
+            "newhope-membrane-required",
+            "memory-mesh-context-bound",
+            "lab-profile-bound",
             "query-language-routing",
             "catalog-scope-policy-check",
             "backend-policy-binding",
@@ -220,7 +317,7 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
         "assetId": plan.plan_id,
         "assetKind": "query-routing-dry-run-plan",
         "name": "lattice-studio-query-routing-dry-run-plan",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "sourceApiVersion": "studio.socioprophet.dev/v1",
         "sourceKind": "QueryRoutingDryRunPlan",
         "producerRepo": "SocioProphet/prophet-platform",
@@ -230,6 +327,15 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
         "compatibilitySurfaces": [
             "lattice-studio",
             "federated-query",
+            "query-routing-dry-run",
+            "slash-topics",
+            "new-hope",
+            "memory-mesh",
+            "nlp-lab",
+            "embedding-lab",
+            "image-lab",
+            "speech-lab",
+            "vision-lab",
             "apache-drill",
             "document-store",
             "annotation-store",
@@ -239,8 +345,6 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
             "graphbrain",
             "atomese",
             "sherlock-search",
-            "slash-topics",
-            "new-hope",
             "lampstand",
             "ontogenesis",
         ],
