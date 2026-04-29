@@ -19,28 +19,37 @@ to:
 3. run `tools/run_fogstack_signature_verification_pipeline.py`
 4. persist the normalized evidence and cryptographic verification record into deterministic release-evidence paths
 
-## Example
+## Canonical CLI
 
 ```bash
 python3 tools/run_fogstack_signature_verification_pipeline.py \
   --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
-  --raw-evidence /tmp/fogstack.access.cosign.verify.json \
-  --tool cosign \
-  --bundle-id fogstack.access \
-  --version 0.1.0 \
-  --normalized-output /tmp/fogstack.access.normalized.verify.json \
-  --record-output /tmp/fogstack.access.crypto-verification.record.json
+  --external-evidence /tmp/fogstack.access.cosign.verify.json \
+  --out /tmp/fogstack.access.crypto-verification.record.json
 ```
+
+The helper preserves older aliases for existing workflows:
+- `--raw-evidence` for `--external-evidence`
+- `--record-output` for `--out`
+
+Use `--normalized-output` when the normalized external evidence object should be persisted separately.
 
 ## Digest consistency rule
 
-If both of the following are present:
+The pipeline requires:
 - `manifest.bundle_digest`
 - normalized `verified_digest`
 
-then the pipeline computes `manifest_digest_matches` and includes it in the record summary.
+The cryptographic verification record is `verified` only when the external evidence status is `pass` and the verified digest exactly matches the manifest bundle digest.
 
-A digest mismatch should be treated as a failed cryptographic verification result even if the external tool reported pass.
+A digest mismatch is a hard failed verification result. The helper still emits the failed record when an output path is provided so reviewers can inspect the evidence, but the process exits nonzero.
+
+## Exit codes
+
+- `0`: pass / verified
+- `1`: warning / non-fatal shape-only record
+- `2`: failure, including digest mismatch or external verification failure
+- `3`: invalid input or tool usage error, including malformed JSON, missing inputs, missing manifest digest, or missing verified digest
 
 ## Out of scope in this phase
 
