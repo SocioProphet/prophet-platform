@@ -65,15 +65,43 @@ Suggested environment mapping:
 | --- | --- | --- |
 | local API direct | `http://127.0.0.1:8088` | `http://localhost:5174` |
 | local Vite proxy | `/api` | not required if same-origin proxy is used |
-| preview/staging | staging API URL | staging app origin |
-| production | production API URL or same-origin gateway path | production app origin |
+| staging/demo | staging API URL | staging app origin (explicit, no wildcard) |
+| production | production API URL or same-origin gateway path | production app origin (explicit, no wildcard) |
 
 Do not use `*` with credentialed browser access. Prefer explicit origins and same-origin gateway/proxy deployment when possible.
 
+## Staging / controlled endpoint deployment
+
+A copy of `.env.staging.example` (in this directory) documents the full set of environment variables required for a staging or demo deployment. Key points:
+
+- Set `OSM_MAP_API_HOST=0.0.0.0` when running inside a container.
+- Set `OSM_MAP_API_CORS_ALLOWED_ORIGINS` to the exact browser origin of the staging Vue app (e.g. `https://staging.your-app.example`). No wildcard.
+- All three fixture roots must resolve to existing directories for `/readyz` to pass.
+- When the API sits behind a reverse proxy on the same origin as the Vue app (e.g. proxy `/api/*` → `http://localhost:8088/*`), CORS is not required; leave `OSM_MAP_API_CORS_ALLOWED_ORIGINS` unset.
+
+### Minimal staging run
+
+```bash
+export GAIA_FIXTURE_ROOT=/mnt/fixtures/gaia-world-model
+export SHERLOCK_FIXTURE_ROOT=/mnt/fixtures/sherlock-search
+export SOCIOSPHERE_FIXTURE_ROOT=/mnt/fixtures/sociosphere
+export OSM_MAP_API_HOST=0.0.0.0
+export OSM_MAP_API_PORT=8088
+export OSM_MAP_API_CORS_ALLOWED_ORIGINS=https://staging.your-app.example
+python3 -m osm_map_api
+```
+
+### Liveness vs readiness probes
+
+- `/healthz` — process liveness only. Always returns `{"status": "ok"}` as long as the Python process is up, regardless of fixture root state. Use for container liveness probes.
+- `/readyz` — data-plane readiness. Returns `{"status": "ready"}` only when all three fixture roots exist and are reachable. Returns `503` with error details otherwise. Use for container readiness/startup probes and deployment gate checks.
+
+The Vue shell falls back to deterministic demo data when `/readyz` is not ready. This fallback is for product demonstration only; operators must treat `/readyz != ready` as a backend issue to resolve before sending real traffic.
+
 ## Health and readiness
 
-- `GET /healthz` reports process liveness only.
-- `GET /readyz` verifies required fixture roots and fails with `503` when the API cannot serve the GAIA/OSM fixture-backed contract.
+- `GET /healthz` — process liveness only; returns `{"status": "ok"}` regardless of fixture root state.
+- `GET /readyz` — data-plane readiness; returns `{"status": "ready"}` only when all fixture roots exist, and `503` with error details otherwise.
 
 The Vue shell may render demo fallback when the API is not ready, but operators should still treat `/readyz != ready` as a backend issue.
 
