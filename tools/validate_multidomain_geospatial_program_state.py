@@ -10,15 +10,30 @@ REQUIRED_TOP = [
     "version",
     "status",
     "updated_at",
+    "gaia_product_state",
     "safety_boundary",
     "standards_authorities",
     "implementation_repos",
     "gaia_multidomain_records",
     "runtime_proofs",
+    "gaia_v1_phase_state",
     "active_blockers",
     "progress",
     "next_best_actions",
 ]
+REQUIRED_GAIA_PHASES = {
+    "phase_1_deployable_map_demo",
+    "phase_2_bounded_live_osm_ingestion",
+    "phase_3_tile_layer_serving",
+    "phase_4_eo_satellite_adapter",
+    "phase_5_lidar_dem_terrain",
+    "phase_6_weather_reanalysis_time",
+    "phase_7_fusion_semantics",
+    "phase_8_gaia_world_model_api",
+    "phase_9_vue_map_analytical_workspace",
+    "phase_10_runtime_admission",
+    "phase_11_deployment_operations",
+}
 REQUIRED_RECORDS = {
     "SpaceAssetRecord",
     "EarthObservationProductRecord",
@@ -89,6 +104,18 @@ def main() -> int:
     data = load_json(path)
     require_keys(data, REQUIRED_TOP, "program_state")
 
+    gaia_product = data["gaia_product_state"]
+    if not isinstance(gaia_product, dict):
+        fail("gaia_product_state must be object")
+    require_keys(gaia_product, ["current_slice", "target", "baseline_prs", "execution_plan_ref", "target_architecture", "core_principle"], "gaia_product_state")
+    if gaia_product["current_slice"] != "GAIA Workbench v0":
+        fail("gaia_product_state.current_slice must remain GAIA Workbench v0 until GAIA v1 deployment criteria are met")
+    if gaia_product["target"] != "GAIA World Model v1":
+        fail("gaia_product_state.target must be GAIA World Model v1")
+    baseline_prs = gaia_product.get("baseline_prs")
+    if not isinstance(baseline_prs, list) or len(baseline_prs) < 3:
+        fail("gaia_product_state.baseline_prs must include the three baseline PRs")
+
     safety = data["safety_boundary"]
     if not isinstance(safety, dict):
         fail("safety_boundary must be object")
@@ -128,11 +155,22 @@ def main() -> int:
         if runtime["evidence_bundle"] is not True or runtime["negative_tests"] is not True:
             fail(f"{runtime['runtime_id']}: runtime must have evidence bundle and negative tests")
 
+    phase_state = data["gaia_v1_phase_state"]
+    if not isinstance(phase_state, dict):
+        fail("gaia_v1_phase_state must be object")
+    missing_phases = sorted(REQUIRED_GAIA_PHASES - set(phase_state))
+    if missing_phases:
+        fail(f"missing GAIA v1 phase states: {', '.join(missing_phases)}")
+    if phase_state.get("phase_1_deployable_map_demo") == "done" and data["progress"].get("gaia_world_model_program_percent", 0) < 50:
+        fail("phase_1_deployable_map_demo cannot be done while GAIA world model program remains below 50%")
+
     progress = data["progress"]
     if not isinstance(progress, dict):
         fail("progress must be object")
     require_percent(progress.get("composite_standards_spec_percent"), "progress.composite_standards_spec_percent")
     require_percent(progress.get("composite_implementation_readiness_percent"), "progress.composite_implementation_readiness_percent")
+    require_percent(progress.get("gaia_world_model_program_percent"), "progress.gaia_world_model_program_percent")
+    require_percent(progress.get("gaia_workbench_v0_percent"), "progress.gaia_workbench_v0_percent")
     workstreams = progress.get("workstreams")
     if not isinstance(workstreams, dict):
         fail("progress.workstreams must be object")
@@ -142,6 +180,8 @@ def main() -> int:
     actions = data["next_best_actions"]
     if not isinstance(actions, list) or len(actions) < 3:
         fail("next_best_actions must contain at least three actions")
+    if "Deploy current fixture-backed /map and OSM API in staging" not in actions:
+        fail("next_best_actions must keep deployable /map staging as first-class work")
 
     print("OK: multidomain geospatial program state is structurally valid")
     return 0
