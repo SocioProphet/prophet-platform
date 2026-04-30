@@ -2,8 +2,35 @@
   "registry_id": "socioprophet.multidomain-geospatial.program-state.v1",
   "version": "v1",
   "status": "active",
-  "updated_at": "2026-04-27",
-  "purpose": "Canonical control ledger for the SocioProphet multi-domain geospatial intelligence program across standards, GAIA, Sherlock, SocioSphere, Agentplane, Lattice Forge, and Prophet Platform.",
+  "updated_at": "2026-04-29",
+  "purpose": "Canonical control ledger for the SocioProphet multi-domain geospatial intelligence program across standards, GAIA, Sherlock, SocioSphere, Agentplane, Lattice Forge, Prophet Platform, and the deployed GAIA /map product surface.",
+  "gaia_product_state": {
+    "current_slice": "GAIA Workbench v0",
+    "target": "GAIA World Model v1",
+    "baseline_prs": [
+      {
+        "repo": "SocioProphet/socioprophet",
+        "pr": 294,
+        "state": "merged",
+        "summary": "Promoted Vue shell and GAIA-backed /map workbench into canonical org web surface"
+      },
+      {
+        "repo": "SocioProphet/prophet-platform",
+        "pr": 259,
+        "state": "merged",
+        "summary": "Hardened fixture-backed OSM Map API browser integration"
+      },
+      {
+        "repo": "SocioProphet/gaia-world-model",
+        "pr": 13,
+        "state": "merged",
+        "summary": "Added real-data adapter planning contract without live ingestion or production tile serving"
+      }
+    ],
+    "execution_plan_ref": "docs/requirements/GAIA_WORLD_MODEL_V1_EXECUTION_PLAN.md",
+    "target_architecture": "Raw sources -> Source adapters -> Normalized GAIA observations/features -> Evidence/provenance graph -> Storage/query layer -> Tile/layer services -> GAIA APIs -> Vue /map workbench -> Agent/governance review -> Runtime admission",
+    "core_principle": "Every visible map object must become an evidence-backed, policy-governed, temporally valid, source-attributed world-model object."
+  },
   "safety_boundary": {
     "allowed_scope": [
       "authorized analysis",
@@ -67,19 +94,19 @@
   "implementation_repos": [
     {
       "repo": "SocioProphet/prophet-platform",
-      "role": "product requirements, APIs, dashboards, acceptance criteria, runtime boundary requirements, program state ledger",
+      "role": "product requirements, APIs, dashboards, acceptance criteria, runtime boundary requirements, program state ledger, GAIA API and OSM Map API staging",
       "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
       "state": "committed"
     },
     {
       "repo": "SocioProphet/gaia-world-model",
-      "role": "domain schemas, fixtures, deterministic runtime proofs, runtime boundary docs",
+      "role": "domain schemas, fixtures, real-data adapter contracts, deterministic runtime proofs, runtime boundary docs",
       "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
       "state": "committed"
     },
     {
       "repo": "SocioProphet/sociosphere",
-      "role": "governance registries, compliance validation, source trust, policy gates, change propagation",
+      "role": "governance registries, compliance validation, readiness lanes, source trust, policy gates, change propagation",
       "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
       "state": "committed"
     },
@@ -90,8 +117,13 @@
       "state": "committed"
     },
     {
+      "repo": "SocioProphet/socioprophet",
+      "role": "canonical Vue /map workbench, MapLibre shell, evidence/governance/runtime panels, product deployment and E2E smoke tests",
+      "state": "merged_workbench_v0"
+    },
+    {
       "repo": "SocioProphet/agentplane",
-      "role": "approval-gated execution candidates, runtime evidence/replay governance",
+      "role": "approval-gated execution candidates, runtime evidence/replay governance, runtime admission review",
       "compliance_doc": "docs/standards/COMPLIES_WITH_MULTIDOMAIN_GEOSPATIAL_STANDARDS.md",
       "state": "open_pr",
       "pr": 62,
@@ -200,6 +232,19 @@
       "negative_tests": true
     }
   ],
+  "gaia_v1_phase_state": {
+    "phase_1_deployable_map_demo": "not_done",
+    "phase_2_bounded_live_osm_ingestion": "not_done",
+    "phase_3_tile_layer_serving": "not_done",
+    "phase_4_eo_satellite_adapter": "fixture_planning",
+    "phase_5_lidar_dem_terrain": "fixture_planning",
+    "phase_6_weather_reanalysis_time": "planning",
+    "phase_7_fusion_semantics": "fixture_runtime_pending",
+    "phase_8_gaia_world_model_api": "not_done",
+    "phase_9_vue_map_analytical_workspace": "workbench_v0_done",
+    "phase_10_runtime_admission": "candidate_only",
+    "phase_11_deployment_operations": "not_done"
+  },
   "active_blockers": [
     {
       "id": "agentplane-pr-62-lint-context",
@@ -213,18 +258,37 @@
       "repo": "SocioProphet/lattice-forge",
       "status": "intentional_gate",
       "details": "runtime candidates require packaging, SBOM, signing, rollback tests, expanded malformed-input corpus, Agentplane integration, SocioSphere remote compliance, and accountability ledger handling before admission"
+    },
+    {
+      "id": "gaia-v1-deployment-not-complete",
+      "repo": "SocioProphet/socioprophet",
+      "status": "open",
+      "details": "GAIA Workbench v0 is merged, but deployed staging surface, E2E smoke, bounded live OSM, tile/layer serving, and runtime admission are not complete"
     }
   ],
   "progress": {
-    "composite_standards_spec_percent": 67,
-    "composite_implementation_readiness_percent": 61,
+    "composite_standards_spec_percent": 68,
+    "composite_implementation_readiness_percent": 62,
+    "gaia_world_model_program_percent": 40,
+    "gaia_workbench_v0_percent": 95,
     "workstreams": {
       "standards_alignment": 63,
       "storage_event_data_contracts": 52,
       "knowledge_ontology_provenance": 49,
       "agent_runtime_conformance": 56,
-      "platform_product_requirements": 54,
+      "platform_product_requirements": 58,
       "gaia_implementation_alignment": 92,
+      "gaia_v1_deployable_map_demo": 20,
+      "gaia_live_osm_ingestion": 5,
+      "gaia_production_tile_layer_serving": 10,
+      "gaia_eo_satellite_adapter": 18,
+      "gaia_lidar_dem_terrain": 12,
+      "gaia_weather_reanalysis_time": 8,
+      "gaia_fusion_semantics": 30,
+      "gaia_world_model_api": 10,
+      "gaia_vue_map_analytical_workspace": 35,
+      "gaia_runtime_admission": 15,
+      "gaia_deployment_operations": 10,
       "sociosphere_governance_enforcement": 50,
       "sherlock_discovery_alignment": 55,
       "lattice_runtime_admission_readiness": 61,
@@ -241,11 +305,13 @@
     }
   },
   "next_best_actions": [
+    "Deploy current fixture-backed /map and OSM API in staging",
+    "Add browser E2E smoke tests for /map live/fallback modes and evidence/governance panels",
+    "Implement bounded OSM source adapter fixture and validator",
+    "Add tile/layer manifest serving endpoint and MapLibre dynamic layer loading",
+    "Add Sherlock-backed spatial/evidence search fixture and API proxy",
     "Add MultiDomainFusionEvent executable runtime proof",
     "Add accountability ledger schema and fixture for effects-linked and defense/public-safety runtime governance",
-    "Resolve Agentplane PR #62 branch-protection lint context mismatch",
-    "Begin packaging/SBOM/signing path for one Lattice runtime candidate without admitting it prematurely",
-    "Add network_resilience sections to each live-capable GAIA runtime boundary",
-    "Add Sherlock discovery record for sensitive geospatial policy evaluation output"
+    "Resolve Agentplane PR #62 branch-protection lint context mismatch"
   ]
 }
