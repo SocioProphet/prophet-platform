@@ -1,0 +1,371 @@
+{
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Read-only fixture-backed API for OpenStreetMap-derived GAIA map layers, feature bindings, advisory route graphs, attribution receipts, runtime-boundary state, provenance state, and governance state.",
+    "title": "Prophet Platform OSM Map API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/features/by-h3/{h3_cell}": {
+      "get": {
+        "operationId": "features_by_h3_features_by_h3__h3_cell__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "h3_cell",
+            "required": true,
+            "schema": {
+              "title": "H3 Cell",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Features By H3 Features By H3  H3 Cell  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Features By H3",
+        "tags": [
+          "features"
+        ]
+      }
+    },
+    "/features/by-osm/{osm_type}/{osm_id}": {
+      "get": {
+        "operationId": "feature_by_osm_features_by_osm__osm_type___osm_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "osm_type",
+            "required": true,
+            "schema": {
+              "title": "Osm Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "osm_id",
+            "required": true,
+            "schema": {
+              "title": "Osm Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Feature By Osm Features By Osm  Osm Type   Osm Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Feature By Osm",
+        "tags": [
+          "features"
+        ]
+      }
+    },
+    "/governance/osm": {
+      "get": {
+        "operationId": "governance_osm_governance_osm_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Governance Osm Governance Osm Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Governance Osm",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Healthz Healthz Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/map-layers": {
+      "get": {
+        "operationId": "map_layers_map_layers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Map Layers Map Layers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Map Layers",
+        "tags": [
+          "maps"
+        ]
+      }
+    },
+    "/map-layers/{layer_id}": {
+      "get": {
+        "operationId": "map_layer_map_layers__layer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layer_id",
+            "required": true,
+            "schema": {
+              "title": "Layer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Map Layer Map Layers  Layer Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Map Layer",
+        "tags": [
+          "maps"
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Readyz Readyz Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readyz",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/route-graphs/osm": {
+      "get": {
+        "operationId": "route_graphs_osm_route_graphs_osm_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Route Graphs Osm Route Graphs Osm Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Route Graphs Osm",
+        "tags": [
+          "routing"
+        ]
+      }
+    },
+    "/runtime-boundaries/osm": {
+      "get": {
+        "operationId": "runtime_boundaries_osm_runtime_boundaries_osm_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Runtime Boundaries Osm Runtime Boundaries Osm Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Runtime Boundaries Osm",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/search/osm-demo": {
+      "get": {
+        "operationId": "search_osm_demo_search_osm_demo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search Osm Demo Search Osm Demo Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Search Osm Demo",
+        "tags": [
+          "search"
+        ]
+      }
+    }
+  }
+}

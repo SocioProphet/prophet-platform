@@ -294,3 +294,59 @@ def test_missing_roots_fail_readiness(tmp_path: Path) -> None:
     response = client.get("/readyz")
     assert response.status_code == 503
     assert response.json()["detail"]["status"] == "not-ready"
+
+
+def test_healthz_is_live_when_readyz_fails(tmp_path: Path) -> None:
+    """Liveness (/healthz) must return 200 even when readiness (/readyz) fails.
+
+    This is a critical staging invariant: the process is alive and the probe
+    infrastructure can distinguish a mis-configured data plane from a crashed
+    process. Healthz must never depend on fixture root availability.
+    """
+    app = create_app(
+        Settings(
+            gaia_fixture_root=tmp_path / "missing-gaia",
+            sherlock_fixture_root=tmp_path / "missing-sherlock",
+            sociosphere_fixture_root=tmp_path / "missing-sociosphere",
+        )
+    )
+    client = TestClient(app)
+    assert client.get("/healthz").json() == {"status": "ok"}
+    assert client.get("/readyz").status_code == 503
+
+
+def test_staging_https_cors_origin_is_allowed(tmp_path: Path) -> None:
+    """A staging https origin is accepted when explicitly configured.
+
+    Staging deployments set OSM_MAP_API_CORS_ALLOWED_ORIGINS to the staging
+    app URL (https scheme, no wildcard). This test validates that pattern.
+    """
+    staging_origin = "https://staging.prophet.socioprophet.example"
+    client = make_client(tmp_path, cors_allowed_origins=(staging_origin,))
+    preflight = client.options(
+        "/map-layers",
+        headers={
+            "Origin": staging_origin,
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == staging_origin
+    response = client.get("/map-layers", headers={"Origin": staging_origin})
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == staging_origin
+
+
+def test_staging_cors_rejects_unconfigured_origin(tmp_path: Path) -> None:
+    """An unlisted origin is rejected even in a staging CORS configuration."""
+    staging_origin = "https://staging.prophet.socioprophet.example"
+    client = make_client(tmp_path, cors_allowed_origins=(staging_origin,))
+    preflight = client.options(
+        "/map-layers",
+        headers={
+            "Origin": "https://attacker.example",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert preflight.status_code == 400
+    assert "access-control-allow-origin" not in preflight.headers
