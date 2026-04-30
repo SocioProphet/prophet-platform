@@ -1,0 +1,60 @@
+{
+  "apiVersion": "modelfabric.socioprophet.dev/v1",
+  "kind": "ModelFabricRuntimeAdapterSet",
+  "metadata": {
+    "name": "prophet-platform-model-fabric-adapters",
+    "version": "0.1.0"
+  },
+  "spec": {
+    "adapters": [
+      {
+        "adapterId": "adapter://socioprophet/model-router/default@0.1.0",
+        "serviceRef": "service://socioprophet/model-router/default@0.1.0",
+        "surface": "routing",
+        "mode": "contract-fixture",
+        "commandRef": "tool://model-router/route",
+        "inputRefs": ["contract://model-router/route-request"],
+        "outputRefs": ["contract://model-router/route-decision"],
+        "evidenceRefs": ["evidence://model-router/demo/request-001"],
+        "policyRefs": ["policy://model-router/local-first-v1"],
+        "boundary": ["no-provider-call", "no-model-execution", "no-secret-material", "sourceos-carry-only"]
+      },
+      {
+        "adapterId": "adapter://socioprophet/guardrail-fabric/default@0.1.0",
+        "serviceRef": "service://socioprophet/guardrail-fabric/default@0.1.0",
+        "surface": "guardrail",
+        "mode": "contract-fixture",
+        "commandRef": "tool://guardrail-fabric/test",
+        "inputRefs": ["contract://guardrail-fabric/guardrail-input"],
+        "outputRefs": ["contract://guardrail-fabric/guardrail-decision"],
+        "evidenceRefs": ["evidence://guardrail-fabric/demo/input-001"],
+        "policyRefs": ["guardrail://fabric/default-safe-text-v1"],
+        "boundary": ["no-provider-call", "no-model-execution", "no-secret-material", "sourceos-carry-only"]
+      },
+      {
+        "adapterId": "adapter://socioprophet/model-governance-ledger/default@0.1.0",
+        "serviceRef": "service://socioprophet/model-governance-ledger/default@0.1.0",
+        "surface": "model-governance",
+        "mode": "contract-fixture",
+        "commandRef": "tool://model-governance-ledger/records",
+        "inputRefs": ["contract://model-governance-ledger/promotion-record"],
+        "outputRefs": ["contract://model-governance-ledger/platform-ledger-record"],
+        "evidenceRefs": ["evidence://model-governance-ledger/demo/promotion-001"],
+        "policyRefs": ["policy://model-governance/promotion-v1"],
+        "boundary": ["no-ledger-mutation", "no-model-artifact-write", "no-secret-material", "sourceos-carry-only"]
+      },
+      {
+        "adapterId": "adapter://socioprophet/agent-registry/default@0.1.0",
+        "serviceRef": "service://socioprophet/agent-registry/default@0.1.0",
+        "surface": "agent-registry",
+        "mode": "contract-fixture",
+        "commandRef": "tool://agent-registry/list",
+        "inputRefs": ["contract://agent-registry/session-authority"],
+        "outputRefs": ["contract://agent-registry/agent-registry-record"],
+        "evidenceRefs": ["evidence://agent-registry/demo/session-authority-001"],
+        "policyRefs": ["policy://agent-registry/evidence-required-v1"],
+        "boundary": ["no-authority-grant", "no-identity-provider-call", "no-secret-material", "sourceos-carry-only"]
+      }
+    ]
+  }
+}
