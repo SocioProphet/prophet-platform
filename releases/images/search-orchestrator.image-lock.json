@@ -1,0 +1,10 @@
+{
+  "image_lock_id": "search-orchestrator-image-lock",
+  "component": "services/search-orchestrator",
+  "image": "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+  "source_sha": "3f5a12aa5b86c60cb55fab3f36f6a5b528a772db",
+  "digest": "sha256:bbfea6e4a7ea432d77766a37464dfa666242dfe2621fc0e586ca2bde80c52066",
+  "pinned_ref": "ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:bbfea6e4a7ea432d77766a37464dfa666242dfe2621fc0e586ca2bde80c52066",
+  "workflow": ".github/workflows/search-orchestrator-image.yml",
+  "status": "pinned"
+}
