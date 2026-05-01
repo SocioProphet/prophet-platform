@@ -52,7 +52,11 @@ def test_query_routing_requires_governance_envelope_before_backend_selection() -
         envelope = request["governanceEnvelope"]
         assert envelope["topicScopeRef"].startswith("slash-topic://")
         assert envelope["topicPackRef"].startswith("slash-topics://packs/")
+        assert envelope["publicSurfaceRef"].startswith("slash-topics://surfaces/")
         assert envelope["membraneRef"].startswith("newhope://membranes/")
+        assert envelope["runtimeSubstrateRef"].startswith("newhope://runtime/")
+        assert envelope["runtimeAliasRef"].startswith("slash-topics://runtime/membranes/")
+        assert envelope["compatibilityRef"] == envelope["membraneRef"]
         assert envelope["memoryProfileRef"].startswith("memory-mesh://profiles/")
         assert envelope["memoryEventRef"] == "memory-mesh://events/query-route-dry-run"
         assert "lab://nlp-lab/default" in envelope["labProfileRefs"]
@@ -77,6 +81,38 @@ def test_query_routing_requires_governance_envelope_before_backend_selection() -
         assert decision["governanceSequence"][4] == "physical-backend-route"
 
 
+def test_query_routing_blocks_when_governance_envelope_is_missing_runtime_substrate() -> None:
+    envelope = demo_query_governance_envelope()
+    broken = type(envelope)(
+        envelope_id=envelope.envelope_id,
+        topic_scope_ref=envelope.topic_scope_ref,
+        topic_pack_ref=envelope.topic_pack_ref,
+        membrane_ref=envelope.membrane_ref,
+        public_surface_ref=envelope.public_surface_ref,
+        runtime_substrate_ref="",
+        runtime_alias_ref=envelope.runtime_alias_ref,
+        compatibility_ref=envelope.compatibility_ref,
+        memory_profile_ref=envelope.memory_profile_ref,
+        memory_event_ref=envelope.memory_event_ref,
+        lab_profile_refs=envelope.lab_profile_refs,
+        required_sequence=envelope.required_sequence,
+    )
+    request = QueryRouteRequest(
+        request_id="query-request:missing-runtime-substrate",
+        language="sql",
+        query="SELECT 1",
+        catalog_scope="catalog://datasets",
+        actor_ref="actor://lattice-studio/demo",
+        policy_ref="policy://query/federated",
+        governance=broken,
+    )
+
+    decision = route_query(request)
+    assert decision.status == "blocked"
+    assert decision.backend_id is None
+    assert "runtime substrate" in decision.reason
+
+
 def test_query_routing_blocks_when_governance_envelope_is_missing_memory_profile() -> None:
     envelope = demo_query_governance_envelope()
     broken = type(envelope)(
@@ -84,6 +120,10 @@ def test_query_routing_blocks_when_governance_envelope_is_missing_memory_profile
         topic_scope_ref=envelope.topic_scope_ref,
         topic_pack_ref=envelope.topic_pack_ref,
         membrane_ref=envelope.membrane_ref,
+        public_surface_ref=envelope.public_surface_ref,
+        runtime_substrate_ref=envelope.runtime_substrate_ref,
+        runtime_alias_ref=envelope.runtime_alias_ref,
+        compatibility_ref=envelope.compatibility_ref,
         memory_profile_ref="",
         memory_event_ref=envelope.memory_event_ref,
         lab_profile_refs=envelope.lab_profile_refs,
@@ -111,7 +151,11 @@ def test_query_routing_dry_run_preserves_no_execution_boundary() -> None:
 
     assert "dry-run-only" in boundary
     assert "slash-topic-scope-required" in boundary
+    assert "slash-topics-public-surface-required" in boundary
     assert "newhope-membrane-required" in boundary
+    assert "new-hope-runtime-substrate-required" in boundary
+    assert "new-hope-compatibility-ref-preserved" in boundary
+    assert "slash-topics-runtime-alias-preserved" in boundary
     assert "memory-mesh-context-bound" in boundary
     assert "lab-profile-bound" in boundary
     assert "no-remote-query-execution" in boundary
@@ -137,7 +181,11 @@ def test_query_routing_evidence_and_platform_record() -> None:
     assert evidence["routableCount"] == 12
     assert "dry-run-only" in evidence["evidenceReports"]
     assert "slash-topic-scope-required" in evidence["evidenceReports"]
+    assert "slash-topics-public-surface" in evidence["evidenceReports"]
     assert "newhope-membrane-required" in evidence["evidenceReports"]
+    assert "new-hope-runtime-substrate" in evidence["evidenceReports"]
+    assert "new-hope-compatibility-preserved" in evidence["evidenceReports"]
+    assert "slash-topics-runtime-alias" in evidence["evidenceReports"]
     assert "memory-mesh-context-bound" in evidence["evidenceReports"]
     assert "lab-profile-bound" in evidence["evidenceReports"]
     assert "ontology-query-route" in evidence["evidenceReports"]
@@ -147,8 +195,12 @@ def test_query_routing_evidence_and_platform_record() -> None:
     assert "lampstand-route" in evidence["evidenceReports"]
     assert record["kind"] == "PlatformAssetRecord"
     assert record["assetKind"] == "query-routing-dry-run-plan"
-    assert record["version"] == "0.2.0"
+    assert record["version"] == "0.3.0"
     assert "federated-query" in record["compatibilitySurfaces"]
+    assert "slash-topics-public-surface" in record["compatibilitySurfaces"]
+    assert "slash-topics-runtime-alias" in record["compatibilitySurfaces"]
+    assert "new-hope-runtime-substrate" in record["compatibilitySurfaces"]
+    assert "new-hope-compatibility" in record["compatibilitySurfaces"]
     assert "memory-mesh" in record["compatibilitySurfaces"]
     assert "embedding-lab" in record["compatibilitySurfaces"]
 

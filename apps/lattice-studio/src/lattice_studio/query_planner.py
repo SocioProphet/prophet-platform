@@ -7,8 +7,10 @@ route, policy, catalog, memory, lab, and safety evidence.
 Architecture rule: Slash Topics and New Hope are not merely peer backends.
 Every nontrivial query is routed through a governance envelope first:
 
-1. Slash Topics provides explicit topic scope, topic pack, and memory posture.
-2. New Hope provides membrane admission and carrier/runtime policy semantics.
+1. Slash Topics provides the public query/governance surface, explicit topic scope,
+   topic pack, public adapter, future runtime alias, and memory posture.
+2. New Hope provides the internal membrane/runtime substrate and compatibility refs
+   for carrier/receptor/protocol/membrane/replay/provenance/federation semantics.
 3. Memory Mesh records scoped recall/writeback/evidence policy without storing raw
    sensitive payloads by default.
 4. Lab profiles define model/customization inputs for embeddings, NLP, image,
@@ -36,6 +38,10 @@ class QueryGovernanceEnvelope:
     topic_scope_ref: str
     topic_pack_ref: str
     membrane_ref: str
+    public_surface_ref: str
+    runtime_substrate_ref: str
+    runtime_alias_ref: str
+    compatibility_ref: str
     memory_profile_ref: str
     memory_event_ref: str
     lab_profile_refs: list[str]
@@ -47,6 +53,10 @@ class QueryGovernanceEnvelope:
             "topicScopeRef": self.topic_scope_ref,
             "topicPackRef": self.topic_pack_ref,
             "membraneRef": self.membrane_ref,
+            "publicSurfaceRef": self.public_surface_ref,
+            "runtimeSubstrateRef": self.runtime_substrate_ref,
+            "runtimeAliasRef": self.runtime_alias_ref,
+            "compatibilityRef": self.compatibility_ref,
             "memoryProfileRef": self.memory_profile_ref,
             "memoryEventRef": self.memory_event_ref,
             "labProfileRefs": self.lab_profile_refs,
@@ -126,7 +136,11 @@ class QueryRoutingDryRunPlan:
             "boundary": [
                 "dry-run-only",
                 "slash-topic-scope-required",
+                "slash-topics-public-surface-required",
                 "newhope-membrane-required",
+                "new-hope-runtime-substrate-required",
+                "new-hope-compatibility-ref-preserved",
+                "slash-topics-runtime-alias-preserved",
                 "memory-mesh-context-bound",
                 "lab-profile-bound",
                 "no-remote-query-execution",
@@ -153,11 +167,16 @@ def _digest(prefix: str, payload: dict[str, Any]) -> str:
 
 def demo_query_governance_envelope(topic: str = "/lattice/federated-query") -> QueryGovernanceEnvelope:
     payload = {"topic": topic, "membrane": "query-admission", "memory": "scoped-recall"}
+    compatibility_ref = "newhope://membranes/query-admission@0.1.0"
     return QueryGovernanceEnvelope(
         envelope_id=_digest("query-governance", payload),
         topic_scope_ref=f"slash-topic://{topic.strip('/')}",
         topic_pack_ref="slash-topics://packs/lattice-federated-query@0.1.0",
-        membrane_ref="newhope://membranes/query-admission@0.1.0",
+        membrane_ref=compatibility_ref,
+        public_surface_ref="slash-topics://surfaces/lattice-query-governance@0.1.0",
+        runtime_substrate_ref="newhope://runtime/membrane-substrate@0.1.0",
+        runtime_alias_ref="slash-topics://runtime/membranes/query-admission@0.1.0",
+        compatibility_ref=compatibility_ref,
         memory_profile_ref="memory-mesh://profiles/slash-topic-scoped-recall@0.1.0",
         memory_event_ref="memory-mesh://events/query-route-dry-run",
         lab_profile_refs=[
@@ -197,8 +216,18 @@ def _blocked_decision(request: QueryRouteRequest, reason: str) -> QueryRouteDeci
 def route_query(request: QueryRouteRequest) -> QueryRouteDecision:
     if not request.governance.topic_scope_ref.startswith("slash-topic://"):
         return _blocked_decision(request, "Missing Slash Topic scope.")
+    if not request.governance.topic_pack_ref.startswith("slash-topics://packs/"):
+        return _blocked_decision(request, "Missing Slash Topics topic pack reference.")
+    if not request.governance.public_surface_ref.startswith("slash-topics://surfaces/"):
+        return _blocked_decision(request, "Missing Slash Topics public query/governance surface reference.")
     if not request.governance.membrane_ref.startswith("newhope://membranes/"):
         return _blocked_decision(request, "Missing New Hope membrane admission reference.")
+    if not request.governance.runtime_substrate_ref.startswith("newhope://runtime/"):
+        return _blocked_decision(request, "Missing New Hope runtime substrate reference.")
+    if not request.governance.runtime_alias_ref.startswith("slash-topics://runtime/membranes/"):
+        return _blocked_decision(request, "Missing future Slash Topics runtime alias reference.")
+    if request.governance.compatibility_ref != request.governance.membrane_ref:
+        return _blocked_decision(request, "New Hope compatibility reference must match membrane admission reference.")
     if not request.governance.memory_profile_ref.startswith("memory-mesh://profiles/"):
         return _blocked_decision(request, "Missing Memory Mesh scoped memory profile.")
     if not request.governance.lab_profile_refs:
@@ -211,7 +240,7 @@ def route_query(request: QueryRouteRequest) -> QueryRouteDecision:
     backend = candidates[0]
     scope_allowed = request.catalog_scope in backend.catalog_scope or request.catalog_scope == "*"
     status: RouteDecisionStatus = "routable" if scope_allowed else "blocked"
-    reason = "Catalog scope is allowed after Slash Topics, New Hope, Memory Mesh, and lab-profile envelope checks." if scope_allowed else "Requested catalog scope is outside selected backend policy scope."
+    reason = "Catalog scope is allowed after Slash Topics public surface, New Hope runtime substrate, Memory Mesh, and lab-profile envelope checks." if scope_allowed else "Requested catalog scope is outside selected backend policy scope."
     payload = {"requestId": request.request_id, "backendId": backend.backend_id, "status": status}
     return QueryRouteDecision(
         decision_id=_digest("query-route", payload),
@@ -288,7 +317,11 @@ def query_routing_evidence(plan: QueryRoutingDryRunPlan) -> dict[str, Any]:
         "evidenceReports": [
             "dry-run-only",
             "slash-topic-scope-required",
+            "slash-topics-public-surface",
             "newhope-membrane-required",
+            "new-hope-runtime-substrate",
+            "new-hope-compatibility-preserved",
+            "slash-topics-runtime-alias",
             "memory-mesh-context-bound",
             "lab-profile-bound",
             "query-language-routing",
@@ -317,7 +350,7 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
         "assetId": plan.plan_id,
         "assetKind": "query-routing-dry-run-plan",
         "name": "lattice-studio-query-routing-dry-run-plan",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "sourceApiVersion": "studio.socioprophet.dev/v1",
         "sourceKind": "QueryRoutingDryRunPlan",
         "producerRepo": "SocioProphet/prophet-platform",
@@ -328,7 +361,11 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
             "lattice-studio",
             "federated-query",
             "query-routing-dry-run",
+            "slash-topics-public-surface",
             "slash-topics",
+            "slash-topics-runtime-alias",
+            "new-hope-runtime-substrate",
+            "new-hope-compatibility",
             "new-hope",
             "memory-mesh",
             "nlp-lab",
