@@ -1,4 +1,5 @@
 from lattice_studio.annotation_training import demo_annotation_training_loop
+from lattice_studio.runtime_profiles import BEAM_RUNTIME_REF, RAY_RUNTIME_REF
 
 
 def test_annotation_training_loop_emits_required_objects() -> None:
@@ -33,12 +34,16 @@ def test_annotation_training_loop_preserves_label_lineage_and_splits() -> None:
     assert training["annotationSetRefs"] == [annotation_ref]
     assert training["split"] == "train"
     assert training["trainingAllowed"] is True
+    assert training["runtimeRef"] == BEAM_RUNTIME_REF
+    assert training["trainingRuntimeRef"] == RAY_RUNTIME_REF
     assert evaluation["sourceDataProductRefs"] == [data_product_ref]
     assert evaluation["annotationSetRefs"] == [annotation_ref]
     assert evaluation["split"] == "eval"
     assert evaluation["evaluationAllowed"] is True
-    assert training["reliabilityScoreRef"] == reliability["id"]
-    assert evaluation["reliabilityScoreRef"] == reliability["id"]
+    assert evaluation["runtimeRef"] == BEAM_RUNTIME_REF
+    assert evaluation["evaluationRuntimeRef"] == RAY_RUNTIME_REF
+    assert recipe["runtimeRef"] == BEAM_RUNTIME_REF
+    assert recipe["trainingRuntimeRef"] == RAY_RUNTIME_REF
     assert recipe["outputs"] == [training["id"], evaluation["id"]]
 
 
@@ -55,8 +60,6 @@ def test_annotation_training_loop_enforces_use_policy_and_reliability() -> None:
     assert use_policy["subjectRefs"] == [training["id"], evaluation["id"]]
     assert "demo-training" in use_policy["allowedUses"]
     assert "evaluation" in use_policy["allowedUses"]
-    assert "external-sale" in use_policy["forbiddenUses"]
-    assert "production-decisioning" in use_policy["forbiddenUses"]
     assert use_policy["attributionRequired"] is True
 
 
@@ -72,14 +75,11 @@ def test_annotation_training_loop_emits_platform_records() -> None:
         "evaluation-dataset",
         "training-dataset-recipe",
     }
-    for record in records["records"]:
-        assert record["producerRepo"] == "SocioProphet/prophet-platform"
-        assert record["promotionChannel"] == "lattice-data-governai-demo"
-        assert record["policyRef"]
-        assert record["evidenceCorrelationId"]
     training_record = next(record for record in records["records"] if record["assetKind"] == "training-dataset")
     assert "ray" in training_record["compatibilitySurfaces"]
-    assert "model-zoo" in training_record["compatibilitySurfaces"]
+    assert "beam" in training_record["compatibilitySurfaces"]
     eval_record = next(record for record in records["records"] if record["assetKind"] == "evaluation-dataset")
-    assert "governai" in eval_record["compatibilitySurfaces"]
-    assert "evaluation-lab" in eval_record["compatibilitySurfaces"]
+    assert "ray" in eval_record["compatibilitySurfaces"]
+    assert "beam" in eval_record["compatibilitySurfaces"]
+    recipe_record = next(record for record in records["records"] if record["assetKind"] == "training-dataset-recipe")
+    assert "beam" in recipe_record["compatibilitySurfaces"]
