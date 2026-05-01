@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .annotation_training import demo_annotation_training_loop
 from .model_zoo import demo_model_zoo_entry
 from .platform_records import platform_record_set
 from .product_spine import demo_product_spine
@@ -19,12 +20,14 @@ from .publication_review import demo_publication_review_package
 
 def demo_active_metadata_spine() -> dict[str, Any]:
     product_spine = demo_product_spine()
+    annotation_training = demo_annotation_training_loop()
     model_zoo = demo_model_zoo_entry()
     prompt_rag = demo_prompt_rag_eval_lab()
     publication_review = demo_publication_review_package()
 
     source_sets = [
         ("product-spine", product_spine["platformRecords"]["records"]),
+        ("annotation-training", annotation_training["platformRecords"]["records"]),
         ("model-zoo", model_zoo["platformRecords"]["records"]),
         ("prompt-rag-eval", prompt_rag["platformRecords"]["records"]),
         ("publication-review", publication_review["platformRecords"]["records"]),
