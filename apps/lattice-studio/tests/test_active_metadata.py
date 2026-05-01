@@ -7,6 +7,7 @@ def test_active_metadata_spine_emits_events_from_all_product_surfaces() -> None:
     assert fixture["kind"] == "LatticeActiveMetadataFixture"
     assert set(fixture["sourceSurfaces"]) == {
         "product-spine",
+        "annotation-training",
         "model-zoo",
         "prompt-rag-eval",
         "publication-review",
@@ -34,6 +35,9 @@ def test_active_metadata_spine_covers_core_asset_kinds() -> None:
     assert "prompt-asset" in kinds
     assert "research-package" in kinds
     assert "reproduction-attempt" in kinds
+    assert "training-dataset" in kinds
+    assert "evaluation-dataset" in kinds
+    assert "annotation-reliability-score" in kinds
 
 
 def test_active_metadata_enrichment_records_route_to_downstream_consumers() -> None:
