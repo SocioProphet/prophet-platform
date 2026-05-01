@@ -83,7 +83,9 @@ def test_query_routing_blocks_when_governance_envelope_is_missing_memory_profile
         envelope_id=envelope.envelope_id,
         topic_scope_ref=envelope.topic_scope_ref,
         topic_pack_ref=envelope.topic_pack_ref,
+        public_surface_ref=envelope.public_surface_ref,
         membrane_ref=envelope.membrane_ref,
+        runtime_substrate_ref=envelope.runtime_substrate_ref,
         memory_profile_ref="",
         memory_event_ref=envelope.memory_event_ref,
         lab_profile_refs=envelope.lab_profile_refs,
@@ -124,6 +126,28 @@ def test_query_routing_dry_run_preserves_no_execution_boundary() -> None:
     assert "no-topic-pack-read" in boundary
     assert "no-newhope-runtime-call" in boundary
     assert "no-lampstand-rpc-call" in boundary
+
+
+def test_query_routing_governance_envelope_public_surface_and_runtime_substrate_split() -> None:
+    plan = demo_query_routing_dry_run_plan()
+    doc = plan.to_dict()
+
+    for request in doc["requests"]:
+        envelope = request["governanceEnvelope"]
+        assert envelope["publicSurfaceRef"].startswith("slash-topics://")
+        assert "public-surface" in envelope["publicSurfaceRef"]
+        assert envelope["runtimeSubstrateRef"].startswith("new-hope://")
+        assert "runtime-substrate" in envelope["runtimeSubstrateRef"]
+
+    evidence = query_routing_evidence(plan)
+    assert "slash-topics-public-surface" in evidence["evidenceReports"]
+    assert "new-hope-runtime-substrate" in evidence["evidenceReports"]
+
+    record = query_routing_to_platform_record(plan)
+    assert "slash-topics-public-surface" in record["compatibilitySurfaces"]
+    assert "slash-topics-runtime-alias" in record["compatibilitySurfaces"]
+    assert "new-hope-runtime-substrate" in record["compatibilitySurfaces"]
+    assert "new-hope" in record["compatibilitySurfaces"]
 
 
 def test_query_routing_evidence_and_platform_record() -> None:

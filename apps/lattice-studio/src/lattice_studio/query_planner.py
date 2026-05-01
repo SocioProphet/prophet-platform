@@ -35,7 +35,9 @@ class QueryGovernanceEnvelope:
     envelope_id: str
     topic_scope_ref: str
     topic_pack_ref: str
+    public_surface_ref: str
     membrane_ref: str
+    runtime_substrate_ref: str
     memory_profile_ref: str
     memory_event_ref: str
     lab_profile_refs: list[str]
@@ -46,7 +48,9 @@ class QueryGovernanceEnvelope:
             "envelopeId": self.envelope_id,
             "topicScopeRef": self.topic_scope_ref,
             "topicPackRef": self.topic_pack_ref,
+            "publicSurfaceRef": self.public_surface_ref,
             "membraneRef": self.membrane_ref,
+            "runtimeSubstrateRef": self.runtime_substrate_ref,
             "memoryProfileRef": self.memory_profile_ref,
             "memoryEventRef": self.memory_event_ref,
             "labProfileRefs": self.lab_profile_refs,
@@ -157,7 +161,9 @@ def demo_query_governance_envelope(topic: str = "/lattice/federated-query") -> Q
         envelope_id=_digest("query-governance", payload),
         topic_scope_ref=f"slash-topic://{topic.strip('/')}",
         topic_pack_ref="slash-topics://packs/lattice-federated-query@0.1.0",
+        public_surface_ref="slash-topics://public-surface",
         membrane_ref="newhope://membranes/query-admission@0.1.0",
+        runtime_substrate_ref="new-hope://runtime-substrate",
         memory_profile_ref="memory-mesh://profiles/slash-topic-scoped-recall@0.1.0",
         memory_event_ref="memory-mesh://events/query-route-dry-run",
         lab_profile_refs=[
@@ -289,6 +295,8 @@ def query_routing_evidence(plan: QueryRoutingDryRunPlan) -> dict[str, Any]:
             "dry-run-only",
             "slash-topic-scope-required",
             "newhope-membrane-required",
+            "slash-topics-public-surface",
+            "new-hope-runtime-substrate",
             "memory-mesh-context-bound",
             "lab-profile-bound",
             "query-language-routing",
@@ -329,7 +337,10 @@ def query_routing_to_platform_record(plan: QueryRoutingDryRunPlan) -> dict[str, 
             "federated-query",
             "query-routing-dry-run",
             "slash-topics",
+            "slash-topics-public-surface",
+            "slash-topics-runtime-alias",
             "new-hope",
+            "new-hope-runtime-substrate",
             "memory-mesh",
             "nlp-lab",
             "embedding-lab",
