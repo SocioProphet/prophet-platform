@@ -12,15 +12,16 @@ from typing import Any
 
 from .platform_records import platform_record_set
 from .product_spine import demo_product_spine
+from .runtime_profiles import BEAM_RUNTIME_REF, RAY_RUNTIME_REF
 
 
 def demo_prompt_rag_eval_lab() -> dict[str, Any]:
     spine = demo_product_spine()
     data_product = spine["dataProduct"]
-    runtime = spine["runtimeAsset"]
     publication = spine["publicationArtifact"]
 
-    runtime_ref = "runtime-asset:prophet-python-ml:0.1.0"
+    retrieval_runtime_ref = BEAM_RUNTIME_REF
+    evaluation_runtime_ref = RAY_RUNTIME_REF
     prompt_ref = "urn:srcos:prompt:community_truth_demo_grounding"
     corpus_ref = "urn:srcos:retrieval-corpus:community_truth_demo"
     vector_index_ref = "urn:srcos:vector-index:community_truth_demo"
@@ -69,7 +70,7 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "chunkingPolicyRef": chunking_policy["id"],
         "embeddingModelRef": "urn:srcos:model:embedding-fixture-001",
         "dimension": 384,
-        "runtimeRef": runtime_ref,
+        "runtimeRef": retrieval_runtime_ref,
         "evidenceRef": "urn:srcos:evidence:community_truth_demo_embeddings",
     }
     vector_index = {
@@ -80,6 +81,7 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "indexKind": "hnsw-fixture",
         "metric": "cosine",
         "state": "candidate",
+        "runtimeRef": retrieval_runtime_ref,
         "policyRef": "urn:srcos:policy:vector-index-community-truth-demo",
         "evidenceRef": "urn:srcos:evidence:community_truth_demo_vector_index",
     }
@@ -91,7 +93,8 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "retrievalCorpusRef": corpus_ref,
         "vectorIndexRef": vector_index_ref,
         "chunkingPolicyRef": chunking_policy["id"],
-        "runtimeRef": runtime_ref,
+        "runtimeRef": evaluation_runtime_ref,
+        "retrievalRuntimeRef": retrieval_runtime_ref,
         "dataProductRefs": [data_product["id"]],
         "policyRef": "urn:srcos:policy:rag-community-truth-demo",
         "evidenceRef": "urn:srcos:evidence:community_truth_demo_rag_pipeline",
@@ -130,7 +133,7 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "id": "urn:srcos:tuning-run:community_truth_demo_prompt_v001",
         "promptRef": prompt_ref,
         "trainingDatasetRef": "urn:srcos:dataset:community_truth_demo_training",
-        "runtimeRef": runtime_ref,
+        "runtimeRef": evaluation_runtime_ref,
         "state": "dry-run-candidate",
         "policyRef": "urn:srcos:policy:tuning-community-truth-demo",
     }
@@ -141,7 +144,7 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "subjectRef": rag_ref,
         "benchmarkDatasetRef": benchmark_dataset["id"],
         "evaluationBundleRef": eval_ref,
-        "runtimeRef": runtime_ref,
+        "runtimeRef": evaluation_runtime_ref,
         "state": "needs-review",
     }
     human_review_rubric = {
@@ -177,7 +180,8 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
         "subjectRef": rag_ref,
         "evaluationKind": "rag",
         "inputRefs": [data_product["id"], corpus_ref, vector_index_ref, benchmark_dataset["id"]],
-        "runtimeRef": runtime_ref,
+        "runtimeRef": evaluation_runtime_ref,
+        "retrievalRuntimeRef": retrieval_runtime_ref,
         "metrics": grounding_evaluation["metrics"],
         "verdict": "needs-review",
         "riskTier": "medium",
@@ -203,9 +207,9 @@ def demo_prompt_rag_eval_lab() -> dict[str, Any]:
 
     records = platform_record_set([
         _platform_record(prompt_ref, "prompt-asset", "Community Truth Grounding Prompt", "PromptAsset", prompt_asset["policyRef"], prompt_asset["evidenceRef"], ["lattice-studio", "prompt-lab", "sherlock-search", "slash-topics", "policy-fabric"]),
-        _platform_record(rag_ref, "rag-pipeline", "Community Truth Grounded RAG", "RAGPipeline", rag_pipeline["policyRef"], rag_pipeline["evidenceRef"], ["lattice-studio", "rag-lab", "new-hope", "policy-fabric", "agentplane"]),
-        _platform_record(vector_index_ref, "vector-index", "Community Truth Vector Index", "VectorIndex", vector_index["policyRef"], vector_index["evidenceRef"], ["lattice-studio", "rag-lab", "sherlock-search"]),
-        _platform_record(eval_ref, "evaluation-bundle", "Community Truth RAG Evaluation", "EvaluationBundle", evaluation_bundle["policyRef"], grounding_evaluation["evidenceRef"], ["governai", "rag-lab", "policy-fabric", "new-hope"]),
+        _platform_record(rag_ref, "rag-pipeline", "Community Truth Grounded RAG", "RAGPipeline", rag_pipeline["policyRef"], rag_pipeline["evidenceRef"], ["lattice-studio", "rag-lab", "ray", "beam", "new-hope", "policy-fabric", "agentplane"]),
+        _platform_record(vector_index_ref, "vector-index", "Community Truth Vector Index", "VectorIndex", vector_index["policyRef"], vector_index["evidenceRef"], ["lattice-studio", "rag-lab", "beam", "sherlock-search"]),
+        _platform_record(eval_ref, "evaluation-bundle", "Community Truth RAG Evaluation", "EvaluationBundle", evaluation_bundle["policyRef"], grounding_evaluation["evidenceRef"], ["governai", "rag-lab", "ray", "policy-fabric", "new-hope"]),
         _platform_record(prompt_factsheet["id"], "prompt-factsheet", "Community Truth RAG Factsheet", "Factsheet", grounding_evaluation["policyRef"], grounding_evaluation["evidenceRef"], ["governai", "prompt-lab", "new-hope"]),
     ])
 
