@@ -12,12 +12,12 @@ from typing import Any
 
 from .platform_records import platform_record_set
 from .product_spine import demo_product_spine
+from .runtime_profiles import RAY_RUNTIME_REF
 
 
 def demo_model_zoo_entry() -> dict[str, Any]:
     spine = demo_product_spine()
     data_product = spine["dataProduct"]
-    runtime = spine["runtimeAsset"]
     evaluation = spine["evaluationBundle"]
     factsheet = spine["factsheet"]
 
@@ -35,7 +35,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
         "ownerRef": "urn:srcos:community:lattice-demo",
         "trainingDataRefs": ["urn:srcos:dataset:community_truth_demo_training", data_product["id"]],
         "evaluationDataRefs": ["urn:srcos:dataset:community_truth_demo_evaluation"],
-        "runtimeRef": runtime["metadata"]["name"] + ":" + runtime["metadata"]["version"],
+        "runtimeRef": RAY_RUNTIME_REF,
         "factsheetRef": factsheet["id"],
         "evaluationRefs": [evaluation["id"]],
         "limitations": ["Synthetic demo fixture only", "Not approved for production use"],
@@ -45,7 +45,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
         "kind": "ModelRuntimeProfile",
         "id": "urn:srcos:model-runtime-profile:community_truth_demo_candidate",
         "modelRef": model_ref,
-        "runtimeAssetRef": "runtime-asset:prophet-python-ml:0.1.0",
+        "runtimeAssetRef": RAY_RUNTIME_REF,
         "servingBackends": ["ray-serve", "kserve", "seldon-core"],
         "defaultServingBackend": "ray-serve",
         "executionMode": "dry-run",
@@ -59,6 +59,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
         "servingBackend": "ray-serve",
         "route": "/models/community-truth-demo-candidate",
         "state": "candidate-dry-run",
+        "runtimeAssetRef": RAY_RUNTIME_REF,
         "policyRef": "urn:srcos:policy:model-endpoint-community-truth-demo",
     }
     use_policy = {
@@ -83,6 +84,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
         "trainingDatasetRefs": ["urn:srcos:dataset:community_truth_demo_training"],
         "evaluationDatasetRefs": ["urn:srcos:dataset:community_truth_demo_evaluation"],
         "runtimeProfileRef": runtime_profile["id"],
+        "runtimeAssetRef": RAY_RUNTIME_REF,
         "endpointRef": endpoint_ref,
         "modelCardRef": model_card["id"],
         "factsheetRef": factsheet["id"],
@@ -106,7 +108,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
             "policyRef": use_policy["policyRef"],
             "evidenceCorrelationId": "urn:srcos:evidence:community_truth_demo_model_eval",
             "promotionChannel": "lattice-data-governai-demo",
-            "compatibilitySurfaces": ["lattice-studio", "model-zoo", "sherlock-search", "slash-topics", "policy-fabric", "agentplane"],
+            "compatibilitySurfaces": ["lattice-studio", "model-zoo", "ray", "sherlock-search", "slash-topics", "policy-fabric", "agentplane"],
         },
         {
             "apiVersion": "prophet.socioprophet.dev/v1",
@@ -121,7 +123,7 @@ def demo_model_zoo_entry() -> dict[str, Any]:
             "policyRef": endpoint["policyRef"],
             "evidenceCorrelationId": "urn:srcos:evidence:community_truth_demo_model_endpoint",
             "promotionChannel": "lattice-data-governai-demo",
-            "compatibilitySurfaces": ["model-zoo", "ray-serve", "kserve", "seldon-core", "policy-fabric"],
+            "compatibilitySurfaces": ["model-zoo", "ray", "ray-serve", "kserve", "seldon-core", "policy-fabric"],
         },
     ])
     return {
