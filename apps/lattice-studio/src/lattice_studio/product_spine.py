@@ -44,13 +44,19 @@ def _record(asset_id: str, asset_kind: str, name: str, source_kind: str, policy_
 
 def demo_runtime_asset() -> dict[str, Any]:
     return {
-        "apiVersion": "forge.socioprophet.dev/v1",
+        "apiVersion": "lattice.socioprophet.dev/v1",
         "kind": "RuntimeAsset",
-        "runtimeAssetId": "runtime-asset:prophet-python-ml:0.1.0",
-        "name": "prophet-python-ml",
-        "version": "0.1.0",
-        "kernel": {"name": "prophet-python-ml-0.1.0"},
-        "policyRef": "policy://runtime/prophet-python-ml-demo",
+        "metadata": {
+            "name": "prophet-python-ml",
+            "version": "0.1.0",
+            "createdAt": "2026-05-01T19:00:00Z",
+        },
+        "spec": {
+            "runtimeClass": "notebook",
+            "languages": ["python", "sql"],
+            "policy": {"network": "restricted", "secrets": "scoped", "defaultIsolation": "container"},
+            "compatibility": {"surfaces": ["jupyter", "jupyterlab", "lattice-studio", "ray", "beam", "agentplane"]},
+        },
         "evidenceRef": "urn:srcos:evidence:runtime-prophet-python-ml-demo",
     }
 
