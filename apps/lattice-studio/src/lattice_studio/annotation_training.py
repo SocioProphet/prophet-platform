@@ -11,13 +11,15 @@ from typing import Any
 
 from .platform_records import platform_record_set
 from .product_spine import demo_product_spine
+from .runtime_profiles import BEAM_RUNTIME_REF, RAY_RUNTIME_REF
 
 
 def demo_annotation_training_loop() -> dict[str, Any]:
     spine = demo_product_spine()
     data_product = spine["dataProduct"]
     annotation_set = spine["annotationSet"]
-    runtime_ref = "runtime-asset:prophet-python-ml:0.1.0"
+    build_runtime_ref = BEAM_RUNTIME_REF
+    training_runtime_ref = RAY_RUNTIME_REF
 
     labeling_project = {
         "apiVersion": "studio.socioprophet.dev/v1",
@@ -58,7 +60,8 @@ def demo_annotation_training_loop() -> dict[str, Any]:
         "records": 128,
         "licensePolicyRef": data_product["licensePolicyRef"],
         "trainingAllowed": True,
-        "runtimeRef": runtime_ref,
+        "runtimeRef": build_runtime_ref,
+        "trainingRuntimeRef": training_runtime_ref,
         "qualityProfileRef": data_product["qualityProfileRef"],
         "reliabilityScoreRef": annotation_reliability["id"],
         "policyRef": "urn:srcos:policy:training-dataset-community-truth-demo",
@@ -75,7 +78,8 @@ def demo_annotation_training_loop() -> dict[str, Any]:
         "records": 32,
         "licensePolicyRef": data_product["licensePolicyRef"],
         "evaluationAllowed": True,
-        "runtimeRef": runtime_ref,
+        "runtimeRef": build_runtime_ref,
+        "evaluationRuntimeRef": training_runtime_ref,
         "qualityProfileRef": data_product["qualityProfileRef"],
         "reliabilityScoreRef": annotation_reliability["id"],
         "policyRef": "urn:srcos:policy:evaluation-dataset-community-truth-demo",
@@ -95,7 +99,8 @@ def demo_annotation_training_loop() -> dict[str, Any]:
             "emit-dataset-evidence",
         ],
         "policyRef": "urn:srcos:policy:annotation-training-demo",
-        "runtimeRef": runtime_ref,
+        "runtimeRef": build_runtime_ref,
+        "trainingRuntimeRef": training_runtime_ref,
     }
     consent_use = {
         "apiVersion": "studio.socioprophet.dev/v1",
@@ -111,9 +116,9 @@ def demo_annotation_training_loop() -> dict[str, Any]:
     records = platform_record_set([
         _record(labeling_project["id"], "labeling-project", labeling_project["name"], "LabelingProject", labeling_project["policyRef"], labeling_project["evidenceRef"], ["lattice-studio", "annotation-lab", "policy-fabric"]),
         _record(annotation_reliability["id"], "annotation-reliability-score", "Community Truth Annotation Reliability", "AnnotationReliabilityScore", labeling_project["policyRef"], annotation_reliability["evidenceRefs"][0], ["lattice-studio", "governai", "sherlock-search"]),
-        _record(training_dataset["id"], "training-dataset", "Community Truth Training Dataset", "TrainingDataset", training_dataset["policyRef"], training_dataset["evidenceRef"], ["lattice-studio", "model-zoo", "ray", "policy-fabric", "sherlock-search"]),
-        _record(evaluation_dataset["id"], "evaluation-dataset", "Community Truth Evaluation Dataset", "EvaluationDataset", evaluation_dataset["policyRef"], evaluation_dataset["evidenceRef"], ["lattice-studio", "governai", "evaluation-lab", "policy-fabric", "sherlock-search"]),
-        _record(training_recipe["id"], "training-dataset-recipe", "Community Truth Training Dataset Recipe", "TrainingDatasetRecipe", training_recipe["policyRef"], training_dataset["evidenceRef"], ["lattice-studio", "reproducibility", "agentplane"]),
+        _record(training_dataset["id"], "training-dataset", "Community Truth Training Dataset", "TrainingDataset", training_dataset["policyRef"], training_dataset["evidenceRef"], ["lattice-studio", "model-zoo", "ray", "beam", "policy-fabric", "sherlock-search"]),
+        _record(evaluation_dataset["id"], "evaluation-dataset", "Community Truth Evaluation Dataset", "EvaluationDataset", evaluation_dataset["policyRef"], evaluation_dataset["evidenceRef"], ["lattice-studio", "governai", "evaluation-lab", "ray", "beam", "policy-fabric", "sherlock-search"]),
+        _record(training_recipe["id"], "training-dataset-recipe", "Community Truth Training Dataset Recipe", "TrainingDatasetRecipe", training_recipe["policyRef"], training_dataset["evidenceRef"], ["lattice-studio", "reproducibility", "beam", "agentplane"]),
     ])
 
     return {
