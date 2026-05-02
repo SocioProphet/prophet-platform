@@ -43,6 +43,11 @@ class OSMArtifactRepository:
             / "registry/gaia-ofif-meshlab-capability-map.v1.json"
         )
 
+    @property
+    def gaia_layer_manifest_candidate_path(self) -> Path:
+        root = self.settings.gaia_layer_catalog_root or Path(__file__).resolve().parents[1]
+        return root / "fixtures/geospatial/osm-layer-manifest-candidate.v1.json"
+
     def readiness_errors(self) -> list[str]:
         errors = list(self.settings.missing_roots())
         for path in [
@@ -51,6 +56,7 @@ class OSMArtifactRepository:
             self.osm_route_graph_path,
             self.sherlock_osm_result_path,
             self.sociosphere_capability_map_path,
+            self.gaia_layer_manifest_candidate_path,
         ]:
             if not path.exists():
                 errors.append(f"missing artifact: {path}")
@@ -187,4 +193,41 @@ class OSMArtifactRepository:
             "source": "SocioProphet/sociosphere:registry/gaia-ofif-meshlab-capability-map.v1.json",
             "attribution_required": True,
             "unresolved_blockers": [],
+        }
+
+    def gaia_layer_manifest_candidate(self) -> dict[str, Any]:
+        artifact = self._load_json(self.gaia_layer_manifest_candidate_path)
+        self._assert_attribution(artifact)
+        return artifact
+
+    def gaia_layers(self) -> list[dict[str, Any]]:
+        """Return all GAIA layer catalog entries (fixture-backed)."""
+        return [self.gaia_layer_manifest_candidate()]
+
+    def gaia_layer(self, layer_id: str) -> dict[str, Any] | None:
+        """Return a specific GAIA layer by ID, or None if not found."""
+        manifest = self.gaia_layer_manifest_candidate()
+        if manifest.get("layer_id") == layer_id:
+            return manifest
+        return None
+
+    def gaia_tile_manifest(self, layer_id: str) -> dict[str, Any] | None:
+        """Return the tile manifest for a GAIA layer by ID, or None if not found."""
+        manifest = self.gaia_layer_manifest_candidate()
+        if manifest.get("layer_id") != layer_id:
+            return None
+        tiles = manifest.get("tiles", {})
+        return {
+            "layer_id": layer_id,
+            "tiles": tiles,
+            "spatial": manifest.get("spatial", {}),
+            "attribution": manifest.get("attribution", {}),
+            "production_tile_serving": manifest.get("production_tile_serving", False),
+            "tile_serving_note": manifest.get(
+                "tile_serving_note",
+                "Fixture-backed placeholder. Not production tile serving.",
+            ),
+            "provenance": manifest.get("provenance", {}),
+            "classification": manifest.get("classification", {}),
+            "status": manifest.get("status", {}),
         }

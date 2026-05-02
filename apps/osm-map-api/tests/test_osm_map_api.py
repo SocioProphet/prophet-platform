@@ -15,10 +15,11 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, indent=2), encoding="utf-8")
 
 
-def make_fixture_roots(tmp_path: Path) -> tuple[Path, Path, Path]:
+def make_fixture_roots(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     gaia = tmp_path / "gaia-world-model"
     sherlock = tmp_path / "sherlock-search"
     sociosphere = tmp_path / "sociosphere"
+    catalog = tmp_path / "gaia-layer-catalog"
 
     feature = {
         "binding_version": "v1",
@@ -109,26 +110,75 @@ def make_fixture_roots(tmp_path: Path) -> tuple[Path, Path, Path]:
         ],
     }
 
+    layer_manifest_candidate = {
+        "manifest_version": "v1",
+        "manifest_kind": "osm-layer-manifest-candidate",
+        "layer_id": "gaia-osm-bounded-road-layer-v1",
+        "layer_type": "vector",
+        "title": "GAIA OSM Bounded Road Layer (Ingest Candidate)",
+        "production_tile_serving": False,
+        "tile_serving_note": "Fixture-backed placeholder. Not production tile serving.",
+        "sources": [{"source_id": "osm-bounded-ingest-demo", "source_type": "OpenStreetMap bounded extract"}],
+        "tiles": {
+            "url_template": "https://tiles.example.invalid/{z}/{x}/{y}.mvt",
+            "format": "mvt",
+            "min_zoom": 10,
+            "max_zoom": 16,
+            "note": "Placeholder MVT template. Not production tile serving.",
+        },
+        "spatial": {
+            "bbox": [-74.012, 40.705, -73.998, 40.718],
+            "crs": "EPSG:4326",
+            "h3_cells": ["8928308280fffff", "8928308281fffff"],
+        },
+        "attribution": {
+            "attribution_text": "© OpenStreetMap contributors",
+            "license_refs": ["ODbL-1.0"],
+            "source_urls": ["https://www.openstreetmap.org"],
+            "attribution_required": True,
+        },
+        "provenance": {
+            "source_refs": ["osm-feature-bindings.v1.json", "osm-source-receipt.v1.json"],
+            "ingest_runner_ref": "gaia-world-model#17",
+            "fixture_input_digest": "sha256:placeholder-bounded-ingest-input-digest-v1",
+        },
+        "classification": {
+            "data_class": "public",
+            "handling_tags": ["demo", "osm", "bounded-ingest", "fixture-backed"],
+            "advisory_classification": "OSM-derived data is advisory.",
+        },
+        "status": {
+            "freshness": "fresh",
+            "generated_at": "2026-01-01T00:00:00Z",
+            "stale_after": "2026-12-31T23:59:59Z",
+        },
+    }
+
     write_json(gaia / "fixtures/geospatial/osm-road-feature-binding.sample.v1.json", feature)
     write_json(gaia / "fixtures/geospatial/osm-derived-map-tile-layer.sample.v1.json", layer)
     write_json(gaia / "fixtures/geospatial/osm-route-graph.sample.v1.json", route_graph)
     write_json(sherlock / "examples/gaia-osm-derived-road-layer.sherlock-result.v1.json", search_result)
     write_json(sociosphere / "registry/gaia-ofif-meshlab-capability-map.v1.json", capability_map)
-    return gaia, sherlock, sociosphere
+    write_json(
+        catalog / "fixtures/geospatial/osm-layer-manifest-candidate.v1.json",
+        layer_manifest_candidate,
+    )
+    return gaia, sherlock, sociosphere, catalog
 
 
-def settings_for_roots(gaia: Path, sherlock: Path, sociosphere: Path, **kwargs) -> Settings:
+def settings_for_roots(gaia: Path, sherlock: Path, sociosphere: Path, catalog: Path, **kwargs) -> Settings:
     return Settings(
         gaia_fixture_root=gaia,
         sherlock_fixture_root=sherlock,
         sociosphere_fixture_root=sociosphere,
+        gaia_layer_catalog_root=catalog,
         **kwargs,
     )
 
 
 def make_client(tmp_path: Path, **settings_kwargs) -> TestClient:
-    gaia, sherlock, sociosphere = make_fixture_roots(tmp_path)
-    app = create_app(settings_for_roots(gaia, sherlock, sociosphere, **settings_kwargs))
+    gaia, sherlock, sociosphere, catalog = make_fixture_roots(tmp_path)
+    app = create_app(settings_for_roots(gaia, sherlock, sociosphere, catalog, **settings_kwargs))
     return TestClient(app)
 
 
@@ -350,3 +400,89 @@ def test_staging_cors_rejects_unconfigured_origin(tmp_path: Path) -> None:
     )
     assert preflight.status_code == 400
     assert "access-control-allow-origin" not in preflight.headers
+
+
+# ---------------------------------------------------------------------------
+# GAIA layer catalog endpoint tests
+# ---------------------------------------------------------------------------
+
+
+def test_gaia_layer_catalog_returns_bounded_osm_layer(tmp_path: Path) -> None:
+    """GET /gaia/layers returns the bounded OSM ingest manifest candidate."""
+    client = make_client(tmp_path)
+    response = client.get("/gaia/layers")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["production_tile_serving"] is False
+    assert "catalog_note" in payload
+    layers = payload["layers"]
+    assert len(layers) >= 1
+    layer = layers[0]
+    assert layer["layer_id"] == "gaia-osm-bounded-road-layer-v1"
+    assert layer["layer_type"] == "vector"
+    assert layer["manifest_kind"] == "osm-layer-manifest-candidate"
+    assert_receipt(payload["response_receipt"], response_kind="gaia-layer-catalog")
+    assert_receipt(layer["response_receipt"], response_kind="gaia-layer")
+
+
+def test_gaia_layer_detail_returns_attribution_provenance_classification(tmp_path: Path) -> None:
+    """GET /gaia/layers/{layer_id} exposes attribution, provenance, and classification."""
+    client = make_client(tmp_path)
+    response = client.get("/gaia/layers/gaia-osm-bounded-road-layer-v1")
+    assert response.status_code == 200
+    layer = response.json()
+    # Attribution
+    assert layer["attribution"]["attribution_text"] == "© OpenStreetMap contributors"
+    assert "ODbL-1.0" in layer["attribution"]["license_refs"]
+    assert layer["attribution"]["attribution_required"] is True
+    # Provenance
+    assert "osm-feature-bindings.v1.json" in layer["provenance"]["source_refs"]
+    assert layer["provenance"]["ingest_runner_ref"] == "gaia-world-model#17"
+    assert layer["provenance"]["fixture_input_digest"].startswith("sha256:")
+    # Classification
+    assert "fixture-backed" in layer["classification"]["handling_tags"]
+    assert "osm" in layer["classification"]["handling_tags"]
+    # Spatial / H3
+    assert "8928308280fffff" in layer["spatial"]["h3_cells"]
+    assert "bbox" in layer["spatial"]
+    # Freshness
+    assert layer["status"]["freshness"] == "fresh"
+    assert_receipt(layer["response_receipt"], response_kind="gaia-layer")
+
+
+def test_gaia_tile_manifest_returns_placeholder_mvt_url(tmp_path: Path) -> None:
+    """GET /gaia/tile-manifests/{layer_id} returns non-production MVT placeholder."""
+    client = make_client(tmp_path)
+    response = client.get("/gaia/tile-manifests/gaia-osm-bounded-road-layer-v1")
+    assert response.status_code == 200
+    manifest = response.json()
+    assert manifest["production_tile_serving"] is False
+    assert "Not production tile serving" in manifest["tile_serving_note"]
+    tiles = manifest["tiles"]
+    assert "{z}" in tiles["url_template"]
+    assert "{x}" in tiles["url_template"]
+    assert "{y}" in tiles["url_template"]
+    assert tiles["format"] == "mvt"
+    assert tiles["url_template"].endswith(".mvt")
+    # Ensure the placeholder URL does not claim a real endpoint
+    assert ".invalid" in tiles["url_template"] or "example" in tiles["url_template"]
+    assert_receipt(manifest["response_receipt"], response_kind="gaia-tile-manifest")
+
+
+def test_gaia_unknown_layer_returns_404(tmp_path: Path) -> None:
+    """Unknown layer_id returns a controlled 404 from /gaia/layers and /gaia/tile-manifests."""
+    client = make_client(tmp_path)
+    layer_response = client.get("/gaia/layers/does-not-exist")
+    assert layer_response.status_code == 404
+    assert "not found" in layer_response.json()["detail"].lower()
+
+    tile_response = client.get("/gaia/tile-manifests/does-not-exist")
+    assert tile_response.status_code == 404
+    assert "not found" in tile_response.json()["detail"].lower()
+
+
+def test_health_readiness_green_with_gaia_catalog(tmp_path: Path) -> None:
+    """Health and readiness remain green when GAIA catalog root is configured."""
+    client = make_client(tmp_path)
+    assert client.get("/healthz").json() == {"status": "ok"}
+    assert client.get("/readyz").json() == {"status": "ready"}

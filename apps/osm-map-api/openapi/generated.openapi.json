@@ -160,6 +160,120 @@
         ]
       }
     },
+    "/gaia/layers": {
+      "get": {
+        "description": "GAIA layer catalog \u2014 fixture-backed bounded OSM ingest manifests.\n\nReturns fixture-backed GAIA layer metadata with attribution and provenance.\nThis is not production tile serving.",
+        "operationId": "gaia_layers_gaia_layers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Gaia Layers Gaia Layers Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Gaia Layers",
+        "tags": [
+          "gaia"
+        ]
+      }
+    },
+    "/gaia/layers/{layer_id}": {
+      "get": {
+        "description": "GAIA layer detail \u2014 attribution, provenance, and classification.\n\nReturns the full GAIA layer manifest for the given layer_id.\nThis is not production tile serving.",
+        "operationId": "gaia_layer_gaia_layers__layer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layer_id",
+            "required": true,
+            "schema": {
+              "title": "Layer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Gaia Layer Gaia Layers  Layer Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Gaia Layer",
+        "tags": [
+          "gaia"
+        ]
+      }
+    },
+    "/gaia/tile-manifests/{layer_id}": {
+      "get": {
+        "description": "GAIA tile manifest \u2014 placeholder MVT URL template (non-production).\n\nReturns the tile manifest for the given layer_id with a placeholder MVT URL.\nThis is NOT production tile serving. The url_template is non-functional.",
+        "operationId": "gaia_tile_manifest_gaia_tile_manifests__layer_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "layer_id",
+            "required": true,
+            "schema": {
+              "title": "Layer Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Gaia Tile Manifest Gaia Tile Manifests  Layer Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Gaia Tile Manifest",
+        "tags": [
+          "gaia"
+        ]
+      }
+    },
     "/governance/osm": {
       "get": {
         "operationId": "governance_osm_governance_osm_get",

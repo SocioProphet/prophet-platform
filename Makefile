@@ -123,6 +123,8 @@ test-python-apps:
 	cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
 	cd apps/semantic-bridge && test -d .venv || python3 -m venv .venv
 	cd apps/semantic-bridge && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
+	cd apps/osm-map-api && test -d .venv || python3 -m venv .venv
+	cd apps/osm-map-api && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -e ".[test]" && pytest -q tests
 
 test-tools:
 	test -d .venv-tools || python3 -m venv .venv-tools

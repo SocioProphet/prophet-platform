@@ -144,6 +144,56 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result["response_receipt"] = response_receipt("sherlock-osm-result", [result])
         return result
 
+    @app.get("/gaia/layers", tags=["gaia"])
+    def gaia_layers(request: Request) -> dict[str, Any]:
+        """GAIA layer catalog — fixture-backed bounded OSM ingest manifests.
+
+        Returns fixture-backed GAIA layer metadata with attribution and provenance.
+        This is not production tile serving.
+        """
+        try:
+            layers = repository(request).gaia_layers()
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {
+            "layers": [with_artifact_receipt("gaia-layer", layer) for layer in layers],
+            "production_tile_serving": False,
+            "catalog_note": "Fixture-backed GAIA layer catalog. Not production tile serving.",
+            "response_receipt": response_receipt("gaia-layer-catalog", layers),
+        }
+
+    @app.get("/gaia/layers/{layer_id}", tags=["gaia"])
+    def gaia_layer(layer_id: str, request: Request) -> dict[str, Any]:
+        """GAIA layer detail — attribution, provenance, and classification.
+
+        Returns the full GAIA layer manifest for the given layer_id.
+        This is not production tile serving.
+        """
+        try:
+            layer = repository(request).gaia_layer(layer_id)
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if layer is None:
+            raise HTTPException(status_code=404, detail=f"GAIA layer not found: {layer_id}")
+        return with_artifact_receipt("gaia-layer", layer)
+
+    @app.get("/gaia/tile-manifests/{layer_id}", tags=["gaia"])
+    def gaia_tile_manifest(layer_id: str, request: Request) -> dict[str, Any]:
+        """GAIA tile manifest — placeholder MVT URL template (non-production).
+
+        Returns the tile manifest for the given layer_id with a placeholder MVT URL.
+        This is NOT production tile serving. The url_template is non-functional.
+        """
+        try:
+            tile_manifest = repository(request).gaia_tile_manifest(layer_id)
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if tile_manifest is None:
+            raise HTTPException(
+                status_code=404, detail=f"GAIA tile manifest not found: {layer_id}"
+            )
+        return with_artifact_receipt("gaia-tile-manifest", tile_manifest)
+
     return app
 
 
