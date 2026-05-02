@@ -7,6 +7,11 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from .gaia_layer_catalog import (
+    gaia_layer as catalog_gaia_layer,
+    gaia_layers as catalog_gaia_layers,
+    gaia_tile_manifest as catalog_gaia_tile_manifest,
+)
 from .receipts import response_receipt, with_artifact_receipt
 from .repository import ArtifactError, OSMArtifactRepository
 from .settings import Settings
@@ -43,7 +48,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description=(
             "Read-only fixture-backed API for OpenStreetMap-derived GAIA map layers, "
             "feature bindings, advisory route graphs, attribution receipts, runtime-boundary "
-            "state, provenance state, and governance state."
+            "state, provenance state, governance state, and fixture-backed GAIA layer catalog "
+            "metadata."
         ),
     )
     _configure_cors(app, resolved_settings)
@@ -83,6 +89,42 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if layer is None:
             raise HTTPException(status_code=404, detail=f"map layer not found: {layer_id}")
         return with_artifact_receipt("map-layer", layer)
+
+    @app.get("/gaia/layers", tags=["gaia"])
+    def gaia_layers(request: Request) -> dict[str, Any]:
+        try:
+            layers = catalog_gaia_layers(repository(request))
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {
+            "layers": [with_artifact_receipt("gaia-layer", layer) for layer in layers],
+            "catalog_mode": "fixture-backed",
+            "production_tile_serving": False,
+            "response_receipt": response_receipt("gaia-layer-list", layers),
+        }
+
+    @app.get("/gaia/layers/{layer_id}", tags=["gaia"])
+    def gaia_layer(layer_id: str, request: Request) -> dict[str, Any]:
+        try:
+            layer = catalog_gaia_layer(repository(request), layer_id)
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if layer is None:
+            raise HTTPException(status_code=404, detail=f"GAIA layer not found: {layer_id}")
+        return with_artifact_receipt("gaia-layer", layer)
+
+    @app.get("/gaia/tile-manifests/{layer_id}", tags=["gaia"])
+    def gaia_tile_manifest(layer_id: str, request: Request) -> dict[str, Any]:
+        try:
+            manifest = catalog_gaia_tile_manifest(repository(request), layer_id)
+        except ArtifactError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        if manifest is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"GAIA tile manifest not found: {layer_id}",
+            )
+        return with_artifact_receipt("gaia-tile-manifest", manifest)
 
     @app.get("/features/by-osm/{osm_type}/{osm_id}", tags=["features"])
     def feature_by_osm(osm_type: str, osm_id: str, request: Request) -> dict[str, Any]:
