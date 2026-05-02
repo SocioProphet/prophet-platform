@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.backends import ingest_academy_record, query_academy_records, query_platform_workspace
-from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore
+from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultScore, SearchResultActions
 
 app = FastAPI(title="search-orchestrator", version="0.1.0")
 
@@ -31,6 +31,12 @@ def search_query(body: SearchRequest) -> dict[str, object]:
             snippet=item.snippet,
             path_or_uri=item.path_or_uri,
             score=SearchResultScore(final=item.final_score),
+            actions=SearchResultActions(
+                open_cloud=item.open_cloud,
+                summarize=item.summarize,
+                create_task=item.create_task,
+                draft_reply=item.draft_reply,
+            ),
         )
         results.append(result.model_dump())
 
@@ -43,6 +49,12 @@ def search_query(body: SearchRequest) -> dict[str, object]:
             snippet=item.snippet,
             path_or_uri=item.path_or_uri,
             score=SearchResultScore(final=item.final_score),
+            actions=SearchResultActions(
+                open_cloud=item.open_cloud,
+                summarize=item.summarize,
+                create_task=item.create_task,
+                draft_reply=item.draft_reply,
+            ),
         )
         results.append(result.model_dump())
 
