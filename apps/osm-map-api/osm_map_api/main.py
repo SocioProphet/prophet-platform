@@ -49,7 +49,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "Read-only fixture-backed API for OpenStreetMap-derived GAIA map layers, "
             "feature bindings, advisory route graphs, attribution receipts, runtime-boundary "
             "state, provenance state, governance state, and fixture-backed GAIA layer catalog "
-            "metadata."
+            "metadata. GAIA tile-manifest responses expose production_tile_serving=false to "
+            "make the non-production tile boundary machine visible."
         ),
     )
     _configure_cors(app, resolved_settings)
