@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_suggestion_record.schema.json",
+  "title": "office_suggestion_record",
+  "type": "object",
+  "required": ["suggestion_id", "document_id", "status"],
+  "properties": {
+    "suggestion_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "semantic_unit_ref": {"type": "string"},
+    "before_ref": {"type": "string"},
+    "after_ref": {"type": "string"},
+    "proposer_ref": {"type": "string"},
+    "status": {
+      "type": "string",
+      "enum": ["PROPOSED", "ACCEPTED", "REJECTED"]
+    },
+    "version_id": {"type": "string"},
+    "receipt_ref": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}
