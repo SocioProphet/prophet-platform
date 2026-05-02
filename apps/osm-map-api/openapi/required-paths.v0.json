@@ -6,6 +6,9 @@
     {"path": "/readyz", "method": "get"},
     {"path": "/map-layers", "method": "get"},
     {"path": "/map-layers/{layer_id}", "method": "get"},
+    {"path": "/gaia/layers", "method": "get"},
+    {"path": "/gaia/layers/{layer_id}", "method": "get"},
+    {"path": "/gaia/tile-manifests/{layer_id}", "method": "get"},
     {"path": "/features/by-osm/{osm_type}/{osm_id}", "method": "get"},
     {"path": "/features/by-h3/{h3_cell}", "method": "get"},
     {"path": "/route-graphs/osm", "method": "get"},
@@ -16,6 +19,8 @@
   "required_safety_terms": [
     "advisory",
     "OpenStreetMap",
-    "attribution"
+    "attribution",
+    "fixture-backed",
+    "production_tile_serving"
   ]
 }
