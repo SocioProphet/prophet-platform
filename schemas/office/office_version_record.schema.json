@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_version_record.schema.json",
+  "title": "office_version_record",
+  "type": "object",
+  "required": [
+    "version_id",
+    "document_id",
+    "tenant_id",
+    "version_number",
+    "content_ref",
+    "content_hash",
+    "format",
+    "canonical_format",
+    "source_provider",
+    "execution_backend",
+    "capture_source",
+    "created_at"
+  ],
+  "properties": {
+    "version_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "version_number": {"type": "integer", "minimum": 1},
+    "parent_version_id": {"type": "string"},
+    "previous_version_id": {"type": "string"},
+    "content_ref": {"type": "string"},
+    "content_hash": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"},
+    "format": {"type": "string", "enum": ["odt", "ods", "odp", "docx", "xlsx", "pptx", "pdf", "md", "txt", "csv", "json", "html", "eml", "ics"]},
+    "canonical_format": {"type": "string", "enum": ["ODF", "OOXML", "PDF", "MARKDOWN", "PLAIN_TEXT", "MIXED"]},
+    "source_provider": {
+      "type": "string",
+      "enum": ["SOURCEOS", "IMPORTED_MICROSOFT", "IMPORTED_GOOGLE", "IMPORTED_APPLE", "IMPORTED_OPEN_DOCUMENT", "IMPORTED_OOXML", "IMPORTED_PDF", "IMPORTED_OTHER", "UNKNOWN"],
+      "description": "Provenance only. Closed providers are not runtime authorities."
+    },
+    "execution_backend": {
+      "type": "string",
+      "enum": ["SOURCEOS_NATIVE", "LIBREOFFICE", "COLLABORA", "HEADLESS", "MANUAL", "OTHER_OPEN"],
+      "description": "Open runtime engine used to create or capture the version."
+    },
+    "capture_source": {"type": "string", "enum": ["INITIAL_IMPORT", "LOCAL_SAVE", "WOPI_WRITEBACK", "CONVERSION", "AI_GENERATION", "MANUAL_UPLOAD", "MIGRATION_IMPORT", "SYSTEM_WORKFLOW"]},
+    "created_by_ref": {"type": "string"},
+    "writeback_ref": {"type": "string"},
+    "policy_decision_ref": {"type": "string"},
+    "receipt_refs": {"type": "array", "items": {"type": "string"}},
+    "semantic_unit_refs": {"type": "array", "items": {"type": "string"}},
+    "created_at": {"type": "string", "format": "date-time"},
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
