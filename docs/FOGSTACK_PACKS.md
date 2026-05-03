@@ -28,23 +28,35 @@ The shared trust/release graph is still the dominant implementation concern, and
 - Repo split now: no
 - Why: real platform surface, but still more internal than packaged.
 
+### Fog Stack Office / Collaboration
+- Type: real product surface (executable-demo posture)
+- Readiness: 55%
+- Repo split now: no
+- Why: an executable collaboration runtime landed via PRs #314–#319 with thread creation, messages, version-aware suggestion status, thread and suggestion resolution, and full event-history behaviors, all covered by behavior tests. JSON schemas exist for thread and suggestion records. Not yet hardened for production auth, durable persistence, or external identity; surface is at executable-demo posture, not production deployment.
+
 ### Fog Stack Security / Trust
 - Type: strong shared capability
 - Readiness: 80% as platform capability / 35% as standalone pack
 - Repo split now: no
 - Why: the shared trust/release graph is still the dominant engineering concern.
 
-### Fog Stack Data
-- Type: emerging packaging view
-- Readiness: 30%
+### Fog Stack Registry / Release Distribution
+- Type: real product surface (demo/CI posture)
+- Readiness: 60%
 - Repo split now: no
-- Why: better treated as a packaging view over Knowledge + Evaluation than as an independent engineering island.
+- Why: the registry/release-distribution lane now includes gated publication, filesystem registry export, registry publication indexes, registry-root metadata, rollback/revocation lifecycle indexes, and local registry metadata signature-verification support across PRs #211–#215, #224, #237, #248, and #324. It is no longer just a future release-plumbing concept. Remaining gaps are network registry publication, production KMS/HSM-backed signing, external identity binding, client-side rollback/revocation enforcement, and operator-facing release-distribution UX. No external registry or production deployment exists on main.
 
-### Fog Stack AI
-- Type: conceptual future pack
-- Readiness: 20%
+### Fog Stack Data / GovernAI
+- Type: fixture-ready product surface
+- Readiness: 50%
 - Repo split now: no
-- Why: not enough independent runtime/product surface yet.
+- Why: upgraded from 30% (packaging view over Knowledge + Evaluation) to 50% following the Lattice Studio/Data/GovernAI vertical slice merged in PRs #299–#308. The full deterministic fixture path now covers product-spine, annotation-to-training, active metadata, trust/reputation signals, and GovernAI routing consumers. Still fixture/demo-only; no live data backend, external data contracts, or production data pipeline exists on main.
+
+### Fog Stack AI / Lattice Studio
+- Type: fixture-ready product surface
+- Readiness: 45%
+- Repo split now: no
+- Why: upgraded from 20% (conceptual future pack) to 45% following the Lattice Studio vertical slice in PRs #299–#308. The surface now includes model zoo, prompt/RAG/evaluation lab, publication review/reproduction, runtime profile catalog (three Lattice Forge runtimes), a demo readiness report, and a runtime release readiness fixture. All surfaces are fixture/demo-only; no live inference, model training, serving infrastructure, or production ML pipeline exists on main.
 
 ### Fog Stack Automation
 - Type: conceptual future pack
