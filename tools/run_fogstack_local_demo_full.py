@@ -38,6 +38,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     deploy_dir = output_dir / "deploy"
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     deploy_summary_path = deploy_dir / "fogstack.access.deploy-demo.summary.json"
+    gitops_readiness_path = deploy_dir / "fogstack.access.gitops-readiness.record.json"
     artifact_index_path = output_dir / "demo-artifacts.index.json"
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
 
@@ -64,6 +65,14 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
         str(summary_path),
         "--deploy-summary-json",
         str(deploy_summary_path),
+    ])
+    run([
+        sys.executable,
+        "tools/update_fogstack_local_demo_gitops_readiness.py",
+        "--summary-json",
+        str(summary_path),
+        "--gitops-readiness-record",
+        str(gitops_readiness_path),
     ])
     run([
         sys.executable,
@@ -96,6 +105,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "gitops_configmap": rel(deploy_dir / "gitops" / "manifests" / "configmap.yaml"),
             "gitops_deployment": rel(deploy_dir / "gitops" / "manifests" / "deployment.yaml"),
             "gitops_service": rel(deploy_dir / "gitops" / "manifests" / "service.yaml"),
+            "gitops_readiness_record": rel(gitops_readiness_path),
         },
         "checks": [
             "local_demo_generated",
@@ -103,6 +113,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "deploy_artifacts_integrated",
             "cluster_readiness_record_indexed",
             "gitops_bundle_indexed",
+            "gitops_readiness_record_indexed",
             "artifact_index_checked",
         ],
     }
@@ -122,6 +133,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
+        f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
