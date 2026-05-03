@@ -1,0 +1,88 @@
+name: FogStack GitOps Bundle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/gitops/**"
+      - "schemas/agent/**"
+      - "schemas/deploy/**"
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/tests/test_fogstack_gitops_bundle.py"
+      - ".github/workflows/fogstack-gitops-bundle.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/gitops/**"
+      - "schemas/agent/**"
+      - "schemas/deploy/**"
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/tests/test_fogstack_gitops_bundle.py"
+      - ".github/workflows/fogstack-gitops-bundle.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gitops-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run GitOps bundle tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_gitops_bundle.py
+
+      - name: Build sample GitOps bundle
+        run: |
+          mkdir -p build/fogstack-gitops-inputs
+          python3 tools/build_fogstack_runtime_contract.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --actor-id agent:fogstack.access.operator \
+            --human-anchor-role operator \
+            --output build/fogstack-gitops-inputs/runtime-contract.json
+          python3 tools/build_fogstack_deploy_plan.py \
+            --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --profile local-dev \
+            --target kubernetes \
+            --namespace fogstack-access \
+            --health-endpoint /healthz \
+            --runtime-contract build/fogstack-gitops-inputs/runtime-contract.json \
+            --output build/fogstack-gitops-inputs/deploy-plan.json
+          python3 tools/render_fogstack_kubernetes_manifests.py \
+            --deploy-plan build/fogstack-gitops-inputs/deploy-plan.json \
+            --output-dir build/fogstack-gitops-inputs/manifests
+          python3 tools/build_fogstack_gitops_bundle.py \
+            --deploy-plan build/fogstack-gitops-inputs/deploy-plan.json \
+            --manifest-dir build/fogstack-gitops-inputs/manifests \
+            --output-dir build/fogstack-gitops \
+            --repo-url https://github.com/SocioProphet/prophet-platform.git \
+            --target-revision main \
+            --gitops-path gitops/fogstack.access
+          test -s build/fogstack-gitops/gitops-bundle.json
+          test -s build/fogstack-gitops/application.yaml
+          test -s build/fogstack-gitops/kustomization.yaml
+          test -s build/fogstack-gitops/manifests/deployment.yaml
