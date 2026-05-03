@@ -1,0 +1,62 @@
+name: FogStack Runtime Contract
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/agent/**"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
+      - "tools/tests/test_fogstack_runtime_contract.py"
+      - ".github/workflows/fogstack-runtime-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/agent/**"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
+      - "tools/tests/test_fogstack_runtime_contract.py"
+      - ".github/workflows/fogstack-runtime-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest jsonschema
+
+      - name: Run runtime contract tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_runtime_contract.py
+
+      - name: Build access runtime contract artifact
+        run: |
+          python3 tools/build_fogstack_runtime_contract.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --actor-id agent:fogstack.access.operator \
+            --human-anchor-role operator \
+            --runtime-mode local \
+            --isolation process \
+            --identity-mode local-dev \
+            --max-runtime-seconds 900 \
+            --output build/fogstack-runtime-contract/fogstack.access.runtime-contract.json
+          test -s build/fogstack-runtime-contract/fogstack.access.runtime-contract.json
+
+      - name: Check access runtime contract artifact
+        run: |
+          python3 tools/check_fogstack_runtime_contract.py --contract build/fogstack-runtime-contract/fogstack.access.runtime-contract.json
