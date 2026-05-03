@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-agent-machine-node-profile-v0.1.schema.json",
+  "title": "FogStackAgentMachineNodeProfile",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "profile_id",
+    "node_role",
+    "os",
+    "image",
+    "declarative_updates",
+    "storage",
+    "agent_machine",
+    "governance",
+    "runtime_policy"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackAgentMachineNodeProfile" },
+    "schema_version": { "const": "v0.1" },
+    "profile_id": { "type": "string", "minLength": 1 },
+    "node_role": { "enum": ["edge-agent-node", "cluster-agent-node", "control-plane-agent-node"] },
+    "os": {
+      "type": "object",
+      "required": ["family", "distribution", "immutability", "configuration_model"],
+      "properties": {
+        "family": { "enum": ["SourceOS", "AgentOS", "SociOS-Linux"] },
+        "distribution": { "type": "string", "minLength": 1 },
+        "immutability": { "enum": ["ostree", "nixos", "image-based", "unknown"] },
+        "configuration_model": { "enum": ["nix-flake", "ignition-butane", "rpm-ostree", "container-image", "hybrid"] }
+      },
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "required": ["builder", "image_ref", "digest_required", "sbom_required", "provenance_required"],
+      "properties": {
+        "builder": { "enum": ["nix", "rpm-ostree", "bootc", "containerfile", "unknown"] },
+        "image_ref": { "type": "string", "minLength": 1 },
+        "digest_required": { "const": true },
+        "sbom_required": { "const": true },
+        "provenance_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "declarative_updates": {
+      "type": "object",
+      "required": ["strategy", "rollback_required", "preflight_required", "agentplane_gate_required"],
+      "properties": {
+        "strategy": { "enum": ["nix-flake-switch", "ostree-rebase", "image-promotion", "hybrid"] },
+        "rollback_required": { "const": true },
+        "preflight_required": { "const": true },
+        "agentplane_gate_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "storage": {
+      "type": "object",
+      "required": ["ephemeral_storage", "persistent_storage", "topolvm_required", "volume_policy"],
+      "properties": {
+        "ephemeral_storage": { "enum": ["local", "topolvm", "none"] },
+        "persistent_storage": { "enum": ["topolvm", "external-csi", "none"] },
+        "topolvm_required": { "type": "boolean" },
+        "volume_policy": { "enum": ["deny-by-default", "explicit-claim-only"] }
+      },
+      "additionalProperties": false
+    },
+    "agent_machine": {
+      "type": "object",
+      "required": ["enabled", "identity_ref", "workload_runtime", "node_contract_required"],
+      "properties": {
+        "enabled": { "const": true },
+        "identity_ref": { "type": "string", "minLength": 1 },
+        "workload_runtime": { "enum": ["rootless-podman", "kubernetes", "systemd-user", "hybrid"] },
+        "node_contract_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "required": ["agentplane_ref", "policyplane_ref", "human_approval_required", "live_mutation_default"],
+      "properties": {
+        "agentplane_ref": { "type": "string", "minLength": 1 },
+        "policyplane_ref": { "type": "string", "minLength": 1 },
+        "human_approval_required": { "const": true },
+        "live_mutation_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "runtime_policy": {
+      "type": "object",
+      "required": ["network_default", "secrets_default", "host_mutation_default", "cluster_join_default"],
+      "properties": {
+        "network_default": { "const": "deny" },
+        "secrets_default": { "const": "deny" },
+        "host_mutation_default": { "const": "deny" },
+        "cluster_join_default": { "const": "approval-required" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
