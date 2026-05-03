@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 app = FastAPI(title="office-collaboration", version="0.1.0")
 THREADS: dict[str, dict[str, object]] = {}
+THREAD_MESSAGES: dict[str, list[dict[str, object]]] = {}
 SUGGESTIONS: dict[str, dict[str, object]] = {}
 
 
@@ -13,6 +14,18 @@ class ThreadIn(BaseModel):
     document_id: str
     thread_type: str
     semantic_unit_ref: str | None = None
+
+
+class ThreadMessageIn(BaseModel):
+    message_id: str
+    actor_ref: str
+    body: str
+
+
+class ThreadStatusIn(BaseModel):
+    status: str
+    version_id: str | None = None
+    receipt_ref: str | None = None
 
 
 class SuggestionIn(BaseModel):
@@ -25,6 +38,8 @@ class SuggestionIn(BaseModel):
 
 class SuggestionStatusIn(BaseModel):
     status: str
+    version_id: str | None = None
+    receipt_ref: str | None = None
 
 
 @app.get("/healthz")
@@ -41,10 +56,13 @@ def create_thread(body: ThreadIn) -> dict[str, object]:
         "thread_type": body.thread_type,
         "semantic_unit_ref": body.semantic_unit_ref,
         "status": "OPEN",
+        "version_id": None,
+        "receipt_ref": None,
         "created_at": now,
         "updated_at": now,
     }
     THREADS[body.thread_id] = record
+    THREAD_MESSAGES[body.thread_id] = []
     return record
 
 
@@ -53,6 +71,43 @@ def get_thread(thread_id: str) -> dict[str, object]:
     record = THREADS.get(thread_id)
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
+    return record
+
+
+@app.post("/v0/office-collaboration/threads/{thread_id}/messages")
+def add_thread_message(thread_id: str, body: ThreadMessageIn) -> dict[str, object]:
+    thread = THREADS.get(thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="thread not found")
+    now = datetime.now(timezone.utc).isoformat()
+    message = {
+        "message_id": body.message_id,
+        "thread_id": thread_id,
+        "actor_ref": body.actor_ref,
+        "body": body.body,
+        "created_at": now,
+    }
+    THREAD_MESSAGES.setdefault(thread_id, []).append(message)
+    thread["updated_at"] = now
+    return message
+
+
+@app.get("/v0/office-collaboration/threads/{thread_id}/messages")
+def list_thread_messages(thread_id: str) -> dict[str, object]:
+    if thread_id not in THREADS:
+        raise HTTPException(status_code=404, detail="thread not found")
+    return {"thread_id": thread_id, "messages": THREAD_MESSAGES.get(thread_id, [])}
+
+
+@app.post("/v0/office-collaboration/threads/{thread_id}/status")
+def update_thread_status(thread_id: str, body: ThreadStatusIn) -> dict[str, object]:
+    record = THREADS.get(thread_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="thread not found")
+    record["status"] = body.status
+    record["version_id"] = body.version_id
+    record["receipt_ref"] = body.receipt_ref
+    record["updated_at"] = datetime.now(timezone.utc).isoformat()
     return record
 
 
@@ -66,6 +121,8 @@ def create_suggestion(body: SuggestionIn) -> dict[str, object]:
         "before_ref": body.before_ref,
         "after_ref": body.after_ref,
         "status": "PROPOSED",
+        "version_id": None,
+        "receipt_ref": None,
         "created_at": now,
         "updated_at": now,
     }
@@ -79,5 +136,7 @@ def update_suggestion_status(suggestion_id: str, body: SuggestionStatusIn) -> di
     if record is None:
         raise HTTPException(status_code=404, detail="suggestion not found")
     record["status"] = body.status
+    record["version_id"] = body.version_id
+    record["receipt_ref"] = body.receipt_ref
     record["updated_at"] = datetime.now(timezone.utc).isoformat()
     return record
