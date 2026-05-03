@@ -30,6 +30,11 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
 def load_yaml(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(str(path))
@@ -41,6 +46,13 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 def dns_label(value: str) -> str:
     return value.replace(".", "-").replace("_", "-").lower()
+
+
+def rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
 
 
 def required_labels(plan: dict[str, Any]) -> dict[str, str]:
@@ -188,12 +200,26 @@ def is_discovery_failure(details: str) -> bool:
     return any(marker in lowered for marker in DISCOVERY_FAILURE_MARKERS)
 
 
-def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool) -> tuple[list[str], str]:
+def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool) -> dict[str, Any]:
     resolved = resolve_kubectl(kubectl)
+    result: dict[str, Any] = {
+        "requested": True,
+        "required": require_kubectl,
+        "executable": kubectl,
+        "available": resolved is not None,
+        "resolved_path": resolved,
+        "dry_run_status": "not_run",
+        "fallback_mode": None,
+        "message": None,
+        "errors": [],
+    }
     if resolved is None:
+        result["dry_run_status"] = "failed" if require_kubectl else "fallback"
+        result["fallback_mode"] = None if require_kubectl else "offline_validation"
+        result["message"] = "kubectl required but unavailable" if require_kubectl else "kubectl unavailable; offline validation used"
         if require_kubectl:
-            return [f"kubectl not found: {kubectl}"], "kubectl required but unavailable"
-        return [], "kubectl unavailable; offline validation used"
+            result["errors"].append(f"kubectl not found: {kubectl}")
+        return result
 
     proc = subprocess.run(
         [resolved, "apply", "--dry-run=client", "--validate=false", "-f", str(manifest_dir)],
@@ -203,9 +229,49 @@ def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool)
     if proc.returncode != 0:
         details = (proc.stderr or proc.stdout).strip()
         if not require_kubectl and is_discovery_failure(details):
-            return [], "kubectl dry-run unavailable; offline validation used"
-        return [f"kubectl dry-run failed: {details}"], "kubectl dry-run failed"
-    return [], "kubectl dry-run passed"
+            result["dry_run_status"] = "fallback"
+            result["fallback_mode"] = "offline_validation"
+            result["message"] = "kubectl dry-run unavailable; offline validation used"
+            return result
+        result["dry_run_status"] = "failed"
+        result["message"] = "kubectl dry-run failed"
+        result["errors"].append(f"kubectl dry-run failed: {details}")
+        return result
+
+    result["dry_run_status"] = "passed"
+    result["message"] = "kubectl dry-run passed"
+    return result
+
+
+def build_readiness_record(
+    deploy_plan_path: Path,
+    manifest_dir: Path,
+    offline_errors: list[str],
+    kubectl_result: dict[str, Any],
+) -> dict[str, Any]:
+    status = "failed" if offline_errors or kubectl_result.get("errors") else "passed"
+    if kubectl_result["dry_run_status"] == "passed":
+        validation_path = "offline+kubectl-dry-run"
+    elif kubectl_result["dry_run_status"] == "fallback":
+        validation_path = "offline-fallback"
+    elif kubectl_result["dry_run_status"] == "not_requested":
+        validation_path = "offline"
+    else:
+        validation_path = "failed"
+    return {
+        "kind": "FogStackClusterReadinessRecord",
+        "schema_version": "v0.1",
+        "status": status,
+        "deploy_plan_ref": rel(deploy_plan_path),
+        "manifest_dir": rel(manifest_dir),
+        "validation_path": validation_path,
+        "offline_validation": {
+            "status": "failed" if offline_errors else "passed",
+            "errors": offline_errors,
+        },
+        "kubectl": {key: value for key, value in kubectl_result.items() if key != "errors"},
+        "errors": [*offline_errors, *kubectl_result.get("errors", [])],
+    }
 
 
 def main() -> int:
@@ -215,19 +281,36 @@ def main() -> int:
     parser.add_argument("--kubectl-dry-run", action="store_true", help="Also attempt kubectl apply --dry-run=client when kubectl is available")
     parser.add_argument("--kubectl", default="kubectl", help="kubectl executable name or path")
     parser.add_argument("--require-kubectl", action="store_true", help="Fail if --kubectl-dry-run is requested and kubectl is unavailable")
+    parser.add_argument("--record-output", type=Path, help="Write a FogStackClusterReadinessRecord JSON artifact")
     args = parser.parse_args()
 
     deploy_plan_path = args.deploy_plan if args.deploy_plan.is_absolute() else ROOT / args.deploy_plan
     manifest_dir = args.manifest_dir if args.manifest_dir.is_absolute() else ROOT / args.manifest_dir
-    errors = validate_manifests(deploy_plan_path, manifest_dir)
-    status_lines = ["offline validation passed"] if not errors else []
-    if not errors and args.kubectl_dry_run:
-        kubectl_errors, kubectl_status = run_kubectl_dry_run(manifest_dir, args.kubectl, args.require_kubectl)
-        errors.extend(kubectl_errors)
-        status_lines.append(kubectl_status)
+    offline_errors = validate_manifests(deploy_plan_path, manifest_dir)
+    kubectl_result = {
+        "requested": args.kubectl_dry_run,
+        "required": args.require_kubectl,
+        "executable": args.kubectl,
+        "available": False,
+        "resolved_path": None,
+        "dry_run_status": "not_requested",
+        "fallback_mode": None,
+        "message": "kubectl dry-run not requested",
+        "errors": [],
+    }
+    status_lines = ["offline validation passed"] if not offline_errors else []
+    if not offline_errors and args.kubectl_dry_run:
+        kubectl_result = run_kubectl_dry_run(manifest_dir, args.kubectl, args.require_kubectl)
+        if kubectl_result["message"]:
+            status_lines.append(kubectl_result["message"])
 
-    if errors:
-        for error in errors:
+    record = build_readiness_record(deploy_plan_path, manifest_dir, offline_errors, kubectl_result)
+    if args.record_output:
+        output = args.record_output if args.record_output.is_absolute() else ROOT / args.record_output
+        write_json(output, record)
+
+    if record["errors"]:
+        for error in record["errors"]:
             print(error, file=sys.stderr)
         return 1
 
