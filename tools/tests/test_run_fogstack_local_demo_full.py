@@ -19,6 +19,12 @@ REQUIRED_FULL_ARTIFACTS = {
     "kubernetes_service",
     "kubernetes_manifest_check_record",
     "cluster_readiness_record",
+    "gitops_bundle",
+    "gitops_application",
+    "gitops_kustomization",
+    "gitops_configmap",
+    "gitops_deployment",
+    "gitops_service",
 }
 
 
@@ -42,6 +48,8 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "Deploy plan:" in proc.stdout
     assert "Kubernetes deployment:" in proc.stdout
     assert "Cluster readiness record:" in proc.stdout
+    assert "GitOps bundle:" in proc.stdout
+    assert "GitOps application:" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     assert full_summary_path.exists()
@@ -50,6 +58,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert full_summary["status"] == "passed"
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
     assert "cluster_readiness_record_indexed" in full_summary["checks"]
+    assert "gitops_bundle_indexed" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
 
@@ -57,12 +66,19 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
     assert readiness_record["status"] == "passed"
 
+    gitops_bundle = json.loads(Path(full_summary["artifacts"]["gitops_bundle"]).read_text(encoding="utf-8"))
+    assert gitops_bundle["kind"] == "FogStackGitOpsBundle"
+    assert gitops_bundle["bundle_id"] == "fogstack.access"
+
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
     assert "deploy_plan" in indexed_ids
     assert "deploy_kubernetes_deployment" in indexed_ids
     assert "deploy_kubernetes_manifest_check_record" in indexed_ids
     assert "deploy_cluster_readiness_record" in indexed_ids
+    assert "deploy_gitops_bundle" in indexed_ids
+    assert "deploy_gitops_application" in indexed_ids
+    assert "deploy_gitops_deployment" in indexed_ids
 
     html = (output_dir / "index.html").read_text(encoding="utf-8")
     assert "Deploy readiness" in html
@@ -70,4 +86,5 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "indexed" in html
     assert "deploy_plan" in html
     assert "deploy_cluster_readiness_record" in html
+    assert "deploy_gitops_bundle" in html
     assert "fogstack.access.deploy-plan.json" in html
