@@ -60,6 +60,8 @@ def assert_common(summary: dict, pack: str) -> dict:
 
     artifacts = summary["artifacts"]
     for key in [
+        "summary_json",
+        "summary_markdown",
         "publication_set",
         "promoted_publication_set",
         "approval_record",
@@ -121,6 +123,15 @@ def test_run_fogstack_local_demo_all_packs(tmp_path: Path) -> None:
         assert pointer["bundle_id"] == release["bundle_id"]
         assert pointer["version"] == "0.1.0"
 
+    markdown = Path(summary["artifacts"]["summary_markdown"]).read_text(encoding="utf-8")
+    assert "# FogStack Local Demo Summary" in markdown
+    assert "Release count: **3**" in markdown
+    assert "Registry URI:" in markdown
+    assert "Publication gate:" in markdown
+    assert "Registry root metadata:" in markdown
+    for bundle_id in CANONICAL_BUNDLES:
+        assert bundle_id in markdown
+
 
 def test_run_fogstack_local_demo_summary_output(tmp_path: Path) -> None:
     output_dir = tmp_path / "summary-demo"
@@ -147,10 +158,13 @@ def test_run_fogstack_local_demo_summary_output(tmp_path: Path) -> None:
     assert "Publication gate:" in proc.stdout
     assert "Registry root metadata:" in proc.stdout
     assert "Summary JSON:" in proc.stdout
+    assert "Summary Markdown:" in proc.stdout
     assert "Checks passed: 12" in proc.stdout
 
     summary_path = output_dir / "fogstack-local-demo.summary.json"
+    markdown_path = output_dir / "fogstack-local-demo.summary.md"
     assert summary_path.exists()
+    assert markdown_path.exists()
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["pack"] == "access"
     assert summary["bundle_id"] == "fogstack.access"
