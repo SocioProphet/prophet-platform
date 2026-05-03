@@ -90,12 +90,19 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "kubernetes_service": rel(deploy_dir / "kubernetes" / "service.yaml"),
             "kubernetes_manifest_check_record": rel(deploy_dir / "fogstack.access.kubernetes-manifest-check.record.json"),
             "cluster_readiness_record": rel(deploy_dir / "fogstack.access.cluster-readiness.record.json"),
+            "gitops_bundle": rel(deploy_dir / "gitops" / "gitops-bundle.json"),
+            "gitops_application": rel(deploy_dir / "gitops" / "application.yaml"),
+            "gitops_kustomization": rel(deploy_dir / "gitops" / "kustomization.yaml"),
+            "gitops_configmap": rel(deploy_dir / "gitops" / "manifests" / "configmap.yaml"),
+            "gitops_deployment": rel(deploy_dir / "gitops" / "manifests" / "deployment.yaml"),
+            "gitops_service": rel(deploy_dir / "gitops" / "manifests" / "service.yaml"),
         },
         "checks": [
             "local_demo_generated",
             "deploy_plan_generated",
             "deploy_artifacts_integrated",
             "cluster_readiness_record_indexed",
+            "gitops_bundle_indexed",
             "artifact_index_checked",
         ],
     }
@@ -113,6 +120,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes deployment: {artifacts['kubernetes_deployment']}",
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
+        f"GitOps bundle: {artifacts['gitops_bundle']}",
+        f"GitOps application: {artifacts['gitops_application']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
