@@ -18,6 +18,12 @@ DEPLOY_ARTIFACT_KEYS = {
     "kubernetes_service": "deploy_kubernetes_service",
     "kubernetes_manifest_check_record": "deploy_kubernetes_manifest_check_record",
     "cluster_readiness_record": "deploy_cluster_readiness_record",
+    "gitops_bundle": "deploy_gitops_bundle",
+    "gitops_application": "deploy_gitops_application",
+    "gitops_kustomization": "deploy_gitops_kustomization",
+    "gitops_configmap": "deploy_gitops_configmap",
+    "gitops_deployment": "deploy_gitops_deployment",
+    "gitops_service": "deploy_gitops_service",
     "summary": "deploy_summary",
 }
 DEPLOY_ARTIFACT_LABELS = {
@@ -28,6 +34,12 @@ DEPLOY_ARTIFACT_LABELS = {
     "deploy_kubernetes_service": "Kubernetes Service",
     "deploy_kubernetes_manifest_check_record": "Manifest check record",
     "deploy_cluster_readiness_record": "Cluster readiness record",
+    "deploy_gitops_bundle": "GitOps bundle",
+    "deploy_gitops_application": "GitOps Application",
+    "deploy_gitops_kustomization": "GitOps Kustomization",
+    "deploy_gitops_configmap": "GitOps ConfigMap",
+    "deploy_gitops_deployment": "GitOps Deployment",
+    "deploy_gitops_service": "GitOps Service",
     "deploy_summary": "Deploy summary",
 }
 
@@ -179,7 +191,7 @@ def update_summary(summary_path: Path, deploy_summary_path: Path) -> dict[str, A
         artifacts[target_key] = deploy_summary["artifacts"][source_key]
 
     checks = summary.setdefault("checks", [])
-    for check in ["deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted"]:
+    for check in ["deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted", "gitops_bundle_built", "gitops_bundle_checked"]:
         if check not in checks:
             checks.append(check)
 
