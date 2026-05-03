@@ -27,7 +27,9 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert "Bundle: fogstack.access@0.1.0" in proc.stdout
     assert "Target: kubernetes" in proc.stdout
     assert "Cluster readiness record:" in proc.stdout
-    assert "Checks passed: 7" in proc.stdout
+    assert "GitOps bundle:" in proc.stdout
+    assert "GitOps application:" in proc.stdout
+    assert "Checks passed: 9" in proc.stdout
 
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
     check_record_path = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
@@ -35,6 +37,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     runtime_contract_path = output_dir / "fogstack.access.runtime-contract.json"
     deploy_plan_path = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
+    gitops_dir = output_dir / "gitops"
 
     for path in [
         summary_path,
@@ -45,6 +48,12 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
         manifest_dir / "configmap.yaml",
         manifest_dir / "deployment.yaml",
         manifest_dir / "service.yaml",
+        gitops_dir / "gitops-bundle.json",
+        gitops_dir / "application.yaml",
+        gitops_dir / "kustomization.yaml",
+        gitops_dir / "manifests" / "configmap.yaml",
+        gitops_dir / "manifests" / "deployment.yaml",
+        gitops_dir / "manifests" / "service.yaml",
     ]:
         assert path.exists(), f"missing {path}"
 
@@ -61,6 +70,8 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
         "kubernetes_manifests_rendered",
         "kubernetes_manifests_checked",
         "cluster_readiness_record_emitted",
+        "gitops_bundle_built",
+        "gitops_bundle_checked",
     }
 
     artifacts = summary["artifacts"]
@@ -71,6 +82,10 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert artifacts["kubernetes_service"].endswith("service.yaml")
     assert artifacts["kubernetes_manifest_check_record"].endswith("fogstack.access.kubernetes-manifest-check.record.json")
     assert artifacts["cluster_readiness_record"].endswith("fogstack.access.cluster-readiness.record.json")
+    assert artifacts["gitops_bundle"].endswith("gitops-bundle.json")
+    assert artifacts["gitops_application"].endswith("application.yaml")
+    assert artifacts["gitops_kustomization"].endswith("kustomization.yaml")
+    assert artifacts["gitops_deployment"].endswith("deployment.yaml")
 
     check_record = json.loads(check_record_path.read_text(encoding="utf-8"))
     assert check_record["kind"] == "FogStackKubernetesManifestCheckRecord"
@@ -83,6 +98,11 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
     assert readiness_record["status"] == "passed"
     assert readiness_record["offline_validation"]["status"] == "passed"
+
+    gitops_bundle = json.loads((gitops_dir / "gitops-bundle.json").read_text(encoding="utf-8"))
+    assert gitops_bundle["kind"] == "FogStackGitOpsBundle"
+    assert gitops_bundle["bundle_id"] == "fogstack.access"
+    assert gitops_bundle["deploy_plan_digest"].startswith("sha256:")
 
     deployment = yaml.safe_load((manifest_dir / "deployment.yaml").read_text(encoding="utf-8"))
     assert deployment["kind"] == "Deployment"
