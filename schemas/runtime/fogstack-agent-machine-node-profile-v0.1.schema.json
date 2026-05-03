@@ -82,11 +82,22 @@
       "type": "array",
       "items": { "$ref": "#/$defs/use_surface" },
       "minItems": 2,
-      "contains": {
-        "type": "object",
-        "required": ["id"],
-        "properties": { "id": { "const": "turtleterm" } }
-      }
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "const": "turtleterm" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "const": "bearbrowser" } }
+          }
+        }
+      ]
     },
     "governance": {
       "type": "object",
