@@ -367,15 +367,41 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
     return summary
 
 
+def render_summary_text(summary: dict[str, Any]) -> str:
+    release_lines = [
+        f"- {release['bundle_id']}@{release['version']} ({release['pack']})"
+        for release in summary.get("releases", [])
+    ]
+    artifact_paths = summary.get("artifacts", {})
+    lines = [
+        "FogStack local demo passed.",
+        f"Pack selection: {summary.get('pack')}",
+        f"Release count: {len(summary.get('releases', []))}",
+        "Releases:",
+        *release_lines,
+        f"Channel/support: {summary.get('channel')}/{summary.get('support_state')}",
+        f"Registry URI: {summary.get('registry_uri')}",
+        f"Publication gate: {artifact_paths.get('publication_gate')}",
+        f"Registry root metadata: {artifact_paths.get('registry_root_metadata')}",
+        f"Summary JSON: {rel(Path(artifact_paths.get('registry_root_metadata', '.')).parent.parent / 'fogstack-local-demo.summary.json')}",
+        f"Checks passed: {len(summary.get('checks', []))}",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a local FogStack release/registry demo end to end")
     parser.add_argument("--pack", choices=sorted(PACK_ALIASES), default="access")
     parser.add_argument("--output-dir", type=Path, default=Path("build/fogstack-local-demo"))
     parser.add_argument("--no-clean", action="store_true", help="Do not remove the output directory before running")
+    parser.add_argument("--summary", action="store_true", help="Print a compact human-readable summary instead of JSON")
     args = parser.parse_args()
 
     summary = build_demo(args.pack, args.output_dir, clean=not args.no_clean)
-    print(json.dumps(summary, indent=2))
+    if args.summary:
+        print(render_summary_text(summary), end="")
+    else:
+        print(json.dumps(summary, indent=2))
     return 0
 
 
