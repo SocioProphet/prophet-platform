@@ -13,8 +13,16 @@ on:
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
+      - "tools/run_fogstack_local_demo_deploy_plan.py"
+      - "tools/update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/serve_fogstack_local_demo.py"
       - "tools/check_fogstack_local_demo_artifact_index.py"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/check_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
       - "tools/fogstack_verify.py"
       - "tools/emit_fogstack_validation_record.py"
       - "tools/build_fogstack_manifest_publication_set.py"
@@ -35,6 +43,7 @@ on:
       - "tools/tests/test_run_fogstack_local_demo.py"
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
+      - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - ".github/workflows/fogstack-local-demo.yml"
   push:
     branches: [main]
@@ -48,11 +57,20 @@ on:
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
+      - "tools/run_fogstack_local_demo_deploy_plan.py"
+      - "tools/update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/serve_fogstack_local_demo.py"
       - "tools/check_fogstack_local_demo_artifact_index.py"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/check_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
+      - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - ".github/workflows/fogstack-local-demo.yml"
 
 permissions:
@@ -74,15 +92,26 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pyyaml
+          python -m pip install pytest pyyaml jsonschema
 
       - name: Run local demo end-to-end test
         run: |
-          python -m pytest -q tools/tests/test_run_fogstack_local_demo.py tools/tests/test_check_fogstack_local_demo_artifact_index.py tools/tests/test_serve_fogstack_local_demo.py
+          python -m pytest -q \
+            tools/tests/test_run_fogstack_local_demo.py \
+            tools/tests/test_check_fogstack_local_demo_artifact_index.py \
+            tools/tests/test_serve_fogstack_local_demo.py \
+            tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py
 
       - name: Run operator demo command
         run: |
           make fogstack-local-demo
+
+      - name: Integrate deploy-plan artifacts
+        run: |
+          make fogstack-local-demo-deploy-plan
+          python3 tools/update_fogstack_local_demo_deploy_artifacts.py \
+            --summary-json build/fogstack-local-demo/fogstack-local-demo.summary.json \
+            --deploy-summary-json build/fogstack-local-demo/deploy/fogstack.access.deploy-demo.summary.json
 
       - name: Check generated artifact index
         run: |
