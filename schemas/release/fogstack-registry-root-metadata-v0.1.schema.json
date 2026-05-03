@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-registry-root-metadata-v0.1.schema.json",
+  "title": "FogStackRegistryRootMetadata",
+  "type": "object",
+  "required": ["kind", "schema_version", "registry_uri", "releases", "signed"],
+  "properties": {
+    "kind": { "const": "FogStackRegistryRootMetadata" },
+    "schema_version": { "const": "v0.1" },
+    "registry_uri": { "type": "string" },
+    "releases": { "type": "array" },
+    "revocation_index_ref": { "type": ["string", "null"] },
+    "revocation_index_digest": { "type": ["string", "null"] },
+    "signed": { "type": "boolean" },
+    "signature": { "type": ["object", "null"] }
+  },
+  "additionalProperties": true
+}
