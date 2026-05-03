@@ -3,11 +3,25 @@
   "$id": "https://socioprophet.com/schemas/release/fogstack-registry-revocation-index-v0.1.schema.json",
   "title": "FogStackRegistryRevocationIndex",
   "type": "object",
+  "additionalProperties": false,
   "required": ["kind", "schema_version", "entries"],
   "properties": {
     "kind": { "const": "FogStackRegistryRevocationIndex" },
     "schema_version": { "const": "v0.1" },
-    "entries": { "type": "array" }
-  },
-  "additionalProperties": true
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bundle_id", "version", "status"],
+        "properties": {
+          "bundle_id": { "type": "string", "minLength": 1 },
+          "version": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["revoked", "rollback"] },
+          "reason": { "type": ["string", "null"] },
+          "superseded_by": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
 }

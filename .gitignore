@@ -17,3 +17,4 @@ dist/
 apps/gateway/cmd/tritrpc-gateway/tritrpc-gateway
 apps/api/cmd/socioprophet-api/socioprophet-api
 apps/storage-promotion/.storage-promotion-state/
+.venv-tools/
