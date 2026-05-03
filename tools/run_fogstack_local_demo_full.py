@@ -39,6 +39,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     deploy_summary_path = deploy_dir / "fogstack.access.deploy-demo.summary.json"
     gitops_readiness_path = deploy_dir / "fogstack.access.gitops-readiness.record.json"
+    runtime_adapter_path = deploy_dir / "fogstack.access.local-cluster-runtime-adapter.json"
+    runtime_dry_run_path = deploy_dir / "fogstack.access.runtime-dry-run.record.json"
     artifact_index_path = output_dir / "demo-artifacts.index.json"
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
 
@@ -76,6 +78,16 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     ])
     run([
         sys.executable,
+        "tools/update_fogstack_local_demo_runtime_evidence.py",
+        "--summary-json",
+        str(summary_path),
+        "--runtime-adapter",
+        str(runtime_adapter_path),
+        "--runtime-dry-run-record",
+        str(runtime_dry_run_path),
+    ])
+    run([
+        sys.executable,
         "tools/check_fogstack_local_demo_artifact_index.py",
         "--index",
         str(artifact_index_path),
@@ -106,6 +118,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "gitops_deployment": rel(deploy_dir / "gitops" / "manifests" / "deployment.yaml"),
             "gitops_service": rel(deploy_dir / "gitops" / "manifests" / "service.yaml"),
             "gitops_readiness_record": rel(gitops_readiness_path),
+            "runtime_adapter": rel(runtime_adapter_path),
+            "runtime_dry_run_record": rel(runtime_dry_run_path),
         },
         "checks": [
             "local_demo_generated",
@@ -114,6 +128,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "cluster_readiness_record_indexed",
             "gitops_bundle_indexed",
             "gitops_readiness_record_indexed",
+            "runtime_adapter_indexed",
+            "runtime_dry_run_record_indexed",
             "artifact_index_checked",
         ],
     }
@@ -134,6 +150,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
         f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
+        f"Runtime adapter: {artifacts['runtime_adapter']}",
+        f"Runtime dry-run record: {artifacts['runtime_dry_run_record']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
