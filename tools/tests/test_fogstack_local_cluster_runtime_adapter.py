@@ -67,7 +67,7 @@ def test_build_fogstack_local_cluster_runtime_adapter(tmp_path: Path) -> None:
     }
     for key in ["node_profile_digest", "deploy_plan_digest", "cluster_readiness_record_digest", "gitops_bundle_digest", "gitops_readiness_record_digest"]:
         assert adapter["inputs"][key].startswith("sha256:")
-    node = load_json(adapter["inputs"]["node_profile_ref"])
+    node = load_json(Path(adapter["inputs"]["node_profile_ref"]))
     surfaces = {surface["id"]: surface for surface in node["use_surfaces"]}
     assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
     assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
