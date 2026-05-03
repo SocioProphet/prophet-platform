@@ -3,6 +3,8 @@
 
 # Python
 .venv/
+.venv-*/
+.venv-tools/
 __pycache__/
 *.pyc
 *.egg-info/
