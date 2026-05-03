@@ -1,0 +1,52 @@
+name: FogStack Registry Root
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/release/fogstack-registry-root-metadata-v0.1.schema.json"
+      - "schemas/release/fogstack-registry-revocation-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_root_metadata.py"
+      - "tools/check_fogstack_registry_root_metadata.py"
+      - "tools/build_fogstack_registry_revocation_index.py"
+      - "tools/check_fogstack_registry_revocation_index.py"
+      - "tools/tests/test_fogstack_registry_root_metadata.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-registry-root.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/release/fogstack-registry-root-metadata-v0.1.schema.json"
+      - "schemas/release/fogstack-registry-revocation-index-v0.1.schema.json"
+      - "tools/build_fogstack_registry_root_metadata.py"
+      - "tools/check_fogstack_registry_root_metadata.py"
+      - "tools/build_fogstack_registry_revocation_index.py"
+      - "tools/check_fogstack_registry_revocation_index.py"
+      - "tools/tests/test_fogstack_registry_root_metadata.py"
+      - "docs/FOGSTACK_*.md"
+      - ".github/workflows/fogstack-registry-root.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  registry-root:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run registry root tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_registry_root_metadata.py
