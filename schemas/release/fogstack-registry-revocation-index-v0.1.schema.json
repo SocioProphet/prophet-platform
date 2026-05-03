@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/release/fogstack-registry-revocation-index-v0.1.schema.json",
+  "title": "FogStackRegistryRevocationIndex",
+  "type": "object",
+  "required": ["kind", "schema_version", "entries"],
+  "properties": {
+    "kind": { "const": "FogStackRegistryRevocationIndex" },
+    "schema_version": { "const": "v0.1" },
+    "entries": { "type": "array" }
+  },
+  "additionalProperties": true
+}
