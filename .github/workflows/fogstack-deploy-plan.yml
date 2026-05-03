@@ -7,8 +7,11 @@ on:
       - "bundles/fogstack.*.yaml"
       - "releases/manifests/fogstack.*.manifest.json"
       - "schemas/deploy/**"
+      - "schemas/agent/fogstack-agent-corps-plan-v0.1.schema.json"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/check_fogstack_deploy_plan.py"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
       - "tools/tests/test_fogstack_deploy_plan.py"
       - "tools/tests/test_check_fogstack_deploy_plan.py"
       - ".github/workflows/fogstack-deploy-plan.yml"
@@ -18,8 +21,11 @@ on:
       - "bundles/fogstack.*.yaml"
       - "releases/manifests/fogstack.*.manifest.json"
       - "schemas/deploy/**"
+      - "schemas/agent/fogstack-agent-corps-plan-v0.1.schema.json"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/check_fogstack_deploy_plan.py"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/check_fogstack_runtime_contract.py"
       - "tools/tests/test_fogstack_deploy_plan.py"
       - "tools/tests/test_check_fogstack_deploy_plan.py"
       - ".github/workflows/fogstack-deploy-plan.yml"
@@ -49,6 +55,21 @@ jobs:
         run: |
           python -m pytest -q tools/tests/test_fogstack_deploy_plan.py tools/tests/test_check_fogstack_deploy_plan.py
 
+      - name: Build access runtime contract artifact
+        run: |
+          python3 tools/build_fogstack_runtime_contract.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --actor-id agent:fogstack.access.operator \
+            --human-anchor-role operator \
+            --runtime-mode local \
+            --isolation process \
+            --identity-mode local-dev \
+            --max-runtime-seconds 900 \
+            --output build/fogstack-deploy-plan/fogstack.access.runtime-contract.json
+          test -s build/fogstack-deploy-plan/fogstack.access.runtime-contract.json
+          python3 tools/check_fogstack_runtime_contract.py --contract build/fogstack-deploy-plan/fogstack.access.runtime-contract.json
+
       - name: Build access deploy plan artifact
         run: |
           python3 tools/build_fogstack_deploy_plan.py \
@@ -57,6 +78,7 @@ jobs:
             --target local \
             --namespace fogstack-access \
             --health-endpoint /healthz \
+            --runtime-contract build/fogstack-deploy-plan/fogstack.access.runtime-contract.json \
             --output build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
           test -s build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
 

@@ -54,8 +54,10 @@ def validate_plan(plan_path: Path, schema_path: Path = DEFAULT_SCHEMA) -> list[s
 
     manifest_ref = plan["manifest_ref"]
     bundle_ref = plan["bundle_ref"]
+    agent_corps_ref = plan["agent_corps_plan_ref"]
     manifest_path = path_from_ref(manifest_ref)
     bundle_path = path_from_ref(bundle_ref)
+    agent_corps_path = path_from_ref(agent_corps_ref)
 
     if not manifest_path.exists():
         errors.append(f"manifest_ref missing: {manifest_ref}")
@@ -74,6 +76,22 @@ def validate_plan(plan_path: Path, schema_path: Path = DEFAULT_SCHEMA) -> list[s
         actual_bundle_digest = sha256_file(bundle_path)
         if actual_bundle_digest != plan["bundle_digest"]:
             errors.append(f"bundle_digest mismatch: {bundle_ref}")
+
+    if not agent_corps_path.exists():
+        errors.append(f"agent_corps_plan_ref missing: {agent_corps_ref}")
+    elif not agent_corps_path.is_file():
+        errors.append(f"agent_corps_plan_ref is not a file: {agent_corps_ref}")
+    else:
+        actual_agent_corps_digest = sha256_file(agent_corps_path)
+        if actual_agent_corps_digest != plan["agent_corps_plan_digest"]:
+            errors.append(f"agent_corps_plan_digest mismatch: {agent_corps_ref}")
+        agent_corps_plan = load_json(agent_corps_path)
+        if agent_corps_plan.get("kind") != "FogStackAgentCorpsPlan":
+            errors.append("agent_corps_plan_ref must point to a FogStackAgentCorpsPlan")
+        if agent_corps_plan.get("bundle_id") != plan["bundle_id"]:
+            errors.append("Agent Corps plan bundle_id does not match deploy plan")
+        if agent_corps_plan.get("version") != plan["version"]:
+            errors.append("Agent Corps plan version does not match deploy plan")
 
     if manifest_path.exists() and manifest_path.is_file():
         manifest = load_json(manifest_path)
@@ -115,6 +133,7 @@ def validate_plan(plan_path: Path, schema_path: Path = DEFAULT_SCHEMA) -> list[s
     required_artifacts = {
         "bundle": (bundle_ref, plan["bundle_digest"]),
         "manifest": (manifest_ref, plan["manifest_digest"]),
+        "agent-corps-plan": (agent_corps_ref, plan["agent_corps_plan_digest"]),
     }
     artifacts_by_id = {artifact["id"]: artifact for artifact in plan.get("artifacts", [])}
     for artifact_id, (expected_ref, expected_digest) in required_artifacts.items():

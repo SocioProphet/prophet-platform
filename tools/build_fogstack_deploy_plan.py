@@ -53,9 +53,18 @@ def selected_profile(bundle: dict[str, Any], profile_id: str) -> dict[str, Any]:
     raise SystemExit(f"ERR: profile not found in bundle: {profile_id}")
 
 
-def build_plan(manifest_path: Path, profile_id: str, target: str, namespace: str, health_endpoint: str) -> dict[str, Any]:
+def build_plan(
+    manifest_path: Path,
+    profile_id: str,
+    target: str,
+    namespace: str,
+    health_endpoint: str,
+    runtime_contract_path: Path,
+) -> dict[str, Any]:
     manifest_path = manifest_path if manifest_path.is_absolute() else ROOT / manifest_path
+    runtime_contract_path = runtime_contract_path if runtime_contract_path.is_absolute() else ROOT / runtime_contract_path
     manifest = load_json(manifest_path)
+    runtime_contract = load_json(runtime_contract_path)
 
     bundle_ref = manifest.get("bundle")
     if not isinstance(bundle_ref, str) or not bundle_ref:
@@ -76,12 +85,20 @@ def build_plan(manifest_path: Path, profile_id: str, target: str, namespace: str
         raise SystemExit("ERR: manifest bundle_id does not match bundle metadata")
     if version != metadata.get("version"):
         raise SystemExit("ERR: manifest version does not match bundle metadata")
+    if runtime_contract.get("kind") != "FogStackAgentCorpsPlan":
+        raise SystemExit("ERR: runtime contract must be a FogStackAgentCorpsPlan")
+    if runtime_contract.get("bundle_id") != bundle_id:
+        raise SystemExit("ERR: runtime contract bundle_id does not match manifest")
+    if runtime_contract.get("version") != version:
+        raise SystemExit("ERR: runtime contract version does not match manifest")
 
     manifest_digest = sha256_file(manifest_path)
+    runtime_contract_digest = sha256_file(runtime_contract_path)
     bundle_digest = manifest.get("bundle_digest")
     if not isinstance(bundle_digest, str) or not bundle_digest.startswith("sha256:"):
         raise SystemExit("ERR: manifest bundle_digest missing or malformed")
 
+    runtime_contract_ref = rel(runtime_contract_path)
     return {
         "kind": "FogStackDeployPlan",
         "schema_version": "v0.1",
@@ -94,6 +111,8 @@ def build_plan(manifest_path: Path, profile_id: str, target: str, namespace: str
         "manifest_digest": manifest_digest,
         "bundle_ref": bundle_ref,
         "bundle_digest": bundle_digest,
+        "agent_corps_plan_ref": runtime_contract_ref,
+        "agent_corps_plan_digest": runtime_contract_digest,
         "runtime": {
             "substrate": runtime.get("substrate"),
             "service_classes": runtime.get("service_classes", []),
@@ -118,6 +137,11 @@ def build_plan(manifest_path: Path, profile_id: str, target: str, namespace: str
                 "ref": rel(manifest_path),
                 "digest": manifest_digest,
             },
+            {
+                "id": "agent-corps-plan",
+                "ref": runtime_contract_ref,
+                "digest": runtime_contract_digest,
+            },
         ],
         "policy": {
             "required_contracts": contracts.get("required", []),
@@ -141,10 +165,18 @@ def main() -> int:
     parser.add_argument("--target", choices=["local", "kubernetes", "openshift"], default="local")
     parser.add_argument("--namespace", default="fogstack-access")
     parser.add_argument("--health-endpoint", default="/healthz")
+    parser.add_argument("--runtime-contract", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
 
-    plan = build_plan(args.manifest, args.profile, args.target, args.namespace, args.health_endpoint)
+    plan = build_plan(
+        args.manifest,
+        args.profile,
+        args.target,
+        args.namespace,
+        args.health_endpoint,
+        args.runtime_contract,
+    )
     output = args.output if args.output.is_absolute() else ROOT / args.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")

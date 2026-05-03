@@ -15,6 +15,8 @@
     "manifest_digest",
     "bundle_ref",
     "bundle_digest",
+    "agent_corps_plan_ref",
+    "agent_corps_plan_digest",
     "runtime",
     "deployment",
     "artifacts",
@@ -32,6 +34,8 @@
     "manifest_digest": { "$ref": "#/$defs/sha256_digest" },
     "bundle_ref": { "type": "string", "minLength": 1 },
     "bundle_digest": { "$ref": "#/$defs/sha256_digest" },
+    "agent_corps_plan_ref": { "type": "string", "minLength": 1 },
+    "agent_corps_plan_digest": { "$ref": "#/$defs/sha256_digest" },
     "runtime": {
       "type": "object",
       "required": ["substrate", "service_classes", "components"],
