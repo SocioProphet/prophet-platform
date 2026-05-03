@@ -93,7 +93,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--verifier-json", str(verify_json),
         "--bundle-id", bundle_id,
         "--version", version,
-        "--source", "local-demo",
+        "--source", "local",
         "--evidence-ref", rel(verify_json),
         "--output", str(validation_record),
     ])
