@@ -11,6 +11,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY_ARTIFACT_KEYS = {
+    "node_profile": "deploy_node_profile",
     "agent_corps_plan": "deploy_agent_corps_plan",
     "deploy_plan": "deploy_plan",
     "kubernetes_configmap": "deploy_kubernetes_configmap",
@@ -27,6 +28,7 @@ DEPLOY_ARTIFACT_KEYS = {
     "summary": "deploy_summary",
 }
 DEPLOY_ARTIFACT_LABELS = {
+    "deploy_node_profile": "Agent Machine node profile",
     "deploy_agent_corps_plan": "Agent Corps plan",
     "deploy_plan": "Deploy plan",
     "deploy_kubernetes_configmap": "Kubernetes ConfigMap",
@@ -191,7 +193,7 @@ def update_summary(summary_path: Path, deploy_summary_path: Path) -> dict[str, A
         artifacts[target_key] = deploy_summary["artifacts"][source_key]
 
     checks = summary.setdefault("checks", [])
-    for check in ["deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted", "gitops_bundle_built", "gitops_bundle_checked"]:
+    for check in ["node_profile_built", "deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted", "gitops_bundle_built", "gitops_bundle_checked"]:
         if check not in checks:
             checks.append(check)
 

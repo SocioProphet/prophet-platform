@@ -47,7 +47,22 @@ def artifact(artifact_id: str, path: Path) -> dict[str, str]:
     return {"id": artifact_id, "ref": rel(path), "digest": sha256_file(path)}
 
 
+def require_node_surfaces(node_profile: dict[str, Any]) -> None:
+    surfaces = {surface.get("id"): surface for surface in node_profile.get("use_surfaces", []) if isinstance(surface, dict)}
+    for surface_id in ["turtleterm", "bearbrowser"]:
+        surface = surfaces.get(surface_id)
+        if not surface:
+            raise SystemExit(f"ERR: node profile missing required surface: {surface_id}")
+        if surface.get("first_class") is not True:
+            raise SystemExit(f"ERR: node surface is not first-class: {surface_id}")
+        if surface.get("agentplane_visible") is not True:
+            raise SystemExit(f"ERR: node surface is not AgentPlane-visible: {surface_id}")
+        if surface.get("policyplane_guarded") is not True:
+            raise SystemExit(f"ERR: node surface is not PolicyPlane-guarded: {surface_id}")
+
+
 def build_adapter(
+    node_profile_path: Path,
     deploy_plan_path: Path,
     cluster_readiness_path: Path,
     gitops_bundle_path: Path,
@@ -58,17 +73,21 @@ def build_adapter(
     cluster_name: str,
     kubectl_context: str,
 ) -> dict[str, Any]:
+    node_profile_path = resolve(node_profile_path)
     deploy_plan_path = resolve(deploy_plan_path)
     cluster_readiness_path = resolve(cluster_readiness_path)
     gitops_bundle_path = resolve(gitops_bundle_path)
     gitops_readiness_path = resolve(gitops_readiness_path)
     output_path = resolve(output_path)
 
+    node_profile = load_json(node_profile_path)
     deploy_plan = load_json(deploy_plan_path)
     cluster_readiness = load_json(cluster_readiness_path)
     gitops_bundle = load_json(gitops_bundle_path)
     gitops_readiness = load_json(gitops_readiness_path)
 
+    if node_profile.get("kind") != "FogStackAgentMachineNodeProfile":
+        raise SystemExit("ERR: expected FogStackAgentMachineNodeProfile")
     if deploy_plan.get("kind") != "FogStackDeployPlan":
         raise SystemExit("ERR: expected FogStackDeployPlan")
     if cluster_readiness.get("kind") != "FogStackClusterReadinessRecord":
@@ -77,6 +96,7 @@ def build_adapter(
         raise SystemExit("ERR: expected FogStackGitOpsBundle")
     if gitops_readiness.get("kind") != "FogStackGitOpsReadinessRecord":
         raise SystemExit("ERR: expected FogStackGitOpsReadinessRecord")
+    require_node_surfaces(node_profile)
 
     bundle_id = deploy_plan["bundle_id"]
     version = deploy_plan["version"]
@@ -90,6 +110,10 @@ def build_adapter(
         raise SystemExit("ERR: cluster readiness record must have passed status")
     if gitops_readiness.get("status") != "passed":
         raise SystemExit("ERR: GitOps readiness record must have passed status")
+    if node_profile["governance"].get("agentplane_ref") != "github://SocioProphet/agentplane":
+        raise SystemExit("ERR: node profile must reference SocioProphet/agentplane")
+    if node_profile["governance"].get("policyplane_ref") != "github://SocioProphet/policy-fabric":
+        raise SystemExit("ERR: node profile must reference SocioProphet/policy-fabric")
 
     supported_tools = ["kubectl"] if cluster_provider == "generic-kubernetes" else ["kubectl", "kind"]
     adapter = {
@@ -106,6 +130,8 @@ def build_adapter(
             "supported_tools": supported_tools,
         },
         "inputs": {
+            "node_profile_ref": rel(node_profile_path),
+            "node_profile_digest": sha256_file(node_profile_path),
             "deploy_plan_ref": rel(deploy_plan_path),
             "deploy_plan_digest": sha256_file(deploy_plan_path),
             "cluster_readiness_record_ref": rel(cluster_readiness_path),
@@ -122,6 +148,7 @@ def build_adapter(
             "secrets_default": "deny",
         },
         "artifacts": [
+            artifact("node-profile", node_profile_path),
             artifact("deploy-plan", deploy_plan_path),
             artifact("cluster-readiness-record", cluster_readiness_path),
             artifact("gitops-bundle", gitops_bundle_path),
@@ -134,6 +161,7 @@ def build_adapter(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build a FogStack local cluster runtime adapter contract")
+    parser.add_argument("--node-profile", required=True, type=Path)
     parser.add_argument("--deploy-plan", required=True, type=Path)
     parser.add_argument("--cluster-readiness-record", required=True, type=Path)
     parser.add_argument("--gitops-bundle", required=True, type=Path)
@@ -146,6 +174,7 @@ def main() -> int:
     args = parser.parse_args()
 
     adapter = build_adapter(
+        node_profile_path=args.node_profile,
         deploy_plan_path=args.deploy_plan,
         cluster_readiness_path=args.cluster_readiness_record,
         gitops_bundle_path=args.gitops_bundle,

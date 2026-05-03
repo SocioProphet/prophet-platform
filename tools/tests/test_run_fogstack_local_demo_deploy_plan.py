@@ -26,15 +26,17 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert "FogStack local demo deploy plan passed." in proc.stdout
     assert "Bundle: fogstack.access@0.1.0" in proc.stdout
     assert "Target: kubernetes" in proc.stdout
+    assert "Agent Machine node profile:" in proc.stdout
     assert "Cluster readiness record:" in proc.stdout
     assert "GitOps bundle:" in proc.stdout
     assert "GitOps application:" in proc.stdout
     assert "GitOps readiness record:" in proc.stdout
     assert "Runtime adapter:" in proc.stdout
     assert "Runtime dry-run record:" in proc.stdout
-    assert "Checks passed: 12" in proc.stdout
+    assert "Checks passed: 13" in proc.stdout
 
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
+    node_profile_path = output_dir / "fogstack.access.agent-machine-node-profile.json"
     check_record_path = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
     readiness_record_path = output_dir / "fogstack.access.cluster-readiness.record.json"
     gitops_readiness_path = output_dir / "fogstack.access.gitops-readiness.record.json"
@@ -47,6 +49,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
 
     for path in [
         summary_path,
+        node_profile_path,
         check_record_path,
         readiness_record_path,
         gitops_readiness_path,
@@ -72,6 +75,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert summary["version"] == "0.1.0"
     assert summary["target"] == "kubernetes"
     assert set(summary["checks"]) == {
+        "node_profile_built",
         "agent_corps_plan_built",
         "agent_corps_plan_checked",
         "deploy_plan_built",
@@ -87,6 +91,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     }
 
     artifacts = summary["artifacts"]
+    assert artifacts["node_profile"].endswith("fogstack.access.agent-machine-node-profile.json")
     assert artifacts["agent_corps_plan"].endswith("fogstack.access.runtime-contract.json")
     assert artifacts["deploy_plan"].endswith("fogstack.access.deploy-plan.json")
     assert artifacts["kubernetes_configmap"].endswith("configmap.yaml")
@@ -101,6 +106,11 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert artifacts["gitops_readiness_record"].endswith("fogstack.access.gitops-readiness.record.json")
     assert artifacts["runtime_adapter"].endswith("fogstack.access.local-cluster-runtime-adapter.json")
     assert artifacts["runtime_dry_run_record"].endswith("fogstack.access.runtime-dry-run.record.json")
+
+    node_profile = json.loads(node_profile_path.read_text(encoding="utf-8"))
+    surfaces = {surface["id"]: surface for surface in node_profile["use_surfaces"]}
+    assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
+    assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
 
     check_record = json.loads(check_record_path.read_text(encoding="utf-8"))
     assert check_record["kind"] == "FogStackKubernetesManifestCheckRecord"
@@ -127,11 +137,13 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     runtime_adapter = json.loads(runtime_adapter_path.read_text(encoding="utf-8"))
     assert runtime_adapter["kind"] == "FogStackLocalClusterRuntimeAdapter"
     assert runtime_adapter["runtime_policy"]["live_apply_allowed"] is False
+    assert runtime_adapter["inputs"]["node_profile_digest"].startswith("sha256:")
 
     runtime_dry_run = json.loads(runtime_dry_run_path.read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
     assert runtime_dry_run["status"] == "passed"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
+    assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     deployment = yaml.safe_load((manifest_dir / "deployment.yaml").read_text(encoding="utf-8"))
     assert deployment["kind"] == "Deployment"
