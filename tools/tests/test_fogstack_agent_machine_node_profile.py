@@ -17,6 +17,30 @@ def load_json(path: Path) -> dict:
     return data
 
 
+def assert_use_surfaces(profile: dict) -> None:
+    surfaces = {surface["id"]: surface for surface in profile["use_surfaces"]}
+    assert {"turtleterm", "bearbrowser"}.issubset(surfaces)
+    turtleterm = surfaces["turtleterm"]
+    assert turtleterm["name"] == "TurtleTerm"
+    assert turtleterm["surface_type"] == "terminal"
+    assert turtleterm["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
+    assert turtleterm["first_class"] is True
+    assert turtleterm["agentplane_visible"] is True
+    assert turtleterm["policyplane_guarded"] is True
+    assert "agent-command-session" in turtleterm["capabilities"]
+    assert "node-debug-console" in turtleterm["capabilities"]
+
+    bearbrowser = surfaces["bearbrowser"]
+    assert bearbrowser["name"] == "BearBrowser"
+    assert bearbrowser["surface_type"] == "browser"
+    assert bearbrowser["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
+    assert bearbrowser["first_class"] is True
+    assert bearbrowser["agentplane_visible"] is True
+    assert bearbrowser["policyplane_guarded"] is True
+    assert "operator-web-console" in bearbrowser["capabilities"]
+    assert "policy-gated-browsing" in bearbrowser["capabilities"]
+
+
 def test_build_fogstack_agent_machine_node_profile(tmp_path: Path) -> None:
     output = tmp_path / "agent-machine-node-profile.json"
     subprocess.run([
@@ -50,6 +74,7 @@ def test_build_fogstack_agent_machine_node_profile(tmp_path: Path) -> None:
     assert profile["storage"]["persistent_storage"] == "topolvm"
     assert profile["agent_machine"]["enabled"] is True
     assert profile["agent_machine"]["node_contract_required"] is True
+    assert_use_surfaces(profile)
     assert profile["governance"]["agentplane_ref"] == "github://SocioProphet/agentplane"
     assert profile["governance"]["policyplane_ref"] == "github://SocioProphet/policy-fabric"
     assert profile["governance"]["human_approval_required"] is True
@@ -84,3 +109,4 @@ def test_build_agentos_node_profile_without_topolvm(tmp_path: Path) -> None:
     assert profile["declarative_updates"]["strategy"] == "ostree-rebase"
     assert profile["storage"]["topolvm_required"] is False
     assert profile["storage"]["persistent_storage"] == "external-csi"
+    assert_use_surfaces(profile)
