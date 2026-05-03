@@ -11,6 +11,7 @@ on:
       - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
       - "releases/manifests/**"
+      - "Makefile"
       - "tools/run_fogstack_local_demo.py"
       - "tools/fogstack_verify.py"
       - "tools/emit_fogstack_validation_record.py"
@@ -41,6 +42,7 @@ on:
       - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
       - "releases/manifests/**"
+      - "Makefile"
       - "tools/run_fogstack_local_demo.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
       - ".github/workflows/fogstack-local-demo.yml"
@@ -72,7 +74,7 @@ jobs:
 
       - name: Run operator demo command
         run: |
-          python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo
+          make fogstack-local-demo
 
       - name: Upload local demo artifacts
         uses: actions/upload-artifact@v4

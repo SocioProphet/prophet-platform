@@ -176,3 +176,7 @@ validate-fogstack:
 
 validate-storage-suite:
 	python3 tools/validate_storage_suite.py
+
+.PHONY: fogstack-local-demo
+fogstack-local-demo:
+	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
