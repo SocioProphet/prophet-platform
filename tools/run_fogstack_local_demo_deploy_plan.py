@@ -37,6 +37,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     manifest_dir = output_dir / "kubernetes"
     gitops_dir = output_dir / "gitops"
     gitops_readiness_record = output_dir / "fogstack.access.gitops-readiness.record.json"
+    runtime_adapter = output_dir / "fogstack.access.local-cluster-runtime-adapter.json"
+    runtime_dry_run_record = output_dir / "fogstack.access.runtime-dry-run.record.json"
     check_record = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
     readiness_record = output_dir / "fogstack.access.cluster-readiness.record.json"
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
@@ -115,6 +117,22 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         "--checker-status", "passed",
         "--checker-message", gitops_check.stdout.strip(),
     ])
+    run([
+        sys.executable,
+        "tools/build_fogstack_local_cluster_runtime_adapter.py",
+        "--deploy-plan", str(deploy_plan),
+        "--cluster-readiness-record", str(readiness_record),
+        "--gitops-bundle", str(gitops_dir / "gitops-bundle.json"),
+        "--gitops-readiness-record", str(gitops_readiness_record),
+        "--output", str(runtime_adapter),
+    ])
+    run([
+        sys.executable,
+        "tools/emit_fogstack_runtime_dry_run_record.py",
+        "--runtime-adapter", str(runtime_adapter),
+        "--manifest-dir", str(manifest_dir),
+        "--output", str(runtime_dry_run_record),
+    ])
 
     manifests = [
         manifest_dir / "configmap.yaml",
@@ -160,6 +178,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "gitops_deployment": rel(gitops_dir / "manifests" / "deployment.yaml"),
             "gitops_service": rel(gitops_dir / "manifests" / "service.yaml"),
             "gitops_readiness_record": rel(gitops_readiness_record),
+            "runtime_adapter": rel(runtime_adapter),
+            "runtime_dry_run_record": rel(runtime_dry_run_record),
             "summary": rel(summary_path),
         },
         "checks": [
@@ -173,6 +193,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "gitops_bundle_built",
             "gitops_bundle_checked",
             "gitops_readiness_record_emitted",
+            "runtime_adapter_built",
+            "runtime_dry_run_record_emitted",
         ],
     }
     write_json(summary_path, summary)
@@ -195,6 +217,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
         f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
+        f"Runtime adapter: {artifacts['runtime_adapter']}",
+        f"Runtime dry-run record: {artifacts['runtime_dry_run_record']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
