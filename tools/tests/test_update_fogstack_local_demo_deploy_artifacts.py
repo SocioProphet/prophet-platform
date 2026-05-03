@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-REQUIRED = {"deploy_agent_corps_plan", "deploy_plan", "deploy_kubernetes_configmap", "deploy_kubernetes_deployment", "deploy_kubernetes_service", "deploy_kubernetes_manifest_check_record", "deploy_summary"}
+REQUIRED = {"deploy_agent_corps_plan", "deploy_plan", "deploy_kubernetes_configmap", "deploy_kubernetes_deployment", "deploy_kubernetes_service", "deploy_kubernetes_manifest_check_record", "deploy_cluster_readiness_record", "deploy_summary"}
 
 
 def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
@@ -20,6 +20,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert REQUIRED.issubset(set(summary["artifacts"]))
     assert "deploy_plan_built" in summary["checks"]
     assert "kubernetes_manifests_checked" in summary["checks"]
+    assert "cluster_readiness_record_emitted" in summary["checks"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
@@ -27,6 +28,10 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     for key in REQUIRED:
         assert indexed[key]["digest"].startswith("sha256:")
         assert Path(indexed[key]["ref"]).exists()
+
+    readiness_record = json.loads(Path(summary["artifacts"]["deploy_cluster_readiness_record"]).read_text(encoding="utf-8"))
+    assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
+    assert readiness_record["status"] == "passed"
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
     html = (output_dir / "index.html").read_text(encoding="utf-8")
@@ -37,4 +42,5 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "indexed" in content
         assert "deploy_plan" in content
         assert "deploy_kubernetes_deployment" in content
+        assert "deploy_cluster_readiness_record" in content
         assert "sha256:" in content
