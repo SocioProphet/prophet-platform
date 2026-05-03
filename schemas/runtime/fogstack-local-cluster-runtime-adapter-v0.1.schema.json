@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-local-cluster-runtime-adapter-v0.1.schema.json",
+  "title": "FogStackLocalClusterRuntimeAdapter",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "namespace",
+    "adapter",
+    "inputs",
+    "runtime_policy",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackLocalClusterRuntimeAdapter" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
+    "adapter": {
+      "type": "object",
+      "required": ["mode", "cluster_provider", "cluster_name", "kubectl_context", "supported_tools"],
+      "properties": {
+        "mode": { "enum": ["dry-run", "local-cluster"] },
+        "cluster_provider": { "enum": ["kind", "generic-kubernetes"] },
+        "cluster_name": { "type": "string", "minLength": 1 },
+        "kubectl_context": { "type": "string", "minLength": 1 },
+        "supported_tools": {
+          "type": "array",
+          "items": { "enum": ["kubectl", "kind"] },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "deploy_plan_ref",
+        "deploy_plan_digest",
+        "cluster_readiness_record_ref",
+        "cluster_readiness_record_digest",
+        "gitops_bundle_ref",
+        "gitops_bundle_digest",
+        "gitops_readiness_record_ref",
+        "gitops_readiness_record_digest"
+      ],
+      "properties": {
+        "deploy_plan_ref": { "type": "string", "minLength": 1 },
+        "deploy_plan_digest": { "$ref": "#/$defs/sha256_digest" },
+        "cluster_readiness_record_ref": { "type": "string", "minLength": 1 },
+        "cluster_readiness_record_digest": { "$ref": "#/$defs/sha256_digest" },
+        "gitops_bundle_ref": { "type": "string", "minLength": 1 },
+        "gitops_bundle_digest": { "$ref": "#/$defs/sha256_digest" },
+        "gitops_readiness_record_ref": { "type": "string", "minLength": 1 },
+        "gitops_readiness_record_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "runtime_policy": {
+      "type": "object",
+      "required": ["live_apply_allowed", "requires_human_approval", "network_default", "secrets_default"],
+      "properties": {
+        "live_apply_allowed": { "const": false },
+        "requires_human_approval": { "const": true },
+        "network_default": { "const": "deny" },
+        "secrets_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "ref", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
