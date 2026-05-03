@@ -18,6 +18,7 @@ REQUIRED_FULL_ARTIFACTS = {
     "kubernetes_deployment",
     "kubernetes_service",
     "kubernetes_manifest_check_record",
+    "cluster_readiness_record",
 }
 
 
@@ -40,6 +41,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "Artifact index:" in proc.stdout
     assert "Deploy plan:" in proc.stdout
     assert "Kubernetes deployment:" in proc.stdout
+    assert "Cluster readiness record:" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     assert full_summary_path.exists()
@@ -47,18 +49,25 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert full_summary["kind"] == "FogStackLocalDemoFullRun"
     assert full_summary["status"] == "passed"
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
+    assert "cluster_readiness_record_indexed" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
+
+    readiness_record = json.loads(Path(full_summary["artifacts"]["cluster_readiness_record"]).read_text(encoding="utf-8"))
+    assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
+    assert readiness_record["status"] == "passed"
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
     assert "deploy_plan" in indexed_ids
     assert "deploy_kubernetes_deployment" in indexed_ids
     assert "deploy_kubernetes_manifest_check_record" in indexed_ids
+    assert "deploy_cluster_readiness_record" in indexed_ids
 
     html = (output_dir / "index.html").read_text(encoding="utf-8")
     assert "Deploy readiness" in html
     assert "SHA-256 digest" in html
     assert "indexed" in html
     assert "deploy_plan" in html
+    assert "deploy_cluster_readiness_record" in html
     assert "fogstack.access.deploy-plan.json" in html

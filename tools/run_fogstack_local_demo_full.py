@@ -89,11 +89,13 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "kubernetes_deployment": rel(deploy_dir / "kubernetes" / "deployment.yaml"),
             "kubernetes_service": rel(deploy_dir / "kubernetes" / "service.yaml"),
             "kubernetes_manifest_check_record": rel(deploy_dir / "fogstack.access.kubernetes-manifest-check.record.json"),
+            "cluster_readiness_record": rel(deploy_dir / "fogstack.access.cluster-readiness.record.json"),
         },
         "checks": [
             "local_demo_generated",
             "deploy_plan_generated",
             "deploy_artifacts_integrated",
+            "cluster_readiness_record_indexed",
             "artifact_index_checked",
         ],
     }
@@ -110,6 +112,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Artifact index: {artifacts['artifact_index']}",
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes deployment: {artifacts['kubernetes_deployment']}",
+        f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
