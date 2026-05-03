@@ -13,6 +13,7 @@
     "declarative_updates",
     "storage",
     "agent_machine",
+    "use_surfaces",
     "governance",
     "runtime_policy"
   ],
@@ -77,6 +78,27 @@
       },
       "additionalProperties": false
     },
+    "use_surfaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/use_surface" },
+      "minItems": 2,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "const": "turtleterm" } }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["id"],
+            "properties": { "id": { "const": "bearbrowser" } }
+          }
+        }
+      ]
+    },
     "governance": {
       "type": "object",
       "required": ["agentplane_ref", "policyplane_ref", "human_approval_required", "live_mutation_default"],
@@ -96,6 +118,27 @@
         "secrets_default": { "const": "deny" },
         "host_mutation_default": { "const": "deny" },
         "cluster_join_default": { "const": "approval-required" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "use_surface": {
+      "type": "object",
+      "required": ["id", "name", "surface_type", "repo_ref", "first_class", "agentplane_visible", "policyplane_guarded", "capabilities"],
+      "properties": {
+        "id": { "enum": ["turtleterm", "bearbrowser"] },
+        "name": { "type": "string", "minLength": 1 },
+        "surface_type": { "enum": ["terminal", "browser"] },
+        "repo_ref": { "type": "string", "minLength": 1 },
+        "first_class": { "const": true },
+        "agentplane_visible": { "const": true },
+        "policyplane_guarded": { "const": true },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        }
       },
       "additionalProperties": false
     }
