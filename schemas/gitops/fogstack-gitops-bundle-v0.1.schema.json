@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/gitops/fogstack-gitops-bundle-v0.1.schema.json",
+  "title": "FogStackGitOpsBundle",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "namespace",
+    "deploy_plan_ref",
+    "deploy_plan_digest",
+    "agent_corps_plan_ref",
+    "agent_corps_plan_digest",
+    "source",
+    "application",
+    "kustomization",
+    "manifests",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackGitOpsBundle" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
+    "deploy_plan_ref": { "type": "string", "minLength": 1 },
+    "deploy_plan_digest": { "$ref": "#/$defs/sha256_digest" },
+    "agent_corps_plan_ref": { "type": "string", "minLength": 1 },
+    "agent_corps_plan_digest": { "$ref": "#/$defs/sha256_digest" },
+    "source": {
+      "type": "object",
+      "required": ["repo_url", "target_revision", "path"],
+      "properties": {
+        "repo_url": { "type": "string", "minLength": 1 },
+        "target_revision": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "application": {
+      "type": "object",
+      "required": ["name", "ref", "digest"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "kustomization": {
+      "type": "object",
+      "required": ["ref", "digest"],
+      "properties": {
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "manifests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "minItems": 1
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "ref", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
