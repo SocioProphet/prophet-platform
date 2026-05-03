@@ -57,5 +57,8 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "deploy_kubernetes_manifest_check_record" in indexed_ids
 
     html = (output_dir / "index.html").read_text(encoding="utf-8")
-    assert "Deploy plan artifacts" in html
+    assert "Deploy readiness" in html
+    assert "SHA-256 digest" in html
+    assert "indexed" in html
+    assert "deploy_plan" in html
     assert "fogstack.access.deploy-plan.json" in html
