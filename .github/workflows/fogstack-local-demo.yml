@@ -13,6 +13,7 @@ on:
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
+      - "tools/check_fogstack_local_demo_artifact_index.py"
       - "tools/fogstack_verify.py"
       - "tools/emit_fogstack_validation_record.py"
       - "tools/build_fogstack_manifest_publication_set.py"
@@ -31,6 +32,7 @@ on:
       - "tools/build_fogstack_registry_root_metadata.py"
       - "tools/check_fogstack_registry_root_metadata.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
+      - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - ".github/workflows/fogstack-local-demo.yml"
   push:
     branches: [main]
@@ -44,7 +46,9 @@ on:
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
+      - "tools/check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
+      - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - ".github/workflows/fogstack-local-demo.yml"
 
 permissions:
@@ -70,11 +74,15 @@ jobs:
 
       - name: Run local demo end-to-end test
         run: |
-          python -m pytest -q tools/tests/test_run_fogstack_local_demo.py
+          python -m pytest -q tools/tests/test_run_fogstack_local_demo.py tools/tests/test_check_fogstack_local_demo_artifact_index.py
 
       - name: Run operator demo command
         run: |
           make fogstack-local-demo
+
+      - name: Check generated artifact index
+        run: |
+          python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
 
       - name: Upload local demo artifacts
         uses: actions/upload-artifact@v4
