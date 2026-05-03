@@ -26,10 +26,12 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert "FogStack local demo deploy plan passed." in proc.stdout
     assert "Bundle: fogstack.access@0.1.0" in proc.stdout
     assert "Target: kubernetes" in proc.stdout
-    assert "Checks passed: 6" in proc.stdout
+    assert "Cluster readiness record:" in proc.stdout
+    assert "Checks passed: 7" in proc.stdout
 
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
     check_record_path = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
+    readiness_record_path = output_dir / "fogstack.access.cluster-readiness.record.json"
     runtime_contract_path = output_dir / "fogstack.access.runtime-contract.json"
     deploy_plan_path = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
@@ -37,6 +39,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     for path in [
         summary_path,
         check_record_path,
+        readiness_record_path,
         runtime_contract_path,
         deploy_plan_path,
         manifest_dir / "configmap.yaml",
@@ -57,6 +60,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
         "deploy_plan_checked",
         "kubernetes_manifests_rendered",
         "kubernetes_manifests_checked",
+        "cluster_readiness_record_emitted",
     }
 
     artifacts = summary["artifacts"]
@@ -66,12 +70,19 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert artifacts["kubernetes_deployment"].endswith("deployment.yaml")
     assert artifacts["kubernetes_service"].endswith("service.yaml")
     assert artifacts["kubernetes_manifest_check_record"].endswith("fogstack.access.kubernetes-manifest-check.record.json")
+    assert artifacts["cluster_readiness_record"].endswith("fogstack.access.cluster-readiness.record.json")
 
     check_record = json.loads(check_record_path.read_text(encoding="utf-8"))
     assert check_record["kind"] == "FogStackKubernetesManifestCheckRecord"
     assert check_record["status"] == "passed"
     assert check_record["bundle_id"] == "fogstack.access"
+    assert check_record["cluster_readiness_record_ref"].endswith("fogstack.access.cluster-readiness.record.json")
     assert "FogStack Kubernetes manifests passed." in check_record["checker_stdout"]
+
+    readiness_record = json.loads(readiness_record_path.read_text(encoding="utf-8"))
+    assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
+    assert readiness_record["status"] == "passed"
+    assert readiness_record["offline_validation"]["status"] == "passed"
 
     deployment = yaml.safe_load((manifest_dir / "deployment.yaml").read_text(encoding="utf-8"))
     assert deployment["kind"] == "Deployment"
