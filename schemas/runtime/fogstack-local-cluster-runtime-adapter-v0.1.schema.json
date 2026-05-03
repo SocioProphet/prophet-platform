@@ -39,6 +39,8 @@
     "inputs": {
       "type": "object",
       "required": [
+        "node_profile_ref",
+        "node_profile_digest",
         "deploy_plan_ref",
         "deploy_plan_digest",
         "cluster_readiness_record_ref",
@@ -49,6 +51,8 @@
         "gitops_readiness_record_digest"
       ],
       "properties": {
+        "node_profile_ref": { "type": "string", "minLength": 1 },
+        "node_profile_digest": { "$ref": "#/$defs/sha256_digest" },
         "deploy_plan_ref": { "type": "string", "minLength": 1 },
         "deploy_plan_digest": { "$ref": "#/$defs/sha256_digest" },
         "cluster_readiness_record_ref": { "type": "string", "minLength": 1 },
