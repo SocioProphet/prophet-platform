@@ -20,6 +20,7 @@ REQUIRED = {
     "deploy_gitops_configmap",
     "deploy_gitops_deployment",
     "deploy_gitops_service",
+    "deploy_gitops_readiness_record",
     "deploy_summary",
 }
 
@@ -30,6 +31,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     subprocess.run([sys.executable, "tools/run_fogstack_local_demo.py", "--pack", "all", "--output-dir", str(output_dir)], check=True)
     subprocess.run([sys.executable, "tools/run_fogstack_local_demo_deploy_plan.py", "--output-dir", str(deploy_dir)], check=True)
     subprocess.run([sys.executable, "tools/update_fogstack_local_demo_deploy_artifacts.py", "--summary-json", str(output_dir / "fogstack-local-demo.summary.json"), "--deploy-summary-json", str(deploy_dir / "fogstack.access.deploy-demo.summary.json")], check=True)
+    subprocess.run([sys.executable, "tools/update_fogstack_local_demo_gitops_readiness.py", "--summary-json", str(output_dir / "fogstack-local-demo.summary.json"), "--gitops-readiness-record", str(deploy_dir / "fogstack.access.gitops-readiness.record.json")], check=True)
 
     summary = json.loads((output_dir / "fogstack-local-demo.summary.json").read_text(encoding="utf-8"))
     assert REQUIRED.issubset(set(summary["artifacts"]))
@@ -38,6 +40,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert "cluster_readiness_record_emitted" in summary["checks"]
     assert "gitops_bundle_built" in summary["checks"]
     assert "gitops_bundle_checked" in summary["checks"]
+    assert "gitops_readiness_record_indexed" in summary["checks"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
@@ -54,10 +57,15 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert gitops_bundle["kind"] == "FogStackGitOpsBundle"
     assert gitops_bundle["bundle_id"] == "fogstack.access"
 
+    gitops_readiness = json.loads(Path(summary["artifacts"]["deploy_gitops_readiness_record"]).read_text(encoding="utf-8"))
+    assert gitops_readiness["kind"] == "FogStackGitOpsReadinessRecord"
+    assert gitops_readiness["status"] == "passed"
+
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
     html = (output_dir / "index.html").read_text(encoding="utf-8")
     for content in [markdown, html]:
         assert "Deploy readiness" in content
+        assert "GitOps readiness" in content
         assert "Artifact ID" in content
         assert "SHA-256 digest" in content
         assert "indexed" in content
@@ -66,4 +74,5 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "deploy_cluster_readiness_record" in content
         assert "deploy_gitops_bundle" in content
         assert "deploy_gitops_application" in content
+        assert "deploy_gitops_readiness_record" in content
         assert "sha256:" in content
