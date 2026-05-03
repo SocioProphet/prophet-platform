@@ -120,3 +120,37 @@ def test_run_fogstack_local_demo_all_packs(tmp_path: Path) -> None:
         pointer = json.loads(Path(release["filesystem_release_pointer"]).read_text(encoding="utf-8"))
         assert pointer["bundle_id"] == release["bundle_id"]
         assert pointer["version"] == "0.1.0"
+
+
+def test_run_fogstack_local_demo_summary_output(tmp_path: Path) -> None:
+    output_dir = tmp_path / "summary-demo"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "tools/run_fogstack_local_demo.py",
+            "--pack",
+            "access",
+            "--output-dir",
+            str(output_dir),
+            "--summary",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "FogStack local demo passed." in proc.stdout
+    assert "Pack selection: access" in proc.stdout
+    assert "Release count: 1" in proc.stdout
+    assert "fogstack.access@0.1.0" in proc.stdout
+    assert "Channel/support: candidate/supported" in proc.stdout
+    assert "Publication gate:" in proc.stdout
+    assert "Registry root metadata:" in proc.stdout
+    assert "Summary JSON:" in proc.stdout
+    assert "Checks passed: 12" in proc.stdout
+
+    summary_path = output_dir / "fogstack-local-demo.summary.json"
+    assert summary_path.exists()
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["pack"] == "access"
+    assert summary["bundle_id"] == "fogstack.access"
