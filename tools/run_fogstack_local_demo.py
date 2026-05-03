@@ -77,6 +77,19 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
     lifecycle_dir = output_dir / "lifecycle"
     root_dir = output_dir / "root"
 
+    for path in [
+        validation_dir,
+        publication_dir,
+        promoted_dir,
+        approval_dir,
+        gate_dir,
+        registry_publication_dir,
+        registry_root_dir,
+        lifecycle_dir,
+        root_dir,
+    ]:
+        path.mkdir(parents=True, exist_ok=True)
+
     verify_json = validation_dir / f"{bundle_id}.verify.json"
     validation_record = validation_dir / f"{bundle_id}.validation.record.json"
 
@@ -157,7 +170,6 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--approver-policy", str(approver_policy),
     ])
 
-    approval_dir.mkdir(parents=True, exist_ok=True)
     run(["openssl", "genpkey", "-algorithm", "RSA", "-out", str(approval_private)])
     run(["openssl", "pkey", "-in", str(approval_private), "-pubout", "-out", str(approval_public)])
     run([
