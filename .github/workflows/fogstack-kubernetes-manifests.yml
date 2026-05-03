@@ -17,6 +17,7 @@ on:
       - "tools/run_fogstack_local_demo_deploy_plan.py"
       - "tools/tests/test_render_fogstack_kubernetes_manifests.py"
       - "tools/tests/test_check_fogstack_kubernetes_manifests.py"
+      - "tools/tests/test_fogstack_cluster_readiness_record.py"
       - "tools/tests/test_run_fogstack_local_demo_deploy_plan.py"
       - ".github/workflows/fogstack-kubernetes-manifests.yml"
   push:
@@ -35,6 +36,7 @@ on:
       - "tools/run_fogstack_local_demo_deploy_plan.py"
       - "tools/tests/test_render_fogstack_kubernetes_manifests.py"
       - "tools/tests/test_check_fogstack_kubernetes_manifests.py"
+      - "tools/tests/test_fogstack_cluster_readiness_record.py"
       - "tools/tests/test_run_fogstack_local_demo_deploy_plan.py"
       - ".github/workflows/fogstack-kubernetes-manifests.yml"
 
@@ -64,6 +66,7 @@ jobs:
           python -m pytest -q \
             tools/tests/test_render_fogstack_kubernetes_manifests.py \
             tools/tests/test_check_fogstack_kubernetes_manifests.py \
+            tools/tests/test_fogstack_cluster_readiness_record.py \
             tools/tests/test_run_fogstack_local_demo_deploy_plan.py
 
       - name: Build runtime contract
@@ -106,14 +109,18 @@ jobs:
         run: |
           python3 tools/check_fogstack_kubernetes_manifests.py \
             --deploy-plan build/fogstack-kubernetes/fogstack.access.deploy-plan.json \
-            --manifest-dir build/fogstack-kubernetes/manifests
+            --manifest-dir build/fogstack-kubernetes/manifests \
+            --record-output build/fogstack-kubernetes/fogstack.access.cluster-readiness.record.json
+          test -s build/fogstack-kubernetes/fogstack.access.cluster-readiness.record.json
 
       - name: Check Kubernetes manifests with optional kubectl dry-run
         run: |
           python3 tools/check_fogstack_kubernetes_manifests.py \
             --deploy-plan build/fogstack-kubernetes/fogstack.access.deploy-plan.json \
             --manifest-dir build/fogstack-kubernetes/manifests \
-            --kubectl-dry-run
+            --kubectl-dry-run \
+            --record-output build/fogstack-kubernetes/fogstack.access.cluster-readiness.kubectl.record.json
+          test -s build/fogstack-kubernetes/fogstack.access.cluster-readiness.kubectl.record.json
 
       - name: Run local demo deploy-plan target
         run: |
