@@ -1,0 +1,58 @@
+name: FogStack Agent Machine Node Profile
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/runtime/fogstack-agent-machine-node-profile-v0.1.schema.json"
+      - "tools/build_fogstack_agent_machine_node_profile.py"
+      - "tools/tests/test_fogstack_agent_machine_node_profile.py"
+      - ".github/workflows/fogstack-agent-machine-node-profile.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/runtime/fogstack-agent-machine-node-profile-v0.1.schema.json"
+      - "tools/build_fogstack_agent_machine_node_profile.py"
+      - "tools/tests/test_fogstack_agent_machine_node_profile.py"
+      - ".github/workflows/fogstack-agent-machine-node-profile.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  agent-machine-node-profile:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest jsonschema
+
+      - name: Run Agent Machine node profile tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_agent_machine_node_profile.py
+
+      - name: Build sample node profiles
+        run: |
+          python3 tools/build_fogstack_agent_machine_node_profile.py \
+            --output build/fogstack-node-profile/sourceos-agent-machine-node-profile.json
+          python3 tools/build_fogstack_agent_machine_node_profile.py \
+            --output build/fogstack-node-profile/agentos-agent-machine-node-profile.json \
+            --os-family AgentOS \
+            --distribution AgentOS-Linux \
+            --immutability ostree \
+            --configuration-model rpm-ostree \
+            --image-builder rpm-ostree \
+            --update-strategy ostree-rebase \
+            --no-topolvm
+          test -s build/fogstack-node-profile/sourceos-agent-machine-node-profile.json
+          test -s build/fogstack-node-profile/agentos-agent-machine-node-profile.json
