@@ -45,19 +45,31 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def add_index_entry(index_path: Path, artifact_ref: str) -> None:
+def refresh_index(index_path: Path, artifact_ref: str) -> None:
     index = load_json(index_path)
     artifact_path = path_from_ref(artifact_ref)
     if not artifact_path.exists() or not artifact_path.is_file():
         raise SystemExit(f"ERR: GitOps readiness artifact missing: {artifact_ref}")
-    entries = [entry for entry in index.get("artifacts", []) if entry.get("id") != ARTIFACT_ID]
-    entries.append({
-        "id": ARTIFACT_ID,
-        "ref": artifact_ref,
-        "digest": sha256_file(artifact_path),
-        "size_bytes": artifact_path.stat().st_size,
-    })
-    index["artifacts"] = entries
+
+    by_id = {entry["id"]: entry for entry in index.get("artifacts", []) if isinstance(entry, dict) and entry.get("id")}
+    by_id[ARTIFACT_ID] = {"id": ARTIFACT_ID, "ref": artifact_ref}
+
+    refreshed = []
+    for artifact_id in sorted(by_id):
+        entry = by_id[artifact_id]
+        ref = entry.get("ref")
+        if not isinstance(ref, str) or not ref:
+            continue
+        path = path_from_ref(ref)
+        if not path.exists() or not path.is_file():
+            raise SystemExit(f"ERR: indexed artifact missing while refreshing: {ref}")
+        refreshed.append({
+            "id": artifact_id,
+            "ref": ref,
+            "digest": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+        })
+    index["artifacts"] = refreshed
     write_json(index_path, index)
 
 
@@ -101,9 +113,9 @@ def update(summary_path: Path, gitops_record: Path) -> dict[str, Any]:
         checks.append("gitops_readiness_record_indexed")
     write_json(summary_path, summary)
 
-    add_index_entry(path_from_ref(artifacts["artifact_index"]), artifact_ref)
     append_markdown(path_from_ref(artifacts["summary_markdown"]), artifact_ref, digest)
     append_html(path_from_ref(artifacts["summary_html"]), artifact_ref, digest)
+    refresh_index(path_from_ref(artifacts["artifact_index"]), artifact_ref)
     return summary
 
 
