@@ -48,6 +48,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert "gitops_readiness_record_indexed" in summary["checks"]
     assert "runtime_adapter_indexed" in summary["checks"]
     assert "runtime_dry_run_record_indexed" in summary["checks"]
+    assert "runtime_readiness_summary_appended" in summary["checks"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
@@ -82,6 +83,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     runtime_dry_run = json.loads(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]).read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
+    assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
     assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
@@ -90,6 +92,15 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "Deploy readiness" in content
         assert "GitOps readiness" in content
         assert "Runtime evidence" in content
+        assert "Runtime readiness" in content
+        assert "TurtleTerm" in content
+        assert "BearBrowser" in content
+        assert "github://SourceOS-Linux/TurtleTerm" in content
+        assert "github://SourceOS-Linux/BearBrowser" in content
+        assert "contract-and-digest-only" in content
+        assert "Mutated cluster" in content
+        assert "Live apply allowed" in content
+        assert "Human approval required" in content
         assert "Artifact ID" in content
         assert "SHA-256 digest" in content
         assert "indexed" in content
