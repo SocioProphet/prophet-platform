@@ -12,7 +12,9 @@ on:
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/check_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
       - "tools/tests/test_render_fogstack_kubernetes_manifests.py"
+      - "tools/tests/test_check_fogstack_kubernetes_manifests.py"
       - ".github/workflows/fogstack-kubernetes-manifests.yml"
   push:
     branches: [main]
@@ -25,7 +27,9 @@ on:
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/check_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
       - "tools/tests/test_render_fogstack_kubernetes_manifests.py"
+      - "tools/tests/test_check_fogstack_kubernetes_manifests.py"
       - ".github/workflows/fogstack-kubernetes-manifests.yml"
 
 permissions:
@@ -51,7 +55,9 @@ jobs:
 
       - name: Run Kubernetes manifest tests
         run: |
-          python -m pytest -q tools/tests/test_render_fogstack_kubernetes_manifests.py
+          python -m pytest -q \
+            tools/tests/test_render_fogstack_kubernetes_manifests.py \
+            tools/tests/test_check_fogstack_kubernetes_manifests.py
 
       - name: Build runtime contract
         run: |
@@ -88,3 +94,9 @@ jobs:
           test -s build/fogstack-kubernetes/manifests/configmap.yaml
           test -s build/fogstack-kubernetes/manifests/deployment.yaml
           test -s build/fogstack-kubernetes/manifests/service.yaml
+
+      - name: Check Kubernetes manifests
+        run: |
+          python3 tools/check_fogstack_kubernetes_manifests.py \
+            --deploy-plan build/fogstack-kubernetes/fogstack.access.deploy-plan.json \
+            --manifest-dir build/fogstack-kubernetes/manifests

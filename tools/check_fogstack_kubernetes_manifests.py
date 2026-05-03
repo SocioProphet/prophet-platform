@@ -1,0 +1,189 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+ROOT = Path(__file__).resolve().parents[1]
+LABEL_PREFIX = "fogstack.socioprophet.io"
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit(f"ERR: expected JSON object in {path}")
+    return data
+
+
+def load_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(str(path))
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"expected YAML object in {path}")
+    return data
+
+
+def dns_label(value: str) -> str:
+    return value.replace(".", "-").replace("_", "-").lower()
+
+
+def required_labels(plan: dict[str, Any]) -> dict[str, str]:
+    return {
+        f"{LABEL_PREFIX}/bundle-id": plan["bundle_id"],
+        f"{LABEL_PREFIX}/version": plan["version"],
+        f"{LABEL_PREFIX}/profile": plan["profile"],
+        f"{LABEL_PREFIX}/target": plan["target"],
+        f"{LABEL_PREFIX}/agent-corps": "enabled",
+    }
+
+
+def required_annotations(plan: dict[str, Any]) -> dict[str, str]:
+    return {
+        f"{LABEL_PREFIX}/manifest-ref": plan["manifest_ref"],
+        f"{LABEL_PREFIX}/manifest-digest": plan["manifest_digest"],
+        f"{LABEL_PREFIX}/bundle-ref": plan["bundle_ref"],
+        f"{LABEL_PREFIX}/bundle-digest": plan["bundle_digest"],
+        f"{LABEL_PREFIX}/agent-corps-plan-ref": plan["agent_corps_plan_ref"],
+        f"{LABEL_PREFIX}/agent-corps-plan-digest": plan["agent_corps_plan_digest"],
+    }
+
+
+def require_mapping(value: Any, path: str, errors: list[str]) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    errors.append(f"{path} must be an object")
+    return {}
+
+
+def check_labels(resource: dict[str, Any], plan: dict[str, Any], resource_name: str, errors: list[str]) -> None:
+    metadata = require_mapping(resource.get("metadata"), f"{resource_name}.metadata", errors)
+    labels = require_mapping(metadata.get("labels"), f"{resource_name}.metadata.labels", errors)
+    for key, expected in required_labels(plan).items():
+        if labels.get(key) != expected:
+            errors.append(f"{resource_name} label mismatch: {key}")
+
+
+def check_annotations(resource: dict[str, Any], plan: dict[str, Any], resource_name: str, errors: list[str]) -> None:
+    metadata = require_mapping(resource.get("metadata"), f"{resource_name}.metadata", errors)
+    annotations = require_mapping(metadata.get("annotations"), f"{resource_name}.metadata.annotations", errors)
+    for key, expected in required_annotations(plan).items():
+        if annotations.get(key) != expected:
+            errors.append(f"{resource_name} annotation mismatch: {key}")
+
+
+def validate_manifests(deploy_plan_path: Path, manifest_dir: Path) -> list[str]:
+    errors: list[str] = []
+    plan = load_json(deploy_plan_path)
+    expected_name = dns_label(plan["bundle_id"])
+    namespace = plan["namespace"]
+    health_endpoint = plan["deployment"]["health_endpoint"]
+
+    try:
+        configmap = load_yaml(manifest_dir / "configmap.yaml")
+        deployment = load_yaml(manifest_dir / "deployment.yaml")
+        service = load_yaml(manifest_dir / "service.yaml")
+    except (FileNotFoundError, ValueError) as exc:
+        return [str(exc)]
+
+    expected = [
+        (configmap, "ConfigMap", f"{expected_name}-config", "configmap"),
+        (deployment, "Deployment", expected_name, "deployment"),
+        (service, "Service", expected_name, "service"),
+    ]
+    for resource, kind, name, resource_name in expected:
+        if resource.get("kind") != kind:
+            errors.append(f"{resource_name} kind mismatch")
+        metadata = require_mapping(resource.get("metadata"), f"{resource_name}.metadata", errors)
+        if metadata.get("name") != name:
+            errors.append(f"{resource_name} name mismatch")
+        if metadata.get("namespace") != namespace:
+            errors.append(f"{resource_name} namespace mismatch")
+        check_labels(resource, plan, resource_name, errors)
+        check_annotations(resource, plan, resource_name, errors)
+
+    config_data = require_mapping(configmap.get("data"), "configmap.data", errors)
+    for key, expected_value in {
+        "bundle_id": plan["bundle_id"],
+        "version": plan["version"],
+        "profile": plan["profile"],
+        "target": plan["target"],
+        "health_endpoint": health_endpoint,
+        "agent_corps_plan_ref": plan["agent_corps_plan_ref"],
+        "agent_corps_plan_digest": plan["agent_corps_plan_digest"],
+    }.items():
+        if config_data.get(key) != expected_value:
+            errors.append(f"configmap data mismatch: {key}")
+
+    deployment_spec = require_mapping(deployment.get("spec"), "deployment.spec", errors)
+    template = require_mapping(deployment_spec.get("template"), "deployment.spec.template", errors)
+    pod_metadata = require_mapping(template.get("metadata"), "deployment.spec.template.metadata", errors)
+    pod_labels = require_mapping(pod_metadata.get("labels"), "deployment.spec.template.metadata.labels", errors)
+    if pod_labels.get(f"{LABEL_PREFIX}/bundle-id") != plan["bundle_id"]:
+        errors.append("deployment pod bundle label mismatch")
+    if pod_labels.get(f"{LABEL_PREFIX}/agent-corps") != "enabled":
+        errors.append("deployment pod Agent Corps label missing")
+
+    pod_spec = require_mapping(template.get("spec"), "deployment.spec.template.spec", errors)
+    containers = pod_spec.get("containers")
+    if not isinstance(containers, list) or len(containers) != 1 or not isinstance(containers[0], dict):
+        errors.append("deployment must define exactly one container")
+        container: dict[str, Any] = {}
+    else:
+        container = containers[0]
+    if container.get("name") != expected_name:
+        errors.append("deployment container name mismatch")
+    if container.get("envFrom") != [{"configMapRef": {"name": f"{expected_name}-config"}}]:
+        errors.append("deployment container envFrom mismatch")
+    for probe_name in ["readinessProbe", "livenessProbe"]:
+        probe = require_mapping(container.get(probe_name), f"container.{probe_name}", errors)
+        http_get = require_mapping(probe.get("httpGet"), f"container.{probe_name}.httpGet", errors)
+        if http_get.get("path") != health_endpoint or http_get.get("port") != "http":
+            errors.append(f"deployment {probe_name} mismatch")
+
+    service_spec = require_mapping(service.get("spec"), "service.spec", errors)
+    selector = require_mapping(service_spec.get("selector"), "service.spec.selector", errors)
+    expected_selector = {
+        "app.kubernetes.io/name": expected_name,
+        "app.kubernetes.io/part-of": "fogstack",
+        f"{LABEL_PREFIX}/bundle-id": plan["bundle_id"],
+    }
+    if selector != expected_selector:
+        errors.append("service selector mismatch")
+    ports = service_spec.get("ports")
+    if not isinstance(ports, list) or not ports:
+        errors.append("service ports missing")
+    else:
+        first_port = ports[0]
+        if not isinstance(first_port, dict) or first_port.get("name") != "http" or first_port.get("targetPort") != "http":
+            errors.append("service http port mismatch")
+
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Check rendered FogStack Kubernetes manifests")
+    parser.add_argument("--deploy-plan", required=True, type=Path)
+    parser.add_argument("--manifest-dir", required=True, type=Path)
+    args = parser.parse_args()
+
+    deploy_plan_path = args.deploy_plan if args.deploy_plan.is_absolute() else ROOT / args.deploy_plan
+    manifest_dir = args.manifest_dir if args.manifest_dir.is_absolute() else ROOT / args.manifest_dir
+    errors = validate_manifests(deploy_plan_path, manifest_dir)
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        return 1
+
+    print("FogStack Kubernetes manifests passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
