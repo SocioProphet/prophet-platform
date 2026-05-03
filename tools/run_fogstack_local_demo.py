@@ -221,6 +221,13 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--bundle-id", bundle_id,
         "--version", version,
     ], stdout=registry_publication_dir / "release-pointer.json")
+    run([
+        sys.executable,
+        "tools/check_fogstack_filesystem_registry.py",
+        "--registry-root", str(registry_root_dir),
+        "--bundle-id", bundle_id,
+        "--version", version,
+    ])
 
     revocation_index = lifecycle_dir / "registry-revocation-index.json"
     run([
@@ -284,6 +291,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
             "publication_gate_passed",
             "registry_index_built",
             "filesystem_registry_published",
+            "filesystem_registry_checked",
             "revocation_index_checked",
             "registry_root_checked",
         ],
