@@ -58,17 +58,21 @@ packs:
   - id: "fogstack.registry"
     label: "Fog Stack Registry / Release Distribution"
     category: "product_surface"
-    readiness_pct: 45
+    readiness_pct: 60
     repo_split_now: false
     substrate_anchors:
       - "registry"
       - "tools/promote_fogstack_manifest_publication_set.py"
       - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/build_fogstack_registry_root_metadata.py"
+      - "tools/check_fogstack_registry_revocation_index.py"
     notes: >
-      Gated, CI-backed artifact publication pipeline with filesystem registry adapter merged via
-      PRs #211–#215 (publication gate, registry index, filesystem adapter). Known gaps: network
-      registry publication, signed registry root metadata, rollback/revocation indexes, and
-      KMS/HSM identity for signing keys. No external registry or production deployment exists.
+      Gated, CI-backed artifact publication pipeline with filesystem registry adapter,
+      registry-root metadata, rollback/revocation lifecycle index, and local registry metadata
+      signature-verification support across PRs #211–#215, #224, #237, #248, and #324.
+      Known gaps: network registry publication, production KMS/HSM-backed signing, external
+      identity binding, client-side rollback/revocation enforcement, and operator-facing
+      release-distribution UX. No external registry or production deployment exists.
   - id: "fogstack.data"
     label: "Fog Stack Data / GovernAI"
     category: "product_surface"
