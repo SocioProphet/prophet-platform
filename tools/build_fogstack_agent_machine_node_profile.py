@@ -15,6 +15,41 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def default_use_surfaces() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "turtleterm",
+            "name": "TurtleTerm",
+            "surface_type": "terminal",
+            "repo_ref": "github://SourceOS-Linux/TurtleTerm",
+            "first_class": True,
+            "agentplane_visible": True,
+            "policyplane_guarded": True,
+            "capabilities": [
+                "operator-shell",
+                "agent-command-session",
+                "runtime-evidence-review",
+                "node-debug-console",
+            ],
+        },
+        {
+            "id": "bearbrowser",
+            "name": "BearBrowser",
+            "surface_type": "browser",
+            "repo_ref": "github://SourceOS-Linux/BearBrowser",
+            "first_class": True,
+            "agentplane_visible": True,
+            "policyplane_guarded": True,
+            "capabilities": [
+                "operator-web-console",
+                "local-demo-review",
+                "gitops-readiness-review",
+                "policy-gated-browsing",
+            ],
+        },
+    ]
+
+
 def build_profile(
     profile_id: str,
     node_role: str,
@@ -69,6 +104,7 @@ def build_profile(
             "workload_runtime": workload_runtime,
             "node_contract_required": True,
         },
+        "use_surfaces": default_use_surfaces(),
         "governance": {
             "agentplane_ref": agentplane_ref,
             "policyplane_ref": policyplane_ref,
