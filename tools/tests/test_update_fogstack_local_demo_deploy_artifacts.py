@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 REQUIRED = {
+    "deploy_node_profile",
     "deploy_agent_corps_plan",
     "deploy_plan",
     "deploy_kubernetes_configmap",
@@ -38,6 +39,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
 
     summary = json.loads((output_dir / "fogstack-local-demo.summary.json").read_text(encoding="utf-8"))
     assert REQUIRED.issubset(set(summary["artifacts"]))
+    assert "node_profile_built" in summary["checks"]
     assert "deploy_plan_built" in summary["checks"]
     assert "kubernetes_manifests_checked" in summary["checks"]
     assert "cluster_readiness_record_emitted" in summary["checks"]
@@ -54,6 +56,12 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert indexed[key]["digest"].startswith("sha256:")
         assert Path(indexed[key]["ref"]).exists()
 
+    node_profile = json.loads(Path(summary["artifacts"]["deploy_node_profile"]).read_text(encoding="utf-8"))
+    assert node_profile["kind"] == "FogStackAgentMachineNodeProfile"
+    surfaces = {surface["id"]: surface for surface in node_profile["use_surfaces"]}
+    assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
+    assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
+
     readiness_record = json.loads(Path(summary["artifacts"]["deploy_cluster_readiness_record"]).read_text(encoding="utf-8"))
     assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
     assert readiness_record["status"] == "passed"
@@ -69,10 +77,12 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     runtime_adapter = json.loads(Path(summary["artifacts"]["deploy_runtime_adapter"]).read_text(encoding="utf-8"))
     assert runtime_adapter["kind"] == "FogStackLocalClusterRuntimeAdapter"
     assert runtime_adapter["runtime_policy"]["live_apply_allowed"] is False
+    assert runtime_adapter["inputs"]["node_profile_digest"].startswith("sha256:")
 
     runtime_dry_run = json.loads(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]).read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
+    assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
     html = (output_dir / "index.html").read_text(encoding="utf-8")
@@ -83,6 +93,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "Artifact ID" in content
         assert "SHA-256 digest" in content
         assert "indexed" in content
+        assert "deploy_node_profile" in content
         assert "deploy_plan" in content
         assert "deploy_kubernetes_deployment" in content
         assert "deploy_cluster_readiness_record" in content
