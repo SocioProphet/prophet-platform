@@ -36,6 +36,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     deploy_plan = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
     gitops_dir = output_dir / "gitops"
+    gitops_readiness_record = output_dir / "fogstack.access.gitops-readiness.record.json"
     check_record = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
     readiness_record = output_dir / "fogstack.access.cluster-readiness.record.json"
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
@@ -100,10 +101,19 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         "--target-revision", "main",
         "--gitops-path", "gitops/fogstack.access",
     ])
-    run([
+    gitops_check = run([
         sys.executable,
         "tools/check_fogstack_gitops_bundle.py",
         "--bundle", str(gitops_dir / "gitops-bundle.json"),
+    ])
+    run([
+        sys.executable,
+        "tools/emit_fogstack_gitops_readiness_record.py",
+        "--bundle", str(gitops_dir / "gitops-bundle.json"),
+        "--output", str(gitops_readiness_record),
+        "--generator-status", "passed",
+        "--checker-status", "passed",
+        "--checker-message", gitops_check.stdout.strip(),
     ])
 
     manifests = [
@@ -149,6 +159,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "gitops_configmap": rel(gitops_dir / "manifests" / "configmap.yaml"),
             "gitops_deployment": rel(gitops_dir / "manifests" / "deployment.yaml"),
             "gitops_service": rel(gitops_dir / "manifests" / "service.yaml"),
+            "gitops_readiness_record": rel(gitops_readiness_record),
             "summary": rel(summary_path),
         },
         "checks": [
@@ -161,6 +172,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "cluster_readiness_record_emitted",
             "gitops_bundle_built",
             "gitops_bundle_checked",
+            "gitops_readiness_record_emitted",
         ],
     }
     write_json(summary_path, summary)
@@ -182,6 +194,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
+        f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
