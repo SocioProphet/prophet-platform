@@ -14,6 +14,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 LABEL_PREFIX = "fogstack.socioprophet.io"
+DISCOVERY_FAILURE_MARKERS = (
+    "couldn't get current server API group list",
+    "the server could not find the requested resource",
+    "connection refused",
+    "unable to recognize",
+    "no configuration has been provided",
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -176,6 +183,11 @@ def resolve_kubectl(kubectl: str) -> str | None:
     return shutil.which(kubectl)
 
 
+def is_discovery_failure(details: str) -> bool:
+    lowered = details.lower()
+    return any(marker in lowered for marker in DISCOVERY_FAILURE_MARKERS)
+
+
 def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool) -> tuple[list[str], str]:
     resolved = resolve_kubectl(kubectl)
     if resolved is None:
@@ -190,6 +202,8 @@ def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool)
     )
     if proc.returncode != 0:
         details = (proc.stderr or proc.stdout).strip()
+        if not require_kubectl and is_discovery_failure(details):
+            return [], "kubectl dry-run unavailable; offline validation used"
         return [f"kubectl dry-run failed: {details}"], "kubectl dry-run failed"
     return [], "kubectl dry-run passed"
 
