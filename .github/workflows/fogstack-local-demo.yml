@@ -72,7 +72,7 @@ jobs:
 
       - name: Run operator demo command
         run: |
-          python3 tools/run_fogstack_local_demo.py --pack access --output-dir build/fogstack-local-demo
+          python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo
 
       - name: Upload local demo artifacts
         uses: actions/upload-artifact@v4

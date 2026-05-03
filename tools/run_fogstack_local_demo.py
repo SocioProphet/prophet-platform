@@ -18,7 +18,25 @@ PACKS: dict[str, dict[str, str]] = {
         "version": "0.1.0",
         "bundle": "bundles/fogstack.access-v0.1.yaml",
         "manifest": "releases/manifests/fogstack.access-v0.1.manifest.json",
-    }
+    },
+    "knowledge": {
+        "bundle_id": "fogstack.knowledge",
+        "version": "0.1.0",
+        "bundle": "bundles/fogstack.knowledge-v0.1.yaml",
+        "manifest": "releases/manifests/fogstack.knowledge-v0.1.manifest.json",
+    },
+    "evaluation": {
+        "bundle_id": "fogstack.evaluation",
+        "version": "0.1.0",
+        "bundle": "bundles/fogstack.evaluation-v0.1.yaml",
+        "manifest": "releases/manifests/fogstack.evaluation-v0.1.manifest.json",
+    },
+}
+PACK_ALIASES: dict[str, list[str]] = {
+    "access": ["access"],
+    "knowledge": ["knowledge"],
+    "evaluation": ["evaluation"],
+    "all": ["access", "knowledge", "evaluation"],
 }
 
 
@@ -43,21 +61,37 @@ def rel(path: Path) -> str:
         return str(path)
 
 
-def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
-    if pack not in PACKS:
+def pack_configs(pack: str) -> list[dict[str, str]]:
+    if pack not in PACK_ALIASES:
         raise SystemExit(f"ERR: unsupported FogStack local demo pack: {pack}")
+    return [PACKS[name] | {"pack": name} for name in PACK_ALIASES[pack]]
 
-    cfg = PACKS[pack]
-    bundle_id = cfg["bundle_id"]
-    version = cfg["version"]
-    bundle = ROOT / cfg["bundle"]
-    manifest = ROOT / cfg["manifest"]
+
+def output_dirs(output_dir: Path) -> dict[str, Path]:
+    return {
+        "validation": output_dir / "validation",
+        "publication": output_dir / "publication",
+        "promoted": output_dir / "promoted",
+        "approval": output_dir / "approval",
+        "gate": output_dir / "gate",
+        "registry_publication": output_dir / "registry-publication",
+        "registry_root": output_dir / "registry",
+        "lifecycle": output_dir / "lifecycle",
+        "root": output_dir / "root",
+    }
+
+
+def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
+    selected = pack_configs(pack)
+
     support_catalog = ROOT / "catalog" / "fogstack-support-states-v0.1.yaml"
     promotion_policy = ROOT / "catalog" / "fogstack-manifest-promotion-policy-v0.1.yaml"
     approver_policy = ROOT / "catalog" / "fogstack-manifest-promotion-approver-policy-v0.1.yaml"
     publication_gate_policy = ROOT / "catalog" / "fogstack-release-publication-gate-policy-v0.1.yaml"
 
-    required = [bundle, manifest, support_catalog, promotion_policy, approver_policy, publication_gate_policy]
+    required = [support_catalog, promotion_policy, approver_policy, publication_gate_policy]
+    for cfg in selected:
+        required.extend([ROOT / cfg["bundle"], ROOT / cfg["manifest"]])
     missing = [path for path in required if not path.exists()]
     if missing:
         raise SystemExit("ERR: missing local demo inputs: " + ", ".join(rel(path) for path in missing))
@@ -67,70 +101,73 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    validation_dir = output_dir / "validation"
-    publication_dir = output_dir / "publication"
-    promoted_dir = output_dir / "promoted"
-    approval_dir = output_dir / "approval"
-    gate_dir = output_dir / "gate"
-    registry_publication_dir = output_dir / "registry-publication"
-    registry_root_dir = output_dir / "registry"
-    lifecycle_dir = output_dir / "lifecycle"
-    root_dir = output_dir / "root"
-
-    for path in [
-        validation_dir,
-        publication_dir,
-        promoted_dir,
-        approval_dir,
-        gate_dir,
-        registry_publication_dir,
-        registry_root_dir,
-        lifecycle_dir,
-        root_dir,
-    ]:
+    dirs = output_dirs(output_dir)
+    for path in dirs.values():
         path.mkdir(parents=True, exist_ok=True)
 
-    verify_json = validation_dir / f"{bundle_id}.verify.json"
-    validation_record = validation_dir / f"{bundle_id}.validation.record.json"
+    release_summaries: list[dict[str, Any]] = []
+    validation_records: list[Path] = []
+    manifest_paths: list[Path] = []
 
-    run([
-        sys.executable,
-        "tools/fogstack_verify.py",
-        str(bundle),
-        "--json",
-    ], stdout=verify_json)
+    for cfg in selected:
+        bundle_id = cfg["bundle_id"]
+        version = cfg["version"]
+        bundle = ROOT / cfg["bundle"]
+        manifest = ROOT / cfg["manifest"]
+        manifest_paths.append(manifest)
 
-    run([
-        sys.executable,
-        "tools/emit_fogstack_validation_record.py",
-        "--verifier-json", str(verify_json),
-        "--bundle-id", bundle_id,
-        "--version", version,
-        "--source", "local",
-        "--evidence-ref", rel(verify_json),
-        "--output", str(validation_record),
-    ])
+        verify_json = dirs["validation"] / f"{bundle_id}.verify.json"
+        validation_record = dirs["validation"] / f"{bundle_id}.validation.record.json"
+        validation_records.append(validation_record)
 
-    run([
+        run([
+            sys.executable,
+            "tools/fogstack_verify.py",
+            str(bundle),
+            "--json",
+        ], stdout=verify_json)
+
+        run([
+            sys.executable,
+            "tools/emit_fogstack_validation_record.py",
+            "--verifier-json", str(verify_json),
+            "--bundle-id", bundle_id,
+            "--version", version,
+            "--source", "local",
+            "--evidence-ref", rel(verify_json),
+            "--output", str(validation_record),
+        ])
+
+        release_summaries.append({
+            "pack": cfg["pack"],
+            "bundle_id": bundle_id,
+            "version": version,
+            "verify_json": rel(verify_json),
+            "validation_record": rel(validation_record),
+        })
+
+    publication_cmd = [
         sys.executable,
         "tools/build_fogstack_manifest_publication_set.py",
-        "--output-dir", str(publication_dir),
-        "--manifest", str(manifest),
+        "--output-dir", str(dirs["publication"]),
         "--signature-type", "other",
         "--signature-ref-prefix", "artifact://local-demo/signatures",
-    ])
+    ]
+    for manifest in manifest_paths:
+        publication_cmd.extend(["--manifest", str(manifest)])
+    run(publication_cmd)
 
     run([
         sys.executable,
         "tools/promote_fogstack_manifest_publication_set.py",
-        "--input-dir", str(publication_dir),
-        "--output-dir", str(promoted_dir),
+        "--input-dir", str(dirs["publication"]),
+        "--output-dir", str(dirs["promoted"]),
         "--support-catalog", str(support_catalog),
         "--target-channel", "candidate",
         "--target-support-state", "supported",
     ])
 
-    promoted_set = promoted_dir / "manifest-publication-set.json"
+    promoted_set = dirs["promoted"] / "manifest-publication-set.json"
     run([
         sys.executable,
         "tools/check_fogstack_manifest_promotion_policy.py",
@@ -138,11 +175,11 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--policy-catalog", str(promotion_policy),
     ])
 
-    approval_record = approval_dir / "fogstack.manifest-promotion.approval.record.json"
-    approval_sig = approval_dir / "fogstack.manifest-promotion.approval.sig"
-    approval_private = approval_dir / "private.pem"
-    approval_public = approval_dir / "public.pem"
-    approval_verification = approval_dir / "fogstack.manifest-promotion.approval.signature-verification.json"
+    approval_record = dirs["approval"] / "fogstack.manifest-promotion.approval.record.json"
+    approval_sig = dirs["approval"] / "fogstack.manifest-promotion.approval.sig"
+    approval_private = dirs["approval"] / "private.pem"
+    approval_public = dirs["approval"] / "public.pem"
+    approval_verification = dirs["approval"] / "fogstack.manifest-promotion.approval.signature-verification.json"
 
     run([
         sys.executable,
@@ -188,7 +225,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--output", str(approval_verification),
     ])
 
-    release_identity = gate_dir / "release-identity.json"
+    release_identity = dirs["gate"] / "release-identity.json"
     write_json(release_identity, {
         "kind": "FogStackReleaseIdentity",
         "schema_version": "v0.1",
@@ -197,7 +234,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "subject": "SocioProphet/prophet-platform/.github/workflows/fogstack-manifest-promotion.yml",
     })
 
-    publication_gate = gate_dir / "fogstack.release-publication-gate.record.json"
+    publication_gate = dirs["gate"] / "fogstack.release-publication-gate.record.json"
     run([
         sys.executable,
         "tools/emit_fogstack_release_publication_gate_record.py",
@@ -209,39 +246,50 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--output", str(publication_gate),
     ])
 
-    registry_index = registry_publication_dir / "registry-publication.index.json"
-    run([
+    registry_index = dirs["registry_publication"] / "registry-publication.index.json"
+    registry_cmd = [
         sys.executable,
         "tools/build_fogstack_registry_publication_index.py",
-        "--registry-uri", f"file://{rel(registry_root_dir)}",
+        "--registry-uri", f"file://{rel(dirs['registry_root'])}",
         "--publication-set", str(promoted_set),
         "--publication-gate-record", str(publication_gate),
         "--artifact", "manifest-publication-set", str(promoted_set),
         "--artifact", "approval-record", str(approval_record),
         "--artifact", "approval-signature-verification", str(approval_verification),
         "--artifact", "release-publication-gate", str(publication_gate),
-        "--artifact", "validation-record", str(validation_record),
-        "--notes", "local demo filesystem registry publication",
+    ]
+    for validation_record in validation_records:
+        registry_cmd.extend(["--artifact", "validation-record", str(validation_record)])
+    registry_cmd.extend([
+        "--notes", f"local demo filesystem registry publication for {pack}",
         "--output", str(registry_index),
     ])
+    run(registry_cmd)
 
-    run([
-        sys.executable,
-        "tools/publish_fogstack_filesystem_registry.py",
-        "--index", str(registry_index),
-        "--registry-root", str(registry_root_dir),
-        "--bundle-id", bundle_id,
-        "--version", version,
-    ], stdout=registry_publication_dir / "release-pointer.json")
-    run([
-        sys.executable,
-        "tools/check_fogstack_filesystem_registry.py",
-        "--registry-root", str(registry_root_dir),
-        "--bundle-id", bundle_id,
-        "--version", version,
-    ])
+    release_root_args: list[str] = []
+    for cfg, release_summary in zip(selected, release_summaries, strict=True):
+        bundle_id = cfg["bundle_id"]
+        version = cfg["version"]
+        run([
+            sys.executable,
+            "tools/publish_fogstack_filesystem_registry.py",
+            "--index", str(registry_index),
+            "--registry-root", str(dirs["registry_root"]),
+            "--bundle-id", bundle_id,
+            "--version", version,
+        ], stdout=dirs["registry_publication"] / f"{bundle_id}.release-pointer.json")
+        run([
+            sys.executable,
+            "tools/check_fogstack_filesystem_registry.py",
+            "--registry-root", str(dirs["registry_root"]),
+            "--bundle-id", bundle_id,
+            "--version", version,
+        ])
+        release_root = dirs["registry_root"] / bundle_id / version
+        release_summary["filesystem_release_pointer"] = rel(release_root / "release-pointer.json")
+        release_root_args.extend(["--release", bundle_id, version, str(release_root)])
 
-    revocation_index = lifecycle_dir / "registry-revocation-index.json"
+    revocation_index = dirs["lifecycle"] / "registry-revocation-index.json"
     run([
         sys.executable,
         "tools/build_fogstack_registry_revocation_index.py",
@@ -253,18 +301,18 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--index", str(revocation_index),
     ])
 
-    registry_root_metadata = root_dir / "registry-root-metadata.json"
-    release_root = registry_root_dir / bundle_id / version
-    run([
+    registry_root_metadata = dirs["root"] / "registry-root-metadata.json"
+    root_cmd = [
         sys.executable,
         "tools/build_fogstack_registry_root_metadata.py",
-        "--registry-uri", f"file://{rel(registry_root_dir)}",
-        "--release", bundle_id, version, str(release_root),
+        "--registry-uri", f"file://{rel(dirs['registry_root'])}",
+        *release_root_args,
         "--revocation-index", str(revocation_index),
         "--signature-type", "other",
         "--signature-ref", "artifact://local-demo/registry-root.sig",
         "--output", str(registry_root_metadata),
-    ])
+    ]
+    run(root_cmd)
     run([
         sys.executable,
         "tools/check_fogstack_registry_root_metadata.py",
@@ -272,27 +320,33 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--require-signed",
     ])
 
+    artifacts: dict[str, Any] = {
+        "publication_set": rel(dirs["publication"] / "manifest-publication-set.json"),
+        "promoted_publication_set": rel(promoted_set),
+        "approval_record": rel(approval_record),
+        "approval_signature_verification": rel(approval_verification),
+        "publication_gate": rel(publication_gate),
+        "registry_publication_index": rel(registry_index),
+        "revocation_index": rel(revocation_index),
+        "registry_root_metadata": rel(registry_root_metadata),
+    }
+    if len(release_summaries) == 1:
+        artifacts["verify_json"] = release_summaries[0]["verify_json"]
+        artifacts["validation_record"] = release_summaries[0]["validation_record"]
+        artifacts["filesystem_release_pointer"] = release_summaries[0]["filesystem_release_pointer"]
+
     summary = {
         "kind": "FogStackLocalDemoRun",
         "schema_version": "v0.1",
-        "bundle_id": bundle_id,
-        "version": version,
-        "registry_uri": f"file://{rel(registry_root_dir)}",
+        "pack": pack,
+        "packs": [item["pack"] for item in release_summaries],
+        "bundle_id": release_summaries[0]["bundle_id"] if len(release_summaries) == 1 else None,
+        "version": release_summaries[0]["version"] if len(release_summaries) == 1 else "0.1.0",
+        "registry_uri": f"file://{rel(dirs['registry_root'])}",
         "channel": "candidate",
         "support_state": "supported",
-        "artifacts": {
-            "verify_json": rel(verify_json),
-            "validation_record": rel(validation_record),
-            "publication_set": rel(publication_dir / "manifest-publication-set.json"),
-            "promoted_publication_set": rel(promoted_set),
-            "approval_record": rel(approval_record),
-            "approval_signature_verification": rel(approval_verification),
-            "publication_gate": rel(publication_gate),
-            "registry_publication_index": rel(registry_index),
-            "filesystem_release_pointer": rel(release_root / "release-pointer.json"),
-            "revocation_index": rel(revocation_index),
-            "registry_root_metadata": rel(registry_root_metadata),
-        },
+        "releases": release_summaries,
+        "artifacts": artifacts,
         "checks": [
             "bundle_verified",
             "validation_record_emitted",
@@ -315,7 +369,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a local FogStack release/registry demo end to end")
-    parser.add_argument("--pack", choices=sorted(PACKS), default="access")
+    parser.add_argument("--pack", choices=sorted(PACK_ALIASES), default="access")
     parser.add_argument("--output-dir", type=Path, default=Path("build/fogstack-local-demo"))
     parser.add_argument("--no-clean", action="store_true", help="Do not remove the output directory before running")
     args = parser.parse_args()
