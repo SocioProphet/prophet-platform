@@ -1,0 +1,82 @@
+name: FogStack Local Demo
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
+      - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "releases/manifests/**"
+      - "tools/run_fogstack_local_demo.py"
+      - "tools/fogstack_verify.py"
+      - "tools/emit_fogstack_validation_record.py"
+      - "tools/build_fogstack_manifest_publication_set.py"
+      - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/check_fogstack_manifest_promotion_policy.py"
+      - "tools/emit_fogstack_manifest_promotion_approval_record.py"
+      - "tools/check_fogstack_manifest_promotion_approval_record.py"
+      - "tools/check_fogstack_manifest_promotion_approver_policy.py"
+      - "tools/run_openssl_fogstack_manifest_promotion_approval_verifier.py"
+      - "tools/emit_fogstack_release_publication_gate_record.py"
+      - "tools/build_fogstack_registry_publication_index.py"
+      - "tools/publish_fogstack_filesystem_registry.py"
+      - "tools/check_fogstack_filesystem_registry.py"
+      - "tools/build_fogstack_registry_revocation_index.py"
+      - "tools/check_fogstack_registry_revocation_index.py"
+      - "tools/build_fogstack_registry_root_metadata.py"
+      - "tools/check_fogstack_registry_root_metadata.py"
+      - "tools/tests/test_run_fogstack_local_demo.py"
+      - ".github/workflows/fogstack-local-demo.yml"
+  push:
+    branches: [main]
+    paths:
+      - "bundles/**"
+      - "conformance/**"
+      - "catalog/fogstack-support-states-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
+      - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
+      - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "releases/manifests/**"
+      - "tools/run_fogstack_local_demo.py"
+      - "tools/tests/test_run_fogstack_local_demo.py"
+      - ".github/workflows/fogstack-local-demo.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  fogstack-local-demo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+
+      - name: Run local demo end-to-end test
+        run: |
+          python -m pytest -q tools/tests/test_run_fogstack_local_demo.py
+
+      - name: Run operator demo command
+        run: |
+          python3 tools/run_fogstack_local_demo.py --pack access --output-dir build/fogstack-local-demo
+
+      - name: Upload local demo artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fogstack-local-demo
+          path: build/fogstack-local-demo/
+          if-no-files-found: error
