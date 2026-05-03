@@ -7,7 +7,24 @@
   "properties": {
     "kind": { "const": "FogStackRegistryRevocationIndex" },
     "schema_version": { "const": "v0.1" },
-    "entries": { "type": "array" }
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/revocation_entry" }
+    }
   },
-  "additionalProperties": true
+  "$defs": {
+    "revocation_entry": {
+      "type": "object",
+      "required": ["bundle_id", "version", "status", "reason", "superseded_by"],
+      "properties": {
+        "bundle_id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["revoked", "rollback"] },
+        "reason": { "type": ["string", "null"] },
+        "superseded_by": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
 }
