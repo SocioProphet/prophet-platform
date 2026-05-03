@@ -1,0 +1,106 @@
+name: FogStack Local Cluster Runtime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/runtime/**"
+      - "schemas/gitops/**"
+      - "schemas/agent/**"
+      - "schemas/deploy/**"
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
+      - "tools/emit_fogstack_gitops_readiness_record.py"
+      - "tools/build_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
+      - ".github/workflows/fogstack-local-cluster-runtime.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/runtime/**"
+      - "schemas/gitops/**"
+      - "schemas/agent/**"
+      - "schemas/deploy/**"
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "tools/build_fogstack_runtime_contract.py"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/render_fogstack_kubernetes_manifests.py"
+      - "tools/check_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
+      - "tools/emit_fogstack_gitops_readiness_record.py"
+      - "tools/build_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
+      - ".github/workflows/fogstack-local-cluster-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  local-cluster-runtime:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run local cluster runtime tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_local_cluster_runtime_adapter.py
+
+      - name: Build sample local cluster runtime adapter
+        run: |
+          mkdir -p build/fogstack-runtime-inputs
+          python3 tools/build_fogstack_runtime_contract.py \
+            --bundle-id fogstack.access \
+            --version 0.1.0 \
+            --actor-id agent:fogstack.access.operator \
+            --human-anchor-role operator \
+            --output build/fogstack-runtime-inputs/runtime-contract.json
+          python3 tools/build_fogstack_deploy_plan.py \
+            --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --profile local-dev \
+            --target kubernetes \
+            --namespace fogstack-access \
+            --health-endpoint /healthz \
+            --runtime-contract build/fogstack-runtime-inputs/runtime-contract.json \
+            --output build/fogstack-runtime-inputs/deploy-plan.json
+          python3 tools/render_fogstack_kubernetes_manifests.py \
+            --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
+            --output-dir build/fogstack-runtime-inputs/manifests
+          python3 tools/check_fogstack_kubernetes_manifests.py \
+            --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
+            --manifest-dir build/fogstack-runtime-inputs/manifests \
+            --record-output build/fogstack-runtime-inputs/cluster-readiness.json
+          python3 tools/build_fogstack_gitops_bundle.py \
+            --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
+            --manifest-dir build/fogstack-runtime-inputs/manifests \
+            --output-dir build/fogstack-runtime-inputs/gitops
+          python3 tools/check_fogstack_gitops_bundle.py --bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json
+          python3 tools/emit_fogstack_gitops_readiness_record.py \
+            --bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json \
+            --output build/fogstack-runtime-inputs/gitops-readiness.json
+          python3 tools/build_fogstack_local_cluster_runtime_adapter.py \
+            --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
+            --cluster-readiness-record build/fogstack-runtime-inputs/cluster-readiness.json \
+            --gitops-bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json \
+            --gitops-readiness-record build/fogstack-runtime-inputs/gitops-readiness.json \
+            --output build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
+          test -s build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
