@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import shutil
@@ -51,6 +52,14 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
 def run(cmd: list[str], *, stdout: Path | None = None) -> None:
     if stdout:
         stdout.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +74,11 @@ def rel(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def path_from_ref(ref: str) -> Path:
+    path = Path(ref)
+    return path if path.is_absolute() else ROOT / path
 
 
 def pack_configs(pack: str) -> list[dict[str, str]]:
@@ -84,6 +98,58 @@ def output_dirs(output_dir: Path) -> dict[str, Path]:
         "registry_root": output_dir / "registry",
         "lifecycle": output_dir / "lifecycle",
         "root": output_dir / "root",
+    }
+
+
+def collect_artifact_refs(summary: dict[str, Any]) -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
+    for artifact_id, artifact_ref in (summary.get("artifacts") or {}).items():
+        if artifact_id == "artifact_index":
+            continue
+        if isinstance(artifact_ref, str):
+            refs.append((artifact_id, artifact_ref))
+
+    for release in summary.get("releases") or []:
+        if not isinstance(release, dict):
+            continue
+        bundle_id = release.get("bundle_id", "unknown")
+        for key in ["verify_json", "validation_record", "filesystem_release_pointer"]:
+            artifact_ref = release.get(key)
+            if isinstance(artifact_ref, str):
+                refs.append((f"release:{bundle_id}:{key}", artifact_ref))
+
+    seen: set[str] = set()
+    deduped: list[tuple[str, str]] = []
+    for artifact_id, artifact_ref in refs:
+        dedupe_key = f"{artifact_id}\0{artifact_ref}"
+        if dedupe_key in seen:
+            continue
+        seen.add(dedupe_key)
+        deduped.append((artifact_id, artifact_ref))
+    return deduped
+
+
+def build_artifact_index(summary: dict[str, Any]) -> dict[str, Any]:
+    entries: list[dict[str, Any]] = []
+    for artifact_id, artifact_ref in collect_artifact_refs(summary):
+        path = path_from_ref(artifact_ref)
+        if not path.exists():
+            raise SystemExit(f"ERR: local demo artifact missing before indexing: {artifact_ref}")
+        entries.append({
+            "id": artifact_id,
+            "ref": artifact_ref,
+            "digest": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+        })
+
+    return {
+        "kind": "FogStackLocalDemoArtifactIndex",
+        "schema_version": "v0.1",
+        "demo_kind": summary.get("kind"),
+        "pack": summary.get("pack"),
+        "registry_uri": summary.get("registry_uri"),
+        "release_count": len(summary.get("releases", [])),
+        "artifacts": entries,
     }
 
 
@@ -329,10 +395,12 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     summary_markdown = output_dir / "fogstack-local-demo.summary.md"
     summary_html = output_dir / "index.html"
+    artifact_index = output_dir / "demo-artifacts.index.json"
     artifacts: dict[str, Any] = {
         "summary_json": rel(summary_path),
         "summary_markdown": rel(summary_markdown),
         "summary_html": rel(summary_html),
+        "artifact_index": rel(artifact_index),
         "publication_set": rel(dirs["publication"] / "manifest-publication-set.json"),
         "promoted_publication_set": rel(promoted_set),
         "approval_record": rel(approval_record),
@@ -377,6 +445,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
     write_json(summary_path, summary)
     write_text(summary_markdown, render_summary_markdown(summary))
     write_text(summary_html, render_summary_html(summary))
+    write_json(artifact_index, build_artifact_index(summary))
     return summary
 
 
@@ -399,6 +468,7 @@ def render_summary_text(summary: dict[str, Any]) -> str:
         f"Summary JSON: {artifact_paths.get('summary_json')}",
         f"Summary Markdown: {artifact_paths.get('summary_markdown')}",
         f"Summary HTML: {artifact_paths.get('summary_html')}",
+        f"Artifact index: {artifact_paths.get('artifact_index')}",
         f"Checks passed: {len(summary.get('checks', []))}",
     ]
     return "\n".join(lines) + "\n"
@@ -436,6 +506,7 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
         f"- Revocation index: `{artifacts.get('revocation_index')}`",
         f"- Summary JSON: `{artifacts.get('summary_json')}`",
         f"- Summary HTML: `{artifacts.get('summary_html')}`",
+        f"- Artifact index: `{artifacts.get('artifact_index')}`",
         "",
         "## Checks",
         "",
@@ -470,6 +541,7 @@ def render_summary_html(summary: dict[str, Any]) -> str:
             ("Revocation index", artifacts.get("revocation_index")),
             ("Summary JSON", artifacts.get("summary_json")),
             ("Summary Markdown", artifacts.get("summary_markdown")),
+            ("Artifact index", artifacts.get("artifact_index")),
         ]
     )
     return f"""<!doctype html>
