@@ -70,6 +70,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     runtime_dry_run = load(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
+    assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
     html = (output_dir / "index.html").read_text(encoding="utf-8")
