@@ -180,3 +180,4 @@ validate-storage-suite:
 .PHONY: fogstack-local-demo
 fogstack-local-demo:
 	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
+	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json

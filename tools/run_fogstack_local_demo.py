@@ -103,8 +103,9 @@ def output_dirs(output_dir: Path) -> dict[str, Path]:
 
 def collect_artifact_refs(summary: dict[str, Any]) -> list[tuple[str, str]]:
     refs: list[tuple[str, str]] = []
+    single_pack_aliases = {"verify_json", "validation_record", "filesystem_release_pointer"}
     for artifact_id, artifact_ref in (summary.get("artifacts") or {}).items():
-        if artifact_id == "artifact_index":
+        if artifact_id == "artifact_index" or artifact_id in single_pack_aliases:
             continue
         if isinstance(artifact_ref, str):
             refs.append((artifact_id, artifact_ref))
@@ -118,13 +119,12 @@ def collect_artifact_refs(summary: dict[str, Any]) -> list[tuple[str, str]]:
             if isinstance(artifact_ref, str):
                 refs.append((f"release:{bundle_id}:{key}", artifact_ref))
 
-    seen: set[str] = set()
+    seen_refs: set[str] = set()
     deduped: list[tuple[str, str]] = []
     for artifact_id, artifact_ref in refs:
-        dedupe_key = f"{artifact_id}\0{artifact_ref}"
-        if dedupe_key in seen:
+        if artifact_ref in seen_refs:
             continue
-        seen.add(dedupe_key)
+        seen_refs.add(artifact_ref)
         deduped.append((artifact_id, artifact_ref))
     return deduped
 
