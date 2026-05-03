@@ -28,6 +28,9 @@ The following initial offering slices are already merged into `main`:
 - **Fog Stack Access** — initial upstream offering slice via PR #25
 - **Fog Stack Knowledge** — governed ingress + local daemon offering slice via PR #26
 - **Fog Stack Evaluation** — evaluation fabric offering slice via PR #27
+- **Fog Stack Office / Collaboration** — office collaboration runtime schema and service slice via PRs #314–#319
+- **Fog Stack Data / GovernAI** — Lattice Studio/Data/GovernAI product-surface fixtures (product-spine, annotation-to-training, active metadata, trust/reputation, runtime profile catalog, demo readiness report, runtime release readiness) via PRs #299–#308
+- **Fog Stack AI / Lattice Studio** — Lattice Studio AI product-surface fixtures (model zoo, prompt/RAG/eval lab, publication review, runtime profile catalog, demo readiness report, runtime release readiness) via PRs #299–#308
 
 ## Merged validation and release-engineering slices
 
@@ -69,7 +72,7 @@ The following supporting slices are already merged into `main`:
 
 ## Current active frontier
 
-Fog Stack is past initial offering definition and past local trust-graph construction. The active frontier is now release publication and registry hardening.
+Fog Stack is past initial offering definition, local trust-graph construction, and first-generation registry publication. The active frontier is now Office / Collaboration service hardening, Lattice Studio/Data/GovernAI live-backend readiness, and network registry publication.
 
 The current release path is:
 
@@ -85,7 +88,19 @@ The current release path is:
 
 ## Product-pack readiness matrix
 
-The detailed matrix and pack taxonomy live in:
+| Pack | Readiness | Category | Notes |
+|---|---|---|---|
+| Fog Stack Access | 70% | product_surface | Most mature customer-facing surface |
+| Fog Stack Knowledge | 55% | product_surface | Composition-heavy, operationally mixed |
+| Fog Stack Evaluation | 55% | product_surface | More internal than packaged |
+| Fog Stack Office / Collaboration | 55% | product_surface | Executable-demo posture; PRs #314–#319 |
+| Fog Stack Security / Trust | 35% (standalone) | shared_capability | 80% as platform capability |
+| Fog Stack Registry / Release Distribution | 45% | product_surface | Filesystem registry only; PRs #211–#215 |
+| Fog Stack Data / GovernAI | 50% | product_surface | Fixture-ready; upgraded from 30%; PRs #299–#308 |
+| Fog Stack AI / Lattice Studio | 45% | product_surface | Fixture-ready; upgraded from 20%; PRs #299–#308 |
+| Fog Stack Automation | 20% | future_pack | No distinct surface yet |
+
+The detailed taxonomy and per-pack notes live in:
 - `docs/FOGSTACK_PACKS.md`
 - `catalog/fogstack-packs-v0.1.yaml`
 

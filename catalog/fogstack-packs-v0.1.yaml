@@ -31,6 +31,21 @@ packs:
       - "apps/eval-fabric-api"
       - "docs/PLATFORM_EVAL_FABRIC.md"
     notes: "Real platform surface, but still more internal than packaged."
+  - id: "fogstack.office"
+    label: "Fog Stack Office / Collaboration"
+    category: "product_surface"
+    readiness_pct: 55
+    repo_split_now: false
+    substrate_anchors:
+      - "services/office-collaboration"
+      - "schemas/office"
+      - "docs/OFFICE_COLLABORATION_RUNTIME.md"
+    notes: >
+      Executable collaboration runtime added via PRs #314–#319: thread creation, messages,
+      version-aware suggestion status, thread resolution, event history, and suggestion event
+      history are all in place with behavior tests. Schemas exist for collaboration thread and
+      suggestion records. Not yet hardened for production auth, durable persistence, or external
+      identity. Surface is at executable-demo posture, not production deployment.
   - id: "fogstack.security"
     label: "Fog Stack Security / Trust"
     category: "shared_capability"
@@ -40,21 +55,47 @@ packs:
       - "schemas/release/*"
       - "tools/*fogstack*"
     notes: "Strong platform capability, but not yet an independently packaged product surface."
-  - id: "fogstack.data"
-    label: "Fog Stack Data"
-    category: "packaging_view"
-    readiness_pct: 30
+  - id: "fogstack.registry"
+    label: "Fog Stack Registry / Release Distribution"
+    category: "product_surface"
+    readiness_pct: 45
     repo_split_now: false
     substrate_anchors:
-      - "knowledge + evaluation surfaces"
-    notes: "Better treated as a packaging view over Knowledge + Evaluation than as a separate repo."
-  - id: "fogstack.ai"
-    label: "Fog Stack AI"
-    category: "future_pack"
-    readiness_pct: 20
+      - "registry"
+      - "tools/promote_fogstack_manifest_publication_set.py"
+      - "tools/check_fogstack_manifest_promotion_policy.py"
+    notes: >
+      Gated, CI-backed artifact publication pipeline with filesystem registry adapter merged via
+      PRs #211–#215 (publication gate, registry index, filesystem adapter). Known gaps: network
+      registry publication, signed registry root metadata, rollback/revocation indexes, and
+      KMS/HSM identity for signing keys. No external registry or production deployment exists.
+  - id: "fogstack.data"
+    label: "Fog Stack Data / GovernAI"
+    category: "product_surface"
+    readiness_pct: 50
     repo_split_now: false
-    substrate_anchors: []
-    notes: "Not enough independent runtime/product surface yet."
+    substrate_anchors:
+      - "apps/lattice-studio"
+      - "knowledge + evaluation surfaces"
+    notes: >
+      Upgraded from 30% (packaging view) to 50% (fixture-ready product surface) following the
+      Lattice Studio/Data/GovernAI vertical slice in PRs #299–#308. Full deterministic fixture
+      path now covers product-spine, annotation-to-training, active metadata, trust/reputation,
+      and GovernAI routing consumers. Still fixture/demo-only; no live data backend, external
+      data contracts, or production data pipeline exists on main.
+  - id: "fogstack.ai"
+    label: "Fog Stack AI / Lattice Studio"
+    category: "product_surface"
+    readiness_pct: 45
+    repo_split_now: false
+    substrate_anchors:
+      - "apps/lattice-studio"
+    notes: >
+      Upgraded from 20% (conceptual future pack) to 45% (fixture-ready product surface) following
+      the Lattice Studio vertical slice in PRs #299–#308: model zoo, prompt/RAG/evaluation lab,
+      publication review, runtime profile catalog (three Lattice Forge runtimes), demo readiness
+      report, and runtime release readiness fixture. All surfaces are fixture/demo-only; no live
+      inference, model training, serving infrastructure, or production ML pipeline exists on main.
   - id: "fogstack.automation"
     label: "Fog Stack Automation"
     category: "future_pack"
