@@ -108,6 +108,13 @@ jobs:
             --deploy-plan build/fogstack-kubernetes/fogstack.access.deploy-plan.json \
             --manifest-dir build/fogstack-kubernetes/manifests
 
+      - name: Check Kubernetes manifests with optional kubectl dry-run
+        run: |
+          python3 tools/check_fogstack_kubernetes_manifests.py \
+            --deploy-plan build/fogstack-kubernetes/fogstack.access.deploy-plan.json \
+            --manifest-dir build/fogstack-kubernetes/manifests \
+            --kubectl-dry-run
+
       - name: Run local demo deploy-plan target
         run: |
           make fogstack-local-demo-deploy-plan

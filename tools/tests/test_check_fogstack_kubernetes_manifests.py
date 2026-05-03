@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,8 +23,8 @@ def build_inputs(tmp_path: Path) -> tuple[Path, Path]:
     return plan, manifest_dir
 
 
-def run_checker(plan: Path, manifest_dir: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, "tools/check_fogstack_kubernetes_manifests.py", "--deploy-plan", str(plan), "--manifest-dir", str(manifest_dir)], capture_output=True, text=True)
+def run_checker(plan: Path, manifest_dir: Path, *extra: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, "tools/check_fogstack_kubernetes_manifests.py", "--deploy-plan", str(plan), "--manifest-dir", str(manifest_dir), *extra], capture_output=True, text=True)
 
 
 def load_yaml(path: Path) -> dict:
@@ -41,6 +42,31 @@ def test_check_fogstack_kubernetes_manifests_passes(tmp_path: Path) -> None:
     proc = run_checker(plan, manifest_dir)
     assert proc.returncode == 0
     assert "FogStack Kubernetes manifests passed." in proc.stdout
+    assert "offline validation passed" in proc.stdout
+
+
+def test_check_fogstack_kubernetes_manifests_kubectl_fallback(tmp_path: Path) -> None:
+    plan, manifest_dir = build_inputs(tmp_path)
+    proc = run_checker(plan, manifest_dir, "--kubectl-dry-run", "--kubectl", "definitely-missing-kubectl")
+    assert proc.returncode == 0
+    assert "kubectl unavailable; offline validation used" in proc.stdout
+
+
+def test_check_fogstack_kubernetes_manifests_requires_kubectl_when_requested(tmp_path: Path) -> None:
+    plan, manifest_dir = build_inputs(tmp_path)
+    proc = run_checker(plan, manifest_dir, "--kubectl-dry-run", "--require-kubectl", "--kubectl", "definitely-missing-kubectl")
+    assert proc.returncode != 0
+    assert "kubectl not found" in proc.stderr
+
+
+def test_check_fogstack_kubernetes_manifests_kubectl_success_path(tmp_path: Path) -> None:
+    plan, manifest_dir = build_inputs(tmp_path)
+    fake_kubectl = tmp_path / "kubectl"
+    fake_kubectl.write_text("#!/usr/bin/env sh\necho kubectl dry-run ok\nexit 0\n", encoding="utf-8")
+    fake_kubectl.chmod(fake_kubectl.stat().st_mode | 0o111)
+    proc = run_checker(plan, manifest_dir, "--kubectl-dry-run", "--kubectl", str(fake_kubectl))
+    assert proc.returncode == 0
+    assert "kubectl dry-run passed" in proc.stdout
 
 
 def test_check_fogstack_kubernetes_manifests_rejects_missing_agent_corps_label(tmp_path: Path) -> None:

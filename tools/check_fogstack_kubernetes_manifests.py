@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 LABEL_PREFIX = "fogstack.socioprophet.io"
+DISCOVERY_FAILURE_MARKERS = (
+    "couldn't get current server API group list",
+    "the server could not find the requested resource",
+    "connection refused",
+    "unable to recognize",
+    "no configuration has been provided",
+)
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -167,21 +176,64 @@ def validate_manifests(deploy_plan_path: Path, manifest_dir: Path) -> list[str]:
     return errors
 
 
+def resolve_kubectl(kubectl: str) -> str | None:
+    if "/" in kubectl:
+        path = Path(kubectl)
+        return str(path) if path.exists() else None
+    return shutil.which(kubectl)
+
+
+def is_discovery_failure(details: str) -> bool:
+    lowered = details.lower()
+    return any(marker in lowered for marker in DISCOVERY_FAILURE_MARKERS)
+
+
+def run_kubectl_dry_run(manifest_dir: Path, kubectl: str, require_kubectl: bool) -> tuple[list[str], str]:
+    resolved = resolve_kubectl(kubectl)
+    if resolved is None:
+        if require_kubectl:
+            return [f"kubectl not found: {kubectl}"], "kubectl required but unavailable"
+        return [], "kubectl unavailable; offline validation used"
+
+    proc = subprocess.run(
+        [resolved, "apply", "--dry-run=client", "--validate=false", "-f", str(manifest_dir)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        details = (proc.stderr or proc.stdout).strip()
+        if not require_kubectl and is_discovery_failure(details):
+            return [], "kubectl dry-run unavailable; offline validation used"
+        return [f"kubectl dry-run failed: {details}"], "kubectl dry-run failed"
+    return [], "kubectl dry-run passed"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check rendered FogStack Kubernetes manifests")
     parser.add_argument("--deploy-plan", required=True, type=Path)
     parser.add_argument("--manifest-dir", required=True, type=Path)
+    parser.add_argument("--kubectl-dry-run", action="store_true", help="Also attempt kubectl apply --dry-run=client when kubectl is available")
+    parser.add_argument("--kubectl", default="kubectl", help="kubectl executable name or path")
+    parser.add_argument("--require-kubectl", action="store_true", help="Fail if --kubectl-dry-run is requested and kubectl is unavailable")
     args = parser.parse_args()
 
     deploy_plan_path = args.deploy_plan if args.deploy_plan.is_absolute() else ROOT / args.deploy_plan
     manifest_dir = args.manifest_dir if args.manifest_dir.is_absolute() else ROOT / args.manifest_dir
     errors = validate_manifests(deploy_plan_path, manifest_dir)
+    status_lines = ["offline validation passed"] if not errors else []
+    if not errors and args.kubectl_dry_run:
+        kubectl_errors, kubectl_status = run_kubectl_dry_run(manifest_dir, args.kubectl, args.require_kubectl)
+        errors.extend(kubectl_errors)
+        status_lines.append(kubectl_status)
+
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
         return 1
 
     print("FogStack Kubernetes manifests passed.")
+    for line in status_lines:
+        print(line)
     return 0
 
 
