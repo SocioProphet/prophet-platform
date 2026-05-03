@@ -10,6 +10,7 @@ on:
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "schemas/gitops/**"
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
@@ -24,6 +25,8 @@ on:
       - "tools/check_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/check_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
       - "tools/fogstack_verify.py"
       - "tools/emit_fogstack_validation_record.py"
       - "tools/build_fogstack_manifest_publication_set.py"
@@ -56,6 +59,7 @@ on:
       - "catalog/fogstack-manifest-promotion-policy-v0.1.yaml"
       - "catalog/fogstack-manifest-promotion-approver-policy-v0.1.yaml"
       - "catalog/fogstack-release-publication-gate-policy-v0.1.yaml"
+      - "schemas/gitops/**"
       - "releases/manifests/**"
       - "Makefile"
       - "tools/run_fogstack_local_demo.py"
@@ -70,6 +74,8 @@ on:
       - "tools/check_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/check_fogstack_kubernetes_manifests.py"
+      - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
@@ -114,6 +120,9 @@ jobs:
           test -s build/fogstack-local-demo/demo-artifacts.index.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.deploy-plan.json
           test -s build/fogstack-local-demo/deploy/kubernetes/deployment.yaml
+          test -s build/fogstack-local-demo/deploy/gitops/gitops-bundle.json
+          test -s build/fogstack-local-demo/deploy/gitops/application.yaml
+          test -s build/fogstack-local-demo/deploy/gitops/kustomization.yaml
 
       - name: Check generated artifact index
         run: |

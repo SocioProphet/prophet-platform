@@ -35,6 +35,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     runtime_contract = output_dir / "fogstack.access.runtime-contract.json"
     deploy_plan = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
+    gitops_dir = output_dir / "gitops"
     check_record = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
     readiness_record = output_dir / "fogstack.access.cluster-readiness.record.json"
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
@@ -89,6 +90,21 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         "--kubectl-dry-run",
         "--record-output", str(readiness_record),
     ])
+    run([
+        sys.executable,
+        "tools/build_fogstack_gitops_bundle.py",
+        "--deploy-plan", str(deploy_plan),
+        "--manifest-dir", str(manifest_dir),
+        "--output-dir", str(gitops_dir),
+        "--repo-url", "https://github.com/SocioProphet/prophet-platform.git",
+        "--target-revision", "main",
+        "--gitops-path", "gitops/fogstack.access",
+    ])
+    run([
+        sys.executable,
+        "tools/check_fogstack_gitops_bundle.py",
+        "--bundle", str(gitops_dir / "gitops-bundle.json"),
+    ])
 
     manifests = [
         manifest_dir / "configmap.yaml",
@@ -127,6 +143,12 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "kubernetes_service": rel(manifest_dir / "service.yaml"),
             "kubernetes_manifest_check_record": rel(check_record),
             "cluster_readiness_record": rel(readiness_record),
+            "gitops_bundle": rel(gitops_dir / "gitops-bundle.json"),
+            "gitops_application": rel(gitops_dir / "application.yaml"),
+            "gitops_kustomization": rel(gitops_dir / "kustomization.yaml"),
+            "gitops_configmap": rel(gitops_dir / "manifests" / "configmap.yaml"),
+            "gitops_deployment": rel(gitops_dir / "manifests" / "deployment.yaml"),
+            "gitops_service": rel(gitops_dir / "manifests" / "service.yaml"),
             "summary": rel(summary_path),
         },
         "checks": [
@@ -137,6 +159,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "kubernetes_manifests_rendered",
             "kubernetes_manifests_checked",
             "cluster_readiness_record_emitted",
+            "gitops_bundle_built",
+            "gitops_bundle_checked",
         ],
     }
     write_json(summary_path, summary)
@@ -156,6 +180,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Kubernetes Service: {artifacts['kubernetes_service']}",
         f"Manifest check record: {artifacts['kubernetes_manifest_check_record']}",
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
+        f"GitOps bundle: {artifacts['gitops_bundle']}",
+        f"GitOps application: {artifacts['gitops_application']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
