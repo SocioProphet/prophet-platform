@@ -53,6 +53,20 @@ def require_digest(path: Path, expected: str, label: str) -> None:
         raise SystemExit(f"ERR: {label} digest mismatch")
 
 
+def require_node_surfaces(node_profile: dict[str, Any]) -> None:
+    surfaces = {surface.get("id"): surface for surface in node_profile.get("use_surfaces", []) if isinstance(surface, dict)}
+    for surface_id in ["turtleterm", "bearbrowser"]:
+        surface = surfaces.get(surface_id)
+        if not surface:
+            raise SystemExit(f"ERR: node profile missing required surface: {surface_id}")
+        if surface.get("first_class") is not True:
+            raise SystemExit(f"ERR: node surface is not first-class: {surface_id}")
+        if surface.get("agentplane_visible") is not True:
+            raise SystemExit(f"ERR: node surface is not AgentPlane-visible: {surface_id}")
+        if surface.get("policyplane_guarded") is not True:
+            raise SystemExit(f"ERR: node surface is not PolicyPlane-guarded: {surface_id}")
+
+
 def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> dict[str, Any]:
     adapter_path = resolve(adapter_path)
     manifest_dir = resolve(manifest_dir)
@@ -66,19 +80,25 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
         raise SystemExit("ERR: live apply must be disabled for dry-run record")
 
     inputs = adapter["inputs"]
+    node_profile_path = resolve(Path(inputs["node_profile_ref"]))
     deploy_plan_path = resolve(Path(inputs["deploy_plan_ref"]))
     cluster_record_path = resolve(Path(inputs["cluster_readiness_record_ref"]))
     gitops_bundle_path = resolve(Path(inputs["gitops_bundle_ref"]))
     gitops_readiness_path = resolve(Path(inputs["gitops_readiness_record_ref"]))
+    require_digest(node_profile_path, inputs["node_profile_digest"], "node profile")
     require_digest(deploy_plan_path, inputs["deploy_plan_digest"], "deploy plan")
     require_digest(cluster_record_path, inputs["cluster_readiness_record_digest"], "cluster readiness record")
     require_digest(gitops_bundle_path, inputs["gitops_bundle_digest"], "GitOps bundle")
     require_digest(gitops_readiness_path, inputs["gitops_readiness_record_digest"], "GitOps readiness record")
 
+    node_profile = load_json(node_profile_path)
     deploy_plan = load_json(deploy_plan_path)
     cluster_record = load_json(cluster_record_path)
     gitops_bundle = load_json(gitops_bundle_path)
     gitops_readiness = load_json(gitops_readiness_path)
+    if node_profile.get("kind") != "FogStackAgentMachineNodeProfile":
+        raise SystemExit("ERR: expected FogStackAgentMachineNodeProfile")
+    require_node_surfaces(node_profile)
     if deploy_plan.get("bundle_id") != adapter["bundle_id"] or deploy_plan.get("version") != adapter["version"]:
         raise SystemExit("ERR: deploy plan does not match adapter bundle/version")
     if cluster_record.get("status") != "passed":
@@ -106,6 +126,8 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
         "namespace": adapter["namespace"],
         "runtime_adapter_ref": rel(adapter_path),
         "runtime_adapter_digest": sha256_file(adapter_path),
+        "node_profile_ref": rel(node_profile_path),
+        "node_profile_digest": sha256_file(node_profile_path),
         "deploy_plan_ref": rel(deploy_plan_path),
         "deploy_plan_digest": sha256_file(deploy_plan_path),
         "cluster_readiness_record_ref": rel(cluster_record_path),
@@ -125,6 +147,7 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
             "mutated_cluster": False,
             "validated_inputs": [
                 "runtime_adapter",
+                "node_profile",
                 "deploy_plan",
                 "cluster_readiness_record",
                 "gitops_bundle",
@@ -135,6 +158,7 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
         },
         "artifacts": [
             artifact("runtime-adapter", adapter_path),
+            artifact("node-profile", node_profile_path),
             artifact("deploy-plan", deploy_plan_path),
             artifact("cluster-readiness-record", cluster_record_path),
             artifact("gitops-bundle", gitops_bundle_path),
