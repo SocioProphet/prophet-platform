@@ -1,0 +1,33 @@
+{
+  "decision_id": "office-policy-decision-demo-0001",
+  "tenant_id": "tenant-demo",
+  "document_id": "office-document-demo-0001",
+  "workroom_id": "workroom-demo-0001",
+  "actor_ref": "agentplane://agents/office-demo-writer",
+  "action_type": "SEND_MAIL",
+  "decision": "REQUIRE_REVIEW",
+  "status": "ACTIVE",
+  "risk_class": "EXTERNAL_SIDE_EFFECT",
+  "policy_refs": [
+    "policy://office/default-human-review-before-send"
+  ],
+  "adapter_profile_ref": "office-adapter-profile-sourceos-mail-draft",
+  "closed_provider_refs": [],
+  "obligation_refs": [
+    "obligation://office/human-review"
+  ],
+  "receipt_refs": [
+    "receipt://office/policy-demo-0001"
+  ],
+  "side_effects": {
+    "external_publish": false,
+    "email_send": true,
+    "calendar_mutation": false,
+    "closed_provider_write": false
+  },
+  "requested_at": "2026-05-03T22:10:00Z",
+  "expires_at": "2026-05-04T22:10:00Z",
+  "labels": {
+    "sourceos.review": "required"
+  }
+}
