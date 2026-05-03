@@ -32,6 +32,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     output_dir = output_dir if output_dir.is_absolute() else ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    node_profile = output_dir / "fogstack.access.agent-machine-node-profile.json"
     runtime_contract = output_dir / "fogstack.access.runtime-contract.json"
     deploy_plan = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
@@ -43,6 +44,11 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     readiness_record = output_dir / "fogstack.access.cluster-readiness.record.json"
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
 
+    run([
+        sys.executable,
+        "tools/build_fogstack_agent_machine_node_profile.py",
+        "--output", str(node_profile),
+    ])
     run([
         sys.executable,
         "tools/build_fogstack_runtime_contract.py",
@@ -120,6 +126,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     run([
         sys.executable,
         "tools/build_fogstack_local_cluster_runtime_adapter.py",
+        "--node-profile", str(node_profile),
         "--deploy-plan", str(deploy_plan),
         "--cluster-readiness-record", str(readiness_record),
         "--gitops-bundle", str(gitops_dir / "gitops-bundle.json"),
@@ -164,6 +171,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         "version": "0.1.0",
         "target": "kubernetes",
         "artifacts": {
+            "node_profile": rel(node_profile),
             "agent_corps_plan": rel(runtime_contract),
             "deploy_plan": rel(deploy_plan),
             "kubernetes_configmap": rel(manifest_dir / "configmap.yaml"),
@@ -183,6 +191,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "summary": rel(summary_path),
         },
         "checks": [
+            "node_profile_built",
             "agent_corps_plan_built",
             "agent_corps_plan_checked",
             "deploy_plan_built",
@@ -207,6 +216,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         "FogStack local demo deploy plan passed.",
         f"Bundle: {summary['bundle_id']}@{summary['version']}",
         f"Target: {summary['target']}",
+        f"Agent Machine node profile: {artifacts['node_profile']}",
         f"Agent Corps plan: {artifacts['agent_corps_plan']}",
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes ConfigMap: {artifacts['kubernetes_configmap']}",
