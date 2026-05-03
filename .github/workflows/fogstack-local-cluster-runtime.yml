@@ -18,7 +18,9 @@ on:
       - "tools/check_fogstack_gitops_bundle.py"
       - "tools/emit_fogstack_gitops_readiness_record.py"
       - "tools/build_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/emit_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/tests/test_fogstack_runtime_dry_run_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
   push:
     branches: [main]
@@ -37,7 +39,9 @@ on:
       - "tools/check_fogstack_gitops_bundle.py"
       - "tools/emit_fogstack_gitops_readiness_record.py"
       - "tools/build_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/emit_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
+      - "tools/tests/test_fogstack_runtime_dry_run_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
 
 permissions:
@@ -63,7 +67,9 @@ jobs:
 
       - name: Run local cluster runtime tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_local_cluster_runtime_adapter.py
+          python -m pytest -q \
+            tools/tests/test_fogstack_local_cluster_runtime_adapter.py \
+            tools/tests/test_fogstack_runtime_dry_run_record.py
 
       - name: Build sample local cluster runtime adapter
         run: |
@@ -103,4 +109,9 @@ jobs:
             --gitops-bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json \
             --gitops-readiness-record build/fogstack-runtime-inputs/gitops-readiness.json \
             --output build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
+          python3 tools/emit_fogstack_runtime_dry_run_record.py \
+            --runtime-adapter build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json \
+            --manifest-dir build/fogstack-runtime-inputs/manifests \
+            --output build/fogstack-runtime-inputs/runtime-dry-run.record.json
           test -s build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
+          test -s build/fogstack-runtime-inputs/runtime-dry-run.record.json

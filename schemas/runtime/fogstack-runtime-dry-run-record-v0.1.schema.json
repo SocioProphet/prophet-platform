@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-runtime-dry-run-record-v0.1.schema.json",
+  "title": "FogStackRuntimeDryRunRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "status",
+    "bundle_id",
+    "version",
+    "namespace",
+    "runtime_adapter_ref",
+    "runtime_adapter_digest",
+    "deploy_plan_ref",
+    "deploy_plan_digest",
+    "cluster_readiness_record_ref",
+    "cluster_readiness_record_digest",
+    "gitops_bundle_ref",
+    "gitops_bundle_digest",
+    "gitops_readiness_record_ref",
+    "gitops_readiness_record_digest",
+    "kubernetes_manifests",
+    "runtime_policy",
+    "dry_run_result",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackRuntimeDryRunRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "failed"] },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" },
+    "runtime_adapter_ref": { "type": "string", "minLength": 1 },
+    "runtime_adapter_digest": { "$ref": "#/$defs/sha256_digest" },
+    "deploy_plan_ref": { "type": "string", "minLength": 1 },
+    "deploy_plan_digest": { "$ref": "#/$defs/sha256_digest" },
+    "cluster_readiness_record_ref": { "type": "string", "minLength": 1 },
+    "cluster_readiness_record_digest": { "$ref": "#/$defs/sha256_digest" },
+    "gitops_bundle_ref": { "type": "string", "minLength": 1 },
+    "gitops_bundle_digest": { "$ref": "#/$defs/sha256_digest" },
+    "gitops_readiness_record_ref": { "type": "string", "minLength": 1 },
+    "gitops_readiness_record_digest": { "$ref": "#/$defs/sha256_digest" },
+    "kubernetes_manifests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "minItems": 3
+    },
+    "runtime_policy": {
+      "type": "object",
+      "required": ["live_apply_allowed", "requires_human_approval", "network_default", "secrets_default"],
+      "properties": {
+        "live_apply_allowed": { "const": false },
+        "requires_human_approval": { "const": true },
+        "network_default": { "const": "deny" },
+        "secrets_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "dry_run_result": {
+      "type": "object",
+      "required": ["mode", "mutated_cluster", "validated_inputs", "validation_path"],
+      "properties": {
+        "mode": { "const": "dry-run" },
+        "mutated_cluster": { "const": false },
+        "validated_inputs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1
+        },
+        "validation_path": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "ref", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
