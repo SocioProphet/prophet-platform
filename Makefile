@@ -185,3 +185,7 @@ fogstack-local-demo:
 .PHONY: fogstack-local-demo-serve
 fogstack-local-demo-serve: fogstack-local-demo
 	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
+
+.PHONY: fogstack-local-demo-deploy-plan
+fogstack-local-demo-deploy-plan:
+	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
