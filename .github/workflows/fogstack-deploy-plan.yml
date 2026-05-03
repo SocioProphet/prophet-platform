@@ -8,7 +8,9 @@ on:
       - "releases/manifests/fogstack.*.manifest.json"
       - "schemas/deploy/**"
       - "tools/build_fogstack_deploy_plan.py"
+      - "tools/check_fogstack_deploy_plan.py"
       - "tools/tests/test_fogstack_deploy_plan.py"
+      - "tools/tests/test_check_fogstack_deploy_plan.py"
       - ".github/workflows/fogstack-deploy-plan.yml"
   push:
     branches: [main]
@@ -17,7 +19,9 @@ on:
       - "releases/manifests/fogstack.*.manifest.json"
       - "schemas/deploy/**"
       - "tools/build_fogstack_deploy_plan.py"
+      - "tools/check_fogstack_deploy_plan.py"
       - "tools/tests/test_fogstack_deploy_plan.py"
+      - "tools/tests/test_check_fogstack_deploy_plan.py"
       - ".github/workflows/fogstack-deploy-plan.yml"
 
 permissions:
@@ -43,7 +47,7 @@ jobs:
 
       - name: Run deploy plan tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_deploy_plan.py
+          python -m pytest -q tools/tests/test_fogstack_deploy_plan.py tools/tests/test_check_fogstack_deploy_plan.py
 
       - name: Build access deploy plan artifact
         run: |
@@ -55,3 +59,7 @@ jobs:
             --health-endpoint /healthz \
             --output build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
           test -s build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
+
+      - name: Check access deploy plan artifact
+        run: |
+          python3 tools/check_fogstack_deploy_plan.py --plan build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
