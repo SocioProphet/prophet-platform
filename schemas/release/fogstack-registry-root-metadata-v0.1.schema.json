@@ -7,12 +7,60 @@
   "properties": {
     "kind": { "const": "FogStackRegistryRootMetadata" },
     "schema_version": { "const": "v0.1" },
-    "registry_uri": { "type": "string" },
-    "releases": { "type": "array" },
-    "revocation_index_ref": { "type": ["string", "null"] },
-    "revocation_index_digest": { "type": ["string", "null"] },
+    "registry_uri": { "type": "string", "minLength": 1 },
+    "releases": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/release_entry" }
+    },
+    "revocation_index_ref": { "type": ["string", "null"], "minLength": 1 },
+    "revocation_index_digest": {
+      "anyOf": [
+        { "$ref": "#/$defs/sha256_digest" },
+        { "type": "null" }
+      ]
+    },
     "signed": { "type": "boolean" },
-    "signature": { "type": ["object", "null"] }
+    "signature": {
+      "anyOf": [
+        { "$ref": "#/$defs/signature_metadata" },
+        { "type": "null" }
+      ]
+    }
   },
-  "additionalProperties": true
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "release_entry": {
+      "type": "object",
+      "required": [
+        "bundle_id",
+        "version",
+        "release_pointer_ref",
+        "release_pointer_digest",
+        "registry_publication_index_ref",
+        "registry_publication_index_digest"
+      ],
+      "properties": {
+        "bundle_id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "release_pointer_ref": { "type": "string", "minLength": 1 },
+        "release_pointer_digest": { "$ref": "#/$defs/sha256_digest" },
+        "registry_publication_index_ref": { "type": "string", "minLength": 1 },
+        "registry_publication_index_digest": { "$ref": "#/$defs/sha256_digest" }
+      },
+      "additionalProperties": false
+    },
+    "signature_metadata": {
+      "type": "object",
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
 }
