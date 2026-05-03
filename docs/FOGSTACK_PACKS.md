@@ -42,9 +42,9 @@ The shared trust/release graph is still the dominant implementation concern, and
 
 ### Fog Stack Registry / Release Distribution
 - Type: real product surface (demo/CI posture)
-- Readiness: 45%
+- Readiness: 60%
 - Repo split now: no
-- Why: a gated, CI-backed artifact publication pipeline through a filesystem registry adapter was merged via PRs #211–#215 (publication gate, registry publication index, filesystem adapter). Known gaps: network registry publication, signed registry root metadata, rollback/revocation indexes, and KMS/HSM identity for signing keys. No external registry or production deployment exists on main.
+- Why: the registry/release-distribution lane now includes gated publication, filesystem registry export, registry publication indexes, registry-root metadata, rollback/revocation lifecycle indexes, and local registry metadata signature-verification support across PRs #211–#215, #224, #237, #248, and #324. It is no longer just a future release-plumbing concept. Remaining gaps are network registry publication, production KMS/HSM-backed signing, external identity binding, client-side rollback/revocation enforcement, and operator-facing release-distribution UX. No external registry or production deployment exists on main.
 
 ### Fog Stack Data / GovernAI
 - Type: fixture-ready product surface
