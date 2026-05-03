@@ -1,0 +1,57 @@
+name: FogStack Deploy Plan
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "schemas/deploy/**"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/tests/test_fogstack_deploy_plan.py"
+      - ".github/workflows/fogstack-deploy-plan.yml"
+  push:
+    branches: [main]
+    paths:
+      - "bundles/fogstack.*.yaml"
+      - "releases/manifests/fogstack.*.manifest.json"
+      - "schemas/deploy/**"
+      - "tools/build_fogstack_deploy_plan.py"
+      - "tools/tests/test_fogstack_deploy_plan.py"
+      - ".github/workflows/fogstack-deploy-plan.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-plan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run deploy plan tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_deploy_plan.py
+
+      - name: Build access deploy plan artifact
+        run: |
+          python3 tools/build_fogstack_deploy_plan.py \
+            --manifest releases/manifests/fogstack.access-v0.1.manifest.json \
+            --profile local-dev \
+            --target local \
+            --namespace fogstack-access \
+            --health-endpoint /healthz \
+            --output build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
+          test -s build/fogstack-deploy-plan/fogstack.access.deploy-plan.json
