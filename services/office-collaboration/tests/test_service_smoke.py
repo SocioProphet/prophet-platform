@@ -40,6 +40,15 @@ def test_create_thread_add_message_and_resolve() -> None:
     assert resolved.json()['version_id'] == 'version-doc1-002'
     assert resolved.json()['receipt_ref'] == 'receipt-1'
 
+    events = client.get('/v0/office-collaboration/threads/t1/events')
+    assert events.status_code == 200
+    assert events.json()['events'][0]['event_type'] == 'THREAD_CREATED'
+    assert events.json()['events'][-1]['event_type'] == 'THREAD_STATUS_UPDATED'
+
+    doc_threads = client.get('/v0/office-collaboration/documents/doc1/threads')
+    assert doc_threads.status_code == 200
+    assert doc_threads.json()['threads'][0]['thread_id'] == 't1'
+
 
 def test_create_and_update_suggestion() -> None:
     create = client.post(
