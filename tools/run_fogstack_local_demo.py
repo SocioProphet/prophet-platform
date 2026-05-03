@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import shutil
 import subprocess
@@ -327,9 +328,11 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
 
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     summary_markdown = output_dir / "fogstack-local-demo.summary.md"
+    summary_html = output_dir / "index.html"
     artifacts: dict[str, Any] = {
         "summary_json": rel(summary_path),
         "summary_markdown": rel(summary_markdown),
+        "summary_html": rel(summary_html),
         "publication_set": rel(dirs["publication"] / "manifest-publication-set.json"),
         "promoted_publication_set": rel(promoted_set),
         "approval_record": rel(approval_record),
@@ -373,6 +376,7 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
     }
     write_json(summary_path, summary)
     write_text(summary_markdown, render_summary_markdown(summary))
+    write_text(summary_html, render_summary_html(summary))
     return summary
 
 
@@ -394,6 +398,7 @@ def render_summary_text(summary: dict[str, Any]) -> str:
         f"Registry root metadata: {artifact_paths.get('registry_root_metadata')}",
         f"Summary JSON: {artifact_paths.get('summary_json')}",
         f"Summary Markdown: {artifact_paths.get('summary_markdown')}",
+        f"Summary HTML: {artifact_paths.get('summary_html')}",
         f"Checks passed: {len(summary.get('checks', []))}",
     ]
     return "\n".join(lines) + "\n"
@@ -430,6 +435,7 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
         f"- Registry publication index: `{artifacts.get('registry_publication_index')}`",
         f"- Revocation index: `{artifacts.get('revocation_index')}`",
         f"- Summary JSON: `{artifacts.get('summary_json')}`",
+        f"- Summary HTML: `{artifacts.get('summary_html')}`",
         "",
         "## Checks",
         "",
@@ -437,6 +443,82 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
         "",
     ]
     return "\n".join(lines)
+
+
+def render_summary_html(summary: dict[str, Any]) -> str:
+    def esc(value: Any) -> str:
+        return html.escape(str(value), quote=True)
+
+    artifacts = summary.get("artifacts", {})
+    release_rows = "\n".join(
+        "<tr>"
+        f"<td>{esc(release['bundle_id'])}</td>"
+        f"<td>{esc(release['version'])}</td>"
+        f"<td>{esc(release['pack'])}</td>"
+        f"<td><code>{esc(release['validation_record'])}</code></td>"
+        f"<td><code>{esc(release['filesystem_release_pointer'])}</code></td>"
+        "</tr>"
+        for release in summary.get("releases", [])
+    )
+    check_items = "\n".join(f"<li><code>{esc(check)}</code></li>" for check in summary.get("checks", []))
+    artifact_items = "\n".join(
+        f"<li><strong>{esc(label)}:</strong> <code>{esc(path)}</code></li>"
+        for label, path in [
+            ("Publication gate", artifacts.get("publication_gate")),
+            ("Registry root metadata", artifacts.get("registry_root_metadata")),
+            ("Registry publication index", artifacts.get("registry_publication_index")),
+            ("Revocation index", artifacts.get("revocation_index")),
+            ("Summary JSON", artifacts.get("summary_json")),
+            ("Summary Markdown", artifacts.get("summary_markdown")),
+        ]
+    )
+    return f"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>FogStack Local Demo Summary</title>
+  <style>
+    :root {{ color-scheme: light dark; }}
+    body {{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; line-height: 1.5; }}
+    main {{ max-width: 1120px; }}
+    .status {{ display: inline-block; padding: 0.25rem 0.6rem; border: 1px solid currentColor; border-radius: 999px; font-weight: 700; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+    th, td {{ border: 1px solid currentColor; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }}
+    code {{ word-break: break-word; }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FogStack Local Demo Summary</h1>
+    <p class=\"status\">Status: passed</p>
+    <dl>
+      <dt>Pack selection</dt><dd><code>{esc(summary.get('pack'))}</code></dd>
+      <dt>Release count</dt><dd>{esc(len(summary.get('releases', [])))}</dd>
+      <dt>Channel/support</dt><dd><code>{esc(summary.get('channel'))}/{esc(summary.get('support_state'))}</code></dd>
+      <dt>Registry URI</dt><dd><code>{esc(summary.get('registry_uri'))}</code></dd>
+    </dl>
+
+    <h2>Releases</h2>
+    <table>
+      <thead><tr><th>Bundle</th><th>Version</th><th>Pack</th><th>Validation record</th><th>Filesystem release pointer</th></tr></thead>
+      <tbody>
+        {release_rows}
+      </tbody>
+    </table>
+
+    <h2>Key artifacts</h2>
+    <ul>
+      {artifact_items}
+    </ul>
+
+    <h2>Checks</h2>
+    <ul>
+      {check_items}
+    </ul>
+  </main>
+</body>
+</html>
+"""
 
 
 def main() -> int:
