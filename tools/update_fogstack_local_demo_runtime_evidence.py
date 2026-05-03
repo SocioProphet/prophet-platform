@@ -14,6 +14,7 @@ ARTIFACTS = {
     "deploy_runtime_adapter": "Runtime adapter",
     "deploy_runtime_dry_run_record": "Runtime dry-run record",
 }
+SURFACES = ["turtleterm", "bearbrowser"]
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -72,12 +73,45 @@ def refresh_index(index_path: Path, refs_by_id: dict[str, str]) -> None:
     write_json(index_path, index)
 
 
-def append_markdown(markdown_path: Path, refs_by_id: dict[str, str]) -> None:
+def runtime_readiness(runtime_adapter_ref: str, runtime_dry_run_ref: str) -> dict[str, Any]:
+    adapter = load_json(path_from_ref(runtime_adapter_ref))
+    dry_run = load_json(path_from_ref(runtime_dry_run_ref))
+    node_profile_ref = dry_run.get("node_profile_ref") or adapter.get("inputs", {}).get("node_profile_ref")
+    if not isinstance(node_profile_ref, str) or not node_profile_ref:
+        raise SystemExit("ERR: runtime evidence missing node profile ref")
+    node_profile = load_json(path_from_ref(node_profile_ref))
+    surfaces = {surface.get("id"): surface for surface in node_profile.get("use_surfaces", []) if isinstance(surface, dict)}
+    missing_surfaces = [surface_id for surface_id in SURFACES if surface_id not in surfaces]
+    if missing_surfaces:
+        raise SystemExit(f"ERR: node profile missing required use surfaces: {', '.join(missing_surfaces)}")
+
+    return {
+        "node_profile_ref": node_profile_ref,
+        "node_profile_digest": dry_run.get("node_profile_digest") or adapter.get("inputs", {}).get("node_profile_digest"),
+        "surfaces": surfaces,
+        "dry_run_mode": dry_run.get("dry_run_result", {}).get("mode"),
+        "validation_path": dry_run.get("dry_run_result", {}).get("validation_path"),
+        "mutated_cluster": dry_run.get("dry_run_result", {}).get("mutated_cluster"),
+        "live_apply_allowed": dry_run.get("runtime_policy", {}).get("live_apply_allowed"),
+        "requires_human_approval": dry_run.get("runtime_policy", {}).get("requires_human_approval"),
+    }
+
+
+def append_markdown(markdown_path: Path, refs_by_id: dict[str, str], readiness: dict[str, Any]) -> None:
     rows = []
     for artifact_id, label in ARTIFACTS.items():
         ref = refs_by_id[artifact_id]
         digest = sha256_file(path_from_ref(ref))
         rows.append(f"| `{artifact_id}` | {label} | `{ref}` | `{digest}` | `indexed` |")
+
+    surface_rows = []
+    for surface_id in SURFACES:
+        surface = readiness["surfaces"][surface_id]
+        surface_rows.append(
+            f"| {surface['name']} | `{surface['repo_ref']}` | `{surface['surface_type']}` | "
+            f"`first_class={str(surface['first_class']).lower()}; agentplane_visible={str(surface['agentplane_visible']).lower()}; policyplane_guarded={str(surface['policyplane_guarded']).lower()}` |"
+        )
+
     section = "\n".join([
         "",
         "## Runtime evidence",
@@ -86,28 +120,79 @@ def append_markdown(markdown_path: Path, refs_by_id: dict[str, str]) -> None:
         "|---|---|---|---|---|",
         *rows,
         "",
+        "## Runtime readiness",
+        "",
+        "| Signal | Value |",
+        "|---|---|",
+        f"| Node profile | `{readiness['node_profile_ref']}` |",
+        f"| Node profile digest | `{readiness['node_profile_digest']}` |",
+        f"| Dry-run mode | `{readiness['dry_run_mode']}` |",
+        f"| Validation path | `{readiness['validation_path']}` |",
+        f"| Mutated cluster | `{str(readiness['mutated_cluster']).lower()}` |",
+        f"| Live apply allowed | `{str(readiness['live_apply_allowed']).lower()}` |",
+        f"| Human approval required | `{str(readiness['requires_human_approval']).lower()}` |",
+        "",
+        "| Use surface | Repo | Type | Governance |",
+        "|---|---|---|---|",
+        *surface_rows,
+        "",
     ])
     markdown_path.write_text(markdown_path.read_text(encoding="utf-8") + section, encoding="utf-8")
 
 
-def append_html(html_path: Path, refs_by_id: dict[str, str]) -> None:
-    rows = []
+def append_html(html_path: Path, refs_by_id: dict[str, str], readiness: dict[str, Any]) -> None:
+    evidence_rows = []
     for artifact_id, label in ARTIFACTS.items():
         ref = refs_by_id[artifact_id]
         digest = sha256_file(path_from_ref(ref))
-        rows.append(
+        evidence_rows.append(
             f"<tr><td><code>{html.escape(artifact_id)}</code></td>"
             f"<td>{html.escape(label)}</td>"
             f"<td><code>{html.escape(ref)}</code></td>"
             f"<td><code>{html.escape(digest)}</code></td>"
             "<td>indexed</td></tr>"
         )
+
+    surface_rows = []
+    for surface_id in SURFACES:
+        surface = readiness["surfaces"][surface_id]
+        governance = (
+            f"first_class={str(surface['first_class']).lower()}; "
+            f"agentplane_visible={str(surface['agentplane_visible']).lower()}; "
+            f"policyplane_guarded={str(surface['policyplane_guarded']).lower()}"
+        )
+        surface_rows.append(
+            f"<tr><td>{html.escape(surface['name'])}</td>"
+            f"<td><code>{html.escape(surface['repo_ref'])}</code></td>"
+            f"<td><code>{html.escape(surface['surface_type'])}</code></td>"
+            f"<td><code>{html.escape(governance)}</code></td></tr>"
+        )
+
     section = f"""
     <h2>Runtime evidence</h2>
     <table>
       <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
       <tbody>
-        {' '.join(rows)}
+        {' '.join(evidence_rows)}
+      </tbody>
+    </table>
+    <h2>Runtime readiness</h2>
+    <table>
+      <thead><tr><th>Signal</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Node profile</td><td><code>{html.escape(str(readiness['node_profile_ref']))}</code></td></tr>
+        <tr><td>Node profile digest</td><td><code>{html.escape(str(readiness['node_profile_digest']))}</code></td></tr>
+        <tr><td>Dry-run mode</td><td><code>{html.escape(str(readiness['dry_run_mode']))}</code></td></tr>
+        <tr><td>Validation path</td><td><code>{html.escape(str(readiness['validation_path']))}</code></td></tr>
+        <tr><td>Mutated cluster</td><td><code>{html.escape(str(readiness['mutated_cluster']).lower())}</code></td></tr>
+        <tr><td>Live apply allowed</td><td><code>{html.escape(str(readiness['live_apply_allowed']).lower())}</code></td></tr>
+        <tr><td>Human approval required</td><td><code>{html.escape(str(readiness['requires_human_approval']).lower())}</code></td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Use surface</th><th>Repo</th><th>Type</th><th>Governance</th></tr></thead>
+      <tbody>
+        {' '.join(surface_rows)}
       </tbody>
     </table>
 """
@@ -125,17 +210,18 @@ def update(summary_path: Path, runtime_adapter: Path, runtime_dry_run: Path) -> 
         path = path_from_ref(ref)
         if not path.exists() or not path.is_file():
             raise SystemExit(f"ERR: runtime evidence artifact missing: {ref}")
+    readiness = runtime_readiness(refs_by_id["deploy_runtime_adapter"], refs_by_id["deploy_runtime_dry_run_record"])
 
     artifacts = summary.setdefault("artifacts", {})
     artifacts.update(refs_by_id)
     checks = summary.setdefault("checks", [])
-    for check in ["runtime_adapter_indexed", "runtime_dry_run_record_indexed"]:
+    for check in ["runtime_adapter_indexed", "runtime_dry_run_record_indexed", "runtime_readiness_summary_appended"]:
         if check not in checks:
             checks.append(check)
     write_json(summary_path, summary)
 
-    append_markdown(path_from_ref(artifacts["summary_markdown"]), refs_by_id)
-    append_html(path_from_ref(artifacts["summary_html"]), refs_by_id)
+    append_markdown(path_from_ref(artifacts["summary_markdown"]), refs_by_id, readiness)
+    append_html(path_from_ref(artifacts["summary_html"]), refs_by_id, readiness)
     refresh_index(path_from_ref(artifacts["artifact_index"]), refs_by_id)
     return summary
 
