@@ -28,5 +28,13 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert indexed[key]["digest"].startswith("sha256:")
         assert Path(indexed[key]["ref"]).exists()
 
-    assert "Deploy plan artifacts" in (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
-    assert "Deploy plan artifacts" in (output_dir / "index.html").read_text(encoding="utf-8")
+    markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
+    html = (output_dir / "index.html").read_text(encoding="utf-8")
+    for content in [markdown, html]:
+        assert "Deploy readiness" in content
+        assert "Artifact ID" in content
+        assert "SHA-256 digest" in content
+        assert "indexed" in content
+        assert "deploy_plan" in content
+        assert "deploy_kubernetes_deployment" in content
+        assert "sha256:" in content
