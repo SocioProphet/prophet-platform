@@ -14,8 +14,10 @@ on:
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/build_fogstack_gitops_bundle.py"
       - "tools/check_fogstack_gitops_bundle.py"
+      - "tools/emit_fogstack_gitops_readiness_record.py"
       - "tools/tests/test_fogstack_gitops_bundle.py"
       - "tools/tests/test_check_fogstack_gitops_bundle.py"
+      - "tools/tests/test_fogstack_gitops_readiness_record.py"
       - ".github/workflows/fogstack-gitops-bundle.yml"
   push:
     branches: [main]
@@ -30,8 +32,10 @@ on:
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/build_fogstack_gitops_bundle.py"
       - "tools/check_fogstack_gitops_bundle.py"
+      - "tools/emit_fogstack_gitops_readiness_record.py"
       - "tools/tests/test_fogstack_gitops_bundle.py"
       - "tools/tests/test_check_fogstack_gitops_bundle.py"
+      - "tools/tests/test_fogstack_gitops_readiness_record.py"
       - ".github/workflows/fogstack-gitops-bundle.yml"
 
 permissions:
@@ -59,7 +63,8 @@ jobs:
         run: |
           python -m pytest -q \
             tools/tests/test_fogstack_gitops_bundle.py \
-            tools/tests/test_check_fogstack_gitops_bundle.py
+            tools/tests/test_check_fogstack_gitops_bundle.py \
+            tools/tests/test_fogstack_gitops_readiness_record.py
 
       - name: Build sample GitOps bundle
         run: |
@@ -89,7 +94,14 @@ jobs:
             --target-revision main \
             --gitops-path gitops/fogstack.access
           python3 tools/check_fogstack_gitops_bundle.py --bundle build/fogstack-gitops/gitops-bundle.json
+          python3 tools/emit_fogstack_gitops_readiness_record.py \
+            --bundle build/fogstack-gitops/gitops-bundle.json \
+            --output build/fogstack-gitops/gitops-readiness.record.json \
+            --generator-status passed \
+            --checker-status passed \
+            --checker-message "FogStack GitOps bundle passed."
           test -s build/fogstack-gitops/gitops-bundle.json
+          test -s build/fogstack-gitops/gitops-readiness.record.json
           test -s build/fogstack-gitops/application.yaml
           test -s build/fogstack-gitops/kustomization.yaml
           test -s build/fogstack-gitops/manifests/deployment.yaml
