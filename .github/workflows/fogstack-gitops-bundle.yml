@@ -13,7 +13,9 @@ on:
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
       - "tools/tests/test_fogstack_gitops_bundle.py"
+      - "tools/tests/test_check_fogstack_gitops_bundle.py"
       - ".github/workflows/fogstack-gitops-bundle.yml"
   push:
     branches: [main]
@@ -27,7 +29,9 @@ on:
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
       - "tools/build_fogstack_gitops_bundle.py"
+      - "tools/check_fogstack_gitops_bundle.py"
       - "tools/tests/test_fogstack_gitops_bundle.py"
+      - "tools/tests/test_check_fogstack_gitops_bundle.py"
       - ".github/workflows/fogstack-gitops-bundle.yml"
 
 permissions:
@@ -53,7 +57,9 @@ jobs:
 
       - name: Run GitOps bundle tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_gitops_bundle.py
+          python -m pytest -q \
+            tools/tests/test_fogstack_gitops_bundle.py \
+            tools/tests/test_check_fogstack_gitops_bundle.py
 
       - name: Build sample GitOps bundle
         run: |
@@ -82,6 +88,7 @@ jobs:
             --repo-url https://github.com/SocioProphet/prophet-platform.git \
             --target-revision main \
             --gitops-path gitops/fogstack.access
+          python3 tools/check_fogstack_gitops_bundle.py --bundle build/fogstack-gitops/gitops-bundle.json
           test -s build/fogstack-gitops/gitops-bundle.json
           test -s build/fogstack-gitops/application.yaml
           test -s build/fogstack-gitops/kustomization.yaml
