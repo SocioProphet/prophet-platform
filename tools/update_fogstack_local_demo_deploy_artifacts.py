@@ -19,6 +19,15 @@ DEPLOY_ARTIFACT_KEYS = {
     "kubernetes_manifest_check_record": "deploy_kubernetes_manifest_check_record",
     "summary": "deploy_summary",
 }
+DEPLOY_ARTIFACT_LABELS = {
+    "deploy_agent_corps_plan": "Agent Corps plan",
+    "deploy_plan": "Deploy plan",
+    "deploy_kubernetes_configmap": "Kubernetes ConfigMap",
+    "deploy_kubernetes_deployment": "Kubernetes Deployment",
+    "deploy_kubernetes_service": "Kubernetes Service",
+    "deploy_kubernetes_manifest_check_record": "Manifest check record",
+    "deploy_summary": "Deploy summary",
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -43,6 +52,27 @@ def sha256_file(path: Path) -> str:
 def path_from_ref(ref: str) -> Path:
     path = Path(ref)
     return path if path.is_absolute() else ROOT / path
+
+
+def deploy_readiness_rows(summary: dict[str, Any]) -> list[dict[str, Any]]:
+    artifacts = summary.get("artifacts") or {}
+    rows: list[dict[str, Any]] = []
+    for artifact_id in DEPLOY_ARTIFACT_LABELS:
+        ref = artifacts.get(artifact_id)
+        if not isinstance(ref, str):
+            raise SystemExit(f"ERR: deploy artifact ref missing from summary: {artifact_id}")
+        path = path_from_ref(ref)
+        if not path.exists() or not path.is_file():
+            raise SystemExit(f"ERR: deploy artifact is missing or not a file: {ref}")
+        rows.append({
+            "id": artifact_id,
+            "label": DEPLOY_ARTIFACT_LABELS[artifact_id],
+            "ref": ref,
+            "digest": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+            "status": "indexed",
+        })
+    return rows
 
 
 def build_artifact_index(summary: dict[str, Any]) -> dict[str, Any]:
@@ -94,46 +124,46 @@ def build_artifact_index(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def append_markdown(markdown_path: Path, deploy_summary: dict[str, Any]) -> None:
-    artifacts = deploy_summary["artifacts"]
+def append_markdown(markdown_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
+    table_rows = [
+        f"| `{row['id']}` | {row['label']} | `{row['ref']}` | `{row['digest']}` | `{row['status']}` |"
+        for row in readiness_rows
+    ]
     section = [
         "",
-        "## Deploy plan artifacts",
+        "## Deploy readiness",
         "",
-        f"- Agent Corps plan: `{artifacts['agent_corps_plan']}`",
-        f"- Deploy plan: `{artifacts['deploy_plan']}`",
-        f"- Kubernetes ConfigMap: `{artifacts['kubernetes_configmap']}`",
-        f"- Kubernetes Deployment: `{artifacts['kubernetes_deployment']}`",
-        f"- Kubernetes Service: `{artifacts['kubernetes_service']}`",
-        f"- Manifest check record: `{artifacts['kubernetes_manifest_check_record']}`",
+        "| Artifact ID | Artifact | Ref | SHA-256 digest | Status |",
+        "|---|---|---|---|---|",
+        *table_rows,
         "",
     ]
     markdown_path.write_text(markdown_path.read_text(encoding="utf-8") + "\n".join(section), encoding="utf-8")
 
 
-def append_html(html_path: Path, deploy_summary: dict[str, Any]) -> None:
+def append_html(html_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
     def esc(value: Any) -> str:
         return html.escape(str(value), quote=True)
 
-    artifacts = deploy_summary["artifacts"]
-    section = """
-    <h2>Deploy plan artifacts</h2>
-    <ul>
-      <li><strong>Agent Corps plan:</strong> <code>{agent}</code></li>
-      <li><strong>Deploy plan:</strong> <code>{plan}</code></li>
-      <li><strong>Kubernetes ConfigMap:</strong> <code>{configmap}</code></li>
-      <li><strong>Kubernetes Deployment:</strong> <code>{deployment}</code></li>
-      <li><strong>Kubernetes Service:</strong> <code>{service}</code></li>
-      <li><strong>Manifest check record:</strong> <code>{check}</code></li>
-    </ul>
-""".format(
-        agent=esc(artifacts["agent_corps_plan"]),
-        plan=esc(artifacts["deploy_plan"]),
-        configmap=esc(artifacts["kubernetes_configmap"]),
-        deployment=esc(artifacts["kubernetes_deployment"]),
-        service=esc(artifacts["kubernetes_service"]),
-        check=esc(artifacts["kubernetes_manifest_check_record"]),
+    rows = "\n".join(
+        "<tr>"
+        f"<td><code>{esc(row['id'])}</code></td>"
+        f"<td>{esc(row['label'])}</td>"
+        f"<td><code>{esc(row['ref'])}</code></td>"
+        f"<td><code>{esc(row['digest'])}</code></td>"
+        f"<td>{esc(row['status'])}</td>"
+        "</tr>"
+        for row in readiness_rows
     )
+    section = f"""
+    <h2>Deploy readiness</h2>
+    <table>
+      <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
+      <tbody>
+        {rows}
+      </tbody>
+    </table>
+"""
     html_text = html_path.read_text(encoding="utf-8")
     html_path.write_text(html_text.replace("\n  </main>", section + "\n  </main>"), encoding="utf-8")
 
@@ -151,11 +181,12 @@ def update_summary(summary_path: Path, deploy_summary_path: Path) -> dict[str, A
         if check not in checks:
             checks.append(check)
 
+    readiness_rows = deploy_readiness_rows(summary)
     write_json(summary_path, summary)
     markdown_path = path_from_ref(artifacts["summary_markdown"])
     html_path = path_from_ref(artifacts["summary_html"])
-    append_markdown(markdown_path, deploy_summary)
-    append_html(html_path, deploy_summary)
+    append_markdown(markdown_path, readiness_rows)
+    append_html(html_path, readiness_rows)
 
     artifact_index_path = path_from_ref(artifacts["artifact_index"])
     write_json(artifact_index_path, build_artifact_index(summary))
