@@ -45,6 +45,11 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def run(cmd: list[str], *, stdout: Path | None = None) -> None:
     if stdout:
         stdout.parent.mkdir(parents=True, exist_ok=True)
@@ -320,7 +325,11 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
         "--require-signed",
     ])
 
+    summary_path = output_dir / "fogstack-local-demo.summary.json"
+    summary_markdown = output_dir / "fogstack-local-demo.summary.md"
     artifacts: dict[str, Any] = {
+        "summary_json": rel(summary_path),
+        "summary_markdown": rel(summary_markdown),
         "publication_set": rel(dirs["publication"] / "manifest-publication-set.json"),
         "promoted_publication_set": rel(promoted_set),
         "approval_record": rel(approval_record),
@@ -362,8 +371,8 @@ def build_demo(pack: str, output_dir: Path, clean: bool) -> dict[str, Any]:
             "registry_root_checked",
         ],
     }
-    summary_path = output_dir / "fogstack-local-demo.summary.json"
     write_json(summary_path, summary)
+    write_text(summary_markdown, render_summary_markdown(summary))
     return summary
 
 
@@ -383,10 +392,51 @@ def render_summary_text(summary: dict[str, Any]) -> str:
         f"Registry URI: {summary.get('registry_uri')}",
         f"Publication gate: {artifact_paths.get('publication_gate')}",
         f"Registry root metadata: {artifact_paths.get('registry_root_metadata')}",
-        f"Summary JSON: {rel(Path(artifact_paths.get('registry_root_metadata', '.')).parent.parent / 'fogstack-local-demo.summary.json')}",
+        f"Summary JSON: {artifact_paths.get('summary_json')}",
+        f"Summary Markdown: {artifact_paths.get('summary_markdown')}",
         f"Checks passed: {len(summary.get('checks', []))}",
     ]
     return "\n".join(lines) + "\n"
+
+
+def render_summary_markdown(summary: dict[str, Any]) -> str:
+    artifacts = summary.get("artifacts", {})
+    release_rows = [
+        f"| `{release['bundle_id']}` | `{release['version']}` | `{release['pack']}` | `{release['validation_record']}` | `{release['filesystem_release_pointer']}` |"
+        for release in summary.get("releases", [])
+    ]
+    check_rows = [f"- `{check}`" for check in summary.get("checks", [])]
+    lines = [
+        "# FogStack Local Demo Summary",
+        "",
+        "## Result",
+        "",
+        "Status: **passed**",
+        f"Pack selection: `{summary.get('pack')}`",
+        f"Release count: **{len(summary.get('releases', []))}**",
+        f"Channel/support: `{summary.get('channel')}/{summary.get('support_state')}`",
+        f"Registry URI: `{summary.get('registry_uri')}`",
+        "",
+        "## Releases",
+        "",
+        "| Bundle | Version | Pack | Validation record | Filesystem release pointer |",
+        "|---|---:|---|---|---|",
+        *release_rows,
+        "",
+        "## Key artifacts",
+        "",
+        f"- Publication gate: `{artifacts.get('publication_gate')}`",
+        f"- Registry root metadata: `{artifacts.get('registry_root_metadata')}`",
+        f"- Registry publication index: `{artifacts.get('registry_publication_index')}`",
+        f"- Revocation index: `{artifacts.get('revocation_index')}`",
+        f"- Summary JSON: `{artifacts.get('summary_json')}`",
+        "",
+        "## Checks",
+        "",
+        *check_rows,
+        "",
+    ]
+    return "\n".join(lines)
 
 
 def main() -> int:
