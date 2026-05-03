@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ CANONICAL_BUNDLES = {
     "fogstack.knowledge",
     "fogstack.evaluation",
 }
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def run_demo(pack: str, output_dir: Path) -> dict:
@@ -63,6 +65,7 @@ def assert_common(summary: dict, pack: str) -> dict:
         "summary_json",
         "summary_markdown",
         "summary_html",
+        "artifact_index",
         "publication_set",
         "promoted_publication_set",
         "approval_record",
@@ -85,6 +88,23 @@ def assert_common(summary: dict, pack: str) -> dict:
     return root
 
 
+def artifact_index_by_id(summary: dict) -> dict[str, dict]:
+    index_path = Path(summary["artifacts"]["artifact_index"])
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    assert index["kind"] == "FogStackLocalDemoArtifactIndex"
+    assert index["schema_version"] == "v0.1"
+    assert index["demo_kind"] == "FogStackLocalDemoRun"
+    assert index["pack"] == summary["pack"]
+    assert index["registry_uri"] == summary["registry_uri"]
+    assert index["release_count"] == len(summary["releases"])
+    by_id = {entry["id"]: entry for entry in index["artifacts"]}
+    for entry in index["artifacts"]:
+        assert DIGEST_RE.match(entry["digest"]), entry
+        assert entry["size_bytes"] > 0, entry
+        assert Path(entry["ref"]).exists(), entry
+    return by_id
+
+
 def test_run_fogstack_local_demo_access(tmp_path: Path) -> None:
     summary = run_demo("access", tmp_path / "access-demo")
     root = assert_common(summary, "access")
@@ -104,6 +124,20 @@ def test_run_fogstack_local_demo_access(tmp_path: Path) -> None:
     assert pointer["bundle_id"] == "fogstack.access"
     assert pointer["version"] == "0.1.0"
     assert pointer["index_digest"].startswith("sha256:")
+
+    index = artifact_index_by_id(summary)
+    for artifact_id in [
+        "summary_json",
+        "summary_markdown",
+        "summary_html",
+        "publication_gate",
+        "registry_root_metadata",
+        "registry_publication_index",
+        "release:fogstack.access:verify_json",
+        "release:fogstack.access:validation_record",
+        "release:fogstack.access:filesystem_release_pointer",
+    ]:
+        assert artifact_id in index
 
 
 def test_run_fogstack_local_demo_all_packs(tmp_path: Path) -> None:
@@ -130,6 +164,7 @@ def test_run_fogstack_local_demo_all_packs(tmp_path: Path) -> None:
     assert "Registry URI:" in markdown
     assert "Publication gate:" in markdown
     assert "Registry root metadata:" in markdown
+    assert "Artifact index:" in markdown
     for bundle_id in CANONICAL_BUNDLES:
         assert bundle_id in markdown
 
@@ -141,8 +176,24 @@ def test_run_fogstack_local_demo_all_packs(tmp_path: Path) -> None:
     assert "Publication gate" in index_html
     assert "Registry root metadata" in index_html
     assert "Registry publication index" in index_html
+    assert "Artifact index" in index_html
     for bundle_id in CANONICAL_BUNDLES:
         assert bundle_id in index_html
+
+    index = artifact_index_by_id(summary)
+    for artifact_id in [
+        "summary_json",
+        "summary_markdown",
+        "summary_html",
+        "publication_gate",
+        "registry_root_metadata",
+        "registry_publication_index",
+    ]:
+        assert artifact_id in index
+    for bundle_id in CANONICAL_BUNDLES:
+        assert f"release:{bundle_id}:verify_json" in index
+        assert f"release:{bundle_id}:validation_record" in index
+        assert f"release:{bundle_id}:filesystem_release_pointer" in index
 
 
 def test_run_fogstack_local_demo_summary_output(tmp_path: Path) -> None:
@@ -172,14 +223,17 @@ def test_run_fogstack_local_demo_summary_output(tmp_path: Path) -> None:
     assert "Summary JSON:" in proc.stdout
     assert "Summary Markdown:" in proc.stdout
     assert "Summary HTML:" in proc.stdout
+    assert "Artifact index:" in proc.stdout
     assert "Checks passed: 12" in proc.stdout
 
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     markdown_path = output_dir / "fogstack-local-demo.summary.md"
     html_path = output_dir / "index.html"
+    artifact_index_path = output_dir / "demo-artifacts.index.json"
     assert summary_path.exists()
     assert markdown_path.exists()
     assert html_path.exists()
+    assert artifact_index_path.exists()
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["pack"] == "access"
     assert summary["bundle_id"] == "fogstack.access"
