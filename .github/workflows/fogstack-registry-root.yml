@@ -11,6 +11,7 @@ on:
       - "tools/build_fogstack_registry_revocation_index.py"
       - "tools/check_fogstack_registry_revocation_index.py"
       - "tools/tests/test_fogstack_registry_root_metadata.py"
+      - "tools/tests/test_fogstack_registry_schema_tightening.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-registry-root.yml"
   push:
@@ -23,6 +24,7 @@ on:
       - "tools/build_fogstack_registry_revocation_index.py"
       - "tools/check_fogstack_registry_revocation_index.py"
       - "tools/tests/test_fogstack_registry_root_metadata.py"
+      - "tools/tests/test_fogstack_registry_schema_tightening.py"
       - "docs/FOGSTACK_*.md"
       - ".github/workflows/fogstack-registry-root.yml"
 
@@ -49,4 +51,6 @@ jobs:
 
       - name: Run registry root tests
         run: |
-          python -m pytest -q tools/tests/test_fogstack_registry_root_metadata.py
+          python -m pytest -q \
+            tools/tests/test_fogstack_registry_root_metadata.py \
+            tools/tests/test_fogstack_registry_schema_tightening.py
