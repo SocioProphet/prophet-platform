@@ -6,6 +6,7 @@ from pydantic import BaseModel
 app = FastAPI(title="office-collaboration", version="0.1.0")
 THREADS: dict[str, dict[str, object]] = {}
 THREAD_MESSAGES: dict[str, list[dict[str, object]]] = {}
+THREAD_EVENTS: dict[str, list[dict[str, object]]] = {}
 SUGGESTIONS: dict[str, dict[str, object]] = {}
 
 
@@ -63,6 +64,13 @@ def create_thread(body: ThreadIn) -> dict[str, object]:
     }
     THREADS[body.thread_id] = record
     THREAD_MESSAGES[body.thread_id] = []
+    THREAD_EVENTS[body.thread_id] = [
+        {
+            "event_type": "THREAD_CREATED",
+            "thread_id": body.thread_id,
+            "created_at": now,
+        }
+    ]
     return record
 
 
@@ -72,6 +80,14 @@ def get_thread(thread_id: str) -> dict[str, object]:
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
     return record
+
+
+@app.get("/v0/office-collaboration/documents/{document_id}/threads")
+def list_document_threads(document_id: str) -> dict[str, object]:
+    return {
+        "document_id": document_id,
+        "threads": [item for item in THREADS.values() if item["document_id"] == document_id],
+    }
 
 
 @app.post("/v0/office-collaboration/threads/{thread_id}/messages")
@@ -88,6 +104,15 @@ def add_thread_message(thread_id: str, body: ThreadMessageIn) -> dict[str, objec
         "created_at": now,
     }
     THREAD_MESSAGES.setdefault(thread_id, []).append(message)
+    THREAD_EVENTS.setdefault(thread_id, []).append(
+        {
+            "event_type": "MESSAGE_ADDED",
+            "thread_id": thread_id,
+            "message_id": body.message_id,
+            "actor_ref": body.actor_ref,
+            "created_at": now,
+        }
+    )
     thread["updated_at"] = now
     return message
 
@@ -99,15 +124,33 @@ def list_thread_messages(thread_id: str) -> dict[str, object]:
     return {"thread_id": thread_id, "messages": THREAD_MESSAGES.get(thread_id, [])}
 
 
+@app.get("/v0/office-collaboration/threads/{thread_id}/events")
+def list_thread_events(thread_id: str) -> dict[str, object]:
+    if thread_id not in THREADS:
+        raise HTTPException(status_code=404, detail="thread not found")
+    return {"thread_id": thread_id, "events": THREAD_EVENTS.get(thread_id, [])}
+
+
 @app.post("/v0/office-collaboration/threads/{thread_id}/status")
 def update_thread_status(thread_id: str, body: ThreadStatusIn) -> dict[str, object]:
     record = THREADS.get(thread_id)
     if record is None:
         raise HTTPException(status_code=404, detail="thread not found")
+    now = datetime.now(timezone.utc).isoformat()
     record["status"] = body.status
     record["version_id"] = body.version_id
     record["receipt_ref"] = body.receipt_ref
-    record["updated_at"] = datetime.now(timezone.utc).isoformat()
+    record["updated_at"] = now
+    THREAD_EVENTS.setdefault(thread_id, []).append(
+        {
+            "event_type": "THREAD_STATUS_UPDATED",
+            "thread_id": thread_id,
+            "status": body.status,
+            "version_id": body.version_id,
+            "receipt_ref": body.receipt_ref,
+            "created_at": now,
+        }
+    )
     return record
 
 
