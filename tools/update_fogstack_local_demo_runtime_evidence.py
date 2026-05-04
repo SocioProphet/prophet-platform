@@ -84,10 +84,14 @@ def runtime_readiness(runtime_adapter_ref: str, runtime_dry_run_ref: str) -> dic
     missing_surfaces = [surface_id for surface_id in SURFACES if surface_id not in surfaces]
     if missing_surfaces:
         raise SystemExit(f"ERR: node profile missing required use surfaces: {', '.join(missing_surfaces)}")
+    agentplane_run = dry_run.get("agentplane_run")
+    if not isinstance(agentplane_run, dict):
+        raise SystemExit("ERR: runtime dry-run evidence missing AgentPlane run linkage")
 
     return {
         "node_profile_ref": node_profile_ref,
         "node_profile_digest": dry_run.get("node_profile_digest") or adapter.get("inputs", {}).get("node_profile_digest"),
+        "agentplane_run": agentplane_run,
         "surfaces": surfaces,
         "dry_run_mode": dry_run.get("dry_run_result", {}).get("mode"),
         "validation_path": dry_run.get("dry_run_result", {}).get("validation_path"),
@@ -111,6 +115,7 @@ def append_markdown(markdown_path: Path, refs_by_id: dict[str, str], readiness: 
             f"| {surface['name']} | `{surface['repo_ref']}` | `{surface['surface_type']}` | "
             f"`first_class={str(surface['first_class']).lower()}; agentplane_visible={str(surface['agentplane_visible']).lower()}; policyplane_guarded={str(surface['policyplane_guarded']).lower()}` |"
         )
+    agentplane = readiness["agentplane_run"]
 
     section = "\n".join([
         "",
@@ -124,6 +129,12 @@ def append_markdown(markdown_path: Path, refs_by_id: dict[str, str], readiness: 
         "",
         "| Signal | Value |",
         "|---|---|",
+        f"| AgentPlane run ID | `{agentplane['run_id']}` |",
+        f"| AgentPlane run ref | `{agentplane['run_ref']}` |",
+        f"| AgentPlane ref | `{agentplane['agentplane_ref']}` |",
+        f"| Requested by | `{agentplane['requested_by']}` |",
+        f"| AgentPlane execution mode | `{agentplane['execution_mode']}` |",
+        f"| AgentPlane approval state | `{agentplane['approval_state']}` |",
         f"| Node profile | `{readiness['node_profile_ref']}` |",
         f"| Node profile digest | `{readiness['node_profile_digest']}` |",
         f"| Dry-run mode | `{readiness['dry_run_mode']}` |",
@@ -167,6 +178,7 @@ def append_html(html_path: Path, refs_by_id: dict[str, str], readiness: dict[str
             f"<td><code>{html.escape(surface['surface_type'])}</code></td>"
             f"<td><code>{html.escape(governance)}</code></td></tr>"
         )
+    agentplane = readiness["agentplane_run"]
 
     section = f"""
     <h2>Runtime evidence</h2>
@@ -180,6 +192,12 @@ def append_html(html_path: Path, refs_by_id: dict[str, str], readiness: dict[str
     <table>
       <thead><tr><th>Signal</th><th>Value</th></tr></thead>
       <tbody>
+        <tr><td>AgentPlane run ID</td><td><code>{html.escape(str(agentplane['run_id']))}</code></td></tr>
+        <tr><td>AgentPlane run ref</td><td><code>{html.escape(str(agentplane['run_ref']))}</code></td></tr>
+        <tr><td>AgentPlane ref</td><td><code>{html.escape(str(agentplane['agentplane_ref']))}</code></td></tr>
+        <tr><td>Requested by</td><td><code>{html.escape(str(agentplane['requested_by']))}</code></td></tr>
+        <tr><td>AgentPlane execution mode</td><td><code>{html.escape(str(agentplane['execution_mode']))}</code></td></tr>
+        <tr><td>AgentPlane approval state</td><td><code>{html.escape(str(agentplane['approval_state']))}</code></td></tr>
         <tr><td>Node profile</td><td><code>{html.escape(str(readiness['node_profile_ref']))}</code></td></tr>
         <tr><td>Node profile digest</td><td><code>{html.escape(str(readiness['node_profile_digest']))}</code></td></tr>
         <tr><td>Dry-run mode</td><td><code>{html.escape(str(readiness['dry_run_mode']))}</code></td></tr>
@@ -215,7 +233,7 @@ def update(summary_path: Path, runtime_adapter: Path, runtime_dry_run: Path) -> 
     artifacts = summary.setdefault("artifacts", {})
     artifacts.update(refs_by_id)
     checks = summary.setdefault("checks", [])
-    for check in ["runtime_adapter_indexed", "runtime_dry_run_record_indexed", "runtime_readiness_summary_appended"]:
+    for check in ["runtime_adapter_indexed", "runtime_dry_run_record_indexed", "runtime_readiness_summary_appended", "agentplane_run_linked"]:
         if check not in checks:
             checks.append(check)
     write_json(summary_path, summary)

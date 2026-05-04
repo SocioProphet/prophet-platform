@@ -67,7 +67,26 @@ def require_node_surfaces(node_profile: dict[str, Any]) -> None:
             raise SystemExit(f"ERR: node surface is not PolicyPlane-guarded: {surface_id}")
 
 
-def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> dict[str, Any]:
+def agentplane_run_payload(run_id: str, run_ref: str, agentplane_ref: str, requested_by: str) -> dict[str, str]:
+    return {
+        "run_id": run_id,
+        "run_ref": run_ref,
+        "agentplane_ref": agentplane_ref,
+        "requested_by": requested_by,
+        "execution_mode": "dry-run",
+        "approval_state": "live-apply-requires-human-approval",
+    }
+
+
+def emit_record(
+    adapter_path: Path,
+    manifest_dir: Path,
+    output_path: Path,
+    agentplane_run_id: str,
+    agentplane_run_ref: str,
+    agentplane_ref: str,
+    requested_by: str,
+) -> dict[str, Any]:
     adapter_path = resolve(adapter_path)
     manifest_dir = resolve(manifest_dir)
     output_path = resolve(output_path)
@@ -107,6 +126,8 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
         raise SystemExit("ERR: GitOps bundle does not match adapter bundle/version")
     if gitops_readiness.get("status") != "passed":
         raise SystemExit("ERR: GitOps readiness record must have passed status")
+    if agentplane_ref != node_profile["governance"].get("agentplane_ref"):
+        raise SystemExit("ERR: AgentPlane run ref does not match node profile governance")
 
     manifest_paths = [
         manifest_dir / "configmap.yaml",
@@ -128,6 +149,7 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
         "runtime_adapter_digest": sha256_file(adapter_path),
         "node_profile_ref": rel(node_profile_path),
         "node_profile_digest": sha256_file(node_profile_path),
+        "agentplane_run": agentplane_run_payload(agentplane_run_id, agentplane_run_ref, agentplane_ref, requested_by),
         "deploy_plan_ref": rel(deploy_plan_path),
         "deploy_plan_digest": sha256_file(deploy_plan_path),
         "cluster_readiness_record_ref": rel(cluster_record_path),
@@ -146,6 +168,7 @@ def emit_record(adapter_path: Path, manifest_dir: Path, output_path: Path) -> di
             "mode": "dry-run",
             "mutated_cluster": False,
             "validated_inputs": [
+                "agentplane_run",
                 "runtime_adapter",
                 "node_profile",
                 "deploy_plan",
@@ -177,8 +200,20 @@ def main() -> int:
     parser.add_argument("--runtime-adapter", required=True, type=Path)
     parser.add_argument("--manifest-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--agentplane-run-id", default="agentplane-run:fogstack.access:local-dry-run")
+    parser.add_argument("--agentplane-run-ref", default="agentplane://runs/fogstack.access/local-dry-run")
+    parser.add_argument("--agentplane-ref", default="github://SocioProphet/agentplane")
+    parser.add_argument("--requested-by", default="human:operator")
     args = parser.parse_args()
-    record = emit_record(args.runtime_adapter, args.manifest_dir, args.output)
+    record = emit_record(
+        args.runtime_adapter,
+        args.manifest_dir,
+        args.output,
+        args.agentplane_run_id,
+        args.agentplane_run_ref,
+        args.agentplane_ref,
+        args.requested_by,
+    )
     print(json.dumps(record, indent=2))
     return 0
 

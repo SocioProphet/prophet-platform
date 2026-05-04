@@ -49,6 +49,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert "runtime_adapter_indexed" in summary["checks"]
     assert "runtime_dry_run_record_indexed" in summary["checks"]
     assert "runtime_readiness_summary_appended" in summary["checks"]
+    assert "agentplane_run_linked" in summary["checks"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
@@ -82,8 +83,14 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
 
     runtime_dry_run = json.loads(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]).read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
+    assert runtime_dry_run["agentplane_run"]["run_id"] == "agentplane-run:fogstack.access:local-dry-run"
+    assert runtime_dry_run["agentplane_run"]["run_ref"] == "agentplane://runs/fogstack.access/local-dry-run"
+    assert runtime_dry_run["agentplane_run"]["agentplane_ref"] == "github://SocioProphet/agentplane"
+    assert runtime_dry_run["agentplane_run"]["requested_by"] == "human:operator"
+    assert runtime_dry_run["agentplane_run"]["approval_state"] == "live-apply-requires-human-approval"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
     assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
+    assert "agentplane_run" in runtime_dry_run["dry_run_result"]["validated_inputs"]
     assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
@@ -93,6 +100,11 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "GitOps readiness" in content
         assert "Runtime evidence" in content
         assert "Runtime readiness" in content
+        assert "AgentPlane run ID" in content
+        assert "agentplane-run:fogstack.access:local-dry-run" in content
+        assert "agentplane://runs/fogstack.access/local-dry-run" in content
+        assert "github://SocioProphet/agentplane" in content
+        assert "live-apply-requires-human-approval" in content
         assert "TurtleTerm" in content
         assert "BearBrowser" in content
         assert "github://SourceOS-Linux/TurtleTerm" in content
