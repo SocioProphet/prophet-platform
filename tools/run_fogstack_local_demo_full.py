@@ -41,6 +41,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     node_inventory_path = deploy_dir / "fogstack.access.agent-machine-node-inventory.record.json"
     immutable_update_path = deploy_dir / "fogstack.access.immutable-update-readiness.record.json"
     gitops_readiness_path = deploy_dir / "fogstack.access.gitops-readiness.record.json"
+    live_preflight_path = deploy_dir / "fogstack.access.live-cluster-preflight.record.json"
     runtime_adapter_path = deploy_dir / "fogstack.access.local-cluster-runtime-adapter.json"
     runtime_dry_run_path = deploy_dir / "fogstack.access.runtime-dry-run.record.json"
     artifact_index_path = output_dir / "demo-artifacts.index.json"
@@ -122,6 +123,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "gitops_deployment": rel(deploy_dir / "gitops" / "manifests" / "deployment.yaml"),
             "gitops_service": rel(deploy_dir / "gitops" / "manifests" / "service.yaml"),
             "gitops_readiness_record": rel(gitops_readiness_path),
+            "live_cluster_preflight_record": rel(live_preflight_path),
             "runtime_adapter": rel(runtime_adapter_path),
             "runtime_dry_run_record": rel(runtime_dry_run_path),
         },
@@ -134,6 +136,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "cluster_readiness_record_indexed",
             "gitops_bundle_indexed",
             "gitops_readiness_record_indexed",
+            "live_cluster_preflight_record_indexed",
             "runtime_adapter_indexed",
             "runtime_dry_run_record_indexed",
             "artifact_index_checked",
@@ -158,6 +161,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
         f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
+        f"Live cluster preflight record: {artifacts['live_cluster_preflight_record']}",
         f"Runtime adapter: {artifacts['runtime_adapter']}",
         f"Runtime dry-run record: {artifacts['runtime_dry_run_record']}",
         f"Checks passed: {len(summary['checks'])}",
