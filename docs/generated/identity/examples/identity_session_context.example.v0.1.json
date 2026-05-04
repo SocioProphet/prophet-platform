@@ -1,0 +1,26 @@
+{
+  "version": "0.1",
+  "session_id": "sess_01PLATFORM123",
+  "subject_id": "subj_01HUMAN123",
+  "tenant_id": "tenant_acme",
+  "issued_at": "2026-05-04T19:50:05Z",
+  "expires_at": "2026-05-04T23:50:05Z",
+  "last_seen_at": "2026-05-04T20:05:00Z",
+  "assurance_context": {
+    "level": "aal2_phishing_resistant_target",
+    "authenticator_refs": [
+      "cred_passkey_primary_0001"
+    ],
+    "proof_refs": [
+      "proof_enterprise_oidc_0001"
+    ]
+  },
+  "stepup_state": "not_required",
+  "risk_state": "normal",
+  "policy_refs": [
+    "policy_session_default_0001"
+  ],
+  "evidence_refs": [
+    "evidence_session_issued_0001"
+  ]
+}
