@@ -8,6 +8,8 @@ from pathlib import Path
 
 REQUIRED = {
     "deploy_node_profile",
+    "deploy_node_inventory_record",
+    "deploy_immutable_update_readiness_record",
     "deploy_agent_corps_plan",
     "deploy_plan",
     "deploy_kubernetes_configmap",
@@ -40,6 +42,8 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     summary = json.loads((output_dir / "fogstack-local-demo.summary.json").read_text(encoding="utf-8"))
     assert REQUIRED.issubset(set(summary["artifacts"]))
     assert "node_profile_built" in summary["checks"]
+    assert "node_inventory_record_emitted" in summary["checks"]
+    assert "immutable_update_readiness_record_emitted" in summary["checks"]
     assert "deploy_plan_built" in summary["checks"]
     assert "kubernetes_manifests_checked" in summary["checks"]
     assert "cluster_readiness_record_emitted" in summary["checks"]
@@ -64,6 +68,20 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     surfaces = {surface["id"]: surface for surface in node_profile["use_surfaces"]}
     assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
     assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
+
+    node_inventory = json.loads(Path(summary["artifacts"]["deploy_node_inventory_record"]).read_text(encoding="utf-8"))
+    assert node_inventory["kind"] == "FogStackAgentMachineNodeInventoryRecord"
+    assert node_inventory["status"] == "passed"
+    assert node_inventory["storage"]["topolvm_required"] is True
+    assert node_inventory["cluster"]["join_policy"] == "approval-required"
+
+    immutable_update = json.loads(Path(summary["artifacts"]["deploy_immutable_update_readiness_record"]).read_text(encoding="utf-8"))
+    assert immutable_update["kind"] == "FogStackImmutableUpdateReadinessRecord"
+    assert immutable_update["status"] == "passed"
+    assert immutable_update["image"]["digest_required"] is True
+    assert immutable_update["image"]["sbom_required"] is True
+    assert immutable_update["image"]["provenance_required"] is True
+    assert immutable_update["policy"]["live_update_allowed"] is False
 
     readiness_record = json.loads(Path(summary["artifacts"]["deploy_cluster_readiness_record"]).read_text(encoding="utf-8"))
     assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
@@ -109,6 +127,10 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "GitOps readiness" in content
         assert "Runtime evidence" in content
         assert "Runtime readiness" in content
+        assert "deploy_node_inventory_record" in content
+        assert "deploy_immutable_update_readiness_record" in content
+        assert "Agent Machine node inventory" in content
+        assert "Immutable update readiness" in content
         assert "AgentPlane run ID" in content
         assert "agentplane-run:fogstack.access:local-dry-run" in content
         assert "agentplane://runs/fogstack.access/local-dry-run" in content
