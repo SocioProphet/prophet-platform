@@ -13,6 +13,7 @@ on:
       - "tools/build_fogstack_agent_machine_node_profile.py"
       - "tools/emit_fogstack_agent_machine_node_inventory_record.py"
       - "tools/emit_fogstack_immutable_update_readiness_record.py"
+      - "tools/emit_fogstack_live_cluster_preflight_record.py"
       - "tools/build_fogstack_runtime_contract.py"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
@@ -26,6 +27,7 @@ on:
       - "tools/tests/test_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_immutable_update_readiness_record.py"
       - "tools/tests/test_fogstack_agent_machine_node_inventory_record.py"
+      - "tools/tests/test_fogstack_live_cluster_preflight_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
   push:
     branches: [main]
@@ -39,6 +41,7 @@ on:
       - "tools/build_fogstack_agent_machine_node_profile.py"
       - "tools/emit_fogstack_agent_machine_node_inventory_record.py"
       - "tools/emit_fogstack_immutable_update_readiness_record.py"
+      - "tools/emit_fogstack_live_cluster_preflight_record.py"
       - "tools/build_fogstack_runtime_contract.py"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
@@ -52,6 +55,7 @@ on:
       - "tools/tests/test_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_immutable_update_readiness_record.py"
       - "tools/tests/test_fogstack_agent_machine_node_inventory_record.py"
+      - "tools/tests/test_fogstack_live_cluster_preflight_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
 
 permissions:
@@ -81,7 +85,8 @@ jobs:
             tools/tests/test_fogstack_local_cluster_runtime_adapter.py \
             tools/tests/test_fogstack_runtime_dry_run_record.py \
             tools/tests/test_fogstack_immutable_update_readiness_record.py \
-            tools/tests/test_fogstack_agent_machine_node_inventory_record.py
+            tools/tests/test_fogstack_agent_machine_node_inventory_record.py \
+            tools/tests/test_fogstack_live_cluster_preflight_record.py
 
       - name: Build sample local cluster runtime adapter
         run: |
@@ -123,6 +128,12 @@ jobs:
           python3 tools/emit_fogstack_gitops_readiness_record.py \
             --bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json \
             --output build/fogstack-runtime-inputs/gitops-readiness.json
+          python3 tools/emit_fogstack_live_cluster_preflight_record.py \
+            --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
+            --node-profile build/fogstack-runtime-inputs/node-profile.json \
+            --gitops-bundle build/fogstack-runtime-inputs/gitops/gitops-bundle.json \
+            --kubectl missing-kubectl-for-ci-safe-fallback \
+            --output build/fogstack-runtime-inputs/live-cluster-preflight.record.json
           python3 tools/build_fogstack_local_cluster_runtime_adapter.py \
             --node-profile build/fogstack-runtime-inputs/node-profile.json \
             --deploy-plan build/fogstack-runtime-inputs/deploy-plan.json \
@@ -137,5 +148,6 @@ jobs:
           test -s build/fogstack-runtime-inputs/node-profile.json
           test -s build/fogstack-runtime-inputs/agent-machine-node-inventory.record.json
           test -s build/fogstack-runtime-inputs/immutable-update-readiness.record.json
+          test -s build/fogstack-runtime-inputs/live-cluster-preflight.record.json
           test -s build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
           test -s build/fogstack-runtime-inputs/runtime-dry-run.record.json
