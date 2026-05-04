@@ -1,0 +1,23 @@
+{
+  "version": "0.1",
+  "proof_record_id": "proof_enterprise_oidc_0001",
+  "proof_source": "enterprise_oidc",
+  "subject_id": "subj_01HUMAN123",
+  "tenant_id": "tenant_acme",
+  "issuer_ref": "issuer_acme_oidc",
+  "upstream_subject": "00u-example-subject",
+  "received_at": "2026-05-04T19:50:00Z",
+  "result": "accepted",
+  "assurance_context": {
+    "level": "aal2_phishing_resistant_target",
+    "acr": "urn:socioprophet:auth:aal2-target",
+    "amr": [
+      "oidc",
+      "passkey"
+    ]
+  },
+  "evidence_refs": [
+    "evidence_proof_accepted_0001"
+  ],
+  "correlation_id": "corr_identity_ingress_0001"
+}
