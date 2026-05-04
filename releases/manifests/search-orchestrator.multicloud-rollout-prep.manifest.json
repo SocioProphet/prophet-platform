@@ -1,0 +1,32 @@
+{
+  "manifest_id": "search-orchestrator.multicloud-rollout-prep.v0.1",
+  "component": "services/search-orchestrator",
+  "release_lane": "multicloud-rollout-prep",
+  "version": "0.1.0",
+  "status": "prepared-pending-real-provider-captures",
+  "artifacts": [
+    "docs/SEARCH_ORCHESTRATOR_MULTICLOUD_ROLLOUT_PREP.md",
+    "releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json",
+    "releases/evidence/search-orchestrator-multicloud-rollout-evidence.template.json",
+    "releases/evidence/search-orchestrator.multicloud-rollout-prep.validation.record.json",
+    "tools/validate_search_orchestrator_multicloud_rollout.py",
+    ".github/workflows/search-orchestrator-multicloud-rollout.yml"
+  ],
+  "coverage": [
+    "global-hyperscalers",
+    "regional-sovereign-providers",
+    "ai-edge-developer-clouds",
+    "generic-kubernetes",
+    "openshift",
+    "okd",
+    "byoc-self-hosted"
+  ],
+  "safety_posture": [
+    "no live rollout claim",
+    "provider evidence template only",
+    "OpenShift restricted-v2 compatibility surface",
+    "secret-backed endpoint expectation",
+    "PVC-backed storage expectation",
+    "digest-pinned image expectation"
+  ]
+}
