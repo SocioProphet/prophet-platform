@@ -1,0 +1,36 @@
+{
+  "evidence_id": "search-orchestrator-multicloud-rollout-evidence-template",
+  "component": "services/search-orchestrator",
+  "release_lane": "multicloud-rollout-prep",
+  "status": "template-pending-real-provider-capture",
+  "provider": "REPLACE_WITH_PROVIDER_ID",
+  "region": "REPLACE_WITH_PROVIDER_REGION",
+  "cluster_ref": "REPLACE_WITH_CLUSTER_REF",
+  "kubernetes_substrate": "REPLACE_WITH_KUBERNETES_SUBSTRATE",
+  "openshift_compatibility_target": "REPLACE_WITH_GENERIC_KUBERNETES_OR_OPENSHIFT_OR_OKD",
+  "git_sha": "REPLACE_WITH_DEPLOYED_GIT_SHA",
+  "image_lock_ref": "releases/images/search-orchestrator.image-lock.json",
+  "kustomize_overlay": "infra/k8s/search-orchestrator/overlays/policy",
+  "required_captures": {
+    "rendered_manifests": "REPLACE_WITH_RENDERED_MANIFESTS_ARTIFACT_REF",
+    "gitops_sync": "REPLACE_WITH_GITOPS_SYNC_ARTIFACT_REF",
+    "healthz": "REPLACE_WITH_HEALTHZ_CAPTURE_REF",
+    "debug_config": "REPLACE_WITH_DEBUG_CONFIG_CAPTURE_REF",
+    "debug_metrics": "REPLACE_WITH_DEBUG_METRICS_CAPTURE_REF",
+    "workload_ingest_query": "REPLACE_WITH_WORKLOAD_INGEST_QUERY_CAPTURE_REF",
+    "storage_or_carrier_artifacts": "REPLACE_WITH_STORAGE_OR_CARRIER_ARTIFACT_REF",
+    "rollback_verification": "REPLACE_WITH_ROLLBACK_VERIFICATION_REF",
+    "image_digest_pin_verification": "REPLACE_WITH_IMAGE_DIGEST_CAPTURE_REF",
+    "secret_or_externalsecret_binding": "REPLACE_WITH_SECRET_BINDING_CAPTURE_REF",
+    "pvc_storage_class_binding": "REPLACE_WITH_PVC_CAPTURE_REF",
+    "network_policy_or_cni_exception": "REPLACE_WITH_NETWORK_POLICY_CAPTURE_OR_EXCEPTION_REF",
+    "openshift_or_okd_compatibility_check": "REPLACE_WITH_OPENSHIFT_COMPAT_CAPTURE_REF"
+  },
+  "safety_assertions": [
+    "runtime debug surfaces must not expose paths, endpoint URLs, actor IDs, query strings, API keys, or secret values",
+    "debug metrics must expose counters only",
+    "provider secret binding must not use ConfigMap for secret material",
+    "image reference must use ghcr digest form or a provider-approved mirror with digest pinning",
+    "rollback verification must preserve evidence artifacts unless corruption is confirmed"
+  ]
+}
