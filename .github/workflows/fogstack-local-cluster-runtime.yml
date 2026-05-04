@@ -11,6 +11,7 @@ on:
       - "bundles/fogstack.*.yaml"
       - "releases/manifests/fogstack.*.manifest.json"
       - "tools/build_fogstack_agent_machine_node_profile.py"
+      - "tools/emit_fogstack_immutable_update_readiness_record.py"
       - "tools/build_fogstack_runtime_contract.py"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
@@ -22,6 +23,7 @@ on:
       - "tools/emit_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
       - "tools/tests/test_fogstack_runtime_dry_run_record.py"
+      - "tools/tests/test_fogstack_immutable_update_readiness_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
   push:
     branches: [main]
@@ -33,6 +35,7 @@ on:
       - "bundles/fogstack.*.yaml"
       - "releases/manifests/fogstack.*.manifest.json"
       - "tools/build_fogstack_agent_machine_node_profile.py"
+      - "tools/emit_fogstack_immutable_update_readiness_record.py"
       - "tools/build_fogstack_runtime_contract.py"
       - "tools/build_fogstack_deploy_plan.py"
       - "tools/render_fogstack_kubernetes_manifests.py"
@@ -44,6 +47,7 @@ on:
       - "tools/emit_fogstack_runtime_dry_run_record.py"
       - "tools/tests/test_fogstack_local_cluster_runtime_adapter.py"
       - "tools/tests/test_fogstack_runtime_dry_run_record.py"
+      - "tools/tests/test_fogstack_immutable_update_readiness_record.py"
       - ".github/workflows/fogstack-local-cluster-runtime.yml"
 
 permissions:
@@ -71,13 +75,17 @@ jobs:
         run: |
           python -m pytest -q \
             tools/tests/test_fogstack_local_cluster_runtime_adapter.py \
-            tools/tests/test_fogstack_runtime_dry_run_record.py
+            tools/tests/test_fogstack_runtime_dry_run_record.py \
+            tools/tests/test_fogstack_immutable_update_readiness_record.py
 
       - name: Build sample local cluster runtime adapter
         run: |
           mkdir -p build/fogstack-runtime-inputs
           python3 tools/build_fogstack_agent_machine_node_profile.py \
             --output build/fogstack-runtime-inputs/node-profile.json
+          python3 tools/emit_fogstack_immutable_update_readiness_record.py \
+            --node-profile build/fogstack-runtime-inputs/node-profile.json \
+            --output build/fogstack-runtime-inputs/immutable-update-readiness.record.json
           python3 tools/build_fogstack_runtime_contract.py \
             --bundle-id fogstack.access \
             --version 0.1.0 \
@@ -119,5 +127,6 @@ jobs:
             --manifest-dir build/fogstack-runtime-inputs/manifests \
             --output build/fogstack-runtime-inputs/runtime-dry-run.record.json
           test -s build/fogstack-runtime-inputs/node-profile.json
+          test -s build/fogstack-runtime-inputs/immutable-update-readiness.record.json
           test -s build/fogstack-runtime-inputs/local-cluster-runtime-adapter.json
           test -s build/fogstack-runtime-inputs/runtime-dry-run.record.json
