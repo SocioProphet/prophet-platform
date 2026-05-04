@@ -42,7 +42,16 @@ def build_inputs(tmp_path: Path) -> tuple[Path, Path]:
 def test_emit_fogstack_runtime_dry_run_record(tmp_path: Path) -> None:
     adapter, manifests = build_inputs(tmp_path)
     output = tmp_path / "runtime-dry-run.json"
-    subprocess.run([sys.executable, "tools/emit_fogstack_runtime_dry_run_record.py", "--runtime-adapter", str(adapter), "--manifest-dir", str(manifests), "--output", str(output)], check=True)
+    subprocess.run([
+        sys.executable,
+        "tools/emit_fogstack_runtime_dry_run_record.py",
+        "--runtime-adapter", str(adapter),
+        "--manifest-dir", str(manifests),
+        "--output", str(output),
+        "--agentplane-run-id", "agentplane-run:test",
+        "--agentplane-run-ref", "agentplane://runs/test",
+        "--requested-by", "human:test-operator",
+    ], check=True)
     record = load_json(output)
     Draft202012Validator(load_json(SCHEMA)).validate(record)
     assert record["kind"] == "FogStackRuntimeDryRunRecord"
@@ -50,7 +59,16 @@ def test_emit_fogstack_runtime_dry_run_record(tmp_path: Path) -> None:
     assert record["bundle_id"] == "fogstack.access"
     assert record["namespace"] == "fogstack-access"
     assert record["node_profile_digest"].startswith("sha256:")
+    assert record["agentplane_run"] == {
+        "run_id": "agentplane-run:test",
+        "run_ref": "agentplane://runs/test",
+        "agentplane_ref": "github://SocioProphet/agentplane",
+        "requested_by": "human:test-operator",
+        "execution_mode": "dry-run",
+        "approval_state": "live-apply-requires-human-approval",
+    }
     assert record["dry_run_result"]["mutated_cluster"] is False
+    assert "agentplane_run" in record["dry_run_result"]["validated_inputs"]
     assert "node_profile" in record["dry_run_result"]["validated_inputs"]
     assert record["dry_run_result"]["validation_path"] == "contract-and-digest-only"
     assert record["runtime_policy"]["live_apply_allowed"] is False
@@ -67,3 +85,18 @@ def test_emit_fogstack_runtime_dry_run_record_rejects_tampered_input(tmp_path: P
     proc = subprocess.run([sys.executable, "tools/emit_fogstack_runtime_dry_run_record.py", "--runtime-adapter", str(adapter), "--manifest-dir", str(manifests), "--output", str(output)], capture_output=True, text=True)
     assert proc.returncode != 0
     assert "node profile digest mismatch" in proc.stderr
+
+
+def test_emit_fogstack_runtime_dry_run_record_rejects_wrong_agentplane_ref(tmp_path: Path) -> None:
+    adapter, manifests = build_inputs(tmp_path)
+    output = tmp_path / "runtime-dry-run.json"
+    proc = subprocess.run([
+        sys.executable,
+        "tools/emit_fogstack_runtime_dry_run_record.py",
+        "--runtime-adapter", str(adapter),
+        "--manifest-dir", str(manifests),
+        "--output", str(output),
+        "--agentplane-ref", "github://SocioProphet/wrong-agentplane",
+    ], capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "AgentPlane run ref does not match node profile governance" in proc.stderr
