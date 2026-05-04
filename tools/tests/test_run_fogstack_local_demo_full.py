@@ -89,8 +89,14 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
 
     runtime_dry_run = json.loads(Path(full_summary["artifacts"]["runtime_dry_run_record"]).read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
+    assert runtime_dry_run["agentplane_run"]["run_id"] == "agentplane-run:fogstack.access:local-dry-run"
+    assert runtime_dry_run["agentplane_run"]["run_ref"] == "agentplane://runs/fogstack.access/local-dry-run"
+    assert runtime_dry_run["agentplane_run"]["agentplane_ref"] == "github://SocioProphet/agentplane"
+    assert runtime_dry_run["agentplane_run"]["requested_by"] == "human:operator"
+    assert runtime_dry_run["agentplane_run"]["approval_state"] == "live-apply-requires-human-approval"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
     assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
+    assert "agentplane_run" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
@@ -110,6 +116,11 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "GitOps readiness" in html
     assert "Runtime evidence" in html
     assert "Runtime readiness" in html
+    assert "AgentPlane run ID" in html
+    assert "agentplane-run:fogstack.access:local-dry-run" in html
+    assert "agentplane://runs/fogstack.access/local-dry-run" in html
+    assert "github://SocioProphet/agentplane" in html
+    assert "live-apply-requires-human-approval" in html
     assert "TurtleTerm" in html
     assert "BearBrowser" in html
     assert "github://SourceOS-Linux/TurtleTerm" in html
