@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-immutable-update-readiness-record-v0.1.schema.json",
+  "title": "FogStackImmutableUpdateReadinessRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "status",
+    "node_profile_ref",
+    "node_profile_digest",
+    "os",
+    "image",
+    "declarative_updates",
+    "governance",
+    "policy",
+    "readiness"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackImmutableUpdateReadinessRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "failed"] },
+    "node_profile_ref": { "type": "string", "minLength": 1 },
+    "node_profile_digest": { "$ref": "#/$defs/sha256_digest" },
+    "os": {
+      "type": "object",
+      "required": ["family", "distribution", "immutability", "configuration_model"],
+      "properties": {
+        "family": { "enum": ["SourceOS", "AgentOS", "SociOS-Linux"] },
+        "distribution": { "type": "string", "minLength": 1 },
+        "immutability": { "enum": ["ostree", "nixos", "image-based", "unknown"] },
+        "configuration_model": { "enum": ["nix-flake", "ignition-butane", "rpm-ostree", "container-image", "hybrid"] }
+      },
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "required": ["builder", "image_ref", "digest_required", "sbom_required", "provenance_required"],
+      "properties": {
+        "builder": { "enum": ["nix", "rpm-ostree", "bootc", "containerfile", "unknown"] },
+        "image_ref": { "type": "string", "minLength": 1 },
+        "digest_required": { "const": true },
+        "sbom_required": { "const": true },
+        "provenance_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "declarative_updates": {
+      "type": "object",
+      "required": ["strategy", "rollback_required", "preflight_required", "agentplane_gate_required"],
+      "properties": {
+        "strategy": { "enum": ["nix-flake-switch", "ostree-rebase", "image-promotion", "hybrid"] },
+        "rollback_required": { "const": true },
+        "preflight_required": { "const": true },
+        "agentplane_gate_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "required": ["agentplane_ref", "policyplane_ref", "human_approval_required", "live_mutation_default"],
+      "properties": {
+        "agentplane_ref": { "type": "string", "minLength": 1 },
+        "policyplane_ref": { "type": "string", "minLength": 1 },
+        "human_approval_required": { "const": true },
+        "live_mutation_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["host_mutation_default", "cluster_join_default", "live_update_allowed", "requires_agentplane_gate", "requires_policyplane_decision"],
+      "properties": {
+        "host_mutation_default": { "const": "deny" },
+        "cluster_join_default": { "const": "approval-required" },
+        "live_update_allowed": { "const": false },
+        "requires_agentplane_gate": { "const": true },
+        "requires_policyplane_decision": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "readiness": {
+      "type": "object",
+      "required": ["digest_ready", "sbom_ready", "provenance_ready", "rollback_ready", "preflight_ready", "agentplane_gate_ready", "policyplane_gate_ready"],
+      "properties": {
+        "digest_ready": { "type": "boolean" },
+        "sbom_ready": { "type": "boolean" },
+        "provenance_ready": { "type": "boolean" },
+        "rollback_ready": { "type": "boolean" },
+        "preflight_ready": { "type": "boolean" },
+        "agentplane_gate_ready": { "type": "boolean" },
+        "policyplane_gate_ready": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
