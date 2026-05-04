@@ -25,6 +25,7 @@ REQUIRED_SUMMARY_ARTIFACTS = {
     "gitops_application",
     "gitops_kustomization",
     "gitops_readiness_record",
+    "live_cluster_preflight_record",
     "runtime_adapter",
     "runtime_dry_run_record",
 }
@@ -46,6 +47,7 @@ REQUIRED_INDEX_IDS = {
     "deploy_gitops_deployment",
     "deploy_gitops_service",
     "deploy_gitops_readiness_record",
+    "deploy_live_cluster_preflight_record",
     "deploy_runtime_adapter",
     "deploy_runtime_dry_run_record",
     "deploy_summary",
@@ -152,6 +154,16 @@ def check_records(paths: dict[str, Path], errors: list[str]) -> list[dict[str, s
     require(gitops.get("status") == "passed", "GitOps readiness did not pass", errors)
     require(gitops.get("validation_result", {}).get("bundle_validated") is True, "GitOps bundle was not validated", errors)
     checked.append({"id": "gitops_readiness", "status": "passed"})
+
+    live_preflight = load_json(paths["live_cluster_preflight_record"])
+    require(live_preflight.get("kind") == "FogStackLiveClusterPreflightRecord", "live cluster preflight kind mismatch", errors)
+    require(live_preflight.get("status") in {"passed", "blocked"}, "live cluster preflight must pass or block safely", errors)
+    require(live_preflight.get("mode") == "read-only-live-preflight", "live cluster preflight mode mismatch", errors)
+    safety = live_preflight.get("safety", {})
+    require(safety.get("mutated_cluster") is False, "live cluster preflight mutated cluster", errors)
+    require(safety.get("live_apply_allowed") is False, "live cluster preflight allows live apply", errors)
+    require(safety.get("human_approval_required_for_apply") is True, "live cluster preflight does not require human approval", errors)
+    checked.append({"id": "live_cluster_preflight", "status": str(live_preflight.get("status"))})
 
     runtime_adapter = load_json(paths["runtime_adapter"])
     require(runtime_adapter.get("kind") == "FogStackLocalClusterRuntimeAdapter", "runtime adapter kind mismatch", errors)
