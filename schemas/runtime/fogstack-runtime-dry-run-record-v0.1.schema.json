@@ -14,6 +14,7 @@
     "runtime_adapter_digest",
     "node_profile_ref",
     "node_profile_digest",
+    "agentplane_run",
     "deploy_plan_ref",
     "deploy_plan_digest",
     "cluster_readiness_record_ref",
@@ -38,6 +39,19 @@
     "runtime_adapter_digest": { "$ref": "#/$defs/sha256_digest" },
     "node_profile_ref": { "type": "string", "minLength": 1 },
     "node_profile_digest": { "$ref": "#/$defs/sha256_digest" },
+    "agentplane_run": {
+      "type": "object",
+      "required": ["run_id", "run_ref", "agentplane_ref", "requested_by", "execution_mode", "approval_state"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "run_ref": { "type": "string", "minLength": 1 },
+        "agentplane_ref": { "type": "string", "minLength": 1 },
+        "requested_by": { "type": "string", "minLength": 1 },
+        "execution_mode": { "const": "dry-run" },
+        "approval_state": { "const": "live-apply-requires-human-approval" }
+      },
+      "additionalProperties": false
+    },
     "deploy_plan_ref": { "type": "string", "minLength": 1 },
     "deploy_plan_digest": { "$ref": "#/$defs/sha256_digest" },
     "cluster_readiness_record_ref": { "type": "string", "minLength": 1 },
