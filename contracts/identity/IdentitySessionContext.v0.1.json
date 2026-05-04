@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/identity/IdentitySessionContext.v0.1.json",
+  "title": "IdentitySessionContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "session_id",
+    "subject_id",
+    "tenant_id",
+    "issued_at",
+    "expires_at",
+    "assurance_context",
+    "stepup_state",
+    "risk_state"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "session_id": {
+      "type": "string"
+    },
+    "subject_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "assurance_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "authenticator_refs"
+      ],
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "authenticator_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "proof_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "stepup_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required",
+        "completed",
+        "expired"
+      ]
+    },
+    "risk_state": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "elevated",
+        "restricted",
+        "revoked"
+      ]
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
