@@ -2,69 +2,136 @@ schema_version: "fogstack.packs/v0.1"
 kind: "FogStackPacks"
 repository_strategy: "single-repo-for-now"
 canonical_repo: "SocioProphet/prophet-platform"
+parity_posture:
+  target: "credible-mvp-ibm-style-parity"
+  status: "reached"
+  proof_command: "python3 tools/run_fogstack_parity_readiness.py --summary"
+  proof_record: "build/fogstack-local-demo/fogstack-parity-readiness.record.json"
+  scope: "local, CI-backed, non-mutating, evidence-based MVP parity"
+  not_in_scope:
+    - "production parity"
+    - "live cluster mutation"
+    - "network registry publication"
+    - "external KMS/HSM signing"
+    - "live AgentPlane execution backend"
+    - "production observability"
 packs:
   - id: "fogstack.access"
     label: "Fog Stack Access"
     category: "product_surface"
-    readiness_pct: 70
+    readiness_pct: 88
     repo_split_now: false
     substrate_anchors:
       - "apps/gateway"
       - "apps/api"
       - "cloudshell-fog"
-    notes: "Most mature customer-facing surface; remaining work is mostly trust/release hardening."
+      - "releases/manifests/fogstack.access-v0.1.manifest.json"
+      - "tools/run_fogstack_parity_readiness.py"
+    notes: "Most mature customer-facing surface; now has local deploy, GitOps, runtime dry-run, node inventory, AgentPlane, PolicyPlane, and parity-readiness evidence. Production gaps remain live apply, observability, and external identity/signing."
   - id: "fogstack.knowledge"
     label: "Fog Stack Knowledge"
     category: "product_surface"
-    readiness_pct: 55
+    readiness_pct: 72
     repo_split_now: false
     substrate_anchors:
       - "apps/knowledge-reason"
       - "apps/lampstand"
-    notes: "Clear substrate anchors, but more composition-heavy and operationally mixed."
+      - "office collaboration/search surfaces"
+    notes: "Clear substrate anchors and stronger platform context after local evidence work; still composition-heavy and not yet packaged as an independent deployable pack."
   - id: "fogstack.evaluation"
     label: "Fog Stack Evaluation"
     category: "product_surface"
-    readiness_pct: 55
+    readiness_pct: 76
     repo_split_now: false
     substrate_anchors:
       - "apps/eval-fabric-api"
       - "docs/PLATFORM_EVAL_FABRIC.md"
-    notes: "Real platform surface, but still more internal than packaged."
+      - "evidence/receipt surfaces"
+    notes: "Real platform surface with strong evidence orientation; still more internal than standalone customer package."
   - id: "fogstack.security"
     label: "Fog Stack Security / Trust"
     category: "shared_capability"
-    readiness_pct: 35
+    readiness_pct: 90
     repo_split_now: false
     substrate_anchors:
       - "schemas/release/*"
+      - "schemas/runtime/*"
       - "tools/*fogstack*"
-    notes: "Strong platform capability, but not yet an independently packaged product surface."
+      - "tools/check_fogstack_parity_readiness.py"
+    notes: "Strong shared capability across release, registry, deployment, runtime, AgentPlane/PolicyPlane linkage, and local parity readiness. Not yet standalone due to external KMS/HSM and production identity gaps."
   - id: "fogstack.data"
-    label: "Fog Stack Data"
+    label: "Fog Stack Data / GovernAI"
     category: "packaging_view"
-    readiness_pct: 30
+    readiness_pct: 68
     repo_split_now: false
     substrate_anchors:
       - "knowledge + evaluation surfaces"
-    notes: "Better treated as a packaging view over Knowledge + Evaluation than as a separate repo."
+      - "lattice data/governance fixtures"
+    notes: "Better treated as a packaging view over Knowledge, Evaluation, and Lattice/GovernAI surfaces than as an independent engineering island."
   - id: "fogstack.ai"
-    label: "Fog Stack AI"
-    category: "future_pack"
-    readiness_pct: 20
+    label: "Fog Stack AI / Lattice Runtime"
+    category: "emerging_product_surface"
+    readiness_pct: 62
     repo_split_now: false
-    substrate_anchors: []
-    notes: "Not enough independent runtime/product surface yet."
+    substrate_anchors:
+      - "lattice model/prompt/evaluation surfaces"
+      - "runtime evidence path"
+    notes: "Materially stronger than the original future-pack estimate due to Lattice/runtime/evidence work, but not yet an independent AI product pack."
   - id: "fogstack.automation"
-    label: "Fog Stack Automation"
+    label: "Fog Stack Automation / Workflow"
     category: "future_pack"
-    readiness_pct: 20
+    readiness_pct: 45
     repo_split_now: false
-    substrate_anchors: []
-    notes: "Workflow/orchestration is not yet a distinct first-class product surface."
+    substrate_anchors:
+      - "AgentPlane linkage"
+      - "PolicyPlane linkage"
+      - "workflow/orchestration surfaces"
+    notes: "Workflow and orchestration are now visible in runtime evidence, but live execution backend and production workflow control are still post-MVP."
+  - id: "fogstack.registry"
+    label: "Fog Stack Registry / Release Distribution"
+    category: "shared_capability"
+    readiness_pct: 78
+    repo_split_now: false
+    substrate_anchors:
+      - "registry publication index"
+      - "filesystem registry adapter"
+      - "registry root metadata"
+      - "revocation/rollback indexes"
+    notes: "Strong local/filesystem registry and release-distribution evidence; post-MVP gaps remain network registry publication and external signing identity."
+  - id: "fogstack.runtime"
+    label: "Fog Stack Runtime / Agent Machine Node Ops"
+    category: "shared_runtime_capability"
+    readiness_pct: 72
+    repo_split_now: false
+    substrate_anchors:
+      - "FogStackAgentMachineNodeProfile"
+      - "FogStackAgentMachineNodeInventoryRecord"
+      - "FogStackImmutableUpdateReadinessRecord"
+      - "FogStackRuntimeDryRunRecord"
+      - "TurtleTerm / BearBrowser use surfaces"
+    notes: "Now has local runtime adapter, dry-run evidence, node inventory, TopoLVM posture, immutable update readiness, AgentPlane run linkage, and PolicyPlane decision linkage. Live cluster apply and live AgentPlane execution remain post-MVP."
+  - id: "fogstack.office"
+    label: "Fog Stack Office / Collaboration"
+    category: "emerging_product_surface"
+    readiness_pct: 58
+    repo_split_now: false
+    substrate_anchors:
+      - "office collaboration runtime"
+      - "thread/suggestion/history surfaces"
+      - "search/runtime evidence adjacency"
+    notes: "Office/collaboration is now a real product surface in the repository, but it is not yet packaged as an independently deployable Fog Stack pack."
 repo_split_triggers:
   - "independent release cadence"
   - "distinct operator lifecycle and deployment surface"
   - "dedicated CI/test obligations that reduce overall complexity"
-  - "support burden distinct from the shared trust/release substrate"
-  - "ability to share trust/release graph without duplicating platform-wide evidence logic"
+  - "support burden distinct from the shared trust/release/runtime substrate"
+  - "ability to share trust/release/runtime graph without duplicating platform-wide evidence logic"
+post_mvp_gaps:
+  - "live cluster apply with rollback proof"
+  - "network registry publication"
+  - "external KMS/HSM-backed signing and approval identity"
+  - "live AgentPlane execution backend"
+  - "stronger GitOps controller reconciliation receipts"
+  - "production observability and alerting"
+  - "TopoLVM live cluster integration"
+  - "Nix/ostree update execution receipts"
