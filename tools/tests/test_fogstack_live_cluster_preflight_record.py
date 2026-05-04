@@ -5,14 +5,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+import jsonschema
+
 
 SCRIPT = Path("tools/emit_fogstack_live_cluster_preflight_record.py")
+SCHEMA = Path("schemas/runtime/fogstack-live-cluster-preflight-record-v0.1.schema.json")
 
 
 def read_json(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
     return data
+
+
+def validate_record(record: dict) -> None:
+    schema = read_json(SCHEMA)
+    jsonschema.validate(record, schema)
 
 
 def run_preflight(output: Path, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -67,6 +75,7 @@ def test_preflight_blocks_safely_when_kubectl_missing(tmp_path: Path) -> None:
     proc = run_preflight(output, "--kubectl", "missing-kubectl-for-live-preflight")
     assert proc.returncode == 0
     record = read_json(output)
+    validate_record(record)
     assert record["kind"] == "FogStackLiveClusterPreflightRecord"
     assert record["status"] == "blocked"
     assert record["safety"]["mutation_mode"] == "read-only"
@@ -80,6 +89,7 @@ def test_preflight_requires_live_cluster_when_requested(tmp_path: Path) -> None:
     proc = run_preflight(output, "--kubectl", "missing-kubectl-for-live-preflight", "--require-live-cluster")
     assert proc.returncode == 1
     record = read_json(output)
+    validate_record(record)
     assert record["status"] == "blocked"
     assert record["errors"] == ["kubectl unavailable; live cluster preflight not attempted"]
 
@@ -91,6 +101,7 @@ def test_preflight_passes_with_fake_readonly_cluster(tmp_path: Path) -> None:
     proc = run_preflight(output, "--kubectl", str(kubectl), "--namespace", "fogstack-access")
     assert proc.returncode == 0, proc.stderr
     record = read_json(output)
+    validate_record(record)
     assert record["status"] == "passed"
     assert record["namespace"] == "fogstack-access"
     assert record["safety"]["mutation_mode"] == "read-only"
