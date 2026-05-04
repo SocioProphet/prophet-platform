@@ -90,6 +90,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     runtime_dry_run = json.loads(Path(full_summary["artifacts"]["runtime_dry_run_record"]).read_text(encoding="utf-8"))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
+    assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
@@ -108,6 +109,15 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "Deploy readiness" in html
     assert "GitOps readiness" in html
     assert "Runtime evidence" in html
+    assert "Runtime readiness" in html
+    assert "TurtleTerm" in html
+    assert "BearBrowser" in html
+    assert "github://SourceOS-Linux/TurtleTerm" in html
+    assert "github://SourceOS-Linux/BearBrowser" in html
+    assert "contract-and-digest-only" in html
+    assert "Mutated cluster" in html
+    assert "Live apply allowed" in html
+    assert "Human approval required" in html
     assert "SHA-256 digest" in html
     assert "indexed" in html
     assert "deploy_plan" in html
