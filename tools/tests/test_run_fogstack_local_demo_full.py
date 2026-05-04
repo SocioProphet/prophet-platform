@@ -12,6 +12,8 @@ REQUIRED_FULL_ARTIFACTS = {
     "local_demo_html",
     "artifact_index",
     "deploy_summary",
+    "node_inventory_record",
+    "immutable_update_readiness_record",
     "deploy_plan",
     "agent_corps_plan",
     "kubernetes_configmap",
@@ -48,6 +50,8 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
 
     assert "FogStack full local demo passed." in proc.stdout
     assert "Artifact index:" in proc.stdout
+    assert "Agent Machine node inventory:" in proc.stdout
+    assert "Immutable update readiness:" in proc.stdout
     assert "Deploy plan:" in proc.stdout
     assert "Kubernetes deployment:" in proc.stdout
     assert "Cluster readiness record:" in proc.stdout
@@ -63,6 +67,8 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert full_summary["kind"] == "FogStackLocalDemoFullRun"
     assert full_summary["status"] == "passed"
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
+    assert "node_inventory_record_indexed" in full_summary["checks"]
+    assert "immutable_update_readiness_record_indexed" in full_summary["checks"]
     assert "cluster_readiness_record_indexed" in full_summary["checks"]
     assert "gitops_bundle_indexed" in full_summary["checks"]
     assert "gitops_readiness_record_indexed" in full_summary["checks"]
@@ -70,6 +76,21 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "runtime_dry_run_record_indexed" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
+
+    node_inventory = json.loads(Path(full_summary["artifacts"]["node_inventory_record"]).read_text(encoding="utf-8"))
+    assert node_inventory["kind"] == "FogStackAgentMachineNodeInventoryRecord"
+    assert node_inventory["status"] == "passed"
+    assert node_inventory["storage"]["topolvm_required"] is True
+    assert node_inventory["storage"]["persistent_storage"] == "topolvm"
+    assert node_inventory["cluster"]["join_policy"] == "approval-required"
+
+    immutable_update = json.loads(Path(full_summary["artifacts"]["immutable_update_readiness_record"]).read_text(encoding="utf-8"))
+    assert immutable_update["kind"] == "FogStackImmutableUpdateReadinessRecord"
+    assert immutable_update["status"] == "passed"
+    assert immutable_update["image"]["digest_required"] is True
+    assert immutable_update["image"]["sbom_required"] is True
+    assert immutable_update["image"]["provenance_required"] is True
+    assert immutable_update["policy"]["live_update_allowed"] is False
 
     readiness_record = json.loads(Path(full_summary["artifacts"]["cluster_readiness_record"]).read_text(encoding="utf-8"))
     assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
@@ -108,6 +129,8 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
+    assert "deploy_node_inventory_record" in indexed_ids
+    assert "deploy_immutable_update_readiness_record" in indexed_ids
     assert "deploy_plan" in indexed_ids
     assert "deploy_kubernetes_deployment" in indexed_ids
     assert "deploy_kubernetes_manifest_check_record" in indexed_ids
@@ -124,6 +147,10 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "GitOps readiness" in html
     assert "Runtime evidence" in html
     assert "Runtime readiness" in html
+    assert "deploy_node_inventory_record" in html
+    assert "deploy_immutable_update_readiness_record" in html
+    assert "Agent Machine node inventory" in html
+    assert "Immutable update readiness" in html
     assert "AgentPlane run ID" in html
     assert "agentplane-run:fogstack.access:local-dry-run" in html
     assert "agentplane://runs/fogstack.access/local-dry-run" in html
