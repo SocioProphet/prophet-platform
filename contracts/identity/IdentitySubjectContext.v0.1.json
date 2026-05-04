@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/identity/IdentitySubjectContext.v0.1.json",
+  "title": "IdentitySubjectContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "subject_id",
+    "subject_class",
+    "tenant_id",
+    "assurance_context",
+    "created_at"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "subject_id": {
+      "type": "string"
+    },
+    "subject_class": {
+      "type": "string",
+      "enum": [
+        "human_first_party",
+        "human_federated",
+        "privileged_operator",
+        "service_workload",
+        "recovery_breakglass"
+      ]
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "assurance_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "proof_refs"
+      ],
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "proof_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "step_up_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "credential_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "federation_binding_ref": {
+      "type": "string"
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
