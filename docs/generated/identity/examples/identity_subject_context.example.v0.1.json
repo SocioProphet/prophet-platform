@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "subject_id": "subj_01HUMAN123",
+  "subject_class": "human_federated",
+  "tenant_id": "tenant_acme",
+  "assurance_context": {
+    "level": "aal2_phishing_resistant_target",
+    "proof_refs": [
+      "proof_enterprise_oidc_0001"
+    ],
+    "step_up_required": false
+  },
+  "credential_refs": [
+    "cred_passkey_primary_0001"
+  ],
+  "federation_binding_ref": "fed_binding_acme_oidc_0001",
+  "policy_refs": [
+    "policy_identity_default_0001"
+  ],
+  "created_at": "2026-05-04T19:50:00Z"
+}
