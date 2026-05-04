@@ -1,0 +1,71 @@
+{
+  "matrix_id": "search-orchestrator-multicloud-rollout-matrix-v0.1",
+  "component": "services/search-orchestrator",
+  "release_lane": "multicloud-rollout-prep",
+  "status": "prepared-pending-real-provider-captures",
+  "global_hyperscalers": [
+    "aws",
+    "azure",
+    "google-cloud",
+    "oracle-cloud",
+    "ibm-cloud",
+    "alibaba-cloud",
+    "huawei-cloud",
+    "tencent-cloud"
+  ],
+  "ai_edge_and_developer_clouds": [
+    "cloudflare",
+    "akamai-linode",
+    "digitalocean",
+    "vultr",
+    "equinix-metal",
+    "coreweave",
+    "crusoe-cloud"
+  ],
+  "regional_and_sovereign_candidates": {
+    "north_america": ["aws", "azure", "google-cloud", "oracle-cloud", "ibm-cloud", "cloudflare", "akamai-linode", "digitalocean", "vultr", "equinix-metal", "coreweave", "crusoe-cloud"],
+    "south_america": ["aws", "azure", "google-cloud", "oracle-cloud", "ibm-cloud", "huawei-cloud", "claro-embratel", "telefonica", "locaweb", "uol-host"],
+    "europe": ["aws", "azure", "google-cloud", "oracle-cloud", "ibm-cloud", "ovhcloud", "scaleway", "stackit", "hetzner", "ionos", "open-telekom-cloud", "clever-cloud", "proximus", "post-telecom"],
+    "middle_east": ["aws", "azure", "google-cloud", "oracle-cloud", "alibaba-cloud", "huawei-cloud", "core42-g42", "eand-enterprise", "stc-cloud", "ooredoo"],
+    "africa": ["aws", "azure", "google-cloud", "oracle-cloud", "huawei-cloud", "liquid-cloud", "mtn-cloud", "vodacom-business", "africa-data-centres"],
+    "asia_pacific": ["aws", "azure", "google-cloud", "oracle-cloud", "ibm-cloud", "alibaba-cloud", "huawei-cloud", "tencent-cloud", "volcano-engine", "naver-cloud", "kakao-cloud", "kt-cloud", "sakura-cloud", "fujitsu-cloud", "nec-cloud", "ntt-global-data-centers"],
+    "china_mainland": ["alibaba-cloud", "huawei-cloud", "tencent-cloud", "volcano-engine", "baidu-ai-cloud", "ucloud"]
+  },
+  "kubernetes_substrates": {
+    "generic": ["conformant-kubernetes", "capi-cluster", "k3s", "rke2", "talos", "kind-lab"],
+    "managed": ["eks", "aks", "gke", "oke", "iks", "roks", "alibaba-ack", "tencent-tke", "huawei-cce", "openshift-dedicated", "aro", "rosa"],
+    "openshift_compatible": ["openshift", "okd", "red-hat-openshift-service-on-aws", "azure-red-hat-openshift", "red-hat-openshift-on-ibm-cloud"]
+  },
+  "openshift_compatibility": {
+    "required": true,
+    "targets": ["openshift", "okd", "generic-kubernetes"],
+    "scc_profile": "restricted-v2-compatible",
+    "required_controls": [
+      "runAsNonRoot",
+      "allowPrivilegeEscalation=false",
+      "drop all linux capabilities",
+      "RuntimeDefault seccomp",
+      "readOnlyRootFilesystem",
+      "no hostPath dependency",
+      "no privileged containers",
+      "Secret-backed Policy Fabric endpoint",
+      "PVC-backed carrier storage"
+    ],
+    "route_compatibility": "OpenShift Route may be added as a provider overlay; base remains Service/Kustomize portable"
+  },
+  "provider_evidence_required": [
+    "rendered_manifests",
+    "gitops_sync",
+    "healthz",
+    "debug_config",
+    "debug_metrics",
+    "workload_ingest_query",
+    "storage_or_carrier_artifacts",
+    "rollback_verification",
+    "image_digest_pin_verification",
+    "secret_or_externalsecret_binding",
+    "pvc_storage_class_binding",
+    "network_policy_or_cni_exception",
+    "openshift_or_okd_compatibility_check"
+  ]
+}
