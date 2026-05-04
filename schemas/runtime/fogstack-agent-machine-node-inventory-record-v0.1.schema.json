@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-agent-machine-node-inventory-record-v0.1.schema.json",
+  "title": "FogStackAgentMachineNodeInventoryRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "status",
+    "node_profile_ref",
+    "node_profile_digest",
+    "inventory",
+    "storage",
+    "agent_machine",
+    "cluster",
+    "governance",
+    "readiness"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackAgentMachineNodeInventoryRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "failed"] },
+    "node_profile_ref": { "type": "string", "minLength": 1 },
+    "node_profile_digest": { "$ref": "#/$defs/sha256_digest" },
+    "inventory": {
+      "type": "object",
+      "required": ["node_id", "node_role", "os_family", "distribution", "immutability", "configuration_model"],
+      "properties": {
+        "node_id": { "type": "string", "minLength": 1 },
+        "node_role": { "enum": ["edge-agent-node", "cluster-agent-node", "control-plane-agent-node"] },
+        "os_family": { "enum": ["SourceOS", "AgentOS", "SociOS-Linux"] },
+        "distribution": { "type": "string", "minLength": 1 },
+        "immutability": { "enum": ["ostree", "nixos", "image-based", "unknown"] },
+        "configuration_model": { "enum": ["nix-flake", "ignition-butane", "rpm-ostree", "container-image", "hybrid"] }
+      },
+      "additionalProperties": false
+    },
+    "storage": {
+      "type": "object",
+      "required": ["topolvm_required", "ephemeral_storage", "persistent_storage", "volume_policy", "storage_ready"],
+      "properties": {
+        "topolvm_required": { "type": "boolean" },
+        "ephemeral_storage": { "enum": ["local", "topolvm", "none"] },
+        "persistent_storage": { "enum": ["topolvm", "external-csi", "none"] },
+        "volume_policy": { "enum": ["deny-by-default", "explicit-claim-only"] },
+        "storage_ready": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "agent_machine": {
+      "type": "object",
+      "required": ["enabled", "identity_ref", "workload_runtime", "node_contract_required", "use_surfaces"],
+      "properties": {
+        "enabled": { "const": true },
+        "identity_ref": { "type": "string", "minLength": 1 },
+        "workload_runtime": { "enum": ["rootless-podman", "kubernetes", "systemd-user", "hybrid"] },
+        "node_contract_required": { "const": true },
+        "use_surfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "repo_ref", "first_class", "agentplane_visible", "policyplane_guarded"],
+            "properties": {
+              "id": { "enum": ["turtleterm", "bearbrowser"] },
+              "repo_ref": { "type": "string", "minLength": 1 },
+              "first_class": { "const": true },
+              "agentplane_visible": { "const": true },
+              "policyplane_guarded": { "const": true }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "cluster": {
+      "type": "object",
+      "required": ["cluster_provider", "cluster_role", "join_policy", "mutation_default"],
+      "properties": {
+        "cluster_provider": { "enum": ["kind", "generic-kubernetes", "future-agentos-cluster"] },
+        "cluster_role": { "enum": ["worker", "control-plane", "single-node"] },
+        "join_policy": { "const": "approval-required" },
+        "mutation_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "required": ["agentplane_ref", "policyplane_ref", "human_approval_required", "live_mutation_default"],
+      "properties": {
+        "agentplane_ref": { "type": "string", "minLength": 1 },
+        "policyplane_ref": { "type": "string", "minLength": 1 },
+        "human_approval_required": { "const": true },
+        "live_mutation_default": { "const": "deny" }
+      },
+      "additionalProperties": false
+    },
+    "readiness": {
+      "type": "object",
+      "required": ["node_profile_ready", "agent_machine_ready", "storage_ready", "surfaces_ready", "governance_ready", "cluster_join_ready"],
+      "properties": {
+        "node_profile_ready": { "type": "boolean" },
+        "agent_machine_ready": { "type": "boolean" },
+        "storage_ready": { "type": "boolean" },
+        "surfaces_ready": { "type": "boolean" },
+        "governance_ready": { "type": "boolean" },
+        "cluster_join_ready": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "sha256_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}
