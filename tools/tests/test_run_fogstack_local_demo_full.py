@@ -94,9 +94,17 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert runtime_dry_run["agentplane_run"]["agentplane_ref"] == "github://SocioProphet/agentplane"
     assert runtime_dry_run["agentplane_run"]["requested_by"] == "human:operator"
     assert runtime_dry_run["agentplane_run"]["approval_state"] == "live-apply-requires-human-approval"
+    assert runtime_dry_run["policyplane_decision"]["decision_id"] == "policyplane-decision:fogstack.access:local-dry-run"
+    assert runtime_dry_run["policyplane_decision"]["decision_ref"] == "policyplane://decisions/fogstack.access/local-dry-run"
+    assert runtime_dry_run["policyplane_decision"]["policyplane_ref"] == "github://SocioProphet/policy-fabric"
+    assert runtime_dry_run["policyplane_decision"]["decision"] == "dry-run-allowed"
+    assert runtime_dry_run["policyplane_decision"]["effect"] == "allow-dry-run-deny-live-apply"
+    assert runtime_dry_run["policyplane_decision"]["live_apply_allowed"] is False
+    assert runtime_dry_run["policyplane_decision"]["human_approval_required"] is True
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
     assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
     assert "agentplane_run" in runtime_dry_run["dry_run_result"]["validated_inputs"]
+    assert "policyplane_decision" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
@@ -120,6 +128,12 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "agentplane-run:fogstack.access:local-dry-run" in html
     assert "agentplane://runs/fogstack.access/local-dry-run" in html
     assert "github://SocioProphet/agentplane" in html
+    assert "PolicyPlane decision ID" in html
+    assert "policyplane-decision:fogstack.access:local-dry-run" in html
+    assert "policyplane://decisions/fogstack.access/local-dry-run" in html
+    assert "github://SocioProphet/policy-fabric" in html
+    assert "dry-run-allowed" in html
+    assert "allow-dry-run-deny-live-apply" in html
     assert "live-apply-requires-human-approval" in html
     assert "TurtleTerm" in html
     assert "BearBrowser" in html
