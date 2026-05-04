@@ -33,6 +33,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     output_dir.mkdir(parents=True, exist_ok=True)
 
     node_profile = output_dir / "fogstack.access.agent-machine-node-profile.json"
+    node_inventory_record = output_dir / "fogstack.access.agent-machine-node-inventory.record.json"
+    immutable_update_readiness_record = output_dir / "fogstack.access.immutable-update-readiness.record.json"
     runtime_contract = output_dir / "fogstack.access.runtime-contract.json"
     deploy_plan = output_dir / "fogstack.access.deploy-plan.json"
     manifest_dir = output_dir / "kubernetes"
@@ -48,6 +50,18 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         sys.executable,
         "tools/build_fogstack_agent_machine_node_profile.py",
         "--output", str(node_profile),
+    ])
+    run([
+        sys.executable,
+        "tools/emit_fogstack_agent_machine_node_inventory_record.py",
+        "--node-profile", str(node_profile),
+        "--output", str(node_inventory_record),
+    ])
+    run([
+        sys.executable,
+        "tools/emit_fogstack_immutable_update_readiness_record.py",
+        "--node-profile", str(node_profile),
+        "--output", str(immutable_update_readiness_record),
     ])
     run([
         sys.executable,
@@ -172,6 +186,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         "target": "kubernetes",
         "artifacts": {
             "node_profile": rel(node_profile),
+            "node_inventory_record": rel(node_inventory_record),
+            "immutable_update_readiness_record": rel(immutable_update_readiness_record),
             "agent_corps_plan": rel(runtime_contract),
             "deploy_plan": rel(deploy_plan),
             "kubernetes_configmap": rel(manifest_dir / "configmap.yaml"),
@@ -192,6 +208,8 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
         },
         "checks": [
             "node_profile_built",
+            "node_inventory_record_emitted",
+            "immutable_update_readiness_record_emitted",
             "agent_corps_plan_built",
             "agent_corps_plan_checked",
             "deploy_plan_built",
@@ -217,6 +235,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Bundle: {summary['bundle_id']}@{summary['version']}",
         f"Target: {summary['target']}",
         f"Agent Machine node profile: {artifacts['node_profile']}",
+        f"Agent Machine node inventory: {artifacts['node_inventory_record']}",
+        f"Immutable update readiness: {artifacts['immutable_update_readiness_record']}",
         f"Agent Corps plan: {artifacts['agent_corps_plan']}",
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes ConfigMap: {artifacts['kubernetes_configmap']}",
