@@ -27,16 +27,20 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert "Bundle: fogstack.access@0.1.0" in proc.stdout
     assert "Target: kubernetes" in proc.stdout
     assert "Agent Machine node profile:" in proc.stdout
+    assert "Agent Machine node inventory:" in proc.stdout
+    assert "Immutable update readiness:" in proc.stdout
     assert "Cluster readiness record:" in proc.stdout
     assert "GitOps bundle:" in proc.stdout
     assert "GitOps application:" in proc.stdout
     assert "GitOps readiness record:" in proc.stdout
     assert "Runtime adapter:" in proc.stdout
     assert "Runtime dry-run record:" in proc.stdout
-    assert "Checks passed: 13" in proc.stdout
+    assert "Checks passed: 15" in proc.stdout
 
     summary_path = output_dir / "fogstack.access.deploy-demo.summary.json"
     node_profile_path = output_dir / "fogstack.access.agent-machine-node-profile.json"
+    node_inventory_path = output_dir / "fogstack.access.agent-machine-node-inventory.record.json"
+    immutable_update_path = output_dir / "fogstack.access.immutable-update-readiness.record.json"
     check_record_path = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
     readiness_record_path = output_dir / "fogstack.access.cluster-readiness.record.json"
     gitops_readiness_path = output_dir / "fogstack.access.gitops-readiness.record.json"
@@ -50,6 +54,8 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     for path in [
         summary_path,
         node_profile_path,
+        node_inventory_path,
+        immutable_update_path,
         check_record_path,
         readiness_record_path,
         gitops_readiness_path,
@@ -76,6 +82,8 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     assert summary["target"] == "kubernetes"
     assert set(summary["checks"]) == {
         "node_profile_built",
+        "node_inventory_record_emitted",
+        "immutable_update_readiness_record_emitted",
         "agent_corps_plan_built",
         "agent_corps_plan_checked",
         "deploy_plan_built",
@@ -92,6 +100,8 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
 
     artifacts = summary["artifacts"]
     assert artifacts["node_profile"].endswith("fogstack.access.agent-machine-node-profile.json")
+    assert artifacts["node_inventory_record"].endswith("fogstack.access.agent-machine-node-inventory.record.json")
+    assert artifacts["immutable_update_readiness_record"].endswith("fogstack.access.immutable-update-readiness.record.json")
     assert artifacts["agent_corps_plan"].endswith("fogstack.access.runtime-contract.json")
     assert artifacts["deploy_plan"].endswith("fogstack.access.deploy-plan.json")
     assert artifacts["kubernetes_configmap"].endswith("configmap.yaml")
@@ -111,6 +121,21 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     surfaces = {surface["id"]: surface for surface in node_profile["use_surfaces"]}
     assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
     assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
+
+    node_inventory = json.loads(node_inventory_path.read_text(encoding="utf-8"))
+    assert node_inventory["kind"] == "FogStackAgentMachineNodeInventoryRecord"
+    assert node_inventory["status"] == "passed"
+    assert node_inventory["storage"]["topolvm_required"] is True
+    assert node_inventory["storage"]["persistent_storage"] == "topolvm"
+    assert node_inventory["cluster"]["join_policy"] == "approval-required"
+
+    immutable_update = json.loads(immutable_update_path.read_text(encoding="utf-8"))
+    assert immutable_update["kind"] == "FogStackImmutableUpdateReadinessRecord"
+    assert immutable_update["status"] == "passed"
+    assert immutable_update["image"]["digest_required"] is True
+    assert immutable_update["image"]["sbom_required"] is True
+    assert immutable_update["image"]["provenance_required"] is True
+    assert immutable_update["policy"]["live_update_allowed"] is False
 
     check_record = json.loads(check_record_path.read_text(encoding="utf-8"))
     assert check_record["kind"] == "FogStackKubernetesManifestCheckRecord"
