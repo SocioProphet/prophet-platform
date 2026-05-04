@@ -9,6 +9,12 @@ Fog Stack has reached **credible MVP IBM-style parity** for a local, CI-backed, 
 The canonical proof command is:
 
 ```bash
+make fogstack-parity-readiness
+```
+
+The target wraps:
+
+```bash
 python3 tools/run_fogstack_parity_readiness.py --summary
 ```
 
@@ -116,6 +122,7 @@ Fog Stack currently lands here as:
 - Agent Machine node evidence
 - AgentPlane/PolicyPlane linkage
 - parity readiness validation
+- canonical Makefile target for the MVP parity check
 
 The future packs should therefore be treated as catalog, packaging, and operator-surface views until they are mature enough to justify independent repos.
 
