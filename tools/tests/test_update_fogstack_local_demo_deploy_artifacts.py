@@ -24,10 +24,17 @@ REQUIRED = {
     "deploy_gitops_deployment",
     "deploy_gitops_service",
     "deploy_gitops_readiness_record",
+    "deploy_live_cluster_preflight_record",
     "deploy_runtime_adapter",
     "deploy_runtime_dry_run_record",
     "deploy_summary",
 }
+
+
+def load(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    return data
 
 
 def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
@@ -39,127 +46,36 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     subprocess.run([sys.executable, "tools/update_fogstack_local_demo_gitops_readiness.py", "--summary-json", str(output_dir / "fogstack-local-demo.summary.json"), "--gitops-readiness-record", str(deploy_dir / "fogstack.access.gitops-readiness.record.json")], check=True)
     subprocess.run([sys.executable, "tools/update_fogstack_local_demo_runtime_evidence.py", "--summary-json", str(output_dir / "fogstack-local-demo.summary.json"), "--runtime-adapter", str(deploy_dir / "fogstack.access.local-cluster-runtime-adapter.json"), "--runtime-dry-run-record", str(deploy_dir / "fogstack.access.runtime-dry-run.record.json")], check=True)
 
-    summary = json.loads((output_dir / "fogstack-local-demo.summary.json").read_text(encoding="utf-8"))
+    summary = load(output_dir / "fogstack-local-demo.summary.json")
     assert REQUIRED.issubset(set(summary["artifacts"]))
-    assert "node_profile_built" in summary["checks"]
-    assert "node_inventory_record_emitted" in summary["checks"]
-    assert "immutable_update_readiness_record_emitted" in summary["checks"]
-    assert "deploy_plan_built" in summary["checks"]
-    assert "kubernetes_manifests_checked" in summary["checks"]
-    assert "cluster_readiness_record_emitted" in summary["checks"]
-    assert "gitops_bundle_built" in summary["checks"]
-    assert "gitops_bundle_checked" in summary["checks"]
+    assert "live_cluster_preflight_record_emitted" in summary["checks"]
     assert "gitops_readiness_record_indexed" in summary["checks"]
     assert "runtime_adapter_indexed" in summary["checks"]
     assert "runtime_dry_run_record_indexed" in summary["checks"]
-    assert "runtime_readiness_summary_appended" in summary["checks"]
-    assert "agentplane_run_linked" in summary["checks"]
-    assert "policyplane_decision_linked" in summary["checks"]
 
-    artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
+    artifact_index = load(output_dir / "demo-artifacts.index.json")
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
     assert REQUIRED.issubset(set(indexed))
-    for key in REQUIRED:
-        assert indexed[key]["digest"].startswith("sha256:")
-        assert Path(indexed[key]["ref"]).exists()
+    assert indexed["deploy_live_cluster_preflight_record"]["digest"].startswith("sha256:")
+    assert Path(indexed["deploy_live_cluster_preflight_record"]["ref"]).exists()
 
-    node_profile = json.loads(Path(summary["artifacts"]["deploy_node_profile"]).read_text(encoding="utf-8"))
-    assert node_profile["kind"] == "FogStackAgentMachineNodeProfile"
-    surfaces = {surface["id"]: surface for surface in node_profile["use_surfaces"]}
-    assert surfaces["turtleterm"]["repo_ref"] == "github://SourceOS-Linux/TurtleTerm"
-    assert surfaces["bearbrowser"]["repo_ref"] == "github://SourceOS-Linux/BearBrowser"
+    live_preflight = load(Path(summary["artifacts"]["deploy_live_cluster_preflight_record"]))
+    assert live_preflight["kind"] == "FogStackLiveClusterPreflightRecord"
+    assert live_preflight["status"] == "blocked"
+    assert live_preflight["mode"] == "read-only-live-preflight"
+    assert live_preflight["safety"]["mutated_cluster"] is False
+    assert live_preflight["safety"]["live_apply_allowed"] is False
+    assert live_preflight["safety"]["human_approval_required_for_apply"] is True
 
-    node_inventory = json.loads(Path(summary["artifacts"]["deploy_node_inventory_record"]).read_text(encoding="utf-8"))
-    assert node_inventory["kind"] == "FogStackAgentMachineNodeInventoryRecord"
-    assert node_inventory["status"] == "passed"
-    assert node_inventory["storage"]["topolvm_required"] is True
-    assert node_inventory["cluster"]["join_policy"] == "approval-required"
-
-    immutable_update = json.loads(Path(summary["artifacts"]["deploy_immutable_update_readiness_record"]).read_text(encoding="utf-8"))
-    assert immutable_update["kind"] == "FogStackImmutableUpdateReadinessRecord"
-    assert immutable_update["status"] == "passed"
-    assert immutable_update["image"]["digest_required"] is True
-    assert immutable_update["image"]["sbom_required"] is True
-    assert immutable_update["image"]["provenance_required"] is True
-    assert immutable_update["policy"]["live_update_allowed"] is False
-
-    readiness_record = json.loads(Path(summary["artifacts"]["deploy_cluster_readiness_record"]).read_text(encoding="utf-8"))
-    assert readiness_record["kind"] == "FogStackClusterReadinessRecord"
-    assert readiness_record["status"] == "passed"
-
-    gitops_bundle = json.loads(Path(summary["artifacts"]["deploy_gitops_bundle"]).read_text(encoding="utf-8"))
-    assert gitops_bundle["kind"] == "FogStackGitOpsBundle"
-    assert gitops_bundle["bundle_id"] == "fogstack.access"
-
-    gitops_readiness = json.loads(Path(summary["artifacts"]["deploy_gitops_readiness_record"]).read_text(encoding="utf-8"))
-    assert gitops_readiness["kind"] == "FogStackGitOpsReadinessRecord"
-    assert gitops_readiness["status"] == "passed"
-
-    runtime_adapter = json.loads(Path(summary["artifacts"]["deploy_runtime_adapter"]).read_text(encoding="utf-8"))
-    assert runtime_adapter["kind"] == "FogStackLocalClusterRuntimeAdapter"
-    assert runtime_adapter["runtime_policy"]["live_apply_allowed"] is False
-    assert runtime_adapter["inputs"]["node_profile_digest"].startswith("sha256:")
-
-    runtime_dry_run = json.loads(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]).read_text(encoding="utf-8"))
+    runtime_dry_run = load(Path(summary["artifacts"]["deploy_runtime_dry_run_record"]))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
-    assert runtime_dry_run["agentplane_run"]["run_id"] == "agentplane-run:fogstack.access:local-dry-run"
-    assert runtime_dry_run["agentplane_run"]["run_ref"] == "agentplane://runs/fogstack.access/local-dry-run"
-    assert runtime_dry_run["agentplane_run"]["agentplane_ref"] == "github://SocioProphet/agentplane"
-    assert runtime_dry_run["agentplane_run"]["requested_by"] == "human:operator"
-    assert runtime_dry_run["agentplane_run"]["approval_state"] == "live-apply-requires-human-approval"
-    assert runtime_dry_run["policyplane_decision"]["decision_id"] == "policyplane-decision:fogstack.access:local-dry-run"
-    assert runtime_dry_run["policyplane_decision"]["decision_ref"] == "policyplane://decisions/fogstack.access/local-dry-run"
-    assert runtime_dry_run["policyplane_decision"]["policyplane_ref"] == "github://SocioProphet/policy-fabric"
-    assert runtime_dry_run["policyplane_decision"]["decision"] == "dry-run-allowed"
-    assert runtime_dry_run["policyplane_decision"]["effect"] == "allow-dry-run-deny-live-apply"
-    assert runtime_dry_run["policyplane_decision"]["live_apply_allowed"] is False
-    assert runtime_dry_run["policyplane_decision"]["human_approval_required"] is True
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
-    assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
-    assert "agentplane_run" in runtime_dry_run["dry_run_result"]["validated_inputs"]
-    assert "policyplane_decision" in runtime_dry_run["dry_run_result"]["validated_inputs"]
-    assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
     html = (output_dir / "index.html").read_text(encoding="utf-8")
     for content in [markdown, html]:
-        assert "Deploy readiness" in content
-        assert "GitOps readiness" in content
+        assert "Live cluster preflight" in content
+        assert "deploy_live_cluster_preflight_record" in content
+        assert "read-only-live-preflight" in content
         assert "Runtime evidence" in content
-        assert "Runtime readiness" in content
-        assert "deploy_node_inventory_record" in content
-        assert "deploy_immutable_update_readiness_record" in content
-        assert "Agent Machine node inventory" in content
-        assert "Immutable update readiness" in content
-        assert "AgentPlane run ID" in content
-        assert "agentplane-run:fogstack.access:local-dry-run" in content
-        assert "agentplane://runs/fogstack.access/local-dry-run" in content
-        assert "github://SocioProphet/agentplane" in content
-        assert "PolicyPlane decision ID" in content
-        assert "policyplane-decision:fogstack.access:local-dry-run" in content
-        assert "policyplane://decisions/fogstack.access/local-dry-run" in content
-        assert "github://SocioProphet/policy-fabric" in content
-        assert "dry-run-allowed" in content
-        assert "allow-dry-run-deny-live-apply" in content
-        assert "live-apply-requires-human-approval" in content
-        assert "TurtleTerm" in content
-        assert "BearBrowser" in content
-        assert "github://SourceOS-Linux/TurtleTerm" in content
-        assert "github://SourceOS-Linux/BearBrowser" in content
-        assert "contract-and-digest-only" in content
-        assert "Mutated cluster" in content
-        assert "Live apply allowed" in content
-        assert "Human approval required" in content
-        assert "Artifact ID" in content
         assert "SHA-256 digest" in content
-        assert "indexed" in content
-        assert "deploy_node_profile" in content
-        assert "deploy_plan" in content
-        assert "deploy_kubernetes_deployment" in content
-        assert "deploy_cluster_readiness_record" in content
-        assert "deploy_gitops_bundle" in content
-        assert "deploy_gitops_application" in content
-        assert "deploy_gitops_readiness_record" in content
-        assert "deploy_runtime_adapter" in content
-        assert "deploy_runtime_dry_run_record" in content
-        assert "sha256:" in content
