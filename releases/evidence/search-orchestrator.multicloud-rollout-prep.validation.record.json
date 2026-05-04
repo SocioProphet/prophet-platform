@@ -1,0 +1,25 @@
+{
+  "validation_id": "search-orchestrator-multicloud-rollout-prep-v0.1-validation",
+  "component": "services/search-orchestrator",
+  "release_lane": "multicloud-rollout-prep",
+  "status": "passed",
+  "validated_artifacts": [
+    "docs/SEARCH_ORCHESTRATOR_MULTICLOUD_ROLLOUT_PREP.md",
+    "releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json",
+    "releases/evidence/search-orchestrator-multicloud-rollout-evidence.template.json",
+    "releases/manifests/search-orchestrator.multicloud-rollout-prep.manifest.json",
+    "tools/validate_search_orchestrator_multicloud_rollout.py",
+    ".github/workflows/search-orchestrator-multicloud-rollout.yml"
+  ],
+  "evidence": [
+    "provider matrix covers AWS, Azure, Google Cloud, Oracle Cloud, IBM Cloud, Alibaba Cloud, Huawei Cloud, and Tencent Cloud",
+    "regional provider coverage includes North America, South America, Europe, Middle East, Africa, Asia Pacific, and China Mainland",
+    "OpenShift, OKD, and generic Kubernetes compatibility are explicitly modeled",
+    "provider rollout evidence remains template-pending-real-provider-capture until real cluster outputs exist",
+    "multi-cloud rollout prep is validated separately from Academy bridge deployment validation"
+  ],
+  "gates": [
+    "search-orchestrator-multicloud-rollout workflow",
+    "dedicated multicloud rollout validator"
+  ]
+}
