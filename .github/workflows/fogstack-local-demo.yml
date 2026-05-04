@@ -22,6 +22,7 @@ on:
       - "tools/run_fogstack_local_demo_full.py"
       - "tools/check_fogstack_parity_readiness.py"
       - "tools/run_fogstack_parity_readiness.py"
+      - "tools/emit_fogstack_live_cluster_preflight_record.py"
       - "tools/serve_fogstack_local_demo.py"
       - "tools/check_fogstack_local_demo_artifact_index.py"
       - "tools/build_fogstack_runtime_contract.py"
@@ -56,12 +57,14 @@ on:
       - "tools/build_fogstack_registry_root_metadata.py"
       - "tools/check_fogstack_registry_root_metadata.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
+      - "tools/tests/test_run_fogstack_local_demo_deploy_plan.py"
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
+      - "tools/tests/test_fogstack_live_cluster_preflight_record.py"
       - ".github/workflows/fogstack-local-demo.yml"
   push:
     branches: [main]
@@ -84,6 +87,7 @@ on:
       - "tools/run_fogstack_local_demo_full.py"
       - "tools/check_fogstack_parity_readiness.py"
       - "tools/run_fogstack_parity_readiness.py"
+      - "tools/emit_fogstack_live_cluster_preflight_record.py"
       - "tools/serve_fogstack_local_demo.py"
       - "tools/check_fogstack_local_demo_artifact_index.py"
       - "tools/build_fogstack_runtime_contract.py"
@@ -101,12 +105,14 @@ on:
       - "tools/emit_fogstack_agent_machine_node_inventory_record.py"
       - "tools/emit_fogstack_immutable_update_readiness_record.py"
       - "tools/tests/test_run_fogstack_local_demo.py"
+      - "tools/tests/test_run_fogstack_local_demo_deploy_plan.py"
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
+      - "tools/tests/test_fogstack_live_cluster_preflight_record.py"
       - ".github/workflows/fogstack-local-demo.yml"
 
 permissions:
@@ -134,12 +140,14 @@ jobs:
         run: |
           python -m pytest -q \
             tools/tests/test_run_fogstack_local_demo.py \
+            tools/tests/test_run_fogstack_local_demo_deploy_plan.py \
             tools/tests/test_check_fogstack_local_demo_artifact_index.py \
             tools/tests/test_serve_fogstack_local_demo.py \
             tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py \
             tools/tests/test_run_fogstack_local_demo_full.py \
             tools/tests/test_fogstack_parity_readiness.py \
-            tools/tests/test_run_fogstack_parity_readiness.py
+            tools/tests/test_run_fogstack_parity_readiness.py \
+            tools/tests/test_fogstack_live_cluster_preflight_record.py
 
       - name: Run full operator demo command
         run: |
@@ -158,6 +166,7 @@ jobs:
           test -s build/fogstack-local-demo/deploy/gitops/application.yaml
           test -s build/fogstack-local-demo/deploy/gitops/kustomization.yaml
           test -s build/fogstack-local-demo/deploy/fogstack.access.gitops-readiness.record.json
+          test -s build/fogstack-local-demo/deploy/fogstack.access.live-cluster-preflight.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.local-cluster-runtime-adapter.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.runtime-dry-run.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.agent-machine-node-inventory.record.json
