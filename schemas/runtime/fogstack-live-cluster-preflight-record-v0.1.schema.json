@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-live-cluster-preflight-record-v0.1.schema.json",
+  "title": "FogStackLiveClusterPreflightRecord",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "status",
+    "namespace",
+    "mode",
+    "kubectl",
+    "source_artifacts",
+    "safety",
+    "checks",
+    "read_operations",
+    "errors"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackLiveClusterPreflightRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "failed", "blocked"] },
+    "reason": { "type": ["string", "null"] },
+    "namespace": { "type": "string", "minLength": 1 },
+    "mode": { "const": "read-only-live-preflight" },
+    "kubectl": {
+      "type": "object",
+      "required": ["executable", "available", "resolved_path"],
+      "additionalProperties": true
+    },
+    "source_artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["mutation_mode", "mutated_cluster", "live_apply_allowed", "human_approval_required_for_apply"],
+      "properties": {
+        "mutation_mode": { "const": "read-only" },
+        "mutated_cluster": { "const": false },
+        "live_apply_allowed": { "const": false },
+        "human_approval_required_for_apply": { "const": true }
+      },
+      "additionalProperties": true
+    },
+    "cluster": { "type": "object" },
+    "checks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "read_operations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/read_operation" }
+    },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["id", "ref", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "check": {
+      "type": "object",
+      "required": ["id", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["passed", "failed", "blocked"] }
+      },
+      "additionalProperties": false
+    },
+    "read_operation": {
+      "type": "object",
+      "required": ["args", "status", "returncode"],
+      "properties": {
+        "args": { "type": "array", "items": { "type": "string" } },
+        "status": { "enum": ["passed", "failed", "denied"] },
+        "returncode": { "type": ["integer", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
