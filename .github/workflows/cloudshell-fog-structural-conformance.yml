@@ -1,0 +1,33 @@
+name: cloudshell-fog structural conformance
+
+on:
+  pull_request:
+    paths:
+      - 'apps/cloudshell-fog/**'
+      - 'contracts/cloudshell-fog/**'
+      - 'docs/CLOUDSHELL_FOG_*.md'
+      - 'infra/argocd/cloudshell-fog*'
+      - 'infra/k8s/cloudshell-fog/**'
+      - 'infra/policy/cloudshell-fog/**'
+      - 'releases/manifests/fogstack.access-cloudshell-fog*'
+      - 'tools/validate-cloudshell-fog-*.sh'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/cloudshell-fog/**'
+      - 'contracts/cloudshell-fog/**'
+      - 'docs/CLOUDSHELL_FOG_*.md'
+      - 'infra/argocd/cloudshell-fog*'
+      - 'infra/k8s/cloudshell-fog/**'
+      - 'infra/policy/cloudshell-fog/**'
+      - 'releases/manifests/fogstack.access-cloudshell-fog*'
+      - 'tools/validate-cloudshell-fog-*.sh'
+  workflow_dispatch: {}
+
+jobs:
+  structural-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run noexec-safe cloudshell-fog structural conformance
+        run: bash tools/validate-cloudshell-fog-structural-conformance.sh
