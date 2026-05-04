@@ -51,6 +51,10 @@ def test_emit_fogstack_runtime_dry_run_record(tmp_path: Path) -> None:
         "--agentplane-run-id", "agentplane-run:test",
         "--agentplane-run-ref", "agentplane://runs/test",
         "--requested-by", "human:test-operator",
+        "--policyplane-decision-id", "policyplane-decision:test",
+        "--policyplane-decision-ref", "policyplane://decisions/test",
+        "--policy-subject-ref", "agentplane://runs/test",
+        "--policy-reason", "test dry-run allowed",
     ], check=True)
     record = load_json(output)
     Draft202012Validator(load_json(SCHEMA)).validate(record)
@@ -67,8 +71,20 @@ def test_emit_fogstack_runtime_dry_run_record(tmp_path: Path) -> None:
         "execution_mode": "dry-run",
         "approval_state": "live-apply-requires-human-approval",
     }
+    assert record["policyplane_decision"] == {
+        "decision_id": "policyplane-decision:test",
+        "decision_ref": "policyplane://decisions/test",
+        "policyplane_ref": "github://SocioProphet/policy-fabric",
+        "subject_ref": "agentplane://runs/test",
+        "decision": "dry-run-allowed",
+        "effect": "allow-dry-run-deny-live-apply",
+        "reason": "test dry-run allowed",
+        "live_apply_allowed": False,
+        "human_approval_required": True,
+    }
     assert record["dry_run_result"]["mutated_cluster"] is False
     assert "agentplane_run" in record["dry_run_result"]["validated_inputs"]
+    assert "policyplane_decision" in record["dry_run_result"]["validated_inputs"]
     assert "node_profile" in record["dry_run_result"]["validated_inputs"]
     assert record["dry_run_result"]["validation_path"] == "contract-and-digest-only"
     assert record["runtime_policy"]["live_apply_allowed"] is False
@@ -100,3 +116,18 @@ def test_emit_fogstack_runtime_dry_run_record_rejects_wrong_agentplane_ref(tmp_p
     ], capture_output=True, text=True)
     assert proc.returncode != 0
     assert "AgentPlane run ref does not match node profile governance" in proc.stderr
+
+
+def test_emit_fogstack_runtime_dry_run_record_rejects_wrong_policyplane_ref(tmp_path: Path) -> None:
+    adapter, manifests = build_inputs(tmp_path)
+    output = tmp_path / "runtime-dry-run.json"
+    proc = subprocess.run([
+        sys.executable,
+        "tools/emit_fogstack_runtime_dry_run_record.py",
+        "--runtime-adapter", str(adapter),
+        "--manifest-dir", str(manifests),
+        "--output", str(output),
+        "--policyplane-ref", "github://SocioProphet/wrong-policy-fabric",
+    ], capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "PolicyPlane decision ref does not match node profile governance" in proc.stderr

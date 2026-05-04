@@ -78,6 +78,26 @@ def agentplane_run_payload(run_id: str, run_ref: str, agentplane_ref: str, reque
     }
 
 
+def policyplane_decision_payload(
+    decision_id: str,
+    decision_ref: str,
+    policyplane_ref: str,
+    subject_ref: str,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "decision_id": decision_id,
+        "decision_ref": decision_ref,
+        "policyplane_ref": policyplane_ref,
+        "subject_ref": subject_ref,
+        "decision": "dry-run-allowed",
+        "effect": "allow-dry-run-deny-live-apply",
+        "reason": reason,
+        "live_apply_allowed": False,
+        "human_approval_required": True,
+    }
+
+
 def emit_record(
     adapter_path: Path,
     manifest_dir: Path,
@@ -86,6 +106,11 @@ def emit_record(
     agentplane_run_ref: str,
     agentplane_ref: str,
     requested_by: str,
+    policyplane_decision_id: str,
+    policyplane_decision_ref: str,
+    policyplane_ref: str,
+    policy_subject_ref: str,
+    policy_reason: str,
 ) -> dict[str, Any]:
     adapter_path = resolve(adapter_path)
     manifest_dir = resolve(manifest_dir)
@@ -128,6 +153,8 @@ def emit_record(
         raise SystemExit("ERR: GitOps readiness record must have passed status")
     if agentplane_ref != node_profile["governance"].get("agentplane_ref"):
         raise SystemExit("ERR: AgentPlane run ref does not match node profile governance")
+    if policyplane_ref != node_profile["governance"].get("policyplane_ref"):
+        raise SystemExit("ERR: PolicyPlane decision ref does not match node profile governance")
 
     manifest_paths = [
         manifest_dir / "configmap.yaml",
@@ -150,6 +177,13 @@ def emit_record(
         "node_profile_ref": rel(node_profile_path),
         "node_profile_digest": sha256_file(node_profile_path),
         "agentplane_run": agentplane_run_payload(agentplane_run_id, agentplane_run_ref, agentplane_ref, requested_by),
+        "policyplane_decision": policyplane_decision_payload(
+            policyplane_decision_id,
+            policyplane_decision_ref,
+            policyplane_ref,
+            policy_subject_ref,
+            policy_reason,
+        ),
         "deploy_plan_ref": rel(deploy_plan_path),
         "deploy_plan_digest": sha256_file(deploy_plan_path),
         "cluster_readiness_record_ref": rel(cluster_record_path),
@@ -169,6 +203,7 @@ def emit_record(
             "mutated_cluster": False,
             "validated_inputs": [
                 "agentplane_run",
+                "policyplane_decision",
                 "runtime_adapter",
                 "node_profile",
                 "deploy_plan",
@@ -204,6 +239,11 @@ def main() -> int:
     parser.add_argument("--agentplane-run-ref", default="agentplane://runs/fogstack.access/local-dry-run")
     parser.add_argument("--agentplane-ref", default="github://SocioProphet/agentplane")
     parser.add_argument("--requested-by", default="human:operator")
+    parser.add_argument("--policyplane-decision-id", default="policyplane-decision:fogstack.access:local-dry-run")
+    parser.add_argument("--policyplane-decision-ref", default="policyplane://decisions/fogstack.access/local-dry-run")
+    parser.add_argument("--policyplane-ref", default="github://SocioProphet/policy-fabric")
+    parser.add_argument("--policy-subject-ref", default="agentplane://runs/fogstack.access/local-dry-run")
+    parser.add_argument("--policy-reason", default="Dry-run evidence is allowed; live apply remains denied until human approval.")
     args = parser.parse_args()
     record = emit_record(
         args.runtime_adapter,
@@ -213,6 +253,11 @@ def main() -> int:
         args.agentplane_run_ref,
         args.agentplane_ref,
         args.requested_by,
+        args.policyplane_decision_id,
+        args.policyplane_decision_ref,
+        args.policyplane_ref,
+        args.policy_subject_ref,
+        args.policy_reason,
     )
     print(json.dumps(record, indent=2))
     return 0

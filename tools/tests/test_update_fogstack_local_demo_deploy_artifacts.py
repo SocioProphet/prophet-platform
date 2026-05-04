@@ -50,6 +50,7 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert "runtime_dry_run_record_indexed" in summary["checks"]
     assert "runtime_readiness_summary_appended" in summary["checks"]
     assert "agentplane_run_linked" in summary["checks"]
+    assert "policyplane_decision_linked" in summary["checks"]
 
     artifact_index = json.loads((output_dir / "demo-artifacts.index.json").read_text(encoding="utf-8"))
     indexed = {entry["id"]: entry for entry in artifact_index["artifacts"]}
@@ -88,9 +89,17 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
     assert runtime_dry_run["agentplane_run"]["agentplane_ref"] == "github://SocioProphet/agentplane"
     assert runtime_dry_run["agentplane_run"]["requested_by"] == "human:operator"
     assert runtime_dry_run["agentplane_run"]["approval_state"] == "live-apply-requires-human-approval"
+    assert runtime_dry_run["policyplane_decision"]["decision_id"] == "policyplane-decision:fogstack.access:local-dry-run"
+    assert runtime_dry_run["policyplane_decision"]["decision_ref"] == "policyplane://decisions/fogstack.access/local-dry-run"
+    assert runtime_dry_run["policyplane_decision"]["policyplane_ref"] == "github://SocioProphet/policy-fabric"
+    assert runtime_dry_run["policyplane_decision"]["decision"] == "dry-run-allowed"
+    assert runtime_dry_run["policyplane_decision"]["effect"] == "allow-dry-run-deny-live-apply"
+    assert runtime_dry_run["policyplane_decision"]["live_apply_allowed"] is False
+    assert runtime_dry_run["policyplane_decision"]["human_approval_required"] is True
     assert runtime_dry_run["dry_run_result"]["mutated_cluster"] is False
     assert runtime_dry_run["dry_run_result"]["validation_path"] == "contract-and-digest-only"
     assert "agentplane_run" in runtime_dry_run["dry_run_result"]["validated_inputs"]
+    assert "policyplane_decision" in runtime_dry_run["dry_run_result"]["validated_inputs"]
     assert "node_profile" in runtime_dry_run["dry_run_result"]["validated_inputs"]
 
     markdown = (output_dir / "fogstack-local-demo.summary.md").read_text(encoding="utf-8")
@@ -104,6 +113,12 @@ def test_update_fogstack_local_demo_deploy_artifacts(tmp_path: Path) -> None:
         assert "agentplane-run:fogstack.access:local-dry-run" in content
         assert "agentplane://runs/fogstack.access/local-dry-run" in content
         assert "github://SocioProphet/agentplane" in content
+        assert "PolicyPlane decision ID" in content
+        assert "policyplane-decision:fogstack.access:local-dry-run" in content
+        assert "policyplane://decisions/fogstack.access/local-dry-run" in content
+        assert "github://SocioProphet/policy-fabric" in content
+        assert "dry-run-allowed" in content
+        assert "allow-dry-run-deny-live-apply" in content
         assert "live-apply-requires-human-approval" in content
         assert "TurtleTerm" in content
         assert "BearBrowser" in content

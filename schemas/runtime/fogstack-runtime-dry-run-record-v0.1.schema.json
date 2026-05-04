@@ -15,6 +15,7 @@
     "node_profile_ref",
     "node_profile_digest",
     "agentplane_run",
+    "policyplane_decision",
     "deploy_plan_ref",
     "deploy_plan_digest",
     "cluster_readiness_record_ref",
@@ -49,6 +50,22 @@
         "requested_by": { "type": "string", "minLength": 1 },
         "execution_mode": { "const": "dry-run" },
         "approval_state": { "const": "live-apply-requires-human-approval" }
+      },
+      "additionalProperties": false
+    },
+    "policyplane_decision": {
+      "type": "object",
+      "required": ["decision_id", "decision_ref", "policyplane_ref", "subject_ref", "decision", "effect", "reason", "live_apply_allowed", "human_approval_required"],
+      "properties": {
+        "decision_id": { "type": "string", "minLength": 1 },
+        "decision_ref": { "type": "string", "minLength": 1 },
+        "policyplane_ref": { "type": "string", "minLength": 1 },
+        "subject_ref": { "type": "string", "minLength": 1 },
+        "decision": { "const": "dry-run-allowed" },
+        "effect": { "const": "allow-dry-run-deny-live-apply" },
+        "reason": { "type": "string", "minLength": 1 },
+        "live_apply_allowed": { "const": false },
+        "human_approval_required": { "const": true }
       },
       "additionalProperties": false
     },
