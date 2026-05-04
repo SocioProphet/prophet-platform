@@ -120,6 +120,31 @@ spec:
           storageAuthorityRemainsExternal: true
           runtimeConformanceRequiredForMarketData: true
 
+      agent-auth-standards:
+        repo: SocioProphet/socioprophet-agent-standards
+        class: agent-auth-and-identity-profile
+        channel: controlled
+        pin:
+          commit: baed2ca7f9fa07fe1ed9354f9d896fd982c22616
+          tag: null
+        consume:
+          docs:
+            - docs/standards/authentication/001-agent-authentication-session-and-recovery-standard.md
+            - docs/standards/authentication/002-credential-enrollment-and-authenticator-lifecycle-standard.md
+            - docs/standards/authentication/003-enterprise-federation-and-claim-mapping-standard.md
+            - docs/standards/authentication/004-workload-and-service-identity-standard.md
+            - conformance/CONFORMANCE-CRITERIA-0001.md
+          runtime_targets:
+            - apps/gateway
+            - apps/identity-prime
+          generated_artifacts:
+            - contracts/identity/
+            - docs/generated/identity/
+        rules:
+          shadowSpecForbidden: true
+          localProfileOverridesForbidden: true
+          identityRuntimeConformanceRequired: true
+
     reference_inputs:
       identity-prime-reference:
         repo: SocioProphet/identity-is-prime-reference
