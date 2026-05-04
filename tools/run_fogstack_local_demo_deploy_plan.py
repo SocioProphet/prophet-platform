@@ -40,6 +40,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     manifest_dir = output_dir / "kubernetes"
     gitops_dir = output_dir / "gitops"
     gitops_readiness_record = output_dir / "fogstack.access.gitops-readiness.record.json"
+    live_preflight_record = output_dir / "fogstack.access.live-cluster-preflight.record.json"
     runtime_adapter = output_dir / "fogstack.access.local-cluster-runtime-adapter.json"
     runtime_dry_run_record = output_dir / "fogstack.access.runtime-dry-run.record.json"
     check_record = output_dir / "fogstack.access.kubernetes-manifest-check.record.json"
@@ -139,6 +140,15 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
     ])
     run([
         sys.executable,
+        "tools/emit_fogstack_live_cluster_preflight_record.py",
+        "--deploy-plan", str(deploy_plan),
+        "--node-profile", str(node_profile),
+        "--gitops-bundle", str(gitops_dir / "gitops-bundle.json"),
+        "--kubectl", "missing-kubectl-for-ci-safe-fallback",
+        "--output", str(live_preflight_record),
+    ])
+    run([
+        sys.executable,
         "tools/build_fogstack_local_cluster_runtime_adapter.py",
         "--node-profile", str(node_profile),
         "--deploy-plan", str(deploy_plan),
@@ -202,6 +212,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "gitops_deployment": rel(gitops_dir / "manifests" / "deployment.yaml"),
             "gitops_service": rel(gitops_dir / "manifests" / "service.yaml"),
             "gitops_readiness_record": rel(gitops_readiness_record),
+            "live_cluster_preflight_record": rel(live_preflight_record),
             "runtime_adapter": rel(runtime_adapter),
             "runtime_dry_run_record": rel(runtime_dry_run_record),
             "summary": rel(summary_path),
@@ -220,6 +231,7 @@ def build_deploy_demo(output_dir: Path, image: str, port: int) -> dict[str, Any]
             "gitops_bundle_built",
             "gitops_bundle_checked",
             "gitops_readiness_record_emitted",
+            "live_cluster_preflight_record_emitted",
             "runtime_adapter_built",
             "runtime_dry_run_record_emitted",
         ],
@@ -247,6 +259,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"GitOps bundle: {artifacts['gitops_bundle']}",
         f"GitOps application: {artifacts['gitops_application']}",
         f"GitOps readiness record: {artifacts['gitops_readiness_record']}",
+        f"Live cluster preflight record: {artifacts['live_cluster_preflight_record']}",
         f"Runtime adapter: {artifacts['runtime_adapter']}",
         f"Runtime dry-run record: {artifacts['runtime_dry_run_record']}",
         f"Checks passed: {len(summary['checks'])}",
