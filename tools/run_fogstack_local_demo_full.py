@@ -38,6 +38,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     deploy_dir = output_dir / "deploy"
     summary_path = output_dir / "fogstack-local-demo.summary.json"
     deploy_summary_path = deploy_dir / "fogstack.access.deploy-demo.summary.json"
+    node_inventory_path = deploy_dir / "fogstack.access.agent-machine-node-inventory.record.json"
+    immutable_update_path = deploy_dir / "fogstack.access.immutable-update-readiness.record.json"
     gitops_readiness_path = deploy_dir / "fogstack.access.gitops-readiness.record.json"
     runtime_adapter_path = deploy_dir / "fogstack.access.local-cluster-runtime-adapter.json"
     runtime_dry_run_path = deploy_dir / "fogstack.access.runtime-dry-run.record.json"
@@ -104,6 +106,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "local_demo_html": rel(output_dir / "index.html"),
             "artifact_index": rel(artifact_index_path),
             "deploy_summary": rel(deploy_summary_path),
+            "node_inventory_record": rel(node_inventory_path),
+            "immutable_update_readiness_record": rel(immutable_update_path),
             "deploy_plan": rel(deploy_dir / "fogstack.access.deploy-plan.json"),
             "agent_corps_plan": rel(deploy_dir / "fogstack.access.runtime-contract.json"),
             "kubernetes_configmap": rel(deploy_dir / "kubernetes" / "configmap.yaml"),
@@ -125,6 +129,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "local_demo_generated",
             "deploy_plan_generated",
             "deploy_artifacts_integrated",
+            "node_inventory_record_indexed",
+            "immutable_update_readiness_record_indexed",
             "cluster_readiness_record_indexed",
             "gitops_bundle_indexed",
             "gitops_readiness_record_indexed",
@@ -144,6 +150,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Output directory: {summary['output_dir']}",
         f"HTML summary: {artifacts['local_demo_html']}",
         f"Artifact index: {artifacts['artifact_index']}",
+        f"Agent Machine node inventory: {artifacts['node_inventory_record']}",
+        f"Immutable update readiness: {artifacts['immutable_update_readiness_record']}",
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes deployment: {artifacts['kubernetes_deployment']}",
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
