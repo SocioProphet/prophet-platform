@@ -17,6 +17,12 @@ This does **not** mean production parity. The MVP parity claim is bounded to loc
 The canonical one-command MVP parity check is:
 
 ```bash
+make fogstack-parity-readiness
+```
+
+The target wraps:
+
+```bash
 python3 tools/run_fogstack_parity_readiness.py --summary
 ```
 
@@ -100,6 +106,7 @@ The following supporting slices are already merged into `main`:
 - Agent Machine node inventory records
 - full local demo evidence indexing and operator summaries
 - parity readiness checker and one-command parity runner
+- `make fogstack-parity-readiness` canonical operator target
 
 ## Current active frontier
 
@@ -131,6 +138,7 @@ The current local MVP parity path is:
 22. bind runtime dry-run evidence to PolicyPlane decision context
 23. index all MVP-critical artifacts in the full local demo
 24. emit one consolidated FogStack parity readiness record
+25. expose the parity proof through a canonical Makefile target
 
 ## Product-pack readiness matrix
 
@@ -178,6 +186,7 @@ The release/trust/publication/runtime graph now consists of these machine-readab
 - PolicyPlane decision linkage
 - local demo artifact index
 - parity readiness record
+- Makefile parity-readiness target
 
 ## Known post-MVP gaps
 
