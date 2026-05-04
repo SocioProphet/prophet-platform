@@ -5,7 +5,8 @@ canonical_repo: "SocioProphet/prophet-platform"
 parity_posture:
   target: "credible-mvp-ibm-style-parity"
   status: "reached"
-  proof_command: "python3 tools/run_fogstack_parity_readiness.py --summary"
+  proof_command: "make fogstack-parity-readiness"
+  implementation_command: "python3 tools/run_fogstack_parity_readiness.py --summary"
   proof_record: "build/fogstack-local-demo/fogstack-parity-readiness.record.json"
   scope: "local, CI-backed, non-mutating, evidence-based MVP parity"
   not_in_scope:
@@ -27,6 +28,7 @@ packs:
       - "cloudshell-fog"
       - "releases/manifests/fogstack.access-v0.1.manifest.json"
       - "tools/run_fogstack_parity_readiness.py"
+      - "Makefile:fogstack-parity-readiness"
     notes: "Most mature customer-facing surface; now has local deploy, GitOps, runtime dry-run, node inventory, AgentPlane, PolicyPlane, and parity-readiness evidence. Production gaps remain live apply, observability, and external identity/signing."
   - id: "fogstack.knowledge"
     label: "Fog Stack Knowledge"
