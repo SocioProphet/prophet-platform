@@ -5,9 +5,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-MATRIX = ROOT / "releases/evidence/search-orchestrator-academy-multicloud-rollout-matrix.v0.1.json"
-GUIDE = ROOT / "docs/SEARCH_ORCHESTRATOR_ACADEMY_BRIDGE_MULTICLOUD_ROLLOUT_PREP.md"
-TEMPLATE = ROOT / "releases/evidence/search-orchestrator-academy-rollout-evidence.template.json"
+MATRIX = ROOT / "releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json"
+GUIDE = ROOT / "docs/SEARCH_ORCHESTRATOR_MULTICLOUD_ROLLOUT_PREP.md"
+TEMPLATE = ROOT / "releases/evidence/search-orchestrator-multicloud-rollout-evidence.template.json"
 
 REQUIRED_GLOBAL = {
     "aws",
@@ -32,17 +32,18 @@ REQUIRED_REGIONS = {
 
 REQUIRED_EVIDENCE = {
     "rendered_manifests",
-    "argocd_sync",
+    "gitops_sync",
     "healthz",
     "debug_config",
     "debug_metrics",
-    "academy_ingest_query",
-    "lampstand_carrier_artifacts",
+    "workload_ingest_query",
+    "storage_or_carrier_artifacts",
     "rollback_verification",
     "image_digest_pin_verification",
     "secret_or_externalsecret_binding",
     "pvc_storage_class_binding",
     "network_policy_or_cni_exception",
+    "openshift_or_okd_compatibility_check",
 }
 
 REQUIRED_OPENSHIFT = {
@@ -57,6 +58,9 @@ REQUIRED_GUIDE_TERMS = [
     "AWS",
     "IBM Cloud",
     "Oracle Cloud",
+    "Alibaba Cloud",
+    "Huawei Cloud",
+    "Tencent Cloud",
     "OpenShift",
     "OKD",
     "BYOC/self-hosted",
@@ -74,7 +78,7 @@ def main() -> int:
     if missing_global:
         raise SystemExit(f"missing global providers: {sorted(missing_global)}")
 
-    region_map = matrix.get("regional_provider_coverage", {})
+    region_map = matrix.get("regional_and_sovereign_candidates", {})
     missing_regions = REQUIRED_REGIONS.difference(region_map)
     if missing_regions:
         raise SystemExit(f"missing regional provider coverage: {sorted(missing_regions)}")
@@ -101,7 +105,7 @@ def main() -> int:
         if term not in guide:
             raise SystemExit(f"guide missing term: {term}")
 
-    for term in ["template-pending-real-cluster-capture", "rendered_manifests", "rollback_verification"]:
+    for term in ["template-pending-real-provider-capture", "rendered_manifests", "rollback_verification", "openshift_or_okd_compatibility_check"]:
         if term not in template:
             raise SystemExit(f"template missing term: {term}")
 
