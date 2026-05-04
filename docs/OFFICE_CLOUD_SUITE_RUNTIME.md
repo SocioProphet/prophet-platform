@@ -136,6 +136,25 @@ The first runtime contracts should include:
 
 Those contracts should support local desktop and cloud editing paths without binding the product to a single editor implementation or closed provider.
 
+## Current contract paths
+
+Implemented office runtime contract paths:
+
+| Contract | Schema | Example | Purpose |
+|---|---|---|---|
+| Version | `schemas/office/office_version_record.schema.json` | `schemas/office/examples/office_version_record.example.json` | Captures document version lineage, content refs, content hashes, source provenance, and open execution backend. |
+| Writeback | `schemas/office/office_writeback_record.schema.json` | `schemas/office/examples/office_writeback_record.example.json` | Captures WOPI/local saveback operations, lock tokens, base/result versions, conflict state, and receipts. |
+| Policy decision | `schemas/office/office_policy_decision_record.schema.json` | `schemas/office/examples/office_policy_decision_record.example.json` | Captures approval/denial/review posture for edits, sends, publishes, imports, exports, and AI side effects. |
+| Adapter profile | `schemas/office/office_adapter_profile.schema.json` | `schemas/office/examples/office_adapter_profile.example.json` | Captures open runtime adapters and quarantined closed-provider migration/compatibility adapters. |
+
+Validation entrypoint:
+
+```bash
+python3 tools/validate_office_runtime_contracts.py
+```
+
+The adapter profile schema enforces that Google Workspace, Microsoft 365, Microsoft Graph, Apple iCloud, and Apple Notes profiles cannot be enabled by default, cannot be runtime dependencies, and cannot be core authority.
+
 ## Editor posture
 
 The runtime treats LibreOffice and Collabora as editing/conversion engines, not as the total product. The workspace graph, policy fabric, AI orchestration, receipts, collaboration records, and document-control services belong at the platform layer.

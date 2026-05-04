@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_writeback_record.schema.json",
+  "title": "office_writeback_record",
+  "type": "object",
+  "required": [
+    "writeback_id",
+    "document_id",
+    "session_id",
+    "operation",
+    "status",
+    "base_version_id",
+    "source",
+    "execution_backend",
+    "requested_at"
+  ],
+  "properties": {
+    "writeback_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "session_id": {"type": "string"},
+    "operation": {"type": "string", "enum": ["WOPI_PUT_FILE", "WOPI_PUT_RELATIVE_FILE", "LOCAL_SAVE", "CONVERSION_SAVE", "IMPORT_SAVE", "AUTOSAVE"]},
+    "status": {"type": "string", "enum": ["REQUESTED", "ACCEPTED", "REJECTED", "CONFLICT", "COMMITTED", "FAILED", "ROLLED_BACK"]},
+    "base_version_id": {"type": "string"},
+    "result_version_id": {"type": "string"},
+    "lock_token": {"type": "string"},
+    "actor_ref": {"type": "string"},
+    "source": {"type": "string", "enum": ["EDITOR_SESSION", "LOCAL_CLI", "AGENT_ACTION", "MIGRATION_IMPORT", "SYSTEM_WORKFLOW"]},
+    "execution_backend": {"type": "string", "enum": ["SOURCEOS_NATIVE", "LIBREOFFICE", "COLLABORA", "HEADLESS", "MANUAL", "OTHER_OPEN"]},
+    "content_ref": {"type": "string"},
+    "content_hash": {"type": "string", "pattern": "^sha256:[a-fA-F0-9]{64}$"},
+    "policy_decision_ref": {"type": "string"},
+    "receipt_ref": {"type": "string"},
+    "conflict_ref": {"type": "string"},
+    "requested_at": {"type": "string", "format": "date-time"},
+    "committed_at": {"type": "string", "format": "date-time"},
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "string"},
+        "message": {"type": "string"},
+        "retryable": {"type": "boolean"}
+      }
+    },
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

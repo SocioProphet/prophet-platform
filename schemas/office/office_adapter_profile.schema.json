@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_adapter_profile.schema.json",
+  "title": "office_adapter_profile",
+  "type": "object",
+  "required": [
+    "adapter_id",
+    "adapter_type",
+    "provider",
+    "authority_scope",
+    "enabled_by_default",
+    "runtime_dependency",
+    "policy_ref"
+  ],
+  "properties": {
+    "adapter_id": {"type": "string"},
+    "adapter_type": {"type": "string", "enum": ["OPEN_RUNTIME", "COMPATIBILITY_IMPORT", "COMPATIBILITY_EXPORT", "MIGRATION_EVIDENCE", "TEST_FIXTURE"]},
+    "provider": {"type": "string", "enum": ["SOURCEOS", "LIBREOFFICE", "COLLABORA", "ONLYOFFICE", "GOOGLE_WORKSPACE", "MICROSOFT_365", "MICROSOFT_GRAPH", "APPLE_ICLOUD", "APPLE_NOTES", "OTHER"]},
+    "authority_scope": {"type": "string", "enum": ["CORE_AUTHORITY", "EXECUTION_BACKEND", "PROVENANCE_ONLY", "MIGRATION_ONLY", "TEST_ONLY"]},
+    "enabled_by_default": {"type": "boolean"},
+    "runtime_dependency": {"type": "boolean"},
+    "policy_ref": {"type": "string"},
+    "surface_refs": {"type": "array", "items": {"type": "string"}},
+    "capability_refs": {"type": "array", "items": {"type": "string"}},
+    "exodus_profile_ref": {"type": "string"},
+    "notes": {"type": "string"},
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "provider": {
+            "enum": ["GOOGLE_WORKSPACE", "MICROSOFT_365", "MICROSOFT_GRAPH", "APPLE_ICLOUD", "APPLE_NOTES"]
+          }
+        },
+        "required": ["provider"]
+      },
+      "then": {
+        "properties": {
+          "enabled_by_default": {"const": false},
+          "runtime_dependency": {"const": false},
+          "authority_scope": {"enum": ["PROVENANCE_ONLY", "MIGRATION_ONLY", "TEST_ONLY"]},
+          "adapter_type": {"enum": ["COMPATIBILITY_IMPORT", "COMPATIBILITY_EXPORT", "MIGRATION_EVIDENCE", "TEST_FIXTURE"]}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

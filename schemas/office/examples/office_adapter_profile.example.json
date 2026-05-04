@@ -1,0 +1,21 @@
+{
+  "adapter_id": "office-adapter-profile-google-workspace-import",
+  "adapter_type": "MIGRATION_EVIDENCE",
+  "provider": "GOOGLE_WORKSPACE",
+  "authority_scope": "MIGRATION_ONLY",
+  "enabled_by_default": false,
+  "runtime_dependency": false,
+  "policy_ref": "policy://office/closed-provider-quarantine",
+  "surface_refs": [
+    "exodus://providers/google-workspace"
+  ],
+  "capability_refs": [
+    "capability://office/import-metadata-only"
+  ],
+  "exodus_profile_ref": "exodus://provider-control-surface/google-workspace",
+  "notes": "Closed provider profile is migration evidence only, not a runtime authority.",
+  "labels": {
+    "sourceos.closed_provider": "quarantined",
+    "sourceos.default": "disabled"
+  }
+}

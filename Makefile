@@ -36,7 +36,7 @@ lattice-studio-smoke:
 	cd apps/lattice-studio && . .venv/bin/activate && python -m pip install --upgrade pip pytest && PYTHONPATH=src pytest -q tests
 	mkdir -p build/lattice-studio
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-demo-catalog --output-dir build/lattice-studio/catalog
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/demo --output-dir build/lattice-studio/session
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/paas-demo --output-dir build/lattice-studio/session
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-notebook-plane --output-dir build/lattice-studio/notebook-plane
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-workspace-demo --output-dir build/lattice-studio/workspace
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-atlas-context --output-dir build/lattice-studio/atlas
@@ -176,6 +176,10 @@ validate-fogstack:
 
 validate-storage-suite:
 	python3 tools/validate_storage_suite.py
+
+.PHONY: validate-office-runtime-contracts
+validate-office-runtime-contracts:
+	python3 tools/validate_office_runtime_contracts.py
 
 .PHONY: fogstack-local-demo
 fogstack-local-demo:

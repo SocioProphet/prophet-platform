@@ -1,0 +1,23 @@
+{
+  "writeback_id": "office-writeback-demo-0001",
+  "document_id": "office-document-demo-0001",
+  "session_id": "office-session-demo-0001",
+  "operation": "WOPI_PUT_FILE",
+  "status": "COMMITTED",
+  "base_version_id": "office-version-demo-0001",
+  "result_version_id": "office-version-demo-0002",
+  "lock_token": "lock-demo-0001",
+  "actor_ref": "user://demo-reviewer",
+  "source": "EDITOR_SESSION",
+  "execution_backend": "COLLABORA",
+  "content_ref": "sourceos-office://workroom-demo-0001/writeback/office-writeback-demo-0001.odt",
+  "content_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "policy_decision_ref": "policy-decision://office/demo-saveback",
+  "receipt_ref": "receipt://office/writeback-demo-0001",
+  "requested_at": "2026-05-03T22:05:00Z",
+  "committed_at": "2026-05-03T22:05:03Z",
+  "labels": {
+    "sourceos.wopi": "put-file",
+    "sourceos.hot_path": "narrow"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/office/office_policy_decision_record.schema.json",
+  "title": "office_policy_decision_record",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "tenant_id",
+    "actor_ref",
+    "action_type",
+    "decision",
+    "status",
+    "policy_refs",
+    "requested_at"
+  ],
+  "properties": {
+    "decision_id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "document_id": {"type": "string"},
+    "workroom_id": {"type": "string"},
+    "actor_ref": {"type": "string"},
+    "action_type": {"type": "string", "enum": ["EDIT", "SAVE", "EXPORT", "IMPORT", "SHARE", "PUBLISH", "SEND_MAIL", "CREATE_CALENDAR_ITEM", "AI_SUGGESTION", "AI_REWRITE", "MIGRATION_IMPORT"]},
+    "decision": {"type": "string", "enum": ["ALLOW", "DENY", "REQUIRE_REVIEW", "REQUIRE_QUORUM", "DRY_RUN_ONLY"]},
+    "status": {"type": "string", "enum": ["REQUESTED", "ACTIVE", "SUPERSEDED", "EXPIRED", "REVOKED"]},
+    "risk_class": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "REGULATED", "EXTERNAL_SIDE_EFFECT"]},
+    "policy_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "adapter_profile_ref": {"type": "string"},
+    "closed_provider_refs": {"type": "array", "items": {"type": "string"}},
+    "obligation_refs": {"type": "array", "items": {"type": "string"}},
+    "receipt_refs": {"type": "array", "items": {"type": "string"}},
+    "side_effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_publish": {"type": "boolean"},
+        "email_send": {"type": "boolean"},
+        "calendar_mutation": {"type": "boolean"},
+        "closed_provider_write": {"type": "boolean"}
+      }
+    },
+    "requested_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "labels": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

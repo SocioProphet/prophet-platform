@@ -39,9 +39,22 @@ The WOPI host should be backed by:
 
 - `office_document_record`
 - `office_session_record`
-- version and writeback records
-- policy decision records for side effects
+- `office_version_record`
+- `office_writeback_record`
+- `office_policy_decision_record`
+- `office_adapter_profile`
 - office AI receipts and action gating where editor-originating actions trigger AI follow-ons
+
+Concrete runtime schema paths:
+
+- `schemas/office/office_document_record.schema.json`
+- `schemas/office/office_session_record.schema.json`
+- `schemas/office/office_version_record.schema.json`
+- `schemas/office/office_writeback_record.schema.json`
+- `schemas/office/office_policy_decision_record.schema.json`
+- `schemas/office/office_adapter_profile.schema.json`
+
+The version and writeback records are the first durable handoff between WOPI RPC handling and asynchronous extraction, indexing, memory attachment, semantic graph mapping, and AI follow-on actions.
 
 ## Cross-repo integration
 
