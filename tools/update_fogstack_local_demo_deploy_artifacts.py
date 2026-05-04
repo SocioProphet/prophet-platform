@@ -27,6 +27,10 @@ DEPLOY_ARTIFACT_KEYS = {
     "gitops_configmap": "deploy_gitops_configmap",
     "gitops_deployment": "deploy_gitops_deployment",
     "gitops_service": "deploy_gitops_service",
+    "gitops_readiness_record": "deploy_gitops_readiness_record",
+    "live_cluster_preflight_record": "deploy_live_cluster_preflight_record",
+    "runtime_adapter": "deploy_runtime_adapter",
+    "runtime_dry_run_record": "deploy_runtime_dry_run_record",
     "summary": "deploy_summary",
 }
 DEPLOY_ARTIFACT_LABELS = {
@@ -46,6 +50,10 @@ DEPLOY_ARTIFACT_LABELS = {
     "deploy_gitops_configmap": "GitOps ConfigMap",
     "deploy_gitops_deployment": "GitOps Deployment",
     "deploy_gitops_service": "GitOps Service",
+    "deploy_gitops_readiness_record": "GitOps readiness record",
+    "deploy_live_cluster_preflight_record": "Live cluster preflight record",
+    "deploy_runtime_adapter": "Runtime adapter",
+    "deploy_runtime_dry_run_record": "Runtime dry-run record",
     "deploy_summary": "Deploy summary",
 }
 
@@ -93,6 +101,14 @@ def deploy_readiness_rows(summary: dict[str, Any]) -> list[dict[str, Any]]:
             "status": "indexed",
         })
     return rows
+
+
+def live_preflight(summary: dict[str, Any]) -> dict[str, Any]:
+    artifacts = summary.get("artifacts") or {}
+    ref = artifacts.get("deploy_live_cluster_preflight_record")
+    if not isinstance(ref, str):
+        raise SystemExit("ERR: live preflight artifact missing from summary")
+    return load_json(path_from_ref(ref))
 
 
 def build_artifact_index(summary: dict[str, Any]) -> dict[str, Any]:
@@ -144,11 +160,12 @@ def build_artifact_index(summary: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def append_markdown(markdown_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
+def append_markdown(markdown_path: Path, readiness_rows: list[dict[str, Any]], preflight: dict[str, Any]) -> None:
     table_rows = [
         f"| `{row['id']}` | {row['label']} | `{row['ref']}` | `{row['digest']}` | `{row['status']}` |"
         for row in readiness_rows
     ]
+    safety = preflight.get("safety", {})
     section = [
         "",
         "## Deploy readiness",
@@ -157,11 +174,21 @@ def append_markdown(markdown_path: Path, readiness_rows: list[dict[str, Any]]) -
         "|---|---|---|---|---|",
         *table_rows,
         "",
+        "## Live cluster preflight",
+        "",
+        f"- Status: `{preflight.get('status')}`",
+        f"- Mode: `{preflight.get('mode')}`",
+        f"- Namespace: `{preflight.get('namespace')}`",
+        f"- Mutated cluster: `{safety.get('mutated_cluster')}`",
+        f"- Live apply allowed: `{safety.get('live_apply_allowed')}`",
+        f"- Human approval required: `{safety.get('human_approval_required_for_apply')}`",
+        f"- Reason: `{preflight.get('reason')}`",
+        "",
     ]
     markdown_path.write_text(markdown_path.read_text(encoding="utf-8") + "\n".join(section), encoding="utf-8")
 
 
-def append_html(html_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
+def append_html(html_path: Path, readiness_rows: list[dict[str, Any]], preflight: dict[str, Any]) -> None:
     def esc(value: Any) -> str:
         return html.escape(str(value), quote=True)
 
@@ -175,6 +202,7 @@ def append_html(html_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
         "</tr>"
         for row in readiness_rows
     )
+    safety = preflight.get("safety", {})
     section = f"""
     <h2>Deploy readiness</h2>
     <table>
@@ -183,6 +211,16 @@ def append_html(html_path: Path, readiness_rows: list[dict[str, Any]]) -> None:
         {rows}
       </tbody>
     </table>
+    <h2>Live cluster preflight</h2>
+    <dl>
+      <dt>Status</dt><dd><code>{esc(preflight.get('status'))}</code></dd>
+      <dt>Mode</dt><dd><code>{esc(preflight.get('mode'))}</code></dd>
+      <dt>Namespace</dt><dd><code>{esc(preflight.get('namespace'))}</code></dd>
+      <dt>Mutated cluster</dt><dd><code>{esc(safety.get('mutated_cluster'))}</code></dd>
+      <dt>Live apply allowed</dt><dd><code>{esc(safety.get('live_apply_allowed'))}</code></dd>
+      <dt>Human approval required</dt><dd><code>{esc(safety.get('human_approval_required_for_apply'))}</code></dd>
+      <dt>Reason</dt><dd><code>{esc(preflight.get('reason'))}</code></dd>
+    </dl>
 """
     html_text = html_path.read_text(encoding="utf-8")
     html_path.write_text(html_text.replace("\n  </main>", section + "\n  </main>"), encoding="utf-8")
@@ -197,16 +235,17 @@ def update_summary(summary_path: Path, deploy_summary_path: Path) -> dict[str, A
         artifacts[target_key] = deploy_summary["artifacts"][source_key]
 
     checks = summary.setdefault("checks", [])
-    for check in ["node_profile_built", "node_inventory_record_emitted", "immutable_update_readiness_record_emitted", "deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted", "gitops_bundle_built", "gitops_bundle_checked"]:
+    for check in ["node_profile_built", "node_inventory_record_emitted", "immutable_update_readiness_record_emitted", "deploy_plan_built", "kubernetes_manifests_rendered", "kubernetes_manifests_checked", "cluster_readiness_record_emitted", "gitops_bundle_built", "gitops_bundle_checked", "live_cluster_preflight_record_emitted"]:
         if check not in checks:
             checks.append(check)
 
     readiness_rows = deploy_readiness_rows(summary)
+    preflight = live_preflight(summary)
     write_json(summary_path, summary)
     markdown_path = path_from_ref(artifacts["summary_markdown"])
     html_path = path_from_ref(artifacts["summary_html"])
-    append_markdown(markdown_path, readiness_rows)
-    append_html(html_path, readiness_rows)
+    append_markdown(markdown_path, readiness_rows, preflight)
+    append_html(html_path, readiness_rows, preflight)
 
     artifact_index_path = path_from_ref(artifacts["artifact_index"])
     write_json(artifact_index_path, build_artifact_index(summary))
