@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/identity/IdentityProofIngressRecord.v0.1.json",
+  "title": "IdentityProofIngressRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "proof_record_id",
+    "proof_source",
+    "tenant_id",
+    "received_at",
+    "result"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "proof_record_id": {
+      "type": "string"
+    },
+    "proof_source": {
+      "type": "string",
+      "enum": [
+        "first_party_passkey",
+        "enterprise_oidc",
+        "enterprise_saml",
+        "workload_identity",
+        "recovery_flow"
+      ]
+    },
+    "subject_id": {
+      "type": "string"
+    },
+    "tenant_id": {
+      "type": "string"
+    },
+    "issuer_ref": {
+      "type": "string"
+    },
+    "upstream_subject": {
+      "type": "string"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "rejected",
+        "inconclusive"
+      ]
+    },
+    "assurance_context": {
+      "type": "object"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "correlation_id": {
+      "type": "string"
+    }
+  }
+}
