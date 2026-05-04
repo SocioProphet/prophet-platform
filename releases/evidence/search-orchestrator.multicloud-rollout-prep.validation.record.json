@@ -11,12 +11,12 @@
     "tools/validate_search_orchestrator_multicloud_rollout.py",
     ".github/workflows/search-orchestrator-multicloud-rollout.yml"
   ],
-  "coverage": [
-    "global provider matrix",
-    "regional provider matrix",
-    "OpenShift and OKD compatibility surface",
-    "provider evidence template",
-    "dedicated validator and workflow"
+  "evidence": [
+    "provider matrix covers AWS, Azure, Google Cloud, Oracle Cloud, IBM Cloud, Alibaba Cloud, Huawei Cloud, and Tencent Cloud",
+    "regional provider coverage includes North America, South America, Europe, Middle East, Africa, Asia Pacific, and China Mainland",
+    "OpenShift, OKD, and generic Kubernetes compatibility are explicitly modeled",
+    "provider rollout evidence remains template-pending-real-provider-capture until real cluster outputs exist",
+    "multi-cloud rollout prep is validated separately from Academy bridge deployment validation"
   ],
   "gates": [
     "search-orchestrator-multicloud-rollout workflow",
