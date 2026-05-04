@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from tools import validate_office_runtime_contracts
-
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+
+import validate_office_runtime_contracts  # noqa: E402
 
 
 def _load_json(path: Path):
