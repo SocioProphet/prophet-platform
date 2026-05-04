@@ -17,7 +17,8 @@ def test_check_fogstack_parity_readiness(tmp_path: Path) -> None:
     assert record["status"] == "passed"
     assert record["errors"] == []
     checked = {lane["id"] for lane in record["checked_lanes"]}
-    for lane in ["node_inventory", "immutable_update_readiness", "cluster_readiness", "gitops_readiness", "runtime_adapter", "runtime_dry_run", "deploy_plan", "agent_corps_plan", "gitops_bundle", "gitops_application", "gitops_kustomization"]:
+    for lane in ["node_inventory", "immutable_update_readiness", "cluster_readiness", "gitops_readiness", "live_cluster_preflight", "runtime_adapter", "runtime_dry_run", "deploy_plan", "agent_corps_plan", "gitops_bundle", "gitops_application", "gitops_kustomization"]:
         assert lane in checked
-    for artifact_id in ["deploy_runtime_dry_run_record", "deploy_node_inventory_record", "deploy_immutable_update_readiness_record"]:
+    for artifact_id in ["deploy_runtime_dry_run_record", "deploy_node_inventory_record", "deploy_immutable_update_readiness_record", "deploy_live_cluster_preflight_record"]:
         assert artifact_id in record["required_index_ids"]
+    assert "live_cluster_preflight_record" in record["required_summary_artifacts"]
