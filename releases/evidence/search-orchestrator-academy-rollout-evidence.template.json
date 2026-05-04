@@ -1,0 +1,32 @@
+{
+  "evidence_id": "search-orchestrator-academy-rollout-evidence-template",
+  "component": "services/search-orchestrator",
+  "release_lane": "academy-bridge",
+  "status": "template-pending-real-cluster-capture",
+  "cluster_ref": "REPLACE_WITH_CLUSTER_REF",
+  "git_sha": "REPLACE_WITH_DEPLOYED_GIT_SHA",
+  "image_lock_ref": "releases/images/search-orchestrator.image-lock.json",
+  "kustomize_overlay": "infra/k8s/search-orchestrator/overlays/policy",
+  "required_captures": {
+    "rendered_manifests": "REPLACE_WITH_RENDERED_MANIFESTS_ARTIFACT_REF",
+    "argocd_sync": "REPLACE_WITH_ARGOCD_SYNC_ARTIFACT_REF",
+    "healthz": "REPLACE_WITH_HEALTHZ_CAPTURE_REF",
+    "debug_config": "REPLACE_WITH_DEBUG_CONFIG_CAPTURE_REF",
+    "debug_metrics": "REPLACE_WITH_DEBUG_METRICS_CAPTURE_REF",
+    "academy_ingest_query": "REPLACE_WITH_INGEST_QUERY_CAPTURE_REF",
+    "lampstand_carrier_artifacts": "REPLACE_WITH_LAMPSTAND_CARRIER_ARTIFACT_REF",
+    "rollback_verification": "REPLACE_WITH_ROLLBACK_VERIFICATION_REF"
+  },
+  "expected_runtime_modes": {
+    "academy_repository_mode": "lampstand-carrier",
+    "academy_policy_mode": "http-policy-fabric",
+    "image_pinning": "digest-pinned"
+  },
+  "safety_assertions": [
+    "debug config must not expose file paths, endpoint URLs, actor IDs, queries, API keys, or secret values",
+    "debug metrics must expose counters only",
+    "Policy Fabric endpoint must be Secret-backed",
+    "image reference must use ghcr digest form",
+    "rollback verification must preserve Lampstand carrier artifacts unless corruption is confirmed"
+  ]
+}
