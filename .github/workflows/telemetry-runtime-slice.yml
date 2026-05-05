@@ -38,5 +38,6 @@ jobs:
         run: |
           python -m pytest -q \
             apps/evidence-receipts/tests/test_telemetry_runtime.py \
+            apps/evidence-receipts/tests/test_telemetry_runtime_policy_reducer.py \
             apps/evidence-console/tests/test_telemetry_view.py \
             apps/evidence-console/tests/test_http_main.py
