@@ -17,6 +17,8 @@ CLICKHOUSE_SCHEMA_PATH = ROOT / "infra/datastores/clickhouse/cell/0001_personal_
 POLICY_PATH = ROOT / "apps/cell-service/src/cell_service/policy.py"
 SERVICE_PATH = ROOT / "apps/cell-service/src/cell_service/service.py"
 EXTRACTION_PATH = ROOT / "apps/cell-service/src/cell_service/extraction.py"
+FEED_PATH = ROOT / "apps/cell-service/src/cell_service/feed.py"
+PUBLICATION_PATH = ROOT / "apps/cell-service/src/cell_service/publication.py"
 
 EXPECTED_DEFS = {
     "Cell",
@@ -437,6 +439,27 @@ def validate_extraction_artifacts() -> None:
             fail(f"service missing extraction marker: {marker}")
 
 
+def validate_feed_publication_artifacts() -> None:
+    if not FEED_PATH.exists():
+        fail(f"missing feed module: {FEED_PATH.relative_to(ROOT)}")
+    if not PUBLICATION_PATH.exists():
+        fail(f"missing publication module: {PUBLICATION_PATH.relative_to(ROOT)}")
+    if not SERVICE_PATH.exists():
+        fail(f"missing service module: {SERVICE_PATH.relative_to(ROOT)}")
+    feed_text = FEED_PATH.read_text(encoding="utf-8", errors="replace")
+    publication_text = PUBLICATION_PATH.read_text(encoding="utf-8", errors="replace")
+    service_text = SERVICE_PATH.read_text(encoding="utf-8", errors="replace")
+    for marker in ["private_feed_document", "rss_feed_document", "rss", "version"]:
+        if marker not in feed_text:
+            fail(f"feed module missing marker: {marker}")
+    for marker in ["slash_topic_surface", "new_hope_membrane_event", "sherlock_search_packet", "cell_publication_bundle"]:
+        if marker not in publication_text:
+            fail(f"publication module missing marker: {marker}")
+    for marker in ["export_private_feed", "export_rss_feed", "publication_bundle_for_feed_item", "slash-topics+new-hope+sherlock-v1"]:
+        if marker not in service_text:
+            fail(f"service missing feed/publication marker: {marker}")
+
+
 def main() -> None:
     schema = load_json(SCHEMA_PATH)
     fixtures = load_json(FIXTURES_PATH)
@@ -448,6 +471,7 @@ def main() -> None:
     validate_persistence_artifacts()
     validate_policy_artifacts()
     validate_extraction_artifacts()
+    validate_feed_publication_artifacts()
     print("OK: personal intelligence cell validation passed")
 
 
