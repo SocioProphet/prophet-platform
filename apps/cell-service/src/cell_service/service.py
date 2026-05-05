@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from .policy import PolicyEngine, PolicyError, StaticPolicyEngine, require_allowed
 from .repository import CellRepository, InMemoryCellRepository, RepositoryError
 
 
@@ -21,12 +22,14 @@ class ResourceRef:
 class CellService:
     """Minimal Personal Intelligence Cell service.
 
-    The service is repository-backed so the first in-memory lane can be replaced
-    by Postgres/ClickHouse persistence without changing the domain API.
+    The service is repository-backed and policy-gated so the first in-memory lane
+    can be replaced by real platform persistence and PolicyFabric integration
+    without changing the domain API.
     """
 
-    def __init__(self, repository: CellRepository | None = None) -> None:
+    def __init__(self, repository: CellRepository | None = None, policy_engine: PolicyEngine | None = None) -> None:
         self._repo = repository or InMemoryCellRepository()
+        self._policy = policy_engine or StaticPolicyEngine()
 
     def health(self) -> dict[str, str]:
         return {
@@ -34,12 +37,14 @@ class CellService:
             "status": "ok",
             "time": _now(),
             "storage": self._repo.__class__.__name__,
+            "policy": self._policy.__class__.__name__,
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
         self._require(cell, ["id", "owner_ref", "kind", "policy_ref", "memory_ref"])
         if cell["kind"] not in {"personal", "project", "community", "organization", "mission"}:
             raise ServiceError(f"unsupported cell kind: {cell['kind']}")
+        self._require_allowed("cell.create", cell, cell.get("policy_ref"))
         prepared = self._with_timestamps(cell)
         prepared.setdefault("state", "active")
         return self._create("cells", prepared, "Cell")
@@ -55,9 +60,10 @@ class CellService:
             config,
             ["cell_id", "data_location_policy", "sync_policy", "backup_policy", "resource_budget_defaults", "local_first_mode"],
         )
-        self.get_cell(config["cell_id"])
+        cell = self.get_cell(config["cell_id"])
         if not isinstance(config["local_first_mode"], bool):
             raise ServiceError("CellConfig.local_first_mode must be boolean")
+        self._require_allowed("cell.configure", config, cell.get("policy_ref"))
         prepared = deepcopy(config)
         prepared.setdefault("id", f"cell-config:{config['cell_id']}")
         return self._put("cell_configs", config["cell_id"], prepared)
@@ -69,6 +75,7 @@ class CellService:
         self._require(source, ["id", "kind", "uri", "trust_profile", "crawl_profile", "provenance_profile", "policy_ref"])
         if source["kind"] in {"blockchain", "payment_rail", "marketplace", "governance_vote"} and source.get("enabled"):
             raise ServiceError("ledger/payment/governance source adapters must be disabled by default")
+        self._require_allowed("source.create", source, source.get("policy_ref"))
         prepared = deepcopy(source)
         prepared.setdefault("enabled", True)
         return self._create("sources", prepared, "Source")
@@ -84,13 +91,14 @@ class CellService:
             watch,
             ["id", "cell_id", "pattern_refs", "source_scope", "relevance_policy", "notification_policy", "resource_budget", "state"],
         )
-        self.get_cell(watch["cell_id"])
+        cell = self.get_cell(watch["cell_id"])
         if not isinstance(watch["pattern_refs"], list):
             raise ServiceError("Watch.pattern_refs must be a list")
         if not isinstance(watch["source_scope"], list):
             raise ServiceError("Watch.source_scope must be a list")
         for source_id in watch["source_scope"]:
             self.get_source(source_id)
+        self._require_allowed("watch.create", watch, watch.get("relevance_policy") or cell.get("policy_ref"))
         prepared = self._with_timestamps(watch)
         return self._create("watches", prepared, "Watch")
 
@@ -107,6 +115,7 @@ class CellService:
         self._require(pattern, ["id", "watch_id", "pattern_kind", "raw_expression", "version"])
         watch = self.get_watch(pattern["watch_id"])
         self.validate_watch_pattern(pattern)
+        self._require_allowed("watch_pattern.create", pattern, watch.get("relevance_policy"))
         prepared = deepcopy(pattern)
         stored = self._create("watch_patterns", prepared, "WatchPattern")
         if stored["id"] not in watch["pattern_refs"]:
@@ -160,10 +169,11 @@ class CellService:
     def ingest_signal(self, signal: dict[str, Any]) -> dict[str, Any]:
         self._require(signal, ["id", "cell_id", "source_id", "watch_id", "observed_at", "evidence_refs", "policy_status"])
         self.get_cell(signal["cell_id"])
-        self.get_source(signal["source_id"])
+        source = self.get_source(signal["source_id"])
         self.get_watch(signal["watch_id"])
         if not signal.get("evidence_refs"):
             raise ServiceError("Signal.evidence_refs must be non-empty")
+        self._require_allowed("signal.ingest", signal, source.get("policy_ref"))
         prepared = deepcopy(signal)
         scored = self.score_signal(prepared)
         return self._create("signals", scored, "Signal")
@@ -182,21 +192,27 @@ class CellService:
         return prepared
 
     def emit_feed_item(self, feed_item: dict[str, Any]) -> dict[str, Any]:
-        self._require(feed_item, ["id", "cell_id", "signal_id", "feed_kind", "policy_decision", "created_at"])
+        self._require(feed_item, ["id", "cell_id", "signal_id", "feed_kind", "created_at"])
         self.get_cell(feed_item["cell_id"])
         self._get("signals", feed_item["signal_id"], "Signal")
-        self._require_policy_decision(feed_item["policy_decision"])
-        return self._create("feed_items", feed_item, "FeedItem")
+        decision = self._require_allowed("feed_item.emit", feed_item, feed_item.get("target_ref") or feed_item.get("policy_ref"))
+        prepared = deepcopy(feed_item)
+        prepared["policy_decision"] = decision
+        self._require_policy_decision(prepared["policy_decision"])
+        return self._create("feed_items", prepared, "FeedItem")
 
     def append_intent_event(self, intent_event: dict[str, Any]) -> dict[str, Any]:
-        self._require(intent_event, ["id", "cell_id", "actor_ref", "intent_text", "structured_intent", "policy_decision", "created_at"])
+        self._require(intent_event, ["id", "cell_id", "actor_ref", "intent_text", "structured_intent", "created_at"])
         self.get_cell(intent_event["cell_id"])
         if not intent_event["intent_text"]:
             raise ServiceError("IntentEvent.intent_text must be non-empty")
         if not isinstance(intent_event["structured_intent"], dict):
             raise ServiceError("IntentEvent.structured_intent must be object")
-        self._require_policy_decision(intent_event["policy_decision"])
-        return self._create("intent_events", intent_event, "IntentEvent")
+        decision = self._require_allowed("intent_event.append", intent_event, intent_event.get("policy_ref"))
+        prepared = deepcopy(intent_event)
+        prepared["policy_decision"] = decision
+        self._require_policy_decision(prepared["policy_decision"])
+        return self._create("intent_events", prepared, "IntentEvent")
 
     def record_feedback_event(self, feedback_event: dict[str, Any]) -> dict[str, Any]:
         self._require(feedback_event, ["id", "cell_id", "signal_id", "actor_ref", "action", "created_at"])
@@ -204,15 +220,17 @@ class CellService:
         self._get("signals", feedback_event["signal_id"], "Signal")
         if feedback_event["action"] not in {"follow", "mark_relevant", "mark_irrelevant", "delete", "mute_source", "promote_source", "refine_watch", "share", "save", "dismiss"}:
             raise ServiceError(f"unsupported FeedbackEvent.action: {feedback_event['action']}")
+        self._require_allowed("feedback_event.record", feedback_event, None)
         return self._create("feedback_events", feedback_event, "FeedbackEvent")
 
     def export_cell_archive(self, archive: dict[str, Any]) -> dict[str, Any]:
         self._require(archive, ["id", "cell_id", "schema_version", "manifest", "created_at"])
-        self.get_cell(archive["cell_id"])
+        cell = self.get_cell(archive["cell_id"])
         if not isinstance(archive["manifest"], dict):
             raise ServiceError("CellArchive.manifest must be object")
         if not archive.get("restore_dry_run_report_ref"):
             raise ServiceError("CellArchive.restore_dry_run_report_ref is required for first runtime lane")
+        self._require_allowed("cell_archive.export", archive, archive.get("redaction_policy_ref") or cell.get("policy_ref"))
         return self._create("cell_archives", archive, "CellArchive")
 
     def run_loop_contract(self, loop: dict[str, Any]) -> dict[str, Any]:
@@ -245,6 +263,12 @@ class CellService:
         score = trust_profile.get("default_trust_score", 0.5)
         self._validate_score("source.trust_profile.default_trust_score", score)
         return float(score)
+
+    def _require_allowed(self, operation: str, resource: dict[str, Any], policy_ref: str | None) -> dict[str, Any]:
+        try:
+            return require_allowed(self._policy.decide(operation, resource, policy_ref), operation)
+        except PolicyError as exc:
+            raise ServiceError(str(exc)) from exc
 
     def _create(self, collection: str, obj: dict[str, Any], label: str) -> dict[str, Any]:
         try:
