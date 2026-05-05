@@ -26,6 +26,16 @@ class InMemoryWOPIStore:
         self._sessions[document_id] = state
         return state
 
+    def refresh_lock(self, document_id: str) -> SessionState | None:
+        state = self._sessions.get(document_id)
+        if state is None:
+            return None
+        state.updated_at = datetime.now(timezone.utc).isoformat()
+        return state
+
+    def release_lock(self, document_id: str) -> SessionState | None:
+        return self._sessions.pop(document_id, None)
+
     def writeback(self, document_id: str) -> SessionState:
         state = self._sessions.get(document_id)
         if state is None:
