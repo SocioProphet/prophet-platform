@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/agent-action-trace/0.1.0/agent-action-trace-conformance-report.schema.json",
+  "title": "AgentActionTraceConformanceReport",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "prophet-platform.socioprophet.org/v0.1"},
+    "kind": {"const": "AgentActionTraceConformanceReport"},
+    "metadata": {
+      "type": "object",
+      "required": ["reportId", "profileRef", "standardsPin"],
+      "properties": {
+        "reportId": {"type": "string"},
+        "profileRef": {"type": "string"},
+        "standardsPin": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["implementationRef", "ontologyRef", "bootstrapValidatorRef", "overallStatus", "checks"],
+      "properties": {
+        "implementationRef": {"type": "string"},
+        "ontologyRef": {"type": "string"},
+        "bootstrapValidatorRef": {"type": "string"},
+        "overallStatus": {"type": "string", "enum": ["pass", "warn", "fail"]},
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "status", "evidenceRef"],
+            "properties": {
+              "id": {"type": "string"},
+              "status": {"type": "string", "enum": ["pass", "warn", "fail"]},
+              "evidenceRef": {"type": "string"},
+              "summary": {"type": "string"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

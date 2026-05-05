@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/agent-action-trace/0.1.0/agent-trace-record.schema.json",
+  "title": "AgentTraceRecord",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "prophet-platform.socioprophet.org/v0.1"},
+    "kind": {"const": "AgentTraceRecord"},
+    "metadata": {
+      "type": "object",
+      "required": ["recordId", "profileRef", "standardsRef"],
+      "properties": {
+        "recordId": {"type": "string"},
+        "profileRef": {"type": "string"},
+        "standardsRef": {"type": "string"},
+        "ontologyRef": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["traceId", "pattern", "traceKind", "medium", "timestamp", "traceIsAuthority"],
+      "properties": {
+        "traceId": {"type": "string"},
+        "pattern": {"type": "string", "enum": ["ContractNet", "PubSub", "ContractNetPubSubBridge"]},
+        "traceKind": {"type": "string"},
+        "medium": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "refActionId": {"type": "string"},
+        "taskId": {"type": "string"},
+        "topicId": {"type": "string"},
+        "messageId": {"type": "string"},
+        "policyRef": {"type": "string"},
+        "receiptRef": {"type": "string"},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "traceIsAuthority": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

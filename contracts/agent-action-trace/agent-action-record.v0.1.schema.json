@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/agent-action-trace/0.1.0/agent-action-record.schema.json",
+  "title": "AgentActionRecord",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {"const": "prophet-platform.socioprophet.org/v0.1"},
+    "kind": {"const": "AgentActionRecord"},
+    "metadata": {
+      "type": "object",
+      "required": ["recordId", "profileRef", "standardsRef"],
+      "properties": {
+        "recordId": {"type": "string"},
+        "profileRef": {"type": "string"},
+        "standardsRef": {"type": "string"},
+        "ontologyRef": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "spec": {
+      "type": "object",
+      "required": ["agentSubjectRef", "actionId", "actionType", "fromStateRef", "toStateRef", "timestamp", "policyRef", "receiptRef"],
+      "properties": {
+        "agentSubjectRef": {"type": "string"},
+        "actionId": {"type": "string"},
+        "actionType": {"type": "string"},
+        "fromStateRef": {"type": "string"},
+        "toStateRef": {"type": "string"},
+        "timestamp": {"type": "string", "format": "date-time"},
+        "policyRef": {"type": "string"},
+        "receiptRef": {"type": "string"},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}},
+        "traceRefs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

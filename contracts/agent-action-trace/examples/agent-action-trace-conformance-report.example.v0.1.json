@@ -1,0 +1,29 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v0.1",
+  "kind": "AgentActionTraceConformanceReport",
+  "metadata": {
+    "reportId": "agent-action-trace-conformance-0001",
+    "profileRef": "github://SocioProphet/socioprophet-agent-standards/docs/standards/agent-plane/001-agent-action-trace-conformance-profile.md",
+    "standardsPin": "97e3f49ec4b27349f532db27ebaad618d4f9520c"
+  },
+  "spec": {
+    "implementationRef": "github://SocioProphet/prophet-platform/apps/agentplane",
+    "ontologyRef": "github://SocioProphet/ontogenesis/Middle/action-ontology.ttl",
+    "bootstrapValidatorRef": "github://SocioProphet/socioprophet-standards-storage/tools/action_ontology_validate_all.sh",
+    "overallStatus": "pass",
+    "checks": [
+      {
+        "id": "trace-is-evidence-not-authority",
+        "status": "pass",
+        "evidenceRef": "evidence://platform/action-trace/trace-record-0001",
+        "summary": "Trace records preserve coordination evidence without granting authority."
+      },
+      {
+        "id": "policy-and-receipt-refs-present",
+        "status": "pass",
+        "evidenceRef": "receipt://platform/action-trace/action-record-0001",
+        "summary": "Action and trace records include policy and receipt references."
+      }
+    ]
+  }
+}
