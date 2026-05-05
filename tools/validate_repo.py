@@ -45,6 +45,10 @@ def run_personal_intelligence_cell_validation() -> None:
     run_optional_validator("tools/validate_personal_intelligence_cell.py", "Personal Intelligence Cell validation failed")
 
 
+def run_prophet_understand_validation() -> None:
+    run_optional_validator("tools/validate_prophet_understand.py", "Prophet Understand repo intelligence validation failed")
+
+
 def run_cell_service_smoke() -> None:
     run_optional_validator("tools/smoke_cell_service_loop.py", "Cell service loop smoke failed")
 
@@ -86,6 +90,7 @@ for rel in [
 
 run_professional_intelligence_validation()
 run_personal_intelligence_cell_validation()
+run_prophet_understand_validation()
 run_cell_service_smoke()
 
 print("OK: validate passed")
