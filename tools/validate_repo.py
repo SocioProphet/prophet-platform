@@ -37,6 +37,14 @@ def run_professional_intelligence_validation() -> None:
             fail("Professional Intelligence validation failed")
 
 
+def run_personal_intelligence_cell_validation() -> None:
+    validator = ROOT / "tools/validate_personal_intelligence_cell.py"
+    if validator.exists():
+        result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
+        if result.returncode != 0:
+            fail("Personal Intelligence Cell validation failed")
+
+
 for rel in REQUIRED_DIRS:
     if not (ROOT / rel).exists():
         fail(f"missing required directory: {rel}")
@@ -73,5 +81,6 @@ for rel in [
         fail(f"missing imported source manifest: {rel}")
 
 run_professional_intelligence_validation()
+run_personal_intelligence_cell_validation()
 
 print("OK: validate passed")
