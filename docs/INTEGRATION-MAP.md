@@ -28,6 +28,7 @@ Pinned upstream inputs include:
 - `apps/semantic-bridge` -> imported contract validation lane for envelope and membrane shapes
 - `apps/zone-router` -> zone-aware publication and topic-resolution lane
 - `apps/evidence-receipts` -> thin platform reader for emitted artifact bundles across current producer layouts, with gateway-read proxy support
+- `apps/openai-research-mcp` -> research MCP runtime starter
 
 ## Data and schema anchors
 
