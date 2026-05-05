@@ -12,7 +12,7 @@ This document binds the Personal Intelligence Cell standard into `prophet-platfo
 The runtime lane proves this loop:
 
 ```text
-create cell -> configure cell -> add source -> add typed watch pattern -> ingest source item -> extract typed variables -> create signal -> score novelty/relevance/confidence/trust -> policy check -> emit feed item -> append intent event -> receive feedback event -> update watch/source/reputation state -> export archive
+create cell -> configure cell -> add source -> add typed watch pattern -> ingest source item -> extract typed variables -> create signal -> score novelty/relevance/confidence/trust -> policy check -> emit feed item -> append intent event -> receive feedback event -> update watch/source/reputation state -> export archive -> publish private/RSS feed -> publish slash-topic/New-Hope/Sherlock surfaces
 ```
 
 ## Runtime placement
@@ -49,6 +49,11 @@ The first service pass must support these resources:
 - `FeedItem`
 - `ChannelAdapter`
 - `CellArchive`
+- `PrivateFeedDocument`
+- `RssFeedDocument`
+- `SlashTopicSurface`
+- `NewHopeMembraneEvent`
+- `SherlockSearchPacket`
 
 ## API surface
 
@@ -76,6 +81,12 @@ cell.signal.v1/Signal.Score
 cell.signal.v1/Signal.Get
 cell.feed.v1/FeedItem.Emit
 cell.feed.v1/FeedItem.List
+cell.feed.v1/PrivateFeed.Export
+cell.feed.v1/RssFeed.Export
+cell.publication.v1/PublicationBundle.Build
+cell.publication.v1/SlashTopicSurface.Build
+cell.publication.v1/NewHopeMembraneEvent.Build
+cell.publication.v1/SherlockSearchPacket.Build
 cell.feedback.v1/FeedbackEvent.Record
 cell.intent.v1/IntentEvent.Append
 cell.intent.v1/IntentEvent.ReplayDryRun
@@ -140,6 +151,9 @@ observe_source
 remember_signal
 share_signal
 publish_feed_item
+publish_slash_topic_surface
+publish_new_hope_membrane_event
+publish_sherlock_search_packet
 notify_actor
 delegate_to_peer
 use_channel_adapter
@@ -194,6 +208,34 @@ Initial scoring can be heuristic:
 - confidence: extraction quality + evidence quality;
 - source trust: source profile default or learned trust;
 - reputation effects: empty or stubbed until reputation lane lands.
+
+## Feed and publication bridges
+
+`FeedItem` is not the final surface. A governed cell feed item must be exportable into all first-class discovery and commons surfaces:
+
+1. `PrivateFeedDocument`
+   - canonical JSON feed for the owning cell;
+   - includes policy decision, signal summary, evidence refs, scores, and extractions.
+
+2. `RssFeedDocument`
+   - RSS 2.0-compatible XML derived from the private feed;
+   - intended for user-controlled subscriptions and low-friction interoperability.
+
+3. `SlashTopicSurface`
+   - topic-scoped publication record;
+   - maps cell/watch/signal/feed lineage into a governed `/cell/...` topic ref;
+   - preserves policy decision refs and evidence refs.
+
+4. `NewHopeMembraneEvent`
+   - carrier/receptor/membrane event for commons/news/messaging semantics;
+   - maps policy decision to membrane outcome: allow -> admit, deny -> reject, quarantine -> quarantine, review/redact -> hold;
+   - preserves claim/citation/entity and lineage fields.
+
+5. `SherlockSearchPacket`
+   - search packet compatible with Sherlock's search/discovery lane;
+   - maps the signal to a workroom-scoped result with confidence, freshness, citation refs, evidence refs, and policy decision refs.
+
+This keeps Personal Intelligence Cell output aligned with slash-topics, New Hope membranes, and Sherlock Search from the first feed/export milestone.
 
 ## Feedback loop
 
@@ -267,6 +309,10 @@ Each fixture should prove:
 - score generation;
 - policy gate;
 - feed item;
+- private/RSS feed export;
+- slash-topic surface;
+- New Hope membrane event;
+- Sherlock search packet;
 - feedback event.
 
 ## Implementation milestones
@@ -306,7 +352,15 @@ Each fixture should prove:
 - add CellArchive.RestoreDryRun;
 - make smoke test cover export.
 
-### Milestone 6: Lampstand adapter
+### Milestone 6: feed and publication bridges
+
+- export private JSON feed;
+- export RSS 2.0-compatible feed;
+- build slash-topic surface;
+- build New Hope membrane event;
+- build Sherlock search packet.
+
+### Milestone 7: Lampstand adapter
 
 - integrate Lampstand as first bounded Source adapter;
 - preserve evidence and provenance artifacts;
