@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-live-apply-plan-record-v0.1.schema.json",
+  "title": "FogStackLiveApplyPlanRecord",
+  "type": "object",
+  "required": ["kind", "schema_version", "status", "mode", "bundle_id", "version", "namespace", "target", "deploy_plan_ref", "deploy_plan_digest", "live_preflight_ref", "live_preflight_digest", "live_preflight_status", "agentplane", "policyplane", "safety", "planned_resources", "blockers", "source_artifacts"],
+  "properties": {
+    "kind": { "const": "FogStackLiveApplyPlanRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "blocked"] },
+    "mode": { "const": "plan-only" },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "namespace": { "type": "string", "minLength": 1 },
+    "target": { "type": "string", "minLength": 1 },
+    "deploy_plan_ref": { "type": "string", "minLength": 1 },
+    "deploy_plan_digest": { "$ref": "#/$defs/digest" },
+    "live_preflight_ref": { "type": "string", "minLength": 1 },
+    "live_preflight_digest": { "$ref": "#/$defs/digest" },
+    "live_preflight_status": { "enum": ["passed", "blocked"] },
+    "agentplane": {
+      "type": "object",
+      "required": ["agentplane_ref", "requested_by", "mode", "future_execution_run_required"],
+      "properties": {
+        "agentplane_ref": { "type": "string", "minLength": 1 },
+        "requested_by": { "type": "string", "minLength": 1 },
+        "mode": { "const": "plan-only" },
+        "future_execution_run_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "policyplane": {
+      "type": "object",
+      "required": ["policyplane_ref", "decision", "future_execute_decision_required", "human_approval_required"],
+      "properties": {
+        "policyplane_ref": { "type": "string", "minLength": 1 },
+        "decision": { "const": "allow-plan-deny-run" },
+        "future_execute_decision_required": { "const": true },
+        "human_approval_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "safety": {
+      "type": "object",
+      "required": ["plan_only", "run_performed", "mutated_cluster", "live_apply_allowed", "future_approval_record_required", "rollback_plan_required"],
+      "properties": {
+        "plan_only": { "const": true },
+        "run_performed": { "const": false },
+        "mutated_cluster": { "const": false },
+        "live_apply_allowed": { "const": false },
+        "future_approval_record_required": { "const": true },
+        "rollback_plan_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "planned_resources": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "source_artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" }, "minItems": 2 }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artifact": {
+      "type": "object",
+      "required": ["id", "ref", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "ref": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
