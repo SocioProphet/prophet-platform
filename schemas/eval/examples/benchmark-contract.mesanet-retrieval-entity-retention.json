@@ -1,0 +1,46 @@
+{
+  "benchmark_contract_id": "bench.mesanet.retrieval_entity_retention.v0",
+  "candidate_id": "mesanet-fla",
+  "workload_family": "retrieval_trace_replay",
+  "scenario_id": "scenario.retrieval_entity_retention.synthetic.v0",
+  "dataset_ref": "fixture://eval/retrieval_entity_retention.synthetic.v0",
+  "baselines": [
+    "transformer_attention_control",
+    "mamba2_ssm_control",
+    "gated_deltanet_linear_control"
+  ],
+  "required_metric_definition_ids": [
+    "md_answer_correctness",
+    "md_citation_grounding_precision",
+    "md_entity_retention_accuracy",
+    "md_prefill_latency_ms",
+    "md_decode_latency_ms",
+    "md_peak_memory_mb",
+    "md_cg_iteration_sensitivity"
+  ],
+  "context_slice_id": "ctx.retrieval_trace.medium_text.tool_assistant.v0",
+  "risk_tier": "medium",
+  "autonomy_tier": "tool_using_assistant",
+  "minimum_trial_count": 30,
+  "evidence_requirements": [
+    "metric_facts",
+    "event_envelope",
+    "evidence_receipt",
+    "replay_artifact_refs",
+    "supply_chain_lock"
+  ],
+  "failure_modes_to_probe": [
+    "sparse_long_range_entity_loss",
+    "exact_quote_loss",
+    "citation_binding_drift",
+    "policy_boundary_forgetting",
+    "cg_iteration_latency_variance"
+  ],
+  "runtime_controls": {
+    "network_access": "disabled",
+    "dependency_resolution": "pinned_before_run",
+    "max_cg_step_training": [10, 20, 30],
+    "max_cg_step_decoding": [10, 20, 30],
+    "sequence_lengths": [2048, 8192, 32768]
+  }
+}
