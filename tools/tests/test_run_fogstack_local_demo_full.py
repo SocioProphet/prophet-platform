@@ -34,6 +34,27 @@ REQUIRED_FULL_ARTIFACTS = {
 }
 
 
+REQUIRED_STATE_COHERENCE_REPO_REFS = {
+    "github://SocioProphet/prophet-platform",
+    "github://SocioProphet/sociosphere",
+    "github://SourceOS-Linux/sourceos-syncd",
+    "github://SourceOS-Linux/agent-machine",
+    "github://SourceOS-Linux/BearBrowser",
+    "github://SocioProphet/guardrail-fabric",
+    "github://SocioProphet/agentplane",
+    "github://SocioProphet/ontogenesis",
+}
+
+
+REQUIRED_STATE_COHERENCE_SURFACES = {
+    "sourceos-state-integrity-to-supporting-evidence-plane",
+    "guardrail-decision-abi-to-policy-boundary",
+    "agent-machine-node-profile-to-runtime-adapter",
+    "runtime-dry-run-to-agentplane-run-linkage",
+    "runtime-dry-run-to-policyplane-decision-linkage",
+}
+
+
 def load(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
@@ -51,7 +72,9 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
 
     assert "FogStack full local demo passed." in proc.stdout
     assert "Live cluster preflight record:" in proc.stdout
-    assert "Checks passed: 12" in proc.stdout
+    assert "State coherence posture: compressed-estate-demo-coherence" in proc.stdout
+    assert "State coherence repo refs: 8" in proc.stdout
+    assert "Checks passed: 13" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     full_summary = load(full_summary_path)
@@ -59,8 +82,18 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert full_summary["status"] == "passed"
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
     assert "live_cluster_preflight_record_indexed" in full_summary["checks"]
+    assert "state_coherence_surfaces_bound" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
+
+    state_coherence = full_summary["state_coherence"]
+    assert state_coherence["kind"] == "FogStackStateCoherenceSummary"
+    assert state_coherence["status"] == "bounded-local-demo-ready"
+    assert state_coherence["production_boundary"].startswith("non-mutating local proof")
+    repo_refs = {entry["repo_ref"] for entry in state_coherence["repo_refs"]}
+    assert REQUIRED_STATE_COHERENCE_REPO_REFS == repo_refs
+    assert REQUIRED_STATE_COHERENCE_SURFACES.issubset(set(state_coherence["integration_surfaces"]))
+    assert all(entry["demo_binding"] for entry in state_coherence["repo_refs"])
 
     live_preflight = load(Path(full_summary["artifacts"]["live_cluster_preflight_record"]))
     assert live_preflight["kind"] == "FogStackLiveClusterPreflightRecord"
