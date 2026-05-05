@@ -29,20 +29,24 @@ def fail(msg: str) -> None:
     raise SystemExit(2)
 
 
-def run_professional_intelligence_validation() -> None:
-    validator = ROOT / "tools/validate_professional_intelligence.py"
+def run_optional_validator(path: str, failure_message: str) -> None:
+    validator = ROOT / path
     if validator.exists():
         result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
         if result.returncode != 0:
-            fail("Professional Intelligence validation failed")
+            fail(failure_message)
+
+
+def run_professional_intelligence_validation() -> None:
+    run_optional_validator("tools/validate_professional_intelligence.py", "Professional Intelligence validation failed")
 
 
 def run_personal_intelligence_cell_validation() -> None:
-    validator = ROOT / "tools/validate_personal_intelligence_cell.py"
-    if validator.exists():
-        result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
-        if result.returncode != 0:
-            fail("Personal Intelligence Cell validation failed")
+    run_optional_validator("tools/validate_personal_intelligence_cell.py", "Personal Intelligence Cell validation failed")
+
+
+def run_cell_service_smoke() -> None:
+    run_optional_validator("tools/smoke_cell_service_loop.py", "Cell service loop smoke failed")
 
 
 for rel in REQUIRED_DIRS:
@@ -82,5 +86,6 @@ for rel in [
 
 run_professional_intelligence_validation()
 run_personal_intelligence_cell_validation()
+run_cell_service_smoke()
 
 print("OK: validate passed")
