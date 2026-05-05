@@ -27,3 +27,13 @@ class ForbiddenError(ResearchMcpError):
 class DocumentNotFoundError(ResearchMcpError):
     def __init__(self, message: str = "document not found"):
         super().__init__("document_not_found", message, 404)
+
+
+class BackendUnavailableError(ResearchMcpError):
+    def __init__(self, message: str = "backend unavailable"):
+        super().__init__("backend_unavailable", message, 502)
+
+
+class BackendProtocolError(ResearchMcpError):
+    def __init__(self, message: str = "backend protocol error"):
+        super().__init__("backend_protocol_error", message, 502)
