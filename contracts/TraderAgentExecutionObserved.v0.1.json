@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/TraderAgentExecutionObserved.v0.1.json",
+  "title": "TraderAgentExecutionObserved",
+  "type": "object",
+  "required": [
+    "version",
+    "event_id",
+    "observed_at",
+    "strategy_run_ref",
+    "model_ref",
+    "feature_snapshot_ref",
+    "market_window_ref",
+    "risk_policy_ref",
+    "order_intent_ref",
+    "execution_ref",
+    "venue_ref",
+    "trace_ref",
+    "projection_family"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "observed_at": { "type": "string" },
+    "strategy_run_ref": { "type": "string" },
+    "model_ref": { "type": "string" },
+    "feature_snapshot_ref": { "type": "string" },
+    "market_window_ref": { "type": "string" },
+    "risk_policy_ref": { "type": "string" },
+    "order_intent_ref": { "type": "string" },
+    "execution_ref": { "type": "string" },
+    "venue_ref": { "type": "string" },
+    "portfolio_scope_ref": { "type": "string" },
+    "post_trade_evaluation_ref": { "type": "string" },
+    "replay_ref": { "type": "string" },
+    "trace_ref": { "type": "string" },
+    "projection_family": { "const": "trader_agent_execution" },
+    "outcome": {
+      "type": "string",
+      "enum": ["created", "acknowledged", "filled", "rejected", "cancelled", "risk_blocked", "kill_switched"]
+    },
+    "slippage_bps": { "type": "number" },
+    "risk_controls": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["hash", "algo"],
+      "properties": {
+        "hash": { "type": "string" },
+        "algo": { "type": "string", "enum": ["sha256", "blake3"] }
+      }
+    }
+  }
+}
