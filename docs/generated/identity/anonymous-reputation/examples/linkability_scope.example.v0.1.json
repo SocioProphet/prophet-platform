@@ -1,0 +1,14 @@
+{
+  "version": "0.1",
+  "scope_id": "LINK-SCOPE-ALEXANDRIAN-REVIEW-0001",
+  "created_at": "2026-05-05T00:00:00Z",
+  "scope_type": "guild",
+  "scope_ref": "GUILD-ALEXANDRIAN-REASONING",
+  "linkability_policy": "public_within_scope",
+  "revocation_supported": true,
+  "verifier_local_revocation_supported": true,
+  "trace_open_authority": {
+    "authority_ref": "AUTHORITY-CONSTITUTIONAL-PANEL-0001",
+    "trigger_policy_ref": "POLICY-ALEXANDRIAN-TRACE-OPEN-0001"
+  }
+}
