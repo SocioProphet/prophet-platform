@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document prepares Search Orchestrator for later rollout across hyperscale, sovereign, regional, OpenShift-compatible, OKD-compatible, and bring-your-own-cloud Kubernetes environments.
+This document prepares Search Orchestrator for later rollout across hyperscale, sovereign, regional, OpenShift-compatible, OKD-compatible, and BYOC/self-hosted Kubernetes environments.
 
 This is not live rollout evidence. It is the provider-neutral preparation surface. Real production completion still requires actual cluster captures.
 
@@ -106,6 +106,10 @@ Before any provider rollout:
 5. Verify OpenShift/OKD compatibility constraints.
 6. Verify runtime debug endpoints redact paths, URLs, actors, queries, and secrets.
 7. Verify rollback and artifact retention policy.
+
+## BYOC/self-hosted target
+
+BYOC/self-hosted deployment is a first-class target. It covers customer-owned Kubernetes, local/fog clusters, private OpenShift or OKD, and governed storage substrates such as Ceph, Longhorn, TopoLVM, NFS, or cloud-adjacent CSI backends.
 
 ## Completion standard
 
