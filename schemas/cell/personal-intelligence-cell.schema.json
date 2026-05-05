@@ -1,0 +1,291 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://standards.socioprophet.org/schemas/personal-intelligence-cell.schema.json",
+  "title": "SocioProphet Personal Intelligence Cell",
+  "description": "Normative contract bundle for governed personal, project, community, organization, and mission intelligence cells.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/Cell" },
+    { "$ref": "#/$defs/CellConfig" },
+    { "$ref": "#/$defs/Watch" },
+    { "$ref": "#/$defs/WatchPattern" },
+    { "$ref": "#/$defs/Source" },
+    { "$ref": "#/$defs/Signal" },
+    { "$ref": "#/$defs/Peer" },
+    { "$ref": "#/$defs/ReputationEvent" },
+    { "$ref": "#/$defs/IntentEvent" },
+    { "$ref": "#/$defs/FeedbackEvent" },
+    { "$ref": "#/$defs/FeedItem" },
+    { "$ref": "#/$defs/ChannelAdapter" },
+    { "$ref": "#/$defs/CellArchive" }
+  ],
+  "$defs": {
+    "Ref": { "type": "string", "minLength": 1, "description": "Opaque reference to an identity, policy, memory, evidence, source, or runtime object." },
+    "Timestamp": { "type": "string", "format": "date-time" },
+    "Score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "PolicyDecision": {
+      "type": "object",
+      "required": ["decision", "policy_ref", "decided_at"],
+      "properties": {
+        "decision": { "enum": ["allow", "deny", "quarantine", "review_required", "redact"] },
+        "policy_ref": { "$ref": "#/$defs/Ref" },
+        "reason": { "type": "string" },
+        "decided_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "Cell": {
+      "type": "object",
+      "required": ["id", "owner_ref", "kind", "policy_ref", "memory_ref", "created_at", "updated_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "owner_ref": { "$ref": "#/$defs/Ref" },
+        "kind": { "enum": ["personal", "project", "community", "organization", "mission"] },
+        "display_name": { "type": "string" },
+        "policy_ref": { "$ref": "#/$defs/Ref" },
+        "memory_ref": { "$ref": "#/$defs/Ref" },
+        "config_ref": { "$ref": "#/$defs/Ref" },
+        "state": { "enum": ["draft", "active", "paused", "archived", "revoked"] },
+        "created_at": { "$ref": "#/$defs/Timestamp" },
+        "updated_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "CellConfig": {
+      "type": "object",
+      "required": ["cell_id", "data_location_policy", "sync_policy", "backup_policy", "resource_budget_defaults", "local_first_mode"],
+      "properties": {
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "display_name": { "type": "string" },
+        "data_location_policy": { "type": "string" },
+        "save_frequency": { "type": "string" },
+        "sync_policy": { "type": "string" },
+        "backup_policy": { "type": "string" },
+        "channel_defaults": { "type": "object" },
+        "notification_defaults": { "type": "object" },
+        "resource_budget_defaults": { "type": "object" },
+        "local_first_mode": { "type": "boolean" },
+        "enterprise_overlay_refs": { "type": "array", "items": { "$ref": "#/$defs/Ref" } }
+      },
+      "additionalProperties": false
+    },
+    "Watch": {
+      "type": "object",
+      "required": ["id", "cell_id", "pattern_refs", "source_scope", "relevance_policy", "notification_policy", "resource_budget", "state"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "pattern_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Ref" } },
+        "source_scope": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "relevance_policy": { "$ref": "#/$defs/Ref" },
+        "notification_policy": { "$ref": "#/$defs/Ref" },
+        "resource_budget": { "type": "object" },
+        "state": { "enum": ["draft", "active", "paused", "archived"] },
+        "created_at": { "$ref": "#/$defs/Timestamp" },
+        "updated_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "WatchPattern": {
+      "type": "object",
+      "required": ["id", "watch_id", "pattern_kind", "raw_expression", "version"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "watch_id": { "$ref": "#/$defs/Ref" },
+        "source_scope": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "pattern_kind": { "enum": ["phrase", "boolean", "regex", "semantic", "typed_template", "claim_template", "graph_pattern", "policy_trigger"] },
+        "raw_expression": { "type": "string" },
+        "normalized_expression": { "type": "string" },
+        "alternatives": { "type": "array", "items": { "type": "string" } },
+        "variables": { "type": "array", "items": { "$ref": "#/$defs/PatternVariable" } },
+        "frames": { "type": "array", "items": { "$ref": "#/$defs/PatternFrame" } },
+        "extraction_schema_ref": { "$ref": "#/$defs/Ref" },
+        "examples": { "type": "array", "items": { "type": "string" } },
+        "validation_fixtures": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "PatternVariable": {
+      "type": "object",
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+        "type": { "enum": ["word", "text", "time", "date", "number", "money", "entity", "url", "email", "location", "custom"] },
+        "required": { "type": "boolean" },
+        "constraints": { "type": "object" },
+        "normalization": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "PatternFrame": {
+      "type": "object",
+      "required": ["order"],
+      "properties": {
+        "order": { "type": "integer", "minimum": 0 },
+        "alternatives": { "type": "array", "items": { "type": "string" } },
+        "nested_frames": { "type": "array", "items": { "$ref": "#/$defs/PatternFrame" } },
+        "variable_refs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "Source": {
+      "type": "object",
+      "required": ["id", "kind", "uri", "trust_profile", "crawl_profile", "provenance_profile", "policy_ref"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "kind": { "enum": ["web", "rss", "repo", "document", "social", "mail", "chat", "local_fs", "api", "sensor", "manual", "blockchain", "payment_rail", "marketplace", "governance_vote"] },
+        "uri": { "type": "string" },
+        "trust_profile": { "type": "object" },
+        "crawl_profile": { "type": "object" },
+        "provenance_profile": { "type": "object" },
+        "policy_ref": { "$ref": "#/$defs/Ref" },
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "Signal": {
+      "type": "object",
+      "required": ["id", "cell_id", "source_id", "watch_id", "observed_at", "evidence_refs", "novelty_score", "relevance_score", "confidence_score", "policy_status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "source_id": { "$ref": "#/$defs/Ref" },
+        "watch_id": { "$ref": "#/$defs/Ref" },
+        "observed_at": { "$ref": "#/$defs/Timestamp" },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "entities": { "type": "array", "items": { "type": "object" } },
+        "claims": { "type": "array", "items": { "type": "object" } },
+        "extractions": { "type": "object" },
+        "evidence_refs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Ref" } },
+        "novelty_score": { "$ref": "#/$defs/Score" },
+        "relevance_score": { "$ref": "#/$defs/Score" },
+        "confidence_score": { "$ref": "#/$defs/Score" },
+        "source_trust_score": { "$ref": "#/$defs/Score" },
+        "reputation_effects": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "policy_status": { "enum": ["allowed", "denied", "quarantined", "review_required", "redacted"] }
+      },
+      "additionalProperties": false
+    },
+    "Peer": {
+      "type": "object",
+      "required": ["id", "cell_id", "peer_ref", "kind", "trust_scope", "memory_scope", "delegation_scope", "revocation_state"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "peer_ref": { "$ref": "#/$defs/Ref" },
+        "kind": { "enum": ["human", "agent", "community", "organization"] },
+        "trust_scope": { "type": "object" },
+        "memory_scope": { "type": "object" },
+        "delegation_scope": { "type": "object" },
+        "revocation_state": { "enum": ["active", "suspended", "revoked"] }
+      },
+      "additionalProperties": false
+    },
+    "ReputationEvent": {
+      "type": "object",
+      "required": ["id", "subject_ref", "subject_kind", "context", "evidence_refs", "delta", "decay_policy", "dispute_state", "policy_effect"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "subject_ref": { "$ref": "#/$defs/Ref" },
+        "subject_kind": { "enum": ["human", "agent", "source", "model", "workflow", "community", "claim"] },
+        "context": { "type": "string" },
+        "evidence_refs": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "delta": { "type": "number" },
+        "decay_policy": { "type": "string" },
+        "dispute_state": { "enum": ["none", "open", "resolved", "rejected"] },
+        "policy_effect": { "type": "string" },
+        "anti_manipulation": { "type": "object" },
+        "confidence_interval": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "IntentEvent": {
+      "type": "object",
+      "required": ["id", "cell_id", "actor_ref", "intent_text", "structured_intent", "policy_decision", "created_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "actor_ref": { "$ref": "#/$defs/Ref" },
+        "intent_text": { "type": "string" },
+        "structured_intent": { "type": "object" },
+        "policy_decision": { "$ref": "#/$defs/PolicyDecision" },
+        "tool_calls": { "type": "array", "items": { "type": "object" } },
+        "emitted_events": { "type": "array", "items": { "$ref": "#/$defs/Ref" } },
+        "reversibility": { "type": "string" },
+        "created_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "FeedbackEvent": {
+      "type": "object",
+      "required": ["id", "cell_id", "signal_id", "actor_ref", "action", "created_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "signal_id": { "$ref": "#/$defs/Ref" },
+        "actor_ref": { "$ref": "#/$defs/Ref" },
+        "action": { "enum": ["follow", "mark_relevant", "mark_irrelevant", "delete", "mute_source", "promote_source", "refine_watch", "share", "save", "dismiss"] },
+        "reason": { "type": "string" },
+        "policy_context": { "type": "object" },
+        "learning_effect": { "type": "object" },
+        "created_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "FeedItem": {
+      "type": "object",
+      "required": ["id", "cell_id", "signal_id", "feed_kind", "policy_decision", "created_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "signal_id": { "$ref": "#/$defs/Ref" },
+        "feed_kind": { "enum": ["private", "project", "community", "rss", "activitypub", "webhook", "email_digest", "matrix", "github"] },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "target_ref": { "$ref": "#/$defs/Ref" },
+        "policy_decision": { "$ref": "#/$defs/PolicyDecision" },
+        "created_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    },
+    "ChannelAdapter": {
+      "type": "object",
+      "required": ["id", "cell_id", "kind", "direction", "auth_profile_ref", "policy_ref", "enabled"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "kind": { "enum": ["local_ui", "http_gateway", "email", "matrix", "activitypub", "rss", "webhook", "slack", "discord", "telegram", "github", "cli", "neovim", "turtleterm"] },
+        "direction": { "enum": ["inbound", "outbound", "bidirectional"] },
+        "auth_profile_ref": { "$ref": "#/$defs/Ref" },
+        "policy_ref": { "$ref": "#/$defs/Ref" },
+        "rate_limit": { "type": "object" },
+        "delivery_guarantee": { "enum": ["best_effort", "at_least_once", "exactly_once_semantic"] },
+        "cleanup_policy": { "type": "string" },
+        "failure_policy": { "type": "string" },
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "CellArchive": {
+      "type": "object",
+      "required": ["id", "cell_id", "schema_version", "manifest", "created_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Ref" },
+        "cell_id": { "$ref": "#/$defs/Ref" },
+        "schema_version": { "type": "string" },
+        "manifest": { "type": "object" },
+        "signed_manifest_ref": { "$ref": "#/$defs/Ref" },
+        "encrypted_payload_ref": { "$ref": "#/$defs/Ref" },
+        "redaction_policy_ref": { "$ref": "#/$defs/Ref" },
+        "migration_plan_ref": { "$ref": "#/$defs/Ref" },
+        "restore_dry_run_report_ref": { "$ref": "#/$defs/Ref" },
+        "created_at": { "$ref": "#/$defs/Timestamp" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
