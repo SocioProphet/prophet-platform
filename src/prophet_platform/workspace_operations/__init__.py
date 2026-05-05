@@ -6,13 +6,17 @@ contract-shaped dictionaries so it can consume fixtures from
 SocioProphet/prophet-core-contracts without owning canonical schemas.
 """
 
+from .boundaries import BoundaryResult
 from .runtime import (
+    BoundaryDeniedError,
     InMemoryOperationRuntime,
     OperationRuntimeError,
     StateTransitionError,
 )
 
 __all__ = [
+    "BoundaryDeniedError",
+    "BoundaryResult",
     "InMemoryOperationRuntime",
     "OperationRuntimeError",
     "StateTransitionError",
