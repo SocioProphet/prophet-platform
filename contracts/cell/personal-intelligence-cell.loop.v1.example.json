@@ -1,0 +1,255 @@
+{
+  "schema_ref": "https://standards.socioprophet.org/schemas/personal-intelligence-cell.schema.json",
+  "contract_id": "contract://cell/personal-intelligence-cell.loop.v1.example",
+  "contract_version": "0.1.0",
+  "description": "Replayable example of the governed Personal Intelligence Cell loop: cell -> config -> source -> watch -> pattern -> signal -> policy -> feed -> intent -> feedback -> archive.",
+  "cell": {
+    "id": "cell://demo/personal-intelligence-cell",
+    "owner_ref": "human://demo-user",
+    "kind": "personal",
+    "display_name": "Demo Personal Intelligence Cell",
+    "policy_ref": "policy://cell/demo/default",
+    "memory_ref": "memory://cell/demo/default",
+    "config_ref": "cell-config://demo/personal-intelligence-cell",
+    "state": "active",
+    "created_at": "2026-05-04T00:00:00Z",
+    "updated_at": "2026-05-04T00:00:00Z"
+  },
+  "cell_config": {
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "display_name": "Demo Personal Intelligence Cell",
+    "data_location_policy": "local-first-encrypted-with-selective-sync",
+    "save_frequency": "event-sourced-immediate-with-periodic-compaction",
+    "sync_policy": "manual-or-policy-approved-selective-sync",
+    "backup_policy": "signed-manifest-encrypted-payload-restore-dry-run-required",
+    "channel_defaults": {
+      "default_direction": "outbound",
+      "audit_required": true
+    },
+    "notification_defaults": {
+      "max_daily_interruptions": 5,
+      "digest_allowed": true
+    },
+    "resource_budget_defaults": {
+      "max_model_calls_per_day": 25,
+      "max_source_fetches_per_hour": 12,
+      "max_storage_mb": 512
+    },
+    "local_first_mode": true,
+    "enterprise_overlay_refs": []
+  },
+  "source": {
+    "id": "source://github/SocioProphet/prophet-platform",
+    "kind": "repo",
+    "uri": "https://github.com/SocioProphet/prophet-platform",
+    "trust_profile": {
+      "default_trust_score": 0.9,
+      "basis": "owned_repository"
+    },
+    "crawl_profile": {
+      "mode": "event_or_poll",
+      "default_interval": "PT15M"
+    },
+    "provenance_profile": {
+      "require_commit_sha": true,
+      "require_file_path": true
+    },
+    "policy_ref": "policy://cell/demo/source/github-owned-repos",
+    "enabled": true
+  },
+  "watch": {
+    "id": "watch://demo/repo-runtime-design-change",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "title": "Runtime design changes in SocioProphet repos",
+    "description": "Watch platform repository changes that add or alter runtime design documents.",
+    "pattern_refs": [
+      "watch-pattern://demo/repo-runtime-design-change"
+    ],
+    "source_scope": [
+      "source://github/SocioProphet/prophet-platform"
+    ],
+    "relevance_policy": "policy://cell/demo/relevance/repo-runtime-design",
+    "notification_policy": "policy://cell/demo/notify/private-feed-first",
+    "resource_budget": {
+      "max_evaluations_per_hour": 25,
+      "max_notifications_per_day": 3
+    },
+    "state": "active",
+    "created_at": "2026-05-04T00:00:00Z",
+    "updated_at": "2026-05-04T00:00:00Z"
+  },
+  "watch_pattern": {
+    "id": "watch-pattern://demo/repo-runtime-design-change",
+    "watch_id": "watch://demo/repo-runtime-design-change",
+    "source_scope": [
+      "source://github/SocioProphet/prophet-platform"
+    ],
+    "pattern_kind": "typed_template",
+    "raw_expression": "$repo changed $path with $change_type",
+    "normalized_expression": "$repo changed $path with $change_type",
+    "alternatives": [
+      "$repo added $path with $change_type",
+      "$repo updated $path with $change_type"
+    ],
+    "variables": [
+      {
+        "name": "repo",
+        "type": "entity",
+        "required": true
+      },
+      {
+        "name": "path",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "change_type",
+        "type": "entity",
+        "required": true
+      }
+    ],
+    "frames": [
+      {
+        "order": 0,
+        "alternatives": [
+          "changed",
+          "added",
+          "updated"
+        ],
+        "variable_refs": [
+          "repo",
+          "path",
+          "change_type"
+        ]
+      }
+    ],
+    "extraction_schema_ref": "schema://cell/watch-pattern/repo-change-extraction.v1",
+    "examples": [
+      "SocioProphet/prophet-platform changed docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md with new runtime design."
+    ],
+    "validation_fixtures": [
+      "fixture.github.repo.change.v1"
+    ],
+    "version": "0.1.0"
+  },
+  "signal": {
+    "id": "signal://demo/repo-runtime-design-change/001",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "source_id": "source://github/SocioProphet/prophet-platform",
+    "watch_id": "watch://demo/repo-runtime-design-change",
+    "observed_at": "2026-05-04T00:01:00Z",
+    "title": "Personal Intelligence Cell runtime design added",
+    "summary": "The platform repository added a runtime design document for the Personal Intelligence Cell service lane.",
+    "entities": [
+      {
+        "text": "SocioProphet/prophet-platform",
+        "kind": "repo"
+      },
+      {
+        "text": "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md",
+        "kind": "path"
+      }
+    ],
+    "claims": [
+      {
+        "text": "SocioProphet/prophet-platform changed docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md with new runtime design.",
+        "kind": "repo_change"
+      }
+    ],
+    "extractions": {
+      "repo": "SocioProphet/prophet-platform",
+      "path": "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md",
+      "change_type": "new runtime design"
+    },
+    "evidence_refs": [
+      "evidence://github/SocioProphet/prophet-platform/commit/25feb104bf6a164f1bd754614e2c6cba329b11b2"
+    ],
+    "novelty_score": 0.88,
+    "relevance_score": 0.93,
+    "confidence_score": 0.91,
+    "source_trust_score": 0.9,
+    "reputation_effects": [],
+    "policy_status": "allowed"
+  },
+  "feed_item": {
+    "id": "feed-item://demo/private/repo-runtime-design-change/001",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "signal_id": "signal://demo/repo-runtime-design-change/001",
+    "feed_kind": "private",
+    "title": "Runtime design changed in prophet-platform",
+    "body": "Personal Intelligence Cell runtime design was added and should be considered for the next implementation pass.",
+    "target_ref": "feed://demo/private",
+    "policy_decision": {
+      "decision": "allow",
+      "policy_ref": "policy://cell/demo/notify/private-feed-first",
+      "reason": "Owned repository, private feed, high relevance score.",
+      "decided_at": "2026-05-04T00:01:05Z"
+    },
+    "created_at": "2026-05-04T00:01:06Z"
+  },
+  "intent_event": {
+    "id": "intent-event://demo/repo-runtime-design-change/001",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "actor_ref": "agent://cell/demo/watcher",
+    "intent_text": "Evaluate a repository change against the runtime design watch and emit a private feed item if policy allows.",
+    "structured_intent": {
+      "action": "evaluate_watch_signal",
+      "watch_ref": "watch://demo/repo-runtime-design-change",
+      "source_ref": "source://github/SocioProphet/prophet-platform",
+      "signal_ref": "signal://demo/repo-runtime-design-change/001",
+      "feed_ref": "feed://demo/private"
+    },
+    "policy_decision": {
+      "decision": "allow",
+      "policy_ref": "policy://cell/demo/notify/private-feed-first",
+      "reason": "Private feed emission is permitted for owned repository signals.",
+      "decided_at": "2026-05-04T00:01:05Z"
+    },
+    "tool_calls": [],
+    "emitted_events": [
+      "signal://demo/repo-runtime-design-change/001",
+      "feed-item://demo/private/repo-runtime-design-change/001"
+    ],
+    "reversibility": "feed item can be deleted; feedback can refine watch/source scoring; source observation remains in audit log",
+    "created_at": "2026-05-04T00:01:07Z"
+  },
+  "feedback_event": {
+    "id": "feedback-event://demo/repo-runtime-design-change/001",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "signal_id": "signal://demo/repo-runtime-design-change/001",
+    "actor_ref": "human://demo-user",
+    "action": "mark_relevant",
+    "reason": "This is directly tied to the next implementation pass.",
+    "policy_context": {
+      "policy_ref": "policy://cell/demo/feedback/private"
+    },
+    "learning_effect": {
+      "increase_watch_relevance": true,
+      "increase_source_quality": true
+    },
+    "created_at": "2026-05-04T00:02:00Z"
+  },
+  "cell_archive": {
+    "id": "cell-archive://demo/personal-intelligence-cell/2026-05-04T000300Z",
+    "cell_id": "cell://demo/personal-intelligence-cell",
+    "schema_version": "0.1.0",
+    "manifest": {
+      "cells": 1,
+      "configs": 1,
+      "sources": 1,
+      "watches": 1,
+      "watch_patterns": 1,
+      "signals": 1,
+      "feed_items": 1,
+      "intent_events": 1,
+      "feedback_events": 1,
+      "redaction": "none-for-demo"
+    },
+    "signed_manifest_ref": "signature://demo/cell-archive/manifest",
+    "encrypted_payload_ref": "artifact://demo/cell-archive/payload.enc",
+    "redaction_policy_ref": "policy://cell/demo/archive/redaction",
+    "migration_plan_ref": "migration://cell/archive/0.1.0",
+    "restore_dry_run_report_ref": "report://cell/archive/demo/restore-dry-run",
+    "created_at": "2026-05-04T00:03:00Z"
+  }
+}
