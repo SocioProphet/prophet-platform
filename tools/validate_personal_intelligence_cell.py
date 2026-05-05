@@ -16,6 +16,7 @@ POSTGRES_MIGRATION_PATH = ROOT / "infra/datastores/postgres/migrations/cell/0001
 CLICKHOUSE_SCHEMA_PATH = ROOT / "infra/datastores/clickhouse/cell/0001_personal_intelligence_cell_analytics.sql"
 POLICY_PATH = ROOT / "apps/cell-service/src/cell_service/policy.py"
 SERVICE_PATH = ROOT / "apps/cell-service/src/cell_service/service.py"
+EXTRACTION_PATH = ROOT / "apps/cell-service/src/cell_service/extraction.py"
 
 EXPECTED_DEFS = {
     "Cell",
@@ -421,6 +422,21 @@ def validate_policy_artifacts() -> None:
             fail(f"service missing policy marker: {marker}")
 
 
+def validate_extraction_artifacts() -> None:
+    if not EXTRACTION_PATH.exists():
+        fail(f"missing extraction module: {EXTRACTION_PATH.relative_to(ROOT)}")
+    if not SERVICE_PATH.exists():
+        fail(f"missing service module: {SERVICE_PATH.relative_to(ROOT)}")
+    extraction_text = EXTRACTION_PATH.read_text(encoding="utf-8", errors="replace")
+    service_text = SERVICE_PATH.read_text(encoding="utf-8", errors="replace")
+    for marker in ["class ExtractionResult", "def extract_from_pattern", "def extract_with_patterns", "LOCATION_TEMPORAL_SUFFIX"]:
+        if marker not in extraction_text:
+            fail(f"extraction module missing marker: {marker}")
+    for marker in ["extract_for_watch", "ingest_text_signal", "deterministic-template-v1"]:
+        if marker not in service_text:
+            fail(f"service missing extraction marker: {marker}")
+
+
 def main() -> None:
     schema = load_json(SCHEMA_PATH)
     fixtures = load_json(FIXTURES_PATH)
@@ -431,6 +447,7 @@ def main() -> None:
     validate_loop_contract(loop)
     validate_persistence_artifacts()
     validate_policy_artifacts()
+    validate_extraction_artifacts()
     print("OK: personal intelligence cell validation passed")
 
 
