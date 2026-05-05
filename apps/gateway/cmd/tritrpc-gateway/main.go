@@ -57,7 +57,9 @@ func newMux(target string, key [32]byte, evidenceBase string, consoleBase string
     if consoleBase != "" {
         mux.HandleFunc("/v1/console/frontier", proxyGET(client, consoleBase, "/v1/console/frontier"))
         mux.HandleFunc("/v1/console/coverage", proxyGET(client, consoleBase, "/v1/console/coverage"))
+        mux.HandleFunc("/v1/console/fogstack/validation", proxyGET(client, consoleBase, "/v1/console/fogstack/validation"))
         mux.HandleFunc("/v1/console/recent-events", proxyGET(client, consoleBase, "/v1/console/recent-events"))
+        mux.HandleFunc("/v1/console/telemetry", proxyGET(client, consoleBase, "/v1/console/telemetry"))
         mux.HandleFunc("/v1/console/models/", proxyDynamicGET(client, consoleBase, "/v1/console/models/", "/v1/console/models/"))
         mux.HandleFunc("/console/evidence", proxyGET(client, consoleBase, "/console/evidence"))
     }

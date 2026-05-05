@@ -28,6 +28,11 @@ def coverage(limit: int = 20) -> dict:
     return service.get_coverage_view(limit=limit)
 
 
+@app.get("/v1/console/fogstack/validation")
+def fogstack_validation(limit: int = 20) -> dict:
+    return service.get_fogstack_validation_view(limit=limit)
+
+
 @app.get("/v1/console/recent-events")
 def recent_events(limit: int = 25, per_service_limit: int = 15) -> dict:
     return service.get_recent_events_view(limit=limit, per_service_limit=per_service_limit)
@@ -69,6 +74,10 @@ def console_ui() -> str:
     <pre id=\"coverage\">loading...</pre>
   </section>
   <section>
+    <h2>FogStack Validation</h2>
+    <pre id=\"fogstack\">loading...</pre>
+  </section>
+  <section>
     <h2>Recent Events</h2>
     <pre id=\"recent\">loading...</pre>
   </section>
@@ -91,6 +100,7 @@ async function load(id, url) {
 load('frontier', '/v1/console/frontier');
 load('model', '/v1/console/models/model.semantic-stack.2026-04-05');
 load('coverage', '/v1/console/coverage');
+load('fogstack', '/v1/console/fogstack/validation');
 load('recent', '/v1/console/recent-events');
 load('telemetry', '/v1/console/telemetry');
 </script>

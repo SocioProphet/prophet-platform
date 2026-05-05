@@ -70,6 +70,27 @@ def get_coverage_view(limit: int = 20) -> dict[str, Any]:
     }
 
 
+def get_fogstack_validation_view(limit: int = 20) -> dict[str, Any]:
+    items = client.get_recent_receipts("fogstack-validation", limit=max(limit, 20))
+    latest_by_bundle: list[dict[str, Any]] = []
+    seen_subjects: set[str] = set()
+    for item in _sorted(items):
+        subject_ref = item.get("subject_ref")
+        if not subject_ref or subject_ref in seen_subjects:
+            continue
+        seen_subjects.add(subject_ref)
+        bundle = _bundle_from_summary(item)
+        if bundle is not None:
+            latest_by_bundle.append(bundle)
+        if len(latest_by_bundle) >= limit:
+            break
+    recent = _sorted([item for item in items if item.get("event_type") == "fogstack.validation.record.emitted"])[:limit]
+    return {
+        "latest_by_bundle": latest_by_bundle,
+        "recent": recent,
+    }
+
+
 def get_recent_events_view(limit: int = 25, per_service_limit: int = 15) -> dict[str, Any]:
     services = client.get_services()
     items: list[dict[str, Any]] = []

@@ -74,6 +74,28 @@ func TestConsoleFrontierProxy(t *testing.T) {
     }
 }
 
+func TestConsoleFogstackValidationProxy(t *testing.T) {
+    upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if r.URL.Path != "/v1/console/fogstack/validation" {
+            t.Fatalf("unexpected path: %s", r.URL.Path)
+        }
+        if got := r.URL.Query().Get("limit"); got != "5" {
+            t.Fatalf("missing query param, got %q", got)
+        }
+        _ = json.NewEncoder(w).Encode(map[string]any{"latest_by_bundle": []any{}, "recent": []any{}})
+    }))
+    defer upstream.Close()
+
+    mux := newMux("tcp://127.0.0.1:9", [32]byte{}, "", upstream.URL, upstream.Client())
+    rr := httptest.NewRecorder()
+    req := httptest.NewRequest(http.MethodGet, "/v1/console/fogstack/validation?limit=5", nil)
+    mux.ServeHTTP(rr, req)
+
+    if rr.Code != http.StatusOK {
+        t.Fatalf("unexpected status: %d", rr.Code)
+    }
+}
+
 func TestConsoleModelProxyPathAndQuery(t *testing.T) {
     upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         if r.URL.Path != "/v1/console/models/model.semantic-stack.2026-04-05" {
