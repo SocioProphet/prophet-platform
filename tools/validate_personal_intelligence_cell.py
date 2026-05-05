@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "schemas/cell/personal-intelligence-cell.schema.json"
 FIXTURES_PATH = ROOT / "schemas/cell/watch-pattern-fixtures.json"
 RUNTIME_DOC_PATH = ROOT / "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md"
+LOOP_CONTRACT_PATH = ROOT / "contracts/cell/personal-intelligence-cell.loop.v1.example.json"
 
 EXPECTED_DEFS = {
     "Cell",
@@ -73,6 +74,22 @@ REQUIRED_RUNTIME_DOC_MARKERS = [
     "CellArchive.RestoreDryRun",
     "WatchPattern.Validate",
 ]
+
+REQUIRED_LOOP_KEYS = {
+    "schema_ref",
+    "contract_id",
+    "contract_version",
+    "cell",
+    "cell_config",
+    "source",
+    "watch",
+    "watch_pattern",
+    "signal",
+    "feed_item",
+    "intent_event",
+    "feedback_event",
+    "cell_archive",
+}
 
 
 def fail(message: str) -> None:
@@ -246,12 +263,92 @@ def validate_runtime_doc() -> None:
             fail(f"runtime doc missing marker: {marker}")
 
 
+def validate_loop_contract(loop: dict[str, Any]) -> None:
+    require_keys(loop, REQUIRED_LOOP_KEYS, "loop contract")
+    if loop["schema_ref"] != "https://standards.socioprophet.org/schemas/personal-intelligence-cell.schema.json":
+        fail("loop contract schema_ref does not match Personal Intelligence Cell schema")
+
+    cell = loop["cell"]
+    config = loop["cell_config"]
+    source = loop["source"]
+    watch = loop["watch"]
+    pattern = loop["watch_pattern"]
+    signal = loop["signal"]
+    feed = loop["feed_item"]
+    intent = loop["intent_event"]
+    feedback = loop["feedback_event"]
+    archive = loop["cell_archive"]
+
+    cell_id = cell.get("id")
+    if not cell_id:
+        fail("loop cell must have id")
+    for section_name, section in [
+        ("cell_config", config),
+        ("watch", watch),
+        ("signal", signal),
+        ("feed_item", feed),
+        ("intent_event", intent),
+        ("feedback_event", feedback),
+        ("cell_archive", archive),
+    ]:
+        if section.get("cell_id") != cell_id:
+            fail(f"{section_name}.cell_id does not match cell.id")
+
+    if source.get("id") not in watch.get("source_scope", []):
+        fail("loop watch.source_scope must include source.id")
+    if pattern.get("id") not in watch.get("pattern_refs", []):
+        fail("loop watch.pattern_refs must include watch_pattern.id")
+    if pattern.get("watch_id") != watch.get("id"):
+        fail("loop watch_pattern.watch_id must match watch.id")
+    if signal.get("source_id") != source.get("id"):
+        fail("loop signal.source_id must match source.id")
+    if signal.get("watch_id") != watch.get("id"):
+        fail("loop signal.watch_id must match watch.id")
+    if feed.get("signal_id") != signal.get("id"):
+        fail("loop feed_item.signal_id must match signal.id")
+    if feedback.get("signal_id") != signal.get("id"):
+        fail("loop feedback_event.signal_id must match signal.id")
+
+    if not signal.get("evidence_refs"):
+        fail("loop signal must carry evidence_refs")
+    for score_key in ["novelty_score", "relevance_score", "confidence_score", "source_trust_score"]:
+        score = signal.get(score_key)
+        if not isinstance(score, (int, float)) or not 0 <= score <= 1:
+            fail(f"loop signal {score_key} must be numeric 0..1")
+
+    policy_decision = feed.get("policy_decision")
+    if not isinstance(policy_decision, dict) or policy_decision.get("decision") != "allow":
+        fail("loop feed_item must include allow policy_decision")
+    intent_policy = intent.get("policy_decision")
+    if not isinstance(intent_policy, dict) or intent_policy.get("decision") != "allow":
+        fail("loop intent_event must include allow policy_decision")
+    if not intent.get("intent_text") or not intent.get("structured_intent"):
+        fail("loop intent_event must include readable text and structured intent")
+    if signal.get("id") not in intent.get("emitted_events", []):
+        fail("loop intent_event.emitted_events must include signal id")
+    if feed.get("id") not in intent.get("emitted_events", []):
+        fail("loop intent_event.emitted_events must include feed item id")
+
+    if feedback.get("action") != "mark_relevant":
+        fail("loop feedback_event must mark the signal relevant")
+    manifest = archive.get("manifest")
+    if not isinstance(manifest, dict):
+        fail("loop cell_archive.manifest must be object")
+    for required_count in ["cells", "configs", "sources", "watches", "watch_patterns", "signals", "feed_items", "intent_events", "feedback_events"]:
+        if manifest.get(required_count) != 1:
+            fail(f"loop cell_archive.manifest must count one {required_count}")
+    if not archive.get("restore_dry_run_report_ref"):
+        fail("loop cell_archive must include restore_dry_run_report_ref")
+
+
 def main() -> None:
     schema = load_json(SCHEMA_PATH)
     fixtures = load_json(FIXTURES_PATH)
+    loop = load_json(LOOP_CONTRACT_PATH)
     validate_schema(schema)
     validate_fixtures(fixtures)
     validate_runtime_doc()
+    validate_loop_contract(loop)
     print("OK: personal intelligence cell validation passed")
 
 
