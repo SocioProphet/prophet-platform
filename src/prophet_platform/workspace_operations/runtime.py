@@ -2,8 +2,8 @@
 
 This module is intentionally small and contract-shaped. Canonical schemas live in
 `SocioProphet/prophet-core-contracts`; this runtime consumes operation-like
-mappings, validates a small set of state invariants, emits immutable events, and
-materializes snapshots for fast reads.
+mappings, validates a small set of state invariants, emits immutable event
+dictionaries, and materializes snapshots for fast reads.
 
 It is not a policy engine, not a ledger, not a UI state store, and not a durable
 backend. Those are explicit integration boundaries for later slices.
@@ -17,6 +17,16 @@ from datetime import UTC, datetime
 from typing import Any, Mapping
 from uuid import uuid4
 
+from .boundaries import (
+    AgentAuthorityHook,
+    AllowAllAgentAuthorityHook,
+    AllowAllPolicyClient,
+    BoundaryResult,
+    LedgerSink,
+    NoopLedgerSink,
+    PolicyClient,
+)
+
 
 class OperationRuntimeError(RuntimeError):
     """Base runtime error for Workspace Operation skeleton failures."""
@@ -24,6 +34,10 @@ class OperationRuntimeError(RuntimeError):
 
 class StateTransitionError(OperationRuntimeError):
     """Raised when a command would violate the operation state machine."""
+
+
+class BoundaryDeniedError(OperationRuntimeError):
+    """Raised when a boundary hook denies a command or actor."""
 
 
 OPERATION_TRANSITIONS: dict[str, set[str]] = {
@@ -135,13 +149,23 @@ class InMemoryOperationRuntime:
     The runtime accepts contract-shaped dictionaries and emits immutable event
     dictionaries. It is suitable for smoke tests, adapter development, and early
     UI projections. Production persistence, authorization, policy evaluation,
-    ledger writes, and worker leases are intentionally not implemented here.
+    ledger writes, and worker leases are intentionally represented only through
+    explicit boundary hooks.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        policy_client: PolicyClient | None = None,
+        ledger_sink: LedgerSink | None = None,
+        agent_authority: AgentAuthorityHook | None = None,
+    ) -> None:
         self._records: dict[str, OperationRecord] = {}
         self._events: list[dict[str, Any]] = []
         self._idempotency_index: set[str] = set()
+        self._policy_client = policy_client or AllowAllPolicyClient()
+        self._ledger_sink = ledger_sink or NoopLedgerSink()
+        self._agent_authority = agent_authority or AllowAllAgentAuthorityHook()
 
     @property
     def events(self) -> list[dict[str, Any]]:
@@ -157,6 +181,8 @@ class InMemoryOperationRuntime:
         operation_id = op["operation_id"]
         if operation_id in self._records:
             raise OperationRuntimeError(f"operation already exists: {operation_id}")
+        self._authorize_boundary(op.get("actor", self._system_actor()), "CreateOperation", op)
+        self._evaluate_policy_boundary({"command_type": "CreateOperation", "operation_id": operation_id, "actor": op.get("actor")}, op)
         self._claim_idempotency(op["idempotency_key"])
         self._records[operation_id] = OperationRecord(operation=op)
         self._emit(operation_id, "workspace.operation.created", op.get("actor", self._system_actor()), {"operation_type": op["operation_type"]})
@@ -204,6 +230,9 @@ class InMemoryOperationRuntime:
         self._require_fields(task_obj, ["task_id", "operation_id", "status", "idempotency_key"])
         if task_obj["operation_id"] != operation_id:
             raise OperationRuntimeError("task operation_id mismatch")
+        actor = record.operation.get("actor", self._system_actor())
+        self._authorize_boundary(actor, "AttachTask", task_obj)
+        self._evaluate_policy_boundary({"command_type": "AttachTask", "operation_id": operation_id, "task_id": task_obj["task_id"], "actor": actor}, record.operation)
         self._claim_idempotency(task_obj["idempotency_key"])
         record.tasks[task_obj["task_id"]] = task_obj
         if emit:
@@ -214,12 +243,15 @@ class InMemoryOperationRuntime:
         """Transition an operation if allowed by v0.1 state rules."""
 
         record = self._record(operation_id)
+        command_actor = actor or record.operation.get("actor", self._system_actor())
+        self._authorize_boundary(command_actor, "TransitionOperation", record.operation)
+        self._evaluate_policy_boundary({"command_type": "TransitionOperation", "operation_id": operation_id, "next_status": next_status, "actor": command_actor}, record.operation)
         current = record.operation.get("status")
         self._assert_transition("operation", OPERATION_TRANSITIONS, current, next_status)
         record.operation["status"] = next_status
         record.operation["updated_at"] = self._now()
         record.revision += 1
-        self._emit(operation_id, "workspace.operation.status_changed", actor or self._system_actor(), {"from": current, "to": next_status, "reason": reason})
+        self._emit(operation_id, "workspace.operation.status_changed", command_actor, {"from": current, "to": next_status, "reason": reason})
         return self.get_operation_snapshot(operation_id)
 
     def transition_task(self, operation_id: str, task_id: str, next_status: str, *, actor: Mapping[str, Any] | None = None, reason: str | None = None) -> dict[str, Any]:
@@ -229,13 +261,16 @@ class InMemoryOperationRuntime:
         task = record.tasks.get(task_id)
         if task is None:
             raise OperationRuntimeError(f"unknown task: {task_id}")
+        command_actor = actor or record.operation.get("actor", self._system_actor())
+        self._authorize_boundary(command_actor, "TransitionTask", task)
+        self._evaluate_policy_boundary({"command_type": "TransitionTask", "operation_id": operation_id, "task_id": task_id, "next_status": next_status, "actor": command_actor}, record.operation)
         current = task.get("status")
         self._assert_transition("task", TASK_TRANSITIONS, current, next_status)
         if next_status == "retrying" and (not task.get("retryable") or not task.get("idempotency_key")):
             raise StateTransitionError(f"task {task_id} cannot retry without retryable=true and idempotency_key")
         task["status"] = next_status
         record.revision += 1
-        self._emit(operation_id, "workspace.operation.task_status_changed", actor or self._system_actor(), {"task_id": task_id, "from": current, "to": next_status, "reason": reason})
+        self._emit(operation_id, "workspace.operation.task_status_changed", command_actor, {"task_id": task_id, "from": current, "to": next_status, "reason": reason})
         return self.get_operation_snapshot(operation_id)
 
     def cancel_operation(self, operation_id: str, *, actor: Mapping[str, Any] | None = None, reason: str = "cancel_requested") -> dict[str, Any]:
@@ -275,13 +310,16 @@ class InMemoryOperationRuntime:
         artifact = record.artifacts.get(artifact_id)
         if artifact is None:
             raise OperationRuntimeError(f"unknown artifact: {artifact_id}")
+        command_actor = actor or record.operation.get("actor", self._system_actor())
+        self._authorize_boundary(command_actor, "ActivateArtifact", artifact)
+        self._evaluate_policy_boundary({"command_type": "ActivateArtifact", "operation_id": operation_id, "artifact_id": artifact_id, "actor": command_actor}, record.operation)
         current = artifact.get("admission_state")
         if current not in {"admitted", "activated"}:
             raise StateTransitionError(f"artifact {artifact_id} cannot activate from {current}")
         artifact["admission_state"] = "activated"
         artifact["activation_state"] = "active"
         record.revision += 1
-        self._emit(operation_id, "workspace.operation.artifact_activated", actor or self._system_actor(), {"artifact_id": artifact_id})
+        self._emit(operation_id, "workspace.operation.artifact_activated", command_actor, {"artifact_id": artifact_id})
         return self.get_operation_snapshot(operation_id)
 
     def get_operation_snapshot(self, operation_id: str) -> dict[str, Any]:
@@ -319,27 +357,47 @@ class InMemoryOperationRuntime:
         artifact = record.artifacts.get(artifact_id)
         if artifact is None:
             raise OperationRuntimeError(f"unknown artifact: {artifact_id}")
+        command_actor = actor or record.operation.get("actor", self._system_actor())
+        self._authorize_boundary(command_actor, "TransitionArtifactAdmission", artifact)
+        self._evaluate_policy_boundary({"command_type": "TransitionArtifactAdmission", "operation_id": operation_id, "artifact_id": artifact_id, "next_state": next_state, "actor": command_actor}, record.operation)
         current = artifact.get("admission_state")
         self._assert_transition("artifact", ARTIFACT_ADMISSION_TRANSITIONS, current, next_state)
         artifact["admission_state"] = next_state
         if next_state != "activated" and artifact.get("activation_state") == "active":
             raise StateTransitionError(f"artifact {artifact_id} active before admission")
         record.revision += 1
-        self._emit(operation_id, "workspace.operation.artifact_admission_changed", actor or self._system_actor(), {"artifact_id": artifact_id, "from": current, "to": next_state})
+        self._emit(operation_id, "workspace.operation.artifact_admission_changed", command_actor, {"artifact_id": artifact_id, "from": current, "to": next_state})
         return self.get_operation_snapshot(operation_id)
 
+    def _authorize_boundary(self, actor: Mapping[str, Any], action: str, resource: Mapping[str, Any]) -> None:
+        result = self._agent_authority.authorize_actor(actor, action, resource)
+        self._raise_if_denied("agent authority", result)
+
+    def _evaluate_policy_boundary(self, command: Mapping[str, Any], operation: Mapping[str, Any] | None = None) -> None:
+        result = self._policy_client.evaluate_command(command, operation)
+        self._raise_if_denied("policy", result)
+
+    @staticmethod
+    def _raise_if_denied(boundary: str, result: BoundaryResult) -> None:
+        if not result.allowed:
+            raise BoundaryDeniedError(
+                f"{boundary} boundary denied command: {result.reason}; "
+                f"responsible_actor={result.responsible_actor}; "
+                f"remediation_options={list(result.remediation_options)}"
+            )
+
     def _emit(self, operation_id: str, event_type: str, actor: Mapping[str, Any], payload: Mapping[str, Any]) -> None:
-        self._events.append(
-            {
-                "schema_version": "0.1.0",
-                "event_id": f"evt_{uuid4().hex}",
-                "event_type": event_type,
-                "operation_id": operation_id,
-                "actor": deepcopy(dict(actor)),
-                "occurred_at": self._now(),
-                "payload": deepcopy(dict(payload)),
-            }
-        )
+        event = {
+            "schema_version": "0.1.0",
+            "event_id": f"evt_{uuid4().hex}",
+            "event_type": event_type,
+            "operation_id": operation_id,
+            "actor": deepcopy(dict(actor)),
+            "occurred_at": self._now(),
+            "payload": deepcopy(dict(payload)),
+        }
+        self._events.append(event)
+        self._ledger_sink.record_event(event)
 
     def _record(self, operation_id: str) -> OperationRecord:
         try:
