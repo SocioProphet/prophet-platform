@@ -1,0 +1,40 @@
+# Organization Governance Control Plane manifest
+
+name: orggov-control-plane
+version: 0.1.0
+ownerRepo: SocioProphet/prophet-platform
+parentIssue: https://github.com/SocioProphet/prophet-platform/issues/406
+
+contractPaths:
+  - contracts/orggov/orggov-control-plane.v0.1.schema.json
+  - contracts/orggov/orggov-control-plane.v0.1.example.json
+
+validation:
+  command: python3 tools/validate_orggov_contracts.py
+
+productLoop:
+  - Objective
+  - Workroom
+  - Actor
+  - Role
+  - Policy
+  - Asset
+  - Action
+  - Evidence
+  - Review
+  - Outcome
+  - Score
+  - Learning
+
+canonicalRepos:
+  - SocioProphet/prophet-platform
+  - SocioProphet/prophet-workspace
+  - SocioProphet/ontogenesis
+  - SocioProphet/agent-registry
+  - SocioProphet/policy-fabric
+  - SocioProphet/agentplane
+  - SocioProphet/model-governance-ledger
+  - SocioProphet/sociosphere
+  - SocioProphet/delivery-excellence
+  - SocioProphet/sherlock-search
+  - SourceOS-Linux/sourceos-syncd
