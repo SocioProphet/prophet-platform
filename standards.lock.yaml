@@ -145,6 +145,30 @@ spec:
           localProfileOverridesForbidden: true
           identityRuntimeConformanceRequired: true
 
+      agent-action-trace-profile:
+        repo: SocioProphet/socioprophet-agent-standards
+        class: agent-action-trace-conformance-profile
+        channel: controlled
+        pin:
+          commit: 97e3f49ec4b27349f532db27ebaad618d4f9520c
+          tag: null
+        consume:
+          docs:
+            - docs/standards/agent-plane/001-agent-action-trace-conformance-profile.md
+            - conformance/AGENT-ACTION-TRACE-CONFORMANCE-0001.md
+          runtime_targets:
+            - apps/agentplane
+            - apps/workspace-controller
+            - apps/lampstand
+          generated_artifacts:
+            - contracts/agent-action-trace/
+            - docs/generated/agent-action-trace/
+        rules:
+          ontologyAuthorityExternal: true
+          bootstrapValidatorAuthorityExternal: true
+          traceIsEvidenceNotAuthority: true
+          runtimeConformanceRequired: true
+
     reference_inputs:
       identity-prime-reference:
         repo: SocioProphet/identity-is-prime-reference
@@ -252,6 +276,7 @@ spec:
     exportContractsDir: contracts/export
     modelContractsDir: contracts/model
     ontologyContractsDir: contracts/ontology
+    agentActionTraceContractsDir: contracts/agent-action-trace
   review:
     requiredOwners:
       - platform
