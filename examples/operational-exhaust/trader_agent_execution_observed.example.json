@@ -1,0 +1,35 @@
+{
+  "version": "0.1",
+  "event_id": "tae_0001",
+  "observed_at": "2026-05-05T02:41:00Z",
+  "strategy_run_ref": "strategy-run:mean-reversion-demo-0001",
+  "model_ref": "model:research-agent-v0",
+  "feature_snapshot_ref": "features:demo-window-0001",
+  "market_window_ref": "market-window:example-20260505-0240",
+  "risk_policy_ref": "risk-policy:paper-trading-v0",
+  "order_intent_ref": "order-intent:demo-0001",
+  "execution_ref": "execution:demo-ack-0001",
+  "venue_ref": "venue:paper",
+  "portfolio_scope_ref": "portfolio:paper-demo",
+  "post_trade_evaluation_ref": "post-trade:pending",
+  "replay_ref": "replay:demo-window-0001",
+  "trace_ref": "trace:trader-agent-demo-0001",
+  "projection_family": "trader_agent_execution",
+  "outcome": "acknowledged",
+  "slippage_bps": 0.0,
+  "risk_controls": [
+    "max_notional",
+    "paper_only",
+    "kill_switch_enabled"
+  ],
+  "attributes": {
+    "event_type": "order.acknowledged",
+    "side": "buy",
+    "quantity_ref": "redacted:paper-size",
+    "symbol_ref": "instrument:example-equity"
+  },
+  "receipt": {
+    "hash": "sha256:example-trader-agent-execution-observed",
+    "algo": "sha256"
+  }
+}
