@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: search-orchestrator-data
+  annotations:
+    rollout.socioprophet.io/provider: gke
+    rollout.socioprophet.io/storage-profile: encrypted-regional-pd-or-csi
+spec:
+  storageClassName: REPLACE_WITH_GKE_STORAGE_CLASS
