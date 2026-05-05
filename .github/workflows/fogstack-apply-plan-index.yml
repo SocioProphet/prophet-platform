@@ -1,0 +1,39 @@
+name: FogStack Apply Plan Index
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
+      - ".github/workflows/fogstack-apply-plan-index.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tools/update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
+      - ".github/workflows/fogstack-apply-plan-index.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  apply-plan-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run updater test
+        run: |
+          python -m pytest -q tools/tests/test_update_fogstack_local_demo_apply_plan.py
