@@ -373,9 +373,9 @@ def validate_persistence_artifacts() -> None:
     for table in REQUIRED_POSTGRES_TABLES:
         if f"CREATE TABLE IF NOT EXISTS {table}" not in postgres_sql:
             fail(f"Postgres migration missing table: {table}")
-    for marker in ["JSONB NOT NULL", "policy_decision JSONB NOT NULL", "restore_dry_run_report_ref"]:
+    for marker in ["body JSONB NOT NULL", "GENERATED ALWAYS AS", "policy_decision JSONB GENERATED ALWAYS AS", "restore_dry_run_report_ref TEXT GENERATED ALWAYS AS"]:
         if marker not in postgres_sql:
-            fail(f"Postgres migration missing marker: {marker}")
+            fail(f"Postgres migration missing body-first marker: {marker}")
 
     if not CLICKHOUSE_SCHEMA_PATH.exists():
         fail(f"missing ClickHouse schema: {CLICKHOUSE_SCHEMA_PATH.relative_to(ROOT)}")
