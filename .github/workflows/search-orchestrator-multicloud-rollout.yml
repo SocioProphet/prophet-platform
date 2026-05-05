@@ -1,0 +1,31 @@
+name: search-orchestrator-multicloud-rollout
+
+on:
+  pull_request:
+    paths:
+      - 'docs/SEARCH_ORCHESTRATOR_MULTICLOUD_ROLLOUT_PREP.md'
+      - 'releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json'
+      - 'releases/evidence/search-orchestrator-multicloud-rollout-evidence.template.json'
+      - 'releases/evidence/search-orchestrator.multicloud-rollout-prep.validation.record.json'
+      - 'releases/manifests/search-orchestrator.multicloud-rollout-prep.manifest.json'
+      - 'tools/validate_search_orchestrator_multicloud_rollout.py'
+      - '.github/workflows/search-orchestrator-multicloud-rollout.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/SEARCH_ORCHESTRATOR_MULTICLOUD_ROLLOUT_PREP.md'
+      - 'releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json'
+      - 'releases/evidence/search-orchestrator-multicloud-rollout-evidence.template.json'
+      - 'releases/evidence/search-orchestrator.multicloud-rollout-prep.validation.record.json'
+      - 'releases/manifests/search-orchestrator.multicloud-rollout-prep.manifest.json'
+      - 'tools/validate_search_orchestrator_multicloud_rollout.py'
+      - '.github/workflows/search-orchestrator-multicloud-rollout.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Search Orchestrator multicloud rollout prep
+        run: python3 tools/validate_search_orchestrator_multicloud_rollout.py
