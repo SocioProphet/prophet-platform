@@ -28,6 +28,8 @@ def main() -> None:
     health = service.health()
     if health.get("service") != "cell-service" or health.get("status") != "ok":
         fail("cell-service health check failed")
+    if health.get("extraction") != "deterministic-template-v1":
+        fail("cell-service deterministic extraction health marker missing")
 
     result = service.run_loop_contract(loop)
     required_sections = [
@@ -65,6 +67,28 @@ def main() -> None:
     archive = result["cell_archive"]
     if not archive.get("restore_dry_run_report_ref"):
         fail("loop replay archive missing restore dry-run report ref")
+
+    text_service = CellService()
+    text_service.create_cell(loop["cell"])
+    text_service.create_source(loop["source"])
+    text_service.create_watch(loop["watch"])
+    text_service.create_watch_pattern(loop["watch_pattern"])
+    extracted_signal = text_service.ingest_text_signal(
+        signal_id="signal://demo/smoke/text/001",
+        cell_id=loop["cell"]["id"],
+        source_id=loop["source"]["id"],
+        watch_id=loop["watch"]["id"],
+        text="SocioProphet/prophet-platform changed docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md with new runtime design.",
+    )
+    expected = {
+        "repo": "SocioProphet/prophet-platform",
+        "path": "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md",
+        "change_type": "new runtime design",
+    }
+    if extracted_signal.get("extractions") != expected:
+        fail(f"deterministic extraction mismatch: {extracted_signal.get('extractions')}")
+    if extracted_signal.get("confidence_score", 0) <= 0:
+        fail("deterministic extraction confidence score missing")
 
     print("OK: cell-service loop smoke passed")
 
