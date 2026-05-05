@@ -6,7 +6,9 @@ from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from .extraction import ExtractionError, extract_with_patterns
+from .feed import private_feed_document, rss_feed_document
 from .policy import PolicyEngine, PolicyError, StaticPolicyEngine, require_allowed
+from .publication import cell_publication_bundle
 from .repository import CellRepository, InMemoryCellRepository, RepositoryError
 
 
@@ -23,8 +25,9 @@ class ResourceRef:
 class CellService:
     """Minimal Personal Intelligence Cell service.
 
-    The service is repository-backed, policy-gated, and deterministic-extraction
-    capable so the first lane can operate without LLM dependency.
+    The service is repository-backed, policy-gated, deterministic-extraction
+    capable, and publication-aware across private feeds, RSS, slash topics,
+    New Hope membranes, and Sherlock Search packets.
     """
 
     def __init__(self, repository: CellRepository | None = None, policy_engine: PolicyEngine | None = None) -> None:
@@ -39,6 +42,8 @@ class CellService:
             "storage": self._repo.__class__.__name__,
             "policy": self._policy.__class__.__name__,
             "extraction": "deterministic-template-v1",
+            "feed": "private-json+rss-v1",
+            "publication": "slash-topics+new-hope+sherlock-v1",
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
@@ -245,6 +250,9 @@ class CellService:
         prepared.setdefault("reputation_effects", [])
         return prepared
 
+    def get_signal(self, signal_id: str) -> dict[str, Any]:
+        return self._get("signals", signal_id, "Signal")
+
     def emit_feed_item(self, feed_item: dict[str, Any]) -> dict[str, Any]:
         self._require(feed_item, ["id", "cell_id", "signal_id", "feed_kind", "created_at"])
         self.get_cell(feed_item["cell_id"])
@@ -254,6 +262,34 @@ class CellService:
         prepared["policy_decision"] = decision
         self._require_policy_decision(prepared["policy_decision"])
         return self._create("feed_items", prepared, "FeedItem")
+
+    def get_feed_item(self, feed_item_id: str) -> dict[str, Any]:
+        return self._get("feed_items", feed_item_id, "FeedItem")
+
+    def list_feed_items(self, cell_id: str | None = None) -> list[dict[str, Any]]:
+        items = self._list("feed_items")
+        if cell_id is None:
+            return items
+        return [item for item in items if item.get("cell_id") == cell_id]
+
+    def export_private_feed(self, cell_id: str) -> dict[str, Any]:
+        cell = self.get_cell(cell_id)
+        items = self.list_feed_items(cell_id)
+        signals = {item["signal_id"]: self.get_signal(item["signal_id"]) for item in items}
+        return private_feed_document(cell, items, signals)
+
+    def export_rss_feed(self, cell_id: str) -> str:
+        cell = self.get_cell(cell_id)
+        items = self.list_feed_items(cell_id)
+        signals = {item["signal_id"]: self.get_signal(item["signal_id"]) for item in items}
+        return rss_feed_document(cell=cell, feed_items=items, signals=signals)
+
+    def publication_bundle_for_feed_item(self, feed_item_id: str) -> dict[str, Any]:
+        feed_item = self.get_feed_item(feed_item_id)
+        signal = self.get_signal(feed_item["signal_id"])
+        watch = self.get_watch(signal["watch_id"])
+        cell = self.get_cell(feed_item["cell_id"])
+        return cell_publication_bundle(cell=cell, watch=watch, signal=signal, feed_item=feed_item)
 
     def append_intent_event(self, intent_event: dict[str, Any]) -> dict[str, Any]:
         self._require(intent_event, ["id", "cell_id", "actor_ref", "intent_text", "structured_intent", "created_at"])
@@ -309,6 +345,9 @@ class CellService:
             "intent_event": intent,
             "feedback_event": feedback,
             "cell_archive": archive,
+            "private_feed": self.export_private_feed(cell["id"]),
+            "rss_feed": self.export_rss_feed(cell["id"]),
+            "publication_bundle": self.publication_bundle_for_feed_item(feed["id"]),
         }
 
     def _source_trust(self, source_id: str) -> float:
