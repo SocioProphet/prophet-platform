@@ -22,6 +22,7 @@ def test_health() -> None:
     assert health["service"] == "cell-service"
     assert health["status"] == "ok"
     assert health["policy"] == "StaticPolicyEngine"
+    assert health["extraction"] == "deterministic-template-v1"
 
 
 def test_replay_loop_contract() -> None:
@@ -36,6 +37,47 @@ def test_replay_loop_contract() -> None:
     assert result["intent_event"]["policy_decision"]["decision"] == "allow"
     assert result["feedback_event"]["action"] == "mark_relevant"
     assert result["cell_archive"]["restore_dry_run_report_ref"]
+
+
+def test_ingest_text_signal_extracts_from_watch_pattern() -> None:
+    service = CellService()
+    loop = load_loop()
+    service.create_cell(loop["cell"])
+    service.create_source(loop["source"])
+    service.create_watch(loop["watch"])
+    service.create_watch_pattern(loop["watch_pattern"])
+
+    signal = service.ingest_text_signal(
+        signal_id="signal://demo/text/001",
+        cell_id=loop["cell"]["id"],
+        source_id=loop["source"]["id"],
+        watch_id=loop["watch"]["id"],
+        text="SocioProphet/prophet-platform changed docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md with new runtime design.",
+    )
+
+    assert signal["extractions"]["repo"] == "SocioProphet/prophet-platform"
+    assert signal["extractions"]["path"] == "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md"
+    assert signal["extractions"]["change_type"] == "new runtime design"
+    assert signal["confidence_score"] > 0
+    assert signal["evidence_refs"] == ["evidence://cell-service/text/signal://demo/text/001"]
+
+
+def test_ingest_text_signal_rejects_non_matching_text() -> None:
+    service = CellService()
+    loop = load_loop()
+    service.create_cell(loop["cell"])
+    service.create_source(loop["source"])
+    service.create_watch(loop["watch"])
+    service.create_watch_pattern(loop["watch_pattern"])
+
+    with pytest.raises(ServiceError, match="did not match"):
+        service.ingest_text_signal(
+            signal_id="signal://demo/text/002",
+            cell_id=loop["cell"]["id"],
+            source_id=loop["source"]["id"],
+            watch_id=loop["watch"]["id"],
+            text="This unrelated sentence should not match the repository change template.",
+        )
 
 
 def test_rejects_unknown_watch_pattern_variable_ref() -> None:
