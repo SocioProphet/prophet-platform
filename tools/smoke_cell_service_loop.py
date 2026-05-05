@@ -30,6 +30,10 @@ def main() -> None:
         fail("cell-service health check failed")
     if health.get("extraction") != "deterministic-template-v1":
         fail("cell-service deterministic extraction health marker missing")
+    if health.get("feed") != "private-json+rss-v1":
+        fail("cell-service feed health marker missing")
+    if health.get("publication") != "slash-topics+new-hope+sherlock-v1":
+        fail("cell-service publication health marker missing")
 
     result = service.run_loop_contract(loop)
     required_sections = [
@@ -43,6 +47,9 @@ def main() -> None:
         "intent_event",
         "feedback_event",
         "cell_archive",
+        "private_feed",
+        "rss_feed",
+        "publication_bundle",
     ]
     for section in required_sections:
         if section not in result:
@@ -67,6 +74,20 @@ def main() -> None:
     archive = result["cell_archive"]
     if not archive.get("restore_dry_run_report_ref"):
         fail("loop replay archive missing restore dry-run report ref")
+
+    private_feed = result["private_feed"]
+    if private_feed.get("feed_kind") != "private" or private_feed.get("item_count") != 1:
+        fail("private feed export did not include expected item")
+    if "<rss version=\"2.0\"" not in result["rss_feed"]:
+        fail("RSS export missing RSS 2.0 marker")
+
+    bundle = result["publication_bundle"]
+    if bundle.get("slashTopicSurface", {}).get("surfaceKind") != "slash-topic-cell-signal":
+        fail("slash topic surface missing or invalid")
+    if bundle.get("newHopeMembraneEvent", {}).get("membraneOutcome") != "admit":
+        fail("New Hope membrane event missing admit outcome")
+    if bundle.get("sherlockSearchPacket", {}).get("schemaVersion") != "v0.1":
+        fail("Sherlock search packet missing schema version")
 
     text_service = CellService()
     text_service.create_cell(loop["cell"])
