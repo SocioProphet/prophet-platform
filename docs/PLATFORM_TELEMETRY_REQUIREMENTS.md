@@ -12,6 +12,8 @@ This document defines runtime telemetry requirements for `prophet-platform`.
 - no write-on-read persistent cache mutation
 - scoped recovery instead of broad destructive cache purges
 - batched sender support with compression, retry, and unload delivery where supported
+- transport coverage across `fetch`, `XMLHttpRequest`, and beacon-style unload delivery
+- typed runtime-policy telemetry for retry, stream, cache, polling, connector-routing, and redaction behavior
 
 ## Required fields
 Signals should include:
@@ -32,8 +34,16 @@ Where relevant also include:
 - `recovery_policy`
 - `artifact_digest`
 - `policy_decision_id`
+- `agentplane_run_id`
+- `runtime_dry_run_record_ref`
+- `live_cluster_preflight_record_ref`
+- `identity_context_ref`
+
+## Runtime control-plane alignment
+Runtime telemetry must align with `docs/TELEMETRY_RUNTIME_CONTROL_PLANE_ALIGNMENT.md` for current FogStack dry-run, live-preflight, identity, PolicyPlane, AgentPlane, and parity-readiness evidence surfaces.
 
 ## Cross-repo alignment
 - `socioprophet-standards-storage/docs/standards/040-observability-otel.md`
-- `socioprophet-standards-storage/docs/standards/041-telemetry-control-plane-and-recovery.md`
+- `socioprophet-standards-storage/docs/standards/041-runtime-control-plane-telemetry.md`
 - `global-devsecops-intelligence/docs/architecture/telemetry-surface-profile.md`
+- `global-devsecops-intelligence/docs/architecture/runtime-control-plane-telemetry-alignment.md`
