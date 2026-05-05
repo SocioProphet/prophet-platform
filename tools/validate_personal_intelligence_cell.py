@@ -12,6 +12,8 @@ SCHEMA_PATH = ROOT / "schemas/cell/personal-intelligence-cell.schema.json"
 FIXTURES_PATH = ROOT / "schemas/cell/watch-pattern-fixtures.json"
 RUNTIME_DOC_PATH = ROOT / "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md"
 LOOP_CONTRACT_PATH = ROOT / "contracts/cell/personal-intelligence-cell.loop.v1.example.json"
+POSTGRES_MIGRATION_PATH = ROOT / "infra/datastores/postgres/migrations/cell/0001_personal_intelligence_cell.sql"
+CLICKHOUSE_SCHEMA_PATH = ROOT / "infra/datastores/clickhouse/cell/0001_personal_intelligence_cell_analytics.sql"
 
 EXPECTED_DEFS = {
     "Cell",
@@ -90,6 +92,29 @@ REQUIRED_LOOP_KEYS = {
     "feedback_event",
     "cell_archive",
 }
+
+REQUIRED_POSTGRES_TABLES = [
+    "cell_cells",
+    "cell_configs",
+    "cell_sources",
+    "cell_watches",
+    "cell_watch_patterns",
+    "cell_signals",
+    "cell_feed_items",
+    "cell_intent_events",
+    "cell_feedback_events",
+    "cell_archives",
+]
+
+REQUIRED_CLICKHOUSE_TABLES = [
+    "cell_signal_scores",
+    "cell_source_quality_facts",
+    "cell_reputation_deltas",
+    "cell_feedback_outcomes",
+    "cell_watch_pattern_metrics",
+    "cell_notification_metrics",
+    "cell_social_environment_snapshots",
+]
 
 
 def fail(message: str) -> None:
@@ -341,6 +366,28 @@ def validate_loop_contract(loop: dict[str, Any]) -> None:
         fail("loop cell_archive must include restore_dry_run_report_ref")
 
 
+def validate_persistence_artifacts() -> None:
+    if not POSTGRES_MIGRATION_PATH.exists():
+        fail(f"missing Postgres migration: {POSTGRES_MIGRATION_PATH.relative_to(ROOT)}")
+    postgres_sql = POSTGRES_MIGRATION_PATH.read_text(encoding="utf-8", errors="replace")
+    for table in REQUIRED_POSTGRES_TABLES:
+        if f"CREATE TABLE IF NOT EXISTS {table}" not in postgres_sql:
+            fail(f"Postgres migration missing table: {table}")
+    for marker in ["JSONB NOT NULL", "policy_decision JSONB NOT NULL", "restore_dry_run_report_ref"]:
+        if marker not in postgres_sql:
+            fail(f"Postgres migration missing marker: {marker}")
+
+    if not CLICKHOUSE_SCHEMA_PATH.exists():
+        fail(f"missing ClickHouse schema: {CLICKHOUSE_SCHEMA_PATH.relative_to(ROOT)}")
+    clickhouse_sql = CLICKHOUSE_SCHEMA_PATH.read_text(encoding="utf-8", errors="replace")
+    for table in REQUIRED_CLICKHOUSE_TABLES:
+        if f"CREATE TABLE IF NOT EXISTS {table}" not in clickhouse_sql:
+            fail(f"ClickHouse schema missing table: {table}")
+    for marker in ["MergeTree", "cell_signal_scores", "cell_social_environment_snapshots"]:
+        if marker not in clickhouse_sql:
+            fail(f"ClickHouse schema missing marker: {marker}")
+
+
 def main() -> None:
     schema = load_json(SCHEMA_PATH)
     fixtures = load_json(FIXTURES_PATH)
@@ -349,6 +396,7 @@ def main() -> None:
     validate_fixtures(fixtures)
     validate_runtime_doc()
     validate_loop_contract(loop)
+    validate_persistence_artifacts()
     print("OK: personal intelligence cell validation passed")
 
 
