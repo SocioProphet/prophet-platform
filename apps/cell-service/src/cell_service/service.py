@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from .extraction import ExtractionError, extract_with_patterns
 from .policy import PolicyEngine, PolicyError, StaticPolicyEngine, require_allowed
 from .repository import CellRepository, InMemoryCellRepository, RepositoryError
 
@@ -22,9 +23,8 @@ class ResourceRef:
 class CellService:
     """Minimal Personal Intelligence Cell service.
 
-    The service is repository-backed and policy-gated so the first in-memory lane
-    can be replaced by real platform persistence and PolicyFabric integration
-    without changing the domain API.
+    The service is repository-backed, policy-gated, and deterministic-extraction
+    capable so the first lane can operate without LLM dependency.
     """
 
     def __init__(self, repository: CellRepository | None = None, policy_engine: PolicyEngine | None = None) -> None:
@@ -38,6 +38,7 @@ class CellService:
             "time": _now(),
             "storage": self._repo.__class__.__name__,
             "policy": self._policy.__class__.__name__,
+            "extraction": "deterministic-template-v1",
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
@@ -166,6 +167,59 @@ class CellService:
                     raise ServiceError(f"WatchPattern frame references unknown variable: {ref}")
         return {"valid": True, "variables": sorted(names), "pattern_kind": kind}
 
+    def extract_for_watch(self, watch_id: str, text: str) -> dict[str, Any]:
+        watch = self.get_watch(watch_id)
+        patterns = self.list_watch_patterns(watch_id)
+        if not patterns:
+            pattern_refs = watch.get("pattern_refs", [])
+            patterns = [self.get_watch_pattern(pattern_ref) for pattern_ref in pattern_refs if self._exists("watch_patterns", pattern_ref)]
+        if not patterns:
+            raise ServiceError(f"Watch has no deterministic patterns: {watch_id}")
+        try:
+            result = extract_with_patterns(patterns, text)
+        except ExtractionError as exc:
+            raise ServiceError(str(exc)) from exc
+        return {
+            "pattern_id": result.pattern_id,
+            "pattern_kind": result.pattern_kind,
+            "matched": result.matched,
+            "extractions": result.extractions,
+            "confidence_score": result.confidence_score,
+        }
+
+    def ingest_text_signal(
+        self,
+        *,
+        signal_id: str,
+        cell_id: str,
+        source_id: str,
+        watch_id: str,
+        text: str,
+        title: str | None = None,
+        evidence_refs: list[str] | None = None,
+        observed_at: str | None = None,
+    ) -> dict[str, Any]:
+        extraction = self.extract_for_watch(watch_id, text)
+        if not extraction["matched"]:
+            raise ServiceError(f"text did not match deterministic watch patterns for {watch_id}")
+        evidence = evidence_refs or [f"evidence://cell-service/text/{signal_id}"]
+        signal = {
+            "id": signal_id,
+            "cell_id": cell_id,
+            "source_id": source_id,
+            "watch_id": watch_id,
+            "observed_at": observed_at or _now(),
+            "title": title or text[:120],
+            "summary": text,
+            "entities": [],
+            "claims": [],
+            "extractions": extraction["extractions"],
+            "evidence_refs": evidence,
+            "confidence_score": extraction["confidence_score"],
+            "policy_status": "allowed",
+        }
+        return self.ingest_signal(signal)
+
     def ingest_signal(self, signal: dict[str, Any]) -> dict[str, Any]:
         self._require(signal, ["id", "cell_id", "source_id", "watch_id", "observed_at", "evidence_refs", "policy_status"])
         self.get_cell(signal["cell_id"])
@@ -287,6 +341,12 @@ class CellService:
             return self._repo.get(collection, key)
         except RepositoryError as exc:
             raise ServiceError(f"{label} not found: {key}") from exc
+
+    def _exists(self, collection: str, key: str) -> bool:
+        try:
+            return self._repo.exists(collection, key)
+        except RepositoryError as exc:
+            raise ServiceError(f"persistence error: {exc}") from exc
 
     def _list(self, collection: str) -> list[dict[str, Any]]:
         try:
