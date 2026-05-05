@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/runtime/fogstack-live-apply-plan-record-v0.1.schema.json",
+  "title": "FogStackLiveApplyPlanRecord",
+  "type": "object",
+  "required": ["kind", "schema_version", "status", "mode", "safety"],
+  "properties": {
+    "kind": { "const": "FogStackLiveApplyPlanRecord" },
+    "schema_version": { "const": "v0.1" },
+    "status": { "enum": ["passed", "blocked"] },
+    "mode": { "const": "plan-only" },
+    "safety": { "type": "object" }
+  },
+  "additionalProperties": true
+}
