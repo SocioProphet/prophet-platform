@@ -1,0 +1,34 @@
+{
+  "kind": "ReasoningFailureCase",
+  "version": "0.1",
+  "caseId": "reasoning-failure.exact-string.synthetic.v0",
+  "failureModeRefs": [
+    "https://socioprophet.github.io/ontogenesis/platform/reasoning-failure#ExactStringFailure"
+  ],
+  "taskClass": "exactness",
+  "domain": "configuration",
+  "severity": "high",
+  "invariant": {
+    "invariantId": "exactness.byte-identical.identifier",
+    "description": "The protected identifier must remain byte-identical across transformation.",
+    "mustSurvivePerturbation": true
+  },
+  "expectedOutcome": "Preserve sourceos-syncd.release-set.v0.1 exactly.",
+  "observedOutput": "Identifier was normalized during prose rewrite.",
+  "protectedString": "sourceos-syncd.release-set.v0.1",
+  "observedString": "sourceos_syncd.release_set.v0.1",
+  "verifier": {
+    "verifierId": "deterministic.string.byte-compare.v0",
+    "verifierFamily": "deterministic",
+    "llmJudgeOnly": false
+  },
+  "evidenceReceiptRefs": [
+    "receipt:synthetic-exactness-byte-compare.v0"
+  ],
+  "mitigationRefs": [
+    "https://socioprophet.github.io/ontogenesis/platform/reasoning-failure#DeterministicToolDelegation"
+  ],
+  "residualRisk": "Exactness-sensitive outputs remain unsafe until deterministic verification passes.",
+  "riskAction": "require-tool-verification",
+  "privacyBoundary": "synthetic-only"
+}
