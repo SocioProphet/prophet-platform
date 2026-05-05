@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "v0.1",
+  "demoId": "pi-gate4-demo-0001",
+  "gate": "gate-4",
+  "status": "ready",
+  "workroomRef": "workroom://workroom-demo-0001",
+  "playbookRef": "playbook://client-opportunity-review",
+  "contextQueryRef": "query://pi-demo-0001/context",
+  "contextPackRefs": [
+    "context-pack://pi-demo-0001"
+  ],
+  "searchPacketRefs": [
+    "search-packet://pi-demo-0001"
+  ],
+  "policyDecisionRefs": [
+    "policy-decision://ppd-allow-0001",
+    "policy-decision://ppd-review-0001"
+  ],
+  "obligationRefs": [
+    "obligation://obl-ai-use-demo-0001",
+    "obligation://obl-approval-demo-0001"
+  ],
+  "routeDecisionRefs": [
+    "route-decision://pi-demo-0001/review-packet",
+    "route-decision://pi-demo-0001/policy-sensitive-summary"
+  ],
+  "runtimeControlRefs": [
+    "guardrail-pack://professional-intelligence/gate-3-demo"
+  ],
+  "agentAuthorityRefs": [
+    "session://professional-intelligence/demo-001",
+    "revocation://professional-intelligence/current"
+  ],
+  "agentplaneRunRefs": [
+    "agentplane://runs/pi-demo-0001"
+  ],
+  "ledgerRefs": [
+    "ledger://professional-intelligence/route-evidence/review-packet",
+    "ledger://professional-intelligence/model-evidence/review-packet",
+    "ledger://professional-intelligence/promotion/review-packet-candidate",
+    "rollback://professional-intelligence/review-packet/current"
+  ],
+  "workroomUpdateRefs": [
+    "workroom://workroom-demo-0001"
+  ],
+  "evidenceRefs": [
+    "evidence://query/pi-demo-0001/context",
+    "evidence://model-router/pi-demo-0001/review-packet",
+    "evidence://guardrail-fabric/professional-intelligence/gate-3-demo",
+    "evidence://agentplane/pi-demo-0001/workflow-step",
+    "evidence://adoption/adopt-0001"
+  ],
+  "adoptionEventRefs": [
+    "adoption://adopt-0001"
+  ],
+  "steps": [
+    {
+      "stepId": "load-playbook",
+      "inputRefs": [
+        "playbook://client-opportunity-review"
+      ],
+      "outputRefs": [
+        "workroom://workroom-demo-0001"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    },
+    {
+      "stepId": "resolve-context",
+      "inputRefs": [
+        "query://pi-demo-0001/context",
+        "search-packet://pi-demo-0001",
+        "context-pack://pi-demo-0001"
+      ],
+      "outputRefs": [
+        "context-pack://pi-demo-0001"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    },
+    {
+      "stepId": "check-policy-and-obligations",
+      "inputRefs": [
+        "policy-decision://ppd-review-0001",
+        "obligation://obl-ai-use-demo-0001",
+        "obligation://obl-approval-demo-0001"
+      ],
+      "outputRefs": [
+        "evidence://policy/ppd-review-0001"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    },
+    {
+      "stepId": "select-route-and-controls",
+      "inputRefs": [
+        "route-decision://pi-demo-0001/review-packet",
+        "guardrail-pack://professional-intelligence/gate-3-demo",
+        "session://professional-intelligence/demo-001"
+      ],
+      "outputRefs": [
+        "evidence://model-router/pi-demo-0001/review-packet",
+        "evidence://guardrail-fabric/professional-intelligence/gate-3-demo"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    },
+    {
+      "stepId": "run-agentplane-bundle",
+      "inputRefs": [
+        "agentplane://bundle/professional-intelligence-client-opportunity-review"
+      ],
+      "outputRefs": [
+        "agentplane://runs/pi-demo-0001",
+        "evidence://agentplane/pi-demo-0001/workflow-step"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    },
+    {
+      "stepId": "seal-ledger-and-adoption",
+      "inputRefs": [
+        "ledger://professional-intelligence/model-evidence/review-packet",
+        "ledger://professional-intelligence/route-evidence/review-packet"
+      ],
+      "outputRefs": [
+        "adoption://adopt-0001",
+        "evidence://adoption/adopt-0001"
+      ],
+      "evidenceRequired": true,
+      "status": "ready"
+    }
+  ],
+  "acceptance": {
+    "requiredEvidenceRefs": [
+      "evidence://query/pi-demo-0001/context",
+      "evidence://model-router/pi-demo-0001/review-packet",
+      "evidence://guardrail-fabric/professional-intelligence/gate-3-demo",
+      "evidence://agentplane/pi-demo-0001/workflow-step",
+      "evidence://adoption/adopt-0001"
+    ],
+    "requiredAdoptionEventRefs": [
+      "adoption://adopt-0001"
+    ],
+    "criteria": [
+      "playbook is loaded",
+      "context is resolved",
+      "policy and obligation checks are referenced",
+      "route decision and runtime controls are referenced",
+      "Agentplane run is referenced",
+      "workroom and evidence outputs are referenced",
+      "adoption event is referenced"
+    ]
+  }
+}
