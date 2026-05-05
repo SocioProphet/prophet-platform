@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from .repository import CellRepository, InMemoryCellRepository, RepositoryError
+
 
 class ServiceError(ValueError):
     """Raised when a request violates the cell service contract."""
@@ -17,30 +19,21 @@ class ResourceRef:
 
 
 class CellService:
-    """Minimal in-memory Personal Intelligence Cell service.
+    """Minimal Personal Intelligence Cell service.
 
-    This is intentionally not a crawler, database adapter, or UI service. It is the
-    first governed runtime skeleton for the contract loop defined under
-    contracts/cell/personal-intelligence-cell.loop.v1.example.json.
+    The service is repository-backed so the first in-memory lane can be replaced
+    by Postgres/ClickHouse persistence without changing the domain API.
     """
 
-    def __init__(self) -> None:
-        self._cells: dict[str, dict[str, Any]] = {}
-        self._configs: dict[str, dict[str, Any]] = {}
-        self._sources: dict[str, dict[str, Any]] = {}
-        self._watches: dict[str, dict[str, Any]] = {}
-        self._patterns: dict[str, dict[str, Any]] = {}
-        self._signals: dict[str, dict[str, Any]] = {}
-        self._feed_items: dict[str, dict[str, Any]] = {}
-        self._intent_events: dict[str, dict[str, Any]] = {}
-        self._feedback_events: dict[str, dict[str, Any]] = {}
-        self._archives: dict[str, dict[str, Any]] = {}
+    def __init__(self, repository: CellRepository | None = None) -> None:
+        self._repo = repository or InMemoryCellRepository()
 
     def health(self) -> dict[str, str]:
         return {
             "service": "cell-service",
             "status": "ok",
             "time": _now(),
+            "storage": self._repo.__class__.__name__,
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
@@ -49,13 +42,13 @@ class CellService:
             raise ServiceError(f"unsupported cell kind: {cell['kind']}")
         prepared = self._with_timestamps(cell)
         prepared.setdefault("state", "active")
-        return self._put_unique(self._cells, prepared, "Cell")
+        return self._create("cells", prepared, "Cell")
 
     def get_cell(self, cell_id: str) -> dict[str, Any]:
-        return self._get(self._cells, cell_id, "Cell")
+        return self._get("cells", cell_id, "Cell")
 
     def list_cells(self) -> list[dict[str, Any]]:
-        return self._list(self._cells)
+        return self._list("cells")
 
     def put_cell_config(self, config: dict[str, Any]) -> dict[str, Any]:
         self._require(
@@ -67,11 +60,10 @@ class CellService:
             raise ServiceError("CellConfig.local_first_mode must be boolean")
         prepared = deepcopy(config)
         prepared.setdefault("id", f"cell-config:{config['cell_id']}")
-        self._configs[config["cell_id"]] = prepared
-        return deepcopy(prepared)
+        return self._put("cell_configs", config["cell_id"], prepared)
 
     def get_cell_config(self, cell_id: str) -> dict[str, Any]:
-        return self._get(self._configs, cell_id, "CellConfig")
+        return self._get("cell_configs", cell_id, "CellConfig")
 
     def create_source(self, source: dict[str, Any]) -> dict[str, Any]:
         self._require(source, ["id", "kind", "uri", "trust_profile", "crawl_profile", "provenance_profile", "policy_ref"])
@@ -79,13 +71,13 @@ class CellService:
             raise ServiceError("ledger/payment/governance source adapters must be disabled by default")
         prepared = deepcopy(source)
         prepared.setdefault("enabled", True)
-        return self._put_unique(self._sources, prepared, "Source")
+        return self._create("sources", prepared, "Source")
 
     def get_source(self, source_id: str) -> dict[str, Any]:
-        return self._get(self._sources, source_id, "Source")
+        return self._get("sources", source_id, "Source")
 
     def list_sources(self) -> list[dict[str, Any]]:
-        return self._list(self._sources)
+        return self._list("sources")
 
     def create_watch(self, watch: dict[str, Any]) -> dict[str, Any]:
         self._require(
@@ -100,13 +92,13 @@ class CellService:
         for source_id in watch["source_scope"]:
             self.get_source(source_id)
         prepared = self._with_timestamps(watch)
-        return self._put_unique(self._watches, prepared, "Watch")
+        return self._create("watches", prepared, "Watch")
 
     def get_watch(self, watch_id: str) -> dict[str, Any]:
-        return self._get(self._watches, watch_id, "Watch")
+        return self._get("watches", watch_id, "Watch")
 
     def list_watches(self, cell_id: str | None = None) -> list[dict[str, Any]]:
-        watches = self._list(self._watches)
+        watches = self._list("watches")
         if cell_id is None:
             return watches
         return [watch for watch in watches if watch.get("cell_id") == cell_id]
@@ -116,17 +108,17 @@ class CellService:
         watch = self.get_watch(pattern["watch_id"])
         self.validate_watch_pattern(pattern)
         prepared = deepcopy(pattern)
-        stored = self._put_unique(self._patterns, prepared, "WatchPattern")
+        stored = self._create("watch_patterns", prepared, "WatchPattern")
         if stored["id"] not in watch["pattern_refs"]:
             watch["pattern_refs"].append(stored["id"])
-            self._watches[watch["id"]] = watch
+            self._put("watches", watch["id"], watch)
         return stored
 
     def get_watch_pattern(self, pattern_id: str) -> dict[str, Any]:
-        return self._get(self._patterns, pattern_id, "WatchPattern")
+        return self._get("watch_patterns", pattern_id, "WatchPattern")
 
     def list_watch_patterns(self, watch_id: str | None = None) -> list[dict[str, Any]]:
-        patterns = self._list(self._patterns)
+        patterns = self._list("watch_patterns")
         if watch_id is None:
             return patterns
         return [pattern for pattern in patterns if pattern.get("watch_id") == watch_id]
@@ -174,8 +166,7 @@ class CellService:
             raise ServiceError("Signal.evidence_refs must be non-empty")
         prepared = deepcopy(signal)
         scored = self.score_signal(prepared)
-        stored = self._put_unique(self._signals, scored, "Signal")
-        return stored
+        return self._create("signals", scored, "Signal")
 
     def score_signal(self, signal: dict[str, Any]) -> dict[str, Any]:
         prepared = deepcopy(signal)
@@ -193,9 +184,9 @@ class CellService:
     def emit_feed_item(self, feed_item: dict[str, Any]) -> dict[str, Any]:
         self._require(feed_item, ["id", "cell_id", "signal_id", "feed_kind", "policy_decision", "created_at"])
         self.get_cell(feed_item["cell_id"])
-        self._get(self._signals, feed_item["signal_id"], "Signal")
+        self._get("signals", feed_item["signal_id"], "Signal")
         self._require_policy_decision(feed_item["policy_decision"])
-        return self._put_unique(self._feed_items, feed_item, "FeedItem")
+        return self._create("feed_items", feed_item, "FeedItem")
 
     def append_intent_event(self, intent_event: dict[str, Any]) -> dict[str, Any]:
         self._require(intent_event, ["id", "cell_id", "actor_ref", "intent_text", "structured_intent", "policy_decision", "created_at"])
@@ -205,15 +196,15 @@ class CellService:
         if not isinstance(intent_event["structured_intent"], dict):
             raise ServiceError("IntentEvent.structured_intent must be object")
         self._require_policy_decision(intent_event["policy_decision"])
-        return self._put_unique(self._intent_events, intent_event, "IntentEvent")
+        return self._create("intent_events", intent_event, "IntentEvent")
 
     def record_feedback_event(self, feedback_event: dict[str, Any]) -> dict[str, Any]:
         self._require(feedback_event, ["id", "cell_id", "signal_id", "actor_ref", "action", "created_at"])
         self.get_cell(feedback_event["cell_id"])
-        self._get(self._signals, feedback_event["signal_id"], "Signal")
+        self._get("signals", feedback_event["signal_id"], "Signal")
         if feedback_event["action"] not in {"follow", "mark_relevant", "mark_irrelevant", "delete", "mute_source", "promote_source", "refine_watch", "share", "save", "dismiss"}:
             raise ServiceError(f"unsupported FeedbackEvent.action: {feedback_event['action']}")
-        return self._put_unique(self._feedback_events, feedback_event, "FeedbackEvent")
+        return self._create("feedback_events", feedback_event, "FeedbackEvent")
 
     def export_cell_archive(self, archive: dict[str, Any]) -> dict[str, Any]:
         self._require(archive, ["id", "cell_id", "schema_version", "manifest", "created_at"])
@@ -222,7 +213,7 @@ class CellService:
             raise ServiceError("CellArchive.manifest must be object")
         if not archive.get("restore_dry_run_report_ref"):
             raise ServiceError("CellArchive.restore_dry_run_report_ref is required for first runtime lane")
-        return self._put_unique(self._archives, archive, "CellArchive")
+        return self._create("cell_archives", archive, "CellArchive")
 
     def run_loop_contract(self, loop: dict[str, Any]) -> dict[str, Any]:
         cell = self.create_cell(loop["cell"])
@@ -255,21 +246,29 @@ class CellService:
         self._validate_score("source.trust_profile.default_trust_score", score)
         return float(score)
 
-    def _put_unique(self, collection: dict[str, dict[str, Any]], obj: dict[str, Any], label: str) -> dict[str, Any]:
-        obj_id = obj["id"]
-        if obj_id in collection:
-            raise ServiceError(f"{label} already exists: {obj_id}")
-        collection[obj_id] = deepcopy(obj)
-        return deepcopy(obj)
-
-    def _get(self, collection: dict[str, dict[str, Any]], obj_id: str, label: str) -> dict[str, Any]:
+    def _create(self, collection: str, obj: dict[str, Any], label: str) -> dict[str, Any]:
         try:
-            return deepcopy(collection[obj_id])
-        except KeyError as exc:
-            raise ServiceError(f"{label} not found: {obj_id}") from exc
+            return self._repo.create(collection, obj)
+        except RepositoryError as exc:
+            raise ServiceError(f"{label} persistence error: {exc}") from exc
 
-    def _list(self, collection: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
-        return [deepcopy(value) for value in collection.values()]
+    def _put(self, collection: str, key: str, obj: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return self._repo.put(collection, key, obj)
+        except RepositoryError as exc:
+            raise ServiceError(f"persistence error: {exc}") from exc
+
+    def _get(self, collection: str, key: str, label: str) -> dict[str, Any]:
+        try:
+            return self._repo.get(collection, key)
+        except RepositoryError as exc:
+            raise ServiceError(f"{label} not found: {key}") from exc
+
+    def _list(self, collection: str) -> list[dict[str, Any]]:
+        try:
+            return self._repo.list(collection)
+        except RepositoryError as exc:
+            raise ServiceError(f"persistence error: {exc}") from exc
 
     def _with_timestamps(self, obj: dict[str, Any]) -> dict[str, Any]:
         prepared = deepcopy(obj)
