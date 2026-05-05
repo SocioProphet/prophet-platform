@@ -1,0 +1,143 @@
+{
+  "$schema": "https://standards.socioprophet.org/schemas/personal-intelligence-cell-fixtures.schema.json",
+  "title": "Personal Intelligence Cell Watch Pattern Fixtures",
+  "description": "Concrete conformance scenarios for typed watch patterns, source ingestion, signal extraction, scoring, policy, feed emission, feedback, and archive readiness.",
+  "fixtures": [
+    {
+      "id": "fixture.weather.alert.v1",
+      "domain": "weather_alert",
+      "source": { "kind": "rss", "uri": "fixture://weather/rss" },
+      "watch_pattern": {
+        "pattern_kind": "typed_template",
+        "raw_expression": "$location severe weather alert $time",
+        "variables": [
+          { "name": "location", "type": "location", "required": true },
+          { "name": "time", "type": "time", "required": false }
+        ]
+      },
+      "input": "Bucks County severe weather alert tonight after 8 PM.",
+      "expected_extractions": { "location": "Bucks County", "time": "tonight after 8 PM" },
+      "expected_signal": { "min_relevance_score": 0.7, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.real_estate.listing.v1",
+      "domain": "real_estate_listing",
+      "source": { "kind": "web", "uri": "fixture://real-estate/listings" },
+      "watch_pattern": {
+        "pattern_kind": "typed_template",
+        "raw_expression": "$property_type in $location under $money",
+        "variables": [
+          { "name": "property_type", "type": "entity", "required": true },
+          { "name": "location", "type": "location", "required": true },
+          { "name": "money", "type": "money", "required": true }
+        ]
+      },
+      "input": "Townhouse in Doylestown under $450,000 with garage and walkable center access.",
+      "expected_extractions": { "property_type": "Townhouse", "location": "Doylestown", "money": "$450,000" },
+      "expected_signal": { "min_relevance_score": 0.7, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.market.offer.v1",
+      "domain": "market_offer",
+      "source": { "kind": "web", "uri": "fixture://offers/local" },
+      "watch_pattern": {
+        "pattern_kind": "typed_template",
+        "raw_expression": "$product discount under $money near $location",
+        "variables": [
+          { "name": "product", "type": "entity", "required": true },
+          { "name": "money", "type": "money", "required": false },
+          { "name": "location", "type": "location", "required": false }
+        ]
+      },
+      "input": "Solar battery backup discount under $3,000 near Philadelphia this week.",
+      "expected_extractions": { "product": "Solar battery backup", "money": "$3,000", "location": "Philadelphia" },
+      "expected_signal": { "min_relevance_score": 0.65, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.competitor.release.v1",
+      "domain": "competitor_release",
+      "source": { "kind": "web", "uri": "fixture://competitor/blog" },
+      "watch_pattern": {
+        "pattern_kind": "claim_template",
+        "raw_expression": "$org released $product with $capability",
+        "variables": [
+          { "name": "org", "type": "entity", "required": true },
+          { "name": "product", "type": "entity", "required": true },
+          { "name": "capability", "type": "text", "required": true }
+        ]
+      },
+      "input": "ExosphereHost released Runtime with failover orchestration and agent reliability dashboards.",
+      "expected_extractions": { "org": "ExosphereHost", "product": "Runtime", "capability": "failover orchestration and agent reliability dashboards" },
+      "expected_signal": { "min_relevance_score": 0.75, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.legal.hearing.v1",
+      "domain": "legal_public_hearing",
+      "source": { "kind": "web", "uri": "fixture://municipal/legal-notices" },
+      "watch_pattern": {
+        "pattern_kind": "typed_template",
+        "raw_expression": "public hearing on $topic at $time in $location",
+        "variables": [
+          { "name": "topic", "type": "text", "required": true },
+          { "name": "time", "type": "time", "required": true },
+          { "name": "location", "type": "location", "required": true }
+        ]
+      },
+      "input": "Public hearing on zoning variance at 7:00 PM in Plumstead Township building.",
+      "expected_extractions": { "topic": "zoning variance", "time": "7:00 PM", "location": "Plumstead Township building" },
+      "expected_signal": { "min_relevance_score": 0.7, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.public.event.v1",
+      "domain": "political_public_event",
+      "source": { "kind": "rss", "uri": "fixture://public-events/rss" },
+      "watch_pattern": {
+        "pattern_kind": "claim_template",
+        "raw_expression": "$person will speak about $topic at $location on $date",
+        "variables": [
+          { "name": "person", "type": "entity", "required": true },
+          { "name": "topic", "type": "text", "required": true },
+          { "name": "location", "type": "location", "required": true },
+          { "name": "date", "type": "date", "required": true }
+        ]
+      },
+      "input": "Jane Doe will speak about municipal broadband at Central Library on June 10, 2026.",
+      "expected_extractions": { "person": "Jane Doe", "topic": "municipal broadband", "location": "Central Library", "date": "June 10, 2026" },
+      "expected_signal": { "min_relevance_score": 0.65, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.github.repo.change.v1",
+      "domain": "github_repo_change",
+      "source": { "kind": "repo", "uri": "fixture://github/SocioProphet/prophet-platform" },
+      "watch_pattern": {
+        "pattern_kind": "typed_template",
+        "raw_expression": "$repo changed $path with $change_type",
+        "variables": [
+          { "name": "repo", "type": "entity", "required": true },
+          { "name": "path", "type": "text", "required": true },
+          { "name": "change_type", "type": "entity", "required": true }
+        ]
+      },
+      "input": "SocioProphet/prophet-platform changed docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md with new runtime design.",
+      "expected_extractions": { "repo": "SocioProphet/prophet-platform", "path": "docs/PERSONAL_INTELLIGENCE_CELL_RUNTIME.md", "change_type": "new runtime design" },
+      "expected_signal": { "min_relevance_score": 0.8, "requires_policy_gate": true, "requires_feed_item": true }
+    },
+    {
+      "id": "fixture.regulatory.standard.change.v1",
+      "domain": "regulatory_standard_change",
+      "source": { "kind": "web", "uri": "fixture://standards/updates" },
+      "watch_pattern": {
+        "pattern_kind": "claim_template",
+        "raw_expression": "$standard changed requirement $requirement on $date",
+        "variables": [
+          { "name": "standard", "type": "entity", "required": true },
+          { "name": "requirement", "type": "text", "required": true },
+          { "name": "date", "type": "date", "required": false }
+        ]
+      },
+      "input": "NIST AI RMF profile changed requirement for model monitoring on May 4, 2026.",
+      "expected_extractions": { "standard": "NIST AI RMF profile", "requirement": "model monitoring", "date": "May 4, 2026" },
+      "expected_signal": { "min_relevance_score": 0.75, "requires_policy_gate": true, "requires_feed_item": true }
+    }
+  ]
+}
