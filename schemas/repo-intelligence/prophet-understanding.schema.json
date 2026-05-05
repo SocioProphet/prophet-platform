@@ -1,1 +1,643 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://standards.socioprophet.org/schemas/repo-intelligence/prophet-understanding.schema.json","title":"Prophet Understanding Repo Intelligence Artifact","type":"object","additionalProperties":false,"required":["schema_version","repo","generator","agent_identity","nodes","edges","summaries","tours","diff_impact_sets","provenance_receipts","validation_results","policy_status"],"properties":{"schema_version":{"const":"prophet-understanding.v0"},"repo":{"$ref":"#/$defs/RepoMetadata"},"generator":{"$ref":"#/$defs/Generator"},"agent_identity":{"$ref":"#/$defs/AgentIdentity"},"nodes":{"type":"array","items":{"$ref":"#/$defs/RepoNode"}},"edges":{"type":"array","items":{"$ref":"#/$defs/RepoEdge"}},"summaries":{"type":"array","items":{"$ref":"#/$defs/Summary"}},"tours":{"type":"array","items":{"$ref":"#/$defs/GuidedTour"}},"diff_impact_sets":{"type":"array","items":{"$ref":"#/$defs/DiffImpactSet"}},"provenance_receipts":{"type":"array","items":{"$ref":"#/$defs/ProvenanceReceipt"}},"validation_results":{"type":"array","items":{"$ref":"#/$defs/ValidationResult"}},"policy_status":{"$ref":"#/$defs/PolicyStatus"}},"$defs":{"RepoMetadata":{"type":"object","additionalProperties":false,"required":["full_name","default_branch","commit","generated_at","artifact_hash"],"properties":{"full_name":{"type":"string"},"default_branch":{"type":"string"},"commit":{"type":"string"},"generated_at":{"type":"string"},"artifact_hash":{"type":"string"}}},"Generator":{"type":"object","additionalProperties":false,"required":["name","version","parser_versions"],"properties":{"name":{"type":"string"},"version":{"type":"string"},"parser_versions":{"type":"object","additionalProperties":{"type":"string"}}}},"AgentIdentity":{"type":"object","additionalProperties":false,"required":["kind","id","did"],"properties":{"kind":{"type":"string"},"id":{"type":"string"},"did":{"type":["string","null"]}}},"SourceAnchor":{"type":"object","additionalProperties":false,"required":["path","start_line","end_line","content_hash"],"properties":{"path":{"type":"string"},"start_line":{"type":"integer"},"end_line":{"type":"integer"},"content_hash":{"type":"string"}}},"RepoNode":{"type":"object","additionalProperties":false,"required":["id","kind","label","confidence","provenance_receipt_ids","metadata"],"properties":{"id":{"type":"string"},"kind":{"type":"string","enum":["concept","config","contract","directory","document","domain","endpoint","file","module","package","policy","repo","runtime","schema","service","test","validator","workflow"]},"label":{"type":"string"},"path":{"type":"string"},"source_anchor":{"$ref":"#/$defs/SourceAnchor"},"confidence":{"type":"number"},"provenance_receipt_ids":{"type":"array","items":{"type":"string"}},"metadata":{"type":"object"}}},"RepoEdge":{"type":"object","additionalProperties":false,"required":["id","kind","source","target","confidence","provenance_receipt_ids","metadata"],"properties":{"id":{"type":"string"},"kind":{"type":"string","enum":["calls","configures","contains","defines","depends_on","documents","generates","governed_by","impacted_by","imports","owns","related_to","tests","validates"]},"source":{"type":"string"},"target":{"type":"string"},"source_anchor":{"$ref":"#/$defs/SourceAnchor"},"confidence":{"type":"number"},"provenance_receipt_ids":{"type":"array","items":{"type":"string"}},"metadata":{"type":"object"}}},"Summary":{"type":"object","additionalProperties":false,"required":["id","node_id","text","confidence","provenance_receipt_ids"],"properties":{"id":{"type":"string"},"node_id":{"type":"string"},"text":{"type":"string"},"confidence":{"type":"number"},"provenance_receipt_ids":{"type":"array","items":{"type":"string"}}}},"GuidedTour":{"type":"object","additionalProperties":false,"required":["id","kind","title","steps","provenance_receipt_ids"],"properties":{"id":{"type":"string"},"kind":{"type":"string","enum":["onboarding","architecture","dependency","policy","pr_impact"]},"title":{"type":"string"},"steps":{"type":"array","items":{"$ref":"#/$defs/TourStep"}},"provenance_receipt_ids":{"type":"array","items":{"type":"string"}}}},"TourStep":{"type":"object","additionalProperties":false,"required":["order","node_id","summary"],"properties":{"order":{"type":"integer"},"node_id":{"type":"string"},"edge_ids":{"type":"array","items":{"type":"string"}},"summary":{"type":"string"}}},"DiffImpactSet":{"type":"object","additionalProperties":false,"required":["id","base","head","changed_paths","affected_nodes","affected_edges","affected_tests","affected_docs","affected_policies","risk","requires_review","provenance_receipt_ids"],"properties":{"id":{"type":"string"},"base":{"type":"string"},"head":{"type":"string"},"changed_paths":{"type":"array","items":{"type":"string"}},"affected_nodes":{"type":"array","items":{"type":"string"}},"affected_edges":{"type":"array","items":{"type":"string"}},"affected_tests":{"type":"array","items":{"type":"string"}},"affected_docs":{"type":"array","items":{"type":"string"}},"affected_policies":{"type":"array","items":{"type":"string"}},"risk":{"type":"string","enum":["low","medium","high","unknown"]},"requires_review":{"type":"boolean"},"provenance_receipt_ids":{"type":"array","items":{"type":"string"}}}},"ProvenanceReceipt":{"type":"object","additionalProperties":false,"required":["id","claim_type","generator","parser_version","input_source_hash","generated_at","confidence","validation_state","warnings"],"properties":{"id":{"type":"string"},"claim_type":{"type":"string"},"generator":{"type":"string"},"parser_version":{"type":"string"},"input_source_hash":{"type":"string"},"generated_at":{"type":"string"},"confidence":{"type":"number"},"validation_state":{"type":"string","enum":["valid","warning","invalid","unknown"]},"warnings":{"type":"array","items":{"type":"string"}}}},"ValidationResult":{"type":"object","additionalProperties":false,"required":["id","check_id","target_id","status","severity","message"],"properties":{"id":{"type":"string"},"check_id":{"type":"string"},"target_id":{"type":"string"},"status":{"type":"string","enum":["pass","warn","fail","skip"]},"severity":{"type":"string","enum":["info","warning","error"]},"message":{"type":"string"}}},"PolicyStatus":{"type":"object","additionalProperties":false,"required":["state","checks"],"properties":{"state":{"type":"string","enum":["allow","deny","require_review","unknown","warn"]},"checks":{"type":"array","items":{"$ref":"#/$defs/PolicyCheck"}}}},"PolicyCheck":{"type":"object","additionalProperties":false,"required":["id","state","message","evidence_receipt_ids"],"properties":{"id":{"type":"string"},"state":{"type":"string","enum":["allow","deny","require_review","unknown","warn"]},"message":{"type":"string"},"evidence_receipt_ids":{"type":"array","items":{"type":"string"}}}}}}
+{
+  "$defs": {
+    "AgentIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "did": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "did"
+      ],
+      "type": "object"
+    },
+    "DiffImpactSet": {
+      "additionalProperties": false,
+      "properties": {
+        "affected_docs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "affected_edges": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "affected_nodes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "affected_policies": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "affected_tests": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "base": {
+          "type": "string"
+        },
+        "changed_paths": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "head": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "provenance_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "requires_review": {
+          "type": "boolean"
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "base",
+        "head",
+        "changed_paths",
+        "affected_nodes",
+        "affected_edges",
+        "affected_tests",
+        "affected_docs",
+        "affected_policies",
+        "risk",
+        "requires_review",
+        "provenance_receipt_ids"
+      ],
+      "type": "object"
+    },
+    "FreeformMetadata": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "Generator": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "parser_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "parser_versions"
+      ],
+      "type": "object"
+    },
+    "GuidedTour": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "onboarding",
+            "architecture",
+            "dependency",
+            "policy",
+            "pr_impact"
+          ],
+          "type": "string"
+        },
+        "provenance_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/TourStep"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "steps",
+        "provenance_receipt_ids"
+      ],
+      "type": "object"
+    },
+    "PolicyCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "allow",
+            "deny",
+            "require_review",
+            "unknown",
+            "warn"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "message",
+        "evidence_receipt_ids"
+      ],
+      "type": "object"
+    },
+    "PolicyStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/PolicyCheck"
+          },
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "allow",
+            "deny",
+            "require_review",
+            "unknown",
+            "warn"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "checks"
+      ],
+      "type": "object"
+    },
+    "ProvenanceReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_type": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "generated_at": {
+          "type": "string"
+        },
+        "generator": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "input_source_hash": {
+          "type": "string"
+        },
+        "parser_version": {
+          "type": "string"
+        },
+        "validation_state": {
+          "enum": [
+            "valid",
+            "warning",
+            "invalid",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "claim_type",
+        "generator",
+        "parser_version",
+        "input_source_hash",
+        "generated_at",
+        "confidence",
+        "validation_state",
+        "warnings"
+      ],
+      "type": "object"
+    },
+    "RepoEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "calls",
+            "configures",
+            "contains",
+            "defines",
+            "depends_on",
+            "documents",
+            "generates",
+            "governed_by",
+            "impacted_by",
+            "imports",
+            "owns",
+            "related_to",
+            "tests",
+            "validates"
+          ],
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/FreeformMetadata"
+        },
+        "provenance_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "source": {
+          "type": "string"
+        },
+        "source_anchor": {
+          "$ref": "#/$defs/SourceAnchor"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "source",
+        "target",
+        "confidence",
+        "provenance_receipt_ids",
+        "metadata"
+      ],
+      "type": "object"
+    },
+    "RepoMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_hash": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "default_branch": {
+          "type": "string"
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "generated_at": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/FreeformMetadata"
+        }
+      },
+      "required": [
+        "full_name",
+        "default_branch",
+        "commit",
+        "generated_at",
+        "artifact_hash"
+      ],
+      "type": "object"
+    },
+    "RepoNode": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "concept",
+            "config",
+            "contract",
+            "directory",
+            "document",
+            "domain",
+            "endpoint",
+            "file",
+            "module",
+            "package",
+            "policy",
+            "repo",
+            "runtime",
+            "schema",
+            "service",
+            "test",
+            "validator",
+            "workflow"
+          ],
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/FreeformMetadata"
+        },
+        "path": {
+          "type": "string"
+        },
+        "provenance_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "source_anchor": {
+          "$ref": "#/$defs/SourceAnchor"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "confidence",
+        "provenance_receipt_ids",
+        "metadata"
+      ],
+      "type": "object"
+    },
+    "SourceAnchor": {
+      "additionalProperties": false,
+      "properties": {
+        "content_hash": {
+          "type": "string"
+        },
+        "end_line": {
+          "type": "integer"
+        },
+        "path": {
+          "type": "string"
+        },
+        "start_line": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "start_line",
+        "end_line",
+        "content_hash"
+      ],
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "provenance_receipt_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "node_id",
+        "text",
+        "confidence",
+        "provenance_receipt_ids"
+      ],
+      "type": "object"
+    },
+    "TourStep": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer"
+        },
+        "summary": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "order",
+        "node_id",
+        "summary"
+      ],
+      "type": "object"
+    },
+    "ValidationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "warn",
+            "fail",
+            "skip"
+          ],
+          "type": "string"
+        },
+        "target_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "check_id",
+        "target_id",
+        "status",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://standards.socioprophet.org/schemas/repo-intelligence/prophet-understanding.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_identity": {
+      "$ref": "#/$defs/AgentIdentity"
+    },
+    "diff_impact_sets": {
+      "items": {
+        "$ref": "#/$defs/DiffImpactSet"
+      },
+      "type": "array"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/RepoEdge"
+      },
+      "type": "array"
+    },
+    "generator": {
+      "$ref": "#/$defs/Generator"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/RepoNode"
+      },
+      "type": "array"
+    },
+    "policy_status": {
+      "$ref": "#/$defs/PolicyStatus"
+    },
+    "provenance_receipts": {
+      "items": {
+        "$ref": "#/$defs/ProvenanceReceipt"
+      },
+      "type": "array"
+    },
+    "repo": {
+      "$ref": "#/$defs/RepoMetadata"
+    },
+    "schema_version": {
+      "const": "prophet-understanding.v0"
+    },
+    "summaries": {
+      "items": {
+        "$ref": "#/$defs/Summary"
+      },
+      "type": "array"
+    },
+    "tours": {
+      "items": {
+        "$ref": "#/$defs/GuidedTour"
+      },
+      "type": "array"
+    },
+    "validation_results": {
+      "items": {
+        "$ref": "#/$defs/ValidationResult"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "repo",
+    "generator",
+    "agent_identity",
+    "nodes",
+    "edges",
+    "summaries",
+    "tours",
+    "diff_impact_sets",
+    "provenance_receipts",
+    "validation_results",
+    "policy_status"
+  ],
+  "title": "Prophet Understanding Repo Intelligence Artifact",
+  "type": "object"
+}
