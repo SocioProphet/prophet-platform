@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from cell_service import CellService, ServiceError
+from cell_service.policy import StaticPolicyEngine
 
 ROOT = Path(__file__).resolve().parents[3]
 LOOP_CONTRACT = ROOT / "contracts/cell/personal-intelligence-cell.loop.v1.example.json"
@@ -20,6 +21,7 @@ def test_health() -> None:
     health = service.health()
     assert health["service"] == "cell-service"
     assert health["status"] == "ok"
+    assert health["policy"] == "StaticPolicyEngine"
 
 
 def test_replay_loop_contract() -> None:
@@ -63,7 +65,7 @@ def test_rejects_signal_without_evidence() -> None:
         service.ingest_signal(bad_signal)
 
 
-def test_rejects_feed_without_policy_decision() -> None:
+def test_feed_policy_decision_is_generated_by_service() -> None:
     service = CellService()
     loop = load_loop()
     service.create_cell(loop["cell"])
@@ -71,11 +73,34 @@ def test_rejects_feed_without_policy_decision() -> None:
     service.create_watch(loop["watch"])
     service.create_watch_pattern(loop["watch_pattern"])
     service.ingest_signal(loop["signal"])
-    bad_feed = dict(loop["feed_item"])
-    bad_feed.pop("policy_decision")
+    feed = dict(loop["feed_item"])
+    feed.pop("policy_decision")
 
-    with pytest.raises(ServiceError, match="policy_decision"):
-        service.emit_feed_item(bad_feed)
+    emitted = service.emit_feed_item(feed)
+    assert emitted["policy_decision"]["decision"] == "allow"
+    assert emitted["policy_decision"]["policy_ref"] == feed["target_ref"]
+
+
+def test_policy_denial_blocks_feed_emit() -> None:
+    service = CellService(policy_engine=StaticPolicyEngine({"feed_item.emit": "deny"}))
+    loop = load_loop()
+    service.create_cell(loop["cell"])
+    service.create_source(loop["source"])
+    service.create_watch(loop["watch"])
+    service.create_watch_pattern(loop["watch_pattern"])
+    service.ingest_signal(loop["signal"])
+
+    with pytest.raises(ServiceError, match="policy blocked feed_item.emit"):
+        service.emit_feed_item(loop["feed_item"])
+
+
+def test_policy_denial_blocks_archive_export() -> None:
+    service = CellService(policy_engine=StaticPolicyEngine({"cell_archive.export": "review_required"}))
+    loop = load_loop()
+    service.create_cell(loop["cell"])
+
+    with pytest.raises(ServiceError, match="policy blocked cell_archive.export"):
+        service.export_cell_archive(loop["cell_archive"])
 
 
 def test_ledger_like_source_must_be_disabled_by_default() -> None:
