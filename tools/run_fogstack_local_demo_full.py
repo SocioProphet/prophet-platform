@@ -13,6 +13,72 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 
 
+STATE_COHERENCE_REPO_REFS = [
+    {
+        "id": "fogstack-runtime-spine",
+        "repo_ref": "github://SocioProphet/prophet-platform",
+        "role": "bounded local demo proof, release proof, deploy plan, GitOps, runtime dry-run, and parity readiness spine",
+        "demo_binding": "primary",
+    },
+    {
+        "id": "estate-control-plane",
+        "repo_ref": "github://SocioProphet/sociosphere",
+        "role": "estate intelligence, repository topology, control-plane status, and cross-repo coherence registry",
+        "demo_binding": "control-plane",
+    },
+    {
+        "id": "sourceos-state-integrity",
+        "repo_ref": "github://SourceOS-Linux/sourceos-syncd",
+        "role": "local-first state integrity, event/report contracts, repair planning, and store-backed evidence surface",
+        "demo_binding": "supporting-evidence",
+    },
+    {
+        "id": "agent-machine-substrate",
+        "repo_ref": "github://SourceOS-Linux/agent-machine",
+        "role": "Agent Machine bootstrap, trust, activation, provenance, release evidence, and governed local execution surface",
+        "demo_binding": "substrate",
+    },
+    {
+        "id": "sourceos-operator-surfaces",
+        "repo_ref": "github://SourceOS-Linux/BearBrowser",
+        "role": "governed browser/operator surface, policy actions, provenance events, and local app status/open/reset controls",
+        "demo_binding": "operator-surface",
+    },
+    {
+        "id": "guardrail-boundary",
+        "repo_ref": "github://SocioProphet/guardrail-fabric",
+        "role": "SourceOS guardrail decision ABI, hook adapter, policy simulation, deterministic baseline policies, and anti-tamper controls",
+        "demo_binding": "policy-boundary",
+    },
+    {
+        "id": "agentplane-governance-context",
+        "repo_ref": "github://SocioProphet/agentplane",
+        "role": "agent runtime governance context, protocol identity aliases, run/replay/session evidence propagation",
+        "demo_binding": "runtime-governance",
+    },
+    {
+        "id": "semantic-contract-plane",
+        "repo_ref": "github://SocioProphet/ontogenesis",
+        "role": "semantic enterprise ontology, ValueFlows/SHIR projection, sector scenarios, and OrgGov semantic alignment",
+        "demo_binding": "semantic-layer",
+    },
+]
+
+
+STATE_COHERENCE_INTEGRATION_SURFACES = [
+    "release-proof-to-runtime-evidence",
+    "gitops-readiness-to-local-demo-summary",
+    "runtime-dry-run-to-agentplane-run-linkage",
+    "runtime-dry-run-to-policyplane-decision-linkage",
+    "agent-machine-node-profile-to-runtime-adapter",
+    "immutable-update-readiness-to-demo-artifact-index",
+    "sourceos-state-integrity-to-supporting-evidence-plane",
+    "guardrail-decision-abi-to-policy-boundary",
+    "operator-surfaces-to-sourceos-node-profile",
+    "semantic-contracts-to-governed-evidence-plane",
+]
+
+
 def run(cmd: list[str]) -> None:
     subprocess.run(cmd, cwd=ROOT, check=True)
 
@@ -27,6 +93,25 @@ def rel(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def build_state_coherence_summary() -> dict[str, Any]:
+    return {
+        "kind": "FogStackStateCoherenceSummary",
+        "schema_version": "v0.1",
+        "posture": "compressed-estate-demo-coherence",
+        "status": "bounded-local-demo-ready",
+        "production_boundary": "non-mutating local proof; live mutation, production signing, registry publication, and managed multi-tenant service operations remain post-MVP",
+        "repo_refs": STATE_COHERENCE_REPO_REFS,
+        "integration_surfaces": STATE_COHERENCE_INTEGRATION_SURFACES,
+        "required_demo_principles": [
+            "one operator command should produce one evidence directory",
+            "every generated artifact should be digest-indexed or explicitly reported as a supporting external ref",
+            "live cluster mutation must remain disabled by default",
+            "policy and guardrail decisions must be explicit artifacts, not implicit runtime behavior",
+            "SourceOS local-first state integrity must be treated as substrate evidence, not an optional sidecar",
+        ],
+    }
 
 
 def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
@@ -96,6 +181,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
         str(artifact_index_path),
     ])
 
+    state_coherence = build_state_coherence_summary()
     summary = {
         "kind": "FogStackLocalDemoFullRun",
         "schema_version": "v0.1",
@@ -127,6 +213,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "runtime_adapter": rel(runtime_adapter_path),
             "runtime_dry_run_record": rel(runtime_dry_run_path),
         },
+        "state_coherence": state_coherence,
         "checks": [
             "local_demo_generated",
             "deploy_plan_generated",
@@ -140,6 +227,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "runtime_adapter_indexed",
             "runtime_dry_run_record_indexed",
             "artifact_index_checked",
+            "state_coherence_surfaces_bound",
         ],
     }
     write_json(full_summary_path, summary)
@@ -148,6 +236,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
 
 def render_summary(summary: dict[str, Any]) -> str:
     artifacts = summary["artifacts"]
+    state_coherence = summary["state_coherence"]
     lines = [
         "FogStack full local demo passed.",
         f"Output directory: {summary['output_dir']}",
@@ -164,6 +253,9 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Live cluster preflight record: {artifacts['live_cluster_preflight_record']}",
         f"Runtime adapter: {artifacts['runtime_adapter']}",
         f"Runtime dry-run record: {artifacts['runtime_dry_run_record']}",
+        f"State coherence posture: {state_coherence['posture']}",
+        f"State coherence repo refs: {len(state_coherence['repo_refs'])}",
+        f"State coherence integration surfaces: {len(state_coherence['integration_surfaces'])}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
