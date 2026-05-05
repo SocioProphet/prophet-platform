@@ -49,6 +49,10 @@ TYPE_PATTERNS = {
 }
 
 SUPPORTED_KINDS = {"typed_template", "claim_template", "phrase"}
+LOCATION_TEMPORAL_SUFFIX = re.compile(
+    r"\s+(?:this\s+week|this\s+month|this\s+year|today|tonight|tomorrow|next\s+week|next\s+month)$",
+    flags=re.IGNORECASE,
+)
 
 
 def extract_from_pattern(pattern: dict[str, Any], text: str) -> ExtractionResult:
@@ -89,7 +93,11 @@ def extract_from_pattern(pattern: dict[str, Any], text: str) -> ExtractionResult
             confidence_score=0.0,
         )
 
-    extracted = {name: _clean(match.group(name)) for name in variables if match.groupdict().get(name)}
+    extracted = {
+        name: _clean(match.group(name), spec["type"])
+        for name, spec in variables.items()
+        if match.groupdict().get(name)
+    }
     required = {name for name, spec in variables.items() if spec.get("required") is True}
     missing_required = sorted(required - set(extracted))
     if missing_required:
@@ -150,7 +158,10 @@ def _compile_template(expression: str, variables: dict[str, dict[str, Any]]) -> 
             raise ExtractionError(f"template references undeclared variable: {name}")
         literal = expression[cursor:match.start()]
         parts.append(_literal_to_regex(literal))
-        next_literal = expression[variable_matches[index + 1].end() : variable_matches[index + 2].start()] if index + 2 <= len(variable_matches) - 1 else expression[match.end() : variable_matches[index + 1].start()] if index + 1 < len(variable_matches) else expression[match.end() :]
+        if index + 1 < len(variable_matches):
+            next_literal = expression[match.end() : variable_matches[index + 1].start()]
+        else:
+            next_literal = expression[match.end() :]
         variable_pattern = _bounded_variable_pattern(variables[name], next_literal)
         parts.append(f"(?P<{name}>{variable_pattern})")
         cursor = match.end()
@@ -177,5 +188,8 @@ def _bounded_variable_pattern(variable: dict[str, Any], next_literal: str) -> st
     return base
 
 
-def _clean(value: str) -> str:
-    return value.strip(" \t\n\r.,;:")
+def _clean(value: str, variable_type: str) -> str:
+    cleaned = value.strip(" \t\n\r.,;:")
+    if variable_type == "location":
+        cleaned = LOCATION_TEMPORAL_SUFFIX.sub("", cleaned).strip(" \t\n\r.,;:")
+    return cleaned
