@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArtifactHandoff",
+  "type": "object",
+  "required": ["artifact_id", "object_key", "sha256", "manifest_object_key"],
+  "properties": {
+    "artifact_id": {"type": "string"},
+    "object_key": {"type": "string"},
+    "sha256": {"type": "string"},
+    "manifest_object_key": {"type": "string"},
+    "download_url": {"type": "string", "format": "uri"}
+  },
+  "additionalProperties": false
+}
