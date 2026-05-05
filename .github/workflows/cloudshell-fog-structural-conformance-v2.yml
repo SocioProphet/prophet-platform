@@ -1,0 +1,15 @@
+name: cloudshell-fog structural conformance v2
+
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  structural-conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run noexec-safe cloudshell-fog structural conformance
+        run: bash tools/validate-cloudshell-fog-structural-conformance.sh
