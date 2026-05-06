@@ -26,16 +26,23 @@ Default orchestration fixture:
 contracts/orchestration/pi-gate4-demo.v0.1.example.json
 ```
 
-Default output report:
+Default verification report:
 
 ```text
 build/professional-intelligence/gate4-demo-verification.json
+```
+
+Default dashboard control-state export:
+
+```text
+build/professional-intelligence/dashboard-control-state.json
 ```
 
 ## Command
 
 ```bash
 python3 tools/run_professional_intelligence_gate4_demo.py
+python3 tools/export_professional_intelligence_dashboard_state.py
 ```
 
 To provide explicit paths:
@@ -44,6 +51,10 @@ To provide explicit paths:
 python3 tools/run_professional_intelligence_gate4_demo.py \
   --orchestration contracts/orchestration/pi-gate4-demo.v0.1.example.json \
   --output build/professional-intelligence/gate4-demo-verification.json
+
+python3 tools/export_professional_intelligence_dashboard_state.py \
+  --report build/professional-intelligence/gate4-demo-verification.json \
+  --output build/professional-intelligence/dashboard-control-state.json
 ```
 
 ## Validation bundle
@@ -54,10 +65,11 @@ Run platform Professional Intelligence validation first:
 python3 tools/validate_professional_intelligence.py
 ```
 
-Then run the Gate 4 verifier:
+Then run the Gate 4 verifier and dashboard export:
 
 ```bash
 python3 tools/run_professional_intelligence_gate4_demo.py
+python3 tools/export_professional_intelligence_dashboard_state.py
 ```
 
 For full repository validation:
@@ -89,7 +101,16 @@ The verification report must show:
 - every step requires evidence;
 - every step has input and output references.
 
-## Expected report kind
+The dashboard control-state export must show:
+
+- `kind: ProfessionalIntelligenceDashboardControlState`;
+- `verificationPassed: true`;
+- non-empty metric list;
+- non-empty gate list;
+- non-empty `nextMoves` list;
+- source report and orchestration references.
+
+## Expected report kinds
 
 ```json
 {
@@ -98,16 +119,23 @@ The verification report must show:
 }
 ```
 
+```json
+{
+  "kind": "ProfessionalIntelligenceDashboardControlState",
+  "verificationPassed": true
+}
+```
+
 ## Current completion impact
 
-This runner moves the Professional Intelligence OS from a validated orchestration object to a locally verifiable demo record.
+This runner and exporter move the Professional Intelligence OS from a validated orchestration object to a locally verifiable demo record plus dashboard control-state output.
 
 Expected completion movement once merged:
 
-- Overall alignment: 68% -> 72%.
-- Runtime implementation: 42% -> 48%.
-- Demo readiness: 70% -> 76%.
-- Cybernetic controls: 50% -> 54%.
+- Overall alignment: 72% -> 74%.
+- Runtime implementation: 48% -> 52%.
+- Demo readiness: 76% -> 80%.
+- Cybernetic controls: 54% -> 58%.
 
 ## Non-goals
 
@@ -115,4 +143,4 @@ Expected completion movement once merged:
 - This runner does not call external SaaS or hosted providers.
 - This runner does not mutate workrooms.
 - This runner does not replace Agentplane runtime execution.
-- This runner does not replace DelEx demo acceptance; it emits the report DelEx can evaluate.
+- This runner does not replace DelEx demo acceptance; it emits reports DelEx can evaluate.
