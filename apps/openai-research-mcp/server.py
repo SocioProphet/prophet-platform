@@ -12,16 +12,33 @@ from research_mcp.artifacts import LocalDirectoryObjectStore, MarkdownArtifactEx
 from research_mcp.audit import JsonlAuditSink
 from research_mcp.auth import StaticTokenAuthorizer, load_static_tokens
 from research_mcp.bundle import bundle_integrity_report
-from research_mcp.errors import ResearchMcpError
+from research_mcp.errors import InvalidInputError, ResearchMcpError
 from research_mcp.service import ResearchService
-from research_mcp.store import InMemoryDocumentBackend, load_documents_from_json
+from research_mcp.store import HttpSearchFetchBackend, InMemoryDocumentBackend, load_documents_from_json
 
 ROOT = Path(__file__).resolve().parent
 
 
+def configured_backend_mode() -> str:
+    return os.environ.get("MCP_BACKEND_MODE", "memory").strip().lower() or "memory"
+
+
+def build_backend():
+    mode = configured_backend_mode()
+    if mode == "memory":
+        docs_path = Path(os.environ.get("MCP_DOC_JSON_PATH", str(ROOT / "data" / "example_documents.json")))
+        docs = load_documents_from_json(docs_path)
+        return InMemoryDocumentBackend(docs)
+    if mode == "http":
+        backend_url = os.environ.get("MCP_HTTP_BACKEND_URL", "").strip()
+        if not backend_url:
+            raise InvalidInputError("MCP_HTTP_BACKEND_URL is required when MCP_BACKEND_MODE=http")
+        timeout = float(os.environ.get("MCP_HTTP_BACKEND_TIMEOUT_SECONDS", "5"))
+        return HttpSearchFetchBackend(backend_url, timeout_seconds=timeout)
+    raise InvalidInputError("MCP_BACKEND_MODE must be one of: memory, http")
+
+
 def build_service() -> ResearchService:
-    docs_path = Path(os.environ.get("MCP_DOC_JSON_PATH", str(ROOT / "data" / "example_documents.json")))
-    docs = load_documents_from_json(docs_path)
     tokens_path = Path(os.environ.get("MCP_STATIC_TOKENS_FILE", str(ROOT / "config" / "static_tokens.example.json")))
     authorizer = StaticTokenAuthorizer(
         load_static_tokens(tokens_path),
@@ -33,7 +50,7 @@ def build_service() -> ResearchService:
         public_base_url=os.environ.get("MCP_PUBLIC_ARTIFACT_BASE_URL"),
     )
     return ResearchService(
-        backend=InMemoryDocumentBackend(docs),
+        backend=build_backend(),
         authorizer=authorizer,
         audit_sink=JsonlAuditSink(audit_path),
         exporter=MarkdownArtifactExporter(object_store),
@@ -48,6 +65,8 @@ def doctor_payload():
     return {
         "app_name": APP_NAME,
         "version": __version__,
+        "backend_mode": configured_backend_mode(),
+        "http_backend_configured": bool(os.environ.get("MCP_HTTP_BACKEND_URL", "").strip()),
         "bundle_integrity": bundle_integrity_report(ROOT),
         "expected_fixture_docs": str(ROOT / "data" / "example_documents.json"),
         "expected_tokens": str(ROOT / "config" / "static_tokens.example.json"),
@@ -139,7 +158,6 @@ def main() -> int:
     p.add_argument("--port", type=int, default=18080)
 
     args = parser.parse_args()
-    service = build_service()
 
     if args.cmd == "verify-bundle":
         print(dump(bundle_integrity_report(ROOT)))
@@ -147,15 +165,7 @@ def main() -> int:
     if args.cmd == "doctor":
         print(dump(doctor_payload()))
         return 0
-    if args.cmd == "demo-search":
-        print(dump(service.search_contract(args.query, limit=args.limit, token=args.token)))
-        return 0
-    if args.cmd == "demo-fetch":
-        print(dump(service.fetch_contract(args.document_id, token=args.token)))
-        return 0
-    if args.cmd == "demo-export":
-        print(dump(service.export_report_handoff(args.title, args.narrative, args.document_ids, token=args.token)))
-        return 0
+
     if args.cmd == "serve-http":
         if not os.environ.get("MCP_PUBLIC_ARTIFACT_BASE_URL"):
             os.environ["MCP_PUBLIC_ARTIFACT_BASE_URL"] = f"http://{args.host}:{args.port}/artifacts"
@@ -166,6 +176,19 @@ def main() -> int:
             # Allow Ctrl+C to stop the server without printing a traceback.
             pass
         return 0
+
+    service = build_service()
+    if args.cmd == "demo-search":
+        print(dump(service.search_contract(args.query, limit=args.limit, token=args.token)))
+        return 0
+    if args.cmd == "demo-fetch":
+        print(dump(service.fetch_contract(args.document_id, token=args.token)))
+        return 0
+    if args.cmd == "demo-export":
+        print(dump(service.export_report_handoff(args.title, args.narrative, args.document_ids, token=args.token)))
+        return 0
+
+    return 1
 
 
 if __name__ == "__main__":
