@@ -18,8 +18,13 @@ The first slice uses six canonical objects:
 
 ## Files
 
-- `orchestration-contracts.schema.json` — JSON Schema contract for the canonical bundle and all six object families.
-- `fixtures/home-assistant-demo.bundle.json` — fixture-backed demo bundle with no proprietary cloud credentials.
+- `orchestration_contract_fixture.py` — stdlib-only fixture generator and validator for the canonical bundle and all six object families.
+
+## Validation
+
+Run `python specs/orchestration/orchestration_contract_fixture.py` to validate the fixture bundle. Run `python specs/orchestration/orchestration_contract_fixture.py --json` to emit the canonical JSON bundle.
+
+The validator checks id uniqueness, cross-object references, policy outcomes, high-risk routine approval requirements, receipt lineage references, and the presence of allowed, denied, approval-required, and degraded policy outcomes.
 
 ## Design constraints
 
