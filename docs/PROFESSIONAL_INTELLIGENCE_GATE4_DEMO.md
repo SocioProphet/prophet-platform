@@ -16,7 +16,7 @@ Gate 4 is the first integrated demo lane. It verifies that the platform can trac
 8. evidence references;
 9. adoption event reference.
 
-The runner is intentionally record-only. It does not call external services or live providers. It verifies the orchestration contract and emits a local report for DelEx acceptance.
+The runner is intentionally record-only. It does not call external services or live providers. It verifies the orchestration contract and emits local reports for DelEx acceptance.
 
 ## Inputs
 
@@ -38,23 +38,24 @@ Default dashboard control-state export:
 build/professional-intelligence/dashboard-control-state.json
 ```
 
+Default Agentplane smoke summary:
+
+```text
+build/professional-intelligence/agentplane-smoke-summary.json
+```
+
 ## Command
 
 ```bash
 python3 tools/run_professional_intelligence_gate4_demo.py
 python3 tools/export_professional_intelligence_dashboard_state.py
+python3 tools/summarize_professional_intelligence_agentplane_smoke.py
 ```
 
-To provide explicit paths:
+To make Agentplane smoke artifacts mandatory, use:
 
 ```bash
-python3 tools/run_professional_intelligence_gate4_demo.py \
-  --orchestration contracts/orchestration/pi-gate4-demo.v0.1.example.json \
-  --output build/professional-intelligence/gate4-demo-verification.json
-
-python3 tools/export_professional_intelligence_dashboard_state.py \
-  --report build/professional-intelligence/gate4-demo-verification.json \
-  --output build/professional-intelligence/dashboard-control-state.json
+python3 tools/summarize_professional_intelligence_agentplane_smoke.py --required
 ```
 
 ## Validation bundle
@@ -65,11 +66,12 @@ Run platform Professional Intelligence validation first:
 python3 tools/validate_professional_intelligence.py
 ```
 
-Then run the Gate 4 verifier and dashboard export:
+Then run the Gate 4 verifier, dashboard export, and Agentplane smoke summary:
 
 ```bash
 python3 tools/run_professional_intelligence_gate4_demo.py
 python3 tools/export_professional_intelligence_dashboard_state.py
+python3 tools/summarize_professional_intelligence_agentplane_smoke.py
 ```
 
 For full repository validation:
@@ -110,6 +112,8 @@ The dashboard control-state export must show:
 - non-empty `nextMoves` list;
 - source report and orchestration references.
 
+The Agentplane smoke summary must exist. It may be non-blocking when artifacts are not present locally. Use `--required` when validating a workspace that has already run the Agentplane host smoke.
+
 ## Expected report kinds
 
 ```json
@@ -126,16 +130,22 @@ The dashboard control-state export must show:
 }
 ```
 
+```json
+{
+  "kind": "ProfessionalIntelligenceAgentplaneSmokeSummary"
+}
+```
+
 ## Current completion impact
 
-This runner and exporter move the Professional Intelligence OS from a validated orchestration object to a locally verifiable demo record plus dashboard control-state output.
+This runner, exporter, and Agentplane smoke summarizer move the Professional Intelligence OS from a validated orchestration object to a locally verifiable demo record plus dashboard and optional Agentplane artifact summaries.
 
 Expected completion movement once merged:
 
-- Overall alignment: 72% -> 74%.
-- Runtime implementation: 48% -> 52%.
-- Demo readiness: 76% -> 80%.
-- Cybernetic controls: 54% -> 58%.
+- Overall alignment: 74% -> 77%.
+- Runtime implementation: 52% -> 58%.
+- Demo readiness: 80% -> 83%.
+- Cybernetic controls: 58% -> 62%.
 
 ## Non-goals
 
