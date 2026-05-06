@@ -180,9 +180,11 @@ def validate_publication_traceability(publication_text: str, service_text: str, 
         ],
         "publication module",
     )
+    if "cell_publication_bundle" not in service_text:
+        fail("service missing publication bundle call: cell_publication_bundle")
     for surface in REQUIRED_PUBLICATION_SURFACES:
-        if surface not in service_text:
-            fail(f"service missing publication surface: {surface}")
+        if surface not in publication_text:
+            fail(f"publication module missing publication surface: {surface}")
         if surface not in smoke_text:
             fail(f"smoke missing publication surface: {surface}")
     for topic in REQUIRED_TOPICS:
