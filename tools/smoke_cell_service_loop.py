@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 APP_SRC = ROOT / "apps/cell-service/src"
 LOOP_CONTRACT = ROOT / "contracts/cell/personal-intelligence-cell.loop.v1.example.json"
+LAMPSTAND_FIXTURE = ROOT / "schemas/cell/lampstand-ingest-fixture.json"
 
 sys.path.insert(0, str(APP_SRC))
 
@@ -22,6 +23,8 @@ def fail(message: str) -> None:
 def main() -> None:
     if not LOOP_CONTRACT.exists():
         fail(f"missing loop contract: {LOOP_CONTRACT.relative_to(ROOT)}")
+    if not LAMPSTAND_FIXTURE.exists():
+        fail(f"missing Lampstand fixture: {LAMPSTAND_FIXTURE.relative_to(ROOT)}")
 
     loop = json.loads(LOOP_CONTRACT.read_text(encoding="utf-8"))
     service = CellService()
@@ -34,6 +37,8 @@ def main() -> None:
         fail("cell-service feed health marker missing")
     if health.get("publication") != "slash-topics+new-hope+sherlock-v1":
         fail("cell-service publication health marker missing")
+    if health.get("source_adapter") != "lampstand-v1":
+        fail("cell-service Lampstand source adapter health marker missing")
 
     result = service.run_loop_contract(loop)
     required_sections = [
@@ -110,6 +115,23 @@ def main() -> None:
         fail(f"deterministic extraction mismatch: {extracted_signal.get('extractions')}")
     if extracted_signal.get("confidence_score", 0) <= 0:
         fail("deterministic extraction confidence score missing")
+
+    lampstand_fixture = json.loads(LAMPSTAND_FIXTURE.read_text(encoding="utf-8"))
+    lampstand_service = CellService()
+    lampstand_service.create_cell(lampstand_fixture["cell"])
+    lampstand_service.create_watch(lampstand_fixture["watch"])
+    lampstand_service.create_watch_pattern(lampstand_fixture["watch_pattern"])
+    lampstand_signal = lampstand_service.ingest_lampstand_result(
+        lampstand_fixture["lampstand_result"],
+        cell_id=lampstand_fixture["cell"]["id"],
+        watch_id=lampstand_fixture["watch"]["id"],
+    )
+    if lampstand_signal.get("id") != lampstand_fixture["expected"]["signal_id"]:
+        fail("Lampstand adapter emitted unexpected signal id")
+    if lampstand_signal.get("extractions", {}).get("carrier_ref") != lampstand_fixture["expected"]["carrier_ref"]:
+        fail("Lampstand adapter extraction missing carrier ref")
+    if len(lampstand_signal.get("evidence_refs", [])) < lampstand_fixture["expected"]["min_evidence_refs"]:
+        fail("Lampstand adapter did not preserve enough evidence refs")
 
     print("OK: cell-service loop smoke passed")
 
