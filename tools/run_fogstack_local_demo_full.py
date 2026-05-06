@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import shutil
@@ -99,6 +100,35 @@ def rel(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def refresh_artifact_index_entry(artifact_index_path: Path, artifact_path: Path) -> None:
+    artifact_ref = rel(artifact_path)
+    index = json.loads(artifact_index_path.read_text(encoding="utf-8"))
+    if not isinstance(index, dict) or not isinstance(index.get("artifacts"), list):
+        raise SystemExit(f"ERR: malformed artifact index: {artifact_index_path}")
+
+    refreshed = False
+    for entry in index["artifacts"]:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("ref") == artifact_ref:
+            entry["digest"] = sha256_file(artifact_path)
+            entry["size_bytes"] = artifact_path.stat().st_size
+            refreshed = True
+            break
+
+    if not refreshed:
+        raise SystemExit(f"ERR: artifact index missing ref after state coherence link injection: {artifact_ref}")
+    write_json(artifact_index_path, index)
 
 
 def build_state_coherence_summary() -> dict[str, Any]:
@@ -312,6 +342,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     write_text(state_coherence_markdown_path, render_state_coherence_markdown(state_coherence))
     write_text(state_coherence_html_path, render_state_coherence_html(state_coherence))
     link_state_coherence_from_index(local_demo_html_path, state_coherence_html_path)
+    refresh_artifact_index_entry(artifact_index_path, local_demo_html_path)
 
     summary = {
         "kind": "FogStackLocalDemoFullRun",
