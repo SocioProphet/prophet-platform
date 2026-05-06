@@ -26,6 +26,7 @@ REQUIRED_SUMMARY_ARTIFACTS = {
     "gitops_kustomization",
     "gitops_readiness_record",
     "live_cluster_preflight_record",
+    "live_apply_plan_record",
     "runtime_adapter",
     "runtime_dry_run_record",
 }
@@ -48,6 +49,7 @@ REQUIRED_INDEX_IDS = {
     "deploy_gitops_service",
     "deploy_gitops_readiness_record",
     "deploy_live_cluster_preflight_record",
+    "deploy_live_apply_plan_record",
     "deploy_runtime_adapter",
     "deploy_runtime_dry_run_record",
     "deploy_summary",
@@ -164,6 +166,22 @@ def check_records(paths: dict[str, Path], errors: list[str]) -> list[dict[str, s
     require(safety.get("live_apply_allowed") is False, "live cluster preflight allows live apply", errors)
     require(safety.get("human_approval_required_for_apply") is True, "live cluster preflight does not require human approval", errors)
     checked.append({"id": "live_cluster_preflight", "status": str(live_preflight.get("status"))})
+
+    apply_plan = load_json(paths["live_apply_plan_record"])
+    require(apply_plan.get("kind") == "FogStackLiveApplyPlanRecord", "live apply plan kind mismatch", errors)
+    require(apply_plan.get("status") in {"passed", "blocked"}, "live apply plan must pass or block safely", errors)
+    require(apply_plan.get("mode") == "plan-only", "live apply plan mode mismatch", errors)
+    apply_safety = apply_plan.get("safety", {})
+    require(apply_safety.get("plan_only") is True, "live apply plan is not plan-only", errors)
+    require(apply_safety.get("run_performed") is False, "live apply plan performed a run", errors)
+    require(apply_safety.get("mutated_cluster") is False, "live apply plan mutated cluster", errors)
+    require(apply_safety.get("live_apply_allowed") is False, "live apply plan allows live apply", errors)
+    require(apply_safety.get("future_approval_record_required") is True, "live apply plan does not require future approval", errors)
+    require(apply_safety.get("rollback_plan_required") is True, "live apply plan does not require rollback plan", errors)
+    require(apply_plan.get("agentplane", {}).get("agentplane_ref") == "github://SocioProphet/agentplane", "live apply plan AgentPlane ref mismatch", errors)
+    require(apply_plan.get("policyplane", {}).get("policyplane_ref") == "github://SocioProphet/policy-fabric", "live apply plan PolicyPlane ref mismatch", errors)
+    require(apply_plan.get("policyplane", {}).get("decision") == "allow-plan-deny-run", "live apply plan PolicyPlane decision mismatch", errors)
+    checked.append({"id": "live_apply_plan", "status": str(apply_plan.get("status"))})
 
     runtime_adapter = load_json(paths["runtime_adapter"])
     require(runtime_adapter.get("kind") == "FogStackLocalClusterRuntimeAdapter", "runtime adapter kind mismatch", errors)
