@@ -39,6 +39,8 @@ def main() -> None:
         fail("cell-service publication health marker missing")
     if health.get("source_adapter") != "lampstand-v1":
         fail("cell-service Lampstand source adapter health marker missing")
+    if health.get("facts") != "InMemoryCellFactSink":
+        fail("cell-service fact sink health marker missing")
 
     result = service.run_loop_contract(loop)
     required_sections = [
@@ -55,6 +57,7 @@ def main() -> None:
         "private_feed",
         "rss_feed",
         "publication_bundle",
+        "analytics",
     ]
     for section in required_sections:
         if section not in result:
@@ -93,6 +96,17 @@ def main() -> None:
         fail("New Hope membrane event missing admit outcome")
     if bundle.get("sherlockSearchPacket", {}).get("schemaVersion") != "v0.1":
         fail("Sherlock search packet missing schema version")
+
+    analytics = result["analytics"]
+    expected_tables = [
+        "cell_signal_scores",
+        "cell_watch_pattern_metrics",
+        "cell_notification_metrics",
+        "cell_feedback_outcomes",
+    ]
+    for table in expected_tables:
+        if len(analytics.get(table, [])) != 1:
+            fail(f"analytics table did not receive one fact: {table}")
 
     text_service = CellService()
     text_service.create_cell(loop["cell"])
