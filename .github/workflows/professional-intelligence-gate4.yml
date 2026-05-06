@@ -1,0 +1,45 @@
+name: Professional Intelligence Gate 4
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/orchestration/pi-gate4-demo.schema.json'
+      - 'contracts/orchestration/pi-gate4-demo.v0.1.example.json'
+      - 'tools/validate_professional_intelligence.py'
+      - 'tools/run_professional_intelligence_gate4_demo.py'
+      - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
+      - '.github/workflows/professional-intelligence-gate4.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'contracts/orchestration/pi-gate4-demo.schema.json'
+      - 'contracts/orchestration/pi-gate4-demo.v0.1.example.json'
+      - 'tools/validate_professional_intelligence.py'
+      - 'tools/run_professional_intelligence_gate4_demo.py'
+      - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
+      - '.github/workflows/professional-intelligence-gate4.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify-gate4:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate Professional Intelligence contracts
+        run: python3 tools/validate_professional_intelligence.py
+
+      - name: Run Gate 4 verification
+        run: python3 tools/run_professional_intelligence_gate4_demo.py
+
+      - name: Check verification report exists
+        run: test -s build/professional-intelligence/gate4-demo-verification.json
