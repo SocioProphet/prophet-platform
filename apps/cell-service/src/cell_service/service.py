@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 from .extraction import ExtractionError, extract_with_patterns
 from .feed import private_feed_document, rss_feed_document
+from .lampstand_adapter import LampstandAdapterError, LampstandIngestAdapter
 from .policy import PolicyEngine, PolicyError, StaticPolicyEngine, require_allowed
 from .publication import cell_publication_bundle
 from .repository import CellRepository, InMemoryCellRepository, RepositoryError
@@ -26,13 +27,13 @@ class CellService:
     """Minimal Personal Intelligence Cell service.
 
     The service is repository-backed, policy-gated, deterministic-extraction
-    capable, and publication-aware across private feeds, RSS, slash topics,
-    New Hope membranes, and Sherlock Search packets.
+    capable, publication-aware, and wired to the first Lampstand source adapter.
     """
 
     def __init__(self, repository: CellRepository | None = None, policy_engine: PolicyEngine | None = None) -> None:
         self._repo = repository or InMemoryCellRepository()
         self._policy = policy_engine or StaticPolicyEngine()
+        self._lampstand = LampstandIngestAdapter()
 
     def health(self) -> dict[str, str]:
         return {
@@ -44,6 +45,7 @@ class CellService:
             "extraction": "deterministic-template-v1",
             "feed": "private-json+rss-v1",
             "publication": "slash-topics+new-hope+sherlock-v1",
+            "source_adapter": "lampstand-v1",
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
@@ -191,6 +193,30 @@ class CellService:
             "extractions": result.extractions,
             "confidence_score": result.confidence_score,
         }
+
+    def ingest_lampstand_result(
+        self,
+        result: dict[str, Any],
+        *,
+        cell_id: str,
+        watch_id: str,
+        text: str | None = None,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            source = self._lampstand.source_from_result(result)
+            if not self._exists("sources", source["id"]):
+                self.create_source(source)
+            signal_input = self._lampstand.signal_input_from_result(
+                result,
+                cell_id=cell_id,
+                watch_id=watch_id,
+                text=text,
+                title=title,
+            )
+        except LampstandAdapterError as exc:
+            raise ServiceError(str(exc)) from exc
+        return self.ingest_text_signal(**signal_input)
 
     def ingest_text_signal(
         self,
