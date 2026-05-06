@@ -12,6 +12,7 @@ REQUIRED_FULL_ARTIFACTS = {
     "local_demo_html",
     "state_coherence_markdown",
     "state_coherence_html",
+    "sourceos_state_integrity_report",
     "artifact_index",
     "deploy_summary",
     "node_inventory_record",
@@ -74,11 +75,12 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
 
     assert "FogStack full local demo passed." in proc.stdout
     assert "Live cluster preflight record:" in proc.stdout
+    assert "SourceOS state integrity report:" in proc.stdout
     assert "State coherence posture: compressed-estate-demo-coherence" in proc.stdout
     assert "State coherence repo refs: 8" in proc.stdout
     assert "State coherence Markdown:" in proc.stdout
     assert "State coherence HTML:" in proc.stdout
-    assert "Checks passed: 15" in proc.stdout
+    assert "Checks passed: 16" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     full_summary = load(full_summary_path)
@@ -86,11 +88,22 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert full_summary["status"] == "passed"
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
     assert "live_cluster_preflight_record_indexed" in full_summary["checks"]
+    assert "sourceos_state_integrity_report_indexed" in full_summary["checks"]
     assert "state_coherence_surfaces_bound" in full_summary["checks"]
     assert "state_coherence_operator_artifacts_emitted" in full_summary["checks"]
     assert "state_coherence_index_linked" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
+
+    sourceos_report = load(Path(full_summary["artifacts"]["sourceos_state_integrity_report"]))
+    assert sourceos_report["schema"] == "sourceos.state-integrity-report/v1alpha1"
+    assert sourceos_report["identity"]["repo"] == "github://SourceOS-Linux/sourceos-syncd"
+    assert sourceos_report["identity"]["component"] == "sourceos-syncd"
+    assert sourceos_report["collection"]["status"] == "complete"
+    assert sourceos_report["diagnosis"]["status"] == "healthy"
+    assert sourceos_report["pipeline"]["mode"] == "bounded-local-demo"
+    assert sourceos_report["pipeline"]["mutating_repairs_enabled"] is False
+    assert sourceos_report["attestation"]["artifact_indexed"] is True
 
     state_coherence = full_summary["state_coherence"]
     assert state_coherence["kind"] == "FogStackStateCoherenceSummary"
@@ -134,6 +147,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     indexed_ids = {entry["id"] for entry in artifact_index["artifacts"]}
     assert "deploy_live_cluster_preflight_record" in indexed_ids
     assert "deploy_runtime_dry_run_record" in indexed_ids
+    assert "sourceos_state_integrity_report" in indexed_ids
 
     html = (output_dir / "index.html").read_text(encoding="utf-8")
     assert "Deploy readiness" in html
