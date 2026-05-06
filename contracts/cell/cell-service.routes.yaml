@@ -1,0 +1,112 @@
+version: 0.1.0
+service: cell-service
+base_path: /api/cell/v1
+openapi: contracts/cell/cell-service.openapi.yaml
+upstream:
+  kind: internal-python-service
+  module: cell_service
+  health_operation: cell.health
+policy:
+  required: true
+  default_decision: review_required
+routes:
+  - method: GET
+    path: /health
+    operation_id: cell.health
+    policy_gate: none
+  - method: POST
+    path: /cells
+    operation_id: cell.create
+    policy_gate: cell.create
+  - method: GET
+    path: /cells
+    operation_id: cell.list
+    policy_gate: none
+  - method: GET
+    path: /cells/{cellId}
+    operation_id: cell.get
+    policy_gate: none
+  - method: PUT
+    path: /cells/{cellId}/config
+    operation_id: cell.config.put
+    policy_gate: cell.configure
+  - method: GET
+    path: /cells/{cellId}/config
+    operation_id: cell.config.get
+    policy_gate: none
+  - method: POST
+    path: /sources
+    operation_id: cell.source.create
+    policy_gate: source.create
+  - method: POST
+    path: /watches
+    operation_id: cell.watch.create
+    policy_gate: watch.create
+  - method: POST
+    path: /watch-patterns
+    operation_id: cell.watchPattern.create
+    policy_gate: watch_pattern.create
+  - method: POST
+    path: /watch-patterns/validate
+    operation_id: cell.watchPattern.validate
+    policy_gate: none
+  - method: POST
+    path: /signals
+    operation_id: cell.signal.ingest
+    policy_gate: signal.ingest
+  - method: POST
+    path: /signals/text
+    operation_id: cell.signal.ingestText
+    policy_gate: signal.ingest
+  - method: POST
+    path: /signals/lampstand
+    operation_id: cell.signal.ingestLampstand
+    policy_gate: signal.ingest
+  - method: POST
+    path: /feed-items
+    operation_id: cell.feedItem.emit
+    policy_gate: feed_item.emit
+  - method: GET
+    path: /cells/{cellId}/feeds/private
+    operation_id: cell.feed.private.export
+    policy_gate: none
+  - method: GET
+    path: /cells/{cellId}/feeds/rss
+    operation_id: cell.feed.rss.export
+    policy_gate: none
+  - method: GET
+    path: /feed-items/{feedItemId}/publication-bundle
+    operation_id: cell.publication.bundle
+    policy_gate: none
+    emits:
+      - zone.cell.slash_topic.surface_built.v1
+      - zone.cell.new_hope.membrane_event_built.v1
+      - zone.cell.sherlock.search_packet_built.v1
+  - method: POST
+    path: /feedback-events
+    operation_id: cell.feedback.record
+    policy_gate: feedback_event.record
+  - method: POST
+    path: /archives
+    operation_id: cell.archive.export
+    policy_gate: cell_archive.export
+  - method: GET
+    path: /cells/{cellId}/analytics
+    operation_id: cell.analytics.snapshot
+    policy_gate: none
+outbox_topics:
+  signal_ingested: zone.cell.signal.ingested.v1
+  signal_scored: zone.cell.signal.scored.v1
+  feed_item_emitted: zone.cell.feed.item_emitted.v1
+  private_feed_exported: zone.cell.feed.private_exported.v1
+  rss_feed_exported: zone.cell.feed.rss_exported.v1
+  slash_topic_surface_built: zone.cell.slash_topic.surface_built.v1
+  new_hope_membrane_event_built: zone.cell.new_hope.membrane_event_built.v1
+  sherlock_search_packet_built: zone.cell.sherlock.search_packet_built.v1
+  feedback_recorded: zone.cell.feedback.recorded.v1
+  archive_exported: zone.cell.archive.exported.v1
+security:
+  bearer_required: true
+  evidence_refs_required_for_signal_ingest: true
+  policy_decision_generated_by_service: true
+  ungoverned_publication_allowed: false
