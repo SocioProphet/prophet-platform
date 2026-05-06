@@ -8,6 +8,7 @@ on:
       - 'tools/validate_professional_intelligence.py'
       - 'tools/run_professional_intelligence_gate4_demo.py'
       - 'tools/export_professional_intelligence_dashboard_state.py'
+      - 'tools/summarize_professional_intelligence_agentplane_smoke.py'
       - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
       - '.github/workflows/professional-intelligence-gate4.yml'
   push:
@@ -19,6 +20,7 @@ on:
       - 'tools/validate_professional_intelligence.py'
       - 'tools/run_professional_intelligence_gate4_demo.py'
       - 'tools/export_professional_intelligence_dashboard_state.py'
+      - 'tools/summarize_professional_intelligence_agentplane_smoke.py'
       - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
       - '.github/workflows/professional-intelligence-gate4.yml'
 
@@ -46,7 +48,11 @@ jobs:
       - name: Export dashboard control state
         run: python3 tools/export_professional_intelligence_dashboard_state.py
 
+      - name: Summarize optional Agentplane smoke artifacts
+        run: python3 tools/summarize_professional_intelligence_agentplane_smoke.py
+
       - name: Check verification reports exist
         run: |
           test -s build/professional-intelligence/gate4-demo-verification.json
           test -s build/professional-intelligence/dashboard-control-state.json
+          test -s build/professional-intelligence/agentplane-smoke-summary.json
