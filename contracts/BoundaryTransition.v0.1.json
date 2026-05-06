@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/BoundaryTransition.v0.1.json",
+  "title": "BoundaryTransition v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "transitionId",
+    "timestamp",
+    "sourceComponent",
+    "targetComponent",
+    "boundaryType",
+    "initiator",
+    "userVisible"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "BoundaryTransition" },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sourceComponent": { "type": "string", "minLength": 1 },
+    "targetComponent": { "type": "string", "minLength": 1 },
+    "boundaryType": {
+      "type": "string",
+      "enum": [
+        "embedded_engine_initialization",
+        "network_open",
+        "file_open",
+        "credential_request",
+        "ai_invocation",
+        "shell_execution",
+        "automation_bridge_use",
+        "diagnostic_export",
+        "policy_gate",
+        "renderer_spawn",
+        "worker_spawn"
+      ]
+    },
+    "initiator": {
+      "type": "string",
+      "enum": [
+        "local_user_action",
+        "system_startup",
+        "feature_rollout",
+        "agent_action",
+        "remote_event",
+        "scheduled_task",
+        "unknown"
+      ]
+    },
+    "userVisible": { "type": "boolean" },
+    "userActionRef": { "type": "string" },
+    "policyDecisionRef": { "type": "string" },
+    "engineManifestRef": { "type": "string" },
+    "networkDelta": { "type": "string", "enum": ["none", "opened", "denied", "closed", "unknown"] },
+    "fileAccessDelta": { "type": "string", "enum": ["none", "opened", "denied", "closed", "unknown"] },
+    "credentialAccessDelta": { "type": "string", "enum": ["none", "requested", "denied", "granted", "unknown"] },
+    "aiAccessDelta": { "type": "string", "enum": ["none", "requested", "denied", "granted", "unknown"] },
+    "operatorExplanation": { "type": "string" },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } }
+  }
+}
