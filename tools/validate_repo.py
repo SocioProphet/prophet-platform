@@ -49,6 +49,10 @@ def run_cell_lampstand_adapter_validation() -> None:
     run_optional_validator("tools/validate_cell_lampstand_adapter.py", "Cell Lampstand adapter validation failed")
 
 
+def run_cell_lampstand_live_fixture_validation() -> None:
+    run_optional_validator("tools/validate_cell_lampstand_live_fixture.py", "Cell live Lampstand fixture validation failed")
+
+
 def run_cell_postgres_runtime_validation() -> None:
     run_optional_validator("tools/validate_cell_postgres_runtime.py", "Cell Postgres runtime validation failed")
 
@@ -111,6 +115,7 @@ for rel in [
 run_professional_intelligence_validation()
 run_personal_intelligence_cell_validation()
 run_cell_lampstand_adapter_validation()
+run_cell_lampstand_live_fixture_validation()
 run_cell_postgres_runtime_validation()
 run_cell_clickhouse_fact_validation()
 run_cell_gateway_api_validation()
