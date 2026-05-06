@@ -7,6 +7,7 @@ on:
       - 'contracts/orchestration/pi-gate4-demo.v0.1.example.json'
       - 'tools/validate_professional_intelligence.py'
       - 'tools/run_professional_intelligence_gate4_demo.py'
+      - 'tools/export_professional_intelligence_dashboard_state.py'
       - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
       - '.github/workflows/professional-intelligence-gate4.yml'
   push:
@@ -17,6 +18,7 @@ on:
       - 'contracts/orchestration/pi-gate4-demo.v0.1.example.json'
       - 'tools/validate_professional_intelligence.py'
       - 'tools/run_professional_intelligence_gate4_demo.py'
+      - 'tools/export_professional_intelligence_dashboard_state.py'
       - 'docs/PROFESSIONAL_INTELLIGENCE_GATE4_DEMO.md'
       - '.github/workflows/professional-intelligence-gate4.yml'
 
@@ -41,5 +43,10 @@ jobs:
       - name: Run Gate 4 verification
         run: python3 tools/run_professional_intelligence_gate4_demo.py
 
-      - name: Check verification report exists
-        run: test -s build/professional-intelligence/gate4-demo-verification.json
+      - name: Export dashboard control state
+        run: python3 tools/export_professional_intelligence_dashboard_state.py
+
+      - name: Check verification reports exist
+        run: |
+          test -s build/professional-intelligence/gate4-demo-verification.json
+          test -s build/professional-intelligence/dashboard-control-state.json
