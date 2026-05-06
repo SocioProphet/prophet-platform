@@ -66,7 +66,7 @@ def test_cell_service_rejects_bad_lampstand_result() -> None:
     service.create_watch_pattern(fixture["watch_pattern"])
 
     bad = dict(fixture["lampstand_result"])
-    bad["ok"] = false
+    bad["ok"] = False
 
     with pytest.raises(ServiceError, match="ok=true"):
         service.ingest_lampstand_result(bad, cell_id=fixture["cell"]["id"], watch_id=fixture["watch"]["id"])
