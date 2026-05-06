@@ -1,0 +1,75 @@
+{
+  "contract": "prophet-platform.semantic-enterprise.import",
+  "version": "0.1.0",
+  "source": {
+    "repository": "SocioProphet/ontogenesis",
+    "release": "semantic-enterprise-v0.1.0",
+    "manifest_path": "manifests/semantic_enterprise_v0_1_manifest.json",
+    "rollup_registry_path": "catalog/semantic_enterprise_v0_1_registry.ttl",
+    "release_note_path": "docs/semantic-enterprise/v0.1-release-note.md",
+    "import_bridge_path": "docs/semantic-enterprise/downstream-import-bridge-v0.1.md"
+  },
+  "closure_model": {
+    "inside_source": "Ontogenesis remains the authored semantic source of truth.",
+    "outside_runtime": "Prophet Platform exposes runtime-readable semantic catalog surfaces without rewriting source semantics.",
+    "boundary_membrane": "The import contract preserves provenance, registry references, validation gates, named-graph metadata, trust profile, and access class.",
+    "feedback_surface": "Downstream validation and runtime observations must be represented as platform evidence, not as silent ontology mutation."
+  },
+  "provenance_requirements": [
+    "source_path",
+    "canonical_iri",
+    "registry_reference",
+    "validation_gate",
+    "named_graph_uri",
+    "trust_profile",
+    "access_class"
+  ],
+  "scenarios": {
+    "finance": {
+      "scenario_path": "examples/scenarios/finance_aml_kyc_demo.ttl",
+      "query_path": "examples/queries/finance_aml_kyc.rq",
+      "named_graph_uri_fragment": "graphs/scenarios/finance-aml-kyc"
+    },
+    "threat-intel": {
+      "scenario_path": "examples/scenarios/threat_intel_lifecycle_demo.ttl",
+      "query_path": "examples/queries/threat_intel_lifecycle.rq",
+      "named_graph_uri_fragment": "graphs/scenarios/threat-intel-lifecycle"
+    },
+    "investigation": {
+      "scenario_path": "examples/scenarios/investigation_custody_timeline_demo.ttl",
+      "query_path": "examples/queries/investigation_custody_timeline.rq",
+      "named_graph_uri_fragment": "graphs/scenarios/investigation-custody"
+    },
+    "supply-chain": {
+      "scenario_path": "examples/scenarios/supply_chain_resilience_demo.ttl",
+      "query_path": "examples/queries/supply_chain_resilience.rq",
+      "named_graph_uri_fragment": "graphs/scenarios/supply-chain-resilience"
+    },
+    "defense-c2": {
+      "scenario_path": "examples/scenarios/defense_c2_cop_demo.ttl",
+      "query_path": "examples/queries/defense_c2_cop.rq",
+      "named_graph_uri_fragment": "graphs/scenarios/defense-c2-cop"
+    }
+  },
+  "named_graph_fixture_path": "examples/named-graphs/semantic_sector_named_graphs.ttl",
+  "downstream_consumers": [
+    "Prophet Platform",
+    "Sherlock Search",
+    "AgentPlane",
+    "PolicyFabric",
+    "SourceOS",
+    "DeliveryExcellence"
+  ],
+  "platform_outputs": {
+    "catalog_surface": "semantic-enterprise.catalog.v0.1",
+    "scenario_surface": "semantic-enterprise.scenario.v0.1",
+    "query_surface": "semantic-enterprise.query.v0.1",
+    "named_graph_surface": "semantic-enterprise.named-graph.v0.1"
+  },
+  "non_goals": [
+    "production_graph_storage",
+    "live_ingestion",
+    "operational_response_playbooks",
+    "access_control_implementation"
+  ]
+}
