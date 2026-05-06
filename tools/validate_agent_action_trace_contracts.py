@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DIR = ROOT / "contracts" / "agent-action-trace"
 EXAMPLES_DIR = CONTRACT_DIR / "examples"
+INVALID_DIR = EXAMPLES_DIR / "invalid"
 EXPECTED_API_VERSION = "prophet-platform.socioprophet.org/v0.1"
 EXPECTED_KINDS = {
     "agent-action-record.v0.1.schema.json": "AgentActionRecord",
@@ -18,6 +19,11 @@ EXAMPLE_BY_KIND = {
     "AgentActionRecord": "agent-action-record.example.v0.1.json",
     "AgentTraceRecord": "agent-trace-record.example.v0.1.json",
     "AgentActionTraceConformanceReport": "agent-action-trace-conformance-report.example.v0.1.json",
+}
+INVALID_EXAMPLES = {
+    "agent-action-record.missing-receipt.example.v0.1.json": "AgentActionRecord",
+    "agent-trace-record.authority-true.example.v0.1.json": "AgentTraceRecord",
+    "agent-action-trace-conformance-report.bad-bootstrap-ref.example.v0.1.json": "AgentActionTraceConformanceReport",
 }
 
 
@@ -90,6 +96,17 @@ def validate_example(path: Path, expected_kind: str) -> None:
             fail(f"{path.relative_to(ROOT)}: spec.bootstrapValidatorRef must reference socioprophet-standards-storage")
 
 
+def expect_invalid_example(path: Path, expected_kind: str) -> None:
+    try:
+        validate_example(path, expected_kind)
+    except SystemExit as exc:
+        if exc.code == 2:
+            print(f"OK: {path.relative_to(ROOT)} failed as expected")
+            return
+        raise
+    fail(f"{path.relative_to(ROOT)}: invalid example unexpectedly passed")
+
+
 def main() -> int:
     for schema_name, kind in EXPECTED_KINDS.items():
         schema_path = CONTRACT_DIR / schema_name
@@ -100,7 +117,14 @@ def main() -> int:
         if not example_path.exists():
             fail(f"missing example: {example_path.relative_to(ROOT)}")
         validate_example(example_path, kind)
-    print("OK: validated agent action/trace generated contracts and examples")
+
+    for example_name, kind in INVALID_EXAMPLES.items():
+        invalid_path = INVALID_DIR / example_name
+        if not invalid_path.exists():
+            fail(f"missing invalid example: {invalid_path.relative_to(ROOT)}")
+        expect_invalid_example(invalid_path, kind)
+
+    print("OK: validated agent action/trace generated contracts, examples, and negative fixtures")
     return 0
 
 

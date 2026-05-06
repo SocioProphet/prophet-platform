@@ -13,9 +13,8 @@ This directory contains generated platform-facing contract artifacts derived fro
 - `agent-action-record.v0.1.schema.json`
 - `agent-trace-record.v0.1.schema.json`
 - `agent-action-trace-conformance-report.v0.1.schema.json`
-- `examples/agent-action-record.example.v0.1.json`
-- `examples/agent-trace-record.example.v0.1.json`
-- `examples/agent-action-trace-conformance-report.example.v0.1.json`
+- valid examples under `examples/`
+- invalid examples under `examples/invalid/`
 
 ## Validation
 
@@ -24,6 +23,16 @@ Run:
 ```bash
 python3 tools/validate_agent_action_trace_contracts.py
 ```
+
+The validator checks positive examples and asserts the negative fixtures fail as expected.
+
+## Negative fixtures
+
+The negative fixture set currently proves rejection of:
+
+- an `AgentActionRecord` missing `receiptRef`
+- an `AgentTraceRecord` that incorrectly sets `traceIsAuthority: true`
+- an `AgentActionTraceConformanceReport` that points bootstrap-validator authority at the wrong repository
 
 ## Boundary
 

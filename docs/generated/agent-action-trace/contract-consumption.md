@@ -25,6 +25,12 @@ The standards lock declares these initial platform runtime targets:
 - `apps/workspace-controller`
 - `apps/lampstand`
 
+Runtime-specific consumption notes:
+
+- `docs/generated/agent-action-trace/runtime-consumption-agentplane.md`
+- `docs/generated/agent-action-trace/runtime-consumption-workspace-controller.md`
+- `docs/generated/agent-action-trace/runtime-consumption-lampstand.md`
+
 ## Runtime boundary
 
 This tranche introduces generated contract artifacts only. Runtime code must not claim conformance until it emits matching records and produces a validation or receipt trail.

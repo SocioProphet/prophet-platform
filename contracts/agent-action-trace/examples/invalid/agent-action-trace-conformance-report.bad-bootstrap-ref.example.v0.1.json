@@ -1,0 +1,23 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v0.1",
+  "kind": "AgentActionTraceConformanceReport",
+  "metadata": {
+    "reportId": "agent-action-trace-conformance-invalid-bootstrap",
+    "profileRef": "github://SocioProphet/socioprophet-agent-standards/docs/standards/agent-plane/001-agent-action-trace-conformance-profile.md",
+    "standardsPin": "97e3f49ec4b27349f532db27ebaad618d4f9520c"
+  },
+  "spec": {
+    "implementationRef": "github://SocioProphet/prophet-platform/apps/agentplane",
+    "ontologyRef": "github://SocioProphet/ontogenesis/Middle/action-ontology.ttl",
+    "bootstrapValidatorRef": "github://SocioProphet/prophet-platform/tools/action_ontology_validate_all.sh",
+    "overallStatus": "pass",
+    "checks": [
+      {
+        "id": "bad-bootstrap-ref",
+        "status": "pass",
+        "evidenceRef": "evidence://platform/action-trace/invalid-bootstrap",
+        "summary": "This fixture must fail because bootstrap validator authority points at the wrong repo."
+      }
+    ]
+  }
+}
