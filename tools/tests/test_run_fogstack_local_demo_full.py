@@ -10,6 +10,8 @@ REQUIRED_FULL_ARTIFACTS = {
     "local_demo_summary",
     "local_demo_markdown",
     "local_demo_html",
+    "state_coherence_markdown",
+    "state_coherence_html",
     "artifact_index",
     "deploy_summary",
     "node_inventory_record",
@@ -74,7 +76,9 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "Live cluster preflight record:" in proc.stdout
     assert "State coherence posture: compressed-estate-demo-coherence" in proc.stdout
     assert "State coherence repo refs: 8" in proc.stdout
-    assert "Checks passed: 13" in proc.stdout
+    assert "State coherence Markdown:" in proc.stdout
+    assert "State coherence HTML:" in proc.stdout
+    assert "Checks passed: 14" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     full_summary = load(full_summary_path)
@@ -83,6 +87,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert REQUIRED_FULL_ARTIFACTS == set(full_summary["artifacts"])
     assert "live_cluster_preflight_record_indexed" in full_summary["checks"]
     assert "state_coherence_surfaces_bound" in full_summary["checks"]
+    assert "state_coherence_operator_artifacts_emitted" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
 
@@ -90,10 +95,25 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert state_coherence["kind"] == "FogStackStateCoherenceSummary"
     assert state_coherence["status"] == "bounded-local-demo-ready"
     assert state_coherence["production_boundary"].startswith("non-mutating local proof")
+    assert state_coherence["sociosphere_record_ref"] == (
+        "github://SocioProphet/sociosphere/registry/state-coherence/fogstack-local-demo-state-coherence-v0.1.json"
+    )
     repo_refs = {entry["repo_ref"] for entry in state_coherence["repo_refs"]}
     assert REQUIRED_STATE_COHERENCE_REPO_REFS == repo_refs
     assert REQUIRED_STATE_COHERENCE_SURFACES.issubset(set(state_coherence["integration_surfaces"]))
     assert all(entry["demo_binding"] for entry in state_coherence["repo_refs"])
+
+    state_coherence_md = Path(full_summary["artifacts"]["state_coherence_markdown"]).read_text(encoding="utf-8")
+    assert "# FogStack State Coherence" in state_coherence_md
+    assert "github://SourceOS-Linux/sourceos-syncd" in state_coherence_md
+    assert "guardrail-decision-abi-to-policy-boundary" in state_coherence_md
+    assert "Sociosphere record:" in state_coherence_md
+
+    state_coherence_html = Path(full_summary["artifacts"]["state_coherence_html"]).read_text(encoding="utf-8")
+    assert "FogStack State Coherence" in state_coherence_html
+    assert "github://SocioProphet/guardrail-fabric" in state_coherence_html
+    assert "semantic-contracts-to-governed-evidence-plane" in state_coherence_html
+    assert "Sociosphere record" in state_coherence_html
 
     live_preflight = load(Path(full_summary["artifacts"]["live_cluster_preflight_record"]))
     assert live_preflight["kind"] == "FogStackLiveClusterPreflightRecord"
