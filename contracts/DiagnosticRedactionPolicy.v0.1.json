@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/DiagnosticRedactionPolicy.v0.1.json",
+  "title": "DiagnosticRedactionPolicy v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "tiers"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "DiagnosticRedactionPolicy" },
+    "tiers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["localPrivate", "shareableDefault", "publicIssue"],
+      "properties": {
+        "localPrivate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stableDeviceIds": {"type": "string", "enum": ["preserve"]},
+            "bootSessionIds": {"type": "string", "enum": ["preserve"]},
+            "instructionBytes": {"type": "string", "enum": ["preserve"]},
+            "fullPaths": {"type": "string", "enum": ["preserve"]},
+            "tokensOrSecrets": {"type": "string", "enum": ["redact"]}
+          }
+        },
+        "shareableDefault": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stableDeviceIds": {"type": "string", "enum": ["hash_with_local_salt"]},
+            "bootSessionIds": {"type": "string", "enum": ["hash_with_local_salt"]},
+            "instructionBytes": {"type": "string", "enum": ["omit"]},
+            "fullPaths": {"type": "string", "enum": ["redact"]},
+            "tokensOrSecrets": {"type": "string", "enum": ["redact"]}
+          }
+        },
+        "publicIssue": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stableDeviceIds": {"type": "string", "enum": ["omit"]},
+            "bootSessionIds": {"type": "string", "enum": ["omit"]},
+            "instructionBytes": {"type": "string", "enum": ["omit"]},
+            "fullPaths": {"type": "string", "enum": ["classify_only"]},
+            "tokensOrSecrets": {"type": "string", "enum": ["redact"]}
+          }
+        }
+      }
+    }
+  }
+}
