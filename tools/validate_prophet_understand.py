@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -9,7 +10,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "schemas/repo-intelligence/prophet-understanding.schema.json"
-FIXTURE = ROOT / "examples/repo-intelligence/prophet-understanding.fixture.json"
+DEFAULT_ARTIFACT = ROOT / "examples/repo-intelligence/prophet-understanding.fixture.json"
 DOC = ROOT / "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md"
 SCHEMA_ID = "https://standards.socioprophet.org/schemas/repo-intelligence/prophet-understanding.schema.json"
 VERSION = "prophet-understanding.v0"
@@ -24,15 +25,22 @@ def fail(message: str) -> None:
     raise SystemExit(2)
 
 
+def display(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT))
+    except ValueError:
+        return str(path)
+
+
 def load(path: Path) -> dict[str, Any]:
     if not path.exists():
-        fail(f"missing required file: {path.relative_to(ROOT)}")
+        fail(f"missing required file: {display(path)}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        fail(f"invalid JSON in {path.relative_to(ROOT)}: {exc}")
+        fail(f"invalid JSON in {display(path)}: {exc}")
     if not isinstance(value, dict):
-        fail(f"{path.relative_to(ROOT)} must contain a JSON object")
+        fail(f"{display(path)} must contain a JSON object")
     return value
 
 
@@ -89,9 +97,10 @@ def validate_schema(schema: dict[str, Any]) -> None:
     defs = schema.get("$defs")
     if not isinstance(defs, dict):
         fail("schema missing $defs")
-    for name in ["RepoMetadata", "Generator", "AgentIdentity", "SourceAnchor", "RepoNode", "RepoEdge", "Summary", "GuidedTour", "DiffImpactSet", "ProvenanceReceipt", "ValidationResult", "PolicyStatus", "PolicyCheck"]:
-        if name not in defs:
-            fail(f"schema missing definition: {name}")
+    required_defs = {"RepoMetadata", "Generator", "AgentIdentity", "SourceAnchor", "RepoNode", "RepoEdge", "Summary", "GuidedTour", "DiffImpactSet", "ProvenanceReceipt", "ValidationResult", "PolicyStatus", "PolicyCheck"}
+    missing = sorted(required_defs - set(defs))
+    if missing:
+        fail(f"schema missing definitions: {', '.join(missing)}")
     if not NODE_KINDS <= set(defs["RepoNode"]["properties"]["kind"]["enum"]):
         fail("RepoNode.kind enum missing required values")
     if not EDGE_KINDS <= set(defs["RepoEdge"]["properties"]["kind"]["enum"]):
@@ -100,22 +109,25 @@ def validate_schema(schema: dict[str, Any]) -> None:
         fail("PolicyStatus.state enum drifted")
 
 
-def validate_jsonschema(schema: dict[str, Any], fixture: dict[str, Any]) -> None:
+def validate_jsonschema(schema: dict[str, Any], artifact: dict[str, Any]) -> None:
     try:
         import jsonschema  # type: ignore
     except Exception:
         return
     try:
-        jsonschema.Draft202012Validator(schema).validate(fixture)
+        jsonschema.Draft202012Validator(schema).validate(artifact)
     except Exception as exc:
-        fail(f"fixture does not validate against JSON Schema: {exc}")
+        fail(f"artifact does not validate against JSON Schema: {exc}")
 
 
-def validate_artifact(artifact: dict[str, Any]) -> None:
+def validate_artifact(artifact: dict[str, Any], *, require_seed_fixture_kinds: bool) -> None:
     require(artifact, {"schema_version", "repo", "generator", "agent_identity", "nodes", "edges", "summaries", "tours", "diff_impact_sets", "provenance_receipts", "validation_results", "policy_status"}, "artifact")
     if artifact["schema_version"] != VERSION:
         fail("artifact schema_version drifted")
+
     repo = artifact["repo"]
+    if not isinstance(repo, dict):
+        fail("artifact.repo must be an object")
     require(repo, {"full_name", "default_branch", "commit", "generated_at", "artifact_hash"}, "artifact.repo")
     if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", repo["full_name"]):
         fail("artifact.repo.full_name must be owner/name")
@@ -125,6 +137,8 @@ def validate_artifact(artifact: dict[str, Any]) -> None:
 
     receipts = [x for x in as_list(artifact["provenance_receipts"], "provenance_receipts") if isinstance(x, dict)]
     receipt_ids = ids(receipts, "provenance_receipts")
+    if not receipt_ids:
+        fail("artifact must include provenance receipts")
     for receipt in receipts:
         require(receipt, {"id", "claim_type", "generator", "parser_version", "input_source_hash", "generated_at", "confidence", "validation_state", "warnings"}, f"receipt {receipt.get('id')}")
         check_hash(receipt["input_source_hash"], f"receipt {receipt['id']}.input_source_hash")
@@ -150,9 +164,11 @@ def validate_artifact(artifact: dict[str, Any]) -> None:
         check_confidence(node["confidence"], f"node {node['id']}")
         if set(as_list(node["provenance_receipt_ids"], f"node {node['id']}.provenance_receipt_ids")) - receipt_ids:
             fail(f"node {node['id']} references unknown receipt")
-    for kind in {"repo", "document", "schema", "contract", "validator", "policy", "test"}:
-        if kind not in seen_kinds:
-            fail(f"fixture missing seed node kind: {kind}")
+
+    if require_seed_fixture_kinds:
+        for kind in {"repo", "document", "schema", "contract", "validator", "policy", "test"}:
+            if kind not in seen_kinds:
+                fail(f"fixture missing seed node kind: {kind}")
 
     edges = [x for x in as_list(artifact["edges"], "edges") if isinstance(x, dict)]
     edge_ids = ids(edges, "edges")
@@ -173,6 +189,8 @@ def validate_artifact(artifact: dict[str, Any]) -> None:
         require(tour, {"id", "kind", "title", "steps", "provenance_receipt_ids"}, f"tour {tour.get('id')}")
         last = 0
         for step in as_list(tour["steps"], f"tour {tour['id']}.steps"):
+            if not isinstance(step, dict):
+                fail(f"tour {tour['id']} step must be an object")
             require(step, {"order", "node_id", "summary"}, f"tour {tour['id']}.step")
             if step["order"] <= last or step["node_id"] not in node_ids:
                 fail(f"tour {tour['id']} has invalid step")
@@ -188,10 +206,14 @@ def validate_artifact(artifact: dict[str, Any]) -> None:
             fail(f"validation {result['id']} references unknown target")
 
     policy = artifact["policy_status"]
+    if not isinstance(policy, dict):
+        fail("policy_status must be an object")
     require(policy, {"state", "checks"}, "policy_status")
     if policy["state"] not in POLICY_STATES:
         fail("policy_status.state invalid")
     for check in as_list(policy["checks"], "policy_status.checks"):
+        if not isinstance(check, dict):
+            fail("policy_status.check must be an object")
         require(check, {"id", "state", "message", "evidence_receipt_ids"}, f"policy check {check.get('id')}")
         if check["state"] not in POLICY_STATES or set(check["evidence_receipt_ids"]) - receipt_ids:
             fail(f"policy check {check['id']} is invalid")
@@ -205,13 +227,23 @@ def validate_doc() -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Validate Prophet Understand repo intelligence artifacts.")
+    parser.add_argument("--artifact", default=str(DEFAULT_ARTIFACT), help="Artifact path to validate; defaults to the platform fixture")
+    parser.add_argument("--skip-doc", action="store_true", help="Skip platform documentation marker checks")
+    args = parser.parse_args()
+
+    artifact_path = Path(args.artifact).expanduser()
+    if not artifact_path.is_absolute():
+        artifact_path = ROOT / artifact_path
+
     schema = load(SCHEMA)
-    fixture = load(FIXTURE)
+    artifact = load(artifact_path)
     validate_schema(schema)
-    validate_jsonschema(schema, fixture)
-    validate_artifact(fixture)
-    validate_doc()
-    print("OK: Prophet Understand repo intelligence validation passed")
+    validate_jsonschema(schema, artifact)
+    validate_artifact(artifact, require_seed_fixture_kinds=artifact_path.resolve() == DEFAULT_ARTIFACT.resolve())
+    if not args.skip_doc:
+        validate_doc()
+    print(f"OK: Prophet Understand repo intelligence validation passed: {display(artifact_path)}")
 
 
 if __name__ == "__main__":
