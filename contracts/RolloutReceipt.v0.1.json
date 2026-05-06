@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/RolloutReceipt.v0.1.json",
+  "title": "RolloutReceipt v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "rolloutId",
+    "featureName",
+    "owner",
+    "activationReason",
+    "activationRule"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "RolloutReceipt" },
+    "rolloutId": { "type": "string" },
+    "featureName": { "type": "string" },
+    "featureVersion": { "type": "string" },
+    "owner": { "type": "string" },
+    "activationReason": { "type": "string" },
+    "activationRule": { "type": "string" },
+    "userOverride": { "type": "string" },
+    "killSwitch": { "type": "string" },
+    "policyClass": { "type": "string" },
+    "privacyClass": { "type": "string" },
+    "affectedBoundaries": { "type": "array", "items": { "type": "string" } },
+    "buildProvenance": {
+      "type": "object",
+      "properties": {
+        "repo": { "type": "string" },
+        "commit": { "type": "string" },
+        "ciReceipt": { "type": "string" }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "properties": {
+        "supported": { "type": "boolean" },
+        "rollbackCommand": { "type": "string" }
+      }
+    }
+  }
+}
