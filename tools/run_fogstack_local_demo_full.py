@@ -287,6 +287,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     state_coherence_markdown_path = output_dir / "fogstack-local-demo.state-coherence.md"
     state_coherence_html_path = output_dir / "state-coherence.html"
+    sourceos_state_integrity_report_path = output_dir / "sourceos.state-integrity-report.json"
     local_demo_html_path = output_dir / "index.html"
 
     run([
@@ -338,6 +339,16 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
         str(artifact_index_path),
     ])
 
+    run([
+        sys.executable,
+        "tools/emit_sourceos_state_integrity_demo_report.py",
+        "--output",
+        str(sourceos_state_integrity_report_path),
+        "--artifact-index",
+        str(artifact_index_path),
+        "--summary",
+    ])
+
     state_coherence = build_state_coherence_summary()
     write_text(state_coherence_markdown_path, render_state_coherence_markdown(state_coherence))
     write_text(state_coherence_html_path, render_state_coherence_html(state_coherence))
@@ -355,6 +366,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "local_demo_html": rel(local_demo_html_path),
             "state_coherence_markdown": rel(state_coherence_markdown_path),
             "state_coherence_html": rel(state_coherence_html_path),
+            "sourceos_state_integrity_report": rel(sourceos_state_integrity_report_path),
             "artifact_index": rel(artifact_index_path),
             "deploy_summary": rel(deploy_summary_path),
             "node_inventory_record": rel(node_inventory_path),
@@ -391,6 +403,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "runtime_adapter_indexed",
             "runtime_dry_run_record_indexed",
             "artifact_index_checked",
+            "sourceos_state_integrity_report_indexed",
             "state_coherence_surfaces_bound",
             "state_coherence_operator_artifacts_emitted",
             "state_coherence_index_linked",
@@ -410,6 +423,7 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"Artifact index: {artifacts['artifact_index']}",
         f"Agent Machine node inventory: {artifacts['node_inventory_record']}",
         f"Immutable update readiness: {artifacts['immutable_update_readiness_record']}",
+        f"SourceOS state integrity report: {artifacts['sourceos_state_integrity_report']}",
         f"Deploy plan: {artifacts['deploy_plan']}",
         f"Kubernetes deployment: {artifacts['kubernetes_deployment']}",
         f"Cluster readiness record: {artifacts['cluster_readiness_record']}",
