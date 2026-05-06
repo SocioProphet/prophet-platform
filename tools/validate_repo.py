@@ -57,6 +57,10 @@ def run_cell_clickhouse_fact_validation() -> None:
     run_optional_validator("tools/validate_cell_clickhouse_facts.py", "Cell ClickHouse fact validation failed")
 
 
+def run_cell_gateway_api_validation() -> None:
+    run_optional_validator("tools/validate_cell_gateway_api.py", "Cell gateway API validation failed")
+
+
 def run_prophet_understand_validation() -> None:
     run_optional_validator("tools/validate_prophet_understand.py", "Prophet Understand repo intelligence validation failed")
 
@@ -109,6 +113,7 @@ run_personal_intelligence_cell_validation()
 run_cell_lampstand_adapter_validation()
 run_cell_postgres_runtime_validation()
 run_cell_clickhouse_fact_validation()
+run_cell_gateway_api_validation()
 run_prophet_understand_validation()
 run_prophet_understand_vertical_slice()
 run_cell_service_smoke()
