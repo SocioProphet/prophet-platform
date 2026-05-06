@@ -1,0 +1,49 @@
+schema_version: 0.1.0
+contract_id: regis-acr-platform-contract
+status: draft
+owner_repo: SocioProphet/prophet-platform
+normative_domain_repo: SocioProphet/regis-entity-graph
+service: regis-acr-api
+
+runtime_contracts:
+  RegisAcr.Health.Ping:
+    request_schema: schemas/acr/regis-acr-health-ping.request.schema.json
+    response_schema: schemas/acr/regis-acr-health-ping.response.schema.json
+    description: Service liveness and contract-pack visibility probe.
+
+  RegisAcr.IngestSourceRecord:
+    request_schema: schemas/acr/ingest-source-record.request.schema.json
+    response_schema: schemas/acr/ingest-source-record.response.schema.json
+    description: Accepts a source record and emits evidence and decision receipt metadata.
+
+  RegisAcr.ProposeConcordance:
+    request_schema: schemas/acr/propose-concordance.request.schema.json
+    response_schema: schemas/acr/propose-concordance.response.schema.json
+    description: Produces candidate concordance links without canonical promotion.
+
+  RegisAcr.EvaluatePromotion:
+    request_schema: schemas/acr/evaluate-promotion.request.schema.json
+    response_schema: schemas/acr/evaluate-promotion.response.schema.json
+    description: Applies promotion gates over score, margin, stability, and policy flags.
+
+platform_receipts:
+  service_name: regis-acr-api
+  artifact_layout: prophet-platform/{payloads,events,receipts}/regis-acr-api
+  required_actions:
+    - SourceRecordIngest
+    - ConcordanceProposal
+    - PromotionEvaluation
+    - DecisionLedgerWrite
+    - RelationshipFormationHook
+
+safety_invariants:
+  - id: no_auto_canonical_merge
+    statement: The first service tranche must not perform irreversible canonical merge automation.
+  - id: decision_receipt_required
+    statement: Consequential actions must emit decision or evidence receipt metadata.
+  - id: low_margin_blocks_promotion
+    statement: Low-margin or unstable resolver outputs must be blocked from canonical promotion.
+  - id: identity_prime_scope_protection
+    statement: The service must preserve identity-prime scope boundaries and avoid unsafe cross-scope aggregation.
+  - id: ontogenesis_hook_not_forced
+    statement: Relationship formation hooks are emitted for Ontogenesis binding but are not forced into canonical state by this service.
