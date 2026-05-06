@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import shutil
 import subprocess
@@ -88,6 +89,11 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
 def rel(path: Path) -> str:
     try:
         return str(path.relative_to(ROOT))
@@ -102,6 +108,7 @@ def build_state_coherence_summary() -> dict[str, Any]:
         "posture": "compressed-estate-demo-coherence",
         "status": "bounded-local-demo-ready",
         "production_boundary": "non-mutating local proof; live mutation, production signing, registry publication, and managed multi-tenant service operations remain post-MVP",
+        "sociosphere_record_ref": "github://SocioProphet/sociosphere/registry/state-coherence/fogstack-local-demo-state-coherence-v0.1.json",
         "repo_refs": STATE_COHERENCE_REPO_REFS,
         "integration_surfaces": STATE_COHERENCE_INTEGRATION_SURFACES,
         "required_demo_principles": [
@@ -112,6 +119,99 @@ def build_state_coherence_summary() -> dict[str, Any]:
             "SourceOS local-first state integrity must be treated as substrate evidence, not an optional sidecar",
         ],
     }
+
+
+def render_state_coherence_markdown(state_coherence: dict[str, Any]) -> str:
+    repo_rows = [
+        f"| `{entry['id']}` | `{entry['repo_ref']}` | `{entry['demo_binding']}` | {entry['role']} |"
+        for entry in state_coherence["repo_refs"]
+    ]
+    surface_rows = [f"- `{surface}`" for surface in state_coherence["integration_surfaces"]]
+    principle_rows = [f"- {principle}" for principle in state_coherence["required_demo_principles"]]
+    return "\n".join([
+        "# FogStack State Coherence",
+        "",
+        f"Status: **{state_coherence['status']}**",
+        f"Posture: `{state_coherence['posture']}`",
+        f"Production boundary: {state_coherence['production_boundary']}",
+        f"Sociosphere record: `{state_coherence['sociosphere_record_ref']}`",
+        "",
+        "## Repo bindings",
+        "",
+        "| ID | Repo | Demo binding | Role |",
+        "|---|---|---|---|",
+        *repo_rows,
+        "",
+        "## Integration surfaces",
+        "",
+        *surface_rows,
+        "",
+        "## Required demo principles",
+        "",
+        *principle_rows,
+        "",
+    ])
+
+
+def render_state_coherence_html(state_coherence: dict[str, Any]) -> str:
+    def esc(value: Any) -> str:
+        return html.escape(str(value), quote=True)
+
+    repo_rows = "\n".join(
+        "<tr>"
+        f"<td><code>{esc(entry['id'])}</code></td>"
+        f"<td><code>{esc(entry['repo_ref'])}</code></td>"
+        f"<td><code>{esc(entry['demo_binding'])}</code></td>"
+        f"<td>{esc(entry['role'])}</td>"
+        "</tr>"
+        for entry in state_coherence["repo_refs"]
+    )
+    surface_items = "\n".join(
+        f"<li><code>{esc(surface)}</code></li>" for surface in state_coherence["integration_surfaces"]
+    )
+    principle_items = "\n".join(
+        f"<li>{esc(principle)}</li>" for principle in state_coherence["required_demo_principles"]
+    )
+    return f"""<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>FogStack State Coherence</title>
+  <style>
+    :root {{ color-scheme: light dark; }}
+    body {{ font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; line-height: 1.5; }}
+    main {{ max-width: 1120px; }}
+    .status {{ display: inline-block; padding: 0.25rem 0.6rem; border: 1px solid currentColor; border-radius: 999px; font-weight: 700; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }}
+    th, td {{ border: 1px solid currentColor; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }}
+    code {{ word-break: break-word; }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FogStack State Coherence</h1>
+    <p class=\"status\">Status: {esc(state_coherence['status'])}</p>
+    <dl>
+      <dt>Posture</dt><dd><code>{esc(state_coherence['posture'])}</code></dd>
+      <dt>Production boundary</dt><dd>{esc(state_coherence['production_boundary'])}</dd>
+      <dt>Sociosphere record</dt><dd><code>{esc(state_coherence['sociosphere_record_ref'])}</code></dd>
+    </dl>
+
+    <h2>Repo bindings</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Repo</th><th>Demo binding</th><th>Role</th></tr></thead>
+      <tbody>{repo_rows}</tbody>
+    </table>
+
+    <h2>Integration surfaces</h2>
+    <ul>{surface_items}</ul>
+
+    <h2>Required demo principles</h2>
+    <ul>{principle_items}</ul>
+  </main>
+</body>
+</html>
+"""
 
 
 def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
@@ -131,6 +231,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     runtime_dry_run_path = deploy_dir / "fogstack.access.runtime-dry-run.record.json"
     artifact_index_path = output_dir / "demo-artifacts.index.json"
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
+    state_coherence_markdown_path = output_dir / "fogstack-local-demo.state-coherence.md"
+    state_coherence_html_path = output_dir / "state-coherence.html"
 
     run([
         sys.executable,
@@ -182,6 +284,9 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     ])
 
     state_coherence = build_state_coherence_summary()
+    write_text(state_coherence_markdown_path, render_state_coherence_markdown(state_coherence))
+    write_text(state_coherence_html_path, render_state_coherence_html(state_coherence))
+
     summary = {
         "kind": "FogStackLocalDemoFullRun",
         "schema_version": "v0.1",
@@ -191,6 +296,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "local_demo_summary": rel(summary_path),
             "local_demo_markdown": rel(output_dir / "fogstack-local-demo.summary.md"),
             "local_demo_html": rel(output_dir / "index.html"),
+            "state_coherence_markdown": rel(state_coherence_markdown_path),
+            "state_coherence_html": rel(state_coherence_html_path),
             "artifact_index": rel(artifact_index_path),
             "deploy_summary": rel(deploy_summary_path),
             "node_inventory_record": rel(node_inventory_path),
@@ -228,6 +335,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "runtime_dry_run_record_indexed",
             "artifact_index_checked",
             "state_coherence_surfaces_bound",
+            "state_coherence_operator_artifacts_emitted",
         ],
     }
     write_json(full_summary_path, summary)
@@ -256,6 +364,8 @@ def render_summary(summary: dict[str, Any]) -> str:
         f"State coherence posture: {state_coherence['posture']}",
         f"State coherence repo refs: {len(state_coherence['repo_refs'])}",
         f"State coherence integration surfaces: {len(state_coherence['integration_surfaces'])}",
+        f"State coherence Markdown: {artifacts['state_coherence_markdown']}",
+        f"State coherence HTML: {artifacts['state_coherence_html']}",
         f"Checks passed: {len(summary['checks'])}",
     ]
     return "\n".join(lines) + "\n"
