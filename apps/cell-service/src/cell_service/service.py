@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from .clickhouse_facts import CellFactSink, InMemoryCellFactSink
 from .extraction import ExtractionError, extract_with_patterns
 from .feed import private_feed_document, rss_feed_document
 from .lampstand_adapter import LampstandAdapterError, LampstandIngestAdapter
@@ -27,12 +28,19 @@ class CellService:
     """Minimal Personal Intelligence Cell service.
 
     The service is repository-backed, policy-gated, deterministic-extraction
-    capable, publication-aware, and wired to the first Lampstand source adapter.
+    capable, publication-aware, Lampstand-source-aware, and emits analytical
+    facts for the ClickHouse lane.
     """
 
-    def __init__(self, repository: CellRepository | None = None, policy_engine: PolicyEngine | None = None) -> None:
+    def __init__(
+        self,
+        repository: CellRepository | None = None,
+        policy_engine: PolicyEngine | None = None,
+        fact_sink: CellFactSink | None = None,
+    ) -> None:
         self._repo = repository or InMemoryCellRepository()
         self._policy = policy_engine or StaticPolicyEngine()
+        self._facts = fact_sink or InMemoryCellFactSink()
         self._lampstand = LampstandIngestAdapter()
 
     def health(self) -> dict[str, str]:
@@ -46,6 +54,7 @@ class CellService:
             "feed": "private-json+rss-v1",
             "publication": "slash-topics+new-hope+sherlock-v1",
             "source_adapter": "lampstand-v1",
+            "facts": self._facts.__class__.__name__,
         }
 
     def create_cell(self, cell: dict[str, Any]) -> dict[str, Any]:
@@ -245,6 +254,8 @@ class CellService:
             "entities": [],
             "claims": [],
             "extractions": extraction["extractions"],
+            "pattern_id": extraction["pattern_id"],
+            "pattern_kind": extraction["pattern_kind"],
             "evidence_refs": evidence,
             "confidence_score": extraction["confidence_score"],
             "policy_status": "allowed",
@@ -261,7 +272,10 @@ class CellService:
         self._require_allowed("signal.ingest", signal, source.get("policy_ref"))
         prepared = deepcopy(signal)
         scored = self.score_signal(prepared)
-        return self._create("signals", scored, "Signal")
+        stored = self._create("signals", scored, "Signal")
+        self._facts.emit_signal_score(stored)
+        self._facts.emit_watch_pattern_metric(stored)
+        return stored
 
     def score_signal(self, signal: dict[str, Any]) -> dict[str, Any]:
         prepared = deepcopy(signal)
@@ -287,7 +301,9 @@ class CellService:
         prepared = deepcopy(feed_item)
         prepared["policy_decision"] = decision
         self._require_policy_decision(prepared["policy_decision"])
-        return self._create("feed_items", prepared, "FeedItem")
+        stored = self._create("feed_items", prepared, "FeedItem")
+        self._facts.emit_notification_metric(stored)
+        return stored
 
     def get_feed_item(self, feed_item_id: str) -> dict[str, Any]:
         return self._get("feed_items", feed_item_id, "FeedItem")
@@ -333,11 +349,13 @@ class CellService:
     def record_feedback_event(self, feedback_event: dict[str, Any]) -> dict[str, Any]:
         self._require(feedback_event, ["id", "cell_id", "signal_id", "actor_ref", "action", "created_at"])
         self.get_cell(feedback_event["cell_id"])
-        self._get("signals", feedback_event["signal_id"], "Signal")
+        signal = self._get("signals", feedback_event["signal_id"], "Signal")
         if feedback_event["action"] not in {"follow", "mark_relevant", "mark_irrelevant", "delete", "mute_source", "promote_source", "refine_watch", "share", "save", "dismiss"}:
             raise ServiceError(f"unsupported FeedbackEvent.action: {feedback_event['action']}")
         self._require_allowed("feedback_event.record", feedback_event, None)
-        return self._create("feedback_events", feedback_event, "FeedbackEvent")
+        stored = self._create("feedback_events", feedback_event, "FeedbackEvent")
+        self._facts.emit_feedback_outcome(stored, signal)
+        return stored
 
     def export_cell_archive(self, archive: dict[str, Any]) -> dict[str, Any]:
         self._require(archive, ["id", "cell_id", "schema_version", "manifest", "created_at"])
@@ -348,6 +366,9 @@ class CellService:
             raise ServiceError("CellArchive.restore_dry_run_report_ref is required for first runtime lane")
         self._require_allowed("cell_archive.export", archive, archive.get("redaction_policy_ref") or cell.get("policy_ref"))
         return self._create("cell_archives", archive, "CellArchive")
+
+    def analytics_snapshot(self) -> dict[str, list[dict[str, Any]]]:
+        return self._facts.snapshot()
 
     def run_loop_contract(self, loop: dict[str, Any]) -> dict[str, Any]:
         cell = self.create_cell(loop["cell"])
@@ -374,6 +395,7 @@ class CellService:
             "private_feed": self.export_private_feed(cell["id"]),
             "rss_feed": self.export_rss_feed(cell["id"]),
             "publication_bundle": self.publication_bundle_for_feed_item(feed["id"]),
+            "analytics": self.analytics_snapshot(),
         }
 
     def _source_trust(self, source_id: str) -> float:
