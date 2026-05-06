@@ -53,6 +53,10 @@ def run_prophet_understand_validation() -> None:
     run_optional_validator("tools/validate_prophet_understand.py", "Prophet Understand repo intelligence validation failed")
 
 
+def run_prophet_understand_vertical_slice() -> None:
+    run_optional_validator("tools/run_prophet_understand_vertical_slice.py", "Prophet Understand vertical slice failed")
+
+
 def run_cell_service_smoke() -> None:
     run_optional_validator("tools/smoke_cell_service_loop.py", "Cell service loop smoke failed")
 
@@ -96,6 +100,7 @@ run_professional_intelligence_validation()
 run_personal_intelligence_cell_validation()
 run_cell_lampstand_adapter_validation()
 run_prophet_understand_validation()
+run_prophet_understand_vertical_slice()
 run_cell_service_smoke()
 
 print("OK: validate passed")
