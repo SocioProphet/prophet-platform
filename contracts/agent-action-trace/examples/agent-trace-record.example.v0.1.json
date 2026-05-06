@@ -1,0 +1,23 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v0.1",
+  "kind": "AgentTraceRecord",
+  "metadata": {
+    "recordId": "trace-record-0001",
+    "profileRef": "github://SocioProphet/socioprophet-agent-standards/docs/standards/agent-plane/001-agent-action-trace-conformance-profile.md",
+    "standardsRef": "github://SocioProphet/socioprophet-agent-standards@97e3f49ec4b27349f532db27ebaad618d4f9520c",
+    "ontologyRef": "github://SocioProphet/ontogenesis/Middle/action-ontology.ttl"
+  },
+  "spec": {
+    "traceId": "trace.done.0001",
+    "pattern": "ContractNet",
+    "traceKind": "done",
+    "medium": "bus:tasks",
+    "timestamp": "2026-05-05T18:30:01Z",
+    "refActionId": "action.exec.0001",
+    "taskId": "task-0001",
+    "policyRef": "policy://platform/action-trace/decision-0001",
+    "receiptRef": "receipt://platform/action-trace/trace-record-0001",
+    "evidenceRefs": ["evidence://platform/action-trace/record-0001"],
+    "traceIsAuthority": false
+  }
+}

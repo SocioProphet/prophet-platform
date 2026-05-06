@@ -1,0 +1,28 @@
+name: agent-action-trace-contracts
+
+on:
+  pull_request:
+    paths:
+      - "contracts/agent-action-trace/**"
+      - "docs/generated/agent-action-trace/**"
+      - "tools/validate_agent_action_trace_contracts.py"
+      - ".github/workflows/agent-action-trace-contracts.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/agent-action-trace/**"
+      - "docs/generated/agent-action-trace/**"
+      - "tools/validate_agent_action_trace_contracts.py"
+      - ".github/workflows/agent-action-trace-contracts.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate generated agent action trace contracts
+        run: python3 tools/validate_agent_action_trace_contracts.py
