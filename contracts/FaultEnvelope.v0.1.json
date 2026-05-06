@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/FaultEnvelope.v0.1.json",
+  "title": "FaultEnvelope v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "timestamp",
+    "eventType",
+    "severity",
+    "process",
+    "fault",
+    "privacy"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "FaultEnvelope" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "process_crash",
+        "renderer_crash",
+        "worker_crash",
+        "plugin_crash",
+        "policy_abort",
+        "sandbox_denial",
+        "guard_fault",
+        "intentional_abort",
+        "watchdog_termination",
+        "memory_pressure_kill",
+        "dependency_initialization_failure",
+        "unhandled_exception"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "degraded",
+        "component_terminated",
+        "process_terminated",
+        "security_relevant"
+      ]
+    },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "pid": { "type": "integer", "minimum": 0 },
+        "name": { "type": "string", "minLength": 1 },
+        "binary": { "type": "string" },
+        "parent": { "type": "string" },
+        "codeIdentity": { "type": "string" }
+      }
+    },
+    "componentChain": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "fault": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "subtype"],
+      "properties": {
+        "namespace": { "type": "string", "minLength": 1 },
+        "subtype": { "type": "string", "minLength": 1 },
+        "signalOrException": { "type": "string" },
+        "intentional": { "type": "boolean" },
+        "simulated": { "type": "boolean" },
+        "policyRelated": { "type": "string", "enum": ["yes", "no", "unknown"] }
+      }
+    },
+    "userAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lastVisibleAction": { "type": "string" },
+        "surface": { "type": "string" },
+        "inputOrigin": { "type": "string" }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "engineManifestRef": { "type": "string" },
+        "engineType": { "type": "string" },
+        "engineName": { "type": "string" },
+        "networkAllowed": { "type": "boolean" },
+        "fileAccessAllowed": { "type": "boolean" },
+        "credentialAccessAllowed": { "type": "boolean" },
+        "aiAccessAllowed": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sandboxProfile": { "type": "string" },
+        "allowDecisionRefs": { "type": "array", "items": { "type": "string" } },
+        "denyDecisionRefs": { "type": "array", "items": { "type": "string" } },
+        "policyReceiptRefs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "rolloutReceiptRefs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "stableIdentifiersRedacted"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["local_private", "shareable_default", "public_issue"] },
+        "stableIdentifiersRedacted": { "type": "boolean" },
+        "instructionBytesRedacted": { "type": "boolean" },
+        "pathsRedacted": { "type": "boolean" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "operatorSummary": { "type": "string" }
+  }
+}

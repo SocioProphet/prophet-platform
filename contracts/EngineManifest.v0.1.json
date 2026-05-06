@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/EngineManifest.v0.1.json",
+  "title": "EngineManifest v0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "engineId",
+    "engineType",
+    "ownerComponent",
+    "observability"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "EngineManifest" },
+    "engineId": { "type": "string", "minLength": 1 },
+    "engineType": {
+      "type": "string",
+      "enum": [
+        "web_renderer",
+        "document_renderer",
+        "terminal_bridge",
+        "automation_bridge",
+        "ai_worker",
+        "media_decoder",
+        "credential_bridge",
+        "file_picker_bridge",
+        "diagnostic_reporter",
+        "network_profiler",
+        "storage_service"
+      ]
+    },
+    "ownerComponent": { "type": "string", "minLength": 1 },
+    "invocationSurfaces": { "type": "array", "items": { "type": "string" } },
+    "allowedContexts": { "type": "array", "items": { "type": "string" } },
+    "disallowedContexts": { "type": "array", "items": { "type": "string" } },
+    "defaultNetworkPolicy": {
+      "type": "string",
+      "enum": ["allow", "deny", "deny_until_origin_known", "policy_gated"]
+    },
+    "defaultFilePolicy": {
+      "type": "string",
+      "enum": ["allow", "deny", "user_gesture_required", "policy_gated"]
+    },
+    "credentialPolicy": {
+      "type": "string",
+      "enum": ["deny", "user_gesture_required", "policy_gated"]
+    },
+    "aiPolicy": {
+      "type": "string",
+      "enum": ["deny", "explicit_user_invocation", "policy_gated"]
+    },
+    "sandboxProfile": { "type": "string" },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emitEngineInit", "emitBoundaryTransition", "emitFaultEnvelope"],
+      "properties": {
+        "emitEngineInit": { "type": "boolean" },
+        "emitBoundaryTransition": { "type": "boolean" },
+        "emitNetworkOpen": { "type": "boolean" },
+        "emitFileOpen": { "type": "boolean" },
+        "emitFaultEnvelope": { "type": "boolean" }
+      }
+    }
+  }
+}

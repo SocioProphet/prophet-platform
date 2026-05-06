@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "FaultEnvelope",
+  "eventId": "synthetic-script-editor-guard",
+  "timestamp": "2026-05-06T12:00:00Z",
+  "eventType": "guard_fault",
+  "severity": "process_terminated",
+  "process": {
+    "pid": 1438,
+    "name": "Script Editor",
+    "binary": "/System/Applications/Utilities/Script Editor.app/Contents/MacOS/Script Editor",
+    "parent": "launchd",
+    "codeIdentity": "com.apple.ScriptEditor2"
+  },
+  "componentChain": [
+    "document_controller",
+    "window_controller",
+    "ui_loader",
+    "embedded_web_view",
+    "renderer_engine"
+  ],
+  "fault": {
+    "namespace": "WEBKIT",
+    "subtype": "GUARD_TYPE_USER",
+    "signalOrException": "EXC_GUARD",
+    "intentional": true,
+    "simulated": true,
+    "policyRelated": "unknown"
+  },
+  "userAction": {
+    "lastVisibleAction": "open_document",
+    "surface": "editor",
+    "inputOrigin": "local_user"
+  },
+  "engine": {
+    "engineManifestRef": "EngineManifest.v0.1.json",
+    "engineType": "web_renderer",
+    "engineName": "WebKitLegacy",
+    "networkAllowed": false,
+    "fileAccessAllowed": false,
+    "credentialAccessAllowed": false,
+    "aiAccessAllowed": false
+  },
+  "policy": {
+    "sandboxProfile": "default",
+    "allowDecisionRefs": [],
+    "denyDecisionRefs": [],
+    "policyReceiptRefs": []
+  },
+  "rolloutReceiptRefs": [],
+  "privacy": {
+    "tier": "shareable_default",
+    "stableIdentifiersRedacted": true,
+    "instructionBytesRedacted": true,
+    "pathsRedacted": true
+  },
+  "evidenceRefs": [],
+  "operatorSummary": "Synthetic Script Editor guard-fault for ADR-035 testing purposes."
+}
