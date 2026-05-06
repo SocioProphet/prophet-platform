@@ -1,0 +1,86 @@
+{
+  "fixture_id": "fixture.lampstand.cell_ingest.v1",
+  "description": "Lampstand carrier-ingested result adapted into a Personal Intelligence Cell source and signal.",
+  "lampstand_result": {
+    "ok": true,
+    "carrier_ref": "carrier://sha256/abc123fixture",
+    "payload_path": "build/lampstand/payloads/abc123fixture.CarrierIngested.json",
+    "event_path": "build/lampstand/events/abc123fixture.Event.json",
+    "receipt_path": "build/lampstand/receipts/abc123fixture.Receipt.json",
+    "catalog_path": "build/lampstand/catalog/catalog.jsonl",
+    "entry": {
+      "service_ref": "apps/lampstand",
+      "event_type": "carrier.ingested",
+      "status": "succeeded",
+      "subject_ref": "carrier://sha256/abc123fixture",
+      "scope_ref": "scope://local/default",
+      "zone_ref": "zone://edge",
+      "topic_ref": "/cell/lampstand",
+      "envelope_ref": "file://build/lampstand/events/abc123fixture.Event.json",
+      "receipt_ref": "file://build/lampstand/receipts/abc123fixture.Receipt.json",
+      "payload_ref": "file://build/lampstand/payloads/abc123fixture.CarrierIngested.json",
+      "correlation_id": "abc123fixture",
+      "classifiers": [
+        "event:carrier.ingested",
+        "service:lampstand",
+        "suffix:md",
+        "zone:edge"
+      ]
+    },
+    "publication_request": {
+      "request_ref": "zone-publication-request://abc123fixture",
+      "publication_ref": "zone-publication://abc123fixture"
+    }
+  },
+  "cell": {
+    "id": "cell://demo/lampstand",
+    "owner_ref": "human://demo-user",
+    "kind": "personal",
+    "display_name": "Lampstand Demo Cell",
+    "policy_ref": "policy://cell/demo/default",
+    "memory_ref": "memory://cell/demo/default",
+    "state": "active",
+    "created_at": "2026-05-04T00:00:00Z",
+    "updated_at": "2026-05-04T00:00:00Z"
+  },
+  "watch": {
+    "id": "watch://demo/lampstand-carrier",
+    "cell_id": "cell://demo/lampstand",
+    "title": "Lampstand carrier ingests",
+    "description": "Watch Lampstand carrier-ingested receipts for local-first evidence ingestion.",
+    "pattern_refs": [
+      "watch-pattern://demo/lampstand-carrier"
+    ],
+    "source_scope": [],
+    "relevance_policy": "policy://cell/demo/relevance/lampstand",
+    "notification_policy": "policy://cell/demo/notify/private-feed-first",
+    "resource_budget": {
+      "max_evaluations_per_hour": 25,
+      "max_notifications_per_day": 3
+    },
+    "state": "active",
+    "created_at": "2026-05-04T00:00:00Z",
+    "updated_at": "2026-05-04T00:00:00Z"
+  },
+  "watch_pattern": {
+    "id": "watch-pattern://demo/lampstand-carrier",
+    "watch_id": "watch://demo/lampstand-carrier",
+    "pattern_kind": "typed_template",
+    "raw_expression": "Lampstand carrier $carrier_ref ingested",
+    "variables": [
+      {
+        "name": "carrier_ref",
+        "type": "custom",
+        "required": true
+      }
+    ],
+    "version": "0.1.0"
+  },
+  "expected": {
+    "source_kind": "local_fs",
+    "source_policy_ref": "policy://cell/lampstand/default",
+    "signal_id": "signal://lampstand/abc123fixture",
+    "carrier_ref": "carrier://sha256/abc123fixture",
+    "min_evidence_refs": 5
+  }
+}
