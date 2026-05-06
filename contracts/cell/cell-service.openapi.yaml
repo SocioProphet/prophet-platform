@@ -1,0 +1,479 @@
+openapi: 3.1.0
+info:
+  title: SocioProphet Personal Intelligence Cell API
+  version: 0.1.0
+  description: >-
+    Gateway/API contract for the Personal Intelligence Cell runtime. The API
+    exposes the governed loop from Cell creation through source/watch/signal,
+    feed export, publication bridges, feedback, archive, analytics, and
+    Lampstand source ingestion.
+servers:
+  - url: /api/cell/v1
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: cell.health
+      summary: Return cell-service health markers.
+      responses:
+        '200':
+          description: Health status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /cells:
+    post:
+      operationId: cell.create
+      summary: Create a Personal Intelligence Cell.
+      x-policy-gate: cell.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cell'
+      responses:
+        '201':
+          description: Created cell.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cell'
+    get:
+      operationId: cell.list
+      summary: List cells visible to the caller.
+      responses:
+        '200':
+          description: Cell list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cell'
+  /cells/{cellId}:
+    get:
+      operationId: cell.get
+      summary: Read a cell.
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      responses:
+        '200':
+          description: Cell.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cell'
+  /cells/{cellId}/config:
+    put:
+      operationId: cell.config.put
+      summary: Configure a cell.
+      x-policy-gate: cell.configure
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CellConfig'
+      responses:
+        '200':
+          description: Cell config.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellConfig'
+    get:
+      operationId: cell.config.get
+      summary: Read cell config.
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      responses:
+        '200':
+          description: Cell config.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellConfig'
+  /sources:
+    post:
+      operationId: cell.source.create
+      summary: Create a source.
+      x-policy-gate: source.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Source'
+      responses:
+        '201':
+          description: Source.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+  /watches:
+    post:
+      operationId: cell.watch.create
+      summary: Create a watch.
+      x-policy-gate: watch.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Watch'
+      responses:
+        '201':
+          description: Watch.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Watch'
+  /watch-patterns:
+    post:
+      operationId: cell.watchPattern.create
+      summary: Create a watch pattern.
+      x-policy-gate: watch_pattern.create
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchPattern'
+      responses:
+        '201':
+          description: Watch pattern.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchPattern'
+  /watch-patterns/validate:
+    post:
+      operationId: cell.watchPattern.validate
+      summary: Validate deterministic watch pattern structure.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WatchPattern'
+      responses:
+        '200':
+          description: Pattern validation result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+  /signals:
+    post:
+      operationId: cell.signal.ingest
+      summary: Ingest a fully materialized signal.
+      x-policy-gate: signal.ingest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Signal'
+      responses:
+        '201':
+          description: Signal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Signal'
+  /signals/text:
+    post:
+      operationId: cell.signal.ingestText
+      summary: Ingest raw text through deterministic watch-pattern extraction.
+      x-policy-gate: signal.ingest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TextSignalIngestRequest'
+      responses:
+        '201':
+          description: Extracted signal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Signal'
+  /signals/lampstand:
+    post:
+      operationId: cell.signal.ingestLampstand
+      summary: Ingest a Lampstand carrier-ingested result as a cell signal.
+      x-policy-gate: signal.ingest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LampstandSignalIngestRequest'
+      responses:
+        '201':
+          description: Lampstand-backed signal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Signal'
+  /feed-items:
+    post:
+      operationId: cell.feedItem.emit
+      summary: Emit a governed feed item.
+      x-policy-gate: feed_item.emit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedItem'
+      responses:
+        '201':
+          description: Feed item with generated policy decision.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedItem'
+  /cells/{cellId}/feeds/private:
+    get:
+      operationId: cell.feed.private.export
+      summary: Export the private JSON feed for a cell.
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      responses:
+        '200':
+          description: Private feed document.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivateFeedDocument'
+  /cells/{cellId}/feeds/rss:
+    get:
+      operationId: cell.feed.rss.export
+      summary: Export the RSS 2.0 feed for a cell.
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      responses:
+        '200':
+          description: RSS XML.
+          content:
+            application/rss+xml:
+              schema:
+                type: string
+  /feed-items/{feedItemId}/publication-bundle:
+    get:
+      operationId: cell.publication.bundle
+      summary: Build slash-topic, New Hope, and Sherlock publication surfaces.
+      parameters:
+        - $ref: '#/components/parameters/feedItemId'
+      responses:
+        '200':
+          description: Publication bundle.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationBundle'
+  /feedback-events:
+    post:
+      operationId: cell.feedback.record
+      summary: Record feedback against a signal.
+      x-policy-gate: feedback_event.record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackEvent'
+      responses:
+        '201':
+          description: Feedback event.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackEvent'
+  /archives:
+    post:
+      operationId: cell.archive.export
+      summary: Export a cell archive manifest.
+      x-policy-gate: cell_archive.export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CellArchive'
+      responses:
+        '201':
+          description: Cell archive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CellArchive'
+  /cells/{cellId}/analytics:
+    get:
+      operationId: cell.analytics.snapshot
+      summary: Return an analytical snapshot for in-memory/local operation.
+      parameters:
+        - $ref: '#/components/parameters/cellId'
+      responses:
+        '200':
+          description: Analytics snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSnapshot'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    cellId:
+      name: cellId
+      in: path
+      required: true
+      schema:
+        type: string
+    feedItemId:
+      name: feedItemId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: true
+      required: [service, status]
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+    Ref:
+      type: string
+      minLength: 1
+    Cell:
+      type: object
+      additionalProperties: true
+      required: [id, owner_ref, kind, policy_ref, memory_ref]
+      properties:
+        id:
+          $ref: '#/components/schemas/Ref'
+        owner_ref:
+          $ref: '#/components/schemas/Ref'
+        kind:
+          enum: [personal, project, community, organization, mission]
+        policy_ref:
+          $ref: '#/components/schemas/Ref'
+        memory_ref:
+          $ref: '#/components/schemas/Ref'
+    CellConfig:
+      type: object
+      additionalProperties: true
+      required: [cell_id, data_location_policy, sync_policy, backup_policy, resource_budget_defaults, local_first_mode]
+    Source:
+      type: object
+      additionalProperties: true
+      required: [id, kind, uri, trust_profile, crawl_profile, provenance_profile, policy_ref]
+    Watch:
+      type: object
+      additionalProperties: true
+      required: [id, cell_id, pattern_refs, source_scope, relevance_policy, notification_policy, resource_budget, state]
+    WatchPattern:
+      type: object
+      additionalProperties: true
+      required: [id, watch_id, pattern_kind, raw_expression, version]
+    ValidationResult:
+      type: object
+      additionalProperties: true
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+    Signal:
+      type: object
+      additionalProperties: true
+      required: [id, cell_id, source_id, watch_id, observed_at, evidence_refs, policy_status]
+    TextSignalIngestRequest:
+      type: object
+      additionalProperties: false
+      required: [signal_id, cell_id, source_id, watch_id, text]
+      properties:
+        signal_id:
+          type: string
+        cell_id:
+          type: string
+        source_id:
+          type: string
+        watch_id:
+          type: string
+        text:
+          type: string
+        title:
+          type: string
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        observed_at:
+          type: string
+    LampstandSignalIngestRequest:
+      type: object
+      additionalProperties: false
+      required: [lampstand_result, cell_id, watch_id]
+      properties:
+        lampstand_result:
+          type: object
+          additionalProperties: true
+        cell_id:
+          type: string
+        watch_id:
+          type: string
+        text:
+          type: string
+        title:
+          type: string
+    FeedItem:
+      type: object
+      additionalProperties: true
+      required: [id, cell_id, signal_id, feed_kind, created_at]
+    PrivateFeedDocument:
+      type: object
+      additionalProperties: true
+      required: [feed_kind, cell_id, item_count, items]
+    PublicationBundle:
+      type: object
+      additionalProperties: false
+      required: [slashTopicSurface, newHopeMembraneEvent, sherlockSearchPacket]
+      properties:
+        slashTopicSurface:
+          type: object
+          additionalProperties: true
+        newHopeMembraneEvent:
+          type: object
+          additionalProperties: true
+        sherlockSearchPacket:
+          type: object
+          additionalProperties: true
+    FeedbackEvent:
+      type: object
+      additionalProperties: true
+      required: [id, cell_id, signal_id, actor_ref, action, created_at]
+    CellArchive:
+      type: object
+      additionalProperties: true
+      required: [id, cell_id, schema_version, manifest, created_at]
+    AnalyticsSnapshot:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: object
