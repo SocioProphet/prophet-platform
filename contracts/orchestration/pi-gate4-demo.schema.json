@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/professional-intelligence/pi-gate4-demo.schema.json",
+  "title": "ProfessionalIntelligenceGate4Demo",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "demoId",
+    "gate",
+    "status",
+    "workroomRef",
+    "playbookRef",
+    "contextQueryRef",
+    "contextPackRefs",
+    "searchPacketRefs",
+    "policyDecisionRefs",
+    "obligationRefs",
+    "routeDecisionRefs",
+    "runtimeControlRefs",
+    "agentAuthorityRefs",
+    "agentplaneRunRefs",
+    "ledgerRefs",
+    "evidenceRefs",
+    "adoptionEventRefs",
+    "steps",
+    "acceptance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "demoId": { "type": "string" },
+    "gate": { "const": "gate-4" },
+    "status": { "type": "string", "enum": ["planned", "ready", "executed", "accepted", "held"] },
+    "workroomRef": { "type": "string" },
+    "playbookRef": { "type": "string" },
+    "contextQueryRef": { "type": "string" },
+    "contextPackRefs": { "type": "array", "items": { "type": "string" } },
+    "searchPacketRefs": { "type": "array", "items": { "type": "string" } },
+    "policyDecisionRefs": { "type": "array", "items": { "type": "string" } },
+    "obligationRefs": { "type": "array", "items": { "type": "string" } },
+    "routeDecisionRefs": { "type": "array", "items": { "type": "string" } },
+    "runtimeControlRefs": { "type": "array", "items": { "type": "string" } },
+    "agentAuthorityRefs": { "type": "array", "items": { "type": "string" } },
+    "agentplaneRunRefs": { "type": "array", "items": { "type": "string" } },
+    "ledgerRefs": { "type": "array", "items": { "type": "string" } },
+    "workroomUpdateRefs": { "type": "array", "items": { "type": "string" } },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "adoptionEventRefs": { "type": "array", "items": { "type": "string" } },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepId", "inputRefs", "outputRefs", "evidenceRequired", "status"],
+        "properties": {
+          "stepId": { "type": "string" },
+          "inputRefs": { "type": "array", "items": { "type": "string" } },
+          "outputRefs": { "type": "array", "items": { "type": "string" } },
+          "evidenceRequired": { "type": "boolean" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredEvidenceRefs", "requiredAdoptionEventRefs", "criteria"],
+      "properties": {
+        "requiredEvidenceRefs": { "type": "array", "items": { "type": "string" } },
+        "requiredAdoptionEventRefs": { "type": "array", "items": { "type": "string" } },
+        "criteria": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

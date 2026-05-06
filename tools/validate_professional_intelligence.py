@@ -33,6 +33,10 @@ SCHEMA_EXAMPLES = [
         ROOT / "contracts/risk/conflict-check.schema.json",
         ROOT / "contracts/risk/conflict-check.v0.1.example.json",
     ),
+    (
+        ROOT / "contracts/orchestration/pi-gate4-demo.schema.json",
+        ROOT / "contracts/orchestration/pi-gate4-demo.v0.1.example.json",
+    ),
 ]
 
 
@@ -134,11 +138,66 @@ def validate_manifest_contract_paths() -> None:
     print(f"ok: manifest references {len(contract_paths)} existing contract paths")
 
 
+def validate_gate4_demo(example: dict[str, Any]) -> None:
+    required_top_level = [
+        "workroomRef",
+        "playbookRef",
+        "contextQueryRef",
+        "contextPackRefs",
+        "searchPacketRefs",
+        "policyDecisionRefs",
+        "obligationRefs",
+        "routeDecisionRefs",
+        "runtimeControlRefs",
+        "agentAuthorityRefs",
+        "agentplaneRunRefs",
+        "ledgerRefs",
+        "evidenceRefs",
+        "adoptionEventRefs",
+    ]
+    for key in required_top_level:
+        value = example.get(key)
+        if isinstance(value, list) and not value:
+            raise ValidationError(f"gate4 demo: {key} must not be empty")
+        if isinstance(value, str) and not value:
+            raise ValidationError(f"gate4 demo: {key} must not be empty")
+
+    steps = example.get("steps", [])
+    expected_steps = {
+        "load-playbook",
+        "resolve-context",
+        "check-policy-and-obligations",
+        "select-route-and-controls",
+        "run-agentplane-bundle",
+        "seal-ledger-and-adoption",
+    }
+    observed_steps = {step.get("stepId") for step in steps}
+    missing_steps = sorted(expected_steps - observed_steps)
+    if missing_steps:
+        raise ValidationError(f"gate4 demo: missing steps {missing_steps}")
+
+    for step in steps:
+        if step.get("evidenceRequired") is not True:
+            raise ValidationError(f"gate4 demo: step {step.get('stepId')} must require evidence")
+        if not step.get("inputRefs") or not step.get("outputRefs"):
+            raise ValidationError(f"gate4 demo: step {step.get('stepId')} must include inputRefs and outputRefs")
+
+    acceptance = example.get("acceptance", {})
+    if not acceptance.get("requiredEvidenceRefs"):
+        raise ValidationError("gate4 demo: acceptance.requiredEvidenceRefs must not be empty")
+    if not acceptance.get("requiredAdoptionEventRefs"):
+        raise ValidationError("gate4 demo: acceptance.requiredAdoptionEventRefs must not be empty")
+    if len(acceptance.get("criteria", [])) < 5:
+        raise ValidationError("gate4 demo: acceptance.criteria must include the core demo checkpoints")
+
+
 def validate_examples() -> None:
     for schema_path, example_path in SCHEMA_EXAMPLES:
         schema = load_json(schema_path)
         example = load_json(example_path)
         validate_schema(schema, example)
+        if example_path.name == "pi-gate4-demo.v0.1.example.json":
+            validate_gate4_demo(example)
         print(
             "ok: "
             f"{example_path.relative_to(ROOT)} validates against {schema_path.relative_to(ROOT)}"
