@@ -78,7 +78,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "State coherence repo refs: 8" in proc.stdout
     assert "State coherence Markdown:" in proc.stdout
     assert "State coherence HTML:" in proc.stdout
-    assert "Checks passed: 14" in proc.stdout
+    assert "Checks passed: 15" in proc.stdout
 
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     full_summary = load(full_summary_path)
@@ -88,6 +88,7 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "live_cluster_preflight_record_indexed" in full_summary["checks"]
     assert "state_coherence_surfaces_bound" in full_summary["checks"]
     assert "state_coherence_operator_artifacts_emitted" in full_summary["checks"]
+    assert "state_coherence_index_linked" in full_summary["checks"]
     for ref in full_summary["artifacts"].values():
         assert Path(ref).exists(), ref
 
@@ -143,3 +144,6 @@ def test_run_fogstack_local_demo_full(tmp_path: Path) -> None:
     assert "AgentPlane run ID" in html
     assert "PolicyPlane decision ID" in html
     assert "SHA-256 digest" in html
+    assert "State coherence" in html
+    assert 'href="state-coherence.html"' in html
+    assert "Open state coherence report" in html

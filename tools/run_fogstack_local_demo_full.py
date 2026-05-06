@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import shutil
@@ -99,6 +100,35 @@ def rel(path: Path) -> str:
         return str(path.relative_to(ROOT))
     except ValueError:
         return str(path)
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(8192), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def refresh_artifact_index_entry(artifact_index_path: Path, artifact_path: Path) -> None:
+    artifact_ref = rel(artifact_path)
+    index = json.loads(artifact_index_path.read_text(encoding="utf-8"))
+    if not isinstance(index, dict) or not isinstance(index.get("artifacts"), list):
+        raise SystemExit(f"ERR: malformed artifact index: {artifact_index_path}")
+
+    refreshed = False
+    for entry in index["artifacts"]:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("ref") == artifact_ref:
+            entry["digest"] = sha256_file(artifact_path)
+            entry["size_bytes"] = artifact_path.stat().st_size
+            refreshed = True
+            break
+
+    if not refreshed:
+        raise SystemExit(f"ERR: artifact index missing ref after state coherence link injection: {artifact_ref}")
+    write_json(artifact_index_path, index)
 
 
 def build_state_coherence_summary() -> dict[str, Any]:
@@ -214,6 +244,30 @@ def render_state_coherence_html(state_coherence: dict[str, Any]) -> str:
 """
 
 
+def link_state_coherence_from_index(index_path: Path, state_coherence_html_path: Path) -> None:
+    if not index_path.exists():
+        raise SystemExit(f"ERR: local demo index missing before state coherence link injection: {index_path}")
+
+    content = index_path.read_text(encoding="utf-8")
+    href = html.escape(state_coherence_html_path.name, quote=True)
+    if f'href="{href}"' in content:
+        return
+
+    section = f"""
+    <h2>State coherence</h2>
+    <p><a href=\"{href}\">Open state coherence report</a></p>
+"""
+    if "  </main>" in content:
+        content = content.replace("  </main>", section + "  </main>", 1)
+    elif "</main>" in content:
+        content = content.replace("</main>", section + "</main>", 1)
+    elif "</body>" in content:
+        content = content.replace("</body>", section + "</body>", 1)
+    else:
+        content += section
+    write_text(index_path, content)
+
+
 def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     output_dir = output_dir if output_dir.is_absolute() else ROOT / output_dir
     if clean and output_dir.exists():
@@ -233,6 +287,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     full_summary_path = output_dir / "fogstack-local-demo.full.summary.json"
     state_coherence_markdown_path = output_dir / "fogstack-local-demo.state-coherence.md"
     state_coherence_html_path = output_dir / "state-coherence.html"
+    local_demo_html_path = output_dir / "index.html"
 
     run([
         sys.executable,
@@ -286,6 +341,8 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
     state_coherence = build_state_coherence_summary()
     write_text(state_coherence_markdown_path, render_state_coherence_markdown(state_coherence))
     write_text(state_coherence_html_path, render_state_coherence_html(state_coherence))
+    link_state_coherence_from_index(local_demo_html_path, state_coherence_html_path)
+    refresh_artifact_index_entry(artifact_index_path, local_demo_html_path)
 
     summary = {
         "kind": "FogStackLocalDemoFullRun",
@@ -295,7 +352,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
         "artifacts": {
             "local_demo_summary": rel(summary_path),
             "local_demo_markdown": rel(output_dir / "fogstack-local-demo.summary.md"),
-            "local_demo_html": rel(output_dir / "index.html"),
+            "local_demo_html": rel(local_demo_html_path),
             "state_coherence_markdown": rel(state_coherence_markdown_path),
             "state_coherence_html": rel(state_coherence_html_path),
             "artifact_index": rel(artifact_index_path),
@@ -336,6 +393,7 @@ def run_full_demo(output_dir: Path, clean: bool) -> dict[str, Any]:
             "artifact_index_checked",
             "state_coherence_surfaces_bound",
             "state_coherence_operator_artifacts_emitted",
+            "state_coherence_index_linked",
         ],
     }
     write_json(full_summary_path, summary)
