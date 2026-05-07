@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/ZonePublicationRetryPolicy.v0.1.json",
+  "title": "ZonePublicationRetryPolicy",
+  "type": "object",
+  "required": [
+    "version",
+    "max_attempts",
+    "backoff_seconds",
+    "strategy",
+    "dead_letter_on_terminal"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "max_attempts": { "type": "integer", "minimum": 1 },
+    "backoff_seconds": { "type": "integer", "minimum": 0 },
+    "strategy": { "enum": ["fixed", "exponential"] },
+    "dead_letter_on_terminal": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
