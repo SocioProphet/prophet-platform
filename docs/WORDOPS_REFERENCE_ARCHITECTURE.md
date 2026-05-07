@@ -1,136 +1,130 @@
-# WordOps Reference Architecture v0.2
+# WordOps Reference Architecture v0.3
 
 ## Purpose
 
-WordOps is a sovereign operations and case-control fabric with chat as one control surface, not the durable authority, not the policy engine, and not the regulated system of record.
+WordOps is the Matrix-native, client-facing ChatOps self-service agent for SocioProphet support, case intake, and first-line defense.
 
-The architecture is designed to support:
-- public and community Matrix ingress
-- private operator and case collaboration
-- agentic execution with ephemeral capabilities
-- support and scheduling flows
-- DevOps and platform control
-- analytics and Python-based investigation
-- regulated case orchestration via domain packs
+It is designed for people who enter through chat, public rooms, support rooms, office-hours flows, booking links, guided troubleshooting, and escalation paths. It is not the same surface as AgentTerm, which is the terminal-native operator console for engineers and platform operators.
 
-## Core principle
+## Architecture principle
 
-We keep five planes separate:
+WordOps is a surface over the shared platform control fabric. It must not become the durable case authority, the policy authority, or the agent identity authority.
+
+The shared fabric remains:
+- Prophet Platform runtime/deployment topology
+- Matrix as canonical network ChatOps substrate
+- Agent Registry for non-human identity, sessions, grants, and revocation
+- Policy Fabric for side-effect admission and policy evidence
+- AgentPlane for execution, placement, replay, and evidence
+- Sherlock Search for search packets and retrieval evidence
+- Sociosphere for workspace materialization and topology
+- MCP for tool/resource access
+- A2A for agent collaboration and tasking
+
+## Planes
+
+WordOps keeps these planes separate:
 - collaboration plane
 - capability plane
-- workflow plane
-- policy and trust plane
+- workflow/case plane
+- policy/trust plane
 - systems-of-record plane
+- analytics/search plane
 
-That separation prevents chat history, bot state, or ad hoc tool sessions from becoming shadow authorities.
+Chat is not the database. Matrix room power is not authorization. MCP session state is not authority. Agent presence is not permission.
+
+## Primary users
+
+WordOps serves:
+- clients
+- customers
+- support requesters
+- non-operator internal users
+- community members
+- first-line triage participants
+
+AgentTerm serves:
+- operators
+- engineers
+- incident commanders
+- platform maintainers
+- agent wranglers
 
 ## Matrix estates
 
 ### Public Matrix edge
-Use the public estate for:
+The public estate handles:
+- public support intake
 - community rooms
-- intake rooms
-- public support entry
-- low-sensitivity office-hours or booking coordination
-- public-facing bot entry points
+- public help flows
+- low-sensitivity self-service
+- public-facing agent rendezvous only when intentionally exposed
 
-Never use it as the regulated case record.
+Public rooms must never hold regulated case authority or sensitive case content.
 
 ### Private Matrix core
-Use the private estate for:
-- private ops rooms
+The private estate handles:
+- private support escalation rooms
+- per-case rooms
 - incident rooms
-- case rooms
-- agent workspaces tied to real tasks
-- regulated collaboration
+- internal ops rooms
+- regulated collaboration rooms
+- agent workspaces tied to real tasks and leases
 
-Defaults:
-- room version 12
-- private visibility
-- per-case or per-incident room factory
-- no third-party identity server by default
-- encrypted where appropriate
-- non-federated where required by policy
-- created by long-lived service account, not ad hoc by operators
+Sensitive work pivots from the public edge to the private core.
 
-## Agentic interoperability
+## WordOps first-line defense flow
 
-### MCP
-MCP is the agent-to-tool and agent-to-resource surface.
-We use it for tools, prompts, resources, session-scoped access, and host wrappers such as ChatGPT apps.
-MCP is not the durable workflow ledger.
+1. User enters through Matrix, web, email, voice, or another supported ingress.
+2. WordOps performs guided intake and self-service triage.
+3. Low-risk issues may be resolved by self-service guidance.
+4. If the issue needs human or regulated handling, WordOps creates or updates a case/task and pivots into a private room.
+5. Policy Fabric decides which side effects are allowed.
+6. Agent Registry, AgentPlane, Sherlock Search, and Sociosphere provide governed capabilities through leases.
+7. Outcomes are recorded into the appropriate system of record and evidence spine.
 
-### A2A
-A2A is the agent-to-agent collaboration layer.
-We use it for agent discovery, public Agent Cards, authenticated extended cards, delegated work, async tasking, and push notifications.
-A2A is not the domain system of record.
+## Ephemeral capabilities
 
-## Ephemeral capability model
-
-No principal gets standing meaningful privilege merely because it exists.
-Every meaningful capability is:
+No agent, bot, or adapter receives standing meaningful authority. Capabilities are:
 - task-bound
 - case-bound where relevant
 - audience-bound
 - time-bound
 - policy-approved
 
-Lease flow:
-1. requester initiates action
-2. policy evaluates actor, case/task context, environment, risk, and requested scope
-3. broker mints a short-lived downscoped lease
-4. target MCP server or A2A agent accepts only that lease
-5. lease expires or is revoked
-6. session is explicitly torn down where possible
+The broker issues short-lived capability leases after policy evaluation and, when required, human approval.
 
-## Canonical Task abstraction
+## Canonical Task model
 
-A single internal Task model is required to map:
-- workflow engine tasks/jobs
-- A2A Tasks
-- FHIR Tasks
-- ops/support work items
+WordOps actions must correlate to a shared Task abstraction that can map to:
+- A2A Task
+- Flowable task/job
+- FHIR Task where applicable
+- OpenProject work item
+- support/case task record
 
 Core fields:
-- `task_id`
-- `case_id`
-- `intent`
-- `status`
-- `risk_class`
-- `owner`
-- `requester`
-- `due_at`
-- `approvals`
-- `correlation_ids`
-- `artifacts`
-- `provenance`
+- task id
+- case id
+- intent
+- status
+- risk class
+- requester
+- owner
+- correlation ids
+- related artifacts
+- provenance
 
-## Workflow and case kernel
+## Search and evidence
 
-Durable orchestration lives outside chat and outside MCP.
-Use:
-- CMMN for evolving case work
-- BPMN for repeatable subprocesses
-- DMN for transparent routing and decision logic
+Sherlock Search owns search-packet and retrieval evidence behavior. WordOps consumes Sherlock packets for guided support, client-facing search assistance, case context hydration, and escalation evidence.
 
-The current practical target is Flowable.
+WordOps should not invent a parallel search-packet format.
 
-## Systems of record
+## Analytics and investigation
 
-Authoritative systems remain authoritative:
-- commercial support -> Zammad
-- internal ops/project work -> OpenProject
-- healthcare -> FHIR-facing domain adapter / clinical system
-- justice/public safety -> authoritative domain adapter
-- analytics -> observability plus notebooks and BI
+WordOps may request analytics and charting over logs/metrics, but sensitive access must use capability leases. Python/notebook/job runners do not get standing access merely because they are internal.
 
-The kernel orchestrates around them. It does not flatten them into one giant table.
+## Surface adapter invariant
 
-## Non-negotiable rules
-
-1. Public rooms are not regulated case records.
-2. Sensitive work pivots into private rooms and private workflow state immediately.
-3. Matrix membership and room power are not treated as authorization to mutate external systems.
-4. MCP sessions are not authentication and do not replace leases.
-5. A2A public Agent Cards expose discovery only; extended cards expose privileged capabilities only in authenticated sessions.
-6. Durable workflow state stays outside Matrix and outside MCP.
+WordOps and AgentTerm may offer different UX and command ergonomics. They must converge on the same underlying contracts for identity, policy, leases, tasks, search packets, events, and evidence.
