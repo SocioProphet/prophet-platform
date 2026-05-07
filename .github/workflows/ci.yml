@@ -35,3 +35,47 @@ jobs:
           cd apps/socioprophet-web
           pnpm install
           pnpm build
+
+  orchestration-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate core orchestration fixture
+        run: python specs/orchestration/orchestration_contract_fixture.py
+      - name: Validate embodied experience traces
+        run: |
+          python specs/orchestration/embodied_experience_trace_fixture.py
+          python specs/orchestration/embodied_experience_trace_fixture.py --records > /tmp/embodied-training-records.json
+      - name: Validate event capability fixture
+        run: |
+          python specs/orchestration/event_capability_fixture.py
+          python specs/orchestration/event_capability_fixture.py --events > /tmp/event-capability.records.json
+      - name: Run world-class event loop proof
+        run: |
+          python specs/orchestration/world_class_event_loop_demo.py --out /tmp/world-class-event-loop --compact
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out = Path('/tmp/world-class-event-loop')
+          report = json.loads((out / 'demo-report.json').read_text())
+          assert report['status'] == 'pass', report
+          required = [
+              'core-orchestration.bundle.json',
+              'embodied-traces.bundle.json',
+              'embodied-training-records.json',
+              'event-capability.bundle.json',
+              'event-capability.records.json',
+              'event-capability.policy-annotated.records.json',
+              'sourceos-queue.snapshot.json',
+              'agentplane-admission.artifact.json',
+              'sherlock-event-capability-index.json',
+              'demo-report.json',
+          ]
+          missing = [name for name in required if not (out / name).exists()]
+          assert not missing, missing
+          print(json.dumps(report['summary'], sort_keys=True))
+          PY
