@@ -1,0 +1,37 @@
+name: regis-acr-service
+
+on:
+  push:
+    paths:
+      - 'apps/regis-acr-api/**'
+      - 'contracts/acr/**'
+      - 'docs/REGIS_ACR_SERVICE_INTEGRATION.md'
+      - 'tools/smoke_regis_acr_service.py'
+      - 'tools/validate_regis_acr_integration.py'
+      - '.github/workflows/regis-acr-service.yml'
+  pull_request:
+    paths:
+      - 'apps/regis-acr-api/**'
+      - 'contracts/acr/**'
+      - 'docs/REGIS_ACR_SERVICE_INTEGRATION.md'
+      - 'tools/smoke_regis_acr_service.py'
+      - 'tools/validate_regis_acr_integration.py'
+      - '.github/workflows/regis-acr-service.yml'
+
+jobs:
+  validate-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Regis ACR API dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/regis-acr-api/requirements.txt
+          pip install PyYAML==6.0.2
+      - name: Validate Regis ACR integration
+        run: python tools/validate_regis_acr_integration.py
+      - name: Smoke Regis ACR service
+        run: python tools/smoke_regis_acr_service.py
