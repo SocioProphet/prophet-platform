@@ -17,6 +17,7 @@ on:
       - "tools/run_fogstack_local_demo.py"
       - "tools/run_fogstack_local_demo_deploy_plan.py"
       - "tools/update_fogstack_local_demo_deploy_artifacts.py"
+      - "tools/update_fogstack_local_demo_apply_plan.py"
       - "tools/update_fogstack_local_demo_gitops_readiness.py"
       - "tools/update_fogstack_local_demo_runtime_evidence.py"
       - "tools/run_fogstack_local_demo_full.py"
@@ -61,6 +62,7 @@ on:
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
+      - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
@@ -82,6 +84,7 @@ on:
       - "tools/run_fogstack_local_demo.py"
       - "tools/run_fogstack_local_demo_deploy_plan.py"
       - "tools/update_fogstack_local_demo_deploy_artifacts.py"
+      - "tools/update_fogstack_local_demo_apply_plan.py"
       - "tools/update_fogstack_local_demo_gitops_readiness.py"
       - "tools/update_fogstack_local_demo_runtime_evidence.py"
       - "tools/run_fogstack_local_demo_full.py"
@@ -109,6 +112,7 @@ on:
       - "tools/tests/test_check_fogstack_local_demo_artifact_index.py"
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
+      - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
@@ -144,6 +148,7 @@ jobs:
             tools/tests/test_check_fogstack_local_demo_artifact_index.py \
             tools/tests/test_serve_fogstack_local_demo.py \
             tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py \
+            tools/tests/test_update_fogstack_local_demo_apply_plan.py \
             tools/tests/test_run_fogstack_local_demo_full.py \
             tools/tests/test_fogstack_parity_readiness.py \
             tools/tests/test_run_fogstack_parity_readiness.py \
@@ -152,11 +157,7 @@ jobs:
       - name: Run full operator demo command
         run: |
           make fogstack-local-demo-full
-          python3 tools/check_fogstack_parity_readiness.py \
-            --summary build/fogstack-local-demo/fogstack-local-demo.full.summary.json \
-            --index build/fogstack-local-demo/demo-artifacts.index.json \
-            --output build/fogstack-local-demo/fogstack-parity-readiness.record.json \
-            --summary-text
+          python3 tools/run_fogstack_parity_readiness.py --no-clean --summary
           test -s build/fogstack-local-demo/fogstack-local-demo.full.summary.json
           test -s build/fogstack-local-demo/demo-artifacts.index.json
           test -s build/fogstack-local-demo/fogstack-parity-readiness.record.json
@@ -167,6 +168,7 @@ jobs:
           test -s build/fogstack-local-demo/deploy/gitops/kustomization.yaml
           test -s build/fogstack-local-demo/deploy/fogstack.access.gitops-readiness.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.live-cluster-preflight.record.json
+          test -s build/fogstack-local-demo/deploy/fogstack.access.live-apply-plan.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.local-cluster-runtime-adapter.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.runtime-dry-run.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.agent-machine-node-inventory.record.json
@@ -176,6 +178,7 @@ jobs:
         run: |
           python3 tools/run_fogstack_parity_readiness.py --summary
           test -s build/fogstack-local-demo/fogstack-parity-readiness.record.json
+          test -s build/fogstack-local-demo/deploy/fogstack.access.live-apply-plan.record.json
 
       - name: Check generated artifact index
         run: |
