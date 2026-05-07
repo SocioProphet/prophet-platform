@@ -1,0 +1,9 @@
+# Generated local Synapse estate state
+public/
+private/
+
+# Local env with secrets/passwords
+.env
+
+# Local editor/OS noise
+.DS_Store
