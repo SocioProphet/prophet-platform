@@ -174,8 +174,8 @@ def _literal_to_regex(literal: str) -> str:
     # When the original literal has surrounding whitespace, require at least one
     # whitespace character on that side to prevent keyword separators like " in "
     # from matching mid-word occurrences such as "build*ing*".
-    leading_space = bool(literal) and literal[0].isspace()
-    trailing_space = bool(literal) and literal[-1].isspace()
+    leading_space = literal and literal[0].isspace()
+    trailing_space = literal and literal[-1].isspace()
     escaped = re.escape(literal.strip())
     escaped = escaped.replace(r"\ ", r"\s+")
     if escaped:
