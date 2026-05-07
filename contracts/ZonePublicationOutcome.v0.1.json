@@ -43,6 +43,11 @@
     "previous_outcome_ref": { "type": ["string", "null"] },
     "retry_after_failure": { "type": "boolean" },
     "retry_eligible": { "type": "boolean" },
+    "terminal": { "type": "boolean" },
+    "next_retry_not_before": { "type": ["string", "null"] },
+    "max_attempts": { "type": "integer", "minimum": 1 },
+    "retry_backoff_seconds": { "type": "integer", "minimum": 0 },
+    "retry_strategy": { "enum": ["fixed", "exponential"] },
     "published_at": { "type": ["string", "null"] },
     "failed_at": { "type": ["string", "null"] },
     "error": { "type": ["string", "null"] }
