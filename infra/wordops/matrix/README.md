@@ -15,6 +15,7 @@ infra/wordops/matrix/
   local/docker-compose.yml
   nginx/matrix.conf
   scripts/render-config.sh
+  scripts/generate-signing-keys.sh
   scripts/smoke-check.sh
   templates/public-homeserver.yaml.tpl
   templates/private-homeserver.yaml.tpl
@@ -29,14 +30,14 @@ infra/wordops/matrix/public/
 infra/wordops/matrix/private/
 ```
 
-Those generated directories contain rendered `homeserver.yaml` files, log configs, signing keys after first boot, and local media state.
+Those generated directories contain rendered `homeserver.yaml` files, log configs, signing keys, and local media state.
 
 ## Local start
 
 From the repository root:
 
 ```bash
-cp infra/wordops/matrix/.env.example infra/wordops/matrix/.env && sh infra/wordops/matrix/scripts/render-config.sh && docker compose --env-file infra/wordops/matrix/.env -f infra/wordops/matrix/local/docker-compose.yml up --build
+cp infra/wordops/matrix/.env.example infra/wordops/matrix/.env && sh infra/wordops/matrix/scripts/render-config.sh && sh infra/wordops/matrix/scripts/generate-signing-keys.sh && docker compose --env-file infra/wordops/matrix/.env -f infra/wordops/matrix/local/docker-compose.yml up --build
 ```
 
 In another shell, run:
@@ -44,6 +45,14 @@ In another shell, run:
 ```bash
 sh infra/wordops/matrix/scripts/smoke-check.sh
 ```
+
+## Host requirements
+
+The local helper scripts expect:
+
+- Docker with Compose v2
+- `envsubst` for template rendering
+- `curl` for smoke checks
 
 ## Ports
 
