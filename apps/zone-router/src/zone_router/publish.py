@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .dead_letter import write_dead_letter
 from .outbox import publication_outbox_root
-from .retry_state import next_attempt_state, retry_eligible
+from .retry_policy import compute_next_retry_not_before, is_terminal_attempt, resolve_retry_policy
+from .retry_state import next_attempt_state
 from .transport_adapters import deliver_publication_record
 
 
@@ -58,6 +60,14 @@ def _attempt_fields(publication_id: str, *, service: str) -> dict[str, Any]:
     }
 
 
+def _policy_fields(policy: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "max_attempts": int(policy["max_attempts"]),
+        "retry_backoff_seconds": int(policy["backoff_seconds"]),
+        "retry_strategy": str(policy["strategy"]),
+    }
+
+
 def publish_publication_record(
     *,
     record_path: str | Path,
@@ -66,6 +76,7 @@ def publish_publication_record(
 ) -> dict[str, Any]:
     path = Path(record_path).expanduser().resolve()
     record = load_publication_record(path)
+    retry_policy = resolve_retry_policy(record)
     attempt_fields = _attempt_fields(record["publication_id"], service=service)
     delivery_result = deliver_publication_record(
         record=record,
@@ -77,6 +88,9 @@ def publish_publication_record(
 
     if not delivery_result.get("ok"):
         failure = delivery_result["failure"]
+        terminal = is_terminal_attempt(attempt_fields["attempt"], retry_policy)
+        next_retry_not_before = compute_next_retry_not_before(attempt_fields["attempt"], retry_policy)
+        retry_eligible = not terminal
         outcome = {
             "version": "0.1",
             "outcome_id": outcome_id,
@@ -96,11 +110,14 @@ def publish_publication_record(
             "published_at": None,
             "failed_at": failure["failed_at"],
             "error": delivery_result["error"],
+            "retry_eligible": retry_eligible,
+            "terminal": terminal,
+            "next_retry_not_before": next_retry_not_before,
+            **_policy_fields(retry_policy),
             **attempt_fields,
         }
-        outcome["retry_eligible"] = retry_eligible(outcome)
         refs = _write_outcome(outcome, service=service)
-        return {
+        result = {
             "ok": False,
             "outcome_path": refs["outcome_path"],
             "log_path": refs["log_path"],
@@ -109,6 +126,14 @@ def publish_publication_record(
             "failure_path": delivery_result["failure_path"],
             "error": delivery_result["error"],
         }
+        if terminal and retry_policy.get("dead_letter_on_terminal"):
+            result["dead_letter"] = write_dead_letter(
+                record=record,
+                outcome=outcome,
+                policy=retry_policy,
+                service=service,
+            )
+        return result
 
     delivery = delivery_result["delivery"]
     outcome = {
@@ -129,10 +154,14 @@ def publish_publication_record(
         "receipt_ref": record.get("receipt_ref"),
         "catalog_ref": record.get("catalog_ref"),
         "published_at": _utc_now(),
+        "failed_at": None,
         "error": None,
+        "retry_eligible": False,
+        "terminal": True,
+        "next_retry_not_before": None,
+        **_policy_fields(retry_policy),
         **attempt_fields,
     }
-    outcome["retry_eligible"] = retry_eligible(outcome)
     refs = _write_outcome(outcome, service=service)
 
     return {
