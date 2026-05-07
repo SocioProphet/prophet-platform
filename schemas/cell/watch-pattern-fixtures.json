@@ -135,7 +135,7 @@
           { "name": "date", "type": "date", "required": false }
         ]
       },
-      "input": "NIST AI RMF profile changed requirement for model monitoring on May 4, 2026.",
+      "input": "NIST AI RMF profile changed requirement model monitoring on May 4, 2026.",
       "expected_extractions": { "standard": "NIST AI RMF profile", "requirement": "model monitoring", "date": "May 4, 2026" },
       "expected_signal": { "min_relevance_score": 0.75, "requires_policy_gate": true, "requires_feed_item": true }
     }

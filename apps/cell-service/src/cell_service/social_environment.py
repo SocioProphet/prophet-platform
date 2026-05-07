@@ -40,8 +40,7 @@ def social_environment_snapshot(
     for peer_ref in peer_ids:
         latest = _latest_time([item.get("observed_at") or item.get("created_at") for item in interactions_by_peer.get(peer_ref, [])])
         if latest is None:
-            stale_ties.append(peer_ref)
-            continue
+            continue  # No interactions recorded; treat as new, not stale.
         if (now_dt - latest).days >= 30:
             stale_ties.append(peer_ref)
 

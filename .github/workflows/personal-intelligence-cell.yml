@@ -1,0 +1,117 @@
+name: Personal Intelligence Cell
+
+# Triggers on any change to the Personal Intelligence Cell / Aigents-overtake lane.
+# This includes app sources, schemas, contracts, validator tools, infra, and docs.
+on:
+  pull_request:
+    paths:
+      - 'apps/cell-service/**'
+      - 'apps/lampstand/**'
+      - 'schemas/cell/**'
+      - 'contracts/cell/**'
+      - 'tools/validate_cell_*.py'
+      - 'tools/validate_personal_intelligence_cell.py'
+      - 'tools/smoke_cell_service_loop.py'
+      - 'infra/datastores/**/cell/**'
+      - 'fixtures/cell/**'
+      - 'docs/PERSONAL_INTELLIGENCE_CELL*.md'
+      - '.github/workflows/personal-intelligence-cell.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/cell-service/**'
+      - 'apps/lampstand/**'
+      - 'schemas/cell/**'
+      - 'contracts/cell/**'
+      - 'tools/validate_cell_*.py'
+      - 'tools/validate_personal_intelligence_cell.py'
+      - 'tools/smoke_cell_service_loop.py'
+      - 'infra/datastores/**/cell/**'
+      - 'fixtures/cell/**'
+      - 'docs/PERSONAL_INTELLIGENCE_CELL*.md'
+      - '.github/workflows/personal-intelligence-cell.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cell-validate-and-test:
+    name: Validate and test Personal Intelligence Cell
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # ── App test dependencies ────────────────────────────────────────────────
+      # Install only the packages declared in requirements-test.txt (pytest).
+      # No live Postgres or ClickHouse service is needed; every test uses in-
+      # memory fakes or file fixtures.
+      - name: Install test dependencies
+        run: pip install -r apps/cell-service/requirements-test.txt
+
+      # ── App unit / integration tests ─────────────────────────────────────────
+      # PYTHONPATH gives pytest access to both cell-service sources and the
+      # Lampstand library.  All paths are non-mutating: tests read contracts and
+      # fixtures from the repo tree and make no network calls.
+      - name: Run cell-service tests
+        env:
+          PYTHONPATH: apps/cell-service/src:apps/lampstand/src
+        run: pytest apps/cell-service/tests/ -q
+
+      # ── Non-mutating contract / schema validators ────────────────────────────
+      # Each script below is read-only: it inspects files already in the repo
+      # and exits non-zero on any structural violation.  None of them write
+      # output files or call external services.
+      - name: Validate Personal Intelligence Cell contracts
+        run: python3 tools/validate_personal_intelligence_cell.py
+
+      - name: Validate cell Lampstand adapter
+        run: python3 tools/validate_cell_lampstand_adapter.py
+
+      # validate_cell_lampstand_live_fixture.py checks that the live-fixture
+      # runner script and all referenced source files are present and well-
+      # formed.  It does NOT execute run_cell_lampstand_live_fixture.py, which
+      # is operator-invoked only (writes Lampstand receipt/catalog artifacts).
+      - name: Validate cell Lampstand live-fixture files (non-mutating presence check)
+        run: python3 tools/validate_cell_lampstand_live_fixture.py
+
+      - name: Validate cell Postgres runtime
+        run: python3 tools/validate_cell_postgres_runtime.py
+
+      - name: Validate cell ClickHouse facts
+        run: python3 tools/validate_cell_clickhouse_facts.py
+
+      - name: Validate cell gateway API contracts
+        run: python3 tools/validate_cell_gateway_api.py
+
+      - name: Validate cell social environment
+        run: python3 tools/validate_cell_social_environment.py
+
+      # ── Smoke test ───────────────────────────────────────────────────────────
+      # smoke_cell_service_loop.py boots a CellService in-process and drives it
+      # through the full loop contract.  It is non-mutating and requires no
+      # external services.
+      - name: Smoke-test cell-service loop
+        env:
+          PYTHONPATH: apps/cell-service/src:apps/lampstand/src
+        run: python3 tools/smoke_cell_service_loop.py
+
+      # ── Repository-wide validator ────────────────────────────────────────────
+      # validate_repo.py is the umbrella check that exercises all lane validators
+      # (including the cell lane) in sequence.  Running it last provides a
+      # comprehensive sanity gate and mirrors `make validate` locally.
+      - name: Run repo-wide validator
+        env:
+          PYTHONPATH: apps/cell-service/src:apps/lampstand/src
+        run: python3 tools/validate_repo.py
+
+      # NOTE: tools/run_cell_lampstand_live_fixture.py is intentionally excluded
+      # from this workflow.  It writes Lampstand receipt and catalog artifacts
+      # and must be invoked manually by an operator, not by default CI.
