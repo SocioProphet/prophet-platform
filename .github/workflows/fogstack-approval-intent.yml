@@ -1,0 +1,41 @@
+name: FogStack Approval Intent
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "schemas/runtime/fogstack-approval-intent-record-v0.1.schema.json"
+      - "tools/emit_fogstack_approval_intent_record.py"
+      - "tools/tests/test_fogstack_approval_intent_record.py"
+      - ".github/workflows/fogstack-approval-intent.yml"
+  push:
+    branches: [main]
+    paths:
+      - "schemas/runtime/fogstack-approval-intent-record-v0.1.schema.json"
+      - "tools/emit_fogstack_approval_intent_record.py"
+      - "tools/tests/test_fogstack_approval_intent_record.py"
+      - ".github/workflows/fogstack-approval-intent.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  approval-intent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest jsonschema
+
+      - name: Run focused tests
+        run: |
+          python -m pytest -q tools/tests/test_fogstack_approval_intent_record.py
