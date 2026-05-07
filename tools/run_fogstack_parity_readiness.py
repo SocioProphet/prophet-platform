@@ -26,6 +26,7 @@ def load_json(path: Path) -> dict[str, Any]:
 def run_parity(output_dir: Path, clean: bool) -> dict[str, Any]:
     output_dir = output_dir if output_dir.is_absolute() else ROOT / output_dir
     full_summary = output_dir / "fogstack-local-demo.full.summary.json"
+    local_summary = output_dir / "fogstack-local-demo.summary.json"
     artifact_index = output_dir / "demo-artifacts.index.json"
     parity_record = output_dir / "fogstack-parity-readiness.record.json"
 
@@ -33,6 +34,21 @@ def run_parity(output_dir: Path, clean: bool) -> dict[str, Any]:
     if not clean:
         full_demo_cmd.append("--no-clean")
     run(full_demo_cmd)
+    run([
+        sys.executable,
+        "tools/update_fogstack_local_demo_apply_plan.py",
+        "--summary-json", str(local_summary),
+    ])
+    full_record = load_json(full_summary)
+    local_record = load_json(local_summary)
+    apply_ref = local_record.get("artifacts", {}).get("deploy_live_apply_plan_record")
+    if isinstance(apply_ref, str):
+        full_record.setdefault("artifacts", {})["live_apply_plan_record"] = apply_ref
+        checks = full_record.setdefault("checks", [])
+        for check in ["live_apply_plan_record_indexed", "live_apply_plan_summary_appended"]:
+            if check not in checks:
+                checks.append(check)
+        full_summary.write_text(json.dumps(full_record, indent=2) + "\n", encoding="utf-8")
     run([
         sys.executable,
         "tools/check_fogstack_parity_readiness.py",

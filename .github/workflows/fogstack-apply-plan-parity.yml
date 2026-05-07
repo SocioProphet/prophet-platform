@@ -1,0 +1,47 @@
+name: FogStack Apply Plan Parity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tools/run_fogstack_parity_readiness.py"
+      - "tools/check_fogstack_parity_readiness.py"
+      - "tools/update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_fogstack_parity_readiness.py"
+      - "tools/tests/test_run_fogstack_parity_readiness.py"
+      - ".github/workflows/fogstack-apply-plan-parity.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tools/run_fogstack_parity_readiness.py"
+      - "tools/check_fogstack_parity_readiness.py"
+      - "tools/update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_fogstack_parity_readiness.py"
+      - "tools/tests/test_run_fogstack_parity_readiness.py"
+      - ".github/workflows/fogstack-apply-plan-parity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  apply-plan-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run parity tests
+        run: |
+          python -m pytest -q \
+            tools/tests/test_fogstack_parity_readiness.py \
+            tools/tests/test_run_fogstack_parity_readiness.py

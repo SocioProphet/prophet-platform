@@ -45,18 +45,19 @@ def sha256_file(path: Path) -> str:
     return "sha256:" + digest.hexdigest()
 
 
-def refresh_index(index_path: Path, artifact_ref: str) -> None:
+def refresh_index_entries(index_path: Path, refs_by_id: dict[str, str]) -> None:
     index = load_json(index_path)
     by_id = {entry["id"]: entry for entry in index.get("artifacts", []) if isinstance(entry, dict) and entry.get("id")}
-    path = path_from_ref(artifact_ref)
-    if not path.exists() or not path.is_file():
-        raise SystemExit(f"ERR: apply plan artifact missing: {artifact_ref}")
-    by_id[ARTIFACT_ID] = {
-        "id": ARTIFACT_ID,
-        "ref": artifact_ref,
-        "digest": sha256_file(path),
-        "size_bytes": path.stat().st_size,
-    }
+    for artifact_id, artifact_ref in refs_by_id.items():
+        path = path_from_ref(artifact_ref)
+        if not path.exists() or not path.is_file():
+            raise SystemExit(f"ERR: indexed artifact missing: {artifact_id} {artifact_ref}")
+        by_id[artifact_id] = {
+            "id": artifact_id,
+            "ref": artifact_ref,
+            "digest": sha256_file(path),
+            "size_bytes": path.stat().st_size,
+        }
     index["artifacts"] = [by_id[key] for key in sorted(by_id)]
     write_json(index_path, index)
 
@@ -152,9 +153,14 @@ def update(summary_path: Path, output_path: Path | None) -> dict[str, Any]:
         if check not in checks:
             checks.append(check)
     write_json(summary_path, summary)
-    refresh_index(path_from_ref(artifacts["artifact_index"]), artifact_ref)
     append_markdown(path_from_ref(artifacts["summary_markdown"]), artifact_ref, record)
     append_html(path_from_ref(artifacts["summary_html"]), artifact_ref, record)
+    refresh_index_entries(path_from_ref(artifacts["artifact_index"]), {
+        ARTIFACT_ID: artifact_ref,
+        "summary_json": rel(summary_path),
+        "summary_markdown": artifacts["summary_markdown"],
+        "summary_html": artifacts["summary_html"],
+    })
     return summary
 
 
