@@ -197,6 +197,8 @@ fogstack-local-demo-deploy-plan:
 .PHONY: fogstack-local-demo-full
 fogstack-local-demo-full:
 	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
+	python3 tools/update_fogstack_local_demo_sourceos_state_integrity.py --summary-json build/fogstack-local-demo/fogstack-local-demo.full.summary.json --artifact-index build/fogstack-local-demo/demo-artifacts.index.json --output build/fogstack-local-demo/sourceos.state-integrity-report.json --summary
+	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
 
 .PHONY: fogstack-parity-readiness
 fogstack-parity-readiness:
