@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProviderBindingEvidenceProfile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "profile_id": { "type": "string", "minLength": 1 },
+    "service_class": { "type": "string", "minLength": 1 },
+    "provider_class": { "type": "string", "minLength": 1 },
+    "required_evidence_kinds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "policy_decision",
+          "agentplane_execution",
+          "runtime_dry_run",
+          "live_preflight",
+          "identity_subject",
+          "identity_session",
+          "identity_proof",
+          "office_version",
+          "office_writeback",
+          "office_policy_decision",
+          "office_adapter_profile",
+          "cost_meter",
+          "exit_plan"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "conditional_evidence_kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "minimum_portability_tier": {
+      "type": "string",
+      "enum": ["P0-governed-native", "P1-contract-compatible", "P2-blueprint-portable", "P3-operationally-portable", "P4-exit-tested"]
+    },
+    "approval_rule": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string", "minLength": 1 }
+  },
+  "required": ["profile_id", "service_class", "provider_class", "required_evidence_kinds", "minimum_portability_tier", "approval_rule", "owner"]
+}
