@@ -1,0 +1,13 @@
+{
+  "artifact": "examples/repo-intelligence/prophet-understanding.fixture.json",
+  "index_records": 21,
+  "outputs": [
+    "build/prophet-understand/lampstand-index.json",
+    "build/prophet-understand/sherlock-search-contract-query.json",
+    "build/prophet-understand/policy-decision.json",
+    "build/prophet-understand/delivery-scorecard.json"
+  ],
+  "policy_state": "allow",
+  "scorecard_state": "green",
+  "search_result_count": 10
+}

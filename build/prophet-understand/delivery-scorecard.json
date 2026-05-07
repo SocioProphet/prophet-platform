@@ -1,0 +1,11 @@
+{
+  "repo_graph_anchor_coverage_ratio": 1.0,
+  "repo_graph_edge_count": 7,
+  "repo_graph_node_count": 7,
+  "repo_graph_policy_warning_count": 2,
+  "repo_graph_present": 1,
+  "repo_graph_provenance_coverage_ratio": 1.0,
+  "repo_graph_schema_valid": 1,
+  "repo_pr_impact_radius": 15,
+  "scorecard_state": "green"
+}

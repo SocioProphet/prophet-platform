@@ -1,0 +1,631 @@
+[
+  {
+    "confidence": 0.9,
+    "edge_id": "edge:contract-governed-by-policy",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:policy-fixture"
+    ],
+    "raw": {
+      "confidence": 0.9,
+      "id": "edge:contract-governed-by-policy",
+      "kind": "governed_by",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:policy-fixture"
+      ],
+      "source": "contract:prophet-understanding.v0",
+      "target": "policy:prophet-understand-v0"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:contract-governed-by-policy",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "contract:prophet-understanding.v0",
+    "target_node_id": "policy:prophet-understand-v0",
+    "text": "governed_by relationship from Canonical repo intelligence artifact to Prophet Understand v0 policy status",
+    "title": "governed_by: contract:prophet-understanding.v0 -> policy:prophet-understand-v0"
+  },
+  {
+    "confidence": 1.0,
+    "edge_id": "edge:repo-contains-schema",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:repo-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "edge:repo-contains-schema",
+      "kind": "contains",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "source": "repo:SocioProphet/prophet-platform",
+      "target": "schema:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:repo-contains-schema",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "repo:SocioProphet/prophet-platform",
+    "target_node_id": "schema:prophet-understanding.v0",
+    "text": "contains relationship from Prophet Platform to Prophet Understanding v0 JSON Schema",
+    "title": "contains: repo:SocioProphet/prophet-platform -> schema:prophet-understanding.v0"
+  },
+  {
+    "confidence": 1.0,
+    "edge_id": "edge:repo-contains-spec",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:repo-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "edge:repo-contains-spec",
+      "kind": "contains",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "source": "repo:SocioProphet/prophet-platform",
+      "target": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:repo-contains-spec",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "repo:SocioProphet/prophet-platform",
+    "target_node_id": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "text": "contains relationship from Prophet Platform to Prophet Understand repo intelligence spec",
+    "title": "contains: repo:SocioProphet/prophet-platform -> document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md"
+  },
+  {
+    "confidence": 1.0,
+    "edge_id": "edge:repo-contains-validator",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:repo-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "edge:repo-contains-validator",
+      "kind": "contains",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "source": "repo:SocioProphet/prophet-platform",
+      "target": "validator:tools/validate_prophet_understand.py"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:repo-contains-validator",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "repo:SocioProphet/prophet-platform",
+    "target_node_id": "validator:tools/validate_prophet_understand.py",
+    "text": "contains relationship from Prophet Platform to Prophet Understand validator",
+    "title": "contains: repo:SocioProphet/prophet-platform -> validator:tools/validate_prophet_understand.py"
+  },
+  {
+    "confidence": 1.0,
+    "edge_id": "edge:schema-validates-contract",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:schema-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "edge:schema-validates-contract",
+      "kind": "validates",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:schema-fixture"
+      ],
+      "source": "schema:prophet-understanding.v0",
+      "target": "contract:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:schema-validates-contract",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "schema:prophet-understanding.v0",
+    "target_node_id": "contract:prophet-understanding.v0",
+    "text": "validates relationship from Prophet Understanding v0 JSON Schema to Canonical repo intelligence artifact",
+    "title": "validates: schema:prophet-understanding.v0 -> contract:prophet-understanding.v0"
+  },
+  {
+    "confidence": 0.95,
+    "edge_id": "edge:spec-documents-contract",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:doc-spec"
+    ],
+    "raw": {
+      "confidence": 0.95,
+      "id": "edge:spec-documents-contract",
+      "kind": "documents",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:doc-spec"
+      ],
+      "source": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "target": "contract:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:spec-documents-contract",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "target_node_id": "contract:prophet-understanding.v0",
+    "text": "documents relationship from Prophet Understand repo intelligence spec to Canonical repo intelligence artifact",
+    "title": "documents: document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md -> contract:prophet-understanding.v0"
+  },
+  {
+    "confidence": 1.0,
+    "edge_id": "edge:test-covers-contract",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:validator-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "edge:test-covers-contract",
+      "kind": "tests",
+      "metadata": {},
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "source": "test:validate-prophet-understand",
+      "target": "contract:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_edge",
+    "record_id": "edge:test-covers-contract",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_node_id": "test:validate-prophet-understand",
+    "target_node_id": "contract:prophet-understanding.v0",
+    "text": "tests relationship from validate Prophet Understand contract to Canonical repo intelligence artifact",
+    "title": "tests: test:validate-prophet-understand -> contract:prophet-understanding.v0"
+  },
+  {
+    "confidence": 0.95,
+    "node_id": "contract:prophet-understanding.v0",
+    "path": ".prophet/prophet-understanding.json",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:schema-fixture"
+    ],
+    "raw": {
+      "confidence": 0.95,
+      "id": "contract:prophet-understanding.v0",
+      "kind": "contract",
+      "label": "Canonical repo intelligence artifact",
+      "metadata": {
+        "canonical_path": ".prophet/prophet-understanding.json"
+      },
+      "path": ".prophet/prophet-understanding.json",
+      "provenance_receipt_ids": [
+        "receipt:schema-fixture"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "end_line": 4,
+        "path": "examples/repo-intelligence/prophet-understanding.fixture.json",
+        "start_line": 1
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "contract:prophet-understanding.v0",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "end_line": 4,
+      "path": "examples/repo-intelligence/prophet-understanding.fixture.json",
+      "start_line": 1
+    },
+    "text": "Canonical repo intelligence artifact contract .prophet/prophet-understanding.json {'canonical_path': '.prophet/prophet-understanding.json'}",
+    "title": "contract: Canonical repo intelligence artifact"
+  },
+  {
+    "confidence": 1.0,
+    "node_id": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:doc-spec"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "kind": "document",
+      "label": "Prophet Understand repo intelligence spec",
+      "metadata": {
+        "surface": "platform-spec"
+      },
+      "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "provenance_receipt_ids": [
+        "receipt:doc-spec"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "end_line": 4,
+        "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+        "start_line": 1
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "end_line": 4,
+      "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "start_line": 1
+    },
+    "text": "Prophet Understand repo intelligence spec document docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md {'surface': 'platform-spec'}",
+    "title": "document: Prophet Understand repo intelligence spec"
+  },
+  {
+    "confidence": 0.9,
+    "node_id": "policy:prophet-understand-v0",
+    "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:policy-fixture"
+    ],
+    "raw": {
+      "confidence": 0.9,
+      "id": "policy:prophet-understand-v0",
+      "kind": "policy",
+      "label": "Prophet Understand v0 policy status",
+      "metadata": {
+        "states": [
+          "allow",
+          "warn",
+          "require_review",
+          "deny",
+          "unknown"
+        ]
+      },
+      "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "provenance_receipt_ids": [
+        "receipt:policy-fixture"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "end_line": 111,
+        "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+        "start_line": 108
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "policy:prophet-understand-v0",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "end_line": 111,
+      "path": "docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "start_line": 108
+    },
+    "text": "Prophet Understand v0 policy status policy docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md {'states': ['allow', 'warn', 'require_review', 'deny', 'unknown']}",
+    "title": "policy: Prophet Understand v0 policy status"
+  },
+  {
+    "confidence": 1.0,
+    "node_id": "repo:SocioProphet/prophet-platform",
+    "path": ".",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:repo-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "repo:SocioProphet/prophet-platform",
+      "kind": "repo",
+      "label": "Prophet Platform",
+      "metadata": {},
+      "path": ".",
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ]
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "repo:SocioProphet/prophet-platform",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": null,
+    "text": "Prophet Platform repo .",
+    "title": "repo: Prophet Platform"
+  },
+  {
+    "confidence": 1.0,
+    "node_id": "schema:prophet-understanding.v0",
+    "path": "schemas/repo-intelligence/prophet-understanding.schema.json",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:schema-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "schema:prophet-understanding.v0",
+      "kind": "schema",
+      "label": "Prophet Understanding v0 JSON Schema",
+      "metadata": {
+        "schema_version": "prophet-understanding.v0"
+      },
+      "path": "schemas/repo-intelligence/prophet-understanding.schema.json",
+      "provenance_receipt_ids": [
+        "receipt:schema-fixture"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "end_line": 4,
+        "path": "schemas/repo-intelligence/prophet-understanding.schema.json",
+        "start_line": 1
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "schema:prophet-understanding.v0",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "end_line": 4,
+      "path": "schemas/repo-intelligence/prophet-understanding.schema.json",
+      "start_line": 1
+    },
+    "text": "Prophet Understanding v0 JSON Schema schema schemas/repo-intelligence/prophet-understanding.schema.json {'schema_version': 'prophet-understanding.v0'}",
+    "title": "schema: Prophet Understanding v0 JSON Schema"
+  },
+  {
+    "confidence": 1.0,
+    "node_id": "test:validate-prophet-understand",
+    "path": "tools/validate_prophet_understand.py",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:validator-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "test:validate-prophet-understand",
+      "kind": "test",
+      "label": "validate Prophet Understand contract",
+      "metadata": {
+        "kind": "contract-validation"
+      },
+      "path": "tools/validate_prophet_understand.py",
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "end_line": 23,
+        "path": "tools/validate_prophet_understand.py",
+        "start_line": 20
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "test:validate-prophet-understand",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "end_line": 23,
+      "path": "tools/validate_prophet_understand.py",
+      "start_line": 20
+    },
+    "text": "validate Prophet Understand contract test tools/validate_prophet_understand.py {'kind': 'contract-validation'}",
+    "title": "test: validate Prophet Understand contract"
+  },
+  {
+    "confidence": 1.0,
+    "node_id": "validator:tools/validate_prophet_understand.py",
+    "path": "tools/validate_prophet_understand.py",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:validator-fixture"
+    ],
+    "raw": {
+      "confidence": 1.0,
+      "id": "validator:tools/validate_prophet_understand.py",
+      "kind": "validator",
+      "label": "Prophet Understand validator",
+      "metadata": {
+        "entrypoint": "python3 tools/validate_prophet_understand.py"
+      },
+      "path": "tools/validate_prophet_understand.py",
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "source_anchor": {
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "end_line": 4,
+        "path": "tools/validate_prophet_understand.py",
+        "start_line": 1
+      }
+    },
+    "record_family": "repo_graph_node",
+    "record_id": "validator:tools/validate_prophet_understand.py",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "source_anchor": {
+      "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "end_line": 4,
+      "path": "tools/validate_prophet_understand.py",
+      "start_line": 1
+    },
+    "text": "Prophet Understand validator validator tools/validate_prophet_understand.py {'entrypoint': 'python3 tools/validate_prophet_understand.py'}",
+    "title": "validator: Prophet Understand validator"
+  },
+  {
+    "policy_state": "require_review",
+    "provenance_receipt_ids": [
+      "receipt:policy-fixture"
+    ],
+    "raw": {
+      "evidence_receipt_ids": [
+        "receipt:policy-fixture"
+      ],
+      "id": "policy:high-impact-review",
+      "message": "High PR impact radius requires human review and graph-aware evidence.",
+      "state": "require_review"
+    },
+    "record_family": "repo_graph_policy",
+    "record_id": "policy:high-impact-review",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "text": "High PR impact radius requires human review and graph-aware evidence.",
+    "title": "policy: require_review"
+  },
+  {
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:policy-fixture"
+    ],
+    "raw": {
+      "evidence_receipt_ids": [
+        "receipt:policy-fixture"
+      ],
+      "id": "policy:missing-artifact-v0",
+      "message": "Repos without v0 graph artifacts surface warning status before hard enforcement.",
+      "state": "warn"
+    },
+    "record_family": "repo_graph_policy",
+    "record_id": "policy:missing-artifact-v0",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "text": "Repos without v0 graph artifacts surface warning status before hard enforcement.",
+    "title": "policy: warn"
+  },
+  {
+    "confidence": 0.95,
+    "node_id": "contract:prophet-understanding.v0",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:doc-spec"
+    ],
+    "raw": {
+      "confidence": 0.95,
+      "id": "summary:contract",
+      "node_id": "contract:prophet-understanding.v0",
+      "provenance_receipt_ids": [
+        "receipt:doc-spec"
+      ],
+      "text": "Canonical v0 repo-intelligence artifact carrying graph nodes, graph edges, source anchors, provenance receipts, validation results, diff impact, tours, and policy status."
+    },
+    "record_family": "repo_graph_summary",
+    "record_id": "summary:contract",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "text": "Canonical v0 repo-intelligence artifact carrying graph nodes, graph edges, source anchors, provenance receipts, validation results, diff impact, tours, and policy status.",
+    "title": "summary: contract:prophet-understanding.v0"
+  },
+  {
+    "confidence": 0.95,
+    "node_id": "validator:tools/validate_prophet_understand.py",
+    "policy_state": "warn",
+    "provenance_receipt_ids": [
+      "receipt:validator-fixture"
+    ],
+    "raw": {
+      "confidence": 0.95,
+      "id": "summary:validator",
+      "node_id": "validator:tools/validate_prophet_understand.py",
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "text": "Validation tool that checks schema presence, fixture integrity, references, provenance coverage, policy states, and documentation markers for Prophet Understand v0."
+    },
+    "record_family": "repo_graph_summary",
+    "record_id": "summary:validator",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "text": "Validation tool that checks schema presence, fixture integrity, references, provenance coverage, policy states, and documentation markers for Prophet Understand v0.",
+    "title": "summary: validator:tools/validate_prophet_understand.py"
+  },
+  {
+    "policy_state": "warn",
+    "raw": {
+      "check_id": "schema-valid",
+      "id": "validation:fixture-schema",
+      "message": "Fixture conforms to Prophet Understanding v0 structural requirements.",
+      "severity": "info",
+      "status": "pass",
+      "target_id": "contract:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_validation",
+    "record_id": "validation:fixture-schema",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "severity": "info",
+    "target_id": "contract:prophet-understanding.v0",
+    "text": "Fixture conforms to Prophet Understanding v0 structural requirements.",
+    "title": "validation: schema-valid",
+    "validation_status": "pass"
+  },
+  {
+    "policy_state": "warn",
+    "raw": {
+      "check_id": "provenance-coverage",
+      "id": "validation:receipt-coverage",
+      "message": "Graph facts carry provenance receipt references.",
+      "severity": "info",
+      "status": "pass",
+      "target_id": "contract:prophet-understanding.v0"
+    },
+    "record_family": "repo_graph_validation",
+    "record_id": "validation:receipt-coverage",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "severity": "info",
+    "target_id": "contract:prophet-understanding.v0",
+    "text": "Graph facts carry provenance receipt references.",
+    "title": "validation: provenance-coverage",
+    "validation_status": "pass"
+  },
+  {
+    "policy_state": "warn",
+    "raw": {
+      "check_id": "policy-state",
+      "id": "validation:v0-policy",
+      "message": "Estate-wide rollout starts in warn or require-review mode until scanners are active.",
+      "severity": "warning",
+      "status": "warn",
+      "target_id": "policy:prophet-understand-v0"
+    },
+    "record_family": "repo_graph_validation",
+    "record_id": "validation:v0-policy",
+    "repo_commit": "bcc8895ed4a7d38a82246f33991fe3b54986c0af",
+    "repo_full_name": "SocioProphet/prophet-platform",
+    "schema_version": "prophet-understanding.v0",
+    "severity": "warning",
+    "target_id": "policy:prophet-understand-v0",
+    "text": "Estate-wide rollout starts in warn or require-review mode until scanners are active.",
+    "title": "validation: policy-state",
+    "validation_status": "warn"
+  }
+]

@@ -1,0 +1,168 @@
+{
+  "mode": "lexical-graph-evidence-v0",
+  "notice": "No semantic/vector certainty is claimed without embedding evidence.",
+  "query": "what depends on this contract?",
+  "result_count": 10,
+  "results": [
+    {
+      "edge_id": "edge:test-covers-contract",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:test-covers-contract",
+      "score": 4.0,
+      "source_anchor": null,
+      "title": "tests: test:validate-prophet-understand -> contract:prophet-understanding.v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": null,
+      "node_id": "test:validate-prophet-understand",
+      "path": "tools/validate_prophet_understand.py",
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:validator-fixture"
+      ],
+      "record_family": "repo_graph_node",
+      "record_id": "test:validate-prophet-understand",
+      "score": 4.0,
+      "source_anchor": {
+        "content_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "end_line": 23,
+        "path": "tools/validate_prophet_understand.py",
+        "start_line": 20
+      },
+      "title": "test: validate Prophet Understand contract",
+      "validation_status": null
+    },
+    {
+      "edge_id": null,
+      "node_id": "contract:prophet-understanding.v0",
+      "path": ".prophet/prophet-understanding.json",
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:schema-fixture"
+      ],
+      "record_family": "repo_graph_node",
+      "record_id": "contract:prophet-understanding.v0",
+      "score": 3.95,
+      "source_anchor": {
+        "content_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "end_line": 4,
+        "path": "examples/repo-intelligence/prophet-understanding.fixture.json",
+        "start_line": 1
+      },
+      "title": "contract: Canonical repo intelligence artifact",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:schema-validates-contract",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:schema-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:schema-validates-contract",
+      "score": 2.0,
+      "source_anchor": null,
+      "title": "validates: schema:prophet-understanding.v0 -> contract:prophet-understanding.v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:spec-documents-contract",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:doc-spec"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:spec-documents-contract",
+      "score": 1.95,
+      "source_anchor": null,
+      "title": "documents: document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md -> contract:prophet-understanding.v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": null,
+      "node_id": "contract:prophet-understanding.v0",
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:doc-spec"
+      ],
+      "record_family": "repo_graph_summary",
+      "record_id": "summary:contract",
+      "score": 1.95,
+      "source_anchor": null,
+      "title": "summary: contract:prophet-understanding.v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:contract-governed-by-policy",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:policy-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:contract-governed-by-policy",
+      "score": 1.9,
+      "source_anchor": null,
+      "title": "governed_by: contract:prophet-understanding.v0 -> policy:prophet-understand-v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:repo-contains-schema",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:repo-contains-schema",
+      "score": 1.5,
+      "source_anchor": null,
+      "title": "contains: repo:SocioProphet/prophet-platform -> schema:prophet-understanding.v0",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:repo-contains-spec",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:repo-contains-spec",
+      "score": 1.5,
+      "source_anchor": null,
+      "title": "contains: repo:SocioProphet/prophet-platform -> document:docs/PROPHET_UNDERSTAND_REPO_INTELLIGENCE.md",
+      "validation_status": null
+    },
+    {
+      "edge_id": "edge:repo-contains-validator",
+      "node_id": null,
+      "path": null,
+      "policy_state": "warn",
+      "provenance_receipt_ids": [
+        "receipt:repo-fixture"
+      ],
+      "record_family": "repo_graph_edge",
+      "record_id": "edge:repo-contains-validator",
+      "score": 1.5,
+      "source_anchor": null,
+      "title": "contains: repo:SocioProphet/prophet-platform -> validator:tools/validate_prophet_understand.py",
+      "validation_status": null
+    }
+  ]
+}
