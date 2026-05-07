@@ -1,0 +1,19 @@
+{
+  "profile_id": "evidence-profile.environment.public-cloud.v1",
+  "service_class": "environment",
+  "provider_class": "public-cloud",
+  "required_evidence_kinds": [
+    "policy_decision",
+    "agentplane_execution",
+    "runtime_dry_run",
+    "live_preflight",
+    "identity_subject"
+  ],
+  "conditional_evidence_kinds": [
+    "cost_meter",
+    "exit_plan"
+  ],
+  "minimum_portability_tier": "P2-blueprint-portable",
+  "approval_rule": "Approval requires policy decision, broker execution evidence, dry-run evidence, live preflight safety evidence, and identity subject context unless an explicit exception exists.",
+  "owner": "platform-brokerage"
+}
