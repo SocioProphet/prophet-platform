@@ -1,0 +1,85 @@
+name: cross-repo-orchestration-interop
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'specs/orchestration/**'
+      - '.github/workflows/cross-repo-orchestration-interop.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'specs/orchestration/**'
+      - '.github/workflows/cross-repo-orchestration-interop.yml'
+  workflow_dispatch:
+
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out prophet-platform
+        uses: actions/checkout@v4
+        with:
+          path: prophet-platform
+
+      - name: Check out guardrail-fabric
+        uses: actions/checkout@v4
+        with:
+          repository: SocioProphet/guardrail-fabric
+          path: guardrail-fabric
+
+      - name: Check out sourceos-syncd
+        uses: actions/checkout@v4
+        with:
+          repository: SourceOS-Linux/sourceos-syncd
+          path: sourceos-syncd
+
+      - name: Check out agentplane
+        uses: actions/checkout@v4
+        with:
+          repository: SocioProphet/agentplane
+          path: agentplane
+
+      - name: Check out sherlock-search
+        uses: actions/checkout@v4
+        with:
+          repository: SocioProphet/sherlock-search
+          path: sherlock-search
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run cross-repo event loop interop smoke
+        run: |
+          python prophet-platform/specs/orchestration/cross_repo_interop_runner.py \
+            --dev-root "$GITHUB_WORKSPACE" \
+            --out /tmp/sdo-cross-repo-event-loop
+
+      - name: Validate interop report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report_path = Path('/tmp/sdo-cross-repo-event-loop/cross-repo-interop-report.json')
+          report = json.loads(report_path.read_text())
+          assert report['status'] == 'pass', report
+          assert report['summary']['required_failures'] == 0, report['summary']
+          required_artifacts = [
+              report['artifacts']['prophet_demo_report'],
+              report['artifacts']['guardrail_records'],
+              report['artifacts']['sherlock_security_search'],
+              report['artifacts']['sherlock_camera_search'],
+              report['artifacts']['sherlock_fan_search'],
+          ]
+          missing = [path for path in required_artifacts if not Path(path).exists()]
+          assert not missing, missing
+          print(json.dumps(report['summary'], sort_keys=True))
+          PY
+
+      - name: Upload interop report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdo-cross-repo-interop-report
+          path: /tmp/sdo-cross-repo-event-loop/cross-repo-interop-report.json
