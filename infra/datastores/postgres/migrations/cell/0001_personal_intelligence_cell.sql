@@ -4,6 +4,11 @@
 -- The first Postgres repository seam is body-first: each object is stored as
 -- canonical JSONB while selected generated columns expose indexable fields.
 -- This keeps the generic repository small without losing query ergonomics.
+--
+-- Timestamp fields are generated as ISO-8601 text rather than timestamptz casts
+-- because PostgreSQL generated expressions must remain immutable. The runtime
+-- emits UTC ISO strings, so lexical ordering preserves chronological order for
+-- the fixed-format values used by the cell service.
 
 CREATE TABLE IF NOT EXISTS cell_cells (
   id TEXT PRIMARY KEY,
@@ -15,8 +20,8 @@ CREATE TABLE IF NOT EXISTS cell_cells (
   memory_ref TEXT GENERATED ALWAYS AS (body->>'memory_ref') STORED,
   config_ref TEXT GENERATED ALWAYS AS (body->>'config_ref') STORED,
   state TEXT GENERATED ALWAYS AS (COALESCE(body->>'state', 'active')) STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED,
-  updated_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'updated_at')::timestamptz) STORED,
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED,
+  updated_at TEXT GENERATED ALWAYS AS (body->>'updated_at') STORED,
   CHECK (kind IN ('personal', 'project', 'community', 'organization', 'mission')),
   CHECK (state IN ('draft', 'active', 'paused', 'archived', 'revoked'))
 );
@@ -28,7 +33,7 @@ CREATE TABLE IF NOT EXISTS cell_configs (
   sync_policy TEXT GENERATED ALWAYS AS (body->>'sync_policy') STORED,
   backup_policy TEXT GENERATED ALWAYS AS (body->>'backup_policy') STORED,
   local_first_mode BOOLEAN GENERATED ALWAYS AS ((body->>'local_first_mode')::boolean) STORED,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 );
 
 CREATE TABLE IF NOT EXISTS cell_sources (
@@ -38,8 +43,8 @@ CREATE TABLE IF NOT EXISTS cell_sources (
   uri TEXT GENERATED ALWAYS AS (body->>'uri') STORED,
   policy_ref TEXT GENERATED ALWAYS AS (body->>'policy_ref') STORED,
   enabled BOOLEAN GENERATED ALWAYS AS (COALESCE((body->>'enabled')::boolean, TRUE)) STORED,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+  updated_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 );
 
 CREATE TABLE IF NOT EXISTS cell_watches (
@@ -49,8 +54,8 @@ CREATE TABLE IF NOT EXISTS cell_watches (
   state TEXT GENERATED ALWAYS AS (body->>'state') STORED,
   relevance_policy TEXT GENERATED ALWAYS AS (body->>'relevance_policy') STORED,
   notification_policy TEXT GENERATED ALWAYS AS (body->>'notification_policy') STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED,
-  updated_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'updated_at')::timestamptz) STORED,
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED,
+  updated_at TEXT GENERATED ALWAYS AS (body->>'updated_at') STORED,
   CHECK (state IN ('draft', 'active', 'paused', 'archived'))
 );
 
@@ -61,7 +66,7 @@ CREATE TABLE IF NOT EXISTS cell_watch_patterns (
   pattern_kind TEXT GENERATED ALWAYS AS (body->>'pattern_kind') STORED,
   raw_expression TEXT GENERATED ALWAYS AS (body->>'raw_expression') STORED,
   version TEXT GENERATED ALWAYS AS (body->>'version') STORED,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
 );
 
 CREATE TABLE IF NOT EXISTS cell_signals (
@@ -70,14 +75,14 @@ CREATE TABLE IF NOT EXISTS cell_signals (
   cell_id TEXT GENERATED ALWAYS AS (body->>'cell_id') STORED REFERENCES cell_cells(id) ON DELETE CASCADE,
   source_id TEXT GENERATED ALWAYS AS (body->>'source_id') STORED REFERENCES cell_sources(id),
   watch_id TEXT GENERATED ALWAYS AS (body->>'watch_id') STORED REFERENCES cell_watches(id) ON DELETE CASCADE,
-  observed_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'observed_at')::timestamptz) STORED,
+  observed_at TEXT GENERATED ALWAYS AS (body->>'observed_at') STORED,
   novelty_score DOUBLE PRECISION GENERATED ALWAYS AS ((body->>'novelty_score')::double precision) STORED,
   relevance_score DOUBLE PRECISION GENERATED ALWAYS AS ((body->>'relevance_score')::double precision) STORED,
   confidence_score DOUBLE PRECISION GENERATED ALWAYS AS ((body->>'confidence_score')::double precision) STORED,
   source_trust_score DOUBLE PRECISION GENERATED ALWAYS AS ((body->>'source_trust_score')::double precision) STORED,
   policy_status TEXT GENERATED ALWAYS AS (body->>'policy_status') STORED,
   evidence_refs JSONB GENERATED ALWAYS AS (body->'evidence_refs') STORED,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TEXT NOT NULL DEFAULT to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
   CHECK (novelty_score >= 0 AND novelty_score <= 1),
   CHECK (relevance_score >= 0 AND relevance_score <= 1),
   CHECK (confidence_score >= 0 AND confidence_score <= 1),
@@ -91,7 +96,7 @@ CREATE TABLE IF NOT EXISTS cell_feed_items (
   signal_id TEXT GENERATED ALWAYS AS (body->>'signal_id') STORED REFERENCES cell_signals(id) ON DELETE CASCADE,
   feed_kind TEXT GENERATED ALWAYS AS (body->>'feed_kind') STORED,
   policy_decision JSONB GENERATED ALWAYS AS (body->'policy_decision') STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED
 );
 
 CREATE TABLE IF NOT EXISTS cell_intent_events (
@@ -103,7 +108,7 @@ CREATE TABLE IF NOT EXISTS cell_intent_events (
   structured_intent JSONB GENERATED ALWAYS AS (body->'structured_intent') STORED,
   policy_decision JSONB GENERATED ALWAYS AS (body->'policy_decision') STORED,
   emitted_events JSONB GENERATED ALWAYS AS (COALESCE(body->'emitted_events', '[]'::jsonb)) STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED
 );
 
 CREATE TABLE IF NOT EXISTS cell_feedback_events (
@@ -113,7 +118,7 @@ CREATE TABLE IF NOT EXISTS cell_feedback_events (
   signal_id TEXT GENERATED ALWAYS AS (body->>'signal_id') STORED REFERENCES cell_signals(id) ON DELETE CASCADE,
   actor_ref TEXT GENERATED ALWAYS AS (body->>'actor_ref') STORED,
   action TEXT GENERATED ALWAYS AS (body->>'action') STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED
 );
 
 CREATE TABLE IF NOT EXISTS cell_archives (
@@ -123,7 +128,7 @@ CREATE TABLE IF NOT EXISTS cell_archives (
   schema_version TEXT GENERATED ALWAYS AS (body->>'schema_version') STORED,
   manifest JSONB GENERATED ALWAYS AS (body->'manifest') STORED,
   restore_dry_run_report_ref TEXT GENERATED ALWAYS AS (body->>'restore_dry_run_report_ref') STORED,
-  created_at TIMESTAMPTZ GENERATED ALWAYS AS ((body->>'created_at')::timestamptz) STORED
+  created_at TEXT GENERATED ALWAYS AS (body->>'created_at') STORED
 );
 
 CREATE INDEX IF NOT EXISTS idx_cell_watches_cell_id ON cell_watches(cell_id);
