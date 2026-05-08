@@ -27,6 +27,7 @@ REQUIRED_SUMMARY_ARTIFACTS = {
     "gitops_readiness_record",
     "live_cluster_preflight_record",
     "live_apply_plan_record",
+    "approval_intent_record",
     "runtime_adapter",
     "runtime_dry_run_record",
 }
@@ -50,6 +51,7 @@ REQUIRED_INDEX_IDS = {
     "deploy_gitops_readiness_record",
     "deploy_live_cluster_preflight_record",
     "deploy_live_apply_plan_record",
+    "deploy_approval_intent_record",
     "deploy_runtime_adapter",
     "deploy_runtime_dry_run_record",
     "deploy_summary",
@@ -182,6 +184,22 @@ def check_records(paths: dict[str, Path], errors: list[str]) -> list[dict[str, s
     require(apply_plan.get("policyplane", {}).get("policyplane_ref") == "github://SocioProphet/policy-fabric", "live apply plan PolicyPlane ref mismatch", errors)
     require(apply_plan.get("policyplane", {}).get("decision") == "allow-plan-deny-run", "live apply plan PolicyPlane decision mismatch", errors)
     checked.append({"id": "live_apply_plan", "status": str(apply_plan.get("status"))})
+
+    approval_intent = load_json(paths["approval_intent_record"])
+    require(approval_intent.get("kind") == "FogStackApprovalIntentRecord", "approval intent kind mismatch", errors)
+    require(approval_intent.get("status") == "recorded", "approval intent status mismatch", errors)
+    require(approval_intent.get("mode") == "intent-only", "approval intent mode mismatch", errors)
+    approval_safety = approval_intent.get("safety", {})
+    require(approval_safety.get("intent_only") is True, "approval intent is not intent-only", errors)
+    require(approval_safety.get("authorizes_execution") is False, "approval intent authorizes execution", errors)
+    require(approval_safety.get("run_performed") is False, "approval intent performed a run", errors)
+    require(approval_safety.get("mutated_cluster") is False, "approval intent mutated cluster", errors)
+    require(approval_safety.get("live_apply_allowed") is False, "approval intent allows live apply", errors)
+    require(approval_safety.get("requires_policyplane_execute_decision") is True, "approval intent does not require PolicyPlane execute decision", errors)
+    require(approval_safety.get("requires_agentplane_execution_run") is True, "approval intent does not require AgentPlane execution run", errors)
+    require(approval_safety.get("requires_rollback_plan") is True, "approval intent does not require rollback plan", errors)
+    require(approval_safety.get("requires_external_identity_binding") is True, "approval intent does not require external identity binding", errors)
+    checked.append({"id": "approval_intent", "status": str(approval_intent.get("status"))})
 
     runtime_adapter = load_json(paths["runtime_adapter"])
     require(runtime_adapter.get("kind") == "FogStackLocalClusterRuntimeAdapter", "runtime adapter kind mismatch", errors)
