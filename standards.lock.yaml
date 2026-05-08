@@ -169,6 +169,24 @@ spec:
           traceIsEvidenceNotAuthority: true
           runtimeConformanceRequired: true
 
+      forensic-genesis-edge:
+        repo: SocioProphet/prophet-platform-standards
+        class: runtime-profile
+        channel: controlled
+        pin:
+          commit: b80737bafca6e399adf7eb8bf81aea3db61c8fa6
+          tag: null
+        consume:
+          docs:
+            - docs/FORENSIC_GENESIS_EDGE.md
+          generated_artifacts:
+            - contracts/forensic-genesis/
+            - docs/LOCAL-FORENSIC-GENESIS-EDGE.md
+            - infra/local/docker-compose.forensic-genesis-edge.yml
+        rules:
+          runtimeConformanceRequiredForForensicGenesisEdge: true
+          standardsRepoRemainsNormative: true
+
     reference_inputs:
       identity-prime-reference:
         repo: SocioProphet/identity-is-prime-reference
