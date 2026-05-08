@@ -1,0 +1,66 @@
+apiVersion: socioprophet.org/v1alpha1
+kind: ProphetArtifact
+metadata:
+  name: gaia-bounded-osm-fixture
+  version: 0.0.1
+  artifactClass: workflow
+  owner: SocioProphet/gaia-world-model
+actions:
+  - id: detect-host
+    verb: detect
+    mode: fixture
+    privileged: false
+  - id: fetch-fixture
+    verb: fetch
+    mode: fixture
+    privileged: false
+  - id: prepare-region
+    verb: prepare
+    mode: fixture
+    privileged: false
+  - id: build-runtime
+    verb: build
+    mode: noop
+    privileged: false
+  - id: run-pipeline
+    verb: run
+    mode: fixture
+    privileged: false
+  - id: validate-results
+    verb: validate
+    mode: fixture
+    privileged: false
+  - id: benchmark-fixture
+    verb: benchmark
+    mode: fixture
+    privileged: false
+  - id: tune-fixture
+    verb: tune
+    mode: noop
+    privileged: false
+  - id: publish-local
+    verb: publish
+    mode: fixture
+    privileged: false
+  - id: attest-lineage
+    verb: attest
+    mode: fixture
+    privileged: false
+provenance:
+  sourceUri: https://github.com/SocioProphet/gaia-world-model
+  license: ODbL-1.0
+  receipts:
+    - receipt://fixture/gaia-bounded-osm-0001
+policy:
+  safetyClass: bounded
+  network: local-only
+  allowPrivilegedActions: false
+evidence:
+  requiredOutputs:
+    - run-record.json
+    - checksums.json
+    - validation-report.json
+    - benchmark-report.json
+    - sociosphere-registration.json
+    - sherlock-index-payload.json
+    - delivery-excellence-scoreboard-payload.json

@@ -126,3 +126,21 @@ A minimal credible v0 is done when one declared artifact can be executed through
 8. Add Delivery Excellence metric export.
 9. Add Lattice Forge runtime profile binding.
 10. Promote notebook-derived workflows through the same artifact contract.
+
+## ProphetArtifact runner v0 (local-safe slice)
+
+The repository now includes a bounded local-safe first slice for `socioprophet.org/v1alpha1` `ProphetArtifact` contracts:
+
+- `tools/validate_prophet_artifact.py`: parse and fail-closed validate required metadata/action/provenance/policy/evidence fields.
+- `tools/run_prophet_artifact.py`: execute fixture/no-op bounded actions only, block privileged actions unless explicitly allowed, and emit stable evidence payloads.
+- `tools/smoke_prophet_artifact_runner.py`: smoke command against the fixture artifact contract.
+- `contracts/computational-artifacts/prophet-artifact.v1alpha1.example.yaml`: fixture contract for local-safe execution.
+
+This runner is intentionally narrow and aligned with cross-repo ownership:
+
+- Ontogenesis: normative contract and schema governance.
+- GAIA: bounded workflow fixture and domain artifact packs.
+- Sociosphere: registration payload emission (`sociosphere-registration.json`).
+- Sherlock/Holmes: searchable evidence indexing payload (`sherlock-index-payload.json`).
+- Lattice Forge: runtime profile and reproducibility alignment for future action adapters.
+- Delivery Excellence: scoreboard payload emission (`delivery-excellence-scoreboard-payload.json`).
