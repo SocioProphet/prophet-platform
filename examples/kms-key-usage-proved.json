@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1",
+  "artifact_id": "kms-key-usage-proved-demo-v0",
+  "claim": {
+    "kind": "kms_key_usage",
+    "params": {
+      "key_id": "K-demo-001",
+      "allowed_actors": ["svc:payments"],
+      "allowed_scopes": ["PROC(payments)"],
+      "epoch_window": {
+        "start_ns": 0,
+        "end_ns": 3600000000000
+      },
+      "decrypt_budget_B": 2,
+      "allowed_sinks": [
+        {"sink": "payments_db", "label": "HIGH"}
+      ],
+      "forbidden_sinks": [
+        {"sink": "internet", "label": "LOW_NET"},
+        {"sink": "low_db", "label": "LOW"}
+      ],
+      "requires_token_kind": "KMS_DECRYPT_BUDGET"
+    }
+  },
+  "assumptions": {
+    "coverage": [
+      "Policy.Pin",
+      "Identity.Attest",
+      "KMS.Decrypt",
+      "Token.Consume",
+      "Data.Write",
+      "Net.Send"
+    ],
+    "event_integrity": "fixture",
+    "scope_integrity": "attested_scope_fixture",
+    "clock_model": "mono_ns_no_reorder_fixture",
+    "missing_evidence": []
+  },
+  "policy_bundle": {
+    "hash": "sha256:9f3d2a1c0b1a4f5e6d7c8b9a0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6",
+    "sig": "sig:demo-policy-bundle"
+  },
+  "compiler_id": "tfcc-0.4.0-fixture",
+  "domains": ["intervals", "octagon", "congruence", "sharing"],
+  "budgets": {
+    "max_iters": 60,
+    "max_time_ms": 800,
+    "max_branches": 16
+  },
+  "widen_schedule": {
+    "base": 2.718281828459045,
+    "checkpoints": [1, 3, 8, 21, 55, 149, 404]
+  },
+  "inputs_hash": "sha256:5edbe120df337e97e2f57dd9d3414a7d2b6d77af6ab7fe4b00ae42c2ac17e04a",
+  "result": "PROVED",
+  "invariant": {
+    "kind": "conjunctive",
+    "constraints": [
+      "Every successful KMS.Decrypt(K-demo-001) has actor svc:payments.",
+      "Every successful KMS.Decrypt(K-demo-001) has scope PROC(payments).",
+      "Every successful KMS.Decrypt has a matching Token.Consume(KMS_DECRYPT_BUDGET) in the epoch window.",
+      "Successful decrypt count is <= 2.",
+      "No plaintext handle derived from K-demo-001 reaches forbidden sinks internet or low_db."
+    ],
+    "notes": "Fixture invariant intended for checker-contract examples; not a production proof."
+  },
+  "witness_or_counterexample": {},
+  "precision": {
+    "mode": "Approx",
+    "delta": 0.04,
+    "notes": "Approximate fixture summary; no budget exhaustion."
+  },
+  "telemetry": {
+    "widen_count": 0,
+    "budget_exhausted": false,
+    "fixture": true
+  },
+  "signature": "sig:none",
+  "notes": "Canonical PROVED fixture for proof-artifact and Policy Fabric admissibility tests."
+}
