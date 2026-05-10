@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/event-ir.schema.json",
+  "title": "Trust-First Event-IR",
+  "description": "Typed event intermediate representation for proof-artifact claims over observed platform/security/runtime event windows.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "kind", "ts", "actor", "scope", "attrs", "auth"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "Policy.Pin",
+        "Policy.Publish",
+        "Policy.Update",
+        "Policy.AllowBreakGlass",
+        "Identity.Attest",
+        "Workload.Identity",
+        "TLS.AttestPeer",
+        "Token.Issue",
+        "Token.Consume",
+        "KMS.Decrypt",
+        "KMS.GetKey",
+        "HSM.ImportKey",
+        "HSM.GenerateKey",
+        "HSM.Wrap",
+        "HSM.Unwrap",
+        "HSM.Sign",
+        "HSM.Decrypt",
+        "RPC.Send",
+        "RPC.Receive",
+        "Data.Read",
+        "Data.Write",
+        "Net.Send",
+        "Net.Recv",
+        "File.Read",
+        "File.Write",
+        "Mem.Copy",
+        "Scope.Enter",
+        "Scope.Exit",
+        "Namespace.Switch",
+        "Privilege.Change",
+        "Mount.Bind",
+        "Audit.Mark"
+      ]
+    },
+    "ts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clock", "ns"],
+      "properties": {
+        "clock": {
+          "type": "string",
+          "enum": ["MONO", "WALL", "LOGICAL"]
+        },
+        "ns": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skew_ns": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "examples": ["PROC(payments)", "SERVICE(spiffe://svc/payments)", "CONTAINER(cid)", "HSM(hsm-7)", "TENANT(t1)"]
+    },
+    "target": {
+      "type": ["string", "null"]
+    },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sig": { "type": ["string", "null"] },
+        "attestation": { "type": ["string", "null"] },
+        "source": { "type": ["string", "null"] },
+        "hash": { "type": ["string", "null"] }
+      }
+    },
+    "labels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}
