@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.1",
+  "artifact_id": "kms-key-usage-violation-demo",
+  "producer_boundary": "SocioProphet/prophet-platform",
+  "claim": {
+    "kind": "kms_key_usage",
+    "params": {
+      "key_id": "K-demo-001",
+      "allowed_actors": ["svc:payments"],
+      "allowed_scopes": ["PROC(payments)"],
+      "epoch_window": {
+        "start_ns": 0,
+        "end_ns": 3600000000000
+      },
+      "decrypt_budget_B": 2,
+      "allowed_sinks": [
+        {"sink": "payments_db", "label": "HIGH"}
+      ],
+      "forbidden_sinks": [
+        {"sink": "internet", "label": "LOW_NET"},
+        {"sink": "low_db", "label": "LOW"}
+      ],
+      "requires_token_kind": "KMS_DECRYPT_BUDGET"
+    }
+  },
+  "assumptions": {
+    "coverage": [
+      "Policy.Pin",
+      "Identity.Attest",
+      "Token.Consume",
+      "KMS.Decrypt",
+      "Data.Write",
+      "Net.Send"
+    ],
+    "event_integrity": "signed_append_only",
+    "scope_integrity": "attested_scope",
+    "clock_model": "mono_ns_no_reorder",
+    "missing_evidence": []
+  },
+  "policy_bundle": {
+    "hash": "sha256:9f3d2a1c0b1a4f5e6d7c8b9a0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6",
+    "sig": "sig:demo-policy-bundle"
+  },
+  "compiler_id": "tfcc-0.4.0",
+  "domains": ["intervals", "octagon", "congruence", "sharing"],
+  "budgets": {
+    "max_iters": 60,
+    "max_time_ms": 800,
+    "max_branches": 16
+  },
+  "widen_schedule": {
+    "base": 2.718281828459045,
+    "checkpoints": [1, 3, 8, 21, 55, 149, 404]
+  },
+  "inputs_hash": "sha256:7eca9d0edceedc356fca641bd68f22e0ae966bc2babafaea4bb8e57524a998d0",
+  "result": "VIOLATION",
+  "witness_or_counterexample": {
+    "kind": "forbidden_sink_flow",
+    "violated_clause": "Flow confinement: plaintext derived from K-demo-001 must not reach internet.",
+    "slice_event_ids": ["e7", "e9"],
+    "taint_path": [
+      {
+        "handle": "pt2",
+        "introduced_at": "e7",
+        "event": "KMS.Decrypt"
+      },
+      {
+        "handle": "pt2",
+        "observed_at": "e9",
+        "event": "Net.Send",
+        "dst": "internet"
+      }
+    ],
+    "replay_window": {
+      "start_event": "e6",
+      "end_event": "e9"
+    }
+  },
+  "precision": {
+    "mode": "Exact",
+    "delta": 0.0
+  },
+  "telemetry": {
+    "mode": "fixture",
+    "widen_count": 0,
+    "budget_exhausted": false
+  },
+  "signature": "sig:none",
+  "notes": "Illustrative fixture artifact showing a forbidden plaintext flow witness."
+}
