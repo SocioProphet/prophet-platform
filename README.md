@@ -9,6 +9,8 @@ It is intentionally a **thin platform monorepo**:
 - `infra/` contains deployment wiring (Kustomize, Argo CD appsets, namespaces, etc.)
 - `tools/` contains validation and smoke-test helpers (`standards.lock.yaml` gates platform drift checks)
 - `libs/` contains small shared runtime bindings that adapt pinned upstream standards into platform code
+- `schemas/` contains runtime-facing schema contracts, including Trust-First Event-IR and proof-artifact schemas
+- `examples/` contains canonical proof-artifact fixture examples
 
 ## Why this repo exists
 
@@ -27,8 +29,24 @@ make smoke-health
 2. `docs/TRITRPC_SPEC.md`
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
 4. `docs/PLATFORM_EVAL_FABRIC.md`
-5. `contracts/`
-6. `infra/k8s/`
+5. `docs/trust-first-proof-artifacts.md`
+6. `docs/checker-contract.md`
+7. `contracts/`
+8. `infra/k8s/`
+
+## Trust-First proof artifact lane
+
+The platform now carries a runtime contract for replayable evidence artifacts:
+
+- `schemas/event-ir.schema.json` — typed Event-IR vocabulary for observed platform, runtime, and security events.
+- `schemas/proof-artifact.schema.json` — proof artifact contract for `PROVED`, `VIOLATION`, and `INCONCLUSIVE` claim results.
+- `docs/trust-first-proof-artifacts.md` — semantics for proof artifacts over observed event windows and explicit assumptions.
+- `docs/checker-contract.md` — deterministic checker behavior and policy handoff rules.
+- `examples/kms-key-usage-proved.json` — canonical successful fixture artifact.
+- `examples/kms-key-usage-violation.json` — canonical counterexample fixture artifact.
+- `examples/kms-key-usage-inconclusive.json` — canonical missing-evidence fixture artifact.
+
+This lane is the platform runtime counterpart to the typed boundary standard in `SocioProphet/prophet-platform-standards` and the Boundary Atlas in `SocioProphet/sociosphere`.
 
 ## Evaluation fabric lane
 
