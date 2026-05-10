@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/proof-artifact.schema.json",
+  "title": "Trust-First Proof Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "claim",
+    "assumptions",
+    "policy_bundle",
+    "compiler_id",
+    "domains",
+    "budgets",
+    "inputs_hash",
+    "result",
+    "precision"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+$" },
+    "artifact_id": { "type": "string", "minLength": 4 },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "params"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "boundary_non_escape",
+            "ifc_no_flow",
+            "capability_confinement",
+            "usage_budget",
+            "kms_key_usage"
+          ]
+        },
+        "params": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "assumptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "event_integrity", "scope_integrity", "clock_model", "missing_evidence"],
+      "properties": {
+        "coverage": { "type": "array", "items": { "type": "string" } },
+        "event_integrity": { "type": "string", "enum": ["signed_append_only", "merkle_chain", "best_effort", "fixture"] },
+        "scope_integrity": { "type": "string" },
+        "clock_model": { "type": "string" },
+        "missing_evidence": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "policy_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash", "sig"],
+      "properties": {
+        "hash": { "type": "string" },
+        "sig": { "type": "string" },
+        "uri": { "type": "string" }
+      }
+    },
+    "compiler_id": { "type": "string" },
+    "domains": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["intervals", "octagon", "polyhedra", "nnc_polyhedra", "congruence", "sharing", "labels", "capabilities"] }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_iters", "max_time_ms", "max_branches"],
+      "properties": {
+        "max_iters": { "type": "integer", "minimum": 1 },
+        "max_time_ms": { "type": "integer", "minimum": 1 },
+        "max_branches": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "widen_schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": { "type": "number", "exclusiveMinimum": 1 },
+        "checkpoints": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+      }
+    },
+    "inputs_hash": { "type": "string" },
+    "result": { "type": "string", "enum": ["PROVED", "VIOLATION", "INCONCLUSIVE"] },
+    "invariant": { "type": "object", "additionalProperties": true },
+    "witness_or_counterexample": { "type": "object", "additionalProperties": true },
+    "precision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "delta"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["Exact", "Approx"] },
+        "delta": { "type": "number", "minimum": 0, "maximum": 1 },
+        "notes": { "type": "string" }
+      }
+    },
+    "telemetry": { "type": "object", "additionalProperties": true },
+    "signature": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}
