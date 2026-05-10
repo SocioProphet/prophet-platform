@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/event-ir.schema.json",
+  "title": "Trust-First Event-IR",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "kind", "ts", "actor", "scope", "attrs", "auth"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^0\\.[0-9]+$" },
+    "id": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "Policy.Pin",
+        "Policy.Publish",
+        "Policy.Update",
+        "Identity.Attest",
+        "Scope.Enter",
+        "Scope.Exit",
+        "KMS.Decrypt",
+        "KMS.Sign",
+        "KMS.Wrap",
+        "KMS.Unwrap",
+        "Token.Issue",
+        "Token.Consume",
+        "Data.Read",
+        "Data.Write",
+        "RPC.Send",
+        "RPC.Receive",
+        "Net.Send",
+        "Net.Receive",
+        "Declass.Allow",
+        "Audit.Mark"
+      ]
+    },
+    "ts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clock", "ns"],
+      "properties": {
+        "clock": { "type": "string", "enum": ["MONO", "WALL"] },
+        "ns": { "type": "integer", "minimum": 0 },
+        "skew_ns": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "actor": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "target": { "type": ["string", "null"] },
+    "attrs": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "sig": { "type": ["string", "null"] },
+        "attestation": { "type": ["string", "null"] },
+        "integrity": { "type": "string", "enum": ["signed_append_only", "merkle_chain", "best_effort", "fixture"] }
+      }
+    }
+  }
+}
