@@ -1,0 +1,16 @@
+name: scope-d-hardening-fixtures
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - hardening/scope-d-policy-void-fixtures
+
+jobs:
+  validate-scope-d-hardening-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate SCOPE-D hardening fixtures
+        run: python3 tools/validate_scope_d_hardening_fixtures.py
