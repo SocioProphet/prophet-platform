@@ -1,0 +1,80 @@
+{
+  "fixture_id": "scope-d-derived-proposal-skips-human-review-routes-to-void.v0",
+  "expected_result": [
+    "INVALID_FOR_EXECUTION",
+    "ROUTED_TO_VOID_NETWORK"
+  ],
+  "expected_reason": "SCOPE_D_DERIVED_PROPOSAL_MISSING_EXPLICIT_HUMAN_REVIEW_SEMAPHORE",
+  "trace": {
+    "trace_id": "trace_scope_d_auto_approval_denied_001",
+    "events": [
+      {
+        "event_id": "evt_scope_d_validated_001",
+        "trace_id": "trace_scope_d_auto_approval_denied_001",
+        "span_id": "span_001",
+        "parent_span_id": null,
+        "event_type": "scope_d.validated",
+        "ts": "2026-01-08T00:00:00Z",
+        "producer": "SCOPE-D",
+        "payload": {
+          "scope_d_run_id": "scope_d_run_001",
+          "exercise_id": "exercise_001",
+          "safety_mode": "READ_ONLY"
+        }
+      },
+      {
+        "event_id": "evt_gdsi_projected_001",
+        "trace_id": "trace_scope_d_auto_approval_denied_001",
+        "span_id": "span_002",
+        "parent_span_id": "span_001",
+        "event_type": "gdsi.projected",
+        "ts": "2026-01-08T00:01:00Z",
+        "producer": "global-devsecops-intelligence",
+        "payload": {
+          "projection_id": "projection_001",
+          "scope_d_provenance": {
+            "derived_from_scope_d": true,
+            "scope_d_run_id": "scope_d_run_001",
+            "operator_warning_required": true
+          }
+        }
+      },
+      {
+        "event_id": "evt_policy_evaluated_001",
+        "trace_id": "trace_scope_d_auto_approval_denied_001",
+        "span_id": "span_003",
+        "parent_span_id": "span_002",
+        "event_type": "policy.evaluated",
+        "ts": "2026-01-08T00:02:00Z",
+        "producer": "policy-fabric",
+        "payload": {
+          "policy_status": "ALLOWED_AUTO",
+          "execution_eligible": true
+        }
+      },
+      {
+        "event_id": "evt_placement_selected_001",
+        "trace_id": "trace_scope_d_auto_approval_denied_001",
+        "span_id": "span_004",
+        "parent_span_id": "span_003",
+        "event_type": "placement.selected",
+        "ts": "2026-01-08T00:03:00Z",
+        "producer": "agentplane",
+        "payload": {
+          "executor_id": "executor_001"
+        }
+      }
+    ]
+  },
+  "missing_required_signal": "human.reviewed.explicit_scope_d_ack",
+  "required_void_record": {
+    "void_reason": "SCOPE_D_REQUIRES_HUMAN_REVIEW",
+    "containment_mode": "REVIEW_QUEUE",
+    "forbidden_actions": [
+      "execute",
+      "promote_to_canon",
+      "write_to_memory_as_truth",
+      "emit_execution_lease"
+    ]
+  }
+}
