@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "semantic-projection.claim-record.v0.1",
+  "recordType": "ClaimRecord",
+  "claimId": "claim:invalid:promoted-missing-provenance",
+  "claimType": "interpretation",
+  "subjectIds": ["platform:prophet-platform"],
+  "predicate": "implements",
+  "objectIds": ["concept:projection"],
+  "statement": "Invalid promoted claim with no source lineage.",
+  "provenance": {
+    "sourceArtifactIds": [],
+    "derivationPath": ["invalid-fixture"],
+    "producerType": "agent",
+    "producerId": "assistant://fixture",
+    "transformationIds": []
+  },
+  "temporal": {
+    "createdAt": "2026-05-13T16:05:00-04:00",
+    "observedAt": null,
+    "validFrom": null,
+    "validUntil": null
+  },
+  "confidence": {
+    "score": 0.5,
+    "label": "moderate"
+  },
+  "promotion": {
+    "status": "promoted",
+    "validatorIds": [],
+    "reviewIds": []
+  },
+  "contradictions": {
+    "contradictionIds": []
+  },
+  "policy": {
+    "reuseScope": "groupoid",
+    "actionEligible": true
+  }
+}
