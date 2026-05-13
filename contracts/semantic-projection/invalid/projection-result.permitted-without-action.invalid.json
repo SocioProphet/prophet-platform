@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "semantic-projection.projection-result.v0.1",
+  "recordType": "ProjectionResult",
+  "requestId": "projection-request:demo:semantic-fibration",
+  "projectionId": "projection:invalid:permitted-without-action",
+  "createdAt": "2026-05-13T16:10:00-04:00",
+  "semanticStateSnapshotId": "semantic-state:demo",
+  "projectedSurfaceId": "knowledge-surface:invalid",
+  "visibleClaims": ["claim:semantic-projection:awareness-with-memory"],
+  "visibleEntities": ["platform:prophet-platform"],
+  "visibleRelationships": [],
+  "visibleEvidence": ["fixture://invalid"],
+  "contradictions": [],
+  "redactions": {
+    "count": 0,
+    "disclosureMode": "none",
+    "rationale": "No redactions."
+  },
+  "contradictionHandling": {
+    "knownContradictionCount": 0,
+    "mode": "none"
+  },
+  "explanation": {
+    "summary": "Invalid projection result.",
+    "policyBasis": ["trust-policy:provenance-required:v0"],
+    "provenanceBasis": ["fixture://invalid"]
+  },
+  "actionEligibility": {
+    "permitted": true,
+    "permittedActions": [],
+    "blockingReasons": []
+  },
+  "provenance": {
+    "sourceProjectionRequestId": "projection-request:demo:semantic-fibration",
+    "policyBundleIds": ["trust-policy:provenance-required:v0"],
+    "claimRecordRefs": ["claim:semantic-projection:awareness-with-memory"]
+  }
+}
