@@ -123,6 +123,6 @@ Expected downstream consumers:
 
 ## First implementation boundary
 
-This tranche is contract-only. It adds schemas, fixtures, invalid fixtures, validator, Makefile hook, and CI. It does not add runtime service code.
+This tranche is contract-only. It adds schemas, fixtures, invalid fixtures, validator, and CI. It does not add runtime service code.
 
 The next tranche should bind the projection result to a minimal API or semantic-bridge surface and require action eligibility before any agent operation consumes projected knowledge.
