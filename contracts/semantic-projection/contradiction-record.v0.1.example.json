@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "semantic-projection.contradiction-record.v0.1",
+  "recordType": "ContradictionRecord",
+  "contradictionId": "contradiction:semantic-fibration:runtime-boundary",
+  "contradictionType": "ontology_mismatch",
+  "claimIds": [
+    "claim:semantic-fibration:product-analogy",
+    "claim:semantic-projection:runtime-contract"
+  ],
+  "status": "open",
+  "explanation": "Product narrative may use fibration language, but runtime semantics are governed projection contracts.",
+  "detectedAt": "2026-05-13T16:04:00-04:00",
+  "policyHandling": {
+    "mode": "expose",
+    "rationale": "Implementation documents must preserve the boundary between narrative analogy and runtime contract."
+  }
+}
