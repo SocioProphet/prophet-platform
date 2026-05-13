@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/semantic-projection/contradiction-record.v0.1.schema.json",
+  "title": "Semantic Projection Contradiction Record v0.1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "contradictionId",
+    "contradictionType",
+    "claimIds",
+    "status",
+    "explanation",
+    "detectedAt",
+    "policyHandling"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "semantic-projection.contradiction-record.v0.1"},
+    "recordType": {"const": "ContradictionRecord"},
+    "contradictionId": {"type": "string"},
+    "contradictionType": {"enum": ["true_contradiction", "source_disagreement", "temporal_mismatch", "ontology_mismatch", "entity_resolution_ambiguity", "policy_conflict", "model_inconsistency", "unsupported_inference"]},
+    "claimIds": {"type": "array"},
+    "status": {"enum": ["open", "resolved", "waived", "deprecated"]},
+    "explanation": {"type": "string"},
+    "detectedAt": {"type": "string"},
+    "policyHandling": {"type": "object"}
+  }
+}
