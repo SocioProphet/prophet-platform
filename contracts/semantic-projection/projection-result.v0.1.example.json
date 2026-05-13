@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "semantic-projection.projection-result.v0.1",
+  "recordType": "ProjectionResult",
+  "requestId": "projection-request:demo:semantic-fibration",
+  "projectionId": "projection:demo:semantic-fibration:v0.1",
+  "createdAt": "2026-05-13T16:10:00-04:00",
+  "semanticStateSnapshotId": "semantic-state:prophet-platform:2026-05-13T16:00:00-04:00",
+  "projectedSurfaceId": "knowledge-surface:user-michael:semantic-projection-kernel",
+  "visibleClaims": ["claim:semantic-projection:awareness-with-memory"],
+  "visibleEntities": [
+    "platform:prophet-platform",
+    "concept:awareness-with-memory",
+    "concept:semantic-fibration"
+  ],
+  "visibleRelationships": ["relationship:prophet-platform:projects:knowledge-surface"],
+  "visibleEvidence": ["chat://semantic-fibration-draft", "docs/SEMANTIC_PROJECTION_KERNEL_V0.md"],
+  "contradictions": ["contradiction:semantic-fibration:runtime-boundary"],
+  "redactions": {
+    "count": 0,
+    "disclosureMode": "none",
+    "rationale": "No redaction required for this public contract fixture."
+  },
+  "contradictionHandling": {
+    "knownContradictionCount": 1,
+    "mode": "exposed"
+  },
+  "explanation": {
+    "summary": "The semantic fibration thesis is projected as an operational kernel for policy-bound, provenance-preserving user-relative knowledge surfaces.",
+    "policyBasis": ["trust-policy:provenance-required:v0"],
+    "provenanceBasis": ["chat://semantic-fibration-draft", "review:kernel-boundary:v0.1"]
+  },
+  "actionEligibility": {
+    "permitted": false,
+    "permittedActions": [],
+    "blockingReasons": ["contract fixture only; no runtime action requested"]
+  },
+  "provenance": {
+    "sourceProjectionRequestId": "projection-request:demo:semantic-fibration",
+    "policyBundleIds": ["authz:prophet-platform:architect", "trust-policy:provenance-required:v0"],
+    "claimRecordRefs": ["claim:semantic-projection:awareness-with-memory"]
+  }
+}
