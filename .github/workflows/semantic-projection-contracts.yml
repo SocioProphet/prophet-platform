@@ -1,0 +1,10 @@
+name: semantic-projection-contracts
+
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/validate_semantic_projection.py
