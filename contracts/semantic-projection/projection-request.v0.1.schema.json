@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/semantic-projection/projection-request.v0.1.schema.json",
+  "title": "Semantic Projection Request v0.1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "requestId",
+    "userId",
+    "intent",
+    "timeHorizon",
+    "policyContext",
+    "memoryScope",
+    "contradictionPolicy",
+    "actionContext",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "semantic-projection.projection-request.v0.1"},
+    "recordType": {"const": "ProjectionRequest"},
+    "requestId": {"type": "string"},
+    "userId": {"type": "string"},
+    "groupoidId": {"type": ["string", "null"]},
+    "taskId": {"type": ["string", "null"]},
+    "query": {"type": ["string", "null"]},
+    "intent": {"enum": ["answer", "explore", "decide", "audit", "act", "summarize"]},
+    "timeHorizon": {"type": "object"},
+    "policyContext": {"type": "object"},
+    "memoryScope": {"type": "object"},
+    "contradictionPolicy": {"type": "object"},
+    "actionContext": {"type": "object"},
+    "provenance": {"type": "object"}
+  }
+}
