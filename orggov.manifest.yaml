@@ -1,16 +1,20 @@
 # Organization Governance Control Plane manifest
 
 name: orggov-control-plane
-version: 0.1.0
+version: 0.1.1
 ownerRepo: SocioProphet/prophet-platform
 parentIssue: https://github.com/SocioProphet/prophet-platform/issues/406
 
 contractPaths:
   - contracts/orggov/orggov-control-plane.v0.1.schema.json
   - contracts/orggov/orggov-control-plane.v0.1.example.json
+  - contracts/orggov/orggov-readiness-rollup.v0.1.schema.json
+  - contracts/orggov/orggov-readiness-rollup.v0.1.example.json
 
 validation:
-  command: python3 tools/validate_orggov_contracts.py
+  commands:
+    - python3 tools/validate_orggov_contracts.py
+    - python3 tools/validate_orggov_readiness_rollup.py
 
 productLoop:
   - Objective
@@ -38,3 +42,9 @@ canonicalRepos:
   - SocioProphet/delivery-excellence
   - SocioProphet/sherlock-search
   - SourceOS-Linux/sourceos-syncd
+
+readiness:
+  firstPassStatus: complete
+  firstPassSliceCount: 11
+  rollupPath: contracts/orggov/orggov-readiness-rollup.v0.1.example.json
+  nextTranche: orggov-v0.2-runtime-demo
