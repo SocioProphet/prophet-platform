@@ -1,0 +1,69 @@
+{
+  "fixture_kind": "procybernetica_cybernetic_governance_evidence_adapter",
+  "fixture_version": "v0.1",
+  "publication_state": "public-synthetic",
+  "upstream_anchor": {
+    "procybernetica_issue": "SocioProphet/ProCybernetica#28",
+    "schema_bundle_issue": "SocioProphet/ProCybernetica#26",
+    "validator_issue": "SocioProphet/ProCybernetica#27"
+  },
+  "platform_record": {
+    "record_id": "platform-procybernetica-adapter-synthetic-001",
+    "record_kind": "runtime_eval_evidence_bridge",
+    "platform_owner": "SocioProphet/prophet-platform",
+    "runtime_claim": "none",
+    "private_telemetry_included": false
+  },
+  "procybernetica_references": [
+    {
+      "object_kind": "evidence_receipt",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/evidence_receipt.v1.json",
+      "object_ref": "receipt:platform:synthetic:001",
+      "platform_use": "runtime/eval evidence reference"
+    },
+    {
+      "object_kind": "monitor_alert",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/monitor_alert.v1.json",
+      "object_ref": "monitor-alert:platform:synthetic:001",
+      "platform_use": "monitor event reference"
+    },
+    {
+      "object_kind": "release_delta_report",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/release_delta_report.v1.json",
+      "object_ref": "release-delta:platform:synthetic:001",
+      "platform_use": "release/readiness delta evidence"
+    },
+    {
+      "object_kind": "cybernetic_safety_case",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/cybernetic_safety_case.v1.json",
+      "object_ref": "safety-case:platform:synthetic:001",
+      "platform_use": "assurance evidence package reference"
+    },
+    {
+      "object_kind": "authority_chain",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/authority_chain.v1.json",
+      "object_ref": "authority:platform:synthetic:001",
+      "platform_use": "governed runtime action authority reference"
+    },
+    {
+      "object_kind": "tool_permission_scope",
+      "schema_ref": "https://schemas.socioprophet.ai/cybernetic-governance/tool_permission_scope.v1.json",
+      "object_ref": "scope:platform:synthetic:001",
+      "platform_use": "runtime tool permission boundary reference"
+    }
+  ],
+  "adapter_rules": {
+    "do_not_fork_schema_names": true,
+    "platform_runtime_ownership_preserved": true,
+    "procybernetica_semantics_preserved": true,
+    "private_telemetry_requires_redaction_boundary": true,
+    "production_readiness_not_claimed_by_fixture": true
+  },
+  "non_claims": [
+    "This fixture does not represent live platform telemetry.",
+    "This fixture does not claim production readiness.",
+    "This fixture does not emit runtime evidence.",
+    "This fixture does not implement policy enforcement.",
+    "This fixture does not redefine ProCybernetica schemas."
+  ]
+}
