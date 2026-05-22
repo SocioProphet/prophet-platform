@@ -1,0 +1,33 @@
+name: Workspace Context
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/workspace-context/**'
+      - 'tools/validate_workspace_context_record.py'
+      - '.github/workflows/workspace-context.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'contracts/workspace-context/**'
+      - 'tools/validate_workspace_context_record.py'
+      - '.github/workflows/workspace-context.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-workspace-context:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Validate Workspace Context record
+        run: python3 tools/validate_workspace_context_record.py

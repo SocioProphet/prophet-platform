@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/workspace-context/workspace-context-record.v0.1.json",
+  "title": "WorkspaceContextRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "record_id", "created_at", "record_kind", "status", "workroom_ref", "workspace_object_ref", "platform_refs", "policy_refs", "evidence_refs"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "record_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "record_kind": { "type": "string" },
+    "status": { "type": "string" },
+    "workroom_ref": { "type": "string" },
+    "context_graph_ref": { "type": "string" },
+    "workspace_object_ref": { "type": "string" },
+    "platform_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_envelope_ref", "evidence_receipt_ref"],
+      "properties": {
+        "event_envelope_ref": { "type": "string" },
+        "evidence_receipt_ref": { "type": "string" },
+        "decision_ref": { "type": ["string", "null"] },
+        "platform_event_ref": { "type": ["string", "null"] }
+      }
+    },
+    "policy_refs": { "type": "array", "items": { "type": "string" } },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } }
+  }
+}
