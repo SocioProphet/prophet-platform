@@ -1,0 +1,26 @@
+{
+  "version": "0.1",
+  "record_id": "workspace-context-record-demo-0001",
+  "created_at": "2026-05-22T16:00:00Z",
+  "record_kind": "workspace_context_recorded",
+  "status": "recorded",
+  "workroom_ref": "workroom-demo-0001",
+  "context_graph_ref": "ctxgraph-demo-0001",
+  "workspace_object_ref": "ctxgraph-demo-0001",
+  "platform_refs": {
+    "event_envelope_ref": "event://workspace-context/demo-0001",
+    "evidence_receipt_ref": "evidence://workspace-context/demo-0001",
+    "decision_ref": null,
+    "platform_event_ref": null
+  },
+  "policy_refs": [
+    "policy-decision://policy-demo-ai-use/decision-0001"
+  ],
+  "evidence_refs": [
+    "evidence://workspace-context/demo-0001"
+  ],
+  "labels": {
+    "surface": "workspace-context",
+    "fixture": "public-synthetic"
+  }
+}
