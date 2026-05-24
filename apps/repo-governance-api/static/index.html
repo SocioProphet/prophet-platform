@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Prophet Platform Governance Replay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #0b1020;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      padding: 20px;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+    }
+    h1, h2, h3 {
+      margin: 0 0 10px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 20px;
+    }
+    .panel {
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 16px;
+      overflow: auto;
+      min-height: 300px;
+    }
+    .node {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #4b5563;
+    }
+    .observation { background: rgba(59,130,246,0.15); }
+    .finding { background: rgba(168,85,247,0.15); }
+    .policy_request { background: rgba(16,185,129,0.15); }
+    code {
+      background: #1f2937;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #0f172a;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .status {
+      margin-top: 8px;
+      color: #93c5fd;
+    }
+    .safety {
+      margin: 20px;
+      padding: 16px;
+      border: 1px solid #7c3aed;
+      border-radius: 12px;
+      background: rgba(124,58,237,0.15);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Prophet Platform Governance Replay</h1>
+    <div class="status" id="status">Loading local governance replay...</div>
+  </header>
+
+  <div class="safety">
+    <strong>Safety Boundary:</strong>
+    This MVP is advisory-only. No repository mutation, deployment authorization, infrastructure provisioning, or runtime action execution occurs.
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Lineage Graph</h2>
+      <div id="lineage"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Governance Readout</h2>
+      <pre id="readout">Loading...</pre>
+    </section>
+  </div>
+
+  <script>
+    async function fetchJson(path) {
+      const response = await fetch(path);
+      return await response.json();
+    }
+
+    async function load() {
+      try {
+        await fetch('/replay', { method: 'POST' });
+
+        const lineage = await fetchJson('/lineage');
+        const readout = await fetchJson('/readout');
+
+        document.getElementById('status').textContent = 'Governance replay complete. Advisory-only mode active.';
+
+        const lineageRoot = document.getElementById('lineage');
+
+        lineage.nodes.forEach(node => {
+          const div = document.createElement('div');
+          div.className = `node ${node.type}`;
+          div.innerHTML = `
+            <strong>${node.id}</strong><br />
+            Type: <code>${node.type}</code><br />
+            Repository: <code>${node.repository}</code><br />
+            Label: <code>${node.label}</code>
+          `;
+          lineageRoot.appendChild(div);
+        });
+
+        const edgeBlock = document.createElement('pre');
+        edgeBlock.textContent = JSON.stringify(lineage.edges, null, 2);
+        lineageRoot.appendChild(edgeBlock);
+
+        document.getElementById('readout').textContent = readout.readout_markdown;
+      } catch (err) {
+        document.getElementById('status').textContent = 'Replay failed: ' + err;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
