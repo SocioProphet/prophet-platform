@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/prophet-platform/contracts/repo-governance-policy-request.v0.schema.json",
+  "title": "Repo Governance Policy Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "finding_id",
+    "subject_repository",
+    "requested_decision",
+    "action_status",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "request_id": { "type": "string", "pattern": "^policy-request:[A-Za-z0-9._/-]+$" },
+    "finding_id": { "type": "string", "pattern": "^finding:[A-Za-z0-9._/-]+$" },
+    "subject_repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "requested_decision": { "enum": ["review", "allow", "deny"] },
+    "action_status": { "const": "policy_request_ready" },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}
