@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/prophet-platform/contracts/repo-governance-finding.v0.schema.json",
+  "title": "Repo Governance Finding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "finding_id",
+    "rule_id",
+    "subject_repository",
+    "kind",
+    "severity",
+    "antecedent_observations",
+    "blockers",
+    "policy_decision_required",
+    "action_status",
+    "reason"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "finding_id": { "type": "string", "pattern": "^finding:[A-Za-z0-9._/-]+$" },
+    "rule_id": { "type": "string", "pattern": "^repo-governance\\.[A-Za-z0-9._-]+$" },
+    "subject_repository": { "type": "string", "pattern": "^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|watson-cyc-semantic-web-chronos-v1)$" },
+    "kind": {
+      "enum": [
+        "promotion-ready",
+        "missing-surface",
+        "policy-review-required",
+        "blocked-non-actionable",
+        "stale-pin"
+      ]
+    },
+    "severity": { "enum": ["info", "warn", "review"] },
+    "antecedent_observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^obs:[A-Za-z0-9._/-]+$" }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "policy_decision_required": { "type": "boolean" },
+    "action_status": {
+      "enum": [
+        "advisory_only",
+        "policy_request_ready",
+        "blocked"
+      ]
+    },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}
