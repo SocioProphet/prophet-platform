@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/prophet-platform/contracts/repo-governance-observation.v0.schema.json",
+  "title": "Repo Governance Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observation_id",
+    "subject_repository",
+    "surface",
+    "predicate",
+    "value",
+    "source_path",
+    "source_blob_sha",
+    "parser_id",
+    "extraction_method",
+    "confidence",
+    "temporal_validity",
+    "evidence_digest"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "observation_id": { "type": "string", "pattern": "^obs:[A-Za-z0-9._/-]+$" },
+    "subject_repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "surface": {
+      "enum": [
+        "spine_registry",
+        "manifest_overlay",
+        "canonical_sources",
+        "boundaries",
+        "topology",
+        "corpus_loop_pin"
+      ]
+    },
+    "predicate": {
+      "enum": [
+        "declares_repo",
+        "declares_role",
+        "declares_boundary",
+        "declares_namespace",
+        "mentions_repo",
+        "pins_source"
+      ]
+    },
+    "value": { "type": ["string", "boolean"] },
+    "source_path": { "type": "string", "minLength": 1 },
+    "source_blob_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "parser_id": { "type": "string", "minLength": 1 },
+    "extraction_method": { "type": "string", "minLength": 1 },
+    "source_span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_line", "end_line"],
+      "properties": {
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "confidence": { "enum": ["exact", "derived", "heuristic"] },
+    "temporal_validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid_at", "valid_until"],
+      "properties": {
+        "valid_at": { "type": "string", "format": "date-time" },
+        "valid_until": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "evidence_digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}
