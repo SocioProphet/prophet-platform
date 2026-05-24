@@ -39,7 +39,7 @@ def main() -> int:
                 "severity": "info",
                 "antecedent_observations": observation_ids,
                 "blockers": [],
-                "policy_decision_required": true,
+                "policy_decision_required": True,
                 "action_status": "policy_request_ready",
                 "reason": "promotion candidate has complete governance surface coverage"
             })
@@ -64,7 +64,7 @@ def main() -> int:
                 "severity": "review",
                 "antecedent_observations": observation_ids,
                 "blockers": [],
-                "policy_decision_required": true,
+                "policy_decision_required": True,
                 "action_status": "advisory_only",
                 "reason": "corpus loop pins require explicit governance review before refresh"
             })
