@@ -186,4 +186,21 @@ validate-office-runtime-contracts:
 
 .PHONY: fogstack-local-demo
 fogstack-local-demo:
-	python3 tools/run_fogstack_local_demo.py --pack all --output build/fogstack-local-demo
+	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
+	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
+
+.PHONY: fogstack-local-demo-serve
+fogstack-local-demo-serve: fogstack-local-demo
+	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
+
+.PHONY: fogstack-local-demo-deploy-plan
+fogstack-local-demo-deploy-plan:
+	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
+
+.PHONY: fogstack-local-demo-full
+fogstack-local-demo-full:
+	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
+
+.PHONY: fogstack-parity-readiness
+fogstack-parity-readiness:
+	python3 tools/run_fogstack_parity_readiness.py --summary
