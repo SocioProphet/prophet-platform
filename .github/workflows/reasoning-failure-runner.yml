@@ -1,0 +1,33 @@
+name: reasoning-failure-runner
+
+on:
+  pull_request:
+    paths:
+      - "apps/reasoning-failure-runner/**"
+      - "tools/validate_reasoning_failure_receipt.py"
+      - "tools/smoke_reasoning_failure_runner.py"
+      - "docs/REASONING_FAILURE_RUNNER.md"
+      - ".github/workflows/reasoning-failure-runner.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/reasoning-failure-runner/**"
+      - "tools/validate_reasoning_failure_receipt.py"
+      - "tools/smoke_reasoning_failure_runner.py"
+      - "docs/REASONING_FAILURE_RUNNER.md"
+      - ".github/workflows/reasoning-failure-runner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run reasoning-failure receipt smoke
+        run: python3 tools/smoke_reasoning_failure_runner.py
