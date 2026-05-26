@@ -1,0 +1,32 @@
+{
+  "manifestId": "manifest://trustops/art-smoke/claims-extractor-001",
+  "receiptId": "trustops.art-smoke.claims-extractor-001",
+  "subject": {
+    "kind": "functional-service",
+    "id": "claims-extractor",
+    "ownerRepository": "SocioProphet/prophet-platform",
+    "versionRef": "git:synthetic-art-smoke",
+    "functionalServiceRef": "functional-service://demo/claims-extractor"
+  },
+  "datasetRefs": ["dataset://synthetic/art-smoke/claims-extractor"],
+  "modelRefs": ["model://synthetic/demo-classifier"],
+  "policyRefs": ["policy://trustops/art-smoke-v0.1"],
+  "dataBoundary": "synthetic",
+  "gateRef": "gate://trustops/art-smoke/robustness",
+  "metrics": [
+    {
+      "name": "synthetic_evasion_success_rate",
+      "value": 0.0,
+      "threshold": 0.1,
+      "direction": "at-or-below",
+      "status": "pass",
+      "sliceRef": "slice://synthetic/default"
+    }
+  ],
+  "evidenceArtifactRefs": ["evidence://trustops/art-smoke/claims-extractor/metrics-001"],
+  "factsheetRefs": ["factsheet://trustops/art-smoke/claims-extractor/001"],
+  "residualRisk": "low",
+  "recommendedMitigations": [],
+  "runnerCodeDigest": "sha256:synthetic-art-smoke-runner",
+  "sourceCommit": "synthetic"
+}
