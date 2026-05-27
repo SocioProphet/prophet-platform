@@ -1,0 +1,12 @@
+{
+  "caseId": "reasoning-failure-case:exact-string-001",
+  "caseType": "exact-string",
+  "description": "Synthetic exact-string case requiring filename preservation.",
+  "prompt": "Return the exact filename alpha-beta_report_v2.csv and nothing else.",
+  "expected": {
+    "exactString": "alpha-beta_report_v2.csv"
+  },
+  "candidateOutput": "alpha_beta_report_v2.csv",
+  "evidenceRefs": ["evidence://reasoning-failure/exact-string-001/prompt"],
+  "dataBoundary": "synthetic"
+}

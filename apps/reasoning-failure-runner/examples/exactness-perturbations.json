@@ -1,0 +1,16 @@
+{
+  "suiteId": "perturbation-suite:exactness-001",
+  "suiteType": "exactness",
+  "perturbations": [
+    {
+      "perturbationId": "perturbation:separator-swap",
+      "description": "Hyphen changed to underscore.",
+      "invariant": "exactString"
+    },
+    {
+      "perturbationId": "perturbation:extension-drop",
+      "description": "File extension removed.",
+      "invariant": "exactString"
+    }
+  ]
+}
