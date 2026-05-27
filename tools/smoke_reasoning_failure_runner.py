@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,7 +17,9 @@ VALIDATOR = ROOT / "tools" / "validate_reasoning_failure_receipt.py"
 
 
 def run(cmd: list[str]) -> None:
-    result = subprocess.run(cmd, cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(RUNNER_SRC)
+    result = subprocess.run(cmd, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if result.returncode != 0:
         if result.stdout:
             print(result.stdout, file=sys.stdout)
@@ -49,5 +52,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.path.insert(0, str(RUNNER_SRC))
     raise SystemExit(main())
