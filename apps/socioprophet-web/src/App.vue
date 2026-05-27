@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
 
 const status = ref<'idle'|'ok'|'err'>('idle')
 const pong = ref('')
@@ -39,5 +40,7 @@ onMounted(check)
         <code>{{ pong.trim() }}</code>
       </div>
     </section>
+
+    <ChronosEvidenceLoopCard />
   </main>
 </template>
