@@ -1,0 +1,52 @@
+name: prometheus-sindy-run-artifact-emission
+
+on:
+  pull_request:
+    paths:
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/sindy-fast-path-linear.csv"
+      - ".github/workflows/prometheus-sindy-run-artifact-emission.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/sindy-fast-path-linear.csv"
+      - ".github/workflows/prometheus-sindy-run-artifact-emission.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-sindy-run-artifact-emission:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Emit SINDy candidate and run artifact
+        run: |
+          mkdir -p build/prometheus/sindy-run-artifact
+          python3 tools/prometheus_sindy_fast_path.py \
+            --data tests/fixtures/prometheus/sindy-fast-path-linear.csv \
+            --time-column t \
+            --value-column q \
+            --dataset-uri urn:dataset:prometheus:sindy-fast-path-linear \
+            --generated-at 2026-05-27T20:00:00Z \
+            --output build/prometheus/sindy-run-artifact/platform-dynamics-candidate.json
+          python3 tools/prometheus_emit_sr_run_artifact.py \
+            --candidate build/prometheus/sindy-run-artifact/platform-dynamics-candidate.json \
+            --run-id urn:prometheus:sr-run:sindy-fast-path-linear:001 \
+            --chronos-carrier-id urn:chronos:carrier:prometheus:sindy-fast-path-linear \
+            --issued-at 2026-05-27T20:00:01Z \
+            --output build/prometheus/sindy-run-artifact/sr-run-artifact.json
+      - name: Validate SINDy run artifact
+        run: |
+          python3 tools/validate_prometheus_sr_run_artifact.py \
+            build/prometheus/sindy-run-artifact/sr-run-artifact.json
