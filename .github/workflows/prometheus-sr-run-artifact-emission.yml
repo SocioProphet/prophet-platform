@@ -1,0 +1,59 @@
+name: prometheus-sr-run-artifact-emission
+
+on:
+  pull_request:
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_SR_RUN_ARTIFACT_EMISSION.md"
+      - ".github/workflows/prometheus-sr-run-artifact-emission.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_SR_RUN_ARTIFACT_EMISSION.md"
+      - ".github/workflows/prometheus-sr-run-artifact-emission.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-sr-run-artifact-emission:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Emit candidate and run artifact
+        run: |
+          mkdir -p build/prometheus/sr-run-artifact
+          python3 tools/prometheus_pysr_mvp.py \
+            --engine mvp_linear_fallback \
+            --data tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --target y \
+            --dataset-uri urn:dataset:prometheus:pysr-mvp-linear \
+            --target-unit meter \
+            --feature-unit x=meter \
+            --generated-at 2026-05-27T19:00:00Z \
+            --output build/prometheus/sr-run-artifact/equation-candidate.json
+          python3 tools/prometheus_emit_sr_run_artifact.py \
+            --candidate build/prometheus/sr-run-artifact/equation-candidate.json \
+            --run-id urn:prometheus:sr-run:pysr-mvp-linear:001 \
+            --chronos-carrier-id urn:chronos:carrier:prometheus:pysr-mvp-linear \
+            --random-seed 42 \
+            --issued-at 2026-05-27T19:00:01Z \
+            --output build/prometheus/sr-run-artifact/sr-run-artifact.json
+      - name: Validate run artifact
+        run: |
+          python3 tools/validate_prometheus_sr_run_artifact.py \
+            build/prometheus/sr-run-artifact/sr-run-artifact.json
