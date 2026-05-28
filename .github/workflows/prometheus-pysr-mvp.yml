@@ -30,6 +30,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
       - name: Run MVP candidate emission
         run: |
           mkdir -p build/prometheus/pysr-mvp
