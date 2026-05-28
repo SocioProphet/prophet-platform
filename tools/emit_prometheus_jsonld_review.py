@@ -15,6 +15,12 @@ UNITS_RESOURCE = {
     "unknown": "sr:UnitsUnknown",
     "unchecked": "sr:UnitsUnchecked",
 }
+GATE_POLICY = {
+    "minimumDatasetSize": 4,
+    "nmseCeiling": 0.001,
+    "complexityCeiling": 10,
+    "requiredUnitsStatus": "consistent",
+}
 
 
 def now_utc() -> str:
@@ -35,13 +41,59 @@ def find_candidate_ref(run_artifact: dict[str, Any], candidate_id: str) -> dict[
     raise ValueError("run artifact does not reference candidateId")
 
 
+def validate_gate_evaluation(gate: dict[str, Any], candidate_ref: dict[str, Any]) -> None:
+    required = [
+        "candidateId",
+        "datasetSize",
+        "nmse",
+        "complexity",
+        "unitsStatus",
+        "replayHashVerified",
+        "chronosGovernanceFlags",
+        "requestedReviewSurface",
+        "finalAdmissionRequested",
+    ]
+    missing = [field for field in required if field not in gate]
+    if missing:
+        raise ValueError(f"gate evaluation missing fields: {missing}")
+    if gate["candidateId"] != candidate_ref["candidateId"]:
+        raise ValueError("gate evaluation candidateId mismatch")
+    if gate["datasetSize"] < GATE_POLICY["minimumDatasetSize"]:
+        raise ValueError("gate evaluation datasetSize below threshold")
+    if gate["nmse"] > GATE_POLICY["nmseCeiling"]:
+        raise ValueError("gate evaluation nmse above threshold")
+    if gate["complexity"] > GATE_POLICY["complexityCeiling"]:
+        raise ValueError("gate evaluation complexity above threshold")
+    if gate["unitsStatus"] != GATE_POLICY["requiredUnitsStatus"]:
+        raise ValueError("gate evaluation unitsStatus is not consistent")
+    if gate["replayHashVerified"] is not True:
+        raise ValueError("gate evaluation requires verified replay hash")
+    if gate["chronosGovernanceFlags"]:
+        raise ValueError("gate evaluation contains CHRONOS governance flags")
+    if gate["requestedReviewSurface"] != "automated_shacl_gate":
+        raise ValueError("gate evaluation does not target automated_shacl_gate")
+    if gate["finalAdmissionRequested"] is True:
+        raise ValueError("automated gate cannot request final admission")
+
+
+def require_gate_if_needed(candidate_ref: dict[str, Any], args: argparse.Namespace) -> dict[str, Any] | None:
+    if args.review_surface != "automated_shacl_gate":
+        return None
+    if not args.gate_evaluation:
+        raise ValueError("automated_shacl_gate requires --gate-evaluation")
+    gate = load_json(Path(args.gate_evaluation))
+    validate_gate_evaluation(gate, candidate_ref)
+    return gate
+
+
 def build_jsonld(candidate: dict[str, Any], run_artifact: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     candidate_ref = find_candidate_ref(run_artifact, candidate["candidateId"])
     units_status = candidate_ref["unitsStatus"]
+    gate = require_gate_if_needed(candidate_ref, args)
     promotion_state = "sr:ProposalCandidate" if units_status == "inconsistent" else "sr:ProposalProposed"
     state = "sr:AdmissionBlocked" if units_status == "inconsistent" else "sr:AdmissionPendingReview"
     dataset_ref = run_artifact["datasetRef"]
-    return {
+    document = {
         "@context": {
             "sr": SR,
             "prov": "http://www.w3.org/ns/prov#",
@@ -97,6 +149,13 @@ def build_jsonld(candidate: dict[str, Any], run_artifact: dict[str, Any], args: 
         "sr:hasEquation": candidate_ref["equationLatex"],
         "prov:generatedAtTime": args.issued_at or now_utc()
     }
+    if gate is not None:
+        document["sr:hasAutomatedGateEvaluation"] = {
+            "@id": gate["evaluationId"],
+            "sr:policyId": gate.get("policyId"),
+            "sr:decisionBoundary": "eligibility_only"
+        }
+    return document
 
 
 def main() -> int:
@@ -104,7 +163,8 @@ def main() -> int:
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--run-artifact", required=True)
     parser.add_argument("--review-id", required=True)
-    parser.add_argument("--review-surface", default="automated_shacl_gate")
+    parser.add_argument("--review-surface", default="cli")
+    parser.add_argument("--gate-evaluation")
     parser.add_argument("--issued-at")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
