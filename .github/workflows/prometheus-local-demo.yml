@@ -1,0 +1,51 @@
+name: prometheus-local-demo
+
+on:
+  pull_request:
+    paths:
+      - "tools/run_prometheus_local_demo.py"
+      - "tools/validate_prometheus_local_demo.py"
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_LOCAL_DEMO.md"
+      - ".github/workflows/prometheus-local-demo.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/run_prometheus_local_demo.py"
+      - "tools/validate_prometheus_local_demo.py"
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/prometheus_emit_sr_run_artifact.py"
+      - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_LOCAL_DEMO.md"
+      - ".github/workflows/prometheus-local-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-local-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Run local PROMETHEUS demo
+        run: |
+          python3 tools/run_prometheus_local_demo.py \
+            --output-dir build/prometheus/local-demo \
+            --issued-at 2026-05-27T21:00:00Z
+      - name: Validate local PROMETHEUS demo manifest
+        run: |
+          python3 tools/validate_prometheus_local_demo.py \
+            build/prometheus/local-demo/manifest.json
