@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "request_id": "svf:validate-change-request:scope-d-example",
+  "status": "selected",
+  "repo": "SocioProphet/SCOPE-D",
+  "selected_plans": [
+    {
+      "plan_id": "svf:plan:scope-d.defensive-assurance-basic",
+      "profile_id": "svf:profile:scope-d.defensive-assurance",
+      "mode": "advisory",
+      "validation_command": "npm run validate:svf",
+      "selected_by": "changed_path_selector",
+      "matched_paths": [
+        "svf/scope-d-defensive-assurance-basic.json",
+        "scripts/validate-svf-contracts.js"
+      ]
+    }
+  ],
+  "required_observations": [
+    "npm run validate:svf"
+  ],
+  "warnings": [
+    {
+      "code": "validation_observation_missing",
+      "message": "No observed validation result is attached to this fixture."
+    }
+  ],
+  "non_claims": [
+    "Selection does not execute validation actions.",
+    "Selection does not certify that a receipt exists or verifies.",
+    "Selection does not grant agent autonomy."
+  ]
+}
