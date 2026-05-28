@@ -1,0 +1,39 @@
+{
+  "schema_version": "prophet-platform.integration-consumption/v0.1",
+  "integration_id": "tritfabric-consumption-v0",
+  "upstreams": {
+    "implementation": "SocioProphet/tritfabric",
+    "estate_registration": "SocioProphet/sociosphere",
+    "vocabulary": "SocioProphet/ontogenesis"
+  },
+  "surfaces": [
+    {
+      "id": "community-learning-intake",
+      "mode": "product-navigation-and-review",
+      "required_gates": ["consent", "license", "lineage", "rubric", "manual-review-before-promotion"]
+    },
+    {
+      "id": "network-atlas-framework-catalog",
+      "mode": "catalog-navigation",
+      "required_gates": ["claim-boundary-visible", "adapter-status-visible", "license-status-visible"]
+    },
+    {
+      "id": "model-card-promotion-evidence",
+      "mode": "evidence-display",
+      "required_fields": ["mathType", "calcOps", "ledgerRef", "artifactRef", "tritStatus"]
+    },
+    {
+      "id": "serve-readiness",
+      "mode": "readiness-reporting",
+      "required_gates": ["readiness-vs-runtime-label", "rollback-evidence-before-active-loop"]
+    }
+  ],
+  "authority_boundaries": {
+    "prophet_platform": "consumer",
+    "tritfabric": "implementation-and-contract-owner",
+    "ontogenesis": "vocabulary-and-shacl-owner",
+    "sociosphere": "estate-registration-owner"
+  },
+  "non_claims": ["runtime-implementation", "event-ingestion", "workflow-execution", "adapter-validation", "serve-deployment"],
+  "claim_boundary": "Contract registration only. Prophet Platform may consume governed TritFabric surfaces, but this contract does not implement runtime behavior."
+}
