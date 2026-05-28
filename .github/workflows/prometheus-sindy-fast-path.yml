@@ -1,0 +1,46 @@
+name: prometheus-sindy-fast-path
+
+on:
+  pull_request:
+    paths:
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/validate_prometheus_sindy_candidate.py"
+      - "tests/fixtures/prometheus/sindy-fast-path-linear.csv"
+      - "docs/PROMETHEUS_SINDY_FAST_PATH.md"
+      - ".github/workflows/prometheus-sindy-fast-path.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/prometheus_sindy_fast_path.py"
+      - "tools/validate_prometheus_sindy_candidate.py"
+      - "tests/fixtures/prometheus/sindy-fast-path-linear.csv"
+      - "docs/PROMETHEUS_SINDY_FAST_PATH.md"
+      - ".github/workflows/prometheus-sindy-fast-path.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-sindy-fast-path:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Emit platform dynamics candidate
+        run: |
+          mkdir -p build/prometheus/sindy-fast-path
+          python3 tools/prometheus_sindy_fast_path.py \
+            --data tests/fixtures/prometheus/sindy-fast-path-linear.csv \
+            --time-column t \
+            --value-column q \
+            --dataset-uri urn:dataset:prometheus:sindy-fast-path-linear \
+            --generated-at 2026-05-27T19:30:00Z \
+            --output build/prometheus/sindy-fast-path/platform-dynamics-candidate.json
+      - name: Validate non-authoritative platform dynamics candidate
+        run: |
+          python3 tools/validate_prometheus_sindy_candidate.py \
+            build/prometheus/sindy-fast-path/platform-dynamics-candidate.json
