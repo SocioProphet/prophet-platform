@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "request_id": "svf:validate-change-request:scope-d-example",
+  "repo": "SocioProphet/SCOPE-D",
+  "ref": "feature/svf-contract-example",
+  "changed_paths": [
+    "svf/scope-d-defensive-assurance-basic.json",
+    "scripts/validate-svf-contracts.js"
+  ],
+  "diff_digest": {
+    "algorithm": "sha256",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "actor": {
+    "actor_class": "coding_agent",
+    "actor_id": "agent://prophet-platform/example"
+  },
+  "validation_depth": "advisory",
+  "non_claims": [
+    "Request fixture does not execute validation actions.",
+    "Request fixture does not certify change readiness."
+  ]
+}
