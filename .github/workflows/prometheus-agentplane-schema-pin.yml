@@ -1,0 +1,50 @@
+name: prometheus-agentplane-schema-pin
+
+on:
+  pull_request:
+    paths:
+      - "schemas/agentplane/symbolic-regression/**"
+      - "tools/validate_prometheus_agentplane_schema_pin.py"
+      - "tools/run_prometheus_local_demo.py"
+      - "tools/validate_prometheus_local_demo.py"
+      - "docs/PROMETHEUS_AGENTPLANE_SCHEMA_PIN.md"
+      - ".github/workflows/prometheus-agentplane-schema-pin.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "schemas/agentplane/symbolic-regression/**"
+      - "tools/validate_prometheus_agentplane_schema_pin.py"
+      - "tools/run_prometheus_local_demo.py"
+      - "tools/validate_prometheus_local_demo.py"
+      - "docs/PROMETHEUS_AGENTPLANE_SCHEMA_PIN.md"
+      - ".github/workflows/prometheus-agentplane-schema-pin.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-agentplane-schema-pin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Generate local demo artifacts
+        run: |
+          python3 tools/run_prometheus_local_demo.py \
+            --output-dir build/prometheus/schema-pin-demo \
+            --issued-at 2026-05-27T21:30:00Z
+      - name: Validate local demo manifest
+        run: |
+          python3 tools/validate_prometheus_local_demo.py \
+            build/prometheus/schema-pin-demo/manifest.json
+      - name: Validate AgentPlane schema pin
+        run: |
+          python3 tools/validate_prometheus_agentplane_schema_pin.py \
+            --repo-root . \
+            --manifest build/prometheus/schema-pin-demo/manifest.json
