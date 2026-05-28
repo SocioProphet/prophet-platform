@@ -18,6 +18,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 
 ```bash
 make validate
+make validate-svf-agent-contract
 make smoke-health
 ```
 
@@ -27,8 +28,27 @@ make smoke-health
 2. `docs/TRITRPC_SPEC.md`
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
 4. `docs/PLATFORM_EVAL_FABRIC.md`
-5. `contracts/`
-6. `infra/k8s/`
+5. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
+6. `contracts/`
+7. `infra/k8s/`
+
+## Sovereign Validation Fabric agent contract
+
+Prophet Platform owns the agent-facing `validate_change` contract for Sovereign Validation Fabric. The first tranche is read-only and selection-oriented: it validates request, selected-plan response, and PR-readiness summary fixtures without executing Actions, issuing receipts, or granting agent autonomy.
+
+Relevant files:
+
+- `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
+- `contracts/svf/validate-change-request.example.json`
+- `contracts/svf/validate-change-response.example.json`
+- `contracts/svf/pr-readiness-summary.example.json`
+- `tools/validate_svf_agent_contract.py`
+
+Validate locally:
+
+```bash
+make validate-svf-agent-contract
+```
 
 ## Evaluation fabric lane
 
