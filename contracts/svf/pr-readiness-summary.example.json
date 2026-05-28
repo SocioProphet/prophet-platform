@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "summary_id": "svf:pr-readiness-summary:scope-d-example",
+  "repo": "SocioProphet/SCOPE-D",
+  "ref": "feature/svf-contract-example",
+  "status": "not_ready",
+  "selected_plans": [
+    "svf:plan:scope-d.defensive-assurance-basic"
+  ],
+  "blocking_findings": [],
+  "advisory_findings": [
+    {
+      "code": "validation_observation_missing",
+      "plan_id": "svf:plan:scope-d.defensive-assurance-basic",
+      "required_observation": "npm run validate:svf",
+      "message": "The applicable advisory SVF plan was selected, but no observed validation result or receipt reference is attached."
+    }
+  ],
+  "receipt_refs": [],
+  "ready_claims": [],
+  "non_claims": [
+    "This fixture does not certify PR readiness.",
+    "This fixture does not certify validation success.",
+    "This fixture does not execute validation actions."
+  ]
+}
