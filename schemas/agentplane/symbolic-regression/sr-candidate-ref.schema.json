@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/agentplane/sr-candidate-ref/v0.1.0",
+  "title": "SRCandidateRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidateId",
+    "equationLatex",
+    "nmse",
+    "complexity",
+    "unitsStatus",
+    "promotionState"
+  ],
+  "properties": {
+    "candidateId": {
+      "type": "string",
+      "format": "uri"
+    },
+    "equationLatex": {
+      "type": "string"
+    },
+    "nmse": {
+      "type": "number",
+      "minimum": 0
+    },
+    "complexity": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unitsStatus": {
+      "type": "string",
+      "enum": [
+        "consistent",
+        "inconsistent",
+        "unknown",
+        "unchecked"
+      ]
+    },
+    "promotionState": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "proposed",
+        "admitted",
+        "rejected"
+      ]
+    }
+  },
+  "if": {
+    "properties": {
+      "unitsStatus": {
+        "const": "inconsistent"
+      }
+    },
+    "required": [
+      "unitsStatus"
+    ]
+  },
+  "then": {
+    "properties": {
+      "promotionState": {
+        "enum": [
+          "candidate",
+          "rejected"
+        ]
+      }
+    },
+    "required": [
+      "promotionState"
+    ]
+  }
+}
