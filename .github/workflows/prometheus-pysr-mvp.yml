@@ -1,0 +1,50 @@
+name: prometheus-pysr-mvp
+
+on:
+  pull_request:
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/validate_prometheus_pysr_mvp_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_PYSR_MVP.md"
+      - ".github/workflows/prometheus-pysr-mvp.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/validate_prometheus_pysr_mvp_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_PYSR_MVP.md"
+      - ".github/workflows/prometheus-pysr-mvp.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-pysr-mvp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Run MVP candidate emission
+        run: |
+          mkdir -p build/prometheus/pysr-mvp
+          python3 tools/prometheus_pysr_mvp.py \
+            --data tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --target y \
+            --dataset-uri urn:dataset:prometheus:pysr-mvp-linear \
+            --target-unit meter \
+            --feature-unit x=meter \
+            --generated-at 2026-05-27T18:30:00Z \
+            --output build/prometheus/pysr-mvp/equation-candidate.json
+      - name: Validate emitted artifact
+        run: |
+          python3 tools/validate_prometheus_pysr_mvp_artifact.py \
+            build/prometheus/pysr-mvp/equation-candidate.json \
+            --expect-units consistent
