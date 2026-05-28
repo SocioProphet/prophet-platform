@@ -1,0 +1,75 @@
+name: prometheus-optional-pysr
+
+on:
+  pull_request:
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/validate_prometheus_pysr_mvp_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_OPTIONAL_PYSR.md"
+      - ".github/workflows/prometheus-optional-pysr.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/prometheus_pysr_mvp.py"
+      - "tools/validate_prometheus_pysr_mvp_artifact.py"
+      - "tests/fixtures/prometheus/**"
+      - "docs/PROMETHEUS_OPTIONAL_PYSR.md"
+      - ".github/workflows/prometheus-optional-pysr.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-optional-pysr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Validate fallback engine still emits candidate
+        run: |
+          mkdir -p build/prometheus/optional-pysr
+          python3 tools/prometheus_pysr_mvp.py \
+            --engine mvp_linear_fallback \
+            --data tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --target y \
+            --dataset-uri urn:dataset:prometheus:pysr-mvp-linear \
+            --target-unit meter \
+            --feature-unit x=meter \
+            --generated-at 2026-05-27T18:45:00Z \
+            --output build/prometheus/optional-pysr/fallback-candidate.json
+          python3 tools/validate_prometheus_pysr_mvp_artifact.py \
+            build/prometheus/optional-pysr/fallback-candidate.json \
+            --expect-units consistent
+      - name: Validate optional PySR fails closed when unavailable
+        run: |
+          ! python3 tools/prometheus_pysr_mvp.py \
+            --engine optional_pysr \
+            --data tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --target y \
+            --dataset-uri urn:dataset:prometheus:pysr-mvp-linear \
+            --target-unit meter \
+            --feature-unit x=meter \
+            --generated-at 2026-05-27T18:45:00Z \
+            --output build/prometheus/optional-pysr/should-not-exist.json
+      - name: Validate explicit fallback from optional PySR
+        run: |
+          python3 tools/prometheus_pysr_mvp.py \
+            --engine optional_pysr \
+            --allow-fallback \
+            --data tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --target y \
+            --dataset-uri urn:dataset:prometheus:pysr-mvp-linear \
+            --target-unit meter \
+            --feature-unit x=meter \
+            --generated-at 2026-05-27T18:45:00Z \
+            --output build/prometheus/optional-pysr/explicit-fallback-candidate.json
+          python3 tools/validate_prometheus_pysr_mvp_artifact.py \
+            build/prometheus/optional-pysr/explicit-fallback-candidate.json \
+            --expect-units consistent
