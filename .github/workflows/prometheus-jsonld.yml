@@ -1,0 +1,52 @@
+name: prometheus-jsonld
+
+on:
+  pull_request:
+    paths:
+      - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_review.py"
+      - "tools/run_prometheus_local_demo.py"
+      - "docs/PROMETHEUS_JSONLD_REVIEW.md"
+      - ".github/workflows/prometheus-jsonld.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_review.py"
+      - "tools/run_prometheus_local_demo.py"
+      - "docs/PROMETHEUS_JSONLD_REVIEW.md"
+      - ".github/workflows/prometheus-jsonld.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-jsonld:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install units dependency
+        run: python3 -m pip install sympy
+      - name: Generate PROMETHEUS local demo artifacts
+        run: |
+          python3 tools/run_prometheus_local_demo.py \
+            --output-dir build/prometheus/jsonld \
+            --issued-at 2026-05-27T22:30:00Z
+      - name: Emit JSON-LD artifact
+        run: |
+          python3 tools/emit_prometheus_jsonld_review.py \
+            --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
+            --run-artifact build/prometheus/jsonld/pysr/sr-run-artifact.json \
+            --review-id urn:prometheus:jsonld:pysr-local-demo:001 \
+            --review-surface automated_shacl_gate \
+            --issued-at 2026-05-27T22:31:00Z \
+            --output build/prometheus/jsonld/pysr/sr.jsonld
+      - name: Validate JSON-LD artifact
+        run: |
+          python3 tools/validate_prometheus_jsonld_review.py \
+            build/prometheus/jsonld/pysr/sr.jsonld
