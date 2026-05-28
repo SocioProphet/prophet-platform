@@ -18,6 +18,7 @@ HASH_FIELDS = [
     "runtimeEnvironment.packages",
     "candidateRefs[*].equationLatex",
 ]
+METHOD_FAMILIES = {"pysr", "sindy"}
 
 
 def fail(message: str) -> None:
@@ -60,8 +61,8 @@ def validate(run: dict[str, Any]) -> None:
     for key in ["runId", "datasetRef", "methodFamily", "operatorLibrary", "randomSeed", "runtimeEnvironment", "replayHash", "controlAuthority", "candidateRefs", "chronosCarrierId", "issuedAt"]:
         if key not in run:
             fail(f"missing {key}")
-    if run["methodFamily"] != "pysr":
-        fail("methodFamily must be pysr for this platform emitter")
+    if run["methodFamily"] not in METHOD_FAMILIES:
+        fail("methodFamily must be pysr or sindy for this platform emitter")
     ds = run["datasetRef"]
     if not isinstance(ds, dict) or not ds.get("uri") or not hex64(ds.get("contentHash")) or ds.get("hashAlgorithm") != "sha256":
         fail("invalid datasetRef")
@@ -73,6 +74,8 @@ def validate(run: dict[str, Any]) -> None:
         fail("operatorLibrary.customOperators must be array")
     if run["controlAuthority"] is not False:
         fail("controlAuthority must be false")
+    if run["methodFamily"] == "sindy" and run["controlAuthority"] is not False:
+        fail("sindy controlAuthority must be false")
     candidates = run["candidateRefs"]
     if not isinstance(candidates, list) or not candidates:
         fail("candidateRefs must be non-empty array")
