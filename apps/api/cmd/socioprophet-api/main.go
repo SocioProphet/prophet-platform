@@ -10,6 +10,7 @@ import (
     "strings"
 
     "github.com/SocioProphet/prophet-platform/libs/go/tritrpcbridge/binding"
+    "github.com/SocioProphet/prophet-platform/libs/go/tritrpcbridge/tritrpcv1"
 )
 
 const defaultUnixSocket = "/tmp/socioprophet.sock"
@@ -63,13 +64,88 @@ func handle(c net.Conn, key [32]byte) {
     }
 }
 
-func handleHealth(c net.Conn, env interface{ }, key [32]byte) {
-    trienv, ok := env.(interface{ })
-    _ = trienv
+func handleHealth(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
     var req binding.HealthPingRequest
-    payloadEnv, ok := any(env).(interface{ })
-    _ = payloadEnv
-    if err := binding.DecodeJSONPayload(any(env).(*struct{}), &req); err != nil {
-        _ = ok
+    if err := binding.DecodeJSONPayload(env, &req); err != nil {
+        log.Printf("decode health payload: %v", err)
+        return
+    }
+
+    resp := binding.HealthPingResponse{Ok: true, Pong: "PONG", Service: "socioprophet-api"}
+    if err := writeJSONResponse(c, binding.HealthService, binding.HealthPingRes, resp, key); err != nil {
+        log.Printf("write health response: %v", err)
+    }
+    _ = req // reserved for future trace/evidence hooks
+}
+
+func handleValidateChange(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
+    var req map[string]any
+    if err := binding.DecodeJSONPayload(env, &req); err != nil {
+        log.Printf("decode validate_change payload: %v", err)
+        return
+    }
+
+    response := map[string]any{
+        "schema_version": "1.0",
+        "request_id": stringValue(req, "request_id", "environment:validate-change-v2-request:unknown"),
+        "response_id": "environment:validate-change-v2-response:requested:api-stub",
+        "status": "environment_requested",
+        "repo": stringValue(req, "repo", "unknown/unknown"),
+        "sociosphere_refs": req["sociosphere_refs"],
+        "selected_plans": req["selected_plans"],
+        "environment": req["environment_request"],
+        "agentplane_execution": map[string]any{
+            "executor_plane": "AgentPlane",
+            "sandbox_run_ref": "agentplane:sandbox-run:pending:api-stub",
+            "execution_status": "requested",
+            "evidence_refs": []string{},
+        },
+        "warnings": []string{
+            "validation_observation_missing",
+            "environment_execution_not_observed",
+        },
+        "next_required_action": "agentplane_synthetic_sandbox_run",
+        "non_claims": []string{
+            "API stub does not execute live sandbox infrastructure.",
+            "API stub does not certify Signadot-style runtime parity.",
+            "API stub returns a deterministic environment_requested response only.",
+        },
+    }
+
+    if err := writeJSONResponse(c, binding.ValidateChangeService, binding.ValidateChangeRes, response, key); err != nil {
+        log.Printf("write validate_change response: %v", err)
     }
 }
+
+func writeJSONResponse(c net.Conn, service string, method string, payload any, key [32]byte) error {
+    respNonce, respFrame, err := binding.MarshalJSONFrame(service, method, payload, key)
+    if err != nil {
+        return err
+    }
+    return binding.WriteRecord(c, respNonce, respFrame)
+}
+
+func stringValue(m map[string]any, key string, fallback string) string {
+    if value, ok := m[key].(string); ok && strings.TrimSpace(value) != "" {
+        return value
+    }
+    return fallback
+}
+
+func legacySockAddr() string {
+    if sock := strings.TrimSpace(os.Getenv("TRITRPC_SOCK")); sock != "" {
+        return "unix://" + sock
+    }
+    return ""
+}
+
+func firstNonEmpty(vs ...string) string {
+    for _, v := range vs {
+        if strings.TrimSpace(v) != "" {
+            return v
+        }
+    }
+    return ""
+}
+
+var _ = json.Valid
