@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:scope-d-example",
+  "response_id": "environment:validate-change-v2-response:requested:scope-d-example",
+  "status": "environment_requested",
+  "repo": "SocioProphet/SCOPE-D",
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "selected_missing_observation"
+  },
+  "selected_plans": [
+    "svf:plan:scope-d.defensive-assurance-basic"
+  ],
+  "environment": {
+    "baseline_ref": "workspace://scope-d/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "agentplane_execution": {
+    "executor_plane": "AgentPlane",
+    "sandbox_run_ref": "agentplane:sandbox-run:pending:scope-d-example",
+    "execution_status": "requested",
+    "evidence_refs": []
+  },
+  "warnings": [
+    "validation_observation_missing",
+    "environment_execution_not_observed"
+  ],
+  "next_required_action": "agentplane_synthetic_sandbox_run",
+  "non_claims": [
+    "Environment request does not create live infrastructure.",
+    "Environment request does not certify validation success.",
+    "Environment request requires AgentPlane evidence before observed status."
+  ]
+}
