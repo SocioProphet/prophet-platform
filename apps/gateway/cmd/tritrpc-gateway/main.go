@@ -1,6 +1,7 @@
 package main
 
 import (
+    "bytes"
     "encoding/json"
     "fmt"
     "io"
@@ -45,6 +46,18 @@ func newMux(target string, key [32]byte, evidenceBase string, consoleBase string
             return
         }
         _ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "pong": pong.Pong, "service": pong.Service})
+    })
+
+    mux.HandleFunc("/v1/validate-change", func(w http.ResponseWriter, r *http.Request) {
+        resp, err := validateChange(target, key, r)
+        if err != nil {
+            log.Printf("validate_change error: %v", err)
+            w.WriteHeader(http.StatusBadGateway)
+            _ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+            return
+        }
+        w.Header().Set("Content-Type", "application/json")
+        _, _ = w.Write(resp)
     })
 
     if evidenceBase != "" {
@@ -149,6 +162,50 @@ func ping(target string, key [32]byte) (*binding.HealthPingResponse, error) {
         return nil, err
     }
     return &resp, nil
+}
+
+func validateChange(target string, key [32]byte, r *http.Request) ([]byte, error) {
+    if r.Method != http.MethodPost {
+        return nil, fmt.Errorf("method not allowed: %s", r.Method)
+    }
+    body, err := io.ReadAll(io.LimitReader(r.Body, binding.MaxFrameBytes))
+    if err != nil {
+        return nil, err
+    }
+    if !json.Valid(body) {
+        return nil, fmt.Errorf("invalid JSON request body")
+    }
+
+    c, resolved, err := binding.Dial(target, defaultUnixSocket)
+    if err != nil {
+        return nil, err
+    }
+    defer c.Close()
+
+    var payload map[string]any
+    if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
+        return nil, err
+    }
+    nonce, frame, err := binding.MarshalJSONFrame(binding.ValidateChangeService, binding.ValidateChangeReq, payload, key)
+    if err != nil {
+        return nil, err
+    }
+    if err := binding.WriteRecord(c, nonce, frame); err != nil {
+        return nil, err
+    }
+
+    respNonce, respFrame, err := binding.ReadRecord(c)
+    if err != nil {
+        return nil, err
+    }
+    env, err := binding.VerifyEnvelope(respFrame, respNonce, key)
+    if err != nil {
+        return nil, err
+    }
+    if env.Service != binding.ValidateChangeService || env.Method != binding.ValidateChangeRes {
+        return nil, fmt.Errorf("unexpected validate_change route from %s: %s %s", resolved, env.Service, env.Method)
+    }
+    return env.Payload, nil
 }
 
 func legacySockAddr() string {
