@@ -9,6 +9,8 @@ on:
       - "tools/prometheus_sindy_fast_path.py"
       - "tools/prometheus_emit_sr_run_artifact.py"
       - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tools/emit_prometheus_gate_evaluation.py"
+      - "tools/emit_prometheus_jsonld_review.py"
       - "tests/fixtures/prometheus/**"
       - "docs/PROMETHEUS_LOCAL_DEMO.md"
       - ".github/workflows/prometheus-local-demo.yml"
@@ -22,6 +24,8 @@ on:
       - "tools/prometheus_sindy_fast_path.py"
       - "tools/prometheus_emit_sr_run_artifact.py"
       - "tools/validate_prometheus_sr_run_artifact.py"
+      - "tools/emit_prometheus_gate_evaluation.py"
+      - "tools/emit_prometheus_jsonld_review.py"
       - "tests/fixtures/prometheus/**"
       - "docs/PROMETHEUS_LOCAL_DEMO.md"
       - ".github/workflows/prometheus-local-demo.yml"
@@ -49,3 +53,10 @@ jobs:
         run: |
           python3 tools/validate_prometheus_local_demo.py \
             build/prometheus/local-demo/manifest.json
+      - name: Upload local PROMETHEUS artifact bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: prometheus-local-demo-bundle
+          path: build/prometheus/local-demo/
+          if-no-files-found: error
+          retention-days: 14
