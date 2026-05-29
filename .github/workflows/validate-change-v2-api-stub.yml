@@ -1,0 +1,27 @@
+name: validate-change-v2-api-stub
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Build API and gateway
+        run: |
+          go test ./libs/go/tritrpcbridge/...
+          go test ./apps/api/...
+          go test ./apps/gateway/...
+      - name: Validate environment contract fixtures
+        run: python3 tools/validate_environment_validate_change_v2.py
+      - name: Validate API stub wiring
+        run: python3 tools/smoke_validate_change_v2_api_stub.py
