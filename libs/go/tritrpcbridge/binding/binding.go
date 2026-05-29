@@ -17,12 +17,15 @@ import (
 )
 
 const (
-    HealthService    = "platform.health.v1"
-    HealthPingReq    = "Health.Ping.REQ"
-    HealthPingRes    = "Health.Ping.RES"
-    NonceSize        = chacha20poly1305.NonceSizeX
-    recordHeaderSize = 4 + NonceSize
-    MaxFrameBytes    = 1 << 20
+    HealthService       = "platform.health.v1"
+    HealthPingReq       = "Health.Ping.REQ"
+    HealthPingRes       = "Health.Ping.RES"
+    ValidateChangeService = "platform.validate_change.v2"
+    ValidateChangeReq     = "ValidateChange.Environment.REQ"
+    ValidateChangeRes     = "ValidateChange.Environment.RES"
+    NonceSize           = chacha20poly1305.NonceSizeX
+    recordHeaderSize    = 4 + NonceSize
+    MaxFrameBytes       = 1 << 20
 )
 
 var (
