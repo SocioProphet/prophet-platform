@@ -52,6 +52,34 @@ def validate_run_artifact(path: Path, expected_method: str) -> None:
         fail(f"{path}: invalid replayHash")
 
 
+def validate_gate_evaluation(path: Path, candidate_path: Path) -> None:
+    gate = load(path)
+    candidate = load(candidate_path)
+    if gate.get("candidateId") != candidate.get("candidateId"):
+        fail(f"{path}: gate candidateId mismatch")
+    if gate.get("requestedReviewSurface") != "automated_shacl_gate":
+        fail(f"{path}: gate must target automated_shacl_gate")
+    if gate.get("finalAdmissionRequested") is not False:
+        fail(f"{path}: gate must not request final admission")
+    if gate.get("replayHashVerified") is not True:
+        fail(f"{path}: replay hash must be verified")
+    if gate.get("chronosGovernanceFlags") != []:
+        fail(f"{path}: CHRONOS flags must be empty")
+
+
+def validate_jsonld(path: Path, gate_path: Path) -> None:
+    data = load(path)
+    gate = load(gate_path)
+    if data.get("@type") != "sr:SRAssertionProposal":
+        fail(f"{path}: expected sr:SRAssertionProposal")
+    if data.get("sr:hasAutomatedGateEvaluation", {}).get("@id") != gate.get("evaluationId"):
+        fail(f"{path}: automated gate evaluation reference mismatch")
+    if data.get("sr:hasSemanticReviewSurface", {}).get("sr:reviewSurfaceType") != "automated_shacl_gate":
+        fail(f"{path}: review surface must be automated_shacl_gate")
+    if "does not" not in data.get("sr:nonAuthorityDeclaration", ""):
+        fail(f"{path}: missing non-authority declaration")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest")
@@ -61,11 +89,13 @@ def main() -> int:
     manifest = load(manifest_path)
     if manifest.get("kind") != "PrometheusLocalDemoManifest":
         fail("manifest kind mismatch")
+    if manifest.get("manifestVersion") != "0.2.0":
+        fail("manifestVersion must be 0.2.0")
     if "not laws" not in manifest.get("nonAuthorityDeclaration", ""):
         fail("manifest missing non-authority declaration")
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != 4:
-        fail("manifest must contain exactly four artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) != 6:
+        fail("manifest must contain exactly six artifacts")
     for artifact in artifacts:
         path = Path(artifact.get("path", ""))
         if not path.exists():
@@ -81,10 +111,14 @@ def main() -> int:
     for method, run in run_by_method.items():
         if run.get("controlAuthority") is not False:
             fail(f"{method}: controlAuthority must be false")
-    validate_candidate(Path(run_by_method["pysr"]["candidateArtifact"]), "EquationCandidate", "pysr")
-    validate_run_artifact(Path(run_by_method["pysr"]["runArtifact"]), "pysr")
-    validate_candidate(Path(run_by_method["sindy"]["candidateArtifact"]), "PlatformDynamicsCandidate", "sindy")
-    validate_run_artifact(Path(run_by_method["sindy"]["runArtifact"]), "sindy")
+    pysr = run_by_method["pysr"]
+    sindy = run_by_method["sindy"]
+    validate_candidate(Path(pysr["candidateArtifact"]), "EquationCandidate", "pysr")
+    validate_run_artifact(Path(pysr["runArtifact"]), "pysr")
+    validate_gate_evaluation(Path(pysr["gateEvaluationArtifact"]), Path(pysr["candidateArtifact"]))
+    validate_jsonld(Path(pysr["jsonldArtifact"]), Path(pysr["gateEvaluationArtifact"]))
+    validate_candidate(Path(sindy["candidateArtifact"]), "PlatformDynamicsCandidate", "sindy")
+    validate_run_artifact(Path(sindy["runArtifact"]), "sindy")
 
     print(json.dumps({"valid": True, "manifest": str(manifest_path), "artifactCount": len(artifacts)}, sort_keys=True))
     return 0
