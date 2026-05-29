@@ -1,19 +1,23 @@
 # PROMETHEUS Local Demo Runner
 
-Status: v0.1 consolidated platform demo.
+Status: v0.2 consolidated platform demo.
 
-This runner makes the PROMETHEUS MVP legible and repeatable. It emits both current platform paths:
+This runner makes the PROMETHEUS MVP legible and repeatable. It emits the current platform evidence chain:
 
 - PySR-style equation discovery through the deterministic fallback engine.
+- AgentPlane-compatible SRRunArtifact emission for the PySR-style candidate.
+- Automated gate evaluation for the PySR-style candidate.
+- JSON-LD semantic handoff artifact for the PySR-style candidate.
 - SINDy-style platform dynamics discovery through the fast-path time-series emitter.
-
-Each path produces a candidate artifact and an AgentPlane-compatible `SRRunArtifact`. The runner also writes a manifest with artifact paths and SHA-256 hashes.
+- AgentPlane-compatible SRRunArtifact emission for the SINDy-style candidate.
 
 ## Boundary
 
 The local demo emits evidence only. It does not create laws, ontology assertions, policies, controllers, or deployment authorizations.
 
 `controlAuthority` is false for both runs.
+
+The JSON-LD artifact is a handoff artifact only. It does not mutate Ontogenesis and does not require WebProtege.
 
 ## Usage
 
@@ -31,6 +35,8 @@ The runner writes:
 
 - `pysr/equation-candidate.json`
 - `pysr/sr-run-artifact.json`
+- `pysr/gate-evaluation.json`
+- `pysr/sr.jsonld`
 - `sindy/platform-dynamics-candidate.json`
 - `sindy/sr-run-artifact.json`
 - `manifest.json`
