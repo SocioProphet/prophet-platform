@@ -1,0 +1,37 @@
+name: adversarial-scenario-ref
+
+on:
+  pull_request:
+    paths:
+      - "contracts/security/adversarial-scenario-ref.schema.json"
+      - "contracts/security/adversarial-scenario-ref.example.json"
+      - "tools/validate_adversarial_scenario_ref.py"
+      - "docs/ADVERSARIAL_SCENARIO_PLATFORM_BINDING.md"
+      - ".github/workflows/adversarial-scenario-ref.yml"
+      - "Makefile"
+      - "README.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/security/adversarial-scenario-ref.schema.json"
+      - "contracts/security/adversarial-scenario-ref.example.json"
+      - "tools/validate_adversarial_scenario_ref.py"
+      - "docs/ADVERSARIAL_SCENARIO_PLATFORM_BINDING.md"
+      - ".github/workflows/adversarial-scenario-ref.yml"
+      - "Makefile"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-adversarial-scenario-ref:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate adversarial scenario reference contract
+        run: make validate-adversarial-scenario-ref
