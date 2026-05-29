@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "link_id": "environment:validate-change-v2-agentplane-link:scope-d-example",
+  "request_id": "environment:validate-change-v2-request:scope-d-example",
+  "prophet_platform_response_refs": {
+    "requested": "environment:validate-change-v2-response:requested:scope-d-example",
+    "observed": "environment:validate-change-v2-response:observed:scope-d-example"
+  },
+  "agentplane_run_refs": {
+    "requested": "agentplane:sandbox-run:requested:scope-d-example",
+    "observed": "agentplane:sandbox-run:observed:scope-d-example"
+  },
+  "status_mapping": {
+    "environment_requested": "sandbox_requested",
+    "environment_observed": "sandbox_observed"
+  },
+  "evidence_mapping": {
+    "observed_evidence_ref": "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed",
+    "observed_receipt_ref": "receipt://agentplane/sandbox-run/scope-d-example/synthetic-observed"
+  },
+  "execution_boundary": {
+    "executor_plane": "AgentPlane",
+    "execution_mode": "synthetic_fixture",
+    "requested_isolation_class": "synthetic_no_network",
+    "runtime_parity_status": "not_certified"
+  },
+  "non_claims": [
+    "This link fixture is synthetic only.",
+    "This link fixture aligns Prophet Platform responses with AgentPlane run semantics only.",
+    "This link fixture does not certify runtime parity."
+  ]
+}
