@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - "tools/run_prometheus_local_demo.py"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
@@ -13,6 +14,7 @@ on:
       - main
     paths:
       - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - "tools/run_prometheus_local_demo.py"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
@@ -37,11 +39,30 @@ jobs:
           python3 tools/run_prometheus_local_demo.py \
             --output-dir build/prometheus/jsonld \
             --issued-at 2026-05-27T22:30:00Z
+      - name: Emit gate evaluation artifact
+        run: |
+          python3 tools/emit_prometheus_gate_evaluation.py \
+            --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
+            --run-artifact build/prometheus/jsonld/pysr/sr-run-artifact.json \
+            --dataset tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --evaluation-id urn:prometheus:gate-evaluation:pysr-local-demo:001 \
+            --issued-at 2026-05-27T22:30:30Z \
+            --output build/prometheus/jsonld/pysr/gate-evaluation.json
+      - name: Prove automated gate fails closed without gate evidence
+        run: |
+          ! python3 tools/emit_prometheus_jsonld_review.py \
+            --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
+            --run-artifact build/prometheus/jsonld/pysr/sr-run-artifact.json \
+            --review-id urn:prometheus:jsonld:pysr-local-demo:no-gate \
+            --review-surface automated_shacl_gate \
+            --issued-at 2026-05-27T22:30:45Z \
+            --output build/prometheus/jsonld/pysr/should-not-exist.jsonld
       - name: Emit JSON-LD artifact
         run: |
           python3 tools/emit_prometheus_jsonld_review.py \
             --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
             --run-artifact build/prometheus/jsonld/pysr/sr-run-artifact.json \
+            --gate-evaluation build/prometheus/jsonld/pysr/gate-evaluation.json \
             --review-id urn:prometheus:jsonld:pysr-local-demo:001 \
             --review-surface automated_shacl_gate \
             --issued-at 2026-05-27T22:31:00Z \
