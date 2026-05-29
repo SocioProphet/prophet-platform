@@ -19,6 +19,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 ```bash
 make validate
 make validate-svf-agent-contract
+make validate-environment-validate-change-v2
 make smoke-health
 ```
 
@@ -49,6 +50,26 @@ Validate locally:
 ```bash
 make validate-svf-agent-contract
 ```
+
+## Environment validation / `validate_change` v2
+
+Prophet Platform also carries the first environment-validation request surface for the Signadot-parity bridge. This is the product/runtime contract layer: it accepts a change, references Sociosphere workspace/environment state, requests AgentPlane synthetic execution, and returns environment status plus evidence references.
+
+Relevant files:
+
+- `contracts/environment/validate-change-v2-request.example.json`
+- `contracts/environment/validate-change-v2-response.environment-requested.json`
+- `contracts/environment/validate-change-v2-response.environment-observed.json`
+- `contracts/environment/validate-change-v2-response.environment-failed.json`
+- `tools/validate_environment_validate_change_v2.py`
+
+Validate locally:
+
+```bash
+make validate-environment-validate-change-v2
+```
+
+Boundary: this is still a synthetic/no-network contract layer. It does not create live infrastructure, route traffic, isolate queues, isolate stateful resources, or certify Signadot-style runtime parity. AgentPlane owns execution/evidence. Sociosphere owns workspace/environment state. Prophet Platform owns this product/API invocation contract.
 
 ## Evaluation fabric lane
 
