@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "0.1.0",
+  "scenarioRef": "adversarial-scenario:workspace-transduction-001",
+  "source": {
+    "scenarioRepo": "SocioProphet/SCOPE-D",
+    "scenarioPrRef": "SocioProphet/SCOPE-D#60",
+    "schemaRef": "config/schemas/wargames-adversarial-scenario.schema.json",
+    "ontologyRef": "SocioProphet/ontogenesis#112"
+  },
+  "bindingMode": "reference_only",
+  "platformUse": {
+    "apiSurface": "contract_reference",
+    "uiSurface": "none",
+    "runtimeExecution": false,
+    "reportExport": false,
+    "memoryWriteback": false,
+    "claimPromotion": false
+  },
+  "safetyBoundary": {
+    "nonProductionOnly": true,
+    "syntheticOrRedacted": true,
+    "liveTargetAccess": false,
+    "credentialAccess": false,
+    "payloadDelivery": false,
+    "stateMutation": false,
+    "destructiveBehavior": false,
+    "externalDelivery": false
+  },
+  "authority": {
+    "runtimeAuthority": false,
+    "procedureExecutionAuthority": false,
+    "engagementAuthorizationAuthority": false,
+    "activationAllowed": false
+  },
+  "evidenceRefs": [
+    "evidence:scout-header-summary-001",
+    "negative-evidence:missing-validator-record-001",
+    "proof:scout:profile-001"
+  ],
+  "runtimeDecisionReceiptRefs": ["wargames-runtime-receipt:allow-validate-001"],
+  "policyRefs": [
+    "policy:wargames-runtime-dry-run-v0.1",
+    "policy:scenario-boundary-reference-only"
+  ],
+  "semanticNonClaims": [
+    "does_not_execute_attack_procedure",
+    "does_not_authorize_engagement",
+    "does_not_claim_causal_attribution",
+    "does_not_promote_memory_writeback",
+    "does_not_establish_production_observation"
+  ],
+  "redactionState": "redacted"
+}
