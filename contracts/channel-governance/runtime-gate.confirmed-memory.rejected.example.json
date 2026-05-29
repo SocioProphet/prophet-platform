@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "gate_id": "channel-runtime-gate:bad-confirmed-memory-001",
+  "gate_class": "memory_sink_gate",
+  "created_at": "2026-05-29T17:01:00Z",
+  "operation_ref": "platform-operation:conversation-ingest-002",
+  "source_channel": {
+    "channel_ref": "rcg:channel:asr.dictation",
+    "channel_class": "human_communication",
+    "substrate": "audio transcript",
+    "capture_method": "speech-to-text",
+    "trust_boundary": "external_authenticated",
+    "known_confusability_modes": ["homophone", "near-homophone", "domain-term-collapse"]
+  },
+  "percept": {
+    "percept_ref": "rcg:observation:asr.power_babble",
+    "percept_kind": "transcript",
+    "rendering": "power babble",
+    "loss_profile": ["acoustic ambiguity", "semantic ambiguity"]
+  },
+  "interpretant": {
+    "candidate_refs": ["rcg:interpretant:power_babel.term", "rcg:interpretant:power_babble.literal"],
+    "selected_ref": "rcg:interpretant:power_babel.term",
+    "confidence_type": "acoustic",
+    "confidence_level": "medium"
+  },
+  "authority_envelope": {
+    "allowed_sinks": ["display", "suggest", "candidate_memory"],
+    "disallowed_sinks": ["confirmed_memory", "graph_edge", "claim_promotion", "policy_binding", "publication", "export", "high_consequence_execution"],
+    "requires_repair_for": ["confirmed_memory", "graph_edge", "high_consequence_execution"]
+  },
+  "sink_decision": {
+    "requested_sink": "confirmed_memory",
+    "decision": "allow",
+    "decision_basis": ["bad fixture attempts to promote ASR-conditioned transcript as confirmed memory"],
+    "reversibility": "partially_reversible"
+  },
+  "repair": {
+    "repair_event_refs": [],
+    "revalidation_path": null
+  },
+  "evidence_refs": ["synthetic:conversation:rcg-asr-example"],
+  "policy_decision_refs": ["procybernetica:reciprocal-channel-governance:v0.1"],
+  "non_claims": []
+}
