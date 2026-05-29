@@ -1,6 +1,7 @@
 package main
 
 import (
+    "encoding/json"
     "errors"
     "io"
     "log"
@@ -51,41 +52,24 @@ func handle(c net.Conn, key [32]byte) {
         log.Printf("verify envelope: %v", err)
         return
     }
-    if env.Service != binding.HealthService || env.Method != binding.HealthPingReq {
+
+    switch {
+    case env.Service == binding.HealthService && env.Method == binding.HealthPingReq:
+        handleHealth(c, env, key)
+    case env.Service == binding.ValidateChangeService && env.Method == binding.ValidateChangeReq:
+        handleValidateChange(c, env, key)
+    default:
         log.Printf("unexpected route: %s %s", env.Service, env.Method)
-        return
     }
+}
+
+func handleHealth(c net.Conn, env interface{ }, key [32]byte) {
+    trienv, ok := env.(interface{ })
+    _ = trienv
     var req binding.HealthPingRequest
-    if err := binding.DecodeJSONPayload(env, &req); err != nil {
-        log.Printf("decode request payload: %v", err)
-        return
+    payloadEnv, ok := any(env).(interface{ })
+    _ = payloadEnv
+    if err := binding.DecodeJSONPayload(any(env).(*struct{}), &req); err != nil {
+        _ = ok
     }
-
-    resp := binding.HealthPingResponse{Ok: true, Pong: "PONG", Service: "socioprophet-api"}
-    respNonce, respFrame, err := binding.MarshalJSONFrame(binding.HealthService, binding.HealthPingRes, resp, key)
-    if err != nil {
-        log.Printf("marshal response: %v", err)
-        return
-    }
-    if err := binding.WriteRecord(c, respNonce, respFrame); err != nil {
-        log.Printf("write response: %v", err)
-        return
-    }
-    _ = req // reserved for future trace/evidence hooks
-}
-
-func legacySockAddr() string {
-    if sock := strings.TrimSpace(os.Getenv("TRITRPC_SOCK")); sock != "" {
-        return "unix://" + sock
-    }
-    return ""
-}
-
-func firstNonEmpty(vs ...string) string {
-    for _, v := range vs {
-        if strings.TrimSpace(v) != "" {
-            return v
-        }
-    }
-    return ""
 }
