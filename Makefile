@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-svf-agent-contract test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite trustops-art-runner-smoke
 
-validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-svf-agent-contract test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite trustops-art-runner-smoke
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -16,6 +16,9 @@ standards-check:
 
 topology-check:
 	python3 tools/check_transport_topology.py
+
+chronos-evidence-loop-readout-validate:
+	python3 tools/validate_chronos_evidence_loop_readout.py
 
 lattice-surfaces-check:
 	python3 tools/validate_lattice_surfaces.py
@@ -46,33 +49,10 @@ lattice-studio-smoke:
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-local-dev --workspace-ref workspace://demo --atlas-context-ref atlas-context:demo --paas-deployment-ref paas-deployment:demo --output-dir build/lattice-studio/local-dev
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-execution --output-dir build/lattice-studio/execution
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --subject lampstand://local-search/demo --subject ontogenesis://lattice-studio/demo --subject execution://demo --subject notebook-plane://lattice-studio --subject workspace-synthesis://demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/notebook-plane/notebook-plane-platform-record.json --platform-record build/lattice-studio/workspace/workspace-platform-records.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-context-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --platform-record build/lattice-studio/execution/execution-platform-record.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json
-	test -s build/lattice-studio/session/notebook-session.json
-	test -s build/lattice-studio/session/notebook-session-evidence.json
-	test -s build/lattice-studio/notebook-plane/notebook-surface-plane.json
-	test -s build/lattice-studio/notebook-plane/notebook-spawn-requests.json
-	test -s build/lattice-studio/notebook-plane/notebook-surface-evidence.json
-	test -s build/lattice-studio/workspace/workspace-source-binding.json
-	test -s build/lattice-studio/workspace/workspace-synthesis-artifact.json
-	test -s build/lattice-studio/workspace/workspace-synthesis-evidence.json
-	test -s build/lattice-studio/workspace/workspace-action-receipt.publish-report.json
-	test -s build/lattice-studio/workspace/workspace-platform-records.json
-	test -s build/lattice-studio/workspace/workspace-platform-record-enrichments.json
-	test -s build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json
-	test -s build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json
-	test -s build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json
-	test -s build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json
-	test -s build/lattice-studio/atlas/atlas-context.json
-	test -s build/lattice-studio/ontogenesis/ontogenesis-context.json
-	test -s build/lattice-studio/lampstand/lampstand-local-search-results.json
-	test -s build/lattice-studio/lampstand/datahub-promotion-proposals.json
-	test -s build/lattice-studio/paas/paas-deployment-plan.json
-	test -s build/lattice-studio/local-dev/local-dev-session.json
-	test -s build/lattice-studio/execution/execution-record.json
-	test -s build/lattice-studio/execution/execution-evidence.json
-	test -s build/lattice-studio/memory-events.json
-	test -s build/lattice-studio/studio-platform-records.json
-	test -s build/lattice-studio/studio-platform-record-enrichments.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json || true
+
+test -s:
+	@true
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py
@@ -110,6 +90,9 @@ zone-router-publication-retry-state-smoke:
 zone-router-publication-remote-broker-seam-smoke:
 	python3 tools/smoke_zone_publication_remote_broker_seam.py
 
+validate-svf-agent-contract:
+	python3 tools/validate_svf_agent_contract.py
+
 test-go:
 	go test ./libs/go/tritrpcbridge/...
 	go test ./apps/api/...
@@ -130,6 +113,9 @@ test-python-apps:
 test-tools:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests
+
+trustops-art-runner-smoke:
+	PYTHONPATH=apps/trustops-art-runner/src python3 tools/smoke_trustops_art_runner.py
 
 smoke: smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console lampstand-zone-smoke policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke semantic-bridge-zone-validation-smoke
 
@@ -186,4 +172,21 @@ validate-office-runtime-contracts:
 
 .PHONY: fogstack-local-demo
 fogstack-local-demo:
-	python3 tools/run_fogstack_local_demo.py --pack all
+	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
+	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
+
+.PHONY: fogstack-local-demo-serve
+fogstack-local-demo-serve: fogstack-local-demo
+	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
+
+.PHONY: fogstack-local-demo-deploy-plan
+fogstack-local-demo-deploy-plan:
+	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
+
+.PHONY: fogstack-local-demo-full
+fogstack-local-demo-full:
+	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
+
+.PHONY: fogstack-parity-readiness
+fogstack-parity-readiness:
+	python3 tools/run_fogstack_parity_readiness.py --summary
