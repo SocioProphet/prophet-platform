@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:scope-d-example",
+  "repo": "SocioProphet/SCOPE-D",
+  "ref": "feature/svf-contract-example",
+  "changed_paths": [
+    "svf/scope-d-defensive-assurance-basic.json",
+    "scripts/validate-svf-contracts.js"
+  ],
+  "change_digest": {
+    "algorithm": "sha256",
+    "digest": "example-change-digest"
+  },
+  "actor": {
+    "actor_class": "coding_agent",
+    "actor_id": "agent://example"
+  },
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "selected_missing_observation"
+  },
+  "selected_plans": [
+    "svf:plan:scope-d.defensive-assurance-basic"
+  ],
+  "environment_request": {
+    "baseline_ref": "workspace://scope-d/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "execution_mode": "synthetic_fixture",
+    "evidence_required": true
+  },
+  "policy_refs": [
+    "SocioProphet/ProCybernetica#svf-policy-primitive"
+  ],
+  "non_claims": [
+    "This request does not execute infrastructure.",
+    "This request does not create a sandbox environment.",
+    "This request does not certify validation success."
+  ]
+}
