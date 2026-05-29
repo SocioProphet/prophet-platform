@@ -20,6 +20,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 make validate
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
+make validate-adversarial-scenario-ref
 make smoke-health
 ```
 
@@ -30,8 +31,9 @@ make smoke-health
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
 4. `docs/PLATFORM_EVAL_FABRIC.md`
 5. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
-6. `contracts/`
-7. `infra/k8s/`
+6. `docs/ADVERSARIAL_SCENARIO_PLATFORM_BINDING.md`
+7. `contracts/`
+8. `infra/k8s/`
 
 ## Sovereign Validation Fabric agent contract
 
@@ -70,6 +72,25 @@ make validate-environment-validate-change-v2
 ```
 
 Boundary: this is still a synthetic/no-network contract layer. It does not create live infrastructure, route traffic, isolate queues, isolate stateful resources, or certify Signadot-style runtime parity. AgentPlane owns execution/evidence. Sociosphere owns workspace/environment state. Prophet Platform owns this product/API invocation contract.
+
+## Adversarial scenario references
+
+Prophet Platform carries a narrow reference-only binding for governed SCOPE-D adversarial scenarios. This contract allows the platform to reference upstream scenario artifacts without creating a scenario builder, operator UI, runtime executor, report exporter, live collector, or memory writeback path.
+
+Relevant files:
+
+- `docs/ADVERSARIAL_SCENARIO_PLATFORM_BINDING.md`
+- `contracts/security/adversarial-scenario-ref.schema.json`
+- `contracts/security/adversarial-scenario-ref.example.json`
+- `tools/validate_adversarial_scenario_ref.py`
+
+Validate locally:
+
+```bash
+make validate-adversarial-scenario-ref
+```
+
+Boundary: scenario references are evidence-bearing pointers only. They do not grant runtime execution, procedure execution authority, engagement authorization, downstream activation, live target access, credential access, payload delivery, state mutation, destructive behavior, external delivery, report export, claim promotion, or memory writeback.
 
 ## Evaluation fabric lane
 
