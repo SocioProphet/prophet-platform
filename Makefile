@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite
 
-validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
+validate: validate-repo drift-check standards-check topology-check lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit validate-tritfabric-consumption policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -46,7 +46,7 @@ lattice-studio-smoke:
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-local-dev --workspace-ref workspace://demo --atlas-context-ref atlas-context:demo --paas-deployment-ref paas-deployment:demo --output-dir build/lattice-studio/local-dev
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-execution --output-dir build/lattice-studio/execution
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --subject lampstand://local-search/demo --subject ontogenesis://lattice-studio/demo --subject execution://demo --subject notebook-plane://lattice-studio --subject workspace-synthesis://demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/notebook-plane/notebook-plane-platform-record.json --platform-record build/lattice-studio/workspace/workspace-platform-records.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-platform-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --platform-record build/lattice-studio/execution/execution-platform-record.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/notebook-plane/notebook-plane-platform-record.json --platform-record build/lattice-studio/workspace/workspace-platform-records.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-context-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --platform-record build/lattice-studio/execution/execution-platform-record.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json
 	test -s build/lattice-studio/session/notebook-session.json
 	test -s build/lattice-studio/session/notebook-session-evidence.json
 	test -s build/lattice-studio/notebook-plane/notebook-surface-plane.json
@@ -88,6 +88,9 @@ validate-lampstand-lifecycle:
 
 validate-zone-stack-audit:
 	python3 tools/validate_zone_publication_stack_audit.py
+
+validate-tritfabric-consumption:
+	python3 tools/validate_tritfabric_consumption.py
 
 policy-fabric-endpoint-client-smoke:
 	python3 tools/smoke_policy_fabric_operations_endpoint_client.py
@@ -183,21 +186,4 @@ validate-office-runtime-contracts:
 
 .PHONY: fogstack-local-demo
 fogstack-local-demo:
-	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
-	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
-
-.PHONY: fogstack-local-demo-serve
-fogstack-local-demo-serve: fogstack-local-demo
-	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
-
-.PHONY: fogstack-local-demo-deploy-plan
-fogstack-local-demo-deploy-plan:
-	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
-
-.PHONY: fogstack-local-demo-full
-fogstack-local-demo-full:
-	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
-
-.PHONY: fogstack-parity-readiness
-fogstack-parity-readiness:
-	python3 tools/run_fogstack_parity_readiness.py --summary
+	python3 tools/run_fogstack_local_demo.py --pack all
