@@ -107,7 +107,7 @@ test-python-apps:
 	cd apps/evidence-receipts && test -d .venv || python3 -m venv .venv
 	cd apps/evidence-receipts && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
 	cd apps/evidence-console && test -d .venv || python3 -m venv .venv
-	cd apps/evidence-console && . .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
+	cd apps/evidence-console && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
 	cd apps/zone-router && test -d .venv || python3 -m venv .venv
 	cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
 	cd apps/semantic-bridge && test -d .venv || python3 -m venv .venv
