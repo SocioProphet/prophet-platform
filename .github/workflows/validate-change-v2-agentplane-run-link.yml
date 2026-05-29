@@ -1,0 +1,25 @@
+name: validate-change-v2-agentplane-run-link
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "contracts/environment/validate-change-v2-agentplane-run-link.example.json"
+      - "contracts/environment/validate-change-v2-response.environment-*.json"
+      - "tools/validate_agentplane_run_link.py"
+      - ".github/workflows/validate-change-v2-agentplane-run-link.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agentplane-run-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate AgentPlane synthetic run link
+        run: python3 tools/validate_agentplane_run_link.py
