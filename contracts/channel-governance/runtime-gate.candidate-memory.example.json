@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "gate_id": "channel-runtime-gate:asr-candidate-memory-001",
+  "gate_class": "memory_sink_gate",
+  "created_at": "2026-05-29T17:00:00Z",
+  "operation_ref": "platform-operation:conversation-ingest-001",
+  "source_channel": {
+    "channel_ref": "rcg:channel:asr.dictation",
+    "channel_class": "human_communication",
+    "substrate": "audio transcript",
+    "capture_method": "speech-to-text",
+    "trust_boundary": "external_authenticated",
+    "known_confusability_modes": ["homophone", "near-homophone", "domain-term-collapse"]
+  },
+  "percept": {
+    "percept_ref": "rcg:observation:asr.power_babble",
+    "percept_kind": "transcript",
+    "rendering": "power babble",
+    "loss_profile": ["acoustic ambiguity", "semantic ambiguity"]
+  },
+  "interpretant": {
+    "candidate_refs": ["rcg:interpretant:power_babel.term", "rcg:interpretant:power_babble.literal"],
+    "selected_ref": "rcg:interpretant:power_babel.term",
+    "confidence_type": "acoustic",
+    "confidence_level": "medium"
+  },
+  "authority_envelope": {
+    "allowed_sinks": ["display", "suggest", "candidate_memory"],
+    "disallowed_sinks": ["confirmed_memory", "graph_edge", "claim_promotion", "policy_binding", "publication", "export", "high_consequence_execution"],
+    "requires_repair_for": ["confirmed_memory", "graph_edge", "high_consequence_execution"]
+  },
+  "sink_decision": {
+    "requested_sink": "candidate_memory",
+    "decision": "allow",
+    "decision_basis": ["candidate memory is allowed by the ASR advisory envelope", "repair remains required for confirmed memory or graph promotion"],
+    "reversibility": "reversible"
+  },
+  "repair": {
+    "repair_event_refs": ["rcg:repair:user.confirmed_phrase"],
+    "revalidation_path": "ask user before confirmed memory or graph edge promotion"
+  },
+  "evidence_refs": ["synthetic:conversation:rcg-asr-example"],
+  "policy_decision_refs": ["procybernetica:reciprocal-channel-governance:v0.1"],
+  "non_claims": ["This does not create confirmed memory.", "This does not create a graph edge or platform claim."]
+}
