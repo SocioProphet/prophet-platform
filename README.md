@@ -20,6 +20,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 make validate
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
+make validate-channel-runtime-gates
 make smoke-health
 ```
 
@@ -30,8 +31,9 @@ make smoke-health
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
 4. `docs/PLATFORM_EVAL_FABRIC.md`
 5. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
-6. `contracts/`
-7. `infra/k8s/`
+6. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+7. `contracts/`
+8. `infra/k8s/`
 
 ## Sovereign Validation Fabric agent contract
 
@@ -70,6 +72,27 @@ make validate-environment-validate-change-v2
 ```
 
 Boundary: this is still a synthetic/no-network contract layer. It does not create live infrastructure, route traffic, isolate queues, isolate stateful resources, or certify Signadot-style runtime parity. AgentPlane owns execution/evidence. Sociosphere owns workspace/environment state. Prophet Platform owns this product/API invocation contract.
+
+## Channel-governed runtime gates
+
+Prophet Platform now carries the first runtime-gate contract for channel-conditioned observations. This is the platform-side consumer of ProCybernetica Reciprocal Channel Governance, Ontogenesis `rcg:`, Memory Mesh channel provenance write gates, Regis epistemic edge records, and HolographMe projection-loss profiles.
+
+Relevant files:
+
+- `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+- `contracts/channel-governance/runtime-gate.candidate-memory.example.json`
+- `contracts/channel-governance/runtime-gate.confirmed-memory.rejected.example.json`
+- `tools/validate_channel_runtime_gates.py`
+
+Validate locally:
+
+```bash
+make validate-channel-runtime-gates
+```
+
+The candidate-memory fixture is expected to pass. The confirmed-memory fixture is expected to fail semantically because an ASR-conditioned percept attempts a confirmed-memory sink that is disallowed by the advisory channel envelope and lacks required repair posture.
+
+Boundary: this is a contract and validator lane only. It does not add production middleware, broker policy, database schema, or API endpoint behavior.
 
 ## Evaluation fabric lane
 
