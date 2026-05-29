@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validation-request:validate-change-v2:2026-05-29",
+  "repo": "SocioProphet/prophet-platform",
+  "purpose": "Create an observable Prophet Platform pull-request validation surface for validate_change v2 environment fixtures.",
+  "changed_surfaces": [
+    "contracts/environment/validate-change-v2-request.example.json",
+    "contracts/environment/validate-change-v2-response.environment-requested.json",
+    "contracts/environment/validate-change-v2-response.environment-observed.json",
+    "contracts/environment/validate-change-v2-response.environment-failed.json",
+    "tools/validate_environment_validate_change_v2.py",
+    "Makefile",
+    "README.md"
+  ],
+  "expected_checks": [
+    "validate-environment-validate-change-v2"
+  ],
+  "non_claims": [
+    "This request does not execute live sandbox infrastructure.",
+    "This request does not certify Signadot-style runtime parity.",
+    "This request validates Prophet Platform validate_change v2 environment contract shape only."
+  ]
+}
