@@ -5,6 +5,7 @@ metadata:
   owner: SocioProphet
   status: seed
   created: "2026-04-29"
+  updated: "2026-05-30"
   description: >-
     Cross-repo alignment manifest for the Professional Intelligence OS product spine.
     This binds DelEx delivery governance, Prophet Platform runtime, Prophet Workspace
@@ -16,6 +17,7 @@ principles:
   - Prophet Workspace owns user-facing workrooms and professional collaboration surfaces.
   - Agent/model/policy/memory/contract repos own specialized governed service semantics.
   - Every material AI or workflow action emits evidence and adoption telemetry.
+  - Contract-level workroom alignment is not runtime implementation or demo readiness.
 
 capabilities:
   institutionContextEngine:
@@ -95,16 +97,42 @@ capabilities:
     notes: Permission-aware boundaries across documents, memory, graph edges, workspaces, tools, prompts, and model context.
 
   workspaceOS:
-    status: active-seed
+    status: contract-aligned
     ownerRepos:
       - SocioProphet/prophet-workspace
       - SocioProphet/sherlock-search
       - SocioProphet/speechlab
       - SocioProphet/orion-field-intelligence
+      - SocioProphet/slash-topics
+      - SocioProphet/ontogenesis
+      - SocioProphet/systems-learning-loops
+      - SocioProphet/workspace-inventory
     runtimeRepo: SocioProphet/prophet-platform
     contractPaths:
-      - contracts/workspace/workroom.schema.json
-    notes: Professional workrooms for clients, matters, deals, funds, assets, projects, and initiatives.
+      - SocioProphet/prophet-workspace:contracts/workspace/workroom.schema.json
+      - SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.schema.json
+      - SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.v0.1.example.json
+    controlRefs:
+      - SocioProphet/prophet-workspace:docs/professional-workrooms.md
+      - SocioProphet/prophet-workspace:docs/workroom-substrate-alignment-v0.md
+      - SocioProphet/prophet-workspace:tools/validate_professional_workrooms.py
+      - SocioProphet/prophet-workspace:.github/workflows/professional-workrooms.yml
+      - SocioProphet/workspace-inventory:inventory/estate-overlays/prophet-workspace-workroom-substrate.yaml
+      - SocioProphet/systems-learning-loops:kb/receipts/prophet-workspace-workroom-substrate.receipt.yaml
+    recoveredSubstrateRefs:
+      - policyDecisionRefs
+      - topicPackRefs
+      - memoryScopeRefs
+      - privacyDecisionRefs
+      - audioReviewRefs
+      - learningReceiptRefs
+      - semanticReceiptRefs
+      - adoptionEventRefs
+    notes: >-
+      Professional workrooms for clients, matters, deals, funds, assets, projects,
+      and initiatives. Current status is contract-aligned: schema, example,
+      validator, workflow trigger, README, Sociosphere topology, estate overlay,
+      and learning receipt exist. Runtime/UI/platform implementation remains future work.
 
   adoptionTelemetry:
     status: proposed
@@ -161,3 +189,8 @@ demoAcceptance:
     - adoption_event_emitted
     - workspace_workroom_created_or_updated
     - smoke_test_passed
+
+claimBoundary:
+  - Contract alignment does not imply runtime implementation.
+  - Runtime implementation does not imply demo readiness without evidence and adoption telemetry.
+  - Prophet Workspace owns workroom product semantics; Prophet Platform owns runtime deployment and service composition.
