@@ -190,3 +190,10 @@ fogstack-local-demo-full:
 .PHONY: fogstack-parity-readiness
 fogstack-parity-readiness:
 	python3 tools/run_fogstack_parity_readiness.py --summary
+
+.PHONY: prometheus-local-demo prometheus-local-demo-validate
+prometheus-local-demo:
+	python3 tools/run_prometheus_local_demo.py --output-dir build/prometheus/local-demo --issued-at 2026-05-27T21:00:00Z
+
+prometheus-local-demo-validate: prometheus-local-demo
+	python3 tools/validate_prometheus_local_demo.py build/prometheus/local-demo/manifest.json
