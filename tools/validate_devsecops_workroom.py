@@ -5,7 +5,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from jsonschema import Draft202012Validator
+
 ROOT = Path(__file__).resolve().parents[1]
+SCHEMA = ROOT / "contracts" / "workroom" / "devsecops-workroom-v0.1.schema.json"
 FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-validation-failure.valid.json",
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-incident.valid.json",
@@ -42,11 +45,20 @@ def load(path: Path) -> dict[str, Any]:
     return data
 
 
+def schema_problems(schema: dict[str, Any], data: dict[str, Any]) -> list[str]:
+    validator = Draft202012Validator(schema)
+    problems: list[str] = []
+    for error in sorted(validator.iter_errors(data), key=lambda item: list(item.absolute_path)):
+        path = "/".join(str(part) for part in error.absolute_path) or "<root>"
+        problems.append(f"schema:{path}: {error.message}")
+    return problems
+
+
 def ref_set(items: list[dict[str, Any]], key: str) -> set[str]:
     return {str(item.get(key)) for item in items if isinstance(item, dict)}
 
 
-def validate_record(data: dict[str, Any]) -> list[str]:
+def semantic_problems(data: dict[str, Any]) -> list[str]:
     problems: list[str] = []
 
     if data.get("schema_version") != "0.1.0":
@@ -155,11 +167,18 @@ def validate_record(data: dict[str, Any]) -> list[str]:
 
 def main() -> int:
     failed = False
-    results: dict[str, list[str]] = {}
+    schema = load(SCHEMA)
+    results: dict[str, dict[str, list[str]]] = {}
 
     for path in FIXTURES:
-        problems = validate_record(load(path))
-        results[str(path.relative_to(ROOT))] = problems
+        data = load(path)
+        schema_errors = schema_problems(schema, data)
+        semantic_errors = semantic_problems(data)
+        problems = schema_errors + semantic_errors
+        results[str(path.relative_to(ROOT))] = {
+            "schema": schema_errors,
+            "semantic": semantic_errors,
+        }
         failed = failed or bool(problems)
 
     report = {
@@ -167,7 +186,7 @@ def main() -> int:
         "passed": not failed,
         "results": results,
         "non_claims": [
-            "Validator checks workroom fixture semantics only.",
+            "Validator checks workroom JSON Schema and semantic fixture constraints.",
             "Validator does not execute live sandbox infrastructure.",
             "Validator does not certify Signadot-style runtime parity.",
             "Validator does not authorize production remediation."
