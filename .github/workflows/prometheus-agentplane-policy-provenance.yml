@@ -1,0 +1,38 @@
+name: prometheus-agentplane-policy-provenance
+
+on:
+  pull_request:
+    paths:
+      - "contracts/agentplane/prometheus-sr-gate-policy-provenance.manifest.json"
+      - "tools/validate_agentplane_sr_gate_policy_provenance.py"
+      - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
+      - "tools/emit_prometheus_gate_evaluation.py"
+      - ".github/workflows/prometheus-jsonld.yml"
+      - ".github/workflows/prometheus-agentplane-policy-provenance.yml"
+      - "standards.lock.yaml"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/agentplane/prometheus-sr-gate-policy-provenance.manifest.json"
+      - "tools/validate_agentplane_sr_gate_policy_provenance.py"
+      - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
+      - "tools/emit_prometheus_gate_evaluation.py"
+      - ".github/workflows/prometheus-jsonld.yml"
+      - ".github/workflows/prometheus-agentplane-policy-provenance.yml"
+      - "standards.lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-agentplane-policy-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate AgentPlane SR gate-policy provenance
+        run: python3 tools/validate_agentplane_sr_gate_policy_provenance.py
