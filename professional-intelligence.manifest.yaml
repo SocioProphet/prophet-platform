@@ -112,11 +112,15 @@ capabilities:
       - SocioProphet/prophet-workspace:contracts/workspace/workroom.schema.json
       - SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.schema.json
       - SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.v0.1.example.json
+      - contracts/workspace/workroom-update-request.example.json
+      - contracts/workspace/workroom-update-response.accepted.example.json
     controlRefs:
       - SocioProphet/prophet-workspace:docs/professional-workrooms.md
       - SocioProphet/prophet-workspace:docs/workroom-substrate-alignment-v0.md
       - SocioProphet/prophet-workspace:tools/validate_professional_workrooms.py
       - SocioProphet/prophet-workspace:.github/workflows/professional-workrooms.yml
+      - docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md
+      - tools/validate_workroom_update_contract.py
       - SocioProphet/workspace-inventory:inventory/estate-overlays/prophet-workspace-workroom-substrate.yaml
       - SocioProphet/systems-learning-loops:kb/receipts/prophet-workspace-workroom-substrate.receipt.yaml
     recoveredSubstrateRefs:
@@ -132,7 +136,8 @@ capabilities:
       Professional workrooms for clients, matters, deals, funds, assets, projects,
       and initiatives. Current status is contract-aligned: schema, example,
       validator, workflow trigger, README, Sociosphere topology, estate overlay,
-      and learning receipt exist. Runtime/UI/platform implementation remains future work.
+      learning receipt, platform workroom-update contract fixtures, and runtime
+      boundary design exist. Runtime/UI/platform implementation remains future work.
 
   adoptionTelemetry:
     status: proposed
