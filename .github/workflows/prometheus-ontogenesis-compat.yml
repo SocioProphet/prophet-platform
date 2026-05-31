@@ -1,0 +1,34 @@
+name: prometheus-ontogenesis-compat
+
+on:
+  pull_request:
+    paths:
+      - "contracts/ontology/prometheus-sr-assertion-compat.manifest.json"
+      - "tools/validate_prometheus_ontogenesis_compat.py"
+      - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_review.py"
+      - ".github/workflows/prometheus-ontogenesis-compat.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/ontology/prometheus-sr-assertion-compat.manifest.json"
+      - "tools/validate_prometheus_ontogenesis_compat.py"
+      - "tools/emit_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_review.py"
+      - ".github/workflows/prometheus-ontogenesis-compat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-prometheus-ontogenesis-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate PROMETHEUS Ontogenesis compatibility lock
+        run: python3 tools/validate_prometheus_ontogenesis_compat.py
