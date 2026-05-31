@@ -1,0 +1,75 @@
+name: validate-target-diagnostics
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-target-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - validate-repo
+          - drift-check
+          - standards-check
+          - topology-check
+          - chronos-evidence-loop-readout-validate
+          - lattice-surfaces-check
+          - validate-ops-fabric
+          - validate-search-academy-deploy
+          - validate-search-image-release
+          - validate-lampstand-lifecycle
+          - validate-zone-stack-audit
+          - policy-fabric-endpoint-client-smoke
+          - policy-fabric-guarded-workflow-smoke
+          - zone-router-publication-local-publish-smoke
+          - zone-router-publication-failure-evidence-smoke
+          - zone-router-publication-retry-state-smoke
+          - zone-router-publication-remote-broker-seam-smoke
+          - validate-workroom-update-contract
+          - validate-professional-intelligence-manifest
+          - validate-svf-agent-contract
+          - validate-environment-validate-change-v2
+          - validate-channel-runtime-gates
+          - test-go
+          - validate-phase4
+          - validate-fogstack
+          - validate-storage-suite
+          - trustops-art-runner-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        if: matrix.target == 'test-go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python validator dependencies
+        run: python -m pip install --upgrade pip pyyaml jsonschema
+      - name: Run target
+        run: make ${{ matrix.target }}
+
+  expensive-target-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - lattice-surface-ingestor-smoke
+          - lattice-studio-smoke
+          - test-python-apps
+          - test-tools
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run target
+        run: make ${{ matrix.target }}
