@@ -44,6 +44,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install fixture validation dependencies
+        run: python -m pip install jsonschema==4.23.0
       - name: Validate core orchestration fixture
         run: python specs/orchestration/orchestration_contract_fixture.py
       - name: Validate embodied experience traces
