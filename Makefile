@@ -199,3 +199,7 @@ fogstack-local-demo-full:
 .PHONY: fogstack-parity-readiness
 fogstack-parity-readiness:
 	python3 tools/run_fogstack_parity_readiness.py --summary
+
+.PHONY: prophet-artifact-smoke
+prophet-artifact-smoke:
+	python3 tools/smoke_prophet_artifact_runner.py
