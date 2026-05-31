@@ -60,6 +60,8 @@ jobs:
         run: python tools/smoke_validate_change_v2_api_stub.py
       - name: Validate DevSecOps workroom fixtures
         run: python tools/validate_devsecops_workroom.py
+      - name: Validate DevSecOps validation receipt refs
+        run: python tools/validate_devsecops_validation_run_receipt_ref.py
       - name: Run world-class event loop proof
         run: |
           python specs/orchestration/world_class_event_loop_demo.py --out /tmp/world-class-event-loop --compact
