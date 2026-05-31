@@ -67,6 +67,7 @@ Relevant files:
 - `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`
 - `contracts/workspace/workroom-update-request.example.json`
 - `contracts/workspace/workroom-update-response.accepted.example.json`
+- `contracts/workspace/workroom-update-response.invalid-runtime-mutation.example.json`
 - `tools/validate_workroom_update_contract.py`
 
 Validate locally:
@@ -75,7 +76,7 @@ Validate locally:
 make validate-workroom-update-contract
 ```
 
-Boundary: `accepted_for_review` is not execution. The accepted-response fixture requires `runtimeMutationPerformed: false`. Runtime implementation requires a separate platform service contract, persistence model, policy gate, receipt path, and the runtime prerequisites in `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`.
+Boundary: `accepted_for_review` is not execution. The accepted-response fixture requires `runtimeMutationPerformed: false`; the invalid mutation fixture proves that `runtimeMutationPerformed: true` under `accepted_for_review` is rejected. Runtime implementation requires a separate platform service contract, persistence model, policy gate, receipt path, and the runtime prerequisites in `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`.
 
 ## Sovereign Validation Fabric agent contract
 
