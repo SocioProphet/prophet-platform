@@ -9,10 +9,30 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "contracts" / "workroom" / "devsecops-workroom-v0.1.schema.json"
-FIXTURES = [
+VALID_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-validation-failure.valid.json",
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-incident.valid.json",
 ]
+INVALID_FIXTURES = {
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.causal-claim-without-evidence.invalid.json": [
+        "causal claims require evidence refs",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.high-risk-remediation-without-grant.invalid.json": [
+        "high/critical remediation requires action grant refs",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.mutation-action-without-approval.invalid.json": [
+        "mutation-class actions cannot be allowed without approval requirement",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.runtime-observed-without-parity-gate.invalid.json": [
+        "v0.1 fixture must not claim runtime_observed",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-production-incident.invalid.json": [
+        "pre_merge_validation lane must not use production_incident event_type",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-missing-investigation-ref.invalid.json": [
+        "post_merge_incident lane requires source_refs.investigation_run_ref",
+    ],
+}
 
 CLAIM_STATUSES = {
     "observation",
@@ -68,6 +88,7 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
 
     lane = data.get("lane")
     parity = data.get("runtime_parity_level")
+    source_refs = data.get("source_refs", {})
     bde = data.get("behavioral_divergence_event", {})
     evidence_packets = data.get("evidence_packets", [])
     claims = data.get("rca_claims", [])
@@ -79,6 +100,19 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         problems.append("lane must be pre_merge_validation or post_merge_incident")
     if parity not in {"contract_only", "synthetic_observed", "runtime_observed"}:
         problems.append("runtime_parity_level is invalid")
+
+    if not isinstance(source_refs, dict):
+        problems.append("source_refs must be an object when present")
+        source_refs = {}
+
+    if lane == "pre_merge_validation":
+        for key in ("change_set_ref", "environment_request_ref", "validation_run_ref"):
+            if not source_refs.get(key):
+                problems.append(f"pre_merge_validation lane requires source_refs.{key}")
+    if lane == "post_merge_incident":
+        for key in ("incident_ref", "investigation_run_ref"):
+            if not source_refs.get(key):
+                problems.append(f"post_merge_incident lane requires source_refs.{key}")
 
     if not isinstance(bde, dict):
         problems.append("behavioral_divergence_event must be an object")
@@ -165,21 +199,51 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
     return problems
 
 
+def validate_fixture(schema: dict[str, Any], path: Path) -> dict[str, list[str]]:
+    data = load(path)
+    schema_errors = schema_problems(schema, data)
+    semantic_errors = semantic_problems(data)
+    return {
+        "schema": schema_errors,
+        "semantic": semantic_errors,
+    }
+
+
+def assert_invalid_expectations(path: Path, problems: list[str], expected_substrings: list[str]) -> list[str]:
+    expectation_failures: list[str] = []
+    if not problems:
+        expectation_failures.append(f"{path}: expected invalid fixture to fail, but it passed")
+    for expected in expected_substrings:
+        if not any(expected in problem for problem in problems):
+            expectation_failures.append(f"{path}: expected invalid fixture problem containing {expected!r}")
+    return expectation_failures
+
+
 def main() -> int:
     failed = False
     schema = load(SCHEMA)
-    results: dict[str, dict[str, list[str]]] = {}
+    results: dict[str, dict[str, Any]] = {}
 
-    for path in FIXTURES:
-        data = load(path)
-        schema_errors = schema_problems(schema, data)
-        semantic_errors = semantic_problems(data)
-        problems = schema_errors + semantic_errors
+    for path in VALID_FIXTURES:
+        result = validate_fixture(schema, path)
+        problems = result["schema"] + result["semantic"]
         results[str(path.relative_to(ROOT))] = {
-            "schema": schema_errors,
-            "semantic": semantic_errors,
+            "expected": "valid",
+            **result,
         }
         failed = failed or bool(problems)
+
+    for path, expected_substrings in INVALID_FIXTURES.items():
+        result = validate_fixture(schema, path)
+        problems = result["schema"] + result["semantic"]
+        expectation_failures = assert_invalid_expectations(path.relative_to(ROOT), problems, expected_substrings)
+        results[str(path.relative_to(ROOT))] = {
+            "expected": "invalid",
+            "expected_problem_substrings": expected_substrings,
+            "expectation_failures": expectation_failures,
+            **result,
+        }
+        failed = failed or bool(expectation_failures)
 
     report = {
         "validator": "prophet-platform.devsecops-workroom.validator.v1",
@@ -187,10 +251,11 @@ def main() -> int:
         "results": results,
         "non_claims": [
             "Validator checks workroom JSON Schema and semantic fixture constraints.",
+            "Validator asserts invalid fixtures fail for the expected governance reasons.",
             "Validator does not execute live sandbox infrastructure.",
             "Validator does not certify Signadot-style runtime parity.",
-            "Validator does not authorize production remediation."
-        ]
+            "Validator does not authorize production remediation.",
+        ],
     }
     print(json.dumps(report, indent=2, sort_keys=True))
     print(("PASS" if not failed else "FAIL") + ": devsecops workroom fixtures")
