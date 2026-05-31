@@ -5,7 +5,7 @@ metadata:
 spec:
   repo: SocioProphet/prophet-platform-standards
   pin:
-    commit: 27be5c63098f443175a1507655ce9b7a094fc134
+    commit: b80737bafca6e399adf7eb8bf81aea3db61c8fa6
     branch: main
   consume:
     docs:
@@ -19,6 +19,8 @@ spec:
       - schemas/forensic-genesis/topics/edge.forensic.seal.completed.v1.schema.json
       - schemas/forensic-genesis/schema_registry_subjects.yaml
       - schemas/forensic-genesis/schema_compatibility_rules.yaml
+      - schemas/forensic-genesis/topics/evolution/edge.forensic.snmp.observed.v1.compatible.schema.json
+      - schemas/forensic-genesis/topics/evolution/edge.forensic.snmp.observed.v1.incompatible.schema.json
   intent:
     runtime_repo_is_not_normative: true
     standards_repo_remains_source_of_truth: true
