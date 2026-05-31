@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/prophet-platform/devsecops-validation-run-receipt-ref/v0.1.0",
+  "title": "DevSecOpsValidationRunReceiptRef",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "adapter_id",
+    "lane",
+    "authority_boundary",
+    "receipt_ref",
+    "run_ref",
+    "plan_ref",
+    "policy_ref",
+    "verification",
+    "certified_claims",
+    "non_certified_claims",
+    "workroom_projection",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1.0" },
+    "adapter_id": { "type": "string", "pattern": "^workroom:validation-receipt-adapter:" },
+    "lane": { "type": "string", "const": "pre_merge_validation" },
+    "authority_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["execution_authority", "receipt_authority", "workroom_authority"],
+      "properties": {
+        "execution_authority": { "type": "string", "enum": ["sociosphere_svf", "agentplane"] },
+        "receipt_authority": { "type": "string", "enum": ["sociosphere_svf", "agentplane"] },
+        "workroom_authority": { "type": "string", "const": "prophet_platform" }
+      }
+    },
+    "receipt_ref": { "type": "string", "pattern": "^svf:receipt:" },
+    "receipt_artifact_ref": { "type": "string" },
+    "run_ref": { "type": "string", "pattern": "^svf:run:" },
+    "run_artifact_ref": { "type": "string" },
+    "plan_ref": { "type": "string", "pattern": "^svf:plan:" },
+    "policy_ref": { "type": "string", "pattern": "^svf:policy:" },
+    "profile_ref": { "type": "string" },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "verifier", "verified_at"],
+      "properties": {
+        "status": { "type": "string", "enum": ["verified", "failed", "not_checked"] },
+        "verifier": { "type": "string", "minLength": 1 },
+        "verified_at": { "type": "string", "minLength": 1 },
+        "diagnostics_ref": { "type": "string" }
+      }
+    },
+    "certified_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "non_certified_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "workroom_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_refs", "runtime_parity_level", "evidence_packet_ref"],
+      "properties": {
+        "source_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["validation_run_ref"],
+          "properties": {
+            "change_set_ref": { "type": "string" },
+            "environment_request_ref": { "type": "string" },
+            "validation_run_ref": { "type": "string" }
+          }
+        },
+        "runtime_parity_level": { "type": "string", "enum": ["contract_only", "synthetic_observed", "runtime_observed"] },
+        "evidence_packet_ref": { "type": "string", "pattern": "^evidence://" },
+        "decision_state": { "type": "string", "enum": ["blocked", "needs_review", "allowed_read_only", "resolved", "candidate_only"] }
+      }
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    }
+  }
+}
