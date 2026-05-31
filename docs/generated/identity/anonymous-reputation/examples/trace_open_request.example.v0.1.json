@@ -1,0 +1,16 @@
+{
+  "version": "0.1",
+  "request_id": "TRACE-OPEN-REQUEST-EXAMPLE-0001",
+  "created_at": "2026-05-05T00:15:00Z",
+  "scope_ref": "GUILD-ALEXANDRIAN-REASONING",
+  "subject_commitment": "commitment-example-000000000001",
+  "authority_ref": "AUTHORITY-CONSTITUTIONAL-PANEL-0001",
+  "trigger_type": "constitutional_review",
+  "policy_refs": [
+    "POLICY-ALEXANDRIAN-TRACE-OPEN-0001"
+  ],
+  "evidence_refs": [
+    "ConstitutionalReviewEvent://example/0001"
+  ],
+  "status": "requested"
+}
