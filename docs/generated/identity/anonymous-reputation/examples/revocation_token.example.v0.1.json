@@ -1,0 +1,13 @@
+{
+  "version": "0.1",
+  "token_id": "REVOCATION-TOKEN-EXAMPLE-0001",
+  "scope_ref": "GUILD-ALEXANDRIAN-REASONING",
+  "subject_commitment": "commitment-example-000000000001",
+  "issued_at": "2026-05-05T00:10:00Z",
+  "issuer_ref": "AUTHORITY-CONSTITUTIONAL-PANEL-0001",
+  "reason_code": "constitutional_review_scope_violation",
+  "evidence_refs": [
+    "ConstitutionalReviewEvent://example/0001"
+  ],
+  "status": "active"
+}
