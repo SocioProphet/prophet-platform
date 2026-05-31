@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "prophet-platform.agentplane-sr-gate-policy-provenance.v0.1",
+  "recordType": "AgentPlaneSRGatePolicyProvenanceManifest",
+  "authorityRepo": "SocioProphet/agentplane",
+  "authorityCommit": "e508e1e1565e9ce316339448c50f7325cc36676b",
+  "authorityPath": "schemas/symbolic-regression/sr-gate-policy.schema.json",
+  "authorityBlobSha": "b43028f8e5e58e25834ff34111a9aaa358298bc1",
+  "authoritySchemaId": "https://socioprophet.io/schemas/agentplane/sr-gate-policy/v0.1.0",
+  "consumerRepo": "SocioProphet/prophet-platform",
+  "consumerFixture": "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json",
+  "consumerWorkflow": ".github/workflows/prometheus-jsonld.yml",
+  "consumerEmitter": "tools/emit_prometheus_gate_evaluation.py",
+  "requiredFields": [
+    "policyId",
+    "schemaVersion",
+    "applicationMode",
+    "methodFamilies",
+    "minimumDatasetRows",
+    "maximumCandidateComplexity",
+    "maximumNmse",
+    "requiredUnitsStatus",
+    "requireReplayVerified",
+    "allowControlAuthority",
+    "forbiddenGovernanceFlags",
+    "promotionEligibility"
+  ],
+  "authorityBoundary": {
+    "agentPlaneSchemaAuthority": true,
+    "prophetPlatformRuntimeConsumer": true,
+    "prophetPlatformSchemaAuthority": false,
+    "controlAuthorityGranted": false,
+    "assertionAdmissionGranted": false,
+    "deploymentAuthorizationGranted": false,
+    "memoryWritebackGranted": false
+  },
+  "nonAuthorityDeclaration": "This manifest proves Prophet Platform runtime-consumer alignment with AgentPlane SRGatePolicy schema authority only. It does not admit assertions, deploy models, grant controller authority, mutate Ontogenesis, or write Memory Mesh."
+}
