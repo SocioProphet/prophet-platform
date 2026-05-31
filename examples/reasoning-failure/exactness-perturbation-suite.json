@@ -1,0 +1,29 @@
+{
+  "kind": "ReasoningPerturbationSuite",
+  "version": "0.1",
+  "suiteId": "perturbation-suite.exactness.synthetic.v0",
+  "targetCaseId": "reasoning-failure.exact-string.synthetic.v0",
+  "verifierFamily": "deterministic",
+  "perturbations": [
+    {
+      "perturbationId": "exactness.identifier-rename.v0",
+      "family": "identifier-rename",
+      "description": "Rename surrounding variables while preserving the protected identifier exactly.",
+      "invariantPreserving": true,
+      "expectedInvariantBehavior": "Protected identifier remains byte-identical."
+    },
+    {
+      "perturbationId": "exactness.distractor-injection.v0",
+      "family": "distractor-injection",
+      "description": "Add nearby similar-looking identifiers as distractors.",
+      "invariantPreserving": true,
+      "expectedInvariantBehavior": "Protected identifier remains byte-identical and is not replaced by a distractor."
+    }
+  ],
+  "evaluatorBiasControls": {
+    "llmJudgeAllowed": false,
+    "orderRandomization": true,
+    "verbosityBiasCheck": true,
+    "contaminationNoteRequired": true
+  }
+}
