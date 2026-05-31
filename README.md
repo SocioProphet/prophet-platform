@@ -18,6 +18,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 
 ```bash
 make validate
+make validate-workroom-update-contract
 make validate-professional-intelligence-manifest
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
@@ -55,6 +56,24 @@ make validate-professional-intelligence-manifest
 ```
 
 Boundary: contract alignment does not imply runtime implementation. Runtime implementation does not imply demo readiness without evidence and adoption telemetry. Prophet Workspace owns workroom product semantics; Prophet Platform owns runtime deployment and service composition.
+
+## Workroom update contract
+
+Prophet Platform now carries a minimal workroom update request/response contract lane for Professional Workroom substrate refs. This is a no-runtime, no-network contract layer: it validates the shape and boundary of a request to attach recovered-substrate refs to a workroom surface, but it does not mutate live workroom state.
+
+Relevant files:
+
+- `contracts/workspace/workroom-update-request.example.json`
+- `contracts/workspace/workroom-update-response.accepted.example.json`
+- `tools/validate_workroom_update_contract.py`
+
+Validate locally:
+
+```bash
+make validate-workroom-update-contract
+```
+
+Boundary: `accepted_for_review` is not execution. The accepted-response fixture requires `runtimeMutationPerformed: false`. Runtime implementation requires a separate platform service contract, persistence model, policy gate, and receipt path.
 
 ## Sovereign Validation Fabric agent contract
 
