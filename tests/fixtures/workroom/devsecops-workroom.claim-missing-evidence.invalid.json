@@ -1,0 +1,65 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:missing-evidence",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://fixture/invalid/INC-0001"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-missing-evidence",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Invalid fixture with an evidence gap in the claim set.",
+    "environment_ref": "environment://fixture/invalid",
+    "topology_ref": "topology://fixture/invalid",
+    "evidence_refs": ["evidence://fixture/invalid/observation"],
+    "claim_refs": ["rca-claim:invalid:missing-evidence"],
+    "decision_state": "needs_review",
+    "non_claims": ["Invalid fixture should fail semantic validation."]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://fixture/invalid/observation",
+      "evidence_type": "metric_observation",
+      "producer": "invalid fixture",
+      "summary": "Fixture observation is present but not linked from the claim.",
+      "observed_at": "2026-05-31T17:05:00Z",
+      "provenance": {
+        "source_system": "fixture",
+        "source_ref": "fixture://invalid/missing-evidence",
+        "collection_method": "synthetic_invalid_fixture"
+      },
+      "non_claims": ["This fixture exists to prove validator rejection."]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:invalid:missing-evidence",
+      "claim_status": "supported_causal_claim",
+      "statement": "This supported claim intentionally omits evidence references and must fail.",
+      "evidence_refs": [],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": ["Invalid fixture should fail because supported claims require evidence refs."]
+    }
+  ],
+  "action_grants": [],
+  "remediation_plans": [],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:invalid:missing-evidence",
+      "fixture_status": "candidate",
+      "derived_from": "bde:production-incident:invalid-missing-evidence",
+      "summary": "Invalid regression fixture exists only to satisfy structural shape.",
+      "target_validation_plan_ref": "validation-plan://invalid/missing-evidence",
+      "non_claims": ["Invalid fixture should not pass semantic validation."]
+    }
+  ],
+  "issued_at": "2026-05-31T17:05:30Z",
+  "non_claims": [
+    "This is an intentionally invalid fixture.",
+    "It should fail semantic validation because a supported claim has no evidence refs."
+  ]
+}
