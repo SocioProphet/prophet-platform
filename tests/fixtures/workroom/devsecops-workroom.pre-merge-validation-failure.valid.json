@@ -1,0 +1,147 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:pre-merge:scope-d-example",
+  "lane": "pre_merge_validation",
+  "runtime_parity_level": "synthetic_observed",
+  "source_refs": {
+    "change_set_ref": "changeset://github/SocioProphet/scope-d-example/pull/42",
+    "environment_request_ref": "environment:validate-change-v2-request:scope-d-example",
+    "validation_run_ref": "agentplane:runtime-sandbox-run:scope-d-example",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/pre-merge"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:pre-merge-validation-failure:scope-d-example",
+    "event_type": "pre_merge_validation_failure",
+    "source_lane": "pre_merge_validation",
+    "status": "open",
+    "summary": "Synthetic sandbox validation observed API contract divergence for changed service against baseline route.",
+    "environment_ref": "environment://synthetic/scope-d-example",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/pre-merge",
+    "evidence_refs": [
+      "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed",
+      "evidence://prophet-platform/workroom/scope-d-example/api-contract-diff"
+    ],
+    "claim_refs": [
+      "rca-claim:scope-d-example:contract-observation",
+      "rca-claim:scope-d-example:changed-service-hypothesis"
+    ],
+    "decision_state": "blocked",
+    "non_claims": [
+      "Fixture is synthetic and does not certify live runtime parity.",
+      "Blocked decision is scoped to the synthetic validation fixture only."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed",
+      "evidence_type": "runtime_receipt",
+      "producer": "AgentPlane synthetic runtime adapter",
+      "summary": "Synthetic runtime sandbox receipt reported changed-service route allocation and validation evidence.",
+      "observed_at": "2026-05-31T16:55:00Z",
+      "provenance": {
+        "source_system": "AgentPlane",
+        "source_ref": "agentplane:runtime-sandbox-run:scope-d-example",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Receipt does not allocate live infrastructure.",
+        "Receipt does not certify Signadot-style parity."
+      ]
+    },
+    {
+      "evidence_ref": "evidence://prophet-platform/workroom/scope-d-example/api-contract-diff",
+      "evidence_type": "validation_result",
+      "producer": "Prophet Platform workroom fixture validator",
+      "summary": "Expected 200 response contract but observed 500-class fixture outcome under changed-service route.",
+      "observed_at": "2026-05-31T16:55:10Z",
+      "provenance": {
+        "source_system": "Prophet Platform",
+        "source_ref": "validation-plan://scope-d-example/api-contract",
+        "collection_method": "fixture_validation"
+      },
+      "non_claims": [
+        "Validation result is fixture evidence only.",
+        "No production customer impact is asserted."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:contract-observation",
+      "claim_status": "observation",
+      "statement": "The synthetic validation fixture observed API contract divergence under the changed-service route.",
+      "evidence_refs": [
+        "evidence://prophet-platform/workroom/scope-d-example/api-contract-diff"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "high",
+      "non_claims": [
+        "Observation is limited to fixture output.",
+        "Observation is not a confirmed production causal claim."
+      ]
+    },
+    {
+      "claim_id": "rca-claim:scope-d-example:changed-service-hypothesis",
+      "claim_status": "hypothesis",
+      "statement": "The changed service may have introduced an incompatible response contract relative to baseline expectations.",
+      "evidence_refs": [
+        "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed",
+        "evidence://prophet-platform/workroom/scope-d-example/api-contract-diff"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": [
+        "Hypothesis requires real runtime or code-level evidence before promotion.",
+        "Hypothesis does not authorize remediation by itself."
+      ]
+    }
+  ],
+  "action_grants": [
+    {
+      "grant_id": "action-grant:scope-d-example:read-validation-evidence",
+      "action_class": "read_only",
+      "status": "allowed",
+      "scope": "Read validation fixture evidence for PR-scoped workroom report.",
+      "approval_required": false,
+      "non_claims": [
+        "Grant permits read-only evidence inspection only.",
+        "Grant does not authorize infrastructure mutation."
+      ]
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:scope-d-example:update-contract-or-service",
+      "plan_status": "candidate",
+      "risk_class": "medium",
+      "summary": "Review changed-service API response contract and either update implementation or revise validation expectations with evidence.",
+      "evidence_refs": [
+        "evidence://prophet-platform/workroom/scope-d-example/api-contract-diff"
+      ],
+      "required_action_grant_refs": [],
+      "non_claims": [
+        "Candidate plan is advisory only.",
+        "No mutation is authorized by this plan."
+      ]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:scope-d-example:api-contract-divergence",
+      "fixture_status": "candidate",
+      "derived_from": "bde:pre-merge-validation-failure:scope-d-example",
+      "summary": "Add or preserve an API contract validation case for changed-service route divergence.",
+      "target_validation_plan_ref": "validation-plan://scope-d-example/api-contract",
+      "non_claims": [
+        "Fixture candidate is not canon until reviewed.",
+        "Fixture candidate does not prove production impact."
+      ]
+    }
+  ],
+  "issued_at": "2026-05-31T16:56:00Z",
+  "non_claims": [
+    "This workroom fixture is synthetic.",
+    "This workroom fixture does not certify runtime parity.",
+    "This workroom fixture does not authorize live infrastructure access."
+  ]
+}
