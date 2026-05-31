@@ -64,6 +64,27 @@ It may not:
 6. claim live or production readiness from advisory contract validation;
 7. treat raw CI status as a substitute for Sociosphere workspace state.
 
+## Validation evidence states
+
+`validate_change` and DevSecOps Workroom records must keep validation evidence state separate from broad runtime parity labels.
+
+Allowed evidence states are:
+
+- `not_configured`
+- `selected_only`
+- `missing_evidence`
+- `synthetic_observed`
+- `runtime_observed`
+- `verified_receipt`
+- `failed_receipt`
+- `stale_receipt`
+
+`runtime_observed` is not a claim that may be inferred from plan selection, command recommendation, or raw CI status. In v0.1 fixture semantics, `runtime_observed` requires `validation_evidence_state: verified_receipt` plus a `source_refs.validation_receipt_ref` whose value is represented by a `runtime_receipt` evidence packet provenance reference.
+
+`synthetic_observed` may be used for synthetic fixture evidence, but it must not be escalated to `runtime_observed` without verified receipt evidence.
+
+Receipt references are pointers to upstream evidence. Prophet Platform consumes them for agent-facing readiness summaries; it does not issue, sign, or certify SVF receipts.
+
 ## Initial request shape
 
 ```json
@@ -108,6 +129,8 @@ It may not:
 A PR readiness summary may state that Plans were selected, commands were recommended, or receipts are missing. It may not say that a change is validated unless matching receipts or observed validation evidence are attached through Sociosphere workspace state.
 
 For the first tranche, missing observed validation must be surfaced as `validation_observation_missing`, not silently converted into success.
+
+A readiness summary may report `runtime_observed` only when the Workroom or validate_change response carries a verified receipt reference and a matching runtime-receipt evidence packet. It must report `selected_only`, `missing_evidence`, `failed_receipt`, or `stale_receipt` when receipt evidence is absent, failed, or stale.
 
 ## Initial implementation order
 

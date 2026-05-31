@@ -3,10 +3,12 @@
   "workroom_id": "workroom:devsecops:pre-merge:scope-d-example",
   "lane": "pre_merge_validation",
   "runtime_parity_level": "synthetic_observed",
+  "validation_evidence_state": "synthetic_observed",
   "source_refs": {
     "change_set_ref": "changeset://github/SocioProphet/scope-d-example/pull/42",
     "environment_request_ref": "environment:validate-change-v2-request:scope-d-example",
     "validation_run_ref": "agentplane:runtime-sandbox-run:scope-d-example",
+    "validation_receipt_ref": "svf:receipt:scope-d-example.synthetic.001",
     "topology_ref": "topology://gaia/workroom/scope-d-example/pre-merge"
   },
   "behavioral_divergence_event": {
