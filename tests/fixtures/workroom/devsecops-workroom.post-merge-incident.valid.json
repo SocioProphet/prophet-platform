@@ -1,0 +1,178 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:post-merge:scope-d-example",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-1001",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:scope-d-example",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Fixture incident reports elevated 5xx responses after deployment of changed service.",
+    "environment_ref": "environment://production/scope-d-example",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_refs": [
+      "evidence://observability/scope-d-example/5xx-spike",
+      "evidence://deployment/scope-d-example/recent-deploy",
+      "evidence://gaia/topology/scope-d-example/blast-radius"
+    ],
+    "claim_refs": [
+      "rca-claim:scope-d-example:5xx-observation",
+      "rca-claim:scope-d-example:recent-deploy-supported"
+    ],
+    "decision_state": "needs_review",
+    "non_claims": [
+      "Fixture incident is synthetic and does not assert real customer impact.",
+      "Investigation state does not authorize production remediation."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "summary": "Synthetic telemetry reports 5xx rate above threshold for the API service after deploy window.",
+      "observed_at": "2026-05-31T16:57:00Z",
+      "provenance": {
+        "source_system": "observability-fixture",
+        "source_ref": "metric://scope-d-example/api/5xx-rate",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Telemetry is synthetic fixture data.",
+        "Metric spike alone does not prove root cause."
+      ]
+    },
+    {
+      "evidence_ref": "evidence://deployment/scope-d-example/recent-deploy",
+      "evidence_type": "deployment_metadata",
+      "producer": "Fixture deployment connector",
+      "summary": "Synthetic deployment metadata records changed-service deploy within the incident time window.",
+      "observed_at": "2026-05-31T16:57:10Z",
+      "provenance": {
+        "source_system": "deployment-fixture",
+        "source_ref": "deploy://scope-d-example/api/2026-05-31T16:40:00Z",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Deploy timing supports investigation but is not sufficient for confirmed causality.",
+        "Metadata is fixture-only."
+      ]
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius",
+      "evidence_type": "topology_snapshot",
+      "producer": "GAIA topology fixture",
+      "summary": "Topology fixture links API service to checkout and account frontends as potential blast-radius consumers.",
+      "observed_at": "2026-05-31T16:57:20Z",
+      "provenance": {
+        "source_system": "GAIA fixture",
+        "source_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Topology supports blast-radius estimation only.",
+        "Topology does not prove causal root cause."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:5xx-observation",
+      "claim_status": "observation",
+      "statement": "The fixture observed elevated 5xx responses for the API service after the deploy window.",
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "high",
+      "non_claims": [
+        "Observation is fixture-scoped.",
+        "Observation does not assign causality."
+      ]
+    },
+    {
+      "claim_id": "rca-claim:scope-d-example:recent-deploy-supported",
+      "claim_status": "supported_causal_claim",
+      "statement": "The recent changed-service deploy is a supported candidate cause for the fixture 5xx spike, pending counterevidence review.",
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike",
+        "evidence://deployment/scope-d-example/recent-deploy"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": [
+        "Supported causal claim is not confirmed without counterevidence handling.",
+        "Claim does not authorize rollback."
+      ]
+    }
+  ],
+  "action_grants": [
+    {
+      "grant_id": "action-grant:scope-d-example:read-incident-evidence",
+      "action_class": "read_only",
+      "status": "allowed",
+      "scope": "Read fixture incident evidence and topology refs.",
+      "approval_required": false,
+      "non_claims": [
+        "Grant permits read-only investigation only.",
+        "Grant does not authorize production mutation."
+      ]
+    },
+    {
+      "grant_id": "action-grant:scope-d-example:rollback-production",
+      "action_class": "production_change",
+      "status": "requires_human_approval",
+      "scope": "Rollback production deployment for API service.",
+      "approval_required": true,
+      "non_claims": [
+        "Grant is not approved in this fixture.",
+        "Rollback cannot execute from RCA claim alone."
+      ]
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:scope-d-example:rollback-candidate",
+      "plan_status": "candidate",
+      "risk_class": "high",
+      "summary": "Consider production rollback only after human review and counterevidence check.",
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike",
+        "evidence://deployment/scope-d-example/recent-deploy"
+      ],
+      "required_action_grant_refs": [
+        "action-grant:scope-d-example:rollback-production"
+      ],
+      "non_claims": [
+        "Candidate remediation is not executable without approval.",
+        "Fixture does not authorize live production action."
+      ]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:scope-d-example:post-deploy-5xx-guard",
+      "fixture_status": "candidate",
+      "derived_from": "bde:production-incident:scope-d-example",
+      "summary": "Create pre-merge validation plan candidate that fails when changed-service route produces 5xx-class responses under checkout/account traffic fixture.",
+      "target_validation_plan_ref": "validation-plan://scope-d-example/post-deploy-5xx-guard",
+      "non_claims": [
+        "Regression fixture is candidate only until reviewed.",
+        "Regression fixture does not prove that the deploy was the confirmed root cause."
+      ]
+    }
+  ],
+  "issued_at": "2026-05-31T16:58:00Z",
+  "non_claims": [
+    "This incident workroom record is fixture-only.",
+    "This incident workroom record does not authorize live remediation.",
+    "This incident workroom record requires counterevidence review before confirmed RCA."
+  ]
+}
