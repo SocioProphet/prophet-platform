@@ -1,0 +1,41 @@
+name: tritfabric-consumption-api-stubs
+
+on:
+  pull_request:
+    paths:
+      - "apps/tritfabric-consumption-api/**"
+      - "tools/run_tritfabric_consumption_api_stubs.py"
+      - "tools/tests/test_tritfabric_consumption_api.py"
+      - "contracts/integrations/tritfabric-consumption.v0.json"
+      - ".github/workflows/tritfabric-consumption-api-stubs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/tritfabric-consumption-api/**"
+      - "tools/run_tritfabric_consumption_api_stubs.py"
+      - "tools/tests/test_tritfabric_consumption_api.py"
+      - "contracts/integrations/tritfabric-consumption.v0.json"
+      - ".github/workflows/tritfabric-consumption-api-stubs.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  tritfabric-consumption-api-stubs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependency
+        run: python -m pip install pytest
+
+      - name: Run TritFabric API stub runner
+        run: python3 tools/run_tritfabric_consumption_api_stubs.py
+
+      - name: Run focused TritFabric API stub tests
+        run: python3 -m pytest tools/tests/test_tritfabric_consumption_api.py
