@@ -32,11 +32,12 @@ make smoke-health
 2. `docs/TRITRPC_SPEC.md`
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
 4. `professional-intelligence.manifest.yaml`
-5. `docs/PLATFORM_EVAL_FABRIC.md`
-6. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
-7. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
-8. `contracts/`
-9. `infra/k8s/`
+5. `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`
+6. `docs/PLATFORM_EVAL_FABRIC.md`
+7. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
+8. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+9. `contracts/`
+10. `infra/k8s/`
 
 ## Professional Intelligence manifest
 
@@ -63,6 +64,7 @@ Prophet Platform now carries a minimal workroom update request/response contract
 
 Relevant files:
 
+- `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`
 - `contracts/workspace/workroom-update-request.example.json`
 - `contracts/workspace/workroom-update-response.accepted.example.json`
 - `tools/validate_workroom_update_contract.py`
@@ -73,7 +75,7 @@ Validate locally:
 make validate-workroom-update-contract
 ```
 
-Boundary: `accepted_for_review` is not execution. The accepted-response fixture requires `runtimeMutationPerformed: false`. Runtime implementation requires a separate platform service contract, persistence model, policy gate, and receipt path.
+Boundary: `accepted_for_review` is not execution. The accepted-response fixture requires `runtimeMutationPerformed: false`. Runtime implementation requires a separate platform service contract, persistence model, policy gate, receipt path, and the runtime prerequisites in `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`.
 
 ## Sovereign Validation Fabric agent contract
 
