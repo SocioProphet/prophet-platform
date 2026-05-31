@@ -54,6 +54,10 @@ jobs:
         run: |
           python specs/orchestration/event_capability_fixture.py
           python specs/orchestration/event_capability_fixture.py --events > /tmp/event-capability.records.json
+      - name: Validate validate_change v2 API stub
+        run: python tools/smoke_validate_change_v2_api_stub.py
+      - name: Validate DevSecOps workroom fixtures
+        run: python tools/validate_devsecops_workroom.py
       - name: Run world-class event loop proof
         run: |
           python specs/orchestration/world_class_event_loop_demo.py --out /tmp/world-class-event-loop --compact
