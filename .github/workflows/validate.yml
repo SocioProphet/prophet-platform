@@ -6,4 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate
-        run: make validate
+        run: |
+          make validate > /tmp/prophet-platform-validate.log 2>&1 || {
+            tail -n 240 /tmp/prophet-platform-validate.log
+            exit 1
+          }
+          cat /tmp/prophet-platform-validate.log
