@@ -29,6 +29,9 @@ INVALID_FIXTURES = {
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-missing-investigation-ref.invalid.json": [
         "post_merge_incident lane requires source_refs.investigation_run_ref",
     ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.approval-posture.invalid.json": [
+        "mutation-class actions cannot be allowed without approval requirement",
+    ],
 }
 
 CLAIM_STATUSES = {
