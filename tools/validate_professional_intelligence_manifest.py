@@ -27,10 +27,14 @@ REQUIRED_WORKSPACE_OS_CONTRACTS = {
     "SocioProphet/prophet-workspace:contracts/workspace/workroom.schema.json",
     "SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.schema.json",
     "SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.v0.1.example.json",
+    "contracts/workspace/workroom-update-request.example.json",
+    "contracts/workspace/workroom-update-response.accepted.example.json",
 }
 REQUIRED_WORKSPACE_OS_CONTROLS = {
     "SocioProphet/prophet-workspace:docs/workroom-substrate-alignment-v0.md",
     "SocioProphet/prophet-workspace:tools/validate_professional_workrooms.py",
+    "docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md",
+    "tools/validate_workroom_update_contract.py",
     "SocioProphet/workspace-inventory:inventory/estate-overlays/prophet-workspace-workroom-substrate.yaml",
     "SocioProphet/systems-learning-loops:kb/receipts/prophet-workspace-workroom-substrate.receipt.yaml",
 }
@@ -150,6 +154,7 @@ def main() -> int:
 
     print("OK: professional-intelligence.manifest.yaml structure valid")
     print("OK: workspaceOS contract-aligned evidence present")
+    print("OK: workroom update runtime boundary refs present")
     print("OK: claim boundaries present")
     return 0
 
