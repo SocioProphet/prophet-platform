@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:scope-d-example",
+  "response_id": "environment:validate-change-v2-response:stale-receipt:scope-d-example",
+  "status": "environment_failed",
+  "repo": "SocioProphet/SCOPE-D",
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "stale_receipt"
+  },
+  "selected_plans": [
+    "svf:plan:scope-d.defensive-assurance-basic"
+  ],
+  "environment": {
+    "baseline_ref": "workspace://scope-d/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "agentplane_execution": {
+    "executor_plane": "AgentPlane",
+    "sandbox_run_ref": "agentplane:sandbox-run:stale:scope-d-example",
+    "execution_status": "failed",
+    "evidence_refs": [
+      "evidence://sociosphere/svf/scope-d/stale-receipt"
+    ]
+  },
+  "evidence_summary": {
+    "evidence_status": "stale",
+    "validation_evidence_state": "stale_receipt",
+    "receipt_refs": [
+      "svf:receipt:scope-d.stale.001"
+    ],
+    "failure_codes": [
+      "svf_receipt_stale"
+    ],
+    "non_certified_claims": [
+      "Stale receipt does not certify the current change set.",
+      "Stale receipt does not certify production readiness.",
+      "Stale receipt requires rerun before PR readiness."
+    ]
+  },
+  "pr_readiness": {
+    "readiness_state": "blocked",
+    "merge_allowed": false,
+    "required_evidence_state": "verified_receipt",
+    "observed_evidence_state": "stale_receipt",
+    "blocking_reason_codes": [
+      "svf_receipt_stale",
+      "verified_receipt_required"
+    ],
+    "summary": "Stale receipt evidence blocks PR readiness for the current change set.",
+    "non_claims": [
+      "Readiness block is based on stale receipt state.",
+      "Readiness block does not execute validation."
+    ]
+  },
+  "warnings": [
+    "validation_receipt_stale"
+  ],
+  "next_required_action": "rerun_selected_svf_plan",
+  "non_claims": [
+    "Stale receipt evidence does not certify the current change.",
+    "Stale receipt evidence does not prove traffic routing or stateful isolation.",
+    "Stale receipt evidence blocks validation-success claims."
+  ]
+}
