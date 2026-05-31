@@ -145,7 +145,7 @@ def build_jsonld(candidate: dict[str, Any], run_artifact: dict[str, Any], args: 
             "@type": "sr:SemanticReviewSurface",
             "sr:reviewSurfaceType": args.review_surface
         },
-        "sr:nonAuthorityDeclaration": "This JSON-LD artifact is a semantic review proposal only. It does not mutate ontology, create a law, or grant runtime authority.",
+        "sr:nonAuthorityDeclaration": "This JSON-LD artifact is a semantic review proposal only. It does not mutate Ontogenesis, create a law, or grant runtime authority.",
         "sr:hasEquation": candidate_ref["equationLatex"],
         "prov:generatedAtTime": args.issued_at or now_utc()
     }

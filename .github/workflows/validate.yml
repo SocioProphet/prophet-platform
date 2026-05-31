@@ -6,4 +6,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate
-        run: make validate
+        id: validate
+        continue-on-error: true
+        run: make validate > /tmp/prophet-platform-validate.log 2>&1
+      - name: Upload validate log
+        if: steps.validate.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: prophet-platform-validate-log
+          path: /tmp/prophet-platform-validate.log
+      - name: Report validate result
+        run: |
+          if [ "${{ steps.validate.outcome }}" = "failure" ]; then
+            tail -n 80 /tmp/prophet-platform-validate.log
+            exit 1
+          fi
+          cat /tmp/prophet-platform-validate.log
