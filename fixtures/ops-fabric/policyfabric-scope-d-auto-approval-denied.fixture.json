@@ -1,0 +1,21 @@
+{
+  "fixture_id": "policyfabric-scope-d-auto-approval-denied.v0",
+  "expected_result": "INVALID_POLICY_DECISION",
+  "expected_reason": "POLICY_CANNOT_AUTO_APPROVE_SCOPE_D_DERIVED",
+  "input": {
+    "scope_d_provenance": {
+      "derived_from_scope_d": true,
+      "scope_d_run_id": "scope_d_run_001",
+      "operator_warning_required": true
+    }
+  },
+  "invalid_policy_output": {
+    "policy_status": "ALLOWED_AUTO",
+    "execution_eligible": true
+  },
+  "allowed_policy_outputs": [
+    "DENIED",
+    "ALLOWED_REPORT_ONLY",
+    "REQUIRES_HUMAN_REVIEW_SCOPE_D_ACK"
+  ]
+}
