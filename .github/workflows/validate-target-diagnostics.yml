@@ -1,0 +1,144 @@
+name: validate-target-diagnostics
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate-target-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - validate-repo
+          - drift-check
+          - standards-check
+          - topology-check
+          - chronos-evidence-loop-readout-validate
+          - lattice-surfaces-check
+          - validate-ops-fabric
+          - validate-search-academy-deploy
+          - validate-search-image-release
+          - validate-lampstand-lifecycle
+          - validate-zone-stack-audit
+          - policy-fabric-endpoint-client-smoke
+          - policy-fabric-guarded-workflow-smoke
+          - zone-router-publication-local-publish-smoke
+          - zone-router-publication-failure-evidence-smoke
+          - zone-router-publication-retry-state-smoke
+          - zone-router-publication-remote-broker-seam-smoke
+          - validate-workroom-update-contract
+          - validate-professional-intelligence-manifest
+          - validate-svf-agent-contract
+          - validate-environment-validate-change-v2
+          - validate-channel-runtime-gates
+          - test-go
+          - validate-phase4
+          - validate-fogstack
+          - validate-storage-suite
+          - trustops-art-runner-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        if: matrix.target == 'test-go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Python validator dependencies
+        run: python -m pip install --upgrade pip pyyaml jsonschema
+      - name: Run target
+        run: make ${{ matrix.target }}
+
+  app-test-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: eval-fabric-api
+            working-directory: apps/eval-fabric-api
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: pytest -q tests ../knowledge-reason/tests
+          - name: evidence-receipts
+            working-directory: apps/evidence-receipts
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: pytest -q tests
+          - name: evidence-console
+            working-directory: apps/evidence-console
+            install: pip install -r requirements-test.txt
+            test: pytest -q tests
+          - name: zone-router
+            working-directory: apps/zone-router
+            install: pip install -r requirements-test.txt
+            test: PYTHONPATH=src pytest -q tests
+          - name: semantic-bridge
+            working-directory: apps/semantic-bridge
+            install: pip install -r requirements-test.txt
+            test: PYTHONPATH=src pytest -q tests
+          - name: tools-tests
+            working-directory: .
+            install: pip install pytest pyyaml jsonschema
+            test: pytest -q tools/tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Create virtualenv
+        working-directory: ${{ matrix.working-directory }}
+        run: python3 -m venv .venv
+      - name: Install app/tool test dependencies
+        working-directory: ${{ matrix.working-directory }}
+        run: |
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          ${{ matrix.install }}
+      - name: Run app/tool diagnostic
+        id: diagnostic
+        working-directory: ${{ matrix.working-directory }}
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/diagnostic-logs"
+          log="$GITHUB_WORKSPACE/diagnostic-logs/${{ matrix.name }}.log"
+          . .venv/bin/activate
+          set +e
+          {
+            echo "target=${{ matrix.name }}"
+            echo "working_directory=${{ matrix.working-directory }}"
+            echo "test_command=${{ matrix.test }}"
+            ${{ matrix.test }}
+            status=$?
+            echo "exit_status=$status"
+            exit $status
+          } 2>&1 | tee "$log"
+          exit ${PIPESTATUS[0]}
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-${{ matrix.name }}
+          path: diagnostic-logs/${{ matrix.name }}.log
+
+  smoke-target-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - lattice-surface-ingestor-smoke
+          - lattice-studio-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run target
+        run: make ${{ matrix.target }}
