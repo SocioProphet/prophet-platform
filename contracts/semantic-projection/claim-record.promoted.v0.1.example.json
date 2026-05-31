@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "semantic-projection.claim-record.v0.1",
+  "recordType": "ClaimRecord",
+  "claimId": "claim:semantic-projection:awareness-with-memory",
+  "claimType": "interpretation",
+  "subjectIds": ["platform:prophet-platform"],
+  "predicate": "implements",
+  "objectIds": ["concept:awareness-with-memory"],
+  "statement": "Prophet projects user-relative knowledge surfaces from governed semantic state while preserving time, provenance, contradiction, and policy.",
+  "provenance": {
+    "sourceArtifactIds": ["chat://semantic-fibration-draft", "docs/SEMANTIC_PROJECTION_KERNEL_V0.md"],
+    "derivationPath": ["semantic-fibration-draft", "kernel-boundary-review", "projection-contract"],
+    "producerType": "agent",
+    "producerId": "assistant://gpt-5.5-thinking",
+    "transformationIds": ["transform:essay-to-kernel-spec:v0.1"]
+  },
+  "temporal": {
+    "createdAt": "2026-05-13T16:05:00-04:00",
+    "observedAt": "2026-05-13T16:00:00-04:00",
+    "validFrom": "2026-05-13T16:05:00-04:00",
+    "validUntil": null
+  },
+  "confidence": {
+    "score": 0.86,
+    "label": "strong"
+  },
+  "promotion": {
+    "status": "promoted",
+    "validatorIds": ["tools/validate_semantic_projection.py"],
+    "reviewIds": ["review:kernel-boundary:v0.1"]
+  },
+  "contradictions": {
+    "contradictionIds": ["contradiction:semantic-fibration:runtime-boundary"]
+  },
+  "policy": {
+    "reuseScope": "groupoid",
+    "actionEligible": true
+  }
+}

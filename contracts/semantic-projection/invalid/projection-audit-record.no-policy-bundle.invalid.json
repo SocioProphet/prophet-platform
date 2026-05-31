@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "semantic-projection.projection-audit-record.v0.1",
+  "recordType": "ProjectionAuditRecord",
+  "projectionId": "projection:invalid:audit-no-policy",
+  "requestId": "projection-request:demo:semantic-fibration",
+  "userId": "user:michael",
+  "groupoidId": "groupoid:socioprophet",
+  "semanticStateSnapshotId": "semantic-state:demo",
+  "policyBundleIds": [],
+  "modelVersions": ["assistant:gpt-5.5-thinking:2026-05-13"],
+  "deterministicReplayKey": "replay:semantic-projection:invalid:v0.1",
+  "inputHash": "sha256:9e922f7d7d786b50300f6b40598c1ff0afc7a56ad8f3f6fb9c4e000000000001",
+  "outputHash": "sha256:8c2c7bbf568dd8dfc1f17c9c8c5bdeaf4ce67cc12c4a6c0d7a6000000000002",
+  "createdAt": "2026-05-13T16:10:10-04:00"
+}

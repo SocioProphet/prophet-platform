@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "semantic-projection.projection-request.v0.1",
+  "recordType": "ProjectionRequest",
+  "requestId": "projection-request:demo:semantic-fibration",
+  "userId": "user:michael",
+  "groupoidId": "groupoid:socioprophet",
+  "taskId": "task:semantic-projection-kernel-v0",
+  "query": "Project the semantic fibration thesis into a governed platform contract.",
+  "intent": "audit",
+  "timeHorizon": {
+    "asOf": "2026-05-13T16:00:00-04:00",
+    "from": null,
+    "to": null
+  },
+  "policyContext": {
+    "authorizationProfileId": "authz:prophet-platform:architect",
+    "trustPolicyId": "trust-policy:provenance-required:v0",
+    "redactionPolicyId": "redaction-policy:none-public-contract:v0",
+    "explanationLevel": "full"
+  },
+  "memoryScope": {
+    "includeUserMemory": true,
+    "includeGroupoidMemory": true,
+    "includePriorSessions": false
+  },
+  "contradictionPolicy": {
+    "mode": "expose"
+  },
+  "actionContext": {
+    "actionRequested": false,
+    "actionType": null
+  },
+  "provenance": {
+    "createdAt": "2026-05-13T16:00:00-04:00",
+    "createdBy": "assistant://gpt-5.5-thinking",
+    "sourceRef": "chat://semantic-fibration-draft"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/semantic-projection/claim-record.v0.1.schema.json",
+  "title": "Semantic Projection Claim Record v0.1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "claimId",
+    "claimType",
+    "subjectIds",
+    "predicate",
+    "objectIds",
+    "statement",
+    "provenance",
+    "temporal",
+    "confidence",
+    "promotion",
+    "contradictions",
+    "policy"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "semantic-projection.claim-record.v0.1"},
+    "recordType": {"const": "ClaimRecord"},
+    "claimId": {"type": "string"},
+    "claimType": {"enum": ["observation", "inference", "hypothesis", "decision", "policy", "measurement", "theorem", "interpretation"]},
+    "subjectIds": {"type": "array"},
+    "predicate": {"type": "string"},
+    "objectIds": {"type": "array"},
+    "statement": {"type": "string"},
+    "provenance": {"type": "object"},
+    "temporal": {"type": "object"},
+    "confidence": {"type": "object"},
+    "promotion": {"type": "object"},
+    "contradictions": {"type": "object"},
+    "policy": {"type": "object"}
+  }
+}
