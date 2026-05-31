@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0",
   "request_id": "environment:validate-change-v2-request:scope-d-example",
-  "response_id": "environment:validate-change-v2-response:requested:scope-d-example",
+  "response_id": "environment:validate-change-v2-response:selected-only:scope-d-example",
   "status": "environment_requested",
   "repo": "SocioProphet/SCOPE-D",
   "sociosphere_refs": {
     "workspace_registry": "svf:registry:sociosphere.workspace",
     "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
-    "workspace_validation_status": "selected_missing_observation"
+    "workspace_validation_status": "selected_only"
   },
   "selected_plans": [
     "svf:plan:scope-d.defensive-assurance-basic"
@@ -22,35 +22,35 @@
   },
   "agentplane_execution": {
     "executor_plane": "AgentPlane",
-    "sandbox_run_ref": "agentplane:sandbox-run:pending:scope-d-example",
+    "sandbox_run_ref": "agentplane:sandbox-run:pending:scope-d-example:selected-only",
     "execution_status": "requested",
     "evidence_refs": []
   },
   "evidence_summary": {
-    "evidence_status": "missing",
-    "validation_evidence_state": "missing_evidence",
+    "evidence_status": "selected_only",
+    "validation_evidence_state": "selected_only",
     "receipt_refs": [],
     "failure_codes": [
-      "validation_observation_missing"
+      "validation_selected_not_executed"
     ],
     "non_certified_claims": [
-      "Plans were selected but no execution evidence was observed.",
-      "No validation success is certified.",
-      "No merge readiness is certified."
+      "Plan selection is not execution evidence.",
+      "Plan selection does not certify validation success.",
+      "Plan selection does not authorize merge readiness."
     ]
   },
   "pr_readiness": {
     "readiness_state": "blocked",
     "merge_allowed": false,
     "required_evidence_state": "verified_receipt",
-    "observed_evidence_state": "missing_evidence",
+    "observed_evidence_state": "selected_only",
     "blocking_reason_codes": [
-      "validation_observation_missing",
+      "validation_selected_not_executed",
       "verified_receipt_required"
     ],
-    "summary": "Selected validation plans are not sufficient for PR readiness without observed receipt-backed evidence.",
+    "summary": "Plan selection alone is insufficient for PR readiness.",
     "non_claims": [
-      "Readiness block is based on fixture evidence state only.",
+      "Readiness block is based on selection-only state.",
       "Readiness block does not execute validation."
     ]
   },
@@ -58,10 +58,10 @@
     "validation_observation_missing",
     "environment_execution_not_observed"
   ],
-  "next_required_action": "agentplane_synthetic_sandbox_run",
+  "next_required_action": "execute_selected_svf_plan",
   "non_claims": [
-    "Environment request does not create live infrastructure.",
-    "Environment request does not certify validation success.",
-    "Environment request requires AgentPlane evidence before observed status."
+    "Selected-only response does not execute validation actions.",
+    "Selected-only response does not certify validation success.",
+    "Selected-only response does not authorize autonomous merge."
   ]
 }

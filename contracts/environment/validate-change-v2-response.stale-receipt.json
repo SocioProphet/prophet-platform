@@ -1,13 +1,13 @@
 {
   "schema_version": "1.0",
   "request_id": "environment:validate-change-v2-request:scope-d-example",
-  "response_id": "environment:validate-change-v2-response:failed:scope-d-example",
+  "response_id": "environment:validate-change-v2-response:stale-receipt:scope-d-example",
   "status": "environment_failed",
   "repo": "SocioProphet/SCOPE-D",
   "sociosphere_refs": {
     "workspace_registry": "svf:registry:sociosphere.workspace",
     "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
-    "workspace_validation_status": "failed_receipt"
+    "workspace_validation_status": "stale_receipt"
   },
   "selected_plans": [
     "svf:plan:scope-d.defensive-assurance-basic"
@@ -22,50 +22,49 @@
   },
   "agentplane_execution": {
     "executor_plane": "AgentPlane",
-    "sandbox_run_ref": "agentplane:sandbox-run:failed:scope-d-example",
+    "sandbox_run_ref": "agentplane:sandbox-run:stale:scope-d-example",
     "execution_status": "failed",
     "evidence_refs": [
-      "evidence://sociosphere/svf/scope-d/failed-receipt"
+      "evidence://sociosphere/svf/scope-d/stale-receipt"
     ]
   },
   "evidence_summary": {
-    "evidence_status": "failed",
-    "validation_evidence_state": "failed_receipt",
+    "evidence_status": "stale",
+    "validation_evidence_state": "stale_receipt",
     "receipt_refs": [
-      "svf:receipt:scope-d.failed.001"
+      "svf:receipt:scope-d.stale.001"
     ],
     "failure_codes": [
-      "svf_receipt_failed"
+      "svf_receipt_stale"
     ],
     "non_certified_claims": [
-      "Failed receipt blocks validation success.",
-      "Failed receipt does not certify production readiness.",
-      "Failed receipt requires repair and rerun before PR readiness."
+      "Stale receipt does not certify the current change set.",
+      "Stale receipt does not certify production readiness.",
+      "Stale receipt requires rerun before PR readiness."
     ]
   },
   "pr_readiness": {
     "readiness_state": "blocked",
     "merge_allowed": false,
     "required_evidence_state": "verified_receipt",
-    "observed_evidence_state": "failed_receipt",
+    "observed_evidence_state": "stale_receipt",
     "blocking_reason_codes": [
-      "svf_receipt_failed",
+      "svf_receipt_stale",
       "verified_receipt_required"
     ],
-    "summary": "Failed receipt evidence blocks PR readiness.",
+    "summary": "Stale receipt evidence blocks PR readiness for the current change set.",
     "non_claims": [
-      "Readiness block is based on failed receipt state.",
-      "Readiness block does not authorize remediation."
+      "Readiness block is based on stale receipt state.",
+      "Readiness block does not execute validation."
     ]
   },
   "warnings": [
-    "environment_validation_failed",
-    "validation_receipt_failed"
+    "validation_receipt_stale"
   ],
-  "next_required_action": "remediate_and_rerun_environment_validation",
+  "next_required_action": "rerun_selected_svf_plan",
   "non_claims": [
-    "Failed receipt evidence does not certify sandbox execution parity.",
-    "Failed receipt evidence does not prove traffic routing or stateful isolation.",
-    "Failed receipt evidence blocks validation-success claims."
+    "Stale receipt evidence does not certify the current change.",
+    "Stale receipt evidence does not prove traffic routing or stateful isolation.",
+    "Stale receipt evidence blocks validation-success claims."
   ]
 }
