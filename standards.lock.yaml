@@ -57,7 +57,7 @@ spec:
         class: ontology-constraints-pack
         channel: controlled
         pin:
-          commit: 0a3f7b402d1af21d6699d3fe6a6e657b9882e5af
+          commit: ad86c70d0e17bacb41af243ad3e81ac7ac1d9432
           tag: null
         consume:
           docs:
