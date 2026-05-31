@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "receipt_id": "ANON-REP-RECEIPT-EXAMPLE-0001",
+  "created_at": "2026-05-05T00:05:00Z",
+  "scope_ref": "GUILD-ALEXANDRIAN-REASONING",
+  "pseudonymous_subject_commitment": "commitment-example-000000000001",
+  "event_type": "moderation",
+  "event_ref": "MOD-EVENT-EXAMPLE-0001",
+  "linkability_scope_ref": "LINK-SCOPE-ALEXANDRIAN-REVIEW-0001",
+  "reputation_delta": 0.25,
+  "evidence_refs": [
+    "AegisVault://evidence/example-0001",
+    "MembraneDecision://example/0001"
+  ],
+  "revocation_token_ref": "REVOCATION-TOKEN-EXAMPLE-0001",
+  "trace_open_supported": true,
+  "receipt": {
+    "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "algo": "sha256"
+  }
+}
