@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "prophet-platform.prometheus-ontogenesis-compat.v0.1",
+  "recordType": "PrometheusOntogenesisCompatibilityManifest",
+  "ontologyAuthority": "SocioProphet/ontogenesis",
+  "platformConsumer": "SocioProphet/prophet-platform",
+  "vocabularyNamespace": "https://socioprophet.github.io/ontogenesis/symbolic-regression#",
+  "vocabVersion": "0.1.0",
+  "authorityBoundary": {
+    "ontogenesisMutation": false,
+    "assertionAdmission": false,
+    "deploymentAuthorization": false,
+    "webProtegeRequired": false
+  },
+  "pinnedSources": [
+    {
+      "repo": "SocioProphet/ontogenesis",
+      "path": "vocab/symbolic-regression/sr-assertion.ttl",
+      "blobSha": "08e57b00c30d640277d670cc537ddb8a44fd3a9d",
+      "requiredTerms": [
+        "sr:SRAssertionProposal",
+        "sr:DatasetEvidenceRef",
+        "sr:FitMetric",
+        "sr:ComplexityMetric",
+        "sr:DimensionalAnalysisResult",
+        "sr:EvidenceReplayRef",
+        "sr:DiscoveryMethodRef",
+        "sr:SemanticReviewSurface",
+        "sr:UnitsConsistent",
+        "sr:UnitsInconsistent",
+        "sr:UnitsUnknown",
+        "sr:UnitsUnchecked",
+        "sr:ProposalCandidate",
+        "sr:ProposalProposed",
+        "sr:AdmissionPendingReview",
+        "sr:AdmissionBlocked"
+      ]
+    },
+    {
+      "repo": "SocioProphet/ontogenesis",
+      "path": "shapes/symbolic-regression/sr-assertion.shacl.ttl",
+      "blobSha": "9f90a29a1ec75fe0aa3954c176a72b541776c236",
+      "requiredTerms": [
+        "sr:SRAssertionProposalShape",
+        "sr:hasDatasetEvidence",
+        "sr:hasFitMetric",
+        "sr:hasComplexityMetric",
+        "sr:hasDimensionalAnalysis",
+        "sr:hasEvidenceReplay",
+        "sr:hasDiscoveryMethod",
+        "sr:hasPromotionStatus",
+        "sr:hasAdmissionState",
+        "sr:vocabVersion",
+        "sr:vocabularyPromotionState",
+        "sr:nonAuthorityDeclaration",
+        "automated_shacl_gate",
+        "webprotege"
+      ]
+    }
+  ],
+  "platformEmitter": "tools/emit_prometheus_jsonld_review.py",
+  "platformValidator": "tools/validate_prometheus_jsonld_review.py",
+  "requiredProposalFields": [
+    "@context",
+    "@id",
+    "@type",
+    "sr:vocabVersion",
+    "sr:vocabularyPromotionState",
+    "sr:hasDatasetEvidence",
+    "sr:hasFitMetric",
+    "sr:hasComplexityMetric",
+    "sr:hasDimensionalAnalysis",
+    "sr:hasEvidenceReplay",
+    "sr:hasDiscoveryMethod",
+    "sr:hasPromotionStatus",
+    "sr:hasAdmissionState",
+    "sr:hasSemanticReviewSurface",
+    "sr:nonAuthorityDeclaration",
+    "sr:hasEquation",
+    "prov:generatedAtTime"
+  ],
+  "nonAuthorityDeclaration": "This compatibility manifest proves platform proposal-shape alignment only. It does not mutate Ontogenesis, admit SR assertions, create laws, or grant runtime authority."
+}
