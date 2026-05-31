@@ -171,10 +171,17 @@ def _compile_template(expression: str, variables: dict[str, dict[str, Any]]) -> 
 
 def _literal_to_regex(literal: str) -> str:
     # Template spaces should tolerate arbitrary whitespace and simple punctuation.
+    # When the original literal has surrounding whitespace, require at least one
+    # whitespace character on that side to prevent keyword separators like " in "
+    # from matching mid-word occurrences such as "build*ing*".
+    leading_space = literal and literal[0].isspace()
+    trailing_space = literal and literal[-1].isspace()
     escaped = re.escape(literal.strip())
     escaped = escaped.replace(r"\ ", r"\s+")
     if escaped:
-        return r"\s*" + escaped + r"\s*"
+        prefix = r"\s+" if leading_space else r"\s*"
+        suffix = r"\s+" if trailing_space else r"\s*"
+        return prefix + escaped + suffix
     return r"\s*"
 
 
