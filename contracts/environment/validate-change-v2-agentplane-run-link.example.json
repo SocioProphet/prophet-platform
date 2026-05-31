@@ -8,15 +8,15 @@
   },
   "agentplane_run_refs": {
     "requested": "agentplane:sandbox-run:requested:scope-d-example",
-    "observed": "agentplane:sandbox-run:observed:scope-d-example"
+    "observed": "agentplane:sandbox-run:observed:sociosphere-svf"
   },
   "status_mapping": {
     "environment_requested": "sandbox_requested",
     "environment_observed": "sandbox_observed"
   },
   "evidence_mapping": {
-    "observed_evidence_ref": "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed",
-    "observed_receipt_ref": "receipt://agentplane/sandbox-run/scope-d-example/synthetic-observed"
+    "observed_evidence_ref": "evidence://sociosphere/svf/registry-dogfood/verified-receipt",
+    "observed_receipt_ref": "svf:receipt:sociosphere.registry-dogfood.verified"
   },
   "execution_boundary": {
     "executor_plane": "AgentPlane",
