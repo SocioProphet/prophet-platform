@@ -101,10 +101,30 @@ jobs:
           python -m pip install --upgrade pip
           ${{ matrix.install }}
       - name: Run app/tool diagnostic
+        id: diagnostic
         working-directory: ${{ matrix.working-directory }}
+        shell: bash
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/diagnostic-logs"
+          log="$GITHUB_WORKSPACE/diagnostic-logs/${{ matrix.name }}.log"
           . .venv/bin/activate
-          ${{ matrix.test }}
+          set +e
+          {
+            echo "target=${{ matrix.name }}"
+            echo "working_directory=${{ matrix.working-directory }}"
+            echo "test_command=${{ matrix.test }}"
+            ${{ matrix.test }}
+            status=$?
+            echo "exit_status=$status"
+            exit $status
+          } 2>&1 | tee "$log"
+          exit ${PIPESTATUS[0]}
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-${{ matrix.name }}
+          path: diagnostic-logs/${{ matrix.name }}.log
 
   smoke-target-diagnostics:
     runs-on: ubuntu-latest
