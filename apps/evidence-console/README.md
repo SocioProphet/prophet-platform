@@ -17,7 +17,9 @@ The platform already has:
 - `/v1/console/frontier`
 - `/v1/console/models/{model_release_id}`
 - `/v1/console/coverage`
+- `/v1/console/fogstack/validation`
 - `/v1/console/recent-events`
+- `/v1/console/telemetry`
 - `/console/evidence` — minimal HTML stub
 
 ## Inputs

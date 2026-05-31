@@ -37,6 +37,14 @@ def test_coverage_route(monkeypatch):
     assert resp.json() == expected
 
 
+def test_fogstack_validation_route(monkeypatch):
+    expected = {"latest_by_bundle": [], "recent": []}
+    monkeypatch.setattr(main.service, "get_fogstack_validation_view", lambda limit=20: expected)
+    resp = client.get("/v1/console/fogstack/validation?limit=5")
+    assert resp.status_code == 200
+    assert resp.json() == expected
+
+
 def test_recent_events_route(monkeypatch):
     expected = {"services": ["eval-fabric-api", "lampstand"], "items": []}
     monkeypatch.setattr(main.service, "get_recent_events_view", lambda limit=25, per_service_limit=15: expected)
@@ -45,10 +53,10 @@ def test_recent_events_route(monkeypatch):
     assert resp.json() == expected
 
 
-def test_recent_telemetry_route(monkeypatch):
-    expected = {"service": "telemetry-runtime", "items": [{"event_type": "reliability.conversation.stream.completed"}]}
+def test_telemetry_route(monkeypatch):
+    expected = {"service": "telemetry-runtime", "items": []}
     monkeypatch.setattr(main.service, "get_recent_telemetry_view", lambda service_name="telemetry-runtime", limit=25: expected)
-    resp = client.get("/v1/console/telemetry?limit=10&service_name=telemetry-runtime")
+    resp = client.get("/v1/console/telemetry?service_name=telemetry-runtime&limit=5")
     assert resp.status_code == 200
     assert resp.json() == expected
 
@@ -61,5 +69,6 @@ def test_console_ui_contains_fetch_targets():
     assert "/v1/console/frontier" in body
     assert "/v1/console/models/model.semantic-stack.2026-04-05" in body
     assert "/v1/console/coverage" in body
+    assert "/v1/console/fogstack/validation" in body
     assert "/v1/console/recent-events" in body
     assert "/v1/console/telemetry" in body

@@ -34,6 +34,19 @@ def test_model_view_filters_by_subject(monkeypatch):
     assert len(view["recent"]) == 2
 
 
+def test_fogstack_validation_view_groups_latest_by_bundle(monkeypatch):
+    items = [
+        {"service": "fogstack-validation", "correlation_id": "a-new", "event_type": "fogstack.validation.record.emitted", "subject_ref": "bundle://fogstack.access@0.1.0", "created_at": "2026-04-14T00:02:00+00:00"},
+        {"service": "fogstack-validation", "correlation_id": "a-old", "event_type": "fogstack.validation.record.emitted", "subject_ref": "bundle://fogstack.access@0.1.0", "created_at": "2026-04-14T00:01:00+00:00"},
+        {"service": "fogstack-validation", "correlation_id": "k1", "event_type": "fogstack.validation.record.emitted", "subject_ref": "bundle://fogstack.knowledge@0.1.0", "created_at": "2026-04-14T00:00:00+00:00"},
+    ]
+    monkeypatch.setattr(service.client, "get_recent_receipts", lambda service, limit=20: items)
+    monkeypatch.setattr(service.client, "get_bundle", lambda service, correlation_id: {"correlation_id": correlation_id})
+    view = service.get_fogstack_validation_view(limit=10)
+    assert [item["correlation_id"] for item in view["latest_by_bundle"]] == ["a-new", "k1"]
+    assert [item["correlation_id"] for item in view["recent"]] == ["a-new", "a-old", "k1"]
+
+
 def test_recent_events_merges_and_sorts(monkeypatch):
     monkeypatch.setattr(service.client, "get_services", lambda: ["eval-fabric-api", "lampstand"])
     monkeypatch.setattr(service.client, "get_recent_receipts", lambda service, limit=15: [
