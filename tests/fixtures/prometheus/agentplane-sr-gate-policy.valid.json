@@ -1,0 +1,19 @@
+{
+  "policyId": "urn:agentplane:sr-gate-policy:prometheus-equation-discovery-v0.1.0",
+  "schemaVersion": "0.1.0",
+  "applicationMode": "equation_discovery",
+  "methodFamilies": ["pysr", "sindy"],
+  "minimumDatasetRows": 4,
+  "maximumCandidateComplexity": 10,
+  "maximumNmse": 0.001,
+  "requiredUnitsStatus": "consistent",
+  "requireReplayVerified": true,
+  "allowControlAuthority": false,
+  "forbiddenGovernanceFlags": [
+    "dimensional_inconsistency",
+    "replay_unverified",
+    "control_authority_requested"
+  ],
+  "promotionEligibility": "review_required",
+  "nonAuthorityDeclaration": "Gate eligibility is not assertion admission, deployment authorization, controller authority, ontology mutation, or memory writeback."
+}
