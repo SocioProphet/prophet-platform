@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:missing-investigation-ref",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://fixture/INC-NEGATIVE"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Invalid fixture omits the investigation run reference required by the incident lane.",
+    "evidence_refs": ["evidence://fixture/invalid/evidence"],
+    "claim_refs": ["rca-claim:invalid:claim"],
+    "decision_state": "needs_review",
+    "non_claims": ["Invalid fixture is expected to fail."]
+  },
+  "evidence_packets": [{"evidence_ref": "evidence://fixture/invalid/evidence", "evidence_type": "metric_observation", "producer": "Prophet Platform negative fixture", "summary": "Negative fixture evidence packet.", "observed_at": "2026-05-31T17:30:00Z", "provenance": {"source_system": "Prophet Platform", "source_ref": "incident://fixture/INC-NEGATIVE"}, "non_claims": ["Fixture evidence is synthetic."]}],
+  "rca_claims": [{"claim_id": "rca-claim:invalid:claim", "claim_status": "observation", "statement": "Negative fixture baseline observation.", "evidence_refs": ["evidence://fixture/invalid/evidence"], "counterevidence_refs": [], "confidence": "low", "non_claims": ["Negative fixture claim is not real RCA."]}],
+  "action_grants": [],
+  "remediation_plans": [],
+  "regression_fixtures": [{"fixture_id": "regression-fixture:invalid:candidate", "fixture_status": "candidate", "derived_from": "bde:production-incident:invalid", "summary": "Negative fixture candidate.", "target_validation_plan_ref": "validation-plan://invalid", "non_claims": ["Candidate only."]}],
+  "issued_at": "2026-05-31T17:31:00Z",
+  "non_claims": ["This is an expected-failing negative fixture."]
+}
