@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import readout from '../../../contracts/chronos-evidence-loop/customer-readout.v0.json'
+import readout from '../../../../contracts/chronos-evidence-loop/customer-readout.v0.json'
 </script>
 
 <template>
