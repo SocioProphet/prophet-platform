@@ -26,6 +26,34 @@
     "execution_status": "requested",
     "evidence_refs": []
   },
+  "evidence_summary": {
+    "evidence_status": "missing",
+    "validation_evidence_state": "missing_evidence",
+    "receipt_refs": [],
+    "failure_codes": [
+      "validation_observation_missing"
+    ],
+    "non_certified_claims": [
+      "Plans were selected but no execution evidence was observed.",
+      "No validation success is certified.",
+      "No merge readiness is certified."
+    ]
+  },
+  "pr_readiness": {
+    "readiness_state": "blocked",
+    "merge_allowed": false,
+    "required_evidence_state": "verified_receipt",
+    "observed_evidence_state": "missing_evidence",
+    "blocking_reason_codes": [
+      "validation_observation_missing",
+      "verified_receipt_required"
+    ],
+    "summary": "Selected validation plans are not sufficient for PR readiness without observed receipt-backed evidence.",
+    "non_claims": [
+      "Readiness block is based on fixture evidence state only.",
+      "Readiness block does not execute validation."
+    ]
+  },
   "warnings": [
     "validation_observation_missing",
     "environment_execution_not_observed"
