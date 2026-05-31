@@ -3,17 +3,17 @@
   "request_id": "environment:validate-change-v2-request:scope-d-example",
   "response_id": "environment:validate-change-v2-response:observed:scope-d-example",
   "status": "environment_observed",
-  "repo": "SocioProphet/SCOPE-D",
+  "repo": "SocioProphet/sociosphere",
   "sociosphere_refs": {
     "workspace_registry": "svf:registry:sociosphere.workspace",
     "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
-    "workspace_validation_status": "environment_observed"
+    "workspace_validation_status": "verified_receipt"
   },
   "selected_plans": [
-    "svf:plan:scope-d.defensive-assurance-basic"
+    "svf:plan:sociosphere.registry-dogfood"
   ],
   "environment": {
-    "baseline_ref": "workspace://scope-d/main",
+    "baseline_ref": "workspace://sociosphere/main",
     "changed_service_refs": [],
     "requested_isolation_class": "synthetic_no_network",
     "requested_routing_class": "not_configured",
@@ -22,28 +22,44 @@
   },
   "agentplane_execution": {
     "executor_plane": "AgentPlane",
-    "sandbox_run_ref": "agentplane:sandbox-run:observed:scope-d-example",
+    "sandbox_run_ref": "agentplane:sandbox-run:observed:sociosphere-svf",
     "execution_status": "observed",
     "evidence_refs": [
-      "evidence://agentplane/sandbox-run/scope-d-example/synthetic-observed"
+      "evidence://sociosphere/svf/registry-dogfood/verified-receipt"
     ]
   },
   "evidence_summary": {
     "evidence_status": "observed",
+    "validation_evidence_state": "verified_receipt",
     "receipt_refs": [
-      "receipt://agentplane/sandbox-run/scope-d-example/synthetic-observed"
+      "svf:receipt:sociosphere.registry-dogfood.verified"
+    ],
+    "receipt_digests": [
+      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     ],
     "non_certified_claims": [
-      "No live infrastructure was created.",
       "No production readiness is certified.",
-      "Synthetic evidence proves contract shape only."
+      "Local receipt does not certify container, browser, QEMU, cluster, or vendor parity.",
+      "Prophet Platform consumes receipt evidence but does not issue receipts."
+    ]
+  },
+  "pr_readiness": {
+    "readiness_state": "ready",
+    "merge_allowed": true,
+    "required_evidence_state": "verified_receipt",
+    "observed_evidence_state": "verified_receipt",
+    "blocking_reason_codes": [],
+    "summary": "Receipt-backed local SVF validation evidence is present for the selected plan.",
+    "non_claims": [
+      "Readiness is scoped to the selected fixture plan.",
+      "Readiness does not certify production deployment safety."
     ]
   },
   "warnings": [],
-  "next_required_action": "none_for_synthetic_fixture",
+  "next_required_action": "none_for_verified_receipt_fixture",
   "non_claims": [
-    "Observed synthetic evidence does not certify sandbox execution parity.",
-    "Observed synthetic evidence does not prove traffic routing or stateful isolation.",
-    "Observed synthetic evidence does not authorize autonomous merge."
+    "Observed receipt evidence does not certify production readiness.",
+    "Observed receipt evidence does not prove traffic routing or stateful isolation.",
+    "Observed receipt evidence does not grant mutation authority."
   ]
 }
