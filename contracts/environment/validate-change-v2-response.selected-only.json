@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:scope-d-example",
+  "response_id": "environment:validate-change-v2-response:selected-only:scope-d-example",
+  "status": "environment_requested",
+  "repo": "SocioProphet/SCOPE-D",
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "selected_only"
+  },
+  "selected_plans": [
+    "svf:plan:scope-d.defensive-assurance-basic"
+  ],
+  "environment": {
+    "baseline_ref": "workspace://scope-d/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "agentplane_execution": {
+    "executor_plane": "AgentPlane",
+    "sandbox_run_ref": "agentplane:sandbox-run:pending:scope-d-example:selected-only",
+    "execution_status": "requested",
+    "evidence_refs": []
+  },
+  "evidence_summary": {
+    "evidence_status": "selected_only",
+    "validation_evidence_state": "selected_only",
+    "receipt_refs": [],
+    "failure_codes": [
+      "validation_selected_not_executed"
+    ],
+    "non_certified_claims": [
+      "Plan selection is not execution evidence.",
+      "Plan selection does not certify validation success.",
+      "Plan selection does not authorize merge readiness."
+    ]
+  },
+  "pr_readiness": {
+    "readiness_state": "blocked",
+    "merge_allowed": false,
+    "required_evidence_state": "verified_receipt",
+    "observed_evidence_state": "selected_only",
+    "blocking_reason_codes": [
+      "validation_selected_not_executed",
+      "verified_receipt_required"
+    ],
+    "summary": "Plan selection alone is insufficient for PR readiness.",
+    "non_claims": [
+      "Readiness block is based on selection-only state.",
+      "Readiness block does not execute validation."
+    ]
+  },
+  "warnings": [
+    "validation_observation_missing",
+    "environment_execution_not_observed"
+  ],
+  "next_required_action": "execute_selected_svf_plan",
+  "non_claims": [
+    "Selected-only response does not execute validation actions.",
+    "Selected-only response does not certify validation success.",
+    "Selected-only response does not authorize autonomous merge."
+  ]
+}
