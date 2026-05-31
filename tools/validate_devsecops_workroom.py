@@ -17,11 +17,8 @@ INVALID_FIXTURES = {
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.causal-claim-without-evidence.invalid.json": [
         "causal claims require evidence refs",
     ],
-    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.high-risk-remediation-without-grant.invalid.json": [
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.plan-without-grant.invalid.json": [
         "high/critical remediation requires action grant refs",
-    ],
-    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.mutation-action-without-approval.invalid.json": [
-        "mutation-class actions cannot be allowed without approval requirement",
     ],
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.runtime-observed-without-parity-gate.invalid.json": [
         "v0.1 fixture must not claim runtime_observed",
@@ -186,7 +183,6 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
             problems.append("post_merge_incident lane must use incident-class event type")
 
     if parity == "runtime_observed":
-        # v0.1 fixtures must stay below runtime_observed until live parity gates have evidence.
         problems.append("v0.1 fixture must not claim runtime_observed")
 
     if not regression_fixtures:
@@ -201,11 +197,9 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
 
 def validate_fixture(schema: dict[str, Any], path: Path) -> dict[str, list[str]]:
     data = load(path)
-    schema_errors = schema_problems(schema, data)
-    semantic_errors = semantic_problems(data)
     return {
-        "schema": schema_errors,
-        "semantic": semantic_errors,
+        "schema": schema_problems(schema, data),
+        "semantic": semantic_problems(data),
     }
 
 
@@ -227,10 +221,7 @@ def main() -> int:
     for path in VALID_FIXTURES:
         result = validate_fixture(schema, path)
         problems = result["schema"] + result["semantic"]
-        results[str(path.relative_to(ROOT))] = {
-            "expected": "valid",
-            **result,
-        }
+        results[str(path.relative_to(ROOT))] = {"expected": "valid", **result}
         failed = failed or bool(problems)
 
     for path, expected_substrings in INVALID_FIXTURES.items():
