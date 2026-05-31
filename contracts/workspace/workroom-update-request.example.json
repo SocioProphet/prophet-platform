@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "v0.1",
+  "requestId": "workroom-update-request-demo-0001",
+  "workroomId": "workroom-demo-0001",
+  "requestedBy": "agent://agentplane/demo-agent-0001",
+  "requestedAt": "2026-05-30T00:00:00Z",
+  "operation": "update_professional_workroom_refs",
+  "workspaceContractRef": "SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.schema.json",
+  "workroomRef": "workroom://workroom-demo-0001",
+  "professionalWorkroomRef": "SocioProphet/prophet-workspace:contracts/workspace/professional-workroom.v0.1.example.json",
+  "policyDecisionRefs": [
+    "policy-decision://policy-demo-ai-use/decision-0001"
+  ],
+  "privacyDecisionRefs": [
+    "privacy-decision://do-not-learn/workroom-demo-0001/decision-0001",
+    "privacy-decision://do-not-link/workroom-demo-0001/decision-0001"
+  ],
+  "topicPackRefs": [
+    "slash-topic://cell/client-opportunity-review@v0"
+  ],
+  "memoryScopeRefs": [
+    "ontogenesis://governed-memory/scope/workroom-demo-0001"
+  ],
+  "audioReviewRefs": [
+    "speechlab://audio-review/workroom-demo-0001/review-0001"
+  ],
+  "learningReceiptRefs": [
+    "learning-receipt://systems-learning-loops/workroom-demo-0001/recovery-0001"
+  ],
+  "semanticReceiptRefs": [
+    "receipt://semantic/workroom-demo-0001/context-pack-0001"
+  ],
+  "expectedEffect": "Attach recovered-substrate references to the Professional Workroom contract surface without mutating runtime state in this example.",
+  "claimBoundary": [
+    "This request fixture is a contract example only.",
+    "It does not perform a live workroom update.",
+    "It does not grant memory, learning, linking, or agent action authority."
+  ]
+}
