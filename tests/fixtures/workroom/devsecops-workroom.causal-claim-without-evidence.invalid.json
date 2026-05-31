@@ -1,0 +1,104 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:causal-no-evidence",
+  "lane": "pre_merge_validation",
+  "runtime_parity_level": "synthetic_observed",
+  "source_refs": {
+    "change_set_ref": "changeset://github/SocioProphet/example/pull/1",
+    "environment_request_ref": "environment:validate-change-v2-request:invalid",
+    "validation_run_ref": "agentplane:runtime-sandbox-run:invalid",
+    "topology_ref": "topology://gaia/workroom/invalid/pre-merge"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:pre-merge-validation-failure:invalid",
+    "event_type": "pre_merge_validation_failure",
+    "source_lane": "pre_merge_validation",
+    "status": "open",
+    "summary": "Invalid fixture used to prove validator failure mode.",
+    "environment_ref": "environment://synthetic/invalid",
+    "topology_ref": "topology://gaia/workroom/invalid/pre-merge",
+    "evidence_refs": [
+      "evidence://fixture/invalid/evidence"
+    ],
+    "claim_refs": [
+      "rca-claim:invalid:causal-no-evidence"
+    ],
+    "decision_state": "blocked",
+    "non_claims": [
+      "Invalid fixture is expected to fail."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://fixture/invalid/evidence",
+      "evidence_type": "validation_result",
+      "producer": "Prophet Platform negative fixture",
+      "summary": "Negative fixture evidence packet.",
+      "observed_at": "2026-05-31T17:30:00Z",
+      "provenance": {
+        "source_system": "Prophet Platform",
+        "source_ref": "validation-plan://invalid",
+        "collection_method": "negative_fixture"
+      },
+      "non_claims": [
+        "Fixture evidence is synthetic."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:invalid:causal-no-evidence",
+      "claim_status": "supported_causal_claim",
+      "statement": "Negative fixture baseline observation.",
+      "evidence_refs": [],
+      "counterevidence_refs": [],
+      "confidence": "low",
+      "non_claims": [
+        "Negative fixture claim is not real RCA."
+      ]
+    }
+  ],
+  "action_grants": [
+    {
+      "grant_id": "action-grant:invalid:read",
+      "action_class": "read_only",
+      "status": "allowed",
+      "scope": "Read negative fixture evidence.",
+      "approval_required": false,
+      "non_claims": [
+        "Read-only fixture grant only."
+      ]
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:invalid:read-only",
+      "plan_status": "candidate",
+      "risk_class": "low",
+      "summary": "Negative fixture candidate remediation.",
+      "evidence_refs": [
+        "evidence://fixture/invalid/evidence"
+      ],
+      "required_action_grant_refs": [],
+      "non_claims": [
+        "Candidate only."
+      ]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:invalid:candidate",
+      "fixture_status": "candidate",
+      "derived_from": "bde:pre-merge-validation-failure:invalid",
+      "summary": "Negative fixture candidate.",
+      "target_validation_plan_ref": "validation-plan://invalid",
+      "non_claims": [
+        "Candidate only."
+      ]
+    }
+  ],
+  "issued_at": "2026-05-31T17:31:00Z",
+  "non_claims": [
+    "This is an expected-failing negative fixture."
+  ]
+}
