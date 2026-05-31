@@ -18,6 +18,7 @@ Standards and governance stay in dedicated upstream repositories. `prophet-platf
 
 ```bash
 make validate
+make validate-professional-intelligence-manifest
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
 make validate-channel-runtime-gates
@@ -29,11 +30,31 @@ make smoke-health
 1. `docs/ARCHITECTURE.md`
 2. `docs/TRITRPC_SPEC.md`
 3. `docs/TRITRPC_PLATFORM_BINDING.md`
-4. `docs/PLATFORM_EVAL_FABRIC.md`
-5. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
-6. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
-7. `contracts/`
-8. `infra/k8s/`
+4. `professional-intelligence.manifest.yaml`
+5. `docs/PLATFORM_EVAL_FABRIC.md`
+6. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
+7. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+8. `contracts/`
+9. `infra/k8s/`
+
+## Professional Intelligence manifest
+
+`professional-intelligence.manifest.yaml` is the platform-side cross-repo alignment manifest for Professional Intelligence OS. It records runtime/platform ownership while pointing to upstream product, workspace, policy, model, topic, memory, receipt, and estate-ledger authority surfaces.
+
+The `workspaceOS` lane is currently `contract-aligned`: Professional Workroom schema, example, validator, Sociosphere topology, workspace-inventory overlay, and systems-learning receipt exist. This does not imply runtime implementation or demo readiness.
+
+Relevant files:
+
+- `professional-intelligence.manifest.yaml`
+- `tools/validate_professional_intelligence_manifest.py`
+
+Validate locally:
+
+```bash
+make validate-professional-intelligence-manifest
+```
+
+Boundary: contract alignment does not imply runtime implementation. Runtime implementation does not imply demo readiness without evidence and adoption telemetry. Prophet Workspace owns workroom product semantics; Prophet Platform owns runtime deployment and service composition.
 
 ## Sovereign Validation Fabric agent contract
 
