@@ -7,6 +7,7 @@ on:
       - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - "tools/run_prometheus_local_demo.py"
+      - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
       - ".github/workflows/prometheus-jsonld.yml"
   push:
@@ -17,6 +18,7 @@ on:
       - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - "tools/run_prometheus_local_demo.py"
+      - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
       - ".github/workflows/prometheus-jsonld.yml"
   workflow_dispatch:
@@ -39,12 +41,13 @@ jobs:
           python3 tools/run_prometheus_local_demo.py \
             --output-dir build/prometheus/jsonld \
             --issued-at 2026-05-27T22:30:00Z
-      - name: Emit gate evaluation artifact
+      - name: Emit gate evaluation artifact with AgentPlane policy fixture
         run: |
           python3 tools/emit_prometheus_gate_evaluation.py \
             --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
             --run-artifact build/prometheus/jsonld/pysr/sr-run-artifact.json \
             --dataset tests/fixtures/prometheus/pysr-mvp-linear.csv \
+            --gate-policy tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json \
             --evaluation-id urn:prometheus:gate-evaluation:pysr-local-demo:001 \
             --issued-at 2026-05-27T22:30:30Z \
             --output build/prometheus/jsonld/pysr/gate-evaluation.json
