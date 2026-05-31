@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / "contracts" / "workroom" / "devsecops-workroom-v0.1.schema.json"
 VALID_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-validation-failure.valid.json",
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-verified-receipt.valid.json",
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-incident.valid.json",
 ]
 INVALID_FIXTURES = {
@@ -21,7 +22,7 @@ INVALID_FIXTURES = {
         "high/critical remediation requires action grant refs",
     ],
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.runtime-observed-without-parity-gate.invalid.json": [
-        "v0.1 fixture must not claim runtime_observed",
+        "runtime_observed requires source_refs.validation_receipt_ref",
     ],
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-production-incident.invalid.json": [
         "pre_merge_validation lane must not use production_incident event_type",
@@ -53,6 +54,18 @@ MUTATION_ACTION_CLASSES = {
     "network_exposure",
     "production_change",
 }
+VALIDATION_EVIDENCE_STATES = {
+    "not_configured",
+    "selected_only",
+    "missing_evidence",
+    "synthetic_observed",
+    "runtime_observed",
+    "verified_receipt",
+    "failed_receipt",
+    "stale_receipt",
+}
+RECEIPT_STATES = {"verified_receipt", "failed_receipt", "stale_receipt"}
+NON_RUNTIME_STATES = {"not_configured", "selected_only", "missing_evidence"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -75,6 +88,17 @@ def ref_set(items: list[dict[str, Any]], key: str) -> set[str]:
     return {str(item.get(key)) for item in items if isinstance(item, dict)}
 
 
+def evidence_sources_by_type(evidence_packets: list[dict[str, Any]], evidence_type: str) -> set[str]:
+    refs: set[str] = set()
+    for packet in evidence_packets:
+        if not isinstance(packet, dict) or packet.get("evidence_type") != evidence_type:
+            continue
+        provenance = packet.get("provenance", {})
+        if isinstance(provenance, dict) and provenance.get("source_ref"):
+            refs.add(str(provenance["source_ref"]))
+    return refs
+
+
 def semantic_problems(data: dict[str, Any]) -> list[str]:
     problems: list[str] = []
 
@@ -85,6 +109,7 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
 
     lane = data.get("lane")
     parity = data.get("runtime_parity_level")
+    validation_state = data.get("validation_evidence_state")
     source_refs = data.get("source_refs", {})
     bde = data.get("behavioral_divergence_event", {})
     evidence_packets = data.get("evidence_packets", [])
@@ -97,6 +122,8 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         problems.append("lane must be pre_merge_validation or post_merge_incident")
     if parity not in {"contract_only", "synthetic_observed", "runtime_observed"}:
         problems.append("runtime_parity_level is invalid")
+    if validation_state is not None and validation_state not in VALIDATION_EVIDENCE_STATES:
+        problems.append("validation_evidence_state is invalid")
 
     if not isinstance(source_refs, dict):
         problems.append("source_refs must be an object when present")
@@ -106,10 +133,36 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         for key in ("change_set_ref", "environment_request_ref", "validation_run_ref"):
             if not source_refs.get(key):
                 problems.append(f"pre_merge_validation lane requires source_refs.{key}")
+        if not validation_state:
+            problems.append("pre_merge_validation lane requires validation_evidence_state")
     if lane == "post_merge_incident":
         for key in ("incident_ref", "investigation_run_ref"):
             if not source_refs.get(key):
                 problems.append(f"post_merge_incident lane requires source_refs.{key}")
+
+    if not isinstance(evidence_packets, list):
+        evidence_packets = []
+        problems.append("evidence_packets must be a list")
+
+    receipt_ref = source_refs.get("validation_receipt_ref")
+    receipt_sources = evidence_sources_by_type(evidence_packets, "runtime_receipt")
+
+    if validation_state in RECEIPT_STATES:
+        if not receipt_ref:
+            problems.append(f"{validation_state} requires source_refs.validation_receipt_ref")
+        elif receipt_ref not in receipt_sources:
+            problems.append(f"{validation_state} requires runtime_receipt evidence with provenance.source_ref {receipt_ref}")
+    if validation_state == "verified_receipt" and parity != "runtime_observed":
+        problems.append("verified_receipt requires runtime_parity_level runtime_observed")
+    if validation_state == "synthetic_observed" and parity != "synthetic_observed":
+        problems.append("synthetic_observed validation evidence requires runtime_parity_level synthetic_observed")
+    if validation_state in NON_RUNTIME_STATES and parity != "contract_only":
+        problems.append(f"{validation_state} requires runtime_parity_level contract_only")
+    if parity == "runtime_observed":
+        if validation_state != "verified_receipt":
+            problems.append("runtime_observed requires validation_evidence_state verified_receipt")
+        if not receipt_ref:
+            problems.append("runtime_observed requires source_refs.validation_receipt_ref")
 
     if not isinstance(bde, dict):
         problems.append("behavioral_divergence_event must be an object")
@@ -182,9 +235,6 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         if bde.get("event_type") not in {"production_incident", "post_deploy_degradation", "customer_impact_event"}:
             problems.append("post_merge_incident lane must use incident-class event type")
 
-    if parity == "runtime_observed":
-        problems.append("v0.1 fixture must not claim runtime_observed")
-
     if not regression_fixtures:
         problems.append("at least one regression fixture candidate is required")
 
@@ -243,6 +293,7 @@ def main() -> int:
         "non_claims": [
             "Validator checks workroom JSON Schema and semantic fixture constraints.",
             "Validator asserts invalid fixtures fail for the expected governance reasons.",
+            "Validator checks validation receipt reference semantics for fixture records.",
             "Validator does not execute live sandbox infrastructure.",
             "Validator does not certify Signadot-style runtime parity.",
             "Validator does not authorize production remediation.",
