@@ -9,6 +9,9 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 REQUEST = ROOT / "contracts/workspace/workroom-update-request.example.json"
 RESPONSE = ROOT / "contracts/workspace/workroom-update-response.accepted.example.json"
+INVALID_RESPONSES = [
+    ROOT / "contracts/workspace/workroom-update-response.invalid-runtime-mutation.example.json",
+]
 
 REQUIRED_REQUEST_FIELDS = {
     "schemaVersion",
@@ -97,30 +100,20 @@ def require_set_contains(value: Any, required: set[str], label: str) -> list[str
     return []
 
 
-def main() -> int:
+def validate_request(request: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    try:
-        request = load_json(REQUEST)
-        response = load_json(RESPONSE)
-    except ValueError as exc:
-        print(f"ERR: {exc}", file=sys.stderr)
-        return 2
-
-    if not isinstance(request, dict):
-        errors.append("request fixture must be an object")
-        request = {}
-    if not isinstance(response, dict):
-        errors.append("response fixture must be an object")
-        response = {}
-
     errors.extend(require_fields(request, REQUIRED_REQUEST_FIELDS, "request"))
-    errors.extend(require_fields(response, REQUIRED_RESPONSE_FIELDS, "response"))
-
     for field in REQUIRED_LIST_FIELDS:
         errors.extend(require_nonempty_string_list(request, field, "request"))
-
     if request.get("schemaVersion") != "v0.1":
         errors.append("request.schemaVersion must be v0.1")
+    errors.extend(require_set_contains(request.get("claimBoundary", []), REQUEST_CLAIM_BOUNDARIES, "request.claimBoundary"))
+    return errors
+
+
+def validate_response(response: dict[str, Any], request: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    errors.extend(require_fields(response, REQUIRED_RESPONSE_FIELDS, "response"))
     if response.get("schemaVersion") != "v0.1":
         errors.append("response.schemaVersion must be v0.1")
     if request.get("requestId") != response.get("requestId"):
@@ -131,12 +124,46 @@ def main() -> int:
         errors.append("response.status must be accepted_for_review")
     if response.get("runtimeMutationPerformed") is not False:
         errors.append("response.runtimeMutationPerformed must be false for this fixture")
-
-    errors.extend(require_set_contains(request.get("claimBoundary", []), REQUEST_CLAIM_BOUNDARIES, "request.claimBoundary"))
     errors.extend(require_set_contains(response.get("claimBoundary", []), RESPONSE_CLAIM_BOUNDARIES, "response.claimBoundary"))
     errors.extend(require_nonempty_string_list(response, "evidenceRefs", "response"))
     errors.extend(require_nonempty_string_list(response, "receiptRefs", "response"))
     errors.extend(require_nonempty_string_list(response, "requiredNextGates", "response"))
+    return errors
+
+
+def main() -> int:
+    try:
+        request = load_json(REQUEST)
+        response = load_json(RESPONSE)
+    except ValueError as exc:
+        print(f"ERR: {exc}", file=sys.stderr)
+        return 2
+
+    errors: list[str] = []
+    if not isinstance(request, dict):
+        errors.append("request fixture must be an object")
+        request = {}
+    if not isinstance(response, dict):
+        errors.append("response fixture must be an object")
+        response = {}
+
+    errors.extend(validate_request(request))
+    errors.extend(validate_response(response, request))
+
+    for invalid_path in INVALID_RESPONSES:
+        try:
+            invalid_response = load_json(invalid_path)
+        except ValueError as exc:
+            errors.append(str(exc))
+            continue
+        if not isinstance(invalid_response, dict):
+            print(f"OK: invalid fixture rejected: {invalid_path.relative_to(ROOT)}")
+            continue
+        invalid_errors = validate_response(invalid_response, request)
+        if not invalid_errors:
+            errors.append(f"invalid fixture unexpectedly passed: {invalid_path.relative_to(ROOT)}")
+        else:
+            print(f"OK: invalid fixture rejected: {invalid_path.relative_to(ROOT)}")
 
     if errors:
         for error in errors:
