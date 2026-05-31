@@ -7,7 +7,7 @@
   "sociosphere_refs": {
     "workspace_registry": "svf:registry:sociosphere.workspace",
     "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
-    "workspace_validation_status": "environment_failed"
+    "workspace_validation_status": "failed_receipt"
   },
   "selected_plans": [
     "svf:plan:scope-d.defensive-assurance-basic"
@@ -25,30 +25,47 @@
     "sandbox_run_ref": "agentplane:sandbox-run:failed:scope-d-example",
     "execution_status": "failed",
     "evidence_refs": [
-      "evidence://agentplane/sandbox-run/scope-d-example/synthetic-failed"
+      "evidence://sociosphere/svf/scope-d/failed-receipt"
     ]
   },
   "evidence_summary": {
     "evidence_status": "failed",
+    "validation_evidence_state": "failed_receipt",
     "receipt_refs": [
-      "receipt://agentplane/sandbox-run/scope-d-example/synthetic-failed"
+      "svf:receipt:scope-d.failed.001"
     ],
     "failure_codes": [
-      "synthetic_validation_failed"
+      "svf_receipt_failed"
     ],
     "non_certified_claims": [
-      "Failure fixture does not prove live infrastructure behavior.",
-      "Failure fixture does not certify production readiness.",
-      "Failure fixture proves failed-state contract shape only."
+      "Failed receipt blocks validation success.",
+      "Failed receipt does not certify production readiness.",
+      "Failed receipt requires repair and rerun before PR readiness."
+    ]
+  },
+  "pr_readiness": {
+    "readiness_state": "blocked",
+    "merge_allowed": false,
+    "required_evidence_state": "verified_receipt",
+    "observed_evidence_state": "failed_receipt",
+    "blocking_reason_codes": [
+      "svf_receipt_failed",
+      "verified_receipt_required"
+    ],
+    "summary": "Failed receipt evidence blocks PR readiness.",
+    "non_claims": [
+      "Readiness block is based on failed receipt state.",
+      "Readiness block does not authorize remediation."
     ]
   },
   "warnings": [
-    "environment_validation_failed"
+    "environment_validation_failed",
+    "validation_receipt_failed"
   ],
   "next_required_action": "remediate_and_rerun_environment_validation",
   "non_claims": [
-    "Failed synthetic evidence does not certify sandbox execution parity.",
-    "Failed synthetic evidence does not prove traffic routing or stateful isolation.",
-    "Failed synthetic evidence blocks validation-success claims."
+    "Failed receipt evidence does not certify sandbox execution parity.",
+    "Failed receipt evidence does not prove traffic routing or stateful isolation.",
+    "Failed receipt evidence blocks validation-success claims."
   ]
 }
