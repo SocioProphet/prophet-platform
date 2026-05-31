@@ -21,6 +21,12 @@ REQUIRED_API = [
     "binding.ValidateChangeReq",
     '"status": "environment_requested"',
     '"agentplane_synthetic_sandbox_run"',
+    '"evidence_summary"',
+    '"validation_evidence_state": "missing_evidence"',
+    '"pr_readiness"',
+    '"merge_allowed": false',
+    '"required_evidence_state": "verified_receipt"',
+    '"verified_receipt_required"',
     '"API stub does not execute live sandbox infrastructure."',
 ]
 REQUIRED_GATEWAY = [
@@ -63,7 +69,7 @@ def main() -> int:
         "non_claims": [
             "Smoke check does not execute live sandbox infrastructure.",
             "Smoke check does not certify Signadot-style runtime parity.",
-            "Smoke check validates route/contract wiring only."
+            "Smoke check validates route/contract wiring and readiness-field presence only."
         ]
     }
     print(json.dumps(result, indent=2, sort_keys=True))
