@@ -100,6 +100,34 @@ func handleValidateChange(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
             "execution_status": "requested",
             "evidence_refs": []string{},
         },
+        "evidence_summary": map[string]any{
+            "evidence_status": "missing",
+            "validation_evidence_state": "missing_evidence",
+            "receipt_refs": []string{},
+            "failure_codes": []string{
+                "validation_observation_missing",
+            },
+            "non_certified_claims": []string{
+                "Plans were selected but no execution evidence was observed.",
+                "No validation success is certified.",
+                "No merge readiness is certified.",
+            },
+        },
+        "pr_readiness": map[string]any{
+            "readiness_state": "blocked",
+            "merge_allowed": false,
+            "required_evidence_state": "verified_receipt",
+            "observed_evidence_state": "missing_evidence",
+            "blocking_reason_codes": []string{
+                "validation_observation_missing",
+                "verified_receipt_required",
+            },
+            "summary": "Selected validation plans are not sufficient for PR readiness without observed receipt-backed evidence.",
+            "non_claims": []string{
+                "Readiness block is based on missing evidence state.",
+                "Readiness block does not execute validation.",
+            },
+        },
         "warnings": []string{
             "validation_observation_missing",
             "environment_execution_not_observed",
@@ -109,6 +137,7 @@ func handleValidateChange(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
             "API stub does not execute live sandbox infrastructure.",
             "API stub does not certify Signadot-style runtime parity.",
             "API stub returns a deterministic environment_requested response only.",
+            "API stub cannot report merge readiness without verified receipt evidence.",
         },
     }
 
