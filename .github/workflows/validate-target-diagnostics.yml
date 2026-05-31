@@ -55,7 +55,34 @@ jobs:
       - name: Run target
         run: make ${{ matrix.target }}
 
-  expensive-target-diagnostics:
+  app-test-diagnostics:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: eval-fabric-api
+            command: cd apps/eval-fabric-api && test -d .venv || python3 -m venv .venv; cd apps/eval-fabric-api && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests ../knowledge-reason/tests
+          - name: evidence-receipts
+            command: cd apps/evidence-receipts && test -d .venv || python3 -m venv .venv; cd apps/evidence-receipts && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements.txt -r requirements-test.txt && pytest -q tests
+          - name: evidence-console
+            command: cd apps/evidence-console && test -d .venv || python3 -m venv .venv; cd apps/evidence-console && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && pytest -q tests
+          - name: zone-router
+            command: cd apps/zone-router && test -d .venv || python3 -m venv .venv; cd apps/zone-router && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
+          - name: semantic-bridge
+            command: cd apps/semantic-bridge && test -d .venv || python3 -m venv .venv; cd apps/semantic-bridge && . .venv/bin/activate && python -m pip install --upgrade pip && pip install -r requirements-test.txt && PYTHONPATH=src pytest -q tests
+          - name: tools-tests
+            command: test -d .venv-tools || python3 -m venv .venv-tools; . .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run app/tool diagnostic
+        run: ${{ matrix.command }}
+
+  smoke-target-diagnostics:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -63,8 +90,6 @@ jobs:
         target:
           - lattice-surface-ingestor-smoke
           - lattice-studio-smoke
-          - test-python-apps
-          - test-tools
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
