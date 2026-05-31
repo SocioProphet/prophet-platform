@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "v0.1",
+  "requestId": "workroom-update-request-demo-0001",
+  "workroomId": "workroom-demo-0001",
+  "status": "accepted_for_review",
+  "acceptedAt": "2026-05-30T00:00:00Z",
+  "runtimeMutationPerformed": true,
+  "evidenceRefs": [
+    "evidence://workroom-update-request-demo-0001/contract-validation"
+  ],
+  "receiptRefs": [
+    "receipt://platform/workroom-update-request-demo-0001/accepted-for-review"
+  ],
+  "requiredNextGates": [
+    "validate professional workroom contract refs",
+    "check policyDecisionRefs",
+    "check privacyDecisionRefs"
+  ],
+  "claimBoundary": [
+    "accepted_for_review is not runtime execution.",
+    "Runtime implementation requires a separate platform service contract and receipt path."
+  ]
+}
