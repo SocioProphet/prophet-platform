@@ -249,7 +249,7 @@ spec:
         repo: SocioProphet/agentplane
         class: service-seed
         pin:
-          commit: 2daa7511a51baf3c18bd2a0ac0a5d57e57d404a0
+          commit: e508e1e1565e9ce316339448c50f7325cc36676b
           tag: null
         target: apps/agentplane
         rules:
