@@ -8,6 +8,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "fixtures" / "external" / "mirror-manifest.json"
 VALID_MIRROR_STATES = {"current", "pinned", "future", "stale"}
+VALID_SOURCE_PLANES = {"AgentPlane", "Sociosphere", "GAIA"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -45,8 +46,8 @@ def main() -> int:
         mirrors = []
 
     seen: set[str] = set()
-    future_count = 0
-    current_count = 0
+    state_counts: dict[str, int] = {state: 0 for state in sorted(VALID_MIRROR_STATES)}
+    plane_counts: dict[str, int] = {plane: 0 for plane in sorted(VALID_SOURCE_PLANES)}
     for item in mirrors:
         if not isinstance(item, dict):
             problems.append("mirror entry must be object")
@@ -59,8 +60,11 @@ def main() -> int:
             problems.append(f"duplicate mirror path: {mirror_path}")
         seen.add(mirror_path)
 
-        if item.get("source_plane") not in {"AgentPlane", "Sociosphere"}:
+        source_plane = str(item.get("source_plane", ""))
+        if source_plane not in VALID_SOURCE_PLANES:
             problems.append(f"{mirror_path}: invalid source_plane")
+        else:
+            plane_counts[source_plane] += 1
         if not str(item.get("source_repo", "")).startswith("SocioProphet/"):
             problems.append(f"{mirror_path}: source_repo must be SocioProphet/*")
         source_path = str(item.get("source_path", ""))
@@ -72,12 +76,12 @@ def main() -> int:
         mirror_state = str(item.get("mirror_state", ""))
         if mirror_state not in VALID_MIRROR_STATES:
             problems.append(f"{mirror_path}: mirror_state must be one of {sorted(VALID_MIRROR_STATES)}")
+        else:
+            state_counts[mirror_state] += 1
         if mirror_state == "future":
-            future_count += 1
             if not source_path.startswith("future/"):
                 problems.append(f"{mirror_path}: future mirrors must use future/ source_path")
         if mirror_state == "current":
-            current_count += 1
             if source_path.startswith("future/"):
                 problems.append(f"{mirror_path}: current mirrors must not use future/ source_path")
         if mirror_state == "stale":
@@ -105,10 +109,8 @@ def main() -> int:
         "passed": not problems,
         "problems": problems,
         "mirror_count": len(mirrors),
-        "mirror_state_counts": {
-            "current": current_count,
-            "future": future_count,
-        },
+        "mirror_state_counts": state_counts,
+        "source_plane_counts": plane_counts,
         "non_claims": [
             "Validator checks mirror governance metadata only.",
             "Validator does not compare mirrors to live upstream repositories.",
