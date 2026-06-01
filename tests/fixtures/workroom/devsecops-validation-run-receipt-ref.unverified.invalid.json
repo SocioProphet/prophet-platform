@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1.0",
+  "adapter_id": "workroom:validation-receipt-adapter:invalid-unverified",
+  "lane": "pre_merge_validation",
+  "authority_boundary": {
+    "execution_authority": "sociosphere_svf",
+    "receipt_authority": "sociosphere_svf",
+    "workroom_authority": "prophet_platform"
+  },
+  "receipt_ref": "svf:receipt:invalid-unverified",
+  "run_ref": "svf:run:invalid-unverified",
+  "plan_ref": "svf:plan:prophet-platform-workroom-fixtures",
+  "policy_ref": "svf:policy:non-production-validation",
+  "verification": {"status": "not_checked", "verifier": "sociosphere.svf_runner.local", "verified_at": "2026-05-31T19:30:00Z"},
+  "certified_claims": ["schema_conformant", "fixtures_validated", "receipt_integrity_verified"],
+  "non_certified_claims": ["production_readiness", "live_infrastructure_safety", "signadot_vendor_parity"],
+  "workroom_projection": {
+    "source_refs": {"validation_run_ref": "svf:run:invalid-unverified"},
+    "runtime_parity_level": "synthetic_observed",
+    "evidence_packet_ref": "evidence://svf/receipt/invalid-unverified",
+    "decision_state": "needs_review"
+  },
+  "non_claims": ["Expected-invalid fixture only."]
+}
