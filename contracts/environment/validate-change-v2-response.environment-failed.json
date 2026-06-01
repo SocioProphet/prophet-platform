@@ -37,6 +37,28 @@
     "failure_codes": [
       "svf_receipt_failed"
     ],
+    "repair_guidance": [
+      {
+        "step_id": "repair:failed-receipt:inspect-diagnostics",
+        "action": "Inspect the failed SVF receipt diagnostics and action-result artifact references.",
+        "authority": "sociosphere_svf",
+        "required_before_merge": true,
+        "non_claims": [
+          "Guidance does not authorize production mutation.",
+          "Guidance does not repair the failure by itself."
+        ]
+      },
+      {
+        "step_id": "repair:failed-receipt:patch-and-rerun",
+        "action": "Patch the failing change and rerun the selected SVF plan until a verified receipt is produced.",
+        "authority": "agent_or_operator_with_svf_policy",
+        "required_before_merge": true,
+        "non_claims": [
+          "Rerun must still be governed by SVF policy.",
+          "Rerun does not imply production readiness."
+        ]
+      }
+    ],
     "non_certified_claims": [
       "Failed receipt blocks validation success.",
       "Failed receipt does not certify production readiness.",
@@ -52,7 +74,11 @@
       "svf_receipt_failed",
       "verified_receipt_required"
     ],
-    "summary": "Failed receipt evidence blocks PR readiness.",
+    "summary": "Failed receipt evidence blocks PR readiness. Inspect diagnostics, patch the failure, and rerun the selected SVF plan before merge readiness can be claimed.",
+    "repair_guidance_refs": [
+      "repair:failed-receipt:inspect-diagnostics",
+      "repair:failed-receipt:patch-and-rerun"
+    ],
     "non_claims": [
       "Readiness block is based on failed receipt state.",
       "Readiness block does not authorize remediation."
