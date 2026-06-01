@@ -8,7 +8,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "fixtures" / "external" / "mirror-manifest.json"
 VALID_MIRROR_STATES = {"current", "pinned", "future", "stale"}
-VALID_SOURCE_PLANES = {"AgentPlane", "Sociosphere", "GAIA"}
+VALID_SOURCE_PLANES = {"AgentPlane", "Sociosphere", "GAIA", "Guardrail Fabric"}
 
 
 def load(path: Path) -> dict[str, Any]:
