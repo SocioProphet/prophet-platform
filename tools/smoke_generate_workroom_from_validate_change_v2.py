@@ -9,8 +9,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATOR = ROOT / "tools" / "generate_workroom_from_validate_change_v2.py"
-EXPECTED = ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-verified-receipt.valid.json"
+EXPECTED_VERIFIED = ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-verified-receipt.valid.json"
 VALIDATOR = ROOT / "tools" / "validate_devsecops_workroom.py"
+RESPONSES = {
+    "requested": ROOT / "contracts" / "environment" / "validate-change-v2-response.environment-requested.json",
+    "observed": ROOT / "contracts" / "environment" / "validate-change-v2-response.environment-observed.json",
+    "failed": ROOT / "contracts" / "environment" / "validate-change-v2-response.environment-failed.json",
+}
+EXPECTED_STATES = {
+    "requested": ("contract_only", "missing_evidence", "pre_merge_validation_failure"),
+    "observed": ("runtime_observed", "verified_receipt", "pre_merge_validation_verified"),
+    "failed": ("contract_only", "failed_receipt", "pre_merge_validation_failure"),
+}
 
 
 def load(path: Path) -> dict:
@@ -20,17 +30,42 @@ def load(path: Path) -> dict:
     return data
 
 
+def generate(response_path: Path, out: Path) -> dict:
+    subprocess.run([
+        sys.executable,
+        str(GENERATOR),
+        "--response",
+        str(response_path),
+        "--out",
+        str(out),
+    ], check=True)
+    return load(out)
+
+
 def main() -> int:
     problems: list[str] = []
 
     with tempfile.TemporaryDirectory() as tmp:
-        out = Path(tmp) / "generated-workroom.json"
-        subprocess.run([sys.executable, str(GENERATOR), "--out", str(out)], check=True)
-        generated = load(out)
-        expected = load(EXPECTED)
+        tmpdir = Path(tmp)
+        generated_records: dict[str, dict] = {}
+        for name, response_path in RESPONSES.items():
+            generated_records[name] = generate(response_path, tmpdir / f"{name}.json")
 
-    if generated != expected:
-        problems.append("generated workroom record does not match canonical verified receipt fixture")
+    expected_verified = load(EXPECTED_VERIFIED)
+    if generated_records["observed"] != expected_verified:
+        problems.append("observed generated workroom record does not match canonical verified receipt fixture")
+
+    for name, record in generated_records.items():
+        expected_parity, expected_evidence_state, expected_event_type = EXPECTED_STATES[name]
+        if record.get("runtime_parity_level") != expected_parity:
+            problems.append(f"{name}: runtime_parity_level mismatch")
+        if record.get("validation_evidence_state") != expected_evidence_state:
+            problems.append(f"{name}: validation_evidence_state mismatch")
+        event_type = record.get("behavioral_divergence_event", {}).get("event_type")
+        if event_type != expected_event_type:
+            problems.append(f"{name}: event_type mismatch")
+        if name != "observed" and "validation_receipt_ref" in record.get("source_refs", {}) and name == "requested":
+            problems.append("requested: missing-evidence record must not include validation_receipt_ref")
 
     validator_result = subprocess.run([sys.executable, str(VALIDATOR)], text=True, capture_output=True)
     if validator_result.returncode != 0:
@@ -42,6 +77,7 @@ def main() -> int:
         "validator": "prophet-platform.validate-change-v2.workroom-adapter-smoke.v1",
         "passed": not problems,
         "problems": problems,
+        "validated_response_states": sorted(RESPONSES.keys()),
         "non_claims": [
             "Smoke check validates deterministic fixture generation only.",
             "Smoke check does not execute live sandbox infrastructure.",
