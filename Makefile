@@ -1,6 +1,6 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-environment-validate-change-v2 validate-channel-runtime-gates test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite trustops-art-runner-smoke
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-live-sociosphere-svf-contract validate-environment-validate-change-v2 validate-channel-runtime-gates test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite trustops-art-runner-smoke
 
-validate: validate-repo drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-environment-validate-change-v2 validate-channel-runtime-gates test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite trustops-art-runner-smoke
+validate: validate-repo drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-live-sociosphere-svf-contract validate-environment-validate-change-v2 validate-channel-runtime-gates test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite trustops-art-runner-smoke
 
 validate-repo:
 	python3 tools/validate_repo.py
@@ -99,6 +99,9 @@ validate-wallguard-professional-workroom:
 validate-svf-agent-contract:
 	python3 tools/validate_svf_agent_contract.py
 
+validate-live-sociosphere-svf-contract:
+	python3 tools/validate_live_sociosphere_svf_contract.py
+
 validate-environment-validate-change-v2:
 	python3 tools/validate_environment_validate_change_v2.py
 
@@ -177,32 +180,3 @@ validate-fogstack:
 
 validate-storage-suite:
 	python3 tools/validate_storage_suite.py
-
-.PHONY: validate-office-runtime-contracts
-validate-office-runtime-contracts:
-	python3 tools/validate_office_runtime_contracts.py
-
-.PHONY: fogstack-local-demo
-fogstack-local-demo:
-	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
-	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
-
-.PHONY: fogstack-local-demo-serve
-fogstack-local-demo-serve: fogstack-local-demo
-	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
-
-.PHONY: fogstack-local-demo-deploy-plan
-fogstack-local-demo-deploy-plan:
-	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
-
-.PHONY: fogstack-local-demo-full
-fogstack-local-demo-full:
-	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
-
-.PHONY: fogstack-parity-readiness
-fogstack-parity-readiness:
-	python3 tools/run_fogstack_parity_readiness.py --summary
-
-.PHONY: prophet-artifact-smoke
-prophet-artifact-smoke:
-	python3 tools/smoke_prophet_artifact_runner.py
