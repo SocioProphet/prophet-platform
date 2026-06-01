@@ -1,0 +1,121 @@
+{
+  "schema_version": "0.1.0",
+  "contract_id": "svf:live-sociosphere-validate-change-contract:v0.1",
+  "purpose": "Allow Prophet Platform validate_change to consume live or exported Sociosphere SVF run and receipt evidence without becoming the SVF execution or receipt authority.",
+  "issue_ref": "SocioProphet/prophet-platform#549",
+  "planes": {
+    "authority_plane": "SocioProphet/ProCybernetica",
+    "workspace_plane": "SocioProphet/sociosphere",
+    "agent_invocation_plane": "SocioProphet/prophet-platform",
+    "execution_authority": "sociosphere_svf",
+    "receipt_authority": "sociosphere_svf",
+    "consumer_authority": "prophet_platform"
+  },
+  "request": {
+    "request_id": "environment:validate-change-v2-request:sociosphere-live-export",
+    "repo": "SocioProphet/sociosphere",
+    "ref": "pull/434/head",
+    "changed_paths": [
+      "registry/sovereign-validation-fabric.yaml",
+      "tools/svf_runner.py"
+    ],
+    "change_digest": {
+      "algorithm": "sha256",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "requested_validation_depth": "blocking",
+    "requested_receipt_state": "verified_receipt"
+  },
+  "sociosphere_invocation": {
+    "mode": "exported_receipt_or_live_runner",
+    "selection_source": "sociosphere_svf_registry",
+    "allowed_commands": [
+      "tools/svf_runner.py select",
+      "tools/svf_runner.py run",
+      "tools/svf_runner.py verify-receipt",
+      "tools/svf_runner.py explain"
+    ],
+    "forbidden_commands": [
+      "arbitrary_shell",
+      "production_mutation",
+      "vendor_signadot_adapter"
+    ],
+    "selected_plan_ref": "svf:plan:sociosphere.registry-dogfood",
+    "profile_ref": "svf:profile:sociosphere.dogfood",
+    "policy_ref": "svf:policy:sociosphere.local-readonly"
+  },
+  "receipt_input": {
+    "source_kind": "exported_sociosphere_receipt",
+    "receipt_ref": "svf:receipt:sociosphere.registry-dogfood.verified",
+    "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
+    "receipt_artifact_ref": "tests/fixtures/workroom/sociosphere-svf-validation-receipt.valid.json",
+    "verification_status": "verified",
+    "verified_by": "sociosphere.svf_runner.local",
+    "certified_claims": [
+      "schema_conformant",
+      "non_production_only",
+      "policy_boundary_preserved",
+      "artifact_integrity_verified",
+      "receipt_integrity_verified"
+    ],
+    "non_certified_claims": [
+      "production_readiness",
+      "live_infrastructure_safety",
+      "container_runtime_parity",
+      "browser_runtime_parity",
+      "qemu_runtime_parity",
+      "signadot_vendor_parity",
+      "network_isolation_enforced"
+    ]
+  },
+  "prophet_response_projection": {
+    "status": "environment_observed",
+    "evidence_summary": {
+      "validation_evidence_state": "verified_receipt",
+      "receipt_refs": [
+        "svf:receipt:sociosphere.registry-dogfood.verified"
+      ],
+      "failure_codes": [],
+      "non_certified_claims": [
+        "Prophet Platform consumes the receipt but does not issue it.",
+        "Verified local receipt does not certify production readiness."
+      ]
+    },
+    "pr_readiness": {
+      "readiness_state": "ready",
+      "merge_allowed": true,
+      "required_evidence_state": "verified_receipt",
+      "observed_evidence_state": "verified_receipt",
+      "blocking_reason_codes": [],
+      "summary": "Readiness is allowed only because a verified Sociosphere SVF receipt reference is present."
+    }
+  },
+  "negative_controls": [
+    {
+      "state": "selected_only",
+      "merge_allowed": false,
+      "reason": "Plan selection is not execution evidence."
+    },
+    {
+      "state": "missing_evidence",
+      "merge_allowed": false,
+      "reason": "No receipt or run evidence was observed."
+    },
+    {
+      "state": "failed_receipt",
+      "merge_allowed": false,
+      "reason": "Failed receipts require repair and rerun."
+    },
+    {
+      "state": "stale_receipt",
+      "merge_allowed": false,
+      "reason": "Stale receipts do not certify the current change set."
+    }
+  ],
+  "non_claims": [
+    "This contract fixture does not execute Sociosphere SVF Actions.",
+    "This contract fixture does not issue, sign, or certify receipts in Prophet Platform.",
+    "This contract fixture does not authorize production remediation.",
+    "This contract fixture does not claim Signadot vendor parity."
+  ]
+}
