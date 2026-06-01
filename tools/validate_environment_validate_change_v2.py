@@ -31,6 +31,7 @@ VALIDATION_EVIDENCE_STATES = {
 }
 MERGE_READY_STATES = {"verified_receipt"}
 BLOCKING_STATES = {"not_configured", "selected_only", "missing_evidence", "failed_receipt", "stale_receipt"}
+REPAIR_REQUIRED_STATES = {"failed_receipt", "stale_receipt"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -65,6 +66,25 @@ def validate_request(data: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def validate_repair_guidance(data: dict[str, Any], evidence_state: str | None) -> list[dict[str, Any]]:
+    evidence_summary = data.get("evidence_summary", {})
+    readiness = data.get("pr_readiness", {})
+    guidance = evidence_summary.get("repair_guidance", []) if isinstance(evidence_summary, dict) else []
+    refs = readiness.get("repair_guidance_refs", []) if isinstance(readiness, dict) else []
+    guidance_ids = {item.get("step_id") for item in guidance if isinstance(item, dict)}
+    results: list[dict[str, Any]] = []
+
+    if evidence_state in REPAIR_REQUIRED_STATES:
+        results.extend([
+            check(f"repair:{evidence_state}:guidance-list", isinstance(guidance, list) and len(guidance) >= 2, [str(guidance)]),
+            check(f"repair:{evidence_state}:readiness-refs", isinstance(refs, list) and len(refs) >= 1, [str(refs)]),
+            check(f"repair:{evidence_state}:refs-resolve", all(ref in guidance_ids for ref in refs), [str(refs), str(sorted(guidance_ids))]),
+            check(f"repair:{evidence_state}:required-before-merge", all(isinstance(item, dict) and item.get("required_before_merge") is True for item in guidance), [str(guidance)]),
+            check(f"repair:{evidence_state}:authority-present", all(isinstance(item, dict) and bool(item.get("authority")) for item in guidance), [str(guidance)]),
+        ])
+    return results
+
+
 def validate_pr_readiness(data: dict[str, Any], evidence_state: str | None) -> list[dict[str, Any]]:
     readiness = data.get("pr_readiness", {})
     blocking_codes = readiness.get("blocking_reason_codes", []) if isinstance(readiness, dict) else []
@@ -87,6 +107,7 @@ def validate_pr_readiness(data: dict[str, Any], evidence_state: str | None) -> l
             check(f"readiness:{evidence_state}:not-ready", readiness_state in {"blocked", "needs_review"}, [str(readiness_state)]),
             check(f"readiness:{evidence_state}:blocking-codes", isinstance(blocking_codes, list) and len(blocking_codes) >= 1, [str(blocking_codes)]),
         ])
+    results.extend(validate_repair_guidance(data, evidence_state))
     return results
 
 

@@ -37,6 +37,28 @@
     "failure_codes": [
       "svf_receipt_stale"
     ],
+    "repair_guidance": [
+      {
+        "step_id": "repair:stale-receipt:compare-change-digest",
+        "action": "Compare the stale receipt change/run digest with the current change set before relying on the receipt.",
+        "authority": "sociosphere_svf",
+        "required_before_merge": true,
+        "non_claims": [
+          "Guidance does not make the stale receipt valid.",
+          "Guidance does not certify the current change."
+        ]
+      },
+      {
+        "step_id": "repair:stale-receipt:rerun-selected-plan",
+        "action": "Rerun the selected SVF plan against the current change set and replace the stale receipt with a verified receipt.",
+        "authority": "agent_or_operator_with_svf_policy",
+        "required_before_merge": true,
+        "non_claims": [
+          "Rerun must still be governed by SVF policy.",
+          "Rerun does not imply production readiness."
+        ]
+      }
+    ],
     "non_certified_claims": [
       "Stale receipt does not certify the current change set.",
       "Stale receipt does not certify production readiness.",
@@ -52,7 +74,11 @@
       "svf_receipt_stale",
       "verified_receipt_required"
     ],
-    "summary": "Stale receipt evidence blocks PR readiness for the current change set.",
+    "summary": "Stale receipt evidence blocks PR readiness for the current change set. Compare the stale receipt against the current change and rerun the selected SVF plan before readiness can be claimed.",
+    "repair_guidance_refs": [
+      "repair:stale-receipt:compare-change-digest",
+      "repair:stale-receipt:rerun-selected-plan"
+    ],
     "non_claims": [
       "Readiness block is based on stale receipt state.",
       "Readiness block does not execute validation."
