@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.1",
+  "request_id": "trust-chain:admit-artifact-request:demo-runtime-asset-001",
+  "response_id": "trust-chain:admit-artifact-response:demo-runtime-asset-001:allowed",
+  "status": "admission_decided",
+  "decision": "allow",
+  "decision_scope": {
+    "environment": "preview",
+    "tenant_ref": "tenant://demo-bank",
+    "workspace_ref": "workspace://professional/demo-ai-ops",
+    "risk_tier": "regulated_enterprise"
+  },
+  "artifact": {
+    "artifact_type": "RuntimeAsset",
+    "artifact_ref": "runtime-asset://lattice-forge/prophet-python-ml@0.1.0",
+    "digest": {
+      "algorithm": "sha256",
+      "value": "8fb2c9019e3b73a5d9c8a64f1a4f28d1a0e7d2fd6f088f0e7c9d904c4a4a4f11"
+    }
+  },
+  "posture": {
+    "source_posture": "provenance_present",
+    "package_posture": "acceptable",
+    "runtime_posture": "acceptable",
+    "vulnerability_posture": "no_known_blocking_findings",
+    "patch_posture": "current_for_scope",
+    "policy_posture": "satisfied",
+    "agentplane_posture": "validated",
+    "promotion_posture": "preview_allowed"
+  },
+  "evidence_refs": [
+    "sbom://lattice-forge/prophet-python-ml/0.1.0/spdx.json",
+    "vex://lattice-forge/prophet-python-ml/0.1.0/vex.json",
+    "scan://lattice-forge/prophet-python-ml/0.1.0/osv-scan.json",
+    "policy://trust-chain/dependency-admission/regulated-enterprise-preview",
+    "guardrail:decision:trust-chain-demo-allow-001",
+    "agentplane:validation:runtime-asset-demo-001",
+    "agentplane:replay:runtime-asset-demo-001",
+    "runtime-receipt://trust-chain/demo-runtime-asset-001"
+  ],
+  "remediation": [],
+  "warnings": [],
+  "non_claims": [
+    "Allowed for the requested preview scope only.",
+    "This fixture is a contract example and not a live production certification."
+  ]
+}
