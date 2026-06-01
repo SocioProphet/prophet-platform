@@ -1,0 +1,66 @@
+{
+  "schema_version": "0.1",
+  "request_id": "trust-chain:admit-artifact-request:demo-runtime-asset-002",
+  "response_id": "trust-chain:admit-artifact-response:demo-runtime-asset-002:denied",
+  "status": "admission_decided",
+  "decision": "deny",
+  "decision_scope": {
+    "environment": "production",
+    "tenant_ref": "tenant://demo-bank",
+    "workspace_ref": "workspace://professional/demo-ai-ops",
+    "risk_tier": "regulated_enterprise"
+  },
+  "artifact": {
+    "artifact_type": "RuntimeAsset",
+    "artifact_ref": "runtime-asset://lattice-forge/legacy-python-ml@0.0.3",
+    "digest": {
+      "algorithm": "sha256",
+      "value": "03e4c287fd823a7f2be3f1e69ffb0f4b12a2fb637b45e40c1d4b09d338fa9b12"
+    }
+  },
+  "posture": {
+    "source_posture": "provenance_present",
+    "package_posture": "blocked",
+    "runtime_posture": "blocked",
+    "vulnerability_posture": "known_blocking_findings",
+    "patch_posture": "patch_required",
+    "policy_posture": "failed",
+    "agentplane_posture": "missing_verified_replay",
+    "promotion_posture": "production_denied"
+  },
+  "evidence_refs": [
+    "scan://lattice-forge/legacy-python-ml/0.0.3/osv-scan.json",
+    "vulnerability://osv/GHSA-demo-blocking-001",
+    "policy://trust-chain/dependency-admission/regulated-enterprise-production",
+    "guardrail:decision:trust-chain-demo-deny-001"
+  ],
+  "remediation": [
+    {
+      "step_id": "patch-runtime-asset",
+      "authority": "SocioProphet/lattice-forge",
+      "required_before_admission": true,
+      "instruction": "Replace or patch the vulnerable package set and emit updated SBOM, VEX, scan, signature, and promotion evidence."
+    },
+    {
+      "step_id": "rerun-agentplane-validation",
+      "authority": "SocioProphet/agentplane",
+      "required_before_admission": true,
+      "instruction": "Run trust-chain validation and replay after the patched RuntimeAsset is available."
+    },
+    {
+      "step_id": "recompute-policy-decision",
+      "authority": "SocioProphet/policy-fabric",
+      "required_before_admission": true,
+      "instruction": "Re-evaluate regulated-enterprise production admission after fresh runtime and vulnerability evidence exists."
+    }
+  ],
+  "warnings": [
+    "production_admission_denied",
+    "known_blocking_vulnerability",
+    "missing_verified_replay"
+  ],
+  "non_claims": [
+    "Denied fixtures are used to prove fail-closed behavior.",
+    "The demo vulnerability identifier is synthetic."
+  ]
+}
