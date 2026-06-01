@@ -1,0 +1,102 @@
+{
+  "schema_version": "0.1.0",
+  "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+  "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001",
+  "workspace_ref": "workspace://scope-d/main",
+  "environment_ref": "environment://production/scope-d-example",
+  "observed_window": {
+    "start": "2026-05-31T16:40:00Z",
+    "end": "2026-05-31T17:10:00Z"
+  },
+  "source_evidence": [
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius",
+      "source_system": "GAIA fixture",
+      "source_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "observed_at": "2026-05-31T16:57:20Z",
+      "collection_method": "synthetic_fixture",
+      "non_claims": [
+        "Topology evidence is fixture-scoped.",
+        "Topology evidence does not prove root cause."
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "node_ref": "service://scope-d/api",
+      "node_type": "service",
+      "label": "Scope-D API service",
+      "environment_ref": "environment://production/scope-d-example",
+      "evidence_refs": [
+        "evidence://gaia/topology/scope-d-example/blast-radius"
+      ]
+    },
+    {
+      "node_ref": "frontend://scope-d/checkout",
+      "node_type": "frontend",
+      "label": "Checkout frontend",
+      "environment_ref": "environment://production/scope-d-example",
+      "evidence_refs": [
+        "evidence://gaia/topology/scope-d-example/blast-radius"
+      ]
+    },
+    {
+      "node_ref": "frontend://scope-d/account",
+      "node_type": "frontend",
+      "label": "Account frontend",
+      "environment_ref": "environment://production/scope-d-example",
+      "evidence_refs": [
+        "evidence://gaia/topology/scope-d-example/blast-radius"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "edge_ref": "edge://scope-d/checkout-calls-api",
+      "source_node_ref": "frontend://scope-d/checkout",
+      "target_node_ref": "service://scope-d/api",
+      "relation_type": "calls",
+      "evidence_refs": [
+        "evidence://gaia/topology/scope-d-example/blast-radius"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "edge_ref": "edge://scope-d/account-calls-api",
+      "source_node_ref": "frontend://scope-d/account",
+      "target_node_ref": "service://scope-d/api",
+      "relation_type": "calls",
+      "evidence_refs": [
+        "evidence://gaia/topology/scope-d-example/blast-radius"
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "blast_radius": {
+    "radius_status": "supported_by_topology",
+    "affected_node_refs": [
+      "service://scope-d/api"
+    ],
+    "candidate_consumer_refs": [
+      "frontend://scope-d/checkout",
+      "frontend://scope-d/account"
+    ],
+    "impact_hypotheses": [
+      "If the API service is degraded, checkout and account frontends are plausible consumers affected by the incident window."
+    ],
+    "confidence": "medium",
+    "non_claims": [
+      "Blast radius is supported by topology only.",
+      "Blast radius is not confirmed by customer impact observation in this fixture."
+    ]
+  },
+  "policy_status": "fixture_validated",
+  "non_claims": [
+    "Mirrored fixture from GAIA for Prophet Platform Workroom validation only.",
+    "Fixture validates operational topology contract shape only.",
+    "Fixture does not execute runtime probes.",
+    "Fixture does not prove RCA causality.",
+    "Fixture does not authorize remediation.",
+    "Fixture does not certify Signadot feature parity."
+  ]
+}
