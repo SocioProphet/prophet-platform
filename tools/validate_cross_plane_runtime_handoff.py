@@ -9,6 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 AGENTPLANE_ALLOCATED = ROOT / "fixtures" / "external" / "agentplane" / "runtime-sandbox-run.allocated.valid.json"
 SOCIOSPHERE_ALLOCATED = ROOT / "fixtures" / "external" / "sociosphere" / "runtime-evidence-ingestion.allocated.valid.json"
 WORKROOM_VERIFIED = ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-verified-receipt.valid.json"
+AGENTPLANE_SHARED = ROOT / "fixtures" / "external" / "agentplane" / "runtime-sandbox-run.shared-receipt.valid.json"
+SOCIOSPHERE_SHARED = ROOT / "fixtures" / "external" / "sociosphere" / "runtime-evidence-ingestion.shared-receipt.valid.json"
+WORKROOM_SHARED = ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.shared-receipt.valid.json"
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -28,13 +31,9 @@ def require_contains(label: str, value: Any, values: list[Any], problems: list[s
         problems.append(f"{label}: {value!r} not found in {values!r}")
 
 
-def validate(agentplane: dict[str, Any], sociosphere: dict[str, Any], workroom: dict[str, Any]) -> list[str]:
+def validate_agentplane_to_sociosphere(agentplane: dict[str, Any], sociosphere: dict[str, Any]) -> list[str]:
     problems: list[str] = []
-
     agent_refs = sociosphere.get("agentplane_refs", {})
-    workroom_sources = workroom.get("source_refs", {})
-    workroom_evidence = workroom.get("evidence_packets", [])
-    workroom_bde = workroom.get("behavioral_divergence_event", {})
 
     require_equal("runtime run ref AgentPlane->Sociosphere", agentplane.get("runtimeRunId"), agent_refs.get("runtime_run_ref"), problems)
     require_equal("environment ref AgentPlane->Sociosphere", agentplane.get("environmentRef"), agent_refs.get("environment_ref"), problems)
@@ -70,8 +69,15 @@ def validate(agentplane: dict[str, Any], sociosphere: dict[str, Any], workroom: 
         if gap not in sociosphere.get("runtime_parity", {}).get("blocking_gaps", []):
             problems.append(f"allocated Sociosphere fixture must preserve blocking gap {gap}")
 
-    # Workroom fixture currently models a Sociosphere SVF verified receipt, not the AgentPlane allocated runtime fixture.
-    # The handoff invariant here is authority and claim-boundary compatibility, not identical receipt IDs yet.
+    return problems
+
+
+def validate_workroom_verified(workroom: dict[str, Any]) -> list[str]:
+    problems: list[str] = []
+    workroom_sources = workroom.get("source_refs", {})
+    workroom_evidence = workroom.get("evidence_packets", [])
+    workroom_bde = workroom.get("behavioral_divergence_event", {})
+
     if workroom.get("runtime_parity_level") != "runtime_observed":
         problems.append("verified Workroom fixture must retain runtime_observed level")
     if workroom.get("validation_evidence_state") != "verified_receipt":
@@ -97,25 +103,80 @@ def validate(agentplane: dict[str, Any], sociosphere: dict[str, Any], workroom: 
     return problems
 
 
+def validate_compatibility_path(agentplane: dict[str, Any], sociosphere: dict[str, Any], workroom: dict[str, Any]) -> list[str]:
+    problems = validate_agentplane_to_sociosphere(agentplane, sociosphere)
+    problems.extend(validate_workroom_verified(workroom))
+    return problems
+
+
+def validate_shared_receipt_path(agentplane: dict[str, Any], sociosphere: dict[str, Any], workroom: dict[str, Any]) -> list[str]:
+    problems = validate_agentplane_to_sociosphere(agentplane, sociosphere)
+    problems.extend(validate_workroom_verified(workroom))
+
+    agent_receipts = agentplane.get("receiptRefs", [])
+    sociosphere_receipts = sociosphere.get("agentplane_refs", {}).get("receipt_refs", [])
+    workroom_receipt = workroom.get("source_refs", {}).get("validation_receipt_ref")
+    if not agent_receipts:
+        problems.append("shared AgentPlane fixture must include receipt refs")
+    else:
+        require_contains("shared receipt AgentPlane->Sociosphere", agent_receipts[0], sociosphere_receipts, problems)
+        require_equal("shared receipt AgentPlane->Workroom", agent_receipts[0], workroom_receipt, problems)
+
+    workroom_run = workroom.get("source_refs", {}).get("validation_run_ref")
+    require_equal("shared run AgentPlane->Workroom", agentplane.get("runtimeRunId"), workroom_run, problems)
+
+    evidence_ref = (agentplane.get("evidenceRefs") or [None])[0]
+    workroom_evidence_refs = {packet.get("evidence_ref") for packet in workroom.get("evidence_packets", []) if isinstance(packet, dict)}
+    if evidence_ref not in workroom_evidence_refs:
+        problems.append("shared evidence AgentPlane->Workroom evidence packet missing")
+
+    for packet in workroom.get("evidence_packets", []):
+        if packet.get("evidence_type") == "runtime_receipt":
+            source_ref = packet.get("provenance", {}).get("source_ref")
+            require_equal("shared receipt Workroom evidence provenance", source_ref, workroom_receipt, problems)
+
+    return problems
+
+
 def main() -> int:
-    agentplane = load(AGENTPLANE_ALLOCATED)
-    sociosphere = load(SOCIOSPHERE_ALLOCATED)
-    workroom = load(WORKROOM_VERIFIED)
-    problems = validate(agentplane, sociosphere, workroom)
+    compatibility_inputs = {
+        "agentplane": load(AGENTPLANE_ALLOCATED),
+        "sociosphere": load(SOCIOSPHERE_ALLOCATED),
+        "workroom": load(WORKROOM_VERIFIED),
+    }
+    shared_inputs = {
+        "agentplane": load(AGENTPLANE_SHARED),
+        "sociosphere": load(SOCIOSPHERE_SHARED),
+        "workroom": load(WORKROOM_SHARED),
+    }
+
+    compatibility_problems = validate_compatibility_path(**compatibility_inputs)
+    shared_problems = validate_shared_receipt_path(**shared_inputs)
+    problems = compatibility_problems + shared_problems
     report = {
         "validator": "prophet-platform.cross-plane-runtime-handoff.validator.v1",
         "passed": not problems,
-        "problems": problems,
+        "results": {
+            "compatibility_path": compatibility_problems,
+            "shared_receipt_path": shared_problems,
+        },
         "inputs": {
-            "agentplane": str(AGENTPLANE_ALLOCATED.relative_to(ROOT)),
-            "sociosphere": str(SOCIOSPHERE_ALLOCATED.relative_to(ROOT)),
-            "workroom": str(WORKROOM_VERIFIED.relative_to(ROOT)),
+            "compatibility_path": {
+                "agentplane": str(AGENTPLANE_ALLOCATED.relative_to(ROOT)),
+                "sociosphere": str(SOCIOSPHERE_ALLOCATED.relative_to(ROOT)),
+                "workroom": str(WORKROOM_VERIFIED.relative_to(ROOT)),
+            },
+            "shared_receipt_path": {
+                "agentplane": str(AGENTPLANE_SHARED.relative_to(ROOT)),
+                "sociosphere": str(SOCIOSPHERE_SHARED.relative_to(ROOT)),
+                "workroom": str(WORKROOM_SHARED.relative_to(ROOT)),
+            },
         },
         "non_claims": [
             "Validator checks fixture identity preservation and claim boundaries only.",
             "Validator does not execute sandbox infrastructure.",
             "Validator does not certify Signadot-style feature parity.",
-            "Validator does not assert that AgentPlane allocated receipt and Sociosphere SVF receipt are the same receipt."
+            "Shared receipt identity is fixture-scoped and does not imply full runtime feature parity."
         ],
     }
     print(json.dumps(report, indent=2, sort_keys=True))
