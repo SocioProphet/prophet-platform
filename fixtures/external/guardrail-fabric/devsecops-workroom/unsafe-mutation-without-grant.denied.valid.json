@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1.0",
+  "fixture_id": "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+  "fixture_class": "unsafe_mutation_without_grant",
+  "workroom_context": {
+    "workroom_ref": "workroom:devsecops:post-merge:scope-d-example",
+    "lane": "post_merge_incident",
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge"
+  },
+  "input": {
+    "input_type": "remediation_action",
+    "action_class": "production_change",
+    "summary": "A production-impacting remediation is proposed without an ActionGrant.",
+    "has_action_grant": false,
+    "requires_credential_access": false,
+    "contains_policy_override_attempt": false,
+    "proposed_command_class": "production_change"
+  },
+  "expected_decision": "deny",
+  "expected_reason_codes": [
+    "mutation_requires_action_grant",
+    "production_change_requires_review"
+  ],
+  "non_claims": [
+    "Mirrored fixture from Guardrail Fabric for Prophet Platform Workroom validation only.",
+    "Fixture does not execute infrastructure.",
+    "Fixture does not authorize production mutation.",
+    "Fixture does not certify Signadot feature parity."
+  ]
+}
