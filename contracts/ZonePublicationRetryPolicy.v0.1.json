@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ZonePublicationRetryPolicy v0.1",
+  "type": "object",
+  "required": [
+    "version",
+    "max_attempts",
+    "backoff_seconds",
+    "strategy",
+    "dead_letter_on_terminal"
+  ],
+  "properties": {
+    "version": {"type": "string"},
+    "max_attempts": {"type": "integer", "minimum": 1},
+    "backoff_seconds": {"type": "integer", "minimum": 0},
+    "strategy": {"type": "string", "enum": ["fixed", "exponential"]},
+    "dead_letter_on_terminal": {"type": "boolean"}
+  }
+}

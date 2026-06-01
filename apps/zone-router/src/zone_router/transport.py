@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .dead_letter import write_dead_letter
+from .retry_policy import compute_next_retry_not_before, is_terminal_attempt, resolve_retry_policy
 from .retry_state import (
     last_outcome_for_publication,
     next_attempt_for_publication,
@@ -77,6 +79,9 @@ def write_publication_outcome(
     error: str | None = None,
     previous_outcome_ref: str | None = None,
     retry_eligible: bool | None = None,
+    terminal: bool | None = None,
+    next_retry_not_before: str | None = None,
+    retry_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ensure_transport_dirs(service)
     outcome_id = str(uuid.uuid4())
@@ -107,6 +112,14 @@ def write_publication_outcome(
         outcome["previous_outcome_ref"] = previous_outcome_ref
     if retry_eligible is not None:
         outcome["retry_eligible"] = retry_eligible
+    if terminal is not None:
+        outcome["terminal"] = terminal
+    if next_retry_not_before:
+        outcome["next_retry_not_before"] = next_retry_not_before
+    if retry_policy:
+        outcome["max_attempts"] = int(retry_policy["max_attempts"])
+        outcome["retry_backoff_seconds"] = int(retry_policy["backoff_seconds"])
+        outcome["retry_strategy"] = str(retry_policy["strategy"])
     if status == "published":
         outcome["published_at"] = created_at
     if status == "failed":
@@ -149,16 +162,27 @@ def publish_publication_record(
     attempt: int | None = None,
 ) -> dict[str, Any]:
     ensure_transport_dirs(service)
+    policy = resolve_retry_policy(record)
     previous_outcome = last_outcome_for_publication(record["publication_id"], service=service)
     resolved_attempt = attempt if attempt is not None else next_attempt_for_publication(record["publication_id"], service=service)
     previous_outcome_ref = previous_outcome.get("outcome_id") if previous_outcome else None
+
     transport_result = dispatch_transport(
         record,
         transport_ref=transport_ref,
         deliveries_root=delivery_adapters_root(service),
     )
     status = "published" if transport_result.get("ok") else "failed"
-    retry_eligible = status == "failed"
+
+    if status == "published":
+        retry_eligible = False
+        terminal = True
+        next_retry_not_before = None
+    else:
+        terminal = is_terminal_attempt(resolved_attempt, policy)
+        retry_eligible = not terminal
+        next_retry_not_before = compute_next_retry_not_before(resolved_attempt, policy)
+
     outcome_result = write_publication_outcome(
         record,
         transport_ref=transport_ref,
@@ -171,7 +195,11 @@ def publish_publication_record(
         error=transport_result.get("error"),
         previous_outcome_ref=previous_outcome_ref,
         retry_eligible=retry_eligible,
+        terminal=terminal,
+        next_retry_not_before=next_retry_not_before,
+        retry_policy=policy,
     )
+
     if status == "failed":
         failure_evidence = write_failure_evidence(
             record,
@@ -182,5 +210,16 @@ def publish_publication_record(
             retry_eligible=retry_eligible,
         )
         outcome_result["failure_evidence"] = failure_evidence
+        if terminal and policy.get("dead_letter_on_terminal"):
+            dead_letter = write_dead_letter(
+                record,
+                outcome_result["outcome"],
+                policy,
+                service_ref=service_ref,
+                service=service,
+                previous_outcome_ref=previous_outcome_ref,
+            )
+            outcome_result["dead_letter"] = dead_letter
+
     outcome_result["transport_result"] = transport_result
     return outcome_result
