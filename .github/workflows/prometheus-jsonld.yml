@@ -3,9 +3,11 @@ name: prometheus-jsonld
 on:
   pull_request:
     paths:
+      - "contracts/ontology/sr-assertion.shacl.ttl"
       - "tools/emit_prometheus_jsonld_review.py"
       - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_shacl.py"
       - "tools/run_prometheus_local_demo.py"
       - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
@@ -14,9 +16,11 @@ on:
     branches:
       - main
     paths:
+      - "contracts/ontology/sr-assertion.shacl.ttl"
       - "tools/emit_prometheus_jsonld_review.py"
       - "tools/emit_prometheus_gate_evaluation.py"
       - "tools/validate_prometheus_jsonld_review.py"
+      - "tools/validate_prometheus_jsonld_shacl.py"
       - "tools/run_prometheus_local_demo.py"
       - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
@@ -34,8 +38,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install units dependency
-        run: python3 -m pip install sympy
+      - name: Install validation dependencies
+        run: python3 -m pip install sympy pyshacl rdflib
       - name: Generate PROMETHEUS local demo artifacts
         run: |
           python3 tools/run_prometheus_local_demo.py \
@@ -51,7 +55,7 @@ jobs:
             --evaluation-id urn:prometheus:gate-evaluation:pysr-local-demo:001 \
             --issued-at 2026-05-27T22:30:30Z \
             --output build/prometheus/jsonld/pysr/gate-evaluation.json
-      - name: Prove automated gate fails closed without gate evidence
+      - name: Require gate evidence for automated review
         run: |
           ! python3 tools/emit_prometheus_jsonld_review.py \
             --candidate build/prometheus/jsonld/pysr/equation-candidate.json \
@@ -70,7 +74,11 @@ jobs:
             --review-surface automated_shacl_gate \
             --issued-at 2026-05-27T22:31:00Z \
             --output build/prometheus/jsonld/pysr/sr.jsonld
-      - name: Validate JSON-LD artifact
+      - name: Validate JSON-LD artifact structure
         run: |
           python3 tools/validate_prometheus_jsonld_review.py \
+            build/prometheus/jsonld/pysr/sr.jsonld
+      - name: Validate JSON-LD artifact with SHACL
+        run: |
+          python3 tools/validate_prometheus_jsonld_shacl.py \
             build/prometheus/jsonld/pysr/sr.jsonld
