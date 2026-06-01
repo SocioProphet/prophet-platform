@@ -14,7 +14,7 @@
   },
   "behavioral_divergence_event": {
     "event_id": "bde:pre-merge-validation-success:sociosphere-svf",
-    "event_type": "pre_merge_validation_failure",
+    "event_type": "pre_merge_validation_verified",
     "source_lane": "pre_merge_validation",
     "status": "resolved",
     "summary": "Fixture models a verified SVF local receipt for Sociosphere registry dogfood validation.",
