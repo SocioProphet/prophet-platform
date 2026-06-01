@@ -1,0 +1,44 @@
+{
+  "@context": {
+    "sr": "https://socioprophet.github.io/ontogenesis/symbolic-regression#",
+    "prov": "http://www.w3.org/ns/prov#"
+  },
+  "@id": "urn:prometheus:jsonld:invalid:missing-dataset",
+  "@type": "sr:SRAssertionProposal",
+  "sr:vocabVersion": "0.1.0",
+  "sr:vocabularyPromotionState": {"@id": "sr:VocabularyDraftState"},
+  "sr:hasFitMetric": {
+    "@id": "urn:prometheus:metric:fit:missing-dataset",
+    "@type": "sr:FitMetric",
+    "sr:metricName": "nmse",
+    "sr:metricValue": 0.0
+  },
+  "sr:hasComplexityMetric": {
+    "@id": "urn:prometheus:metric:complexity:missing-dataset",
+    "@type": "sr:ComplexityMetric",
+    "sr:metricName": "complexity",
+    "sr:metricValue": 3
+  },
+  "sr:hasDimensionalAnalysis": {
+    "@id": "urn:prometheus:dimensional-analysis:missing-dataset",
+    "@type": "sr:DimensionalAnalysisResult",
+    "sr:hasUnitsStatus": {"@id": "sr:UnitsConsistent"}
+  },
+  "sr:hasEvidenceReplay": {
+    "@id": "urn:prometheus:replay:missing-dataset",
+    "@type": "sr:EvidenceReplayRef"
+  },
+  "sr:hasDiscoveryMethod": {
+    "@id": "urn:prometheus:method:pysr",
+    "@type": "sr:DiscoveryMethodRef"
+  },
+  "sr:hasPromotionStatus": {"@id": "sr:ProposalCandidate"},
+  "sr:hasAdmissionState": {"@id": "sr:AdmissionBlocked"},
+  "sr:hasSemanticReviewSurface": {
+    "@id": "urn:prometheus:review-surface:cli",
+    "@type": "sr:SemanticReviewSurface",
+    "sr:reviewSurfaceType": "cli"
+  },
+  "sr:nonAuthorityDeclaration": "Negative fixture: missing dataset evidence must fail SHACL validation.",
+  "prov:generatedAtTime": "2026-06-01T11:00:00Z"
+}
