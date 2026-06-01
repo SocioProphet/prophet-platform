@@ -8,7 +8,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.example.json"
-DEFAULT_OBSERVED = ROOT / "contracts" / "environment" / "validate-change-v2-response.environment-observed.json"
+DEFAULT_RESPONSE = ROOT / "contracts" / "environment" / "validate-change-v2-response.environment-observed.json"
 DEFAULT_LINK = ROOT / "contracts" / "environment" / "validate-change-v2-agentplane-run-link.example.json"
 
 
@@ -19,97 +19,158 @@ def load(path: Path) -> dict[str, Any]:
     return data
 
 
-def first(items: list[str], label: str) -> str:
-    if not items:
-        raise ValueError(f"missing {label}")
-    return str(items[0])
+def first_or_none(items: list[str]) -> str | None:
+    return str(items[0]) if items else None
 
 
-def build_workroom(request: dict[str, Any], observed: dict[str, Any], link: dict[str, Any]) -> dict[str, Any]:
-    evidence_summary = observed.get("evidence_summary", {})
-    agentplane_execution = observed.get("agentplane_execution", {})
-    evidence_refs = agentplane_execution.get("evidence_refs", [])
-    receipt_refs = evidence_summary.get("receipt_refs", [])
-    receipt_digests = evidence_summary.get("receipt_digests", [])
-    selected_plans = observed.get("selected_plans", []) or request.get("selected_plans", [])
-    repo = observed.get("repo") or request.get("repo")
-    readiness = observed.get("pr_readiness", {})
-    environment = observed.get("environment", {}) or request.get("environment_request", {})
+def evidence_state_to_parity(state: str) -> str:
+    if state == "verified_receipt":
+        return "runtime_observed"
+    if state == "synthetic_observed":
+        return "synthetic_observed"
+    return "contract_only"
 
-    receipt_ref = first(receipt_refs, "receipt refs")
-    receipt_digest = first(receipt_digests, "receipt digests")
-    evidence_ref = first(evidence_refs, "evidence refs")
-    plan_ref = first(selected_plans, "selected plans")
 
-    workroom_id = "workroom:devsecops:pre-merge:sociosphere-svf-verified"
-    event_id = "bde:pre-merge-validation-success:sociosphere-svf"
-    claim_id = "rca-claim:sociosphere-svf:receipt-observed"
-    action_grant_id = "action-grant:sociosphere-svf:read-receipt"
-    remediation_id = "remediation-plan:sociosphere-svf:none-required"
-    regression_fixture_id = "regression-fixture:sociosphere-svf:receipt-gate"
-    topology_ref = "topology://sociosphere/svf/local-dogfood"
+def change_set_ref(request: dict[str, Any], response: dict[str, Any]) -> str:
+    repo = response.get("repo") or request.get("repo") or "unknown/repo"
+    ref = request.get("ref") or response.get("request_id", "unknown-ref")
+    return f"changeset://github/{repo}/{ref}"
 
-    request_repo = str(repo or "unknown").replace("/", "/")
-    change_set_ref = "changeset://github/SocioProphet/sociosphere/pull/434"
-    if request_repo and request.get("ref"):
-        change_set_ref = f"changeset://github/{request_repo}/{request.get('ref')}"
+
+def base_ids(state: str) -> dict[str, str]:
+    slug = {
+        "verified_receipt": "sociosphere-svf-verified",
+        "missing_evidence": "scope-d-missing-evidence",
+        "failed_receipt": "scope-d-failed-receipt",
+        "stale_receipt": "scope-d-stale-receipt",
+    }.get(state, f"scope-d-{state}")
+    return {
+        "slug": slug,
+        "workroom_id": f"workroom:devsecops:pre-merge:{slug}",
+        "event_id": f"bde:pre-merge-validation:{slug}",
+        "claim_id": f"rca-claim:{slug}:validation-state",
+        "grant_id": f"action-grant:{slug}:read-validation-evidence",
+        "remediation_id": f"remediation-plan:{slug}:next-step",
+        "regression_id": f"regression-fixture:{slug}:receipt-gate",
+    }
+
+
+def build_evidence_packet(state: str, evidence_ref: str, receipt_ref: str | None) -> dict[str, Any]:
+    if state in {"verified_receipt", "failed_receipt", "stale_receipt"}:
+        return {
+            "evidence_ref": evidence_ref,
+            "evidence_type": "runtime_receipt",
+            "producer": "Sociosphere SVF local runner",
+            "summary": "SVF receipt evidence was surfaced through validate_change v2 response fixtures.",
+            "observed_at": "2026-05-31T18:46:09Z",
+            "provenance": {
+                "source_system": "Sociosphere",
+                "source_ref": receipt_ref or "svf:receipt:missing",
+                "collection_method": "fixture_mirrors_svf_local_receipt"
+            },
+            "non_claims": [
+                "Receipt is fixture-scoped.",
+                "Receipt does not certify container, browser, QEMU, cluster, or Signadot vendor parity."
+            ]
+        }
+    return {
+        "evidence_ref": evidence_ref,
+        "evidence_type": "validation_result",
+        "producer": "Prophet Platform validate_change v2 adapter",
+        "summary": "Validation plans were selected but receipt-backed execution evidence is missing.",
+        "observed_at": "2026-05-31T18:46:09Z",
+        "provenance": {
+            "source_system": "Prophet Platform",
+            "source_ref": "validate-change-v2:missing-evidence",
+            "collection_method": "fixture_response_mapping"
+        },
+        "non_claims": [
+            "Missing evidence is validation debt, not validation success.",
+            "No runtime parity is certified."
+        ]
+    }
+
+
+def build_workroom(request: dict[str, Any], response: dict[str, Any], link: dict[str, Any]) -> dict[str, Any]:
+    evidence_summary = response.get("evidence_summary", {})
+    agentplane_execution = response.get("agentplane_execution", {})
+    readiness = response.get("pr_readiness", {})
+    selected_plans = response.get("selected_plans", []) or request.get("selected_plans", [])
+    plan_ref = first_or_none(selected_plans) or "validation-plan://missing"
+
+    state = str(evidence_summary.get("validation_evidence_state", "missing_evidence"))
+    ids = base_ids(state)
+    parity = evidence_state_to_parity(state)
+    event_type = "pre_merge_validation_verified" if state == "verified_receipt" else "pre_merge_validation_failure"
+    status = "resolved" if state == "verified_receipt" else "open"
+    decision_state = "resolved" if state == "verified_receipt" else "blocked"
+    claim_confidence = "high" if state == "verified_receipt" else "medium"
+
+    receipt_ref = first_or_none(evidence_summary.get("receipt_refs", []))
+    receipt_digest = first_or_none(evidence_summary.get("receipt_digests", []))
+    evidence_ref = first_or_none(agentplane_execution.get("evidence_refs", []))
+    if not evidence_ref:
+        evidence_ref = f"evidence://prophet-platform/validate-change-v2/{ids['slug']}/missing-evidence"
+
+    source_refs: dict[str, str] = {
+        "change_set_ref": change_set_ref(request, response),
+        "environment_request_ref": response.get("request_id", request.get("request_id")),
+        "validation_run_ref": agentplane_execution.get("sandbox_run_ref", "agentplane:sandbox-run:missing"),
+        "topology_ref": "topology://sociosphere/svf/local-dogfood",
+    }
+    if receipt_ref:
+        source_refs["validation_receipt_ref"] = receipt_ref
+    if receipt_digest:
+        source_refs["validation_receipt_digest"] = receipt_digest
+
+    if state == "verified_receipt":
+        summary = "Fixture models a verified SVF local receipt for Sociosphere registry dogfood validation."
+        claim_statement = "A Sociosphere SVF local receipt can be represented as runtime-observed validation evidence when the receipt reference is present and evidence provenance points to it."
+        remediation_summary = "No code remediation is required for the verified receipt fixture."
+        plan_status = "approved" if readiness.get("readiness_state") == "ready" else "candidate"
+    elif state == "failed_receipt":
+        summary = "Fixture models a failed receipt state that blocks PR readiness until repair and rerun."
+        claim_statement = "Failed receipt evidence blocks validation success and requires repair before merge readiness can be claimed."
+        remediation_summary = "Inspect failed receipt diagnostics, patch the failure, and rerun the selected validation plan."
+        plan_status = "candidate"
+    else:
+        summary = "Fixture models selected validation plans without observed receipt-backed evidence."
+        claim_statement = "Selected validation plans without observed evidence are validation debt, not validation success."
+        remediation_summary = "Request or rerun AgentPlane validation until receipt-backed evidence is observed."
+        plan_status = "candidate"
 
     return {
         "schema_version": "0.1.0",
-        "workroom_id": workroom_id,
+        "workroom_id": ids["workroom_id"],
         "lane": "pre_merge_validation",
-        "runtime_parity_level": "runtime_observed",
-        "validation_evidence_state": evidence_summary.get("validation_evidence_state", "verified_receipt"),
-        "source_refs": {
-            "change_set_ref": change_set_ref,
-            "environment_request_ref": observed.get("request_id", request.get("request_id")),
-            "validation_run_ref": agentplane_execution.get("sandbox_run_ref"),
-            "validation_receipt_ref": receipt_ref,
-            "validation_receipt_digest": receipt_digest,
-            "topology_ref": topology_ref
-        },
+        "runtime_parity_level": parity,
+        "validation_evidence_state": state,
+        "source_refs": source_refs,
         "behavioral_divergence_event": {
-            "event_id": event_id,
-            "event_type": "pre_merge_validation_verified",
+            "event_id": ids["event_id"],
+            "event_type": event_type,
             "source_lane": "pre_merge_validation",
-            "status": "resolved",
-            "summary": "Fixture models a verified SVF local receipt for Sociosphere registry dogfood validation.",
+            "status": status,
+            "summary": summary,
             "environment_ref": "environment://local/sociosphere/svf",
-            "topology_ref": topology_ref,
+            "topology_ref": source_refs["topology_ref"],
             "evidence_refs": [evidence_ref],
-            "claim_refs": [claim_id],
-            "decision_state": "resolved",
+            "claim_refs": [ids["claim_id"]],
+            "decision_state": decision_state,
             "non_claims": [
-                "Resolved state is fixture-scoped.",
+                "State is fixture-scoped.",
                 "Fixture does not certify production readiness."
             ]
         },
-        "evidence_packets": [
-            {
-                "evidence_ref": evidence_ref,
-                "evidence_type": "runtime_receipt",
-                "producer": "Sociosphere SVF local runner",
-                "summary": "Verified local SVF receipt for registered Action execution and receipt digest verification.",
-                "observed_at": "2026-05-31T18:46:09Z",
-                "provenance": {
-                    "source_system": "Sociosphere",
-                    "source_ref": receipt_ref,
-                    "collection_method": "fixture_mirrors_svf_local_receipt"
-                },
-                "non_claims": [
-                    "Receipt is local-only.",
-                    "Receipt does not certify container, browser, QEMU, cluster, or Signadot vendor parity."
-                ]
-            }
-        ],
+        "evidence_packets": [build_evidence_packet(state, evidence_ref, receipt_ref)],
         "rca_claims": [
             {
-                "claim_id": claim_id,
+                "claim_id": ids["claim_id"],
                 "claim_status": "observation",
-                "statement": "A Sociosphere SVF local receipt can be represented as runtime-observed validation evidence when the receipt reference is present and evidence provenance points to it.",
+                "statement": claim_statement,
                 "evidence_refs": [evidence_ref],
                 "counterevidence_refs": [],
-                "confidence": "high",
+                "confidence": claim_confidence,
                 "non_claims": [
                     "Observation is about fixture representation.",
                     "Observation does not authorize remediation."
@@ -118,47 +179,47 @@ def build_workroom(request: dict[str, Any], observed: dict[str, Any], link: dict
         ],
         "action_grants": [
             {
-                "grant_id": action_grant_id,
+                "grant_id": ids["grant_id"],
                 "action_class": "read_only",
                 "status": "allowed",
-                "scope": "Read SVF receipt references and validation evidence for PR readiness.",
+                "scope": "Read validation response, receipt references, and evidence state for PR readiness.",
                 "approval_required": False,
                 "non_claims": [
-                    "Grant permits read-only receipt inspection only.",
+                    "Grant permits read-only evidence inspection only.",
                     "Grant does not authorize execution."
                 ]
             }
         ],
         "remediation_plans": [
             {
-                "plan_id": remediation_id,
-                "plan_status": "approved" if readiness.get("readiness_state") == "ready" else "candidate",
+                "plan_id": ids["remediation_id"],
+                "plan_status": plan_status,
                 "risk_class": "read_only",
-                "summary": "No code remediation is required for the verified receipt fixture.",
+                "summary": remediation_summary,
                 "evidence_refs": [evidence_ref],
-                "required_action_grant_refs": [action_grant_id],
+                "required_action_grant_refs": [ids["grant_id"]],
                 "non_claims": [
-                    "Approval is fixture-scoped.",
+                    "Plan is fixture-scoped.",
                     "No production mutation is authorized."
                 ]
             }
         ],
         "regression_fixtures": [
             {
-                "fixture_id": regression_fixture_id,
+                "fixture_id": ids["regression_id"],
                 "fixture_status": "candidate",
-                "derived_from": event_id,
-                "summary": "Preserve a Workroom fixture that permits runtime_observed only with verified SVF receipt evidence.",
+                "derived_from": ids["event_id"],
+                "summary": "Preserve a Workroom fixture that gates merge readiness on receipt-backed validation evidence.",
                 "target_validation_plan_ref": plan_ref,
                 "non_claims": [
                     "Fixture is not a live execution record.",
-                    "Fixture does not replace Sociosphere receipt verification."
+                    "Fixture does not replace Sociosphere or AgentPlane receipt verification."
                 ]
             }
         ],
         "issued_at": "2026-05-31T18:47:00Z",
         "non_claims": [
-            "This fixture models receipt consumption only.",
+            "This fixture models validate_change v2 response consumption only.",
             "This fixture does not execute SVF Actions.",
             "This fixture does not create or sign receipts."
         ]
@@ -168,12 +229,14 @@ def build_workroom(request: dict[str, Any], observed: dict[str, Any], link: dict
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate a DevSecOps Workroom record from validate_change v2 fixtures.")
     parser.add_argument("--request", type=Path, default=DEFAULT_REQUEST)
-    parser.add_argument("--observed", type=Path, default=DEFAULT_OBSERVED)
+    parser.add_argument("--response", type=Path, default=DEFAULT_RESPONSE)
+    parser.add_argument("--observed", type=Path, help="Backward-compatible alias for --response")
     parser.add_argument("--link", type=Path, default=DEFAULT_LINK)
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
-    record = build_workroom(load(args.request), load(args.observed), load(args.link))
+    response_path = args.observed or args.response
+    record = build_workroom(load(args.request), load(response_path), load(args.link))
     payload = json.dumps(record, indent=2, sort_keys=False) + "\n"
     if args.out:
         args.out.write_text(payload, encoding="utf-8")
