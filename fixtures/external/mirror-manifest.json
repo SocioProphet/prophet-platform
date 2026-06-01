@@ -62,6 +62,58 @@
         "does not authorize remediation",
         "does not certify Signadot"
       ]
+    },
+    {
+      "mirror_path": "fixtures/external/guardrail-fabric/devsecops-workroom/poisoned-evidence.denied.valid.json",
+      "source_plane": "Guardrail Fabric",
+      "source_repo": "SocioProphet/guardrail-fabric",
+      "source_path": "fixtures/devsecops-workroom/poisoned-evidence.denied.valid.json",
+      "mirror_state": "current",
+      "purpose": "Adversarial AIOps poisoned evidence denial fixture.",
+      "required_non_claims": [
+        "does not execute infrastructure",
+        "does not authorize remediation",
+        "does not certify Signadot"
+      ]
+    },
+    {
+      "mirror_path": "fixtures/external/guardrail-fabric/devsecops-workroom/unsafe-mutation-without-grant.denied.valid.json",
+      "source_plane": "Guardrail Fabric",
+      "source_repo": "SocioProphet/guardrail-fabric",
+      "source_path": "fixtures/devsecops-workroom/unsafe-mutation-without-grant.denied.valid.json",
+      "mirror_state": "current",
+      "purpose": "Adversarial AIOps unsafe mutation denial fixture.",
+      "required_non_claims": [
+        "does not execute infrastructure",
+        "does not authorize production mutation",
+        "does not certify Signadot"
+      ]
+    },
+    {
+      "mirror_path": "fixtures/external/guardrail-fabric/devsecops-workroom/credential-sensitive.escalated.valid.json",
+      "source_plane": "Guardrail Fabric",
+      "source_repo": "SocioProphet/guardrail-fabric",
+      "source_path": "fixtures/devsecops-workroom/credential-sensitive.escalated.valid.json",
+      "mirror_state": "current",
+      "purpose": "Adversarial AIOps credential-sensitive escalation fixture.",
+      "required_non_claims": [
+        "does not access credentials",
+        "does not authorize remediation",
+        "does not certify Signadot"
+      ]
+    },
+    {
+      "mirror_path": "fixtures/external/guardrail-fabric/devsecops-workroom/safe-read-only-probe.allowed.valid.json",
+      "source_plane": "Guardrail Fabric",
+      "source_repo": "SocioProphet/guardrail-fabric",
+      "source_path": "fixtures/devsecops-workroom/safe-read-only-probe.allowed.valid.json",
+      "mirror_state": "current",
+      "purpose": "Adversarial AIOps safe read-only probe allow fixture.",
+      "required_non_claims": [
+        "does not execute live infrastructure",
+        "does not authorize mutation",
+        "does not certify Signadot"
+      ]
     }
   ],
   "non_claims": [
