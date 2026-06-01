@@ -7,6 +7,7 @@
       "source_plane": "AgentPlane",
       "source_repo": "SocioProphet/agentplane",
       "source_path": "tests/fixtures/sandbox/runtime-sandbox-run.allocated.valid.json",
+      "mirror_state": "current",
       "purpose": "Cross-plane compatibility check for allocated runtime evidence refs.",
       "required_non_claims": [
         "does not execute infrastructure",
@@ -18,6 +19,7 @@
       "source_plane": "AgentPlane",
       "source_repo": "SocioProphet/agentplane",
       "source_path": "future/tests/fixtures/sandbox/runtime-sandbox-run.shared-receipt.valid.json",
+      "mirror_state": "future",
       "purpose": "Cross-plane shared receipt identity fixture path.",
       "required_non_claims": [
         "does not execute infrastructure",
@@ -29,6 +31,7 @@
       "source_plane": "Sociosphere",
       "source_repo": "SocioProphet/sociosphere",
       "source_path": "tests/fixtures/environment/runtime-evidence-ingestion.allocated.valid.json",
+      "mirror_state": "current",
       "purpose": "Cross-plane compatibility check for Sociosphere runtime evidence ingestion refs.",
       "required_non_claims": [
         "does not allocate infrastructure",
@@ -40,6 +43,7 @@
       "source_plane": "Sociosphere",
       "source_repo": "SocioProphet/sociosphere",
       "source_path": "future/tests/fixtures/environment/runtime-evidence-ingestion.shared-receipt.valid.json",
+      "mirror_state": "future",
       "purpose": "Cross-plane shared receipt identity fixture path.",
       "required_non_claims": [
         "does not allocate infrastructure",
