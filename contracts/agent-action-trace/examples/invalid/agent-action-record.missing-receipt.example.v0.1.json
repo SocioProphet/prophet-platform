@@ -1,0 +1,19 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v0.1",
+  "kind": "AgentActionRecord",
+  "metadata": {
+    "recordId": "action-record-invalid-missing-receipt",
+    "profileRef": "github://SocioProphet/socioprophet-agent-standards/docs/standards/agent-plane/001-agent-action-trace-conformance-profile.md",
+    "standardsRef": "github://SocioProphet/socioprophet-agent-standards@97e3f49ec4b27349f532db27ebaad618d4f9520c",
+    "ontologyRef": "github://SocioProphet/ontogenesis/Middle/action-ontology.ttl"
+  },
+  "spec": {
+    "agentSubjectRef": "agent://platform/agentplane/bootstrap-agent",
+    "actionId": "action.exec.invalid.0001",
+    "actionType": "executeTask",
+    "fromStateRef": "state.awarded",
+    "toStateRef": "state.done",
+    "timestamp": "2026-05-05T18:40:00Z",
+    "policyRef": "policy://platform/action-trace/decision-invalid"
+  }
+}
