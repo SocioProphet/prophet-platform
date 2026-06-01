@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "prophet-platform.wallguard-professional-workroom.v0.1",
+  "recordType": "WallGuardProfessionalWorkroom",
+  "workroomRef": "workroom://client-a/matter-x",
+  "clientRef": "client://client-a",
+  "matterRef": "matter://client-a/matter-x",
+  "wallRef": "wall://client-a/matter-x",
+  "policyRefs": [
+    "policy-fabric://wallguard.professional-workroom.v0"
+  ],
+  "participants": [
+    {
+      "subjectRef": "user://operator-alpha",
+      "subjectType": "human",
+      "wallContextRef": "ack://wall/client-a/matter-x/operator-alpha"
+    },
+    {
+      "subjectRef": "agent-registry://agent-alpha",
+      "subjectType": "agent",
+      "wallContextRef": "agent-wall-context://agent-alpha/client-a/matter-x"
+    }
+  ],
+  "resourceRefs": [
+    "resource://client-a/matter-x/doc-001"
+  ],
+  "enforcementRefs": {
+    "agentContext": "SocioProphet/agent-registry#45",
+    "agentCollaboration": "SocioProphet/agentplane#252",
+    "guardrailBinding": "SocioProphet/guardrail-fabric#32",
+    "memoryGate": "SocioProphet/memory-mesh#33",
+    "retrievalFilter": "SocioProphet/sherlock-search#61",
+    "cleanRoomSynthesis": "SocioProphet/holmes#13"
+  },
+  "requiredProductStates": [
+    "wall_state_visible",
+    "policy_version_visible",
+    "participant_membership_visible",
+    "blocked_attempts_visible",
+    "receipt_refs_visible",
+    "clean_room_release_requestable"
+  ],
+  "receiptRefs": [
+    "wallguard-receipt://workroom-create-client-a-matter-x-001"
+  ],
+  "runtimeBoundary": {
+    "policyAuthority": "SocioProphet/policy-fabric",
+    "productSurfaceOwner": "SocioProphet/prophet-platform",
+    "runtimeEnforcementImplemented": false
+  }
+}
