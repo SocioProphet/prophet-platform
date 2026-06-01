@@ -27,6 +27,13 @@ REQUIRED_API = [
     '"merge_allowed": false',
     '"required_evidence_state": "verified_receipt"',
     '"verified_receipt_required"',
+    '"workroom_projection"',
+    '"workroom_id": "workroom:devsecops:pre-merge:api-stub-missing-evidence"',
+    '"runtime_parity_level": "contract_only"',
+    '"event_type": "pre_merge_validation_failure"',
+    '"decision_state": "blocked"',
+    '"Projection does not execute live sandbox infrastructure."',
+    '"Projection does not certify Signadot-style feature parity."',
     '"API stub does not execute live sandbox infrastructure."',
 ]
 REQUIRED_GATEWAY = [
@@ -69,7 +76,7 @@ def main() -> int:
         "non_claims": [
             "Smoke check does not execute live sandbox infrastructure.",
             "Smoke check does not certify Signadot-style runtime parity.",
-            "Smoke check validates route/contract wiring and readiness-field presence only."
+            "Smoke check validates route/contract wiring, readiness fields, and Workroom projection presence only."
         ]
     }
     print(json.dumps(result, indent=2, sort_keys=True))
