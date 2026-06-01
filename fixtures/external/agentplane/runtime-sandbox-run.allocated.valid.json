@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "0.1.0",
+  "runtimeRunId": "agentplane:runtime-sandbox-run:allocated:scope-d-example",
+  "requestRef": "environment:validate-change-v2-request:scope-d-example",
+  "executorPlane": "AgentPlane",
+  "executionMode": "runtime_contract",
+  "runtimeParityLevel": "runtime_observed",
+  "runStatus": "runtime_allocated",
+  "environmentRef": "environment://runtime/scope-d-example/allocated",
+  "baselineRef": "workspace://scope-d/main",
+  "changedServiceRefs": [
+    "service://scope-d/api"
+  ],
+  "dependencyGraphRef": "dependency-graph://runtime/scope-d-example/allocated",
+  "routingRef": "routing://runtime/scope-d-example/allocated",
+  "isolationRefs": {
+    "network": "isolation://runtime/scope-d-example/network/allocated",
+    "async": "isolation://runtime/scope-d-example/async/allocated",
+    "stateful": "isolation://runtime/scope-d-example/stateful/allocated"
+  },
+  "evidenceRefs": [
+    "evidence://agentplane/runtime-sandbox-run/scope-d-example/allocated"
+  ],
+  "receiptRefs": [
+    "receipt://agentplane/runtime-sandbox-run/scope-d-example/allocated"
+  ],
+  "failureCodes": [],
+  "teardownState": "not_started",
+  "leakCheckRef": "leak-check://runtime/scope-d-example/not-started",
+  "issuedAt": "2026-05-31T00:21:00Z",
+  "nonClaims": [
+    "Mirrored fixture from AgentPlane for Prophet Platform cross-plane validation only.",
+    "Allocated runtime sandbox run records runtime-observed contract shape only.",
+    "Allocated runtime sandbox run does not prove full traffic parity by itself.",
+    "Allocated runtime sandbox run does not certify Signadot runtime parity until teardown and leak checks complete."
+  ]
+}
