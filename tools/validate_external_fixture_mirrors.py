@@ -7,6 +7,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "fixtures" / "external" / "mirror-manifest.json"
+VALID_MIRROR_STATES = {"current", "pinned", "future", "stale"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -44,6 +45,8 @@ def main() -> int:
         mirrors = []
 
     seen: set[str] = set()
+    future_count = 0
+    current_count = 0
     for item in mirrors:
         if not isinstance(item, dict):
             problems.append("mirror entry must be object")
@@ -60,10 +63,25 @@ def main() -> int:
             problems.append(f"{mirror_path}: invalid source_plane")
         if not str(item.get("source_repo", "")).startswith("SocioProphet/"):
             problems.append(f"{mirror_path}: source_repo must be SocioProphet/*")
-        if not item.get("source_path"):
+        source_path = str(item.get("source_path", ""))
+        if not source_path:
             problems.append(f"{mirror_path}: missing source_path")
         if not item.get("purpose"):
             problems.append(f"{mirror_path}: missing purpose")
+
+        mirror_state = str(item.get("mirror_state", ""))
+        if mirror_state not in VALID_MIRROR_STATES:
+            problems.append(f"{mirror_path}: mirror_state must be one of {sorted(VALID_MIRROR_STATES)}")
+        if mirror_state == "future":
+            future_count += 1
+            if not source_path.startswith("future/"):
+                problems.append(f"{mirror_path}: future mirrors must use future/ source_path")
+        if mirror_state == "current":
+            current_count += 1
+            if source_path.startswith("future/"):
+                problems.append(f"{mirror_path}: current mirrors must not use future/ source_path")
+        if mirror_state == "stale":
+            problems.append(f"{mirror_path}: stale mirrors must not be present in passing CI")
 
         fixture_path = ROOT / mirror_path
         if not fixture_path.exists():
@@ -75,6 +93,8 @@ def main() -> int:
             words = required.lower().split()
             if not all(word in text for word in words):
                 problems.append(f"{mirror_path}: missing required non-claim phrase {required!r}")
+        if mirror_state == "future" and "future" not in item.get("purpose", "").lower() and "shared receipt" not in item.get("purpose", "").lower():
+            problems.append(f"{mirror_path}: future mirrors must explain staged purpose")
 
     non_claims = manifest.get("non_claims", [])
     if not isinstance(non_claims, list) or not non_claims:
@@ -85,6 +105,10 @@ def main() -> int:
         "passed": not problems,
         "problems": problems,
         "mirror_count": len(mirrors),
+        "mirror_state_counts": {
+            "current": current_count,
+            "future": future_count,
+        },
         "non_claims": [
             "Validator checks mirror governance metadata only.",
             "Validator does not compare mirrors to live upstream repositories.",
