@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0",
+  "fixture_id": "guardrail-fixture:devsecops-workroom:safe-read-only-probe",
+  "fixture_class": "safe_read_only_probe",
+  "workroom_context": {
+    "workroom_ref": "workroom:devsecops:post-merge:scope-d-example",
+    "lane": "post_merge_incident",
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge"
+  },
+  "input": {
+    "input_type": "tool_probe",
+    "action_class": "read_only",
+    "summary": "A read-only investigation probe inspects fixture telemetry and produces receiptable evidence.",
+    "has_action_grant": true,
+    "requires_credential_access": false,
+    "contains_policy_override_attempt": false,
+    "proposed_command_class": "read_only"
+  },
+  "expected_decision": "allow",
+  "expected_reason_codes": [
+    "read_only_probe_allowed",
+    "receipt_required"
+  ],
+  "non_claims": [
+    "Mirrored fixture from Guardrail Fabric for Prophet Platform Workroom validation only.",
+    "Fixture does not execute live infrastructure.",
+    "Fixture does not inspect production systems.",
+    "Fixture does not authorize mutation.",
+    "Fixture does not certify Signadot feature parity."
+  ]
+}
