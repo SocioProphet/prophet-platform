@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "ingestion_id": "sociosphere:runtime-evidence-ingestion:allocated:scope-d-example",
+  "workspace_ref": "workspace://scope-d/main",
+  "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+  "environment_state_before": "environment_observed",
+  "environment_state_after": "runtime_allocated",
+  "agentplane_refs": {
+    "runtime_run_ref": "agentplane:runtime-sandbox-run:allocated:scope-d-example",
+    "environment_ref": "environment://runtime/scope-d-example/allocated",
+    "dependency_graph_ref": "dependency-graph://runtime/scope-d-example/allocated",
+    "routing_ref": "routing://runtime/scope-d-example/allocated",
+    "isolation_refs": {
+      "network": "isolation://runtime/scope-d-example/network/allocated",
+      "async": "isolation://runtime/scope-d-example/async/allocated",
+      "stateful": "isolation://runtime/scope-d-example/stateful/allocated"
+    },
+    "evidence_refs": [
+      "evidence://agentplane/runtime-sandbox-run/scope-d-example/allocated"
+    ],
+    "receipt_refs": [
+      "receipt://agentplane/runtime-sandbox-run/scope-d-example/allocated"
+    ],
+    "leak_check_ref": "leak-check://runtime/scope-d-example/not-started"
+  },
+  "state_write": {
+    "allowed": true,
+    "state_authority": "Sociosphere",
+    "execution_authority": "AgentPlane",
+    "product_surface": "Prophet Platform"
+  },
+  "runtime_parity": {
+    "level": "runtime_observed",
+    "certified": false,
+    "blocking_gaps": [
+      "teardown_not_complete",
+      "leak_check_not_complete"
+    ]
+  },
+  "non_claims": [
+    "Mirrored fixture from Sociosphere for Prophet Platform cross-plane validation only.",
+    "This fixture ingests runtime allocation evidence state only.",
+    "This fixture does not allocate infrastructure.",
+    "This fixture does not certify Signadot runtime parity."
+  ]
+}
