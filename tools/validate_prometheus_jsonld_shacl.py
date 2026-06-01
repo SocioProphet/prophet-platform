@@ -63,14 +63,16 @@ def ref(value: str) -> URIRef:
     return URIRef("urn:prometheus:local:" + value)
 
 
-def sr(value: Any) -> URIRef:
+def sr(value: Any) -> URIRef | None:
     key = rid(value)
     if key not in RESOURCES:
-        raise SystemExit(f"unknown sr id: {key}")
+        return None
     return RESOURCES[key]
 
 
-def child(graph: Graph, parent: URIRef, prop: URIRef, data: dict[str, Any], fallback: str) -> URIRef:
+def child(graph: Graph, parent: URIRef, prop: URIRef, data: Any, fallback: str) -> URIRef | None:
+    if not isinstance(data, dict):
+        return None
     n = ref(str(data.get("@id") or fallback))
     graph.add((parent, prop, n))
     typ = data.get("@type")
@@ -80,32 +82,53 @@ def child(graph: Graph, parent: URIRef, prop: URIRef, data: dict[str, Any], fall
 
 
 def metric(graph: Graph, n: URIRef, data: dict[str, Any]) -> None:
-    graph.add((n, SR.metricName, Literal(str(data["sr:metricName"]), datatype=XSD.string)))
-    graph.add((n, SR.metricValue, Literal(Decimal(str(data["sr:metricValue"])), datatype=XSD.decimal)))
+    if "sr:metricName" in data:
+        graph.add((n, SR.metricName, Literal(str(data["sr:metricName"]), datatype=XSD.string)))
+    if "sr:metricValue" in data:
+        graph.add((n, SR.metricValue, Literal(Decimal(str(data["sr:metricValue"])), datatype=XSD.decimal)))
+
+
+def add_resource_value(graph: Graph, subject: URIRef, prop: URIRef, value: Any) -> None:
+    resource = sr(value)
+    if resource is not None:
+        graph.add((subject, prop, resource))
+
+
+def add_literal_value(graph: Graph, subject: URIRef, prop: URIRef, value: Any) -> None:
+    if value is not None:
+        graph.add((subject, prop, Literal(str(value), datatype=XSD.string)))
 
 
 def graph_from(document: dict[str, Any]) -> Graph:
     g = Graph()
     g.bind("sr", SR)
-    s = ref(str(document["@id"]))
+    s = ref(str(document.get("@id", "urn:prometheus:proposal:missing-id")))
     g.add((s, RDF.type, SR.SRAssertionProposal))
-    g.add((s, SR.vocabVersion, Literal(str(document["sr:vocabVersion"]), datatype=XSD.string)))
-    g.add((s, SR.vocabularyPromotionState, sr(document["sr:vocabularyPromotionState"])))
-    g.add((s, SR.hasPromotionStatus, sr(document["sr:hasPromotionStatus"])))
-    g.add((s, SR.hasAdmissionState, sr(document["sr:hasAdmissionState"])))
-    g.add((s, SR.nonAuthorityDeclaration, Literal(str(document["sr:nonAuthorityDeclaration"]), datatype=XSD.string)))
+    add_literal_value(g, s, SR.vocabVersion, document.get("sr:vocabVersion"))
+    add_resource_value(g, s, SR.vocabularyPromotionState, document.get("sr:vocabularyPromotionState"))
+    add_resource_value(g, s, SR.hasPromotionStatus, document.get("sr:hasPromotionStatus"))
+    add_resource_value(g, s, SR.hasAdmissionState, document.get("sr:hasAdmissionState"))
+    add_literal_value(g, s, SR.nonAuthorityDeclaration, document.get("sr:nonAuthorityDeclaration"))
 
-    child(g, s, SR.hasDatasetEvidence, document["sr:hasDatasetEvidence"], "dataset")
-    f = child(g, s, SR.hasFitMetric, document["sr:hasFitMetric"], "fit")
-    metric(g, f, document["sr:hasFitMetric"])
-    c = child(g, s, SR.hasComplexityMetric, document["sr:hasComplexityMetric"], "complexity")
-    metric(g, c, document["sr:hasComplexityMetric"])
-    d = child(g, s, SR.hasDimensionalAnalysis, document["sr:hasDimensionalAnalysis"], "dimension")
-    g.add((d, SR.hasUnitsStatus, sr(document["sr:hasDimensionalAnalysis"]["sr:hasUnitsStatus"])))
-    child(g, s, SR.hasEvidenceReplay, document["sr:hasEvidenceReplay"], "replay")
-    child(g, s, SR.hasDiscoveryMethod, document["sr:hasDiscoveryMethod"], "method")
-    surface = child(g, s, SR.hasSemanticReviewSurface, document["sr:hasSemanticReviewSurface"], "surface")
-    g.add((surface, SR.reviewSurfaceType, Literal(str(document["sr:hasSemanticReviewSurface"]["sr:reviewSurfaceType"]))))
+    child(g, s, SR.hasDatasetEvidence, document.get("sr:hasDatasetEvidence"), "dataset")
+    f = child(g, s, SR.hasFitMetric, document.get("sr:hasFitMetric"), "fit")
+    if f is not None:
+        metric(g, f, document.get("sr:hasFitMetric", {}))
+    c = child(g, s, SR.hasComplexityMetric, document.get("sr:hasComplexityMetric"), "complexity")
+    if c is not None:
+        metric(g, c, document.get("sr:hasComplexityMetric", {}))
+    d = child(g, s, SR.hasDimensionalAnalysis, document.get("sr:hasDimensionalAnalysis"), "dimension")
+    if d is not None and isinstance(document.get("sr:hasDimensionalAnalysis"), dict):
+        units = sr(document["sr:hasDimensionalAnalysis"].get("sr:hasUnitsStatus"))
+        if units is not None:
+            g.add((d, SR.hasUnitsStatus, units))
+    child(g, s, SR.hasEvidenceReplay, document.get("sr:hasEvidenceReplay"), "replay")
+    child(g, s, SR.hasDiscoveryMethod, document.get("sr:hasDiscoveryMethod"), "method")
+    surface = child(g, s, SR.hasSemanticReviewSurface, document.get("sr:hasSemanticReviewSurface"), "surface")
+    if surface is not None and isinstance(document.get("sr:hasSemanticReviewSurface"), dict):
+        review_surface = document["sr:hasSemanticReviewSurface"].get("sr:reviewSurfaceType")
+        if review_surface is not None:
+            g.add((surface, SR.reviewSurfaceType, Literal(str(review_surface))))
     return g
 
 
