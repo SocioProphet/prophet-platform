@@ -1,0 +1,62 @@
+{
+  "schema_version": "0.1.0",
+  "binding_id": "guardrail-binding:devsecops-workroom:scope-d-example",
+  "workroom_ref": "workroom:devsecops:post-merge:scope-d-example",
+  "guardrail_fixture_refs": [
+    "guardrail-fixture:devsecops-workroom:poisoned-evidence",
+    "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+    "guardrail-fixture:devsecops-workroom:credential-sensitive",
+    "guardrail-fixture:devsecops-workroom:safe-read-only-probe"
+  ],
+  "action_grant_bindings": [
+    {
+      "grant_ref": "action-grant:scope-d-example:read-incident-evidence",
+      "action_class": "read_only",
+      "workroom_grant_status": "allowed",
+      "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:safe-read-only-probe",
+      "guardrail_expected_decision": "allow",
+      "binding_status": "aligned",
+      "non_claims": [
+        "Read-only grant alignment is fixture-scoped.",
+        "Binding does not execute probes."
+      ]
+    },
+    {
+      "grant_ref": "action-grant:scope-d-example:rollback-production",
+      "action_class": "production_change",
+      "workroom_grant_status": "requires_human_approval",
+      "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+      "guardrail_expected_decision": "deny",
+      "binding_status": "requires_review",
+      "non_claims": [
+        "Rollback grant remains human-gated.",
+        "Binding does not authorize production mutation."
+      ]
+    }
+  ],
+  "remediation_bindings": [
+    {
+      "plan_ref": "remediation-plan:scope-d-example:rollback-candidate",
+      "risk_class": "high",
+      "plan_status": "candidate",
+      "required_action_grant_refs": [
+        "action-grant:scope-d-example:rollback-production"
+      ],
+      "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+      "guardrail_expected_decision": "deny",
+      "binding_status": "requires_review",
+      "non_claims": [
+        "High-risk rollback remains candidate only.",
+        "Binding does not execute remediation."
+      ]
+    }
+  ],
+  "issued_at": "2026-05-31T20:10:00Z",
+  "non_claims": [
+    "Binding fixture checks Workroom-to-Guardrail posture only.",
+    "Binding fixture does not execute infrastructure.",
+    "Binding fixture does not inspect live production systems.",
+    "Binding fixture does not authorize remediation.",
+    "Binding fixture does not certify Signadot feature parity."
+  ]
+}
