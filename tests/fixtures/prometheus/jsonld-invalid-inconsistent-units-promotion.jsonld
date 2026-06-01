@@ -1,0 +1,48 @@
+{
+  "@context": {
+    "sr": "https://socioprophet.github.io/ontogenesis/symbolic-regression#",
+    "prov": "http://www.w3.org/ns/prov#"
+  },
+  "@id": "urn:prometheus:jsonld:invalid:inconsistent-units-promotion",
+  "@type": "sr:SRAssertionProposal",
+  "sr:vocabVersion": "0.1.0",
+  "sr:vocabularyPromotionState": {"@id": "sr:VocabularyDraftState"},
+  "sr:hasDatasetEvidence": {
+    "@id": "urn:prometheus:dataset:invalid-inconsistent-units",
+    "@type": "sr:DatasetEvidenceRef"
+  },
+  "sr:hasFitMetric": {
+    "@id": "urn:prometheus:metric:fit:invalid-inconsistent-units",
+    "@type": "sr:FitMetric",
+    "sr:metricName": "nmse",
+    "sr:metricValue": 0.0
+  },
+  "sr:hasComplexityMetric": {
+    "@id": "urn:prometheus:metric:complexity:invalid-inconsistent-units",
+    "@type": "sr:ComplexityMetric",
+    "sr:metricName": "complexity",
+    "sr:metricValue": 3
+  },
+  "sr:hasDimensionalAnalysis": {
+    "@id": "urn:prometheus:dimensional-analysis:invalid-inconsistent-units",
+    "@type": "sr:DimensionalAnalysisResult",
+    "sr:hasUnitsStatus": {"@id": "sr:UnitsInconsistent"}
+  },
+  "sr:hasEvidenceReplay": {
+    "@id": "urn:prometheus:replay:invalid-inconsistent-units",
+    "@type": "sr:EvidenceReplayRef"
+  },
+  "sr:hasDiscoveryMethod": {
+    "@id": "urn:prometheus:method:pysr",
+    "@type": "sr:DiscoveryMethodRef"
+  },
+  "sr:hasPromotionStatus": {"@id": "sr:ProposalProposed"},
+  "sr:hasAdmissionState": {"@id": "sr:AdmissionPendingReview"},
+  "sr:hasSemanticReviewSurface": {
+    "@id": "urn:prometheus:review-surface:automated-shacl-gate",
+    "@type": "sr:SemanticReviewSurface",
+    "sr:reviewSurfaceType": "automated_shacl_gate"
+  },
+  "sr:nonAuthorityDeclaration": "Negative fixture: inconsistent units must not be proposed or admitted.",
+  "prov:generatedAtTime": "2026-06-01T11:00:00Z"
+}
