@@ -49,7 +49,7 @@ lattice-studio-smoke:
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-local-dev --workspace-ref workspace://demo --atlas-context-ref atlas-context:demo --paas-deployment-ref paas-deployment:demo --output-dir build/lattice-studio/local-dev
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-execution --output-dir build/lattice-studio/execution
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --subject lampstand://local-search/demo --subject ontogenesis://lattice-studio/demo --subject execution://demo --subject notebook-plane://lattice-studio --subject workspace-synthesis://demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
-	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json || true
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --output build/lattice-studio/studio-platform-records.json --enrich-output build/lattice-studio/studio-platform-record-enrichments.json || true
 
 test -s:
 	@true
@@ -180,3 +180,32 @@ validate-fogstack:
 
 validate-storage-suite:
 	python3 tools/validate_storage_suite.py
+
+.PHONY: validate-office-runtime-contracts
+validate-office-runtime-contracts:
+	python3 tools/validate_office_runtime_contracts.py
+
+.PHONY: fogstack-local-demo
+fogstack-local-demo:
+	python3 tools/run_fogstack_local_demo.py --pack all --output-dir build/fogstack-local-demo --summary
+	python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
+
+.PHONY: fogstack-local-demo-serve
+fogstack-local-demo-serve: fogstack-local-demo
+	python3 tools/serve_fogstack_local_demo.py --directory build/fogstack-local-demo --host 127.0.0.1 --port 8765
+
+.PHONY: fogstack-local-demo-deploy-plan
+fogstack-local-demo-deploy-plan:
+	python3 tools/run_fogstack_local_demo_deploy_plan.py --output-dir build/fogstack-local-demo/deploy --summary
+
+.PHONY: fogstack-local-demo-full
+fogstack-local-demo-full:
+	python3 tools/run_fogstack_local_demo_full.py --output-dir build/fogstack-local-demo --summary
+
+.PHONY: fogstack-parity-readiness
+fogstack-parity-readiness:
+	python3 tools/run_fogstack_parity_readiness.py --summary
+
+.PHONY: prophet-artifact-smoke
+prophet-artifact-smoke:
+	python3 tools/smoke_prophet_artifact_runner.py
