@@ -1,0 +1,45 @@
+{
+  "schema_version": "0.1",
+  "request_id": "trust-chain:admit-artifact-request:demo-runtime-asset-001",
+  "requested_decision": "production_admission",
+  "requested_scope": {
+    "environment": "preview",
+    "tenant_ref": "tenant://demo-bank",
+    "workspace_ref": "workspace://professional/demo-ai-ops",
+    "risk_tier": "regulated_enterprise"
+  },
+  "artifact": {
+    "artifact_type": "RuntimeAsset",
+    "artifact_ref": "runtime-asset://lattice-forge/prophet-python-ml@0.1.0",
+    "source_ref": "git://SocioProphet/lattice-forge#main",
+    "digest": {
+      "algorithm": "sha256",
+      "value": "8fb2c9019e3b73a5d9c8a64f1a4f28d1a0e7d2fd6f088f0e7c9d904c4a4a4f11"
+    }
+  },
+  "evidence_refs": {
+    "sbom_ref": "sbom://lattice-forge/prophet-python-ml/0.1.0/spdx.json",
+    "vex_ref": "vex://lattice-forge/prophet-python-ml/0.1.0/vex.json",
+    "lockfile_ref": "lockfile://lattice-forge/prophet-python-ml/0.1.0/flake.lock",
+    "signature_ref": "sigstore://lattice-forge/prophet-python-ml/0.1.0/bundle.sigstore",
+    "scan_record_ref": "scan://lattice-forge/prophet-python-ml/0.1.0/osv-scan.json",
+    "policy_profile_ref": "policy://trust-chain/dependency-admission/regulated-enterprise-preview",
+    "agentplane_validation_ref": "agentplane:validation:runtime-asset-demo-001",
+    "model_governance_ref": "model-ledger:runtime-binding:demo-model-001"
+  },
+  "requested_checks": [
+    "source_provenance_present",
+    "sbom_present",
+    "vex_present",
+    "vulnerability_posture_acceptable",
+    "patch_posture_acceptable",
+    "signature_present",
+    "policy_profile_present",
+    "agentplane_validation_present",
+    "runtime_scope_matches_requested_environment"
+  ],
+  "non_claims": [
+    "This fixture does not assert live IBM/Red Hat Lightwell integration.",
+    "This fixture does not certify production readiness without executable evidence."
+  ]
+}
