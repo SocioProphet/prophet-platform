@@ -85,12 +85,14 @@ func handleValidateChange(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
         return
     }
 
+    requestID := stringValue(req, "request_id", "environment:validate-change-v2-request:unknown")
+    repo := stringValue(req, "repo", "unknown/unknown")
     response := map[string]any{
         "schema_version": "1.0",
-        "request_id": stringValue(req, "request_id", "environment:validate-change-v2-request:unknown"),
+        "request_id": requestID,
         "response_id": "environment:validate-change-v2-response:requested:api-stub",
         "status": "environment_requested",
-        "repo": stringValue(req, "repo", "unknown/unknown"),
+        "repo": repo,
         "sociosphere_refs": req["sociosphere_refs"],
         "selected_plans": req["selected_plans"],
         "environment": req["environment_request"],
@@ -126,6 +128,26 @@ func handleValidateChange(c net.Conn, env *tritrpcv1.Envelope, key [32]byte) {
             "non_claims": []string{
                 "Readiness block is based on missing evidence state.",
                 "Readiness block does not execute validation.",
+            },
+        },
+        "workroom_projection": map[string]any{
+            "schema_version": "0.1.0",
+            "workroom_id": "workroom:devsecops:pre-merge:api-stub-missing-evidence",
+            "lane": "pre_merge_validation",
+            "runtime_parity_level": "contract_only",
+            "validation_evidence_state": "missing_evidence",
+            "source_refs": map[string]any{
+                "change_set_ref": "changeset://github/" + repo + "/api-stub",
+                "environment_request_ref": requestID,
+                "validation_run_ref": "agentplane:sandbox-run:pending:api-stub",
+                "topology_ref": "topology://api-stub/not-observed",
+            },
+            "event_type": "pre_merge_validation_failure",
+            "decision_state": "blocked",
+            "non_claims": []string{
+                "Projection is derived from deterministic API stub response only.",
+                "Projection does not execute live sandbox infrastructure.",
+                "Projection does not certify Signadot-style feature parity.",
             },
         },
         "warnings": []string{
