@@ -13,6 +13,7 @@ VALID_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-validation-failure.valid.json",
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.pre-merge-verified-receipt.valid.json",
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-incident.valid.json",
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.shared-receipt.valid.json",
 ]
 INVALID_FIXTURES = {
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.causal-claim-without-evidence.invalid.json": [
@@ -39,6 +40,9 @@ INVALID_FIXTURES = {
     ],
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.approval-posture.invalid.json": [
         "mutation-class actions cannot be allowed without approval requirement",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.credential-sensitive-allowed.invalid.json": [
+        "credential-sensitive actions must escalate rather than be allowed",
     ],
 }
 
@@ -98,12 +102,12 @@ def ref_set(items: list[dict[str, Any]], key: str) -> set[str]:
     return {str(item.get(key)) for item in items if isinstance(item, dict)}
 
 
-def evidence_sources_by_type(evidence_packets: list[dict[str, Any]], evidence_type: str) -> set[str]:
+def evidence_sources_by_type(items: list[dict[str, Any]], evidence_type: str) -> set[str]:
     refs: set[str] = set()
-    for packet in evidence_packets:
-        if not isinstance(packet, dict) or packet.get("evidence_type") != evidence_type:
+    for item in items:
+        if not isinstance(item, dict) or item.get("evidence_type") != evidence_type:
             continue
-        provenance = packet.get("provenance", {})
+        provenance = item.get("provenance", {})
         if isinstance(provenance, dict) and provenance.get("source_ref"):
             refs.add(str(provenance["source_ref"]))
     return refs
@@ -134,10 +138,9 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         problems.append("runtime_parity_level is invalid")
     if validation_state is not None and validation_state not in VALIDATION_EVIDENCE_STATES:
         problems.append("validation_evidence_state is invalid")
-
     if not isinstance(source_refs, dict):
-        problems.append("source_refs must be an object when present")
         source_refs = {}
+        problems.append("source_refs must be an object")
 
     if lane == "pre_merge_validation":
         for key in ("change_set_ref", "environment_request_ref", "validation_run_ref"):
@@ -232,6 +235,8 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         approval_required = grant.get("approval_required")
         if action_class in MUTATION_ACTION_CLASSES and status == "allowed" and not approval_required:
             problems.append(f"{grant_id}: mutation-class actions cannot be allowed without approval requirement")
+        if action_class == "credential_sensitive" and status == "allowed":
+            problems.append(f"{grant_id}: credential-sensitive actions must escalate rather than be allowed")
         if action_class == "read_only" and approval_required:
             problems.append(f"{grant_id}: read_only grants should not require approval in v0.1 fixtures")
 
@@ -281,41 +286,41 @@ def assert_invalid_expectations(path: Path, problems: list[str], expected_substr
 
 
 def main() -> int:
-    failed = False
     schema = load(SCHEMA)
+    failed = False
     results: dict[str, dict[str, Any]] = {}
 
     for path in VALID_FIXTURES:
         result = validate_fixture(schema, path)
         problems = result["schema"] + result["semantic"]
-        results[str(path.relative_to(ROOT))] = {"expected": "valid", **result}
         failed = failed or bool(problems)
+        results[str(path.relative_to(ROOT))] = {
+            "expected": "valid",
+            **result,
+        }
 
     for path, expected_substrings in INVALID_FIXTURES.items():
         result = validate_fixture(schema, path)
         problems = result["schema"] + result["semantic"]
         expectation_failures = assert_invalid_expectations(path.relative_to(ROOT), problems, expected_substrings)
+        failed = failed or bool(expectation_failures)
         results[str(path.relative_to(ROOT))] = {
             "expected": "invalid",
             "expected_problem_substrings": expected_substrings,
             "expectation_failures": expectation_failures,
             **result,
         }
-        failed = failed or bool(expectation_failures)
 
     report = {
         "validator": "prophet-platform.devsecops-workroom.validator.v1",
         "passed": not failed,
         "results": results,
         "non_claims": [
-            "Validator checks workroom JSON Schema and semantic fixture constraints.",
-            "Validator asserts invalid fixtures fail for the expected governance reasons.",
-            "Validator checks validation receipt reference semantics for fixture records.",
-            "Validator checks post-merge incident topology and blast-radius evidence bindings.",
+            "Validator checks workroom JSON Schema, semantic fixture constraints, and expected-invalid governance failures.",
             "Validator does not execute live sandbox infrastructure.",
             "Validator does not certify Signadot-style runtime parity.",
-            "Validator does not authorize production remediation.",
-        ],
+            "Validator does not authorize production remediation."
+        ]
     }
     print(json.dumps(report, indent=2, sort_keys=True))
     print(("PASS" if not failed else "FAIL") + ": devsecops workroom fixtures")
