@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/schemas/platform/adversarial-scenario-ref.schema.json",
+  "title": "Platform Adversarial Scenario Reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "scenarioRef",
+    "source",
+    "bindingMode",
+    "platformUse",
+    "safetyBoundary",
+    "authority",
+    "evidenceRefs",
+    "runtimeDecisionReceiptRefs",
+    "policyRefs",
+    "semanticNonClaims",
+    "redactionState"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "scenarioRef": { "type": "string", "pattern": "^adversarial-scenario:[a-z0-9][a-z0-9._:-]*$" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarioRepo", "scenarioPrRef", "schemaRef", "ontologyRef"],
+      "properties": {
+        "scenarioRepo": { "const": "SocioProphet/SCOPE-D" },
+        "scenarioPrRef": { "type": "string" },
+        "schemaRef": { "type": "string" },
+        "ontologyRef": { "type": "string" }
+      }
+    },
+    "bindingMode": { "enum": ["reference_only", "ingest_candidate"] },
+    "platformUse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apiSurface", "uiSurface", "runtimeExecution", "reportExport", "memoryWriteback", "claimPromotion"],
+      "properties": {
+        "apiSurface": { "enum": ["none", "contract_reference", "future_api_candidate"] },
+        "uiSurface": { "enum": ["none", "future_operator_view_candidate"] },
+        "runtimeExecution": { "const": false },
+        "reportExport": { "const": false },
+        "memoryWriteback": { "const": false },
+        "claimPromotion": { "const": false }
+      }
+    },
+    "safetyBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonProductionOnly", "syntheticOrRedacted", "liveTargetAccess", "credentialAccess", "payloadDelivery", "stateMutation", "destructiveBehavior", "externalDelivery"],
+      "properties": {
+        "nonProductionOnly": { "const": true },
+        "syntheticOrRedacted": { "const": true },
+        "liveTargetAccess": { "const": false },
+        "credentialAccess": { "const": false },
+        "payloadDelivery": { "const": false },
+        "stateMutation": { "const": false },
+        "destructiveBehavior": { "const": false },
+        "externalDelivery": { "const": false }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtimeAuthority", "procedureExecutionAuthority", "engagementAuthorizationAuthority", "activationAllowed"],
+      "properties": {
+        "runtimeAuthority": { "const": false },
+        "procedureExecutionAuthority": { "const": false },
+        "engagementAuthorizationAuthority": { "const": false },
+        "activationAllowed": { "const": false }
+      }
+    },
+    "evidenceRefs": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "runtimeDecisionReceiptRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^wargames-runtime-receipt:[a-z0-9][a-z0-9._:-]*$" } },
+    "policyRefs": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "semanticNonClaims": { "type": "array", "minItems": 5, "items": { "type": "string" } },
+    "redactionState": { "enum": ["redacted", "synthetic", "withheld"] }
+  }
+}
