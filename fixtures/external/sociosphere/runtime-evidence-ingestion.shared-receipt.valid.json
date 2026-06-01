@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "ingestion_id": "sociosphere:runtime-evidence-ingestion:shared-receipt:scope-d-example",
+  "workspace_ref": "workspace://scope-d/main",
+  "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+  "environment_state_before": "environment_observed",
+  "environment_state_after": "runtime_allocated",
+  "agentplane_refs": {
+    "runtime_run_ref": "agentplane:runtime-sandbox-run:shared-receipt:scope-d-example",
+    "environment_ref": "environment://runtime/scope-d-example/shared-receipt",
+    "dependency_graph_ref": "dependency-graph://runtime/scope-d-example/shared-receipt",
+    "routing_ref": "routing://runtime/scope-d-example/shared-receipt",
+    "isolation_refs": {
+      "network": "isolation://runtime/scope-d-example/network/shared-receipt",
+      "async": "isolation://runtime/scope-d-example/async/shared-receipt",
+      "stateful": "isolation://runtime/scope-d-example/stateful/shared-receipt"
+    },
+    "evidence_refs": [
+      "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt"
+    ],
+    "receipt_refs": [
+      "receipt://devsecops-workroom/shared-receipt/scope-d-example/001"
+    ],
+    "leak_check_ref": "leak-check://runtime/scope-d-example/shared-receipt/not-started"
+  },
+  "state_write": {
+    "allowed": true,
+    "state_authority": "Sociosphere",
+    "execution_authority": "AgentPlane",
+    "product_surface": "Prophet Platform"
+  },
+  "runtime_parity": {
+    "level": "runtime_observed",
+    "certified": false,
+    "blocking_gaps": [
+      "teardown_not_complete",
+      "leak_check_not_complete"
+    ]
+  },
+  "non_claims": [
+    "Shared receipt fixture records cross-plane receipt identity only.",
+    "This fixture does not allocate infrastructure.",
+    "This fixture does not certify Signadot feature parity."
+  ]
+}
