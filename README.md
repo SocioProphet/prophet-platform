@@ -22,6 +22,7 @@ make validate-workroom-update-contract
 make validate-professional-intelligence-manifest
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
+python3 tools/validate_trust_chain_contracts.py
 make validate-channel-runtime-gates
 make smoke-health
 ```
@@ -35,9 +36,10 @@ make smoke-health
 5. `docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md`
 6. `docs/PLATFORM_EVAL_FABRIC.md`
 7. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
-8. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
-9. `contracts/`
-10. `infra/k8s/`
+8. `docs/standards/PROPHET_TRUST_CHAIN_V0.md`
+9. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+10. `contracts/`
+11. `infra/k8s/`
 
 ## Professional Intelligence manifest
 
@@ -115,6 +117,28 @@ make validate-environment-validate-change-v2
 ```
 
 Boundary: this is still a synthetic/no-network contract layer. It does not create live infrastructure, route traffic, isolate queues, isolate stateful resources, or certify Signadot-style runtime parity. AgentPlane owns execution/evidence. Sociosphere owns workspace/environment state. Prophet Platform owns this product/API invocation contract.
+
+## Prophet Trust Chain
+
+Prophet Platform now carries the cross-repo **Prophet Trust Chain v0** standard map and the first platform-side `admit_artifact` contract fixtures.
+
+Prophet Trust Chain maps SocioProphet to the Lightwell-class enterprise open-source security pattern while preserving our broader boundary: package and runtime evidence are necessary, but enterprise AI admission also requires model, dataset, agent, tool, workflow, policy, execution, receipt, remediation, rollback, revocation, and learning evidence.
+
+Relevant files:
+
+- `docs/standards/PROPHET_TRUST_CHAIN_V0.md`
+- `contracts/trust-chain/admit-artifact-request.example.json`
+- `contracts/trust-chain/admit-artifact-response.allowed.example.json`
+- `contracts/trust-chain/admit-artifact-response.denied.example.json`
+- `tools/validate_trust_chain_contracts.py`
+
+Validate locally:
+
+```bash
+python3 tools/validate_trust_chain_contracts.py
+```
+
+Boundary: this is a platform contract and standard-map lane. It does not claim IBM/Red Hat Lightwell integration, live scanner integration, or production certification from fixtures alone. The allowed fixture is scoped evidence composition; the denied fixture proves fail-closed production-admission behavior when blocking risk or missing verified replay exists.
 
 ## Channel-governed runtime gates
 
