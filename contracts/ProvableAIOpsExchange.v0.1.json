@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/ProvableAIOpsExchange.v0.1.json",
+  "title": "Provable AI Operations Exchange v0.1",
+  "description": "Exchange envelope for reproducible, chain-of-custody operating intelligence across claims, evidence, artifacts, custody events, agent actions, evaluations, benchmarks, policy decisions, and review attestations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "exchange_id",
+    "producer_boundary",
+    "subject",
+    "claims",
+    "evidence",
+    "artifacts",
+    "custody",
+    "policy_decisions",
+    "review_attestations",
+    "disclosure_mode",
+    "integrity"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "exchange_id": { "type": "string", "minLength": 4 },
+    "producer_boundary": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": { "type": "string" },
+        "ref": { "type": "string" }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim" },
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_ref" }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_ref" }
+    },
+    "custody": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/custody_event" }
+    },
+    "specialist_credentials": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/credential_ref" }
+    },
+    "agent_actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action_ref" }
+    },
+    "evaluation_runs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evaluation_ref" }
+    },
+    "benchmark_packs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/benchmark_ref" }
+    },
+    "policy_decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/policy_decision_ref" }
+    },
+    "review_attestations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/review_attestation" }
+    },
+    "intelligence_brief": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "summary": { "type": "string" },
+        "limitations": { "type": "array", "items": { "type": "string" } },
+        "recommended_actions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "disclosure_mode": {
+      "type": "string",
+      "enum": ["internal", "restricted", "customer_safe", "public_summary"]
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hash", "created_at"],
+      "properties": {
+        "hash": { "type": "string" },
+        "signature": { "type": "string" },
+        "created_at": { "type": "string" },
+        "revocation_ref": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "statement", "result"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "statement": { "type": "string" },
+        "result": { "type": "string", "enum": ["proved", "violated", "inconclusive", "asserted", "draft"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "ref": { "type": "string" },
+        "hash": { "type": "string" }
+      }
+    },
+    "artifact_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "ref": { "type": "string" },
+        "hash": { "type": "string" }
+      }
+    },
+    "custody_event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "actor", "action", "timestamp"],
+      "properties": {
+        "id": { "type": "string" },
+        "actor": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    },
+    "credential_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "subject", "issuer"],
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string" },
+        "issuer": { "type": "string" }
+      }
+    },
+    "action_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "actor", "action"],
+      "properties": {
+        "id": { "type": "string" },
+        "actor": { "type": "string" },
+        "action": { "type": "string" },
+        "receipt_ref": { "type": "string" }
+      }
+    },
+    "evaluation_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "ref": { "type": "string" }
+      }
+    },
+    "benchmark_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "ref": { "type": "string" }
+      }
+    },
+    "policy_decision_ref": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "decision", "ref"],
+      "properties": {
+        "id": { "type": "string" },
+        "decision": { "type": "string", "enum": ["allow", "deny", "warn", "needs_human_review", "not_applicable"] },
+        "ref": { "type": "string" }
+      }
+    },
+    "review_attestation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "reviewer", "decision", "timestamp"],
+      "properties": {
+        "id": { "type": "string" },
+        "reviewer": { "type": "string" },
+        "decision": { "type": "string" },
+        "timestamp": { "type": "string" }
+      }
+    }
+  }
+}
