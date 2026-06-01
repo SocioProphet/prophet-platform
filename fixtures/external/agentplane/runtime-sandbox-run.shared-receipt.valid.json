@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "0.1.0",
+  "runtimeRunId": "agentplane:runtime-sandbox-run:shared-receipt:scope-d-example",
+  "requestRef": "environment:validate-change-v2-request:scope-d-example",
+  "executorPlane": "AgentPlane",
+  "executionMode": "runtime_contract",
+  "runtimeParityLevel": "runtime_observed",
+  "runStatus": "runtime_allocated",
+  "environmentRef": "environment://runtime/scope-d-example/shared-receipt",
+  "baselineRef": "workspace://scope-d/main",
+  "changedServiceRefs": [
+    "service://scope-d/api"
+  ],
+  "dependencyGraphRef": "dependency-graph://runtime/scope-d-example/shared-receipt",
+  "routingRef": "routing://runtime/scope-d-example/shared-receipt",
+  "isolationRefs": {
+    "network": "isolation://runtime/scope-d-example/network/shared-receipt",
+    "async": "isolation://runtime/scope-d-example/async/shared-receipt",
+    "stateful": "isolation://runtime/scope-d-example/stateful/shared-receipt"
+  },
+  "evidenceRefs": [
+    "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt"
+  ],
+  "receiptRefs": [
+    "receipt://devsecops-workroom/shared-receipt/scope-d-example/001"
+  ],
+  "failureCodes": [],
+  "teardownState": "not_started",
+  "leakCheckRef": "leak-check://runtime/scope-d-example/shared-receipt/not-started",
+  "issuedAt": "2026-05-31T19:30:00Z",
+  "nonClaims": [
+    "Shared receipt fixture records cross-plane receipt identity only.",
+    "Shared receipt fixture does not execute infrastructure.",
+    "Shared receipt fixture does not certify Signadot feature parity while teardown and leak checks remain incomplete."
+  ]
+}
