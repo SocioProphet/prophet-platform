@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/prophet-platform/devsecops-workroom-guardrail-decision-binding/v0.1.0",
+  "title": "DevSecOpsWorkroomGuardrailDecisionBinding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "binding_id",
+    "workroom_ref",
+    "guardrail_fixture_refs",
+    "action_grant_bindings",
+    "remediation_bindings",
+    "issued_at",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1.0" },
+    "binding_id": { "type": "string", "pattern": "^guardrail-binding:devsecops-workroom:" },
+    "workroom_ref": { "type": "string", "pattern": "^workroom:devsecops:" },
+    "guardrail_fixture_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^guardrail-fixture:devsecops-workroom:" }
+    },
+    "action_grant_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "grant_ref",
+          "action_class",
+          "workroom_grant_status",
+          "guardrail_fixture_ref",
+          "guardrail_expected_decision",
+          "binding_status",
+          "non_claims"
+        ],
+        "properties": {
+          "grant_ref": { "type": "string", "pattern": "^action-grant:" },
+          "action_class": { "type": "string" },
+          "workroom_grant_status": { "type": "string" },
+          "guardrail_fixture_ref": { "type": "string", "pattern": "^guardrail-fixture:devsecops-workroom:" },
+          "guardrail_expected_decision": { "type": "string", "enum": ["deny", "escalate", "allow", "allow_with_context"] },
+          "binding_status": { "type": "string", "enum": ["aligned", "blocked", "requires_review", "not_applicable"] },
+          "non_claims": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    },
+    "remediation_bindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "plan_ref",
+          "risk_class",
+          "plan_status",
+          "required_action_grant_refs",
+          "guardrail_fixture_ref",
+          "guardrail_expected_decision",
+          "binding_status",
+          "non_claims"
+        ],
+        "properties": {
+          "plan_ref": { "type": "string", "pattern": "^remediation-plan:" },
+          "risk_class": { "type": "string" },
+          "plan_status": { "type": "string" },
+          "required_action_grant_refs": { "type": "array", "items": { "type": "string", "pattern": "^action-grant:" } },
+          "guardrail_fixture_ref": { "type": "string", "pattern": "^guardrail-fixture:devsecops-workroom:" },
+          "guardrail_expected_decision": { "type": "string", "enum": ["deny", "escalate", "allow", "allow_with_context"] },
+          "binding_status": { "type": "string", "enum": ["aligned", "blocked", "requires_review", "not_applicable"] },
+          "non_claims": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "non_claims": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+  }
+}
