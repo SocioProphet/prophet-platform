@@ -30,6 +30,13 @@ INVALID_FIXTURES = {
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-missing-investigation-ref.invalid.json": [
         "post_merge_incident lane requires source_refs.investigation_run_ref",
     ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-missing-topology-context.invalid.json": [
+        "post_merge_incident lane requires source_refs.topology_ref",
+        "post_merge_incident lane requires source_refs.blast_radius_ref",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.post-merge-missing-topology-evidence.invalid.json": [
+        "post_merge_incident lane requires topology_snapshot evidence with provenance.source_ref",
+    ],
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.approval-posture.invalid.json": [
         "mutation-class actions cannot be allowed without approval requirement",
     ],
@@ -139,7 +146,7 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         if not validation_state:
             problems.append("pre_merge_validation lane requires validation_evidence_state")
     if lane == "post_merge_incident":
-        for key in ("incident_ref", "investigation_run_ref"):
+        for key in ("incident_ref", "investigation_run_ref", "topology_ref", "blast_radius_ref"):
             if not source_refs.get(key):
                 problems.append(f"post_merge_incident lane requires source_refs.{key}")
 
@@ -149,6 +156,13 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
 
     receipt_ref = source_refs.get("validation_receipt_ref")
     receipt_sources = evidence_sources_by_type(evidence_packets, "runtime_receipt")
+    topology_ref = source_refs.get("topology_ref")
+    topology_sources = evidence_sources_by_type(evidence_packets, "topology_snapshot")
+
+    if lane == "post_merge_incident" and topology_ref and topology_ref not in topology_sources:
+        problems.append(
+            f"post_merge_incident lane requires topology_snapshot evidence with provenance.source_ref {topology_ref}"
+        )
 
     if validation_state in RECEIPT_STATES:
         if not receipt_ref:
@@ -297,6 +311,7 @@ def main() -> int:
             "Validator checks workroom JSON Schema and semantic fixture constraints.",
             "Validator asserts invalid fixtures fail for the expected governance reasons.",
             "Validator checks validation receipt reference semantics for fixture records.",
+            "Validator checks post-merge incident topology and blast-radius evidence bindings.",
             "Validator does not execute live sandbox infrastructure.",
             "Validator does not certify Signadot-style runtime parity.",
             "Validator does not authorize production remediation.",

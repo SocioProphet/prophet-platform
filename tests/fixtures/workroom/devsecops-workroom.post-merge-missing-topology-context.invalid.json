@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:post-merge-missing-topology-context",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/example/INC-2001",
+    "investigation_run_ref": "investigation-run://prophet-platform/example/INC-2001"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:missing-topology-context",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Invalid fixture proving post-merge incident topology context is required.",
+    "evidence_refs": ["evidence://observability/example/5xx-spike"],
+    "claim_refs": ["rca-claim:example:observation"],
+    "decision_state": "needs_review",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/example/5xx-spike",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "summary": "Synthetic metric observation for invalid fixture.",
+      "observed_at": "2026-05-31T16:57:00Z",
+      "provenance": {
+        "source_system": "observability-fixture",
+        "source_ref": "metric://example/api/5xx-rate",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": ["Synthetic fixture evidence only."]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:example:observation",
+      "claim_status": "observation",
+      "statement": "Invalid fixture observation.",
+      "evidence_refs": ["evidence://observability/example/5xx-spike"],
+      "counterevidence_refs": [],
+      "confidence": "low",
+      "non_claims": ["Observation is fixture-scoped."]
+    }
+  ],
+  "action_grants": [],
+  "remediation_plans": [],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:example:invalid-missing-topology-context",
+      "fixture_status": "candidate",
+      "derived_from": "bde:production-incident:missing-topology-context",
+      "summary": "Expected-invalid candidate only.",
+      "target_validation_plan_ref": "validation-plan://example/invalid",
+      "non_claims": ["Candidate only."]
+    }
+  ],
+  "issued_at": "2026-05-31T16:58:00Z",
+  "non_claims": ["This is an expected-failing negative fixture."]
+}
