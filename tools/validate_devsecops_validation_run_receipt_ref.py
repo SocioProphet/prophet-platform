@@ -12,6 +12,20 @@ SCHEMA = ROOT / "contracts" / "workroom" / "devsecops-validation-run-receipt-ref
 VALID_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-validation-run-receipt-ref.svf.valid.json",
 ]
+INVALID_FIXTURES = {
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-validation-run-receipt-ref.run-mismatch.invalid.json": [
+        "workroom_projection.source_refs.validation_run_ref must equal run_ref",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-validation-run-receipt-ref.unverified.invalid.json": [
+        "validation run receipt references must be verified before Workroom ingestion",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-validation-run-receipt-ref.unsupported-certified-claim.invalid.json": [
+        "certified_claims contains unsupported scopes",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-validation-run-receipt-ref.runtime-observed-overclaim.invalid.json": [
+        "runtime_observed cannot be projected while Signadot vendor parity is non-certified",
+    ],
+}
 EXTERNAL_RECEIPT_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "sociosphere-svf-validation-receipt.valid.json",
 ]
@@ -208,6 +222,24 @@ def cross_fixture_problems(adapter: dict[str, Any], receipt: dict[str, Any]) -> 
     return problems
 
 
+def validate_fixture(schema: dict[str, Any], path: Path) -> dict[str, list[str]]:
+    data = load(path)
+    return {
+        "schema": schema_problems(schema, data),
+        "semantic": semantic_problems(data),
+    }
+
+
+def assert_invalid_expectations(path: Path, problems: list[str], expected_substrings: list[str]) -> list[str]:
+    expectation_failures: list[str] = []
+    if not problems:
+        expectation_failures.append(f"{path}: expected invalid fixture to fail, but it passed")
+    for expected in expected_substrings:
+        if not any(expected in problem for problem in problems):
+            expectation_failures.append(f"{path}: expected invalid fixture problem containing {expected!r}")
+    return expectation_failures
+
+
 def main() -> int:
     schema = load(SCHEMA)
     failed = False
@@ -235,6 +267,18 @@ def main() -> int:
             "semantic": semantic_errors,
         }
 
+    for path, expected_substrings in INVALID_FIXTURES.items():
+        result = validate_fixture(schema, path)
+        problems = result["schema"] + result["semantic"]
+        expectation_failures = assert_invalid_expectations(path.relative_to(ROOT), problems, expected_substrings)
+        failed = failed or bool(expectation_failures)
+        results[str(path.relative_to(ROOT))] = {
+            "expected": "invalid",
+            "expected_problem_substrings": expected_substrings,
+            "expectation_failures": expectation_failures,
+            **result,
+        }
+
     if adapter_fixtures and receipt_fixtures:
         cross_errors = cross_fixture_problems(adapter_fixtures[0], receipt_fixtures[0])
         failed = failed or bool(cross_errors)
@@ -250,6 +294,7 @@ def main() -> int:
         "non_claims": [
             "Validator checks Workroom references to external validation run receipts.",
             "Validator checks Sociosphere-shaped receipt fixture semantics.",
+            "Validator asserts invalid receipt-reference fixtures fail for expected governance reasons.",
             "Validator does not recompute Sociosphere artifact digests.",
             "Validator does not execute validation runs.",
             "Validator does not issue Sociosphere or AgentPlane receipts.",
