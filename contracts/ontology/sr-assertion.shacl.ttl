@@ -1,0 +1,61 @@
+@base <https://socioprophet.github.io/ontogenesis/> .
+@prefix sr: <https://socioprophet.github.io/ontogenesis/symbolic-regression#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<shapes/symbolic-regression/sr-assertion.shacl.ttl> a sh:NodeShape ; sh:targetClass sr:SRAssertionProposal ; sh:message "Symbolic regression assertion proposal SHACL bundle loaded." .
+
+sr:EquationCandidateShape a sh:NodeShape ;
+  sh:targetClass sr:EquationCandidate ;
+  sh:property [ sh:path sr:hasEquation ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path sr:hasDatasetEvidence ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasFeatureSet ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasOperatorLibrary ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasFitMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasComplexityMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasDimensionalAnalysis ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasPromotionStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:ProposalCandidate sr:ProposalProposed sr:ProposalAdmitted sr:ProposalRejected sr:ProposalFailureCorpus) ] ;
+  sh:property [ sh:path sr:nonAuthorityDeclaration ; sh:minCount 1 ; sh:datatype xsd:string ] .
+
+sr:ProgramCandidateShape a sh:NodeShape ;
+  sh:targetClass sr:ProgramCandidate ;
+  sh:property [ sh:path sr:hasProgramText ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:minLength 1 ] ;
+  sh:property [ sh:path sr:hasDatasetEvidence ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasFitMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasComplexityMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasPromotionStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:ProposalCandidate sr:ProposalProposed sr:ProposalAdmitted sr:ProposalRejected sr:ProposalFailureCorpus) ] ;
+  sh:property [ sh:path sr:nonAuthorityDeclaration ; sh:minCount 1 ; sh:datatype xsd:string ] .
+
+sr:SRAssertionProposalShape a sh:NodeShape ;
+  sh:targetClass sr:SRAssertionProposal ;
+  sh:property [ sh:path sr:hasDatasetEvidence ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasFitMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasComplexityMetric ; sh:minCount 1 ] ;
+  sh:property [ sh:path sr:hasDimensionalAnalysis ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasEvidenceReplay ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasDiscoveryMethod ; sh:minCount 1 ; sh:maxCount 1 ] ;
+  sh:property [ sh:path sr:hasPromotionStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:ProposalCandidate sr:ProposalProposed sr:ProposalAdmitted sr:ProposalRejected sr:ProposalFailureCorpus) ] ;
+  sh:property [ sh:path sr:hasAdmissionState ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:AdmissionPendingReview sr:AdmissionAdmitted sr:AdmissionRejected sr:AdmissionBlocked) ] ;
+  sh:property [ sh:path sr:vocabVersion ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path sr:vocabularyPromotionState ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:VocabularyDraftState sr:VocabularyStabilizingState sr:VocabularyCanonicalState) ] ;
+  sh:property [ sh:path sr:nonAuthorityDeclaration ; sh:minCount 1 ; sh:datatype xsd:string ] ;
+  sh:not [ sh:property [ sh:path sr:hasDimensionalAnalysis ; sh:qualifiedValueShape [ sh:property [ sh:path sr:hasUnitsStatus ; sh:hasValue sr:UnitsInconsistent ] ] ; sh:qualifiedMinCount 1 ] ; sh:property [ sh:path sr:hasPromotionStatus ; sh:in (sr:ProposalProposed sr:ProposalAdmitted) ] ] ;
+  sh:not [ sh:property [ sh:path sr:hasDimensionalAnalysis ; sh:qualifiedValueShape [ sh:property [ sh:path sr:hasUnitsStatus ; sh:hasValue sr:UnitsInconsistent ] ] ; sh:qualifiedMinCount 1 ] ; sh:property [ sh:path sr:hasAdmissionState ; sh:in (sr:AdmissionPendingReview sr:AdmissionAdmitted) ] ] .
+
+sr:DimensionalAnalysisResultShape a sh:NodeShape ;
+  sh:targetClass sr:DimensionalAnalysisResult ;
+  sh:property [ sh:path sr:hasUnitsStatus ; sh:minCount 1 ; sh:maxCount 1 ; sh:in (sr:UnitsConsistent sr:UnitsInconsistent sr:UnitsUnknown sr:UnitsUnchecked) ] .
+
+sr:FitMetricShape a sh:NodeShape ;
+  sh:targetClass sr:FitMetric ;
+  sh:property [ sh:path sr:metricName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path sr:metricValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ] .
+
+sr:ComplexityMetricShape a sh:NodeShape ;
+  sh:targetClass sr:ComplexityMetric ;
+  sh:property [ sh:path sr:metricName ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+  sh:property [ sh:path sr:metricValue ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:decimal ] .
+
+sr:SemanticReviewSurfaceShape a sh:NodeShape ;
+  sh:targetClass sr:SemanticReviewSurface ;
+  sh:property [ sh:path sr:reviewSurfaceType ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ("git_pr" "prophet_platform_ui" "cli" "sparql_editor" "automated_shacl_gate" "webprotege") ] .
