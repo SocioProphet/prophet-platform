@@ -49,6 +49,19 @@
         "does not allocate infrastructure",
         "does not certify Signadot"
       ]
+    },
+    {
+      "mirror_path": "fixtures/external/gaia/workroom-post-merge-topology.valid.json",
+      "source_plane": "GAIA",
+      "source_repo": "SocioProphet/gaia-world-model",
+      "source_path": "fixtures/operations/workroom-post-merge-topology.valid.json",
+      "mirror_state": "current",
+      "purpose": "Post-merge Workroom topology and blast-radius evidence compatibility check.",
+      "required_non_claims": [
+        "does not prove RCA",
+        "does not authorize remediation",
+        "does not certify Signadot"
+      ]
     }
   ],
   "non_claims": [
