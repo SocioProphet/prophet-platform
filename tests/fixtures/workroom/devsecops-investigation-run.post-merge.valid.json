@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1.0",
+  "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-1001",
+  "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+  "lane": "post_merge_incident",
+  "authority_boundary": {
+    "investigation_authority": "prophet_platform",
+    "execution_authority": "external_connector",
+    "workroom_authority": "prophet_platform"
+  },
+  "status": "ready_for_rca",
+  "started_at": "2026-05-31T16:56:00Z",
+  "completed_at": "2026-05-31T16:58:00Z",
+  "evidence_collection": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike",
+      "evidence_type": "metric_observation",
+      "source_system": "observability-fixture",
+      "source_ref": "metric://scope-d-example/api/5xx-rate",
+      "collection_status": "collected",
+      "non_claims": ["Metric observation does not prove root cause."]
+    },
+    {
+      "evidence_ref": "evidence://deployment/scope-d-example/recent-deploy",
+      "evidence_type": "deployment_metadata",
+      "source_system": "deployment-fixture",
+      "source_ref": "deploy://scope-d-example/api/2026-05-31T16:40:00Z",
+      "collection_status": "collected",
+      "non_claims": ["Deploy timing supports investigation but is not sufficient for confirmed causality."]
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius",
+      "evidence_type": "topology_snapshot",
+      "source_system": "GAIA fixture",
+      "source_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "collection_status": "collected",
+      "non_claims": ["Topology supports blast-radius estimation only."]
+    }
+  ],
+  "topology_context": {
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius"
+  },
+  "blast_radius_context": {
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "status": "estimated"
+  },
+  "workroom_projection": {
+    "workroom_id": "workroom:devsecops:post-merge:scope-d-example",
+    "source_refs": {
+      "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+      "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-1001",
+      "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001"
+    },
+    "evidence_refs": [
+      "evidence://observability/scope-d-example/5xx-spike",
+      "evidence://deployment/scope-d-example/recent-deploy",
+      "evidence://gaia/topology/scope-d-example/blast-radius"
+    ]
+  },
+  "non_claims": [
+    "InvestigationRun fixture models evidence collection only.",
+    "InvestigationRun fixture does not execute live incident commands.",
+    "InvestigationRun fixture does not authorize production remediation.",
+    "InvestigationRun fixture does not confirm root cause."
+  ]
+}
