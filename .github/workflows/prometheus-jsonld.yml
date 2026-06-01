@@ -10,6 +10,8 @@ on:
       - "tools/validate_prometheus_jsonld_shacl.py"
       - "tools/run_prometheus_local_demo.py"
       - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
+      - "tests/fixtures/prometheus/jsonld-invalid-missing-dataset.jsonld"
+      - "tests/fixtures/prometheus/jsonld-invalid-inconsistent-units-promotion.jsonld"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
       - ".github/workflows/prometheus-jsonld.yml"
   push:
@@ -23,6 +25,8 @@ on:
       - "tools/validate_prometheus_jsonld_shacl.py"
       - "tools/run_prometheus_local_demo.py"
       - "tests/fixtures/prometheus/agentplane-sr-gate-policy.valid.json"
+      - "tests/fixtures/prometheus/jsonld-invalid-missing-dataset.jsonld"
+      - "tests/fixtures/prometheus/jsonld-invalid-inconsistent-units-promotion.jsonld"
       - "docs/PROMETHEUS_JSONLD_REVIEW.md"
       - ".github/workflows/prometheus-jsonld.yml"
   workflow_dispatch:
@@ -82,3 +86,11 @@ jobs:
         run: |
           python3 tools/validate_prometheus_jsonld_shacl.py \
             build/prometheus/jsonld/pysr/sr.jsonld
+      - name: Require invalid missing-dataset fixture to fail SHACL
+        run: |
+          ! python3 tools/validate_prometheus_jsonld_shacl.py \
+            tests/fixtures/prometheus/jsonld-invalid-missing-dataset.jsonld
+      - name: Require invalid inconsistent-units fixture to fail SHACL
+        run: |
+          ! python3 tools/validate_prometheus_jsonld_shacl.py \
+            tests/fixtures/prometheus/jsonld-invalid-inconsistent-units-promotion.jsonld
