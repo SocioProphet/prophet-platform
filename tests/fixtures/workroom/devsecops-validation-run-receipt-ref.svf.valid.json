@@ -1,27 +1,29 @@
 {
   "schema_version": "0.1.0",
-  "adapter_id": "workroom:validation-receipt-adapter:svf-local-smoke",
+  "adapter_id": "workroom:validation-receipt-adapter:sociosphere-svf-registry-dogfood",
   "lane": "pre_merge_validation",
   "authority_boundary": {
     "execution_authority": "sociosphere_svf",
     "receipt_authority": "sociosphere_svf",
     "workroom_authority": "prophet_platform"
   },
-  "receipt_ref": "svf:receipt:example-local-smoke",
-  "receipt_artifact_ref": "artifacts/svf/runs/local-smoke/validation-receipt.json",
-  "run_ref": "svf:run:example-local-smoke",
+  "receipt_ref": "svf:receipt:sociosphere.registry-dogfood.verified",
+  "receipt_artifact_ref": "tests/fixtures/workroom/sociosphere-svf-validation-receipt.valid.json",
+  "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
   "run_artifact_ref": "artifacts/svf/runs/local-smoke/validation-run.json",
-  "plan_ref": "svf:plan:prophet-platform-workroom-fixtures",
-  "policy_ref": "svf:policy:non-production-validation",
-  "profile_ref": "svf:profile:prophet-platform",
+  "plan_ref": "svf:plan:sociosphere.registry-dogfood",
+  "policy_ref": "svf:policy:sociosphere.local-readonly",
+  "profile_ref": "svf:profile:sociosphere.dogfood",
   "verification": {
     "status": "verified",
     "verifier": "sociosphere.svf_runner.local",
-    "verified_at": "2026-05-31T19:30:00Z"
+    "verified_at": "2026-05-31T18:46:09Z"
   },
   "certified_claims": [
     "schema_conformant",
-    "fixtures_validated",
+    "non_production_only",
+    "policy_boundary_preserved",
+    "artifact_integrity_verified",
     "receipt_integrity_verified"
   ],
   "non_certified_claims": [
@@ -35,17 +37,18 @@
   ],
   "workroom_projection": {
     "source_refs": {
-      "change_set_ref": "changeset://github/SocioProphet/prophet-platform/pull/example",
-      "environment_request_ref": "environment:validate-change-v2-request:example",
-      "validation_run_ref": "svf:run:example-local-smoke"
+      "change_set_ref": "changeset://github/SocioProphet/sociosphere/pull/434",
+      "environment_request_ref": "environment:validate-change-v2-request:sociosphere-svf",
+      "validation_run_ref": "svf:run:sociosphere.registry-dogfood.verified"
     },
     "runtime_parity_level": "synthetic_observed",
-    "evidence_packet_ref": "evidence://svf/receipt/example-local-smoke",
+    "evidence_packet_ref": "evidence://sociosphere/svf/registry-dogfood/verified-receipt",
     "decision_state": "needs_review"
   },
   "non_claims": [
-    "This fixture adapts an external SVF receipt into the Workroom pre-merge lane.",
+    "This fixture adapts an external Sociosphere SVF receipt into the Workroom pre-merge lane.",
     "Prophet Platform does not execute the validation run represented by this reference.",
+    "Prophet Platform does not issue or certify the Sociosphere receipt represented by this reference.",
     "This fixture does not claim Signadot vendor parity or production readiness."
   ]
 }

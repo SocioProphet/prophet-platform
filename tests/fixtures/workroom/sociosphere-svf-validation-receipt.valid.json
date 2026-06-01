@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0",
+  "receipt_id": "svf:receipt:sociosphere.registry-dogfood.verified",
+  "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
+  "run_artifact": "artifacts/svf/runs/local-smoke/validation-run.json",
+  "run_digest": {
+    "algorithm": "sha256",
+    "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "repo": "SocioProphet/sociosphere",
+  "profile_ref": "svf:profile:sociosphere.dogfood",
+  "plan_ref": "svf:plan:sociosphere.registry-dogfood",
+  "plan_digest": {
+    "algorithm": "sha256",
+    "digest": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "policy_ref": "svf:policy:sociosphere.local-readonly",
+  "policy_digest": {
+    "algorithm": "sha256",
+    "digest": "3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "input_digests": [
+    {
+      "name": "registry",
+      "path": "registry/sovereign-validation-fabric.yaml",
+      "algorithm": "sha256",
+      "digest": "4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "output_digests": [
+    {
+      "name": "svf:action:sociosphere.validate-registry",
+      "path": "artifacts/svf/runs/local-smoke/01-svf_action_sociosphere.validate-registry.result.json",
+      "algorithm": "sha256",
+      "digest": "5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "certified_claims": [
+    "artifact_integrity_verified",
+    "non_production_only",
+    "policy_boundary_preserved",
+    "receipt_integrity_verified",
+    "schema_conformant"
+  ],
+  "non_certified_claims": [
+    "production_readiness",
+    "live_infrastructure_safety",
+    "container_runtime_parity",
+    "browser_runtime_parity",
+    "qemu_runtime_parity",
+    "signadot_vendor_parity",
+    "network_isolation_enforced"
+  ],
+  "verification": {
+    "status": "verified",
+    "verifier": "sociosphere.svf_runner.local",
+    "verified_at": "2026-05-31T18:46:09Z",
+    "diagnostics": []
+  },
+  "issued_at": "2026-05-31T18:46:09Z",
+  "non_claims": [
+    "Fixture mirrors the Sociosphere SVF local receipt shape produced by tools/svf_runner.py.",
+    "Fixture values are stable deterministic stand-ins for exported artifact digests.",
+    "Fixture does not certify production readiness, live infrastructure safety, or Signadot vendor parity."
+  ]
+}
