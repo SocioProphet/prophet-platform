@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "contracts/ontology/prometheus-sr-assertion-compat.manifest.json"
+      - "contracts/ontology/sr-assertion.shacl.ttl"
       - "tools/validate_prometheus_ontogenesis_compat.py"
+      - "tools/validate_prometheus_shacl_provenance.py"
       - "tools/emit_prometheus_jsonld_review.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - ".github/workflows/prometheus-ontogenesis-compat.yml"
@@ -13,7 +15,9 @@ on:
       - main
     paths:
       - "contracts/ontology/prometheus-sr-assertion-compat.manifest.json"
+      - "contracts/ontology/sr-assertion.shacl.ttl"
       - "tools/validate_prometheus_ontogenesis_compat.py"
+      - "tools/validate_prometheus_shacl_provenance.py"
       - "tools/emit_prometheus_jsonld_review.py"
       - "tools/validate_prometheus_jsonld_review.py"
       - ".github/workflows/prometheus-ontogenesis-compat.yml"
@@ -32,3 +36,5 @@ jobs:
           python-version: "3.11"
       - name: Validate PROMETHEUS Ontogenesis compatibility lock
         run: python3 tools/validate_prometheus_ontogenesis_compat.py
+      - name: Validate PROMETHEUS SHACL provenance lock
+        run: python3 tools/validate_prometheus_shacl_provenance.py
