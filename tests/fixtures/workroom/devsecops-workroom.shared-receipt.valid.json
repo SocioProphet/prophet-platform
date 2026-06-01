@@ -1,0 +1,119 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:pre-merge:shared-receipt-scope-d",
+  "lane": "pre_merge_validation",
+  "runtime_parity_level": "runtime_observed",
+  "validation_evidence_state": "verified_receipt",
+  "source_refs": {
+    "change_set_ref": "changeset://github/SocioProphet/SCOPE-D/feature/shared-receipt",
+    "environment_request_ref": "environment:validate-change-v2-request:scope-d-example",
+    "validation_run_ref": "agentplane:runtime-sandbox-run:shared-receipt:scope-d-example",
+    "validation_receipt_ref": "receipt://devsecops-workroom/shared-receipt/scope-d-example/001",
+    "validation_receipt_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "topology_ref": "topology://runtime/scope-d-example/shared-receipt"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:pre-merge-validation-shared-receipt:scope-d",
+    "event_type": "pre_merge_validation_verified",
+    "source_lane": "pre_merge_validation",
+    "status": "resolved",
+    "summary": "Fixture models a shared receipt identity across AgentPlane, Sociosphere, and Prophet Workroom.",
+    "environment_ref": "environment://runtime/scope-d-example/shared-receipt",
+    "topology_ref": "topology://runtime/scope-d-example/shared-receipt",
+    "evidence_refs": [
+      "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt"
+    ],
+    "claim_refs": [
+      "rca-claim:shared-receipt:scope-d:receipt-observed"
+    ],
+    "decision_state": "resolved",
+    "non_claims": [
+      "Resolved state is fixture-scoped.",
+      "Shared receipt identity does not certify Signadot feature parity."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt",
+      "evidence_type": "runtime_receipt",
+      "producer": "AgentPlane and Sociosphere shared fixture chain",
+      "summary": "Runtime receipt evidence is represented with one shared receipt identity across the three planes.",
+      "observed_at": "2026-05-31T19:31:00Z",
+      "provenance": {
+        "source_system": "AgentPlane/Sociosphere fixture chain",
+        "source_ref": "receipt://devsecops-workroom/shared-receipt/scope-d-example/001",
+        "collection_method": "fixture_shared_receipt_identity"
+      },
+      "non_claims": [
+        "Receipt identity is fixture-scoped.",
+        "Receipt identity does not prove full route, stateful, teardown, or leak-check parity."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:shared-receipt:scope-d:receipt-observed",
+      "claim_status": "observation",
+      "statement": "A single shared receipt identity can be represented across AgentPlane, Sociosphere, and Prophet Workroom without transferring receipt authority to Prophet Platform.",
+      "evidence_refs": [
+        "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "high",
+      "non_claims": [
+        "Observation is about fixture identity preservation.",
+        "Observation does not authorize remediation."
+      ]
+    }
+  ],
+  "action_grants": [
+    {
+      "grant_id": "action-grant:shared-receipt:scope-d:read-receipt",
+      "action_class": "read_only",
+      "status": "allowed",
+      "scope": "Read shared receipt identity and validation evidence for Workroom projection.",
+      "approval_required": false,
+      "non_claims": [
+        "Grant permits read-only receipt inspection only.",
+        "Grant does not authorize execution."
+      ]
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:shared-receipt:scope-d:none-required",
+      "plan_status": "approved",
+      "risk_class": "read_only",
+      "summary": "No code remediation is required for the shared receipt identity fixture.",
+      "evidence_refs": [
+        "evidence://agentplane/runtime-sandbox-run/scope-d-example/shared-receipt"
+      ],
+      "required_action_grant_refs": [
+        "action-grant:shared-receipt:scope-d:read-receipt"
+      ],
+      "non_claims": [
+        "Approval is fixture-scoped.",
+        "No production mutation is authorized."
+      ]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:shared-receipt:scope-d:identity-gate",
+      "fixture_status": "candidate",
+      "derived_from": "bde:pre-merge-validation-shared-receipt:scope-d",
+      "summary": "Preserve a Workroom fixture that requires shared receipt identity across AgentPlane, Sociosphere, and Prophet Workroom.",
+      "target_validation_plan_ref": "validation-plan://scope-d/shared-receipt-identity",
+      "non_claims": [
+        "Fixture is not a live execution record.",
+        "Fixture does not replace receipt verification by AgentPlane or Sociosphere."
+      ]
+    }
+  ],
+  "issued_at": "2026-05-31T19:32:00Z",
+  "non_claims": [
+    "This fixture models shared receipt identity only.",
+    "This fixture does not execute runtime workloads.",
+    "This fixture does not certify Signadot feature parity."
+  ]
+}
