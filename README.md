@@ -22,7 +22,7 @@ make validate-workroom-update-contract
 make validate-professional-intelligence-manifest
 make validate-svf-agent-contract
 make validate-environment-validate-change-v2
-python3 tools/validate_trust_chain_contracts.py
+make validate-trust-chain-contracts
 make validate-channel-runtime-gates
 make smoke-health
 ```
@@ -37,9 +37,10 @@ make smoke-health
 6. `docs/PLATFORM_EVAL_FABRIC.md`
 7. `docs/SVF_VALIDATE_CHANGE_AGENT_CONTRACT.md`
 8. `docs/standards/PROPHET_TRUST_CHAIN_V0.md`
-9. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
-10. `contracts/`
-11. `infra/k8s/`
+9. `docs/standards/PROPHET_TRUST_CHAIN_IMPLEMENTATION_MAP.md`
+10. `docs/CHANNEL_GOVERNED_RUNTIME_GATES.md`
+11. `contracts/`
+12. `infra/k8s/`
 
 ## Professional Intelligence manifest
 
@@ -120,13 +121,14 @@ Boundary: this is still a synthetic/no-network contract layer. It does not creat
 
 ## Prophet Trust Chain
 
-Prophet Platform now carries the cross-repo **Prophet Trust Chain v0** standard map and the first platform-side `admit_artifact` contract fixtures.
+Prophet Platform now carries the cross-repo **Prophet Trust Chain v0** standard map, the implementation tracker, and the first platform-side `admit_artifact` contract fixtures.
 
 Prophet Trust Chain maps SocioProphet to the Lightwell-class enterprise open-source security pattern while preserving our broader boundary: package and runtime evidence are necessary, but enterprise AI admission also requires model, dataset, agent, tool, workflow, policy, execution, receipt, remediation, rollback, revocation, and learning evidence.
 
 Relevant files:
 
 - `docs/standards/PROPHET_TRUST_CHAIN_V0.md`
+- `docs/standards/PROPHET_TRUST_CHAIN_IMPLEMENTATION_MAP.md`
 - `contracts/trust-chain/admit-artifact-request.example.json`
 - `contracts/trust-chain/admit-artifact-response.allowed.example.json`
 - `contracts/trust-chain/admit-artifact-response.denied.example.json`
@@ -135,7 +137,7 @@ Relevant files:
 Validate locally:
 
 ```bash
-python3 tools/validate_trust_chain_contracts.py
+make validate-trust-chain-contracts
 ```
 
 Boundary: this is a platform contract and standard-map lane. It does not claim IBM/Red Hat Lightwell integration, live scanner integration, or production certification from fixtures alone. The allowed fixture is scoped evidence composition; the denied fixture proves fail-closed production-admission behavior when blocking risk or missing verified replay exists.
