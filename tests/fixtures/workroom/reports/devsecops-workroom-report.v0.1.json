@@ -1,0 +1,171 @@
+{
+  "action_grants": [
+    {
+      "action_class": "read_only",
+      "approval_required": false,
+      "grant_id": "action-grant:scope-d-example:read-incident-evidence",
+      "scope": "Read fixture incident evidence and topology refs.",
+      "status": "allowed"
+    },
+    {
+      "action_class": "production_change",
+      "approval_required": true,
+      "grant_id": "action-grant:scope-d-example:rollback-production",
+      "scope": "Rollback production deployment for API service.",
+      "status": "requires_human_approval"
+    }
+  ],
+  "event": {
+    "decision_state": "needs_review",
+    "event_id": "bde:production-incident:scope-d-example",
+    "event_type": "production_incident",
+    "status": "investigating",
+    "summary": "Fixture incident reports elevated 5xx responses after deployment of changed service."
+  },
+  "evidence": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "source_ref": "metric://scope-d-example/api/5xx-rate",
+      "summary": "Synthetic telemetry reports 5xx rate above threshold for the API service after deploy window."
+    },
+    {
+      "evidence_ref": "evidence://deployment/scope-d-example/recent-deploy",
+      "evidence_type": "deployment_metadata",
+      "producer": "Fixture deployment connector",
+      "source_ref": "deploy://scope-d-example/api/2026-05-31T16:40:00Z",
+      "summary": "Synthetic deployment metadata records changed-service deploy within the incident time window."
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius",
+      "evidence_type": "topology_snapshot",
+      "producer": "GAIA topology fixture",
+      "source_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "summary": "Topology fixture links API service to checkout and account frontends as potential blast-radius consumers."
+    }
+  ],
+  "gaia_blast_radius": {
+    "affected_node_refs": [
+      "service://scope-d/api"
+    ],
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001",
+    "candidate_consumer_refs": [
+      "frontend://scope-d/checkout",
+      "frontend://scope-d/account"
+    ],
+    "confidence": "medium",
+    "impact_hypotheses": [
+      "If the API service is degraded, checkout and account frontends are plausible consumers affected by the incident window."
+    ],
+    "radius_status": "supported_by_topology",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge"
+  },
+  "guardrail_decision_bindings": {
+    "action_grant_bindings": [
+      {
+        "action_class": "read_only",
+        "binding_status": "aligned",
+        "grant_ref": "action-grant:scope-d-example:read-incident-evidence",
+        "guardrail_expected_decision": "allow",
+        "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:safe-read-only-probe",
+        "non_claims": [
+          "Read-only grant alignment is fixture-scoped.",
+          "Binding does not execute probes."
+        ],
+        "workroom_grant_status": "allowed"
+      },
+      {
+        "action_class": "production_change",
+        "binding_status": "requires_review",
+        "grant_ref": "action-grant:scope-d-example:rollback-production",
+        "guardrail_expected_decision": "deny",
+        "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+        "non_claims": [
+          "Rollback grant remains human-gated.",
+          "Binding does not authorize production mutation."
+        ],
+        "workroom_grant_status": "requires_human_approval"
+      }
+    ],
+    "binding_id": "guardrail-binding:devsecops-workroom:scope-d-example",
+    "remediation_bindings": [
+      {
+        "binding_status": "requires_review",
+        "guardrail_expected_decision": "deny",
+        "guardrail_fixture_ref": "guardrail-fixture:devsecops-workroom:unsafe-mutation-without-grant",
+        "non_claims": [
+          "High-risk rollback remains candidate only.",
+          "Binding does not execute remediation."
+        ],
+        "plan_ref": "remediation-plan:scope-d-example:rollback-candidate",
+        "plan_status": "candidate",
+        "required_action_grant_refs": [
+          "action-grant:scope-d-example:rollback-production"
+        ],
+        "risk_class": "high"
+      }
+    ]
+  },
+  "non_claims": [
+    "Report is generated from fixture records only.",
+    "Report does not execute infrastructure.",
+    "Report does not inspect production systems.",
+    "Report does not confirm RCA causality.",
+    "Report does not authorize remediation.",
+    "Report does not certify Signadot feature parity."
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:5xx-observation",
+      "claim_status": "observation",
+      "confidence": "high",
+      "counterevidence_refs": [],
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike"
+      ],
+      "statement": "The fixture observed elevated 5xx responses for the API service after the deploy window."
+    },
+    {
+      "claim_id": "rca-claim:scope-d-example:recent-deploy-supported",
+      "claim_status": "supported_causal_claim",
+      "confidence": "medium",
+      "counterevidence_refs": [],
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike",
+        "evidence://deployment/scope-d-example/recent-deploy"
+      ],
+      "statement": "The recent changed-service deploy is a supported candidate cause for the fixture 5xx spike, pending counterevidence review."
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:scope-d-example:post-deploy-5xx-guard",
+      "fixture_status": "candidate",
+      "summary": "Create pre-merge validation plan candidate that fails when changed-service route produces 5xx-class responses under checkout/account traffic fixture.",
+      "target_validation_plan_ref": "validation-plan://scope-d-example/post-deploy-5xx-guard"
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:scope-d-example:rollback-candidate",
+      "plan_status": "candidate",
+      "required_action_grant_refs": [
+        "action-grant:scope-d-example:rollback-production"
+      ],
+      "risk_class": "high",
+      "summary": "Consider production rollback only after human review and counterevidence check."
+    }
+  ],
+  "report_id": "report:workroom:devsecops:post-merge:scope-d-example",
+  "schema_version": "0.1.0",
+  "workroom": {
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001",
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-1001",
+    "lane": "post_merge_incident",
+    "runtime_parity_level": "contract_only",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "workroom_id": "workroom:devsecops:post-merge:scope-d-example"
+  }
+}
