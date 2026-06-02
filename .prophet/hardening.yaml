@@ -1,0 +1,43 @@
+schema_version: effective-authority/v0.1
+repo: SocioProphet/prophet-platform
+zone: B
+owner: Prophet Platform runtime/API lane
+maturity: draft
+
+authority_classes:
+  - platform_api
+  - telemetry_surface
+  - policy_dashboard
+  - authority_graph_api
+observation_channels:
+  - memory_store
+  - cloud_document
+control_channels:
+  - websocket
+  - cloud_connector
+  - agent_to_agent
+egress_classes:
+  - metadata
+  - policy
+  - schema
+  - model_request
+  - tool_output
+background_workers:
+  - platform_sync
+runtime_subjects:
+  - native_process
+connector_surfaces:
+  - github
+  - google_drive
+  - gmail
+  - model_provider
+policy_sources:
+  - repo
+  - org_policy
+  - signed_config
+  - user_grant
+ledger_sinks:
+  - model-governance-ledger
+  - policy-fabric
+ci_validators:
+  - effective-authority-ci
