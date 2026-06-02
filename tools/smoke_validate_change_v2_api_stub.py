@@ -9,6 +9,7 @@ BINDING = ROOT / "libs" / "go" / "tritrpcbridge" / "binding" / "binding.go"
 API = ROOT / "apps" / "api" / "cmd" / "socioprophet-api" / "main.go"
 GATEWAY = ROOT / "apps" / "gateway" / "cmd" / "tritrpc-gateway" / "main.go"
 REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.example.json"
+EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.example.json"
 
 REQUIRED_BINDING = [
     'ValidateChangeService = "platform.validate_change.v2"',
@@ -17,17 +18,23 @@ REQUIRED_BINDING = [
 ]
 REQUIRED_API = [
     "handleValidateChange",
+    "buildValidateChangeResponse",
+    "exported_sociosphere_receipt",
     "binding.ValidateChangeService",
     "binding.ValidateChangeReq",
-    '"status": "environment_requested"',
+    '"status": responseStatus',
     '"agentplane_synthetic_sandbox_run"',
     '"evidence_summary"',
-    '"validation_evidence_state": "missing_evidence"',
+    '"validation_evidence_state": evidenceState',
+    '"verified_receipt"',
+    '"failed_receipt"',
+    '"stale_receipt"',
     '"pr_readiness"',
-    '"merge_allowed": false',
+    '"merge_allowed": mergeAllowed',
     '"required_evidence_state": "verified_receipt"',
     '"verified_receipt_required"',
     '"API stub does not execute live sandbox infrastructure."',
+    '"API stub consumes exported Sociosphere receipt state only."',
 ]
 REQUIRED_GATEWAY = [
     'mux.HandleFunc("/v1/validate-change"',
@@ -49,6 +56,7 @@ def main() -> int:
     api = API.read_text(encoding="utf-8")
     gateway = GATEWAY.read_text(encoding="utf-8")
     request = json.loads(REQUEST.read_text(encoding="utf-8"))
+    exported_request = json.loads(EXPORTED_RECEIPT_REQUEST.read_text(encoding="utf-8"))
 
     for needle in REQUIRED_BINDING:
         require(binding, needle, str(BINDING.relative_to(ROOT)), problems)
@@ -62,6 +70,14 @@ def main() -> int:
     if request.get("environment_request", {}).get("requested_isolation_class") != "synthetic_no_network":
         problems.append("request fixture must remain synthetic_no_network")
 
+    receipt = exported_request.get("exported_sociosphere_receipt", {})
+    if receipt.get("verification", {}).get("status") != "verified":
+        problems.append("exported Sociosphere receipt request fixture must carry verification.status verified")
+    if not str(receipt.get("receipt_id", "")).startswith("svf:receipt:"):
+        problems.append("exported Sociosphere receipt request fixture must carry svf:receipt id")
+    if exported_request.get("execution", {}).get("executor_plane") != "AgentPlane":
+        problems.append("exported receipt request fixture executor_plane must be AgentPlane")
+
     result = {
         "validator": "prophet-platform.validate-change-v2.api-stub-smoke.v1",
         "passed": not problems,
@@ -69,7 +85,8 @@ def main() -> int:
         "non_claims": [
             "Smoke check does not execute live sandbox infrastructure.",
             "Smoke check does not certify Signadot-style runtime parity.",
-            "Smoke check validates route/contract wiring and readiness-field presence only."
+            "Smoke check validates route/contract wiring and readiness-field presence only.",
+            "Smoke check validates exported Sociosphere receipt request fixture shape only."
         ]
     }
     print(json.dumps(result, indent=2, sort_keys=True))
