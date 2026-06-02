@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
+import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
 
 const status = ref<'idle'|'ok'|'err'>('idle')
 const pong = ref('')
@@ -20,7 +21,7 @@ onMounted(check)
 </script>
 
 <template>
-  <main style="font-family: ui-sans-serif, system-ui; padding: 2rem; max-width: 920px; margin: 0 auto;">
+  <main style="font-family: ui-sans-serif, system-ui; padding: 2rem; max-width: 1100px; margin: 0 auto;">
     <header style="display:flex; align-items:center; gap:0.75rem; margin-bottom: 1rem;">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
@@ -42,5 +43,6 @@ onMounted(check)
     </section>
 
     <ChronosEvidenceLoopCard />
+    <DevSecOpsWorkroomReportCard />
   </main>
 </template>
