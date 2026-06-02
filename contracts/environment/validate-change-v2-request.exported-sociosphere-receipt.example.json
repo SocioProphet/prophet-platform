@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:sociosphere-exported-receipt",
+  "repo": "SocioProphet/sociosphere",
+  "ref": "pull/434/head",
+  "changed_paths": [
+    "registry/sovereign-validation-fabric.yaml",
+    "tools/svf_runner.py"
+  ],
+  "change_digest": {
+    "algorithm": "sha256",
+    "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "verified_receipt"
+  },
+  "selected_plans": [
+    "svf:plan:sociosphere.registry-dogfood"
+  ],
+  "environment_request": {
+    "baseline_ref": "workspace://sociosphere/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "evidence_required": true,
+    "requested_action": "consume_exported_sociosphere_receipt"
+  },
+  "exported_sociosphere_receipt": {
+    "schema_version": "1.0",
+    "receipt_id": "svf:receipt:sociosphere.registry-dogfood.verified",
+    "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
+    "run_digest": {
+      "algorithm": "sha256",
+      "digest": "1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    "repo": "SocioProphet/sociosphere",
+    "profile_ref": "svf:profile:sociosphere.dogfood",
+    "plan_ref": "svf:plan:sociosphere.registry-dogfood",
+    "policy_ref": "svf:policy:sociosphere.local-readonly",
+    "verification": {
+      "status": "verified",
+      "verifier": "sociosphere.svf_runner.local",
+      "verified_at": "2026-05-31T18:46:09Z",
+      "diagnostics": []
+    },
+    "certified_claims": [
+      "schema_conformant",
+      "non_production_only",
+      "policy_boundary_preserved",
+      "artifact_integrity_verified",
+      "receipt_integrity_verified"
+    ],
+    "non_certified_claims": [
+      "production_readiness",
+      "live_infrastructure_safety",
+      "container_runtime_parity",
+      "browser_runtime_parity",
+      "qemu_runtime_parity",
+      "signadot_vendor_parity",
+      "network_isolation_enforced"
+    ]
+  },
+  "non_claims": [
+    "Request fixture supplies exported Sociosphere receipt evidence only.",
+    "Prophet Platform does not issue or sign the receipt.",
+    "Request fixture does not authorize production remediation."
+  ]
+}
