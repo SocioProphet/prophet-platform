@@ -1,1 +1,97 @@
-Replay placeholder for InvestigationRun schema from PR #552 onto current main.
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/prophet-platform/devsecops-investigation-run/v0.1.0",
+  "title": "DevSecOpsInvestigationRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "investigation_run_ref",
+    "incident_ref",
+    "lane",
+    "authority_boundary",
+    "status",
+    "started_at",
+    "evidence_collection",
+    "topology_context",
+    "blast_radius_context",
+    "workroom_projection",
+    "non_claims"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1.0" },
+    "investigation_run_ref": { "type": "string", "pattern": "^investigation-run://" },
+    "incident_ref": { "type": "string", "pattern": "^incident://" },
+    "lane": { "type": "string", "const": "post_merge_incident" },
+    "authority_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["investigation_authority", "execution_authority", "workroom_authority"],
+      "properties": {
+        "investigation_authority": { "type": "string", "enum": ["prophet_platform", "agentplane", "sociosphere", "gaia"] },
+        "execution_authority": { "type": "string", "enum": ["agentplane", "external_connector", "none"] },
+        "workroom_authority": { "type": "string", "const": "prophet_platform" }
+      }
+    },
+    "status": { "type": "string", "enum": ["planned", "collecting_evidence", "evidence_collected", "ready_for_rca", "blocked"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "evidence_collection": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_ref", "evidence_type", "source_system", "source_ref", "collection_status", "non_claims"],
+        "properties": {
+          "evidence_ref": { "type": "string", "pattern": "^evidence://" },
+          "evidence_type": { "type": "string", "enum": ["log_observation", "metric_observation", "topology_snapshot", "deployment_metadata", "runbook_excerpt", "manual_observation"] },
+          "source_system": { "type": "string", "minLength": 1 },
+          "source_ref": { "type": "string", "minLength": 1 },
+          "collection_status": { "type": "string", "enum": ["planned", "collected", "failed", "not_authorized"] },
+          "non_claims": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    },
+    "topology_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topology_ref", "evidence_ref"],
+      "properties": {
+        "topology_ref": { "type": "string", "pattern": "^topology://" },
+        "evidence_ref": { "type": "string", "pattern": "^evidence://" }
+      }
+    },
+    "blast_radius_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blast_radius_ref", "topology_ref", "status"],
+      "properties": {
+        "blast_radius_ref": { "type": "string", "pattern": "^blast-radius://" },
+        "topology_ref": { "type": "string", "pattern": "^topology://" },
+        "status": { "type": "string", "enum": ["candidate", "estimated", "reviewed", "unknown"] }
+      }
+    },
+    "workroom_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workroom_id", "source_refs", "evidence_refs"],
+      "properties": {
+        "workroom_id": { "type": "string", "pattern": "^workroom:devsecops:" },
+        "source_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["incident_ref", "investigation_run_ref", "topology_ref", "blast_radius_ref"],
+          "properties": {
+            "incident_ref": { "type": "string", "pattern": "^incident://" },
+            "investigation_run_ref": { "type": "string", "pattern": "^investigation-run://" },
+            "topology_ref": { "type": "string", "pattern": "^topology://" },
+            "blast_radius_ref": { "type": "string", "pattern": "^blast-radius://" }
+          }
+        },
+        "evidence_refs": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^evidence://" } }
+      }
+    },
+    "non_claims": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+  }
+}
