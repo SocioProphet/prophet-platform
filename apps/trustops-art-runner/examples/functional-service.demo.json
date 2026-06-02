@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "functional-service.v1",
+  "service": {
+    "id": "demo-classifier",
+    "name": "Demo Classifier",
+    "ownerRepository": "SocioProphet/prophet-platform",
+    "status": "experimental",
+    "description": "Synthetic functional service fixture for the TrustOps ART smoke runner."
+  },
+  "function": "nlp",
+  "model": {
+    "modelRef": "model.demo-classifier@0.1.0",
+    "adapterRefs": [],
+    "runtime": "python-synthetic",
+    "mutableStatePolicy": "governed-runtime-only"
+  },
+  "inputs": ["text/plain"],
+  "outputs": ["classification/demo"],
+  "evals": {
+    "required": true,
+    "references": ["trustops.profile.art-smoke"],
+    "minimumPromotionGate": "trustgate.platform-default.robustness"
+  },
+  "governance": {
+    "ledgerRequired": true,
+    "guardrailRequired": true,
+    "routingRequired": true,
+    "policyRefs": ["trustgate.platform-default"]
+  },
+  "sourceosCarry": {
+    "allowed": true,
+    "carriesMutableModelState": false,
+    "clientRefRequired": true,
+    "launchProfileRefs": ["sourceos.launch.trustops-art-smoke"]
+  }
+}
