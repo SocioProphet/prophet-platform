@@ -10,6 +10,8 @@ API = ROOT / "apps" / "api" / "cmd" / "socioprophet-api" / "main.go"
 GATEWAY = ROOT / "apps" / "gateway" / "cmd" / "tritrpc-gateway" / "main.go"
 REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.example.json"
 EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.example.json"
+FAILED_EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.failed.example.json"
+STALE_EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.stale.example.json"
 
 REQUIRED_BINDING = [
     'ValidateChangeService = "platform.validate_change.v2"',
@@ -52,13 +54,34 @@ def require(text: str, needle: str, surface: str, problems: list[str]) -> None:
         problems.append(f"missing {needle!r} in {surface}")
 
 
+def validate_exported_request(path: Path, expected_status: str, expected_state: str, expected_merge_allowed: bool, problems: list[str]) -> None:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    receipt = data.get("exported_sociosphere_receipt", {})
+    projection = data.get("expected_projection", {})
+    label = str(path.relative_to(ROOT))
+
+    if receipt.get("verification", {}).get("status") != expected_status:
+        problems.append(f"{label}: expected verification.status {expected_status}")
+    if not str(receipt.get("receipt_id", "")).startswith("svf:receipt:"):
+        problems.append(f"{label}: expected svf:receipt id")
+    if not str(receipt.get("run_ref", "")).startswith("svf:run:"):
+        problems.append(f"{label}: expected svf:run ref")
+    if data.get("execution", {}).get("executor_plane") != "AgentPlane":
+        problems.append(f"{label}: executor_plane must be AgentPlane")
+    if projection.get("validation_evidence_state") != expected_state:
+        problems.append(f"{label}: expected projected state {expected_state}")
+    if projection.get("merge_allowed") is not expected_merge_allowed:
+        problems.append(f"{label}: expected merge_allowed {expected_merge_allowed}")
+    if expected_merge_allowed is False and "verified_receipt_required" not in projection.get("blocking_reason_codes", []):
+        problems.append(f"{label}: blocked projection must require verified_receipt")
+
+
 def main() -> int:
     problems: list[str] = []
     binding = BINDING.read_text(encoding="utf-8")
     api = API.read_text(encoding="utf-8")
     gateway = GATEWAY.read_text(encoding="utf-8")
     request = json.loads(REQUEST.read_text(encoding="utf-8"))
-    exported_request = json.loads(EXPORTED_RECEIPT_REQUEST.read_text(encoding="utf-8"))
 
     for needle in REQUIRED_BINDING:
         require(binding, needle, str(BINDING.relative_to(ROOT)), problems)
@@ -72,15 +95,9 @@ def main() -> int:
     if request.get("environment_request", {}).get("requested_isolation_class") != "synthetic_no_network":
         problems.append("request fixture must remain synthetic_no_network")
 
-    receipt = exported_request.get("exported_sociosphere_receipt", {})
-    if receipt.get("verification", {}).get("status") != "verified":
-        problems.append("exported Sociosphere receipt request fixture must carry verification.status verified")
-    if not str(receipt.get("receipt_id", "")).startswith("svf:receipt:"):
-        problems.append("exported Sociosphere receipt request fixture must carry svf:receipt id")
-    if not str(receipt.get("run_ref", "")).startswith("svf:run:"):
-        problems.append("exported Sociosphere receipt request fixture must carry svf:run ref")
-    if exported_request.get("execution", {}).get("executor_plane") != "AgentPlane":
-        problems.append("exported receipt request fixture executor_plane must be AgentPlane")
+    validate_exported_request(EXPORTED_RECEIPT_REQUEST, "verified", "verified_receipt", True, problems)
+    validate_exported_request(FAILED_EXPORTED_RECEIPT_REQUEST, "failed", "failed_receipt", False, problems)
+    validate_exported_request(STALE_EXPORTED_RECEIPT_REQUEST, "stale", "stale_receipt", False, problems)
 
     result = {
         "validator": "prophet-platform.validate-change-v2.api-stub-smoke.v1",
