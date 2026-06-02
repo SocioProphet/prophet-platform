@@ -98,6 +98,7 @@ func buildValidateChangeResponse(req map[string]any) map[string]any {
     responseID := "environment:validate-change-v2-response:requested:api-stub"
     receiptRefs := []string{}
     receiptDigests := []string{}
+    runRefs := []string{}
     failureCodes := []string{"validation_observation_missing"}
     warnings := []string{"validation_observation_missing", "environment_execution_not_observed"}
     nextAction := "agentplane_synthetic_sandbox_run"
@@ -116,14 +117,15 @@ func buildValidateChangeResponse(req map[string]any) map[string]any {
 
     if receipt, ok := req["exported_sociosphere_receipt"].(map[string]any); ok {
         receiptID := stringValue(receipt, "receipt_id", "")
-        runRef := stringValue(receipt, "run_ref", "agentplane:sandbox-run:exported-sociosphere-receipt")
+        runRef := stringValue(receipt, "run_ref", "")
         verification := mapValue(receipt, "verification")
         verificationStatus := stringValue(verification, "status", "")
         receiptRefs = appendIfNonEmpty(receiptRefs, receiptID)
+        runRefs = appendIfNonEmpty(runRefs, runRef)
         if digest := digestString(receipt, "run_digest"); digest != "" {
             receiptDigests = append(receiptDigests, digest)
         }
-        sandboxRunRef = runRef
+        sandboxRunRef = "agentplane:sandbox-run:exported-sociosphere-receipt"
         evidenceRefs = appendIfNonEmpty(evidenceRefs, "evidence://sociosphere/svf/exported-receipt/"+receiptSuffix(receiptID))
 
         switch verificationStatus {
@@ -184,6 +186,7 @@ func buildValidateChangeResponse(req map[string]any) map[string]any {
         "validation_evidence_state": evidenceState,
         "receipt_refs": receiptRefs,
         "receipt_digests": receiptDigests,
+        "run_refs": runRefs,
         "failure_codes": failureCodes,
         "non_certified_claims": nonCertifiedClaims,
     }
