@@ -1,0 +1,27 @@
+name: devsecops-investigation-run
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "contracts/workroom/devsecops-investigation-run-v0.1.schema.json"
+      - "tests/fixtures/workroom/devsecops-investigation-run.post-merge.valid.json"
+      - "tools/validate_devsecops_investigation_run.py"
+      - ".github/workflows/devsecops-investigation-run.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-devsecops-investigation-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validation dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Validate DevSecOps investigation runs
+        run: python tools/validate_devsecops_investigation_run.py
