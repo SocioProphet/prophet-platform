@@ -13,9 +13,10 @@ The current workroom update lane is contract-only:
 
 - `contracts/workspace/workroom-update-request.example.json`
 - `contracts/workspace/workroom-update-response.accepted.example.json`
+- `contracts/workspace/workroom-update-response.invalid-runtime-mutation.example.json`
 - `tools/validate_workroom_update_contract.py`
 
-Those fixtures prove only shape, reference discipline, and no-runtime mutation boundaries. They do not implement an endpoint, message handler, database write, policy gate, workroom mutation, AgentPlane handoff, or receipt emission service.
+Those fixtures prove only shape, reference discipline, and no-runtime mutation boundaries. The invalid fixture is a regression guard: `accepted_for_review` must not carry `runtimeMutationPerformed: true`. These fixtures do not implement an endpoint, message handler, database write, policy gate, workroom mutation, AgentPlane handoff, or receipt emission service.
 
 This document states what must be true before that contract can become runtime behavior.
 
@@ -43,15 +44,16 @@ Prophet Platform may host the service that applies a workroom update. It must no
 A workroom update may become runtime behavior only when the request can pass these gates:
 
 1. **Contract shape gate** — request and response conform to platform-side workroom update contract expectations.
-2. **Workspace product gate** — target workroom and fields remain compatible with `prophet-workspace` Professional Workroom schema.
-3. **Identity gate** — actor or agent identity is registered and authorized.
-4. **Policy gate** — policy and guardrail decisions admit the proposed operation.
-5. **Privacy gate** — DoNotLearn / DoNotLink decisions admit any learning or linking effect.
-6. **Topic membrane gate** — topic-pack refs, if present, admit the source/operator/display scope.
-7. **Audio review gate** — audio/transcript refs, if present, preserve transcript provenance and correction state.
-8. **Persistence gate** — target store and mutation semantics are explicit.
-9. **Receipt gate** — successful, rejected, or no-op outcomes emit receipts.
-10. **Replay gate** — update can be audited or replayed from request, decisions, and receipts.
+2. **Negative fixture gate** — validators reject premature mutation, including `accepted_for_review` paired with `runtimeMutationPerformed: true`.
+3. **Workspace product gate** — target workroom and fields remain compatible with `prophet-workspace` Professional Workroom schema.
+4. **Identity gate** — actor or agent identity is registered and authorized.
+5. **Policy gate** — policy and guardrail decisions admit the proposed operation.
+6. **Privacy gate** — DoNotLearn / DoNotLink decisions admit any learning or linking effect.
+7. **Topic membrane gate** — topic-pack refs, if present, admit the source/operator/display scope.
+8. **Audio review gate** — audio/transcript refs, if present, preserve transcript provenance and correction state.
+9. **Persistence gate** — target store and mutation semantics are explicit.
+10. **Receipt gate** — successful, rejected, or no-op outcomes emit receipts.
+11. **Replay gate** — update can be audited or replayed from request, decisions, and receipts.
 
 Failure at any gate must produce a rejected or require-review response rather than partial mutation.
 
@@ -96,6 +98,8 @@ The platform parses the request into a typed internal object.
 ### Contract Validate
 
 The request must conform to the platform-side workroom update contract and reference a compatible Professional Workroom contract surface.
+
+Contract validation must include negative fixture coverage. The validator must reject any accepted-for-review response that indicates runtime mutation.
 
 ### Resolve Workroom
 
@@ -199,7 +203,7 @@ A future runtime service should distinguish:
 - `noop` — no state change needed, receipt emitted;
 - `failed` — internal failure before valid outcome.
 
-Only `applied` may indicate runtime mutation.
+Only `applied` may indicate runtime mutation. `accepted_for_review` must always be paired with `runtimeMutationPerformed: false` or an equivalent non-mutation signal. A fixture that violates this rule must fail validation.
 
 ## Receipt requirements
 
@@ -225,6 +229,7 @@ Minimum receipt fields:
 ## Failure modes to prevent
 
 - Treating `accepted_for_review` as mutation.
+- Removing negative fixture coverage for premature mutation.
 - Mutating workroom state without policy decision refs.
 - Mutating memory or linking refs without privacy decision refs.
 - Using topic-pack refs as implicit memory permission.
@@ -239,15 +244,16 @@ Do not implement a live service until all are true:
 
 1. Request/response schemas exist, not only examples.
 2. Validator covers positive and negative fixtures.
-3. Policy decision verification path exists.
-4. Privacy decision verification path exists.
-5. Workroom state store is selected.
-6. Idempotency and concurrency semantics are defined.
-7. Receipt schema and sink are defined.
-8. Rejection and require-review responses are modeled.
-9. AgentPlane handoff is modeled if agents can request updates.
-10. Prophet Workspace confirms product contract compatibility.
-11. Sociosphere and workspace-inventory can record adoption/drift state.
+3. Negative fixtures reject premature mutation semantics.
+4. Policy decision verification path exists.
+5. Privacy decision verification path exists.
+6. Workroom state store is selected.
+7. Idempotency and concurrency semantics are defined.
+8. Receipt schema and sink are defined.
+9. Rejection and require-review responses are modeled.
+10. AgentPlane handoff is modeled if agents can request updates.
+11. Prophet Workspace confirms product contract compatibility.
+12. Sociosphere and workspace-inventory can record adoption/drift state.
 
 ## Non-goals
 
