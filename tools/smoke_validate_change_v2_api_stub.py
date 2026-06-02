@@ -29,6 +29,8 @@ REQUIRED_API = [
     '"verified_receipt"',
     '"failed_receipt"',
     '"stale_receipt"',
+    '"run_refs": runRefs',
+    '"agentplane:sandbox-run:exported-sociosphere-receipt"',
     '"pr_readiness"',
     '"merge_allowed": mergeAllowed',
     '"required_evidence_state": "verified_receipt"',
@@ -75,6 +77,8 @@ def main() -> int:
         problems.append("exported Sociosphere receipt request fixture must carry verification.status verified")
     if not str(receipt.get("receipt_id", "")).startswith("svf:receipt:"):
         problems.append("exported Sociosphere receipt request fixture must carry svf:receipt id")
+    if not str(receipt.get("run_ref", "")).startswith("svf:run:"):
+        problems.append("exported Sociosphere receipt request fixture must carry svf:run ref")
     if exported_request.get("execution", {}).get("executor_plane") != "AgentPlane":
         problems.append("exported receipt request fixture executor_plane must be AgentPlane")
 
