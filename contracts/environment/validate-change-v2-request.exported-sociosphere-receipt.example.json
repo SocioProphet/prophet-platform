@@ -14,7 +14,8 @@
   "sociosphere_refs": {
     "workspace_registry": "svf:registry:sociosphere.workspace",
     "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
-    "workspace_validation_status": "verified_receipt"
+    "workspace_validation_status": "verified_receipt",
+    "export_manifest_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json"
   },
   "selected_plans": [
     "svf:plan:sociosphere.registry-dogfood"
@@ -36,6 +37,7 @@
     "schema_version": "1.0",
     "receipt_id": "svf:receipt:sociosphere.registry-dogfood.verified",
     "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
+    "export_manifest_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json",
     "run_digest": {
       "algorithm": "sha256",
       "digest": "1111111111111111111111111111111111111111111111111111111111111111"
@@ -67,9 +69,15 @@
       "network_isolation_enforced"
     ]
   },
+  "expected_projection": {
+    "validation_evidence_state": "verified_receipt",
+    "merge_allowed": true,
+    "blocking_reason_codes": []
+  },
   "non_claims": [
     "Request fixture supplies exported Sociosphere receipt evidence only.",
     "Prophet Platform does not issue or sign the receipt.",
-    "Request fixture does not authorize production remediation."
+    "Request fixture does not authorize production remediation.",
+    "Request fixture depends on the upstream Sociosphere export manifest merged in SocioProphet/sociosphere#456."
   ]
 }
