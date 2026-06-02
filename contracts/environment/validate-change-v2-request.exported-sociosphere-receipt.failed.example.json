@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:sociosphere-exported-receipt-failed",
+  "repo": "SocioProphet/sociosphere",
+  "ref": "pull/434/head",
+  "changed_paths": [
+    "registry/sovereign-validation-fabric.yaml",
+    "tools/svf_runner.py"
+  ],
+  "change_digest": {
+    "algorithm": "sha256",
+    "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "sociosphere_refs": {
+    "workspace_registry": "svf:registry:sociosphere.workspace",
+    "environment_profile_id": "environment-sandbox:profile:sociosphere.control-plane-readout",
+    "workspace_validation_status": "failed_receipt"
+  },
+  "selected_plans": [
+    "svf:plan:sociosphere.registry-dogfood"
+  ],
+  "environment_request": {
+    "baseline_ref": "workspace://sociosphere/main",
+    "changed_service_refs": [],
+    "requested_isolation_class": "synthetic_no_network",
+    "requested_routing_class": "not_configured",
+    "requested_async_isolation_class": "not_configured",
+    "requested_stateful_resource_isolation_class": "not_configured"
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "evidence_required": true,
+    "requested_action": "consume_exported_sociosphere_receipt"
+  },
+  "exported_sociosphere_receipt": {
+    "schema_version": "1.0",
+    "receipt_id": "svf:receipt:sociosphere.registry-dogfood.failed",
+    "run_ref": "svf:run:sociosphere.registry-dogfood.failed",
+    "run_digest": {
+      "algorithm": "sha256",
+      "digest": "6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "repo": "SocioProphet/sociosphere",
+    "profile_ref": "svf:profile:sociosphere.dogfood",
+    "plan_ref": "svf:plan:sociosphere.registry-dogfood",
+    "policy_ref": "svf:policy:sociosphere.local-readonly",
+    "verification": {
+      "status": "failed",
+      "verifier": "sociosphere.svf_runner.local",
+      "verified_at": "2026-05-31T18:49:09Z",
+      "diagnostics": [
+        "run_digest does not match run_artifact"
+      ]
+    },
+    "certified_claims": [
+      "non_production_only"
+    ],
+    "non_certified_claims": [
+      "production_readiness",
+      "live_infrastructure_safety",
+      "container_runtime_parity",
+      "browser_runtime_parity",
+      "qemu_runtime_parity",
+      "signadot_vendor_parity",
+      "network_isolation_enforced",
+      "receipt_integrity_verified"
+    ]
+  },
+  "expected_projection": {
+    "validation_evidence_state": "failed_receipt",
+    "merge_allowed": false,
+    "blocking_reason_codes": [
+      "svf_receipt_failed",
+      "verified_receipt_required"
+    ]
+  },
+  "non_claims": [
+    "Request fixture supplies failed external Sociosphere receipt evidence only.",
+    "Prophet Platform does not repair the failed receipt.",
+    "Failed receipt must not authorize merge readiness."
+  ]
+}
