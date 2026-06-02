@@ -12,6 +12,7 @@ REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.examp
 EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.example.json"
 FAILED_EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.failed.example.json"
 STALE_EXPORTED_RECEIPT_REQUEST = ROOT / "contracts" / "environment" / "validate-change-v2-request.exported-sociosphere-receipt.stale.example.json"
+UPSTREAM_EXPORT_MANIFEST = "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json"
 
 REQUIRED_BINDING = [
     'ValidateChangeService = "platform.validate_change.v2"',
@@ -74,6 +75,11 @@ def validate_exported_request(path: Path, expected_status: str, expected_state: 
         problems.append(f"{label}: expected merge_allowed {expected_merge_allowed}")
     if expected_merge_allowed is False and "verified_receipt_required" not in projection.get("blocking_reason_codes", []):
         problems.append(f"{label}: blocked projection must require verified_receipt")
+    if expected_status == "verified":
+        if receipt.get("export_manifest_ref") != UPSTREAM_EXPORT_MANIFEST:
+            problems.append(f"{label}: verified receipt must reference merged upstream export manifest")
+        if data.get("sociosphere_refs", {}).get("export_manifest_ref") != UPSTREAM_EXPORT_MANIFEST:
+            problems.append(f"{label}: sociosphere_refs.export_manifest_ref must reference merged upstream export manifest")
 
 
 def main() -> int:
