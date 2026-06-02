@@ -38,10 +38,18 @@ REQUIRED_API = [
 ]
 REQUIRED_GATEWAY = [
     'mux.HandleFunc("/v1/validate-change"',
+    'mux.HandleFunc("/v1/workroom/report"',
+    'mux.HandleFunc("/v1/workroom/report.md"',
     "func validateChange(",
+    "func serveStaticReport(",
     "binding.ValidateChangeService",
     "binding.ValidateChangeReq",
     "binding.ValidateChangeRes",
+    "X-Workroom-Report-Mode",
+    "X-Workroom-Non-Claim",
+    "no-execution-no-remediation-no-signadot-parity",
+    "WORKROOM_REPORT_JSON_PATH",
+    "WORKROOM_REPORT_MARKDOWN_PATH",
 ]
 
 
@@ -76,7 +84,7 @@ def main() -> int:
         "non_claims": [
             "Smoke check does not execute live sandbox infrastructure.",
             "Smoke check does not certify Signadot-style runtime parity.",
-            "Smoke check validates route/contract wiring, readiness fields, and Workroom projection presence only."
+            "Smoke check validates route/contract wiring, readiness fields, Workroom projection, and fixture report route presence only."
         ]
     }
     print(json.dumps(result, indent=2, sort_keys=True))
