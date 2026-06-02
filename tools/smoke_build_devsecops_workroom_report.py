@@ -9,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "tools" / "build_devsecops_workroom_report.py"
+EXPECTED_JSON = ROOT / "tests" / "fixtures" / "workroom" / "reports" / "devsecops-workroom-report.v0.1.json"
+EXPECTED_MD = ROOT / "tests" / "fixtures" / "workroom" / "reports" / "devsecops-workroom-report.v0.1.md"
 REQUIRED_REPORT_KEYS = {
     "report_id",
     "workroom",
@@ -58,9 +60,18 @@ def main() -> int:
         else:
             markdown = md_path.read_text(encoding="utf-8")
 
+    expected_report = json.loads(EXPECTED_JSON.read_text(encoding="utf-8"))
+    expected_markdown = EXPECTED_MD.read_text(encoding="utf-8")
+
     missing_keys = sorted(REQUIRED_REPORT_KEYS - set(report.keys())) if isinstance(report, dict) else sorted(REQUIRED_REPORT_KEYS)
     if missing_keys:
         problems.append(f"JSON report missing keys: {missing_keys}")
+
+    if report != expected_report:
+        problems.append("generated JSON report does not match canonical fixture")
+
+    if markdown != expected_markdown:
+        problems.append("generated Markdown report does not match canonical fixture")
 
     if report:
         if report.get("workroom", {}).get("lane") != "post_merge_incident":
