@@ -16,6 +16,8 @@ import (
 )
 
 const defaultUnixSocket = "/tmp/socioprophet.sock"
+const defaultWorkroomReportJSON = "tests/fixtures/workroom/reports/devsecops-workroom-report.v0.1.json"
+const defaultWorkroomReportMarkdown = "tests/fixtures/workroom/reports/devsecops-workroom-report.v0.1.md"
 
 func main() {
     key, err := binding.ResolveSharedKey(os.Getenv("TRITRPC_KEY_HEX"), os.Getenv("TRITRPC_ALLOW_INSECURE_DEV_KEY") == "1")
@@ -60,6 +62,17 @@ func newMux(target string, key [32]byte, evidenceBase string, consoleBase string
         _, _ = w.Write(resp)
     })
 
+    mux.HandleFunc("/v1/workroom/report", serveStaticReport(
+        getenv("WORKROOM_REPORT_JSON_PATH", defaultWorkroomReportJSON),
+        "application/json",
+        true,
+    ))
+    mux.HandleFunc("/v1/workroom/report.md", serveStaticReport(
+        getenv("WORKROOM_REPORT_MARKDOWN_PATH", defaultWorkroomReportMarkdown),
+        "text/markdown; charset=utf-8",
+        false,
+    ))
+
     if evidenceBase != "" {
         mux.HandleFunc("/v1/evidence/services", proxyGET(client, evidenceBase, "/v1/services"))
         mux.HandleFunc("/v1/evidence/receipts/recent", proxyGET(client, evidenceBase, "/v1/receipts/recent"))
@@ -78,6 +91,48 @@ func newMux(target string, key [32]byte, evidenceBase string, consoleBase string
     }
 
     return mux
+}
+
+func serveStaticReport(path string, contentType string, requireValidJSON bool) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != http.MethodGet {
+            w.WriteHeader(http.StatusMethodNotAllowed)
+            return
+        }
+        body, err := os.ReadFile(path)
+        if err != nil {
+            w.WriteHeader(http.StatusNotFound)
+            _ = json.NewEncoder(w).Encode(map[string]any{
+                "ok": false,
+                "error": err.Error(),
+                "non_claims": []string{
+                    "Workroom report route serves fixture artifacts only.",
+                    "Workroom report route does not execute infrastructure.",
+                    "Workroom report route does not authorize remediation.",
+                    "Workroom report route does not certify Signadot feature parity.",
+                },
+            })
+            return
+        }
+        if requireValidJSON && !json.Valid(body) {
+            w.WriteHeader(http.StatusInternalServerError)
+            _ = json.NewEncoder(w).Encode(map[string]any{
+                "ok": false,
+                "error": "configured Workroom report JSON is invalid",
+                "non_claims": []string{
+                    "Workroom report route serves fixture artifacts only.",
+                    "Workroom report route does not execute infrastructure.",
+                    "Workroom report route does not authorize remediation.",
+                    "Workroom report route does not certify Signadot feature parity.",
+                },
+            })
+            return
+        }
+        w.Header().Set("Content-Type", contentType)
+        w.Header().Set("X-Workroom-Report-Mode", "fixture")
+        w.Header().Set("X-Workroom-Non-Claim", "no-execution-no-remediation-no-signadot-parity")
+        _, _ = w.Write(body)
+    }
 }
 
 func proxyGET(client *http.Client, baseURL, path string) http.HandlerFunc {
