@@ -5,15 +5,15 @@
   "runtime_parity_level": "runtime_observed",
   "validation_evidence_state": "verified_receipt",
   "source_refs": {
-    "change_set_ref": "changeset://github/SocioProphet/sociosphere/pull/434",
-    "environment_request_ref": "environment:validate-change-v2-request:sociosphere-svf",
-    "validation_run_ref": "svf:run:sociosphere.registry-dogfood.verified",
+    "change_set_ref": "changeset://github/SocioProphet/sociosphere/feature/svf-contract-example",
+    "environment_request_ref": "environment:validate-change-v2-request:scope-d-example",
+    "validation_run_ref": "agentplane:sandbox-run:observed:sociosphere-svf",
+    "topology_ref": "topology://sociosphere/svf/local-dogfood",
     "validation_receipt_ref": "svf:receipt:sociosphere.registry-dogfood.verified",
-    "validation_receipt_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "topology_ref": "topology://sociosphere/svf/local-dogfood"
+    "validation_receipt_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
   "behavioral_divergence_event": {
-    "event_id": "bde:pre-merge-validation-success:sociosphere-svf",
+    "event_id": "bde:pre-merge-validation:sociosphere-svf-verified",
     "event_type": "pre_merge_validation_verified",
     "source_lane": "pre_merge_validation",
     "status": "resolved",
@@ -24,11 +24,11 @@
       "evidence://sociosphere/svf/registry-dogfood/verified-receipt"
     ],
     "claim_refs": [
-      "rca-claim:sociosphere-svf:receipt-observed"
+      "rca-claim:sociosphere-svf-verified:validation-state"
     ],
     "decision_state": "resolved",
     "non_claims": [
-      "Resolved state is fixture-scoped.",
+      "State is fixture-scoped.",
       "Fixture does not certify production readiness."
     ]
   },
@@ -37,7 +37,7 @@
       "evidence_ref": "evidence://sociosphere/svf/registry-dogfood/verified-receipt",
       "evidence_type": "runtime_receipt",
       "producer": "Sociosphere SVF local runner",
-      "summary": "Verified local SVF receipt for registered Action execution and receipt digest verification.",
+      "summary": "SVF receipt evidence was surfaced through validate_change v2 response fixtures.",
       "observed_at": "2026-05-31T18:46:09Z",
       "provenance": {
         "source_system": "Sociosphere",
@@ -45,14 +45,14 @@
         "collection_method": "fixture_mirrors_svf_local_receipt"
       },
       "non_claims": [
-        "Receipt is local-only.",
+        "Receipt is fixture-scoped.",
         "Receipt does not certify container, browser, QEMU, cluster, or Signadot vendor parity."
       ]
     }
   ],
   "rca_claims": [
     {
-      "claim_id": "rca-claim:sociosphere-svf:receipt-observed",
+      "claim_id": "rca-claim:sociosphere-svf-verified:validation-state",
       "claim_status": "observation",
       "statement": "A Sociosphere SVF local receipt can be represented as runtime-observed validation evidence when the receipt reference is present and evidence provenance points to it.",
       "evidence_refs": [
@@ -68,20 +68,20 @@
   ],
   "action_grants": [
     {
-      "grant_id": "action-grant:sociosphere-svf:read-receipt",
+      "grant_id": "action-grant:sociosphere-svf-verified:read-validation-evidence",
       "action_class": "read_only",
       "status": "allowed",
-      "scope": "Read SVF receipt references and validation evidence for PR readiness.",
+      "scope": "Read validation response, receipt references, and evidence state for PR readiness.",
       "approval_required": false,
       "non_claims": [
-        "Grant permits read-only receipt inspection only.",
+        "Grant permits read-only evidence inspection only.",
         "Grant does not authorize execution."
       ]
     }
   ],
   "remediation_plans": [
     {
-      "plan_id": "remediation-plan:sociosphere-svf:none-required",
+      "plan_id": "remediation-plan:sociosphere-svf-verified:next-step",
       "plan_status": "approved",
       "risk_class": "read_only",
       "summary": "No code remediation is required for the verified receipt fixture.",
@@ -89,30 +89,30 @@
         "evidence://sociosphere/svf/registry-dogfood/verified-receipt"
       ],
       "required_action_grant_refs": [
-        "action-grant:sociosphere-svf:read-receipt"
+        "action-grant:sociosphere-svf-verified:read-validation-evidence"
       ],
       "non_claims": [
-        "Approval is fixture-scoped.",
+        "Plan is fixture-scoped.",
         "No production mutation is authorized."
       ]
     }
   ],
   "regression_fixtures": [
     {
-      "fixture_id": "regression-fixture:sociosphere-svf:receipt-gate",
+      "fixture_id": "regression-fixture:sociosphere-svf-verified:receipt-gate",
       "fixture_status": "candidate",
-      "derived_from": "bde:pre-merge-validation-success:sociosphere-svf",
-      "summary": "Preserve a Workroom fixture that permits runtime_observed only with verified SVF receipt evidence.",
+      "derived_from": "bde:pre-merge-validation:sociosphere-svf-verified",
+      "summary": "Preserve a Workroom fixture that gates merge readiness on receipt-backed validation evidence.",
       "target_validation_plan_ref": "svf:plan:sociosphere.registry-dogfood",
       "non_claims": [
         "Fixture is not a live execution record.",
-        "Fixture does not replace Sociosphere receipt verification."
+        "Fixture does not replace Sociosphere or AgentPlane receipt verification."
       ]
     }
   ],
   "issued_at": "2026-05-31T18:47:00Z",
   "non_claims": [
-    "This fixture models receipt consumption only.",
+    "This fixture models validate_change v2 response consumption only.",
     "This fixture does not execute SVF Actions.",
     "This fixture does not create or sign receipts."
   ]
