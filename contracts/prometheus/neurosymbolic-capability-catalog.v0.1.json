@@ -1,0 +1,151 @@
+{
+  "capabilities": [
+    {
+      "applicationModes": [
+        "scientific_law_discovery",
+        "equation_discovery",
+        "experiment_design"
+      ],
+      "candidateArtifactTypes": [
+        "EquationCandidate",
+        "ProgramCandidate",
+        "ExperimentProposal"
+      ],
+      "capabilityId": "prometheus.nsr.symbolic_scientific_discovery.v0",
+      "controlAuthority": false,
+      "displayName": "Symbolic scientific discovery",
+      "executionPosture": "optional_engine_pending_runtime_pin",
+      "methodFamily": "ai_descartes",
+      "nonAuthorityDeclaration": "AI-Descartes-style output is candidate material only and is not a law, policy, controller, ontology assertion, or deployment authorization.",
+      "priorArtRef": "ibm:ai-descartes",
+      "prohibitedPromotions": [
+        "law",
+        "ontology_assertion",
+        "policy",
+        "controller",
+        "deployment_authorization"
+      ],
+      "prometheusRole": "discovery_engine_candidate_factory",
+      "requiredGates": [
+        "dataset_hash",
+        "replay_posture",
+        "dimensional_analysis",
+        "complexity_gate",
+        "semantic_review",
+        "policy_review"
+      ]
+    },
+    {
+      "applicationModes": [
+        "formula_review",
+        "contradiction_surface",
+        "advisory_verification"
+      ],
+      "candidateArtifactTypes": [
+        "TruthBoundObservation",
+        "FormulaTrace",
+        "ContradictionState"
+      ],
+      "capabilityId": "prometheus.nsr.truth_bound_reasoning.v0",
+      "controlAuthority": false,
+      "displayName": "Logical truth-bound reasoning",
+      "executionPosture": "optional_engine_pending_runtime_pin",
+      "methodFamily": "lnn_truth_bounds",
+      "nonAuthorityDeclaration": "LNN-style truth bounds are advisory observations only and are not hard truth, global entailment, policy admission, or schema authority.",
+      "priorArtRef": "ibm:fol-lnn",
+      "prohibitedPromotions": [
+        "hard_truth",
+        "global_entailment",
+        "policy_admission",
+        "schema_promotion"
+      ],
+      "prometheusRole": "verification_helper",
+      "requiredGates": [
+        "source_evidence_ref",
+        "truth_region_calibration",
+        "contradiction_state",
+        "semantic_review",
+        "policy_review"
+      ]
+    },
+    {
+      "applicationModes": [
+        "semantic_parse",
+        "logic_candidate_generation"
+      ],
+      "candidateArtifactTypes": [
+        "SemanticParseCandidate",
+        "LogicCandidate"
+      ],
+      "capabilityId": "prometheus.nsr.language_to_logic_grounding.v0",
+      "controlAuthority": false,
+      "displayName": "Language-to-logic grounding",
+      "executionPosture": "optional_engine_pending_runtime_pin",
+      "methodFamily": "amr_logic",
+      "nonAuthorityDeclaration": "AMR-to-logic output is a grounding candidate only and does not create schema, policy, ontology, or truth authority.",
+      "priorArtRef": "ibm:amr-to-logic",
+      "prohibitedPromotions": [
+        "schema",
+        "policy",
+        "ontology_assertion",
+        "hard_truth"
+      ],
+      "prometheusRole": "source_to_logic_candidate_generator",
+      "requiredGates": [
+        "source_evidence_ref",
+        "grounding_assessment",
+        "anti_leakage_check",
+        "semantic_review"
+      ]
+    },
+    {
+      "applicationModes": [
+        "background_theory_lookup",
+        "knowledge_graph_review"
+      ],
+      "candidateArtifactTypes": [
+        "KnowledgeSubstrateRef",
+        "OntologyDeltaProposal"
+      ],
+      "capabilityId": "prometheus.nsr.knowledge_substrate.v0",
+      "controlAuthority": false,
+      "displayName": "Knowledge substrate reference",
+      "executionPosture": "read_only_reference_pending_adapter",
+      "methodFamily": "knowledge_substrate",
+      "nonAuthorityDeclaration": "Knowledge-substrate output is reference material only and does not mutate ontology, promote schemas, or turn embeddings into evidence.",
+      "priorArtRef": "ibm:ulkb-ergo",
+      "prohibitedPromotions": [
+        "ontology_mutation",
+        "schema_promotion",
+        "evidence_promotion_from_embedding"
+      ],
+      "prometheusRole": "evidence_and_background_theory_reference",
+      "requiredGates": [
+        "source_evidence_ref",
+        "ontology_owner_review",
+        "semantic_review"
+      ]
+    }
+  ],
+  "catalogId": "urn:prometheus:neurosymbolic-capability-catalog:v0.1",
+  "contractType": "PrometheusNeuroSymbolicCapabilityCatalog",
+  "globalBoundary": {
+    "controlAuthority": false,
+    "finalAdmissionAllowed": false,
+    "memoryPromotionAllowed": false,
+    "nonAuthorityDeclaration": "PROMETHEUS neuro-symbolic artifacts are not authority artifacts and do not become laws, policies, memory, ontology, schemas, or controllers until admitted by the proper authority planes.",
+    "ontologyMutationAllowed": false,
+    "policyMutationAllowed": false
+  },
+  "issuedAt": "2026-06-03T12:00:00Z",
+  "ownerPlane": "SocioProphet/prophet-platform",
+  "schemaVersion": "0.1.0",
+  "sourcePolicy": {
+    "nonAuthorityDeclaration": "Prior-art sources guide PROMETHEUS capability design but do not authorize runtime execution, law admission, ontology mutation, policy admission, controller use, or memory promotion.",
+    "priorArtSources": [
+      "IBM Neuro-Symbolic AI Toolkit"
+    ],
+    "runtimeVendoringApproved": false,
+    "vendorDependency": false
+  }
+}
