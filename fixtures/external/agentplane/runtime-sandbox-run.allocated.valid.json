@@ -30,6 +30,7 @@
   "issuedAt": "2026-05-31T00:21:00Z",
   "nonClaims": [
     "Mirrored fixture from AgentPlane for Prophet Platform cross-plane validation only.",
+    "Allocated runtime sandbox run does not execute infrastructure.",
     "Allocated runtime sandbox run records runtime-observed contract shape only.",
     "Allocated runtime sandbox run does not prove full traffic parity by itself.",
     "Allocated runtime sandbox run does not certify Signadot runtime parity until teardown and leak checks complete."
