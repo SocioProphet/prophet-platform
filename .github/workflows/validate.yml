@@ -9,6 +9,8 @@ jobs:
         id: validate
         continue-on-error: true
         run: make validate > /tmp/prophet-platform-validate.log 2>&1
+      - name: Validate policy simulation evidence contract
+        run: python3 tools/validate_policy_simulation_evidence_contract.py
       - name: Upload validate log
         if: steps.validate.outcome == 'failure'
         uses: actions/upload-artifact@v4
