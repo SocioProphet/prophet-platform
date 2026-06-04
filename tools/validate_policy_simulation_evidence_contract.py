@@ -7,6 +7,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "contracts" / "policy-simulation"
+SCHEMA_PATH = FIXTURE_DIR / "evidence-receipt.schema.json"
 REQUIRED_NON_CLAIM_FRAGMENTS = [
     "does not execute",
     "does not import",
@@ -25,6 +26,49 @@ def load(path: Path) -> dict[str, Any]:
 
 def check(check_id: str, passed: bool, diagnostics: list[str] | None = None) -> dict[str, Any]:
     return {"check_id": check_id, "passed": bool(passed), "diagnostics": diagnostics or []}
+
+
+def schema_diagnostics(instance: Any, schema: dict[str, Any], path: str = "$.") -> list[str]:
+    diagnostics: list[str] = []
+    schema_type = schema.get("type")
+    if schema_type == "object" and not isinstance(instance, dict):
+        return [f"{path} must be object"]
+    if schema_type == "array" and not isinstance(instance, list):
+        return [f"{path} must be array"]
+    if schema_type == "string" and not isinstance(instance, str):
+        return [f"{path} must be string"]
+    if schema_type == "boolean" and not isinstance(instance, bool):
+        return [f"{path} must be boolean"]
+    if schema_type == "number" and (isinstance(instance, bool) or not isinstance(instance, (int, float))):
+        return [f"{path} must be number"]
+
+    if "const" in schema and instance != schema["const"]:
+        diagnostics.append(f"{path} must equal {schema['const']!r}")
+    if "enum" in schema and instance not in schema["enum"]:
+        diagnostics.append(f"{path} must be one of {schema['enum']!r}")
+
+    if isinstance(instance, dict):
+        for key in schema.get("required", []):
+            if key not in instance:
+                diagnostics.append(f"{path}{key} is required")
+        props = schema.get("properties", {})
+        for key, subschema in props.items():
+            if key in instance:
+                diagnostics.extend(schema_diagnostics(instance[key], subschema, f"{path}{key}."))
+
+    if isinstance(instance, list):
+        if "minItems" in schema and len(instance) < schema["minItems"]:
+            diagnostics.append(f"{path} below minItems")
+        item_schema = schema.get("items")
+        if item_schema:
+            for idx, item in enumerate(instance):
+                diagnostics.extend(schema_diagnostics(item, item_schema, f"{path}[{idx}]."))
+
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        if "minimum" in schema and instance < schema["minimum"]:
+            diagnostics.append(f"{path} below minimum")
+
+    return diagnostics
 
 
 def semantic_diagnostics(data: dict[str, Any]) -> list[str]:
@@ -77,18 +121,11 @@ def semantic_diagnostics(data: dict[str, Any]) -> list[str]:
     return diagnostics
 
 
-def validate_fixture(path: Path) -> list[dict[str, Any]]:
+def validate_fixture(path: Path, schema: dict[str, Any]) -> list[dict[str, Any]]:
     data = load(path)
     results = [
-        check(f"{path.name}:schema-version", data.get("schemaVersion") == "1.0"),
-        check(f"{path.name}:receipt-type", data.get("receiptType") == "policy_simulation_evidence_receipt"),
-        check(f"{path.name}:receipt-id", str(data.get("receiptId", "")).startswith("policy-simulation-evidence:")),
-        check(f"{path.name}:status", data.get("status") in {"accepted_for_review", "rejected", "blocked"}),
-        check(f"{path.name}:source", bool(data.get("source", {}).get("repo")) and bool(data.get("source", {}).get("artifactRef"))),
-        check(f"{path.name}:profile", bool(data.get("profile", {}).get("profileId")) and bool(data.get("profile", {}).get("runId"))),
-        check(f"{path.name}:triparty", "triparty" in data),
-        check(f"{path.name}:authority-refs", bool(data.get("authorityRefs"))),
-        check(f"{path.name}:non-claims", bool(data.get("nonClaims"))),
+        check(f"{path.name}:schema", not (schema_errors := schema_diagnostics(data, schema)), schema_errors),
+        check(f"{path.name}:receipt-id-prefix", str(data.get("receiptId", "")).startswith("policy-simulation-evidence:")),
     ]
     diagnostics = semantic_diagnostics(data)
     actual = "fail" if diagnostics else "pass"
@@ -99,11 +136,12 @@ def validate_fixture(path: Path) -> list[dict[str, Any]]:
 
 def main() -> int:
     results: list[dict[str, Any]] = []
+    schema = load(SCHEMA_PATH)
     fixtures = sorted(FIXTURE_DIR.glob("evidence-receipt.*.example.json"))
     if not fixtures:
         raise SystemExit("No policy simulation evidence fixtures found")
     for path in fixtures:
-        results.extend(validate_fixture(path))
+        results.extend(validate_fixture(path, schema))
     passed = all(item["passed"] for item in results)
     print(json.dumps({"validator": "prophet-platform.policy-simulation-evidence.validator.v1", "passed": passed, "results": results}, indent=2, sort_keys=True))
     print(("PASS" if passed else "FAIL") + ": policy simulation evidence fixtures")
