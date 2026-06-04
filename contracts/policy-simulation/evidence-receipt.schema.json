@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Policy Simulation Evidence Receipt",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "receiptType",
+    "receiptId",
+    "status",
+    "source",
+    "profile",
+    "triparty",
+    "authorityRefs",
+    "nonClaims"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "string", "const": "1.0"},
+    "receiptType": {"type": "string", "const": "policy_simulation_evidence_receipt"},
+    "receiptId": {"type": "string"},
+    "status": {"type": "string", "enum": ["accepted_for_review", "rejected", "blocked"]},
+    "source": {
+      "type": "object",
+      "required": ["repo", "commit", "artifactRef", "artifactHash"],
+      "properties": {
+        "repo": {"type": "string"},
+        "commit": {"type": "string"},
+        "artifactRef": {"type": "string"},
+        "artifactHash": {"type": "string"}
+      }
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "profileId",
+        "runId",
+        "scenarioId",
+        "donorCorpus",
+        "donorRuntimeDependency",
+        "releaseAuthority"
+      ],
+      "properties": {
+        "profileId": {"type": "string"},
+        "runId": {"type": "string"},
+        "scenarioId": {"type": "string"},
+        "donorCorpus": {"type": "string"},
+        "donorRuntimeDependency": {"type": "boolean"},
+        "releaseAuthority": {"type": "string"}
+      }
+    },
+    "triparty": {
+      "type": "object",
+      "required": [
+        "lambdaEvid",
+        "lambdaAdmit",
+        "lambdaRelease",
+        "residual",
+        "releaseRatio",
+        "residualRatio",
+        "state"
+      ],
+      "properties": {
+        "lambdaEvid": {"type": "number", "minimum": 0},
+        "lambdaAdmit": {"type": "number", "minimum": 0},
+        "lambdaRelease": {"type": "number", "minimum": 0},
+        "residual": {"type": "number", "minimum": 0},
+        "releaseRatio": {"type": "number", "minimum": 0},
+        "residualRatio": {"type": "number", "minimum": 0},
+        "state": {"type": "string"}
+      }
+    },
+    "authorityRefs": {
+      "type": "object",
+      "required": ["adoptionRegistry", "learningReceipt", "measurementContract", "platformContract"],
+      "properties": {
+        "adoptionRegistry": {"type": "string"},
+        "learningReceipt": {"type": "string"},
+        "measurementContract": {"type": "string"},
+        "platformContract": {"type": "string"}
+      }
+    },
+    "nonClaims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    }
+  }
+}
