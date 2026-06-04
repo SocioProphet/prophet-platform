@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "receiptType": "policy_simulation_evidence_receipt",
+  "receiptId": "policy-simulation-evidence:ai-economist-intake:rejected-release-authority",
+  "status": "accepted_for_review",
+  "source": {
+    "repo": "SocioProphet/economic-prophet",
+    "commit": "2803b18bd6bc3a3d66d0792de8f9372f3f7c6104",
+    "artifactRef": "github-actions://SocioProphet/economic-prophet/policy-simulation-audit",
+    "artifactHash": "sha256:synthetic-policy-simulation-audit"
+  },
+  "profile": {
+    "profileId": "policy-sim-source-intake-001",
+    "runId": "policy-sim-source-intake-run-001",
+    "scenarioId": "redistribution-transfer-release-synthetic",
+    "donorCorpus": "SocioProphet/ai-economist",
+    "donorRuntimeDependency": false,
+    "releaseAuthority": "automatic_release"
+  },
+  "triparty": {
+    "lambdaEvid": 1.0,
+    "lambdaAdmit": 0.8,
+    "lambdaRelease": 0.6,
+    "residual": 0.4,
+    "releaseRatio": 0.6,
+    "residualRatio": 0.4,
+    "state": "ReviewRequired"
+  },
+  "authorityRefs": {
+    "adoptionRegistry": "SocioProphet/sociosphere:registry/resource-intake-adoption.yaml#ai-economist-policy-simulation-intake",
+    "learningReceipt": "SocioProphet/systems-learning-loops:kb/receipts/ai-economist-policy-simulation-intake.receipt.yaml",
+    "measurementContract": "SocioProphet/economic-prophet:schemas/policy_simulation_profile.schema.json",
+    "platformContract": "SocioProphet/prophet-platform:docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md"
+  },
+  "nonClaims": [
+    "This receipt does not execute a policy simulation.",
+    "This receipt does not import donor runtime code.",
+    "This receipt does not authorize live policy automation.",
+    "This receipt does not release economic value.",
+    "This receipt does not claim fairness, legality, production readiness, or policy correctness."
+  ]
+}
