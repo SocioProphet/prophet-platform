@@ -1,0 +1,28 @@
+name: PROMETHEUS neuro-symbolic contracts
+
+on:
+  pull_request:
+    paths:
+      - "contracts/prometheus/neurosymbolic-*.json"
+      - "docs/PROMETHEUS_NEUROSYMBOLIC_KERNEL.md"
+      - "tools/validate_prometheus_neurosymbolic_contracts.py"
+      - ".github/workflows/prometheus-neurosymbolic-contracts.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "contracts/prometheus/neurosymbolic-*.json"
+      - "docs/PROMETHEUS_NEUROSYMBOLIC_KERNEL.md"
+      - "tools/validate_prometheus_neurosymbolic_contracts.py"
+      - ".github/workflows/prometheus-neurosymbolic-contracts.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate PROMETHEUS neuro-symbolic contracts
+        run: python3 tools/validate_prometheus_neurosymbolic_contracts.py
