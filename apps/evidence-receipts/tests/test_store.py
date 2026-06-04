@@ -86,6 +86,62 @@ def test_eval_fabric_legacy_service_first_bundle(monkeypatch, tmp_path):
     assert bundle["payload"]["profile_id"] == "profile.high_assurance_enterprise_agent"
 
 
+def test_policy_simulation_evidence_bundle_type_first(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    base = tmp_path / "prophet-platform"
+    service = "policy-simulation"
+    (base / "payloads" / service).mkdir(parents=True, exist_ok=True)
+    (base / "events" / service).mkdir(parents=True, exist_ok=True)
+    (base / "receipts" / service).mkdir(parents=True, exist_ok=True)
+
+    corr = "policy-sim-source-intake-run-001"
+    subject_ref = "policy-simulation-measured:policy-sim-source-intake-001"
+    payload_path = base / "payloads" / service / f"{corr}.payload.json"
+    event_path = base / "events" / service / f"{corr}.event.json"
+    receipt_path = base / "receipts" / service / f"{corr}.receipt.json"
+
+    payload_path.write_text(json.dumps({
+        "measured_entity_id": subject_ref,
+        "advisory_status": "advisory_evidence_only",
+        "governance_control": {
+            "runtime_dependency": False,
+            "release_authority": "advisory_only",
+            "live_policy_automation": False,
+            "value_release_authorized": False,
+        },
+        "triparty_measurement": {
+            "lambda_evid": 1.0,
+            "lambda_admit": 0.8,
+            "lambda_release": 0.6,
+            "residual": 0.4,
+            "release_ratio": 0.6,
+            "residual_ratio": 0.4,
+            "state": "ReviewRequired",
+        },
+    }) + "\n", encoding="utf-8")
+    event_path.write_text(json.dumps({
+        "event_type": "policy_simulation.evidence.accepted_for_review",
+        "created_at": "2026-06-04T07:16:23Z",
+        "subject_ref": subject_ref,
+        "payload_ref": f"file://{payload_path.resolve()}",
+    }) + "\n", encoding="utf-8")
+    receipt_path.write_text(json.dumps({
+        "status": "accepted_for_review",
+        "action": "PolicySimulationEvidenceReview",
+        "subject_ref": subject_ref,
+    }) + "\n", encoding="utf-8")
+
+    bundle = store.get_bundle(service=service, correlation_id=corr)
+    assert bundle is not None
+    assert bundle["payload"]["measured_entity_id"] == subject_ref
+    assert bundle["payload"]["governance_control"]["runtime_dependency"] is False
+    assert bundle["payload"]["triparty_measurement"]["release_ratio"] == 0.6
+    recent = store.list_recent_bundles(service=service, limit=5)
+    assert recent[0]["status"] == "accepted_for_review"
+    assert recent[0]["subject_ref"] == subject_ref
+    assert service in store.list_services()
+
+
 def test_list_services_detects_both_layouts(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
     (tmp_path / "prophet-platform" / "eval-fabric-api" / "receipts").mkdir(parents=True, exist_ok=True)
