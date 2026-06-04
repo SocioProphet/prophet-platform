@@ -1,0 +1,145 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFAdapterReadiness",
+  "record_id": "fogstack:svf:adapter-readiness:signadot-pattern:example",
+  "purpose": "Model Signadot-style service virtualization evidence for Fog Stack SVF without claiming vendor parity or production readiness.",
+  "backend_mode": "signadot_pattern_import",
+  "claim_boundary": {
+    "certified_claims": [
+      "contract_shape_present",
+      "change_digest_bound",
+      "sandbox_lease_model_present",
+      "routing_context_model_present",
+      "validation_job_model_present",
+      "policy_and_agentplane_links_present",
+      "teardown_or_expiry_model_present"
+    ],
+    "non_certified_claims": [
+      "signadot_vendor_parity",
+      "production_readiness",
+      "live_cluster_execution",
+      "live_infrastructure_safety",
+      "network_isolation_enforced",
+      "service_mesh_runtime_parity",
+      "gitops_controller_reconciliation",
+      "external_kms_hsm_signing"
+    ]
+  },
+  "change_set": {
+    "repo": "SocioProphet/prophet-platform",
+    "ref": "refs/heads/example-fogstack-svf",
+    "changed_paths": [
+      "services/example-api/src/handler.py",
+      "services/example-api/tests/test_handler.py"
+    ],
+    "change_digest": {
+      "algorithm": "sha256",
+      "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "actor": {
+      "actor_id": "agent:example-coding-agent",
+      "actor_kind": "agent",
+      "authority_ref": "agent-registry://example-coding-agent"
+    }
+  },
+  "sandbox_lease": {
+    "lease_ref": "svf:sandbox-lease:example-api:001",
+    "lease_state": "modeled_not_live",
+    "baseline_environment_ref": "env:baseline:staging-shared:example",
+    "changed_service_set": [
+      {
+        "service_ref": "service:example-api",
+        "image_ref": "registry.example.invalid/example-api:change-digest-bbbbbbbb",
+        "resource_refs": [
+          "deployment/example-api",
+          "service/example-api"
+        ]
+      }
+    ],
+    "expires_at": "2026-06-04T00:00:00Z",
+    "teardown_evidence_ref": "svf:teardown:modeled:example-api:001"
+  },
+  "routing_context": {
+    "routing_key_hash": {
+      "algorithm": "sha256",
+      "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    "context_propagation_profile": "svf:context-propagation:http-grpc-otel:v0.1",
+    "mesh_routing_plan": {
+      "routing_mode": "request_routing_modeled",
+      "mesh_backend": "vendor_or_mesh_adapter_unspecified",
+      "baseline_fallback": true,
+      "required_headers": [
+        "x-svf-routing-key"
+      ],
+      "non_claims": [
+        "This modeled fixture does not prove the routing header was propagated through a live service mesh.",
+        "This modeled fixture does not prove tenant or network isolation."
+      ]
+    }
+  },
+  "validation_plan": {
+    "plan_ref": "svf:validation-plan:example-api:signadot-pattern",
+    "required_evidence_state": "verified_receipt",
+    "jobs": [
+      {
+        "job_ref": "svf:job:example-api:unit",
+        "command_ref": "pytest services/example-api/tests",
+        "timeout_seconds": 300,
+        "required_artifacts": [
+          "junit_xml",
+          "stdout_log"
+        ]
+      },
+      {
+        "job_ref": "svf:job:example-api:http-smoke",
+        "command_ref": "curl-routing-key-smoke",
+        "timeout_seconds": 120,
+        "required_artifacts": [
+          "http_trace",
+          "routing_context_digest"
+        ]
+      }
+    ]
+  },
+  "policy_and_execution": {
+    "policy_decision_ref": "policyplane:decision:fogstack-svf:example-allow-local-nonprod",
+    "policy_decision": "allow_nonprod_modeled",
+    "agentplane_run_ref": "agentplane:run:fogstack-svf:example-import",
+    "gitops_reconciliation_ref": "gitops:reconciliation:not-observed",
+    "rollback_proof_ref": "svf:rollback-proof:modeled:example-api:001"
+  },
+  "adapter_readiness": {
+    "status": "not_vendor_certified",
+    "merge_readiness": "blocked_for_vendor_parity_claims",
+    "allowed_use": "contract_shape_and_negative_control_validation",
+    "blocking_reason_codes": [
+      "vendor_runtime_not_observed",
+      "live_cluster_execution_not_observed",
+      "network_isolation_not_certified",
+      "production_readiness_not_certified"
+    ]
+  },
+  "negative_controls": [
+    {
+      "mutation": "claim_signadot_vendor_parity_true",
+      "expected_result": "reject"
+    },
+    {
+      "mutation": "claim_production_readiness_true",
+      "expected_result": "reject"
+    },
+    {
+      "mutation": "missing_policy_decision_ref",
+      "expected_result": "reject"
+    },
+    {
+      "mutation": "missing_agentplane_run_ref",
+      "expected_result": "reject"
+    },
+    {
+      "mutation": "missing_teardown_or_expiry_evidence",
+      "expected_result": "reject"
+    }
+  ]
+}
