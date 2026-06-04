@@ -26,11 +26,11 @@ build/fogstack-local-demo/fogstack-parity-readiness.record.json
 
 This parity posture means the local evidence graph proves release, registry, deploy, GitOps, runtime dry-run, Agent Machine node inventory, immutable/declarative update readiness, TurtleTerm/BearBrowser use surfaces, AgentPlane run linkage, and PolicyPlane decision linkage.
 
-It does **not** mean production parity. Live cluster apply, network registry publication, external KMS/HSM-backed signing, production observability, live AgentPlane execution, real GitOps controller reconciliation, and SourceOS/AgentOS live update execution remain post-MVP gaps.
+It does **not** mean production parity. Live cluster apply, network registry publication, external KMS/HSM-backed signing, production observability, live AgentPlane execution, real GitOps controller reconciliation, live SVF request-routing/sandbox execution, and SourceOS/AgentOS live update execution remain post-MVP gaps.
 
 ## Decision
 
-Fog Stack should **not** split into separate repositories for AI, Data, Automation, Security, Registry, Runtime, Agent Machine, or Office categories yet.
+Fog Stack should **not** split into separate repositories for AI, Data, Automation, Security, Registry, Runtime, Agent Machine, Office, or SVF categories yet.
 
 The shared trust/release/publication/runtime evidence graph is still the dominant implementation concern, and the current pack boundaries do not yet justify independent lifecycles. The right move is to keep engineering in `prophet-platform`, track pack readiness here, and split only when a pack has a clearly independent release cadence, operator lifecycle, support burden, and CI surface.
 
@@ -78,6 +78,12 @@ The shared trust/release/publication/runtime evidence graph is still the dominan
 - Repo split now: no
 - Why: AgentPlane and PolicyPlane linkage now appears in runtime evidence, but live execution backend, workflow runtime, and production orchestration remain post-MVP.
 
+### Fog Stack SVF / Agent Validation
+- Type: productization sub-lane under Access and Automation / Workflow
+- Readiness: 52% as a contract-backed validation lane / not Signadot vendor parity
+- Repo split now: no
+- Why: existing SVF contract validators and Sociosphere receipt-projection fixtures already prove the non-vendor control surface for agent validation evidence. The new Signadot-pattern adapter-readiness fixture models sandbox leases, routing key hashes, baseline-environment fallback, validation jobs, teardown/rollback evidence, PolicyPlane linkage, and AgentPlane linkage without claiming live Kubernetes sandbox execution or vendor parity. Remaining work is a real backend adapter, live request-routing evidence, sandbox teardown receipts, network-isolation checks, GitOps controller receipts, and production observability.
+
 ### Fog Stack Registry / Release Distribution
 - Type: shared capability
 - Readiness: 78%
@@ -121,6 +127,7 @@ Fog Stack currently lands here as:
 - runtime dry-run evidence
 - Agent Machine node evidence
 - AgentPlane/PolicyPlane linkage
+- SVF adapter-readiness validation
 - parity readiness validation
 - canonical Makefile target for the MVP parity check
 
@@ -137,5 +144,6 @@ The next work should not pretend the local MVP proof is production parity. Remai
 5. stronger GitOps controller reconciliation receipts
 6. production observability and alerting
 7. TopoLVM live cluster integration
-8. Nix/ostree update execution receipts for SourceOS/AgentOS
-9. operator UX consolidation and reusable evidence rendering modules
+8. live SVF request-routing, sandbox lease, teardown, and network-isolation receipts
+9. Nix/ostree update execution receipts for SourceOS/AgentOS
+10. operator UX consolidation and reusable evidence rendering modules
