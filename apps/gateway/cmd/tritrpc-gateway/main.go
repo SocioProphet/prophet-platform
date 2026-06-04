@@ -18,6 +18,7 @@ import (
 const defaultUnixSocket = "/tmp/socioprophet.sock"
 const defaultWorkroomReportJSON = "tests/fixtures/workroom/reports/devsecops-workroom-report.v0.1.json"
 const defaultWorkroomReportMarkdown = "tests/fixtures/workroom/reports/devsecops-workroom-report.v0.1.md"
+const defaultWorkroomRuntimeParityBridge = "artifacts/runtime/workroom-runtime-parity-bridge/fogstack-svf-signadot-readiness.bridge.json"
 
 func main() {
     key, err := binding.ResolveSharedKey(os.Getenv("TRITRPC_KEY_HEX"), os.Getenv("TRITRPC_ALLOW_INSECURE_DEV_KEY") == "1")
@@ -71,6 +72,11 @@ func newMux(target string, key [32]byte, evidenceBase string, consoleBase string
         getenv("WORKROOM_REPORT_MARKDOWN_PATH", defaultWorkroomReportMarkdown),
         "text/markdown; charset=utf-8",
         false,
+    ))
+    mux.HandleFunc("/v1/workroom/runtime-parity-bridge", serveStaticReport(
+        getenv("WORKROOM_RUNTIME_PARITY_BRIDGE_PATH", defaultWorkroomRuntimeParityBridge),
+        "application/json",
+        true,
     ))
 
     if evidenceBase != "" {
