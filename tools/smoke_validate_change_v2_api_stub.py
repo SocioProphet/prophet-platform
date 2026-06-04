@@ -40,6 +40,7 @@ REQUIRED_GATEWAY = [
     'mux.HandleFunc("/v1/validate-change"',
     'mux.HandleFunc("/v1/workroom/report"',
     'mux.HandleFunc("/v1/workroom/report.md"',
+    'mux.HandleFunc("/v1/workroom/runtime-parity-bridge"',
     "func validateChange(",
     "func serveStaticReport(",
     "binding.ValidateChangeService",
@@ -50,6 +51,8 @@ REQUIRED_GATEWAY = [
     "no-execution-no-remediation-no-signadot-parity",
     "WORKROOM_REPORT_JSON_PATH",
     "WORKROOM_REPORT_MARKDOWN_PATH",
+    "WORKROOM_RUNTIME_PARITY_BRIDGE_PATH",
+    "defaultWorkroomRuntimeParityBridge",
 ]
 
 
@@ -84,7 +87,7 @@ def main() -> int:
         "non_claims": [
             "Smoke check does not execute live sandbox infrastructure.",
             "Smoke check does not certify Signadot-style runtime parity.",
-            "Smoke check validates route/contract wiring, readiness fields, Workroom projection, and fixture report route presence only."
+            "Smoke check validates route/contract wiring, readiness fields, Workroom projection, fixture report route presence, and runtime parity bridge route presence only."
         ]
     }
     print(json.dumps(result, indent=2, sort_keys=True))
