@@ -29,7 +29,9 @@ def test_run_fogstack_parity_readiness(tmp_path: Path) -> None:
     assert record["kind"] == "FogStackParityReadinessRecord"
     assert record["status"] == "passed"
     assert record["errors"] == []
-    assert "live_apply_plan" in {lane["id"] for lane in record["checked_lanes"]}
+    lane_ids = {lane["id"] for lane in record["checked_lanes"]}
+    assert "live_apply_plan" in lane_ids
+    assert "svf_signadot_adapter_readiness" in lane_ids
     assert "live_apply_plan_record" in record["required_summary_artifacts"]
     assert "deploy_live_apply_plan_record" in record["required_index_ids"]
 
