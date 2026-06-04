@@ -72,6 +72,8 @@ jobs:
         run: python tools/validate_workroom_guardrail_action_safety.py
       - name: Validate Workroom Guardrail decision binding
         run: python tools/validate_workroom_guardrail_decision_binding.py
+      - name: Validate Workroom runtime parity bridge
+        run: python tools/validate_workroom_runtime_parity_bridge.py
       - name: Validate validate_change v2 Workroom adapter
         run: python tools/smoke_generate_workroom_from_validate_change_v2.py
       - name: Build validate_change v2 Workroom bundle
