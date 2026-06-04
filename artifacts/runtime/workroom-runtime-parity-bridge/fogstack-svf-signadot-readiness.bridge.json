@@ -1,0 +1,69 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "WorkroomRuntimeParityBridge",
+  "bridge_id": "workroom-runtime-parity-bridge:fogstack-svf-signadot-readiness:v0.1",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "source_records": {
+    "fogstack_parity_record_ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-parity-readiness.record.json",
+    "fogstack_summary_ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-local-demo.full.summary.json",
+    "fogstack_artifact_index_ref": "artifacts/runtime/fogstack-parity-readiness/demo-artifacts.index.json",
+    "svf_signadot_adapter_readiness_ref": "contracts/svf/fogstack-svf-signadot-adapter-readiness.example.json",
+    "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md"
+  },
+  "observed_evidence": {
+    "fogstack_parity_status": "passed",
+    "fogstack_parity_target": "credible-mvp-ibm-style-parity",
+    "fogstack_checked_lanes": {
+      "node_inventory": "passed",
+      "immutable_update_readiness": "passed",
+      "cluster_readiness": "passed",
+      "gitops_readiness": "passed",
+      "live_cluster_preflight": "blocked",
+      "live_apply_plan": "blocked",
+      "runtime_adapter": "passed",
+      "runtime_dry_run": "passed"
+    },
+    "svf_adapter_readiness_status": "not_vendor_certified",
+    "svf_adapter_merge_readiness": "blocked_for_vendor_parity_claims",
+    "svf_adapter_allowed_use": "contract_shape_and_negative_control_validation"
+  },
+  "certified_claims": [
+    "fogstack_parity_artifact_bundle_persisted",
+    "fogstack_runtime_dry_run_passed",
+    "fogstack_runtime_adapter_present",
+    "fogstack_live_apply_blocked",
+    "fogstack_live_preflight_blocked",
+    "svf_signadot_adapter_contract_shape_present",
+    "svf_signadot_adapter_negative_controls_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "live_cluster_execution",
+    "production_readiness",
+    "network_isolation_enforced",
+    "service_mesh_runtime_parity",
+    "baseline_fallback_runtime_observed",
+    "async_stateful_isolation_runtime_observed",
+    "teardown_ttl_runtime_observed",
+    "gitops_controller_reconciliation_observed"
+  ],
+  "decision_state": "evidence_ready_but_vendor_parity_blocked",
+  "next_required_evidence": [
+    "live_nonprod_sandbox_lease_observation",
+    "request_routing_key_propagation_trace",
+    "baseline_fallback_trace",
+    "changed_service_only_deploy_trace",
+    "teardown_or_expiry_observation",
+    "network_isolation_observation",
+    "gitops_reconciliation_observation"
+  ],
+  "non_claims": [
+    "Bridge records persisted evidence and contract readiness only.",
+    "Bridge does not call Signadot.",
+    "Bridge does not execute Kubernetes workloads.",
+    "Bridge does not mutate a cluster.",
+    "Bridge does not authorize live apply.",
+    "Bridge does not certify production readiness.",
+    "Bridge does not certify full Signadot-style feature parity."
+  ]
+}
