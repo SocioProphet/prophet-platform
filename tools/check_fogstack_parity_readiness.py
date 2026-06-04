@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -118,6 +119,25 @@ def check_index(index: dict[str, Any], errors: list[str]) -> None:
             require(digest == sha256_file(path), f"artifact index digest mismatch: {artifact_id}", errors)
 
 
+def check_svf_signadot_adapter_readiness(errors: list[str]) -> dict[str, str] | None:
+    proc = subprocess.run(
+        [sys.executable, "tools/validate_fogstack_svf_signadot_adapter_readiness.py"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = "\n".join(part for part in [proc.stdout.strip(), proc.stderr.strip()] if part)
+        errors.append(f"SVF Signadot adapter readiness validator failed: {detail}")
+        return None
+    return {
+        "id": "svf_signadot_adapter_readiness",
+        "status": "passed",
+        "mode": "contract-fixture-only",
+    }
+
+
 def check_records(paths: dict[str, Path], errors: list[str]) -> list[dict[str, str]]:
     checked: list[dict[str, str]] = []
 
@@ -203,6 +223,10 @@ def check_records(paths: dict[str, Path], errors: list[str]) -> list[dict[str, s
     require(policy.get("live_apply_allowed") is False, "PolicyPlane allows live apply", errors)
     require(policy.get("human_approval_required") is True, "PolicyPlane does not require human approval", errors)
     checked.append({"id": "runtime_dry_run", "status": "passed"})
+
+    svf_lane = check_svf_signadot_adapter_readiness(errors)
+    if svf_lane is not None:
+        checked.append(svf_lane)
 
     for artifact_id in ["deploy_plan", "agent_corps_plan", "gitops_bundle", "gitops_application", "gitops_kustomization"]:
         require(paths[artifact_id].exists(), f"required artifact missing: {artifact_id}", errors)
