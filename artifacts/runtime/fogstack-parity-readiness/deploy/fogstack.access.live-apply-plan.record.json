@@ -1,0 +1,55 @@
+{
+  "kind": "FogStackLiveApplyPlanRecord",
+  "schema_version": "v0.1",
+  "status": "blocked",
+  "mode": "plan-only",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "namespace": "fogstack-access",
+  "target": "kubernetes",
+  "deploy_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+  "deploy_plan_digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535",
+  "live_preflight_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.live-cluster-preflight.record.json",
+  "live_preflight_digest": "sha256:0c1e9192818e26623ab6bdb48c383c87d6b190b7af42277078f040f4a0aee688",
+  "live_preflight_status": "blocked",
+  "agentplane": {
+    "agentplane_ref": "github://SocioProphet/agentplane",
+    "requested_by": "human:operator",
+    "mode": "plan-only",
+    "future_execution_run_required": true
+  },
+  "policyplane": {
+    "policyplane_ref": "github://SocioProphet/policy-fabric",
+    "decision": "allow-plan-deny-run",
+    "future_execute_decision_required": true,
+    "human_approval_required": true
+  },
+  "safety": {
+    "plan_only": true,
+    "run_performed": false,
+    "mutated_cluster": false,
+    "live_apply_allowed": false,
+    "future_approval_record_required": true,
+    "rollback_plan_required": true
+  },
+  "planned_resources": [
+    "ConfigMap",
+    "Deployment",
+    "Service"
+  ],
+  "blockers": [
+    "live preflight is blocked"
+  ],
+  "source_artifacts": [
+    {
+      "id": "deploy-plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+      "digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535"
+    },
+    {
+      "id": "live-cluster-preflight-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.live-cluster-preflight.record.json",
+      "digest": "sha256:0c1e9192818e26623ab6bdb48c383c87d6b190b7af42277078f040f4a0aee688"
+    }
+  ]
+}

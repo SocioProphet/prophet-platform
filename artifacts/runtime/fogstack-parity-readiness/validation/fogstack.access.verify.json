@@ -1,0 +1,68 @@
+{
+  "tool": "fogstack verify",
+  "version": "0.1",
+  "subject": {
+    "kind": "FogStackBundle",
+    "bundle_id": "fogstack.access",
+    "bundle_version": "0.1.0",
+    "path": "/Users/michaelheller/dev/prophet-platform/bundles/fogstack.access-v0.1.yaml"
+  },
+  "summary": {
+    "status": "pass",
+    "exit_code": 0,
+    "checks_run": 8,
+    "warnings": 0,
+    "errors": 0,
+    "critical": 0
+  },
+  "checks": [
+    {
+      "id": "ACCESS-001",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-002",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-003",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-004",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-005",
+      "severity": "critical",
+      "status": "skip",
+      "message": "condition not met"
+    },
+    {
+      "id": "ACCESS-006",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-007",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "ACCESS-008",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    }
+  ]
+}

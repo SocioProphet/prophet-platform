@@ -1,0 +1,23 @@
+{
+  "kind": "FogStackClusterReadinessRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "deploy_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+  "manifest_dir": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes",
+  "validation_path": "offline-fallback",
+  "offline_validation": {
+    "status": "passed",
+    "errors": []
+  },
+  "kubectl": {
+    "requested": true,
+    "required": false,
+    "executable": "kubectl",
+    "available": false,
+    "resolved_path": null,
+    "dry_run_status": "fallback",
+    "fallback_mode": "offline_validation",
+    "message": "kubectl unavailable; offline validation used"
+  },
+  "errors": []
+}

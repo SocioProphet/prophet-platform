@@ -1,0 +1,19 @@
+{
+  "kind": "FogStackKubernetesManifestCheckRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "deploy_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+  "agent_corps_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json",
+  "manifest_dir": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes",
+  "manifests": [
+    "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/configmap.yaml",
+    "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/deployment.yaml",
+    "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/service.yaml"
+  ],
+  "cluster_readiness_record_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.cluster-readiness.record.json",
+  "cluster_readiness_status": "passed",
+  "cluster_validation_path": "offline-fallback",
+  "checker_stdout": "FogStack Kubernetes manifests passed.\noffline validation passed\nkubectl unavailable; offline validation used"
+}

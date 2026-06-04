@@ -1,0 +1,44 @@
+{
+  "kind": "FogStackManifestPublicationSet",
+  "schema_version": "v0.1",
+  "promotion": {
+    "channel": "candidate",
+    "support_state": "supported",
+    "catalog": "/Users/michaelheller/dev/prophet-platform/catalog/fogstack-support-states-v0.1.yaml"
+  },
+  "manifests": [
+    {
+      "bundle_id": "fogstack.access",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifests/fogstack.access-v0.1.manifest.json",
+      "signed": true,
+      "previous_channel": "preview",
+      "previous_support_state": "community",
+      "channel": "candidate",
+      "support_state": "supported",
+      "lifecycle_status": "merged-upstream"
+    },
+    {
+      "bundle_id": "fogstack.knowledge",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifests/fogstack.knowledge-v0.1.manifest.json",
+      "signed": true,
+      "previous_channel": "preview",
+      "previous_support_state": "community",
+      "channel": "candidate",
+      "support_state": "supported",
+      "lifecycle_status": "merged-upstream"
+    },
+    {
+      "bundle_id": "fogstack.evaluation",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifests/fogstack.evaluation-v0.1.manifest.json",
+      "signed": true,
+      "previous_channel": "preview",
+      "previous_support_state": "community",
+      "channel": "candidate",
+      "support_state": "supported",
+      "lifecycle_status": "merged-upstream"
+    }
+  ]
+}

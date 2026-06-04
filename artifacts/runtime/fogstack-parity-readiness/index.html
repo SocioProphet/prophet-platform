@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>FogStack Local Demo Summary</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; line-height: 1.5; }
+    main { max-width: 1120px; }
+    .status { display: inline-block; padding: 0.25rem 0.6rem; border: 1px solid currentColor; border-radius: 999px; font-weight: 700; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid currentColor; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
+    code { word-break: break-word; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FogStack Local Demo Summary</h1>
+    <p class="status">Status: passed</p>
+    <dl>
+      <dt>Pack selection</dt><dd><code>all</code></dd>
+      <dt>Release count</dt><dd>3</dd>
+      <dt>Channel/support</dt><dd><code>candidate/supported</code></dd>
+      <dt>Registry URI</dt><dd><code>file:///tmp/fogstack-parity-readiness/registry</code></dd>
+    </dl>
+
+    <h2>Releases</h2>
+    <table>
+      <thead><tr><th>Bundle</th><th>Version</th><th>Pack</th><th>Validation record</th><th>Filesystem release pointer</th></tr></thead>
+      <tbody>
+        <tr><td>fogstack.access</td><td>0.1.0</td><td>access</td><td><code>/tmp/fogstack-parity-readiness/validation/fogstack.access.validation.record.json</code></td><td><code>/tmp/fogstack-parity-readiness/registry/fogstack.access/0.1.0/release-pointer.json</code></td></tr>
+<tr><td>fogstack.knowledge</td><td>0.1.0</td><td>knowledge</td><td><code>/tmp/fogstack-parity-readiness/validation/fogstack.knowledge.validation.record.json</code></td><td><code>/tmp/fogstack-parity-readiness/registry/fogstack.knowledge/0.1.0/release-pointer.json</code></td></tr>
+<tr><td>fogstack.evaluation</td><td>0.1.0</td><td>evaluation</td><td><code>/tmp/fogstack-parity-readiness/validation/fogstack.evaluation.validation.record.json</code></td><td><code>/tmp/fogstack-parity-readiness/registry/fogstack.evaluation/0.1.0/release-pointer.json</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Key artifacts</h2>
+    <ul>
+      <li><strong>Publication gate:</strong> <code>/tmp/fogstack-parity-readiness/gate/fogstack.release-publication-gate.record.json</code></li>
+<li><strong>Registry root metadata:</strong> <code>/tmp/fogstack-parity-readiness/root/registry-root-metadata.json</code></li>
+<li><strong>Registry publication index:</strong> <code>/tmp/fogstack-parity-readiness/registry-publication/registry-publication.index.json</code></li>
+<li><strong>Revocation index:</strong> <code>/tmp/fogstack-parity-readiness/lifecycle/registry-revocation-index.json</code></li>
+<li><strong>Summary JSON:</strong> <code>/tmp/fogstack-parity-readiness/fogstack-local-demo.summary.json</code></li>
+<li><strong>Summary Markdown:</strong> <code>/tmp/fogstack-parity-readiness/fogstack-local-demo.summary.md</code></li>
+<li><strong>Artifact index:</strong> <code>/tmp/fogstack-parity-readiness/demo-artifacts.index.json</code></li>
+    </ul>
+
+    <h2>Checks</h2>
+    <ul>
+      <li><code>bundle_verified</code></li>
+<li><code>validation_record_emitted</code></li>
+<li><code>publication_set_built</code></li>
+<li><code>promotion_policy_passed</code></li>
+<li><code>approval_record_checked</code></li>
+<li><code>approval_signature_verified</code></li>
+<li><code>publication_gate_passed</code></li>
+<li><code>registry_index_built</code></li>
+<li><code>filesystem_registry_published</code></li>
+<li><code>filesystem_registry_checked</code></li>
+<li><code>revocation_index_checked</code></li>
+<li><code>registry_root_checked</code></li>
+    </ul>
+    <h2>Deploy readiness</h2>
+    <table>
+      <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>deploy_node_profile</code></td><td>Agent Machine node profile</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json</code></td><td><code>sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_node_inventory_record</code></td><td>Agent Machine node inventory</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-inventory.record.json</code></td><td><code>sha256:fad1e99aa983012ecbab9de09913ef4b5f4519d21f34eeb99698f5a4b93443c9</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_immutable_update_readiness_record</code></td><td>Immutable update readiness</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.immutable-update-readiness.record.json</code></td><td><code>sha256:a29dfc7b5f8c6ac3383fedffe101ecf537466d80af0ffeff566948a50c433697</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_agent_corps_plan</code></td><td>Agent Corps plan</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json</code></td><td><code>sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_plan</code></td><td>Deploy plan</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json</code></td><td><code>sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_kubernetes_configmap</code></td><td>Kubernetes ConfigMap</td><td><code>/tmp/fogstack-parity-readiness/deploy/kubernetes/configmap.yaml</code></td><td><code>sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_kubernetes_deployment</code></td><td>Kubernetes Deployment</td><td><code>/tmp/fogstack-parity-readiness/deploy/kubernetes/deployment.yaml</code></td><td><code>sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_kubernetes_service</code></td><td>Kubernetes Service</td><td><code>/tmp/fogstack-parity-readiness/deploy/kubernetes/service.yaml</code></td><td><code>sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_kubernetes_manifest_check_record</code></td><td>Manifest check record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.kubernetes-manifest-check.record.json</code></td><td><code>sha256:55f0bab7849121b0e4222b2f893c7daab37079f21e015dfccbdf3b18cb22c218</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_cluster_readiness_record</code></td><td>Cluster readiness record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.cluster-readiness.record.json</code></td><td><code>sha256:dba71c978ddd1625e018ccb819d7260e12266c23189da8e0311220e1b6f48bd4</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_bundle</code></td><td>GitOps bundle</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json</code></td><td><code>sha256:1f9442857778ed660c4e9a89985cec0b31abaabcaf4509b5208de018d1699fa9</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_application</code></td><td>GitOps Application</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/application.yaml</code></td><td><code>sha256:2ef73dbf2c7d265130b3f4955e0e6f2b2599a847d9ae9cb768244780cd081986</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_kustomization</code></td><td>GitOps Kustomization</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/kustomization.yaml</code></td><td><code>sha256:650d3d0b90774c2db8a1af486643a856ac616c871b7fd1d957490ae890ed7fd1</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_configmap</code></td><td>GitOps ConfigMap</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/manifests/configmap.yaml</code></td><td><code>sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_deployment</code></td><td>GitOps Deployment</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/manifests/deployment.yaml</code></td><td><code>sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_service</code></td><td>GitOps Service</td><td><code>/tmp/fogstack-parity-readiness/deploy/gitops/manifests/service.yaml</code></td><td><code>sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_gitops_readiness_record</code></td><td>GitOps readiness record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.gitops-readiness.record.json</code></td><td><code>sha256:917a80994cd795df9f737956295471c3c54fe464554d22ff6a93b9949f74d5c2</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_live_cluster_preflight_record</code></td><td>Live cluster preflight record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.live-cluster-preflight.record.json</code></td><td><code>sha256:0c1e9192818e26623ab6bdb48c383c87d6b190b7af42277078f040f4a0aee688</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_runtime_adapter</code></td><td>Runtime adapter</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.local-cluster-runtime-adapter.json</code></td><td><code>sha256:c0d88ccc33869d9a490d7b14f542e2fdadc182cd2f964321c0c575cd342e9705</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_runtime_dry_run_record</code></td><td>Runtime dry-run record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.runtime-dry-run.record.json</code></td><td><code>sha256:652fdf3d2b6cbd7c22fd035e6ea2def065a53e79216188f72de86b00f042d0a0</code></td><td>indexed</td></tr>
+<tr><td><code>deploy_summary</code></td><td>Deploy summary</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.deploy-demo.summary.json</code></td><td><code>sha256:1e86a4d8951ba7cf79babee4032402d5b2f349de04f612ce29e6579273dcc49a</code></td><td>indexed</td></tr>
+      </tbody>
+    </table>
+    <h2>Live cluster preflight</h2>
+    <dl>
+      <dt>Status</dt><dd><code>blocked</code></dd>
+      <dt>Mode</dt><dd><code>read-only-live-preflight</code></dd>
+      <dt>Namespace</dt><dd><code>fogstack-access</code></dd>
+      <dt>Mutated cluster</dt><dd><code>False</code></dd>
+      <dt>Live apply allowed</dt><dd><code>False</code></dd>
+      <dt>Human approval required</dt><dd><code>True</code></dd>
+      <dt>Reason</dt><dd><code>kubectl unavailable; live cluster preflight not attempted</code></dd>
+    </dl>
+
+    <h2>GitOps readiness</h2>
+    <table>
+      <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>deploy_gitops_readiness_record</code></td><td>GitOps readiness record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.gitops-readiness.record.json</code></td><td><code>sha256:917a80994cd795df9f737956295471c3c54fe464554d22ff6a93b9949f74d5c2</code></td><td>indexed</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Runtime evidence</h2>
+    <table>
+      <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>deploy_runtime_adapter</code></td><td>Runtime adapter</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.local-cluster-runtime-adapter.json</code></td><td><code>sha256:c0d88ccc33869d9a490d7b14f542e2fdadc182cd2f964321c0c575cd342e9705</code></td><td>indexed</td></tr> <tr><td><code>deploy_runtime_dry_run_record</code></td><td>Runtime dry-run record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.runtime-dry-run.record.json</code></td><td><code>sha256:652fdf3d2b6cbd7c22fd035e6ea2def065a53e79216188f72de86b00f042d0a0</code></td><td>indexed</td></tr>
+      </tbody>
+    </table>
+    <h2>Runtime readiness</h2>
+    <table>
+      <thead><tr><th>Signal</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>AgentPlane run ID</td><td><code>agentplane-run:fogstack.access:local-dry-run</code></td></tr>
+        <tr><td>AgentPlane run ref</td><td><code>agentplane://runs/fogstack.access/local-dry-run</code></td></tr>
+        <tr><td>AgentPlane ref</td><td><code>github://SocioProphet/agentplane</code></td></tr>
+        <tr><td>Requested by</td><td><code>human:operator</code></td></tr>
+        <tr><td>AgentPlane execution mode</td><td><code>dry-run</code></td></tr>
+        <tr><td>AgentPlane approval state</td><td><code>live-apply-requires-human-approval</code></td></tr>
+        <tr><td>PolicyPlane decision ID</td><td><code>policyplane-decision:fogstack.access:local-dry-run</code></td></tr>
+        <tr><td>PolicyPlane decision ref</td><td><code>policyplane://decisions/fogstack.access/local-dry-run</code></td></tr>
+        <tr><td>PolicyPlane ref</td><td><code>github://SocioProphet/policy-fabric</code></td></tr>
+        <tr><td>PolicyPlane subject</td><td><code>agentplane://runs/fogstack.access/local-dry-run</code></td></tr>
+        <tr><td>PolicyPlane decision</td><td><code>dry-run-allowed</code></td></tr>
+        <tr><td>PolicyPlane effect</td><td><code>allow-dry-run-deny-live-apply</code></td></tr>
+        <tr><td>PolicyPlane reason</td><td><code>Dry-run evidence is allowed; live apply remains denied until human approval.</code></td></tr>
+        <tr><td>PolicyPlane live apply allowed</td><td><code>false</code></td></tr>
+        <tr><td>PolicyPlane human approval required</td><td><code>true</code></td></tr>
+        <tr><td>Node profile</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json</code></td></tr>
+        <tr><td>Node profile digest</td><td><code>sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c</code></td></tr>
+        <tr><td>Dry-run mode</td><td><code>dry-run</code></td></tr>
+        <tr><td>Validation path</td><td><code>contract-and-digest-only</code></td></tr>
+        <tr><td>Mutated cluster</td><td><code>false</code></td></tr>
+        <tr><td>Live apply allowed</td><td><code>false</code></td></tr>
+        <tr><td>Human approval required</td><td><code>true</code></td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Use surface</th><th>Repo</th><th>Type</th><th>Governance</th></tr></thead>
+      <tbody>
+        <tr><td>TurtleTerm</td><td><code>github://SourceOS-Linux/TurtleTerm</code></td><td><code>terminal</code></td><td><code>first_class=true; agentplane_visible=true; policyplane_guarded=true</code></td></tr> <tr><td>BearBrowser</td><td><code>github://SourceOS-Linux/BearBrowser</code></td><td><code>browser</code></td><td><code>first_class=true; agentplane_visible=true; policyplane_guarded=true</code></td></tr>
+      </tbody>
+    </table>
+
+
+    <h2>State coherence</h2>
+    <p><a href="state-coherence.html">Open state coherence report</a></p>
+    <h2>Live apply planning</h2>
+    <table>
+      <thead><tr><th>Artifact ID</th><th>Artifact</th><th>Ref</th><th>SHA-256 digest</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><code>deploy_live_apply_plan_record</code></td><td>Live apply plan record</td><td><code>/tmp/fogstack-parity-readiness/deploy/fogstack.access.live-apply-plan.record.json</code></td><td><code>sha256:491103272aec26b8161ecfaf1a9d692cbe32b25b39d39e89925b6ccf64cd21e1</code></td><td>indexed</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Signal</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Mode</td><td><code>plan-only</code></td></tr>
+        <tr><td>Status</td><td><code>blocked</code></td></tr>
+        <tr><td>Live preflight status</td><td><code>blocked</code></td></tr>
+        <tr><td>Run performed</td><td><code>false</code></td></tr>
+        <tr><td>Mutated cluster</td><td><code>false</code></td></tr>
+        <tr><td>Live apply allowed</td><td><code>false</code></td></tr>
+        <tr><td>Future approval required</td><td><code>true</code></td></tr>
+      </tbody>
+    </table>
+
+  </main>
+</body>
+</html>

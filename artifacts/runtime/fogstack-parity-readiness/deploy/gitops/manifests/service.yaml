@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fogstack-access
+  namespace: fogstack-access
+  labels:
+    fogstack.socioprophet.io/bundle-id: fogstack.access
+    fogstack.socioprophet.io/version: 0.1.0
+    fogstack.socioprophet.io/profile: local-dev
+    fogstack.socioprophet.io/target: kubernetes
+    fogstack.socioprophet.io/agent-corps: enabled
+    app.kubernetes.io/name: fogstack-access
+    app.kubernetes.io/part-of: fogstack
+  annotations:
+    fogstack.socioprophet.io/manifest-ref: releases/manifests/fogstack.access-v0.1.manifest.json
+    fogstack.socioprophet.io/manifest-digest: sha256:f55092224d575570677b8e9d56273f5e2ccce1b93198025b172a9bd0b7155b79
+    fogstack.socioprophet.io/bundle-ref: bundles/fogstack.access-v0.1.yaml
+    fogstack.socioprophet.io/bundle-digest: sha256:ce86ac46fc0befd616d8a46ec594cd9ba3bf2af2d720557c4a8f56e495626ed0
+    fogstack.socioprophet.io/agent-corps-plan-ref: /tmp/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json
+    fogstack.socioprophet.io/agent-corps-plan-digest: sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: fogstack-access
+    app.kubernetes.io/part-of: fogstack
+    fogstack.socioprophet.io/bundle-id: fogstack.access
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http

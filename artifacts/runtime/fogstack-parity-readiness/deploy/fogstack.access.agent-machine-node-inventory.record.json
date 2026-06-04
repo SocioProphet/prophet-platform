@@ -1,0 +1,64 @@
+{
+  "kind": "FogStackAgentMachineNodeInventoryRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "node_profile_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+  "node_profile_digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c",
+  "inventory": {
+    "node_id": "agent-machine://sourceos/edge/default",
+    "node_role": "edge-agent-node",
+    "os_family": "SourceOS",
+    "distribution": "SourceOS-Linux",
+    "immutability": "nixos",
+    "configuration_model": "nix-flake"
+  },
+  "storage": {
+    "topolvm_required": true,
+    "ephemeral_storage": "topolvm",
+    "persistent_storage": "topolvm",
+    "volume_policy": "explicit-claim-only",
+    "storage_ready": true
+  },
+  "agent_machine": {
+    "enabled": true,
+    "identity_ref": "agent-machine://sourceos/edge/default",
+    "workload_runtime": "hybrid",
+    "node_contract_required": true,
+    "use_surfaces": [
+      {
+        "id": "bearbrowser",
+        "repo_ref": "github://SourceOS-Linux/BearBrowser",
+        "first_class": true,
+        "agentplane_visible": true,
+        "policyplane_guarded": true
+      },
+      {
+        "id": "turtleterm",
+        "repo_ref": "github://SourceOS-Linux/TurtleTerm",
+        "first_class": true,
+        "agentplane_visible": true,
+        "policyplane_guarded": true
+      }
+    ]
+  },
+  "cluster": {
+    "cluster_provider": "kind",
+    "cluster_role": "worker",
+    "join_policy": "approval-required",
+    "mutation_default": "deny"
+  },
+  "governance": {
+    "agentplane_ref": "github://SocioProphet/agentplane",
+    "policyplane_ref": "github://SocioProphet/policy-fabric",
+    "human_approval_required": true,
+    "live_mutation_default": "deny"
+  },
+  "readiness": {
+    "node_profile_ready": true,
+    "agent_machine_ready": true,
+    "storage_ready": true,
+    "surfaces_ready": true,
+    "governance_ready": true,
+    "cluster_join_ready": true
+  }
+}

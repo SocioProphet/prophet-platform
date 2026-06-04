@@ -1,0 +1,18 @@
+{
+  "kind": "FogStackBundleManifest",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "bundle": "bundles/fogstack.access-v0.1.yaml",
+  "rulepack": "conformance/rulepacks/fogstack.access-v0.1.yaml",
+  "verification_helper": "tools/validate_fogstack.py",
+  "bundle_digest": "sha256:ce86ac46fc0befd616d8a46ec594cd9ba3bf2af2d720557c4a8f56e495626ed0",
+  "rulepack_digest": "sha256:14fcd59a585251ad0685fe00e743212605285ed193d4c9896dd62db5224eaf73",
+  "channel": "preview",
+  "support_state": "community",
+  "signed": true,
+  "signature": {
+    "type": "other",
+    "ref": "artifact://local-demo/signatures/fogstack.access-0.1.0.sig"
+  }
+}

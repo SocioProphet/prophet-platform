@@ -1,0 +1,18 @@
+{
+  "kind": "FogStackBundleManifest",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.knowledge",
+  "version": "0.1.0",
+  "bundle": "bundles/fogstack.knowledge-v0.1.yaml",
+  "rulepack": "conformance/rulepacks/fogstack.knowledge-v0.1.yaml",
+  "verification_helper": "tools/validate_fogstack.py",
+  "bundle_digest": "sha256:dd9ca91ac4ab3872f77cc6bbb53c1d9b34d2245ca9b76a92b816108a0fb10766",
+  "rulepack_digest": "sha256:c6d1925336176809907b31b7d681d648a133dd9c274286a42b2f9c2f3e8aba48",
+  "channel": "candidate",
+  "support_state": "supported",
+  "signed": true,
+  "signature": {
+    "type": "other",
+    "ref": "artifact://local-demo/signatures/fogstack.knowledge-0.1.0.sig"
+  }
+}

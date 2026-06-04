@@ -1,0 +1,262 @@
+{
+  "kind": "FogStackLocalDemoArtifactIndex",
+  "schema_version": "v0.1",
+  "demo_kind": "FogStackLocalDemoRun",
+  "pack": "all",
+  "registry_uri": "file://artifacts/runtime/fogstack-parity-readiness/registry",
+  "release_count": 3,
+  "artifacts": [
+    {
+      "id": "approval_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.record.json",
+      "digest": "sha256:c1dd927418f018b7cb603e93c9933eed3c14b6516523a1f3aa7c224ebff8e9c3",
+      "size_bytes": 886
+    },
+    {
+      "id": "approval_signature_verification",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.signature-verification.json",
+      "digest": "sha256:300e6b6bbca7cbc6a0e688ac5e2bee9690353417f13a071ee6666684d4794950",
+      "size_bytes": 571
+    },
+    {
+      "id": "deploy_agent_corps_plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json",
+      "digest": "sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d",
+      "size_bytes": 1933
+    },
+    {
+      "id": "deploy_cluster_readiness_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.cluster-readiness.record.json",
+      "digest": "sha256:fe4a8679b52e122c4f04d48a969224d74653bee2c4212b45dbf0ee35f41ef1a0",
+      "size_bytes": 676
+    },
+    {
+      "id": "deploy_gitops_application",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/application.yaml",
+      "digest": "sha256:2ef73dbf2c7d265130b3f4955e0e6f2b2599a847d9ae9cb768244780cd081986",
+      "size_bytes": 1097
+    },
+    {
+      "id": "deploy_gitops_bundle",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json",
+      "digest": "sha256:1d4740810017d906040e730aacae7731dd6bd052312d1c5f8b3741c49989b31a",
+      "size_bytes": 3314
+    },
+    {
+      "id": "deploy_gitops_configmap",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/manifests/configmap.yaml",
+      "digest": "sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463",
+      "size_bytes": 1449
+    },
+    {
+      "id": "deploy_gitops_deployment",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/manifests/deployment.yaml",
+      "digest": "sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79",
+      "size_bytes": 2350
+    },
+    {
+      "id": "deploy_gitops_kustomization",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/kustomization.yaml",
+      "digest": "sha256:650d3d0b90774c2db8a1af486643a856ac616c871b7fd1d957490ae890ed7fd1",
+      "size_bytes": 340
+    },
+    {
+      "id": "deploy_gitops_readiness_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.gitops-readiness.record.json",
+      "digest": "sha256:19150553287e967bfd2e4675a55c4ca57cbb7e83650522539be331a31124c51e",
+      "size_bytes": 1581
+    },
+    {
+      "id": "deploy_gitops_service",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/manifests/service.yaml",
+      "digest": "sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126",
+      "size_bytes": 1342
+    },
+    {
+      "id": "deploy_immutable_update_readiness_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.immutable-update-readiness.record.json",
+      "digest": "sha256:c4d5fee7343a41f3cce277c9f4a09c1ffc7bd0aacf189efbbb5661486500db91",
+      "size_bytes": 1485
+    },
+    {
+      "id": "deploy_kubernetes_configmap",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/configmap.yaml",
+      "digest": "sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463",
+      "size_bytes": 1449
+    },
+    {
+      "id": "deploy_kubernetes_deployment",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/deployment.yaml",
+      "digest": "sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79",
+      "size_bytes": 2350
+    },
+    {
+      "id": "deploy_kubernetes_manifest_check_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.kubernetes-manifest-check.record.json",
+      "digest": "sha256:eb76c9acdfbc80a9fb4f2f8e63521550a071626e15b4e497127783457dc81f7b",
+      "size_bytes": 1007
+    },
+    {
+      "id": "deploy_kubernetes_service",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/service.yaml",
+      "digest": "sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126",
+      "size_bytes": 1342
+    },
+    {
+      "id": "deploy_live_apply_plan_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.live-apply-plan.record.json",
+      "digest": "sha256:075ac4220fc60cc66192972041d8ec8126a3cd747a0a4f4b771ac7c992f3bd54",
+      "size_bytes": 1920
+    },
+    {
+      "id": "deploy_live_cluster_preflight_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.live-cluster-preflight.record.json",
+      "digest": "sha256:3ab6add400e467e7b88b983c83a3ef28222588223271b2d1049f4b0d501b8813",
+      "size_bytes": 1801
+    },
+    {
+      "id": "deploy_node_inventory_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-inventory.record.json",
+      "digest": "sha256:55285a4899c611322135af9f0fa99ddc9077ecb3616a82cff42979ecf43f0f91",
+      "size_bytes": 1946
+    },
+    {
+      "id": "deploy_node_profile",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+      "digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c",
+      "size_bytes": 2247
+    },
+    {
+      "id": "deploy_plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+      "digest": "sha256:c92bca8d506bd4ffc41f461b10b965752b80b0100e59e10a69f2fafdd0460441",
+      "size_bytes": 2360
+    },
+    {
+      "id": "deploy_runtime_adapter",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.local-cluster-runtime-adapter.json",
+      "digest": "sha256:d51d69edac89dbc0dd3217be275e75483eed62c4c0ba5fa445fc6226f83793e7",
+      "size_bytes": 2811
+    },
+    {
+      "id": "deploy_runtime_dry_run_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-dry-run.record.json",
+      "digest": "sha256:2c060338bd182789181abeae540008f6ec2bb0732f407a261711a49b7d35469e",
+      "size_bytes": 5676
+    },
+    {
+      "id": "deploy_summary",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-demo.summary.json",
+      "digest": "sha256:ef39a83d557dda7cbeaf850bf7911c0abae573894b11047707440fc5750a892f",
+      "size_bytes": 2984
+    },
+    {
+      "id": "promoted_publication_set",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifest-publication-set.json",
+      "digest": "sha256:fb4bfb4f130b12572838fa5c39dfd46565f8c286e1902d4301b47d87ac91a5e6",
+      "size_bytes": 1471
+    },
+    {
+      "id": "publication_gate",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/gate/fogstack.release-publication-gate.record.json",
+      "digest": "sha256:1cf65d2caedc038a62fe8f1763dd0318e6214b0428e0f8109e8a5664657220d1",
+      "size_bytes": 1030
+    },
+    {
+      "id": "publication_set",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/publication/manifest-publication-set.json",
+      "digest": "sha256:b2ee3fb31313058ad0011fb072eb257d2b2ea24c33169b036865f7e12e6d212e",
+      "size_bytes": 716
+    },
+    {
+      "id": "registry_publication_index",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/registry-publication/registry-publication.index.json",
+      "digest": "sha256:84022525f8fee611e253ce2f12684dce3c83312c7f18810d3a29dba30824f50e",
+      "size_bytes": 2361
+    },
+    {
+      "id": "registry_root_metadata",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/root/registry-root-metadata.json",
+      "digest": "sha256:6e2c691f866c865d0e1fb7941fd6a4dc179aa6400942484ebefbb82fc38e2a0b",
+      "size_bytes": 2160
+    },
+    {
+      "id": "release:fogstack.access:filesystem_release_pointer",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.access/0.1.0/release-pointer.json",
+      "digest": "sha256:02e057942b7ab12ae5a217ee7a6fb6e25052df0cf52c4d480b13642bb38b4bd5",
+      "size_bytes": 346
+    },
+    {
+      "id": "release:fogstack.access:validation_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.access.validation.record.json",
+      "digest": "sha256:53fbf9de9797acc6c2f0cd628609762fa788ccb86a57cf9942085d4d664c74bc",
+      "size_bytes": 451
+    },
+    {
+      "id": "release:fogstack.access:verify_json",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.access.verify.json",
+      "digest": "sha256:8e80f10e4dd110cf4c63be13a9e379608f1c81c8477919ea8e081d497185b196",
+      "size_bytes": 1340
+    },
+    {
+      "id": "release:fogstack.evaluation:filesystem_release_pointer",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.evaluation/0.1.0/release-pointer.json",
+      "digest": "sha256:f7726c4fcc0bb5273b0243b94aff43d035fa19aa8e273360db52fea0e3ab5469",
+      "size_bytes": 354
+    },
+    {
+      "id": "release:fogstack.evaluation:validation_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.evaluation.validation.record.json",
+      "digest": "sha256:f7f0cfde617e8fc91c13ef966070571eaf7e19b620c69dabe497dabf6de1da60",
+      "size_bytes": 459
+    },
+    {
+      "id": "release:fogstack.evaluation:verify_json",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.evaluation.verify.json",
+      "digest": "sha256:e02194b8ee7feb980c710fa88f852a884ef667ac050971fdf13f50baff4b7a40",
+      "size_bytes": 1204
+    },
+    {
+      "id": "release:fogstack.knowledge:filesystem_release_pointer",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.knowledge/0.1.0/release-pointer.json",
+      "digest": "sha256:9c7c53a898c6d36e971a1e643a4b16137aef025ab57a1903d5aa9eb023741300",
+      "size_bytes": 352
+    },
+    {
+      "id": "release:fogstack.knowledge:validation_record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.knowledge.validation.record.json",
+      "digest": "sha256:f8288014dedda5d6f8c90450bc4852383a30a1a8f07d600e7b0b273c2ddb1236",
+      "size_bytes": 457
+    },
+    {
+      "id": "release:fogstack.knowledge:verify_json",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.knowledge.verify.json",
+      "digest": "sha256:10d9a3da2f9b7e39e7dd5a07a74e15cf77c321a3f3189619c18b2ef86b3e54ce",
+      "size_bytes": 1237
+    },
+    {
+      "id": "revocation_index",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/lifecycle/registry-revocation-index.json",
+      "digest": "sha256:af5302c4a34ba5d49de08a53fd121859b7865594e30692daf9904ef1fc5f3389",
+      "size_bytes": 93
+    },
+    {
+      "id": "summary_html",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/index.html",
+      "digest": "sha256:ea28a0b0319ee799c18eab325c31df30e73e0181a8d984afbc2e9616110b8d25",
+      "size_bytes": 16047
+    },
+    {
+      "id": "summary_json",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-local-demo.summary.json",
+      "digest": "sha256:a358b48273403e80eae8101bc99493dd5bc0da64d595cf9c954ee4ab41b95a2c",
+      "size_bytes": 6466
+    },
+    {
+      "id": "summary_markdown",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-local-demo.summary.md",
+      "digest": "sha256:a94e8abe869ef6bc0366837bca1b9988c016ae4a284fd9dbae8b11a9f69e8bcf",
+      "size_bytes": 10294
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "kind": "FogStackRuntimeDryRunRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "namespace": "fogstack-access",
+  "runtime_adapter_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.local-cluster-runtime-adapter.json",
+  "runtime_adapter_digest": "sha256:c0d88ccc33869d9a490d7b14f542e2fdadc182cd2f964321c0c575cd342e9705",
+  "node_profile_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+  "node_profile_digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c",
+  "agentplane_run": {
+    "run_id": "agentplane-run:fogstack.access:local-dry-run",
+    "run_ref": "agentplane://runs/fogstack.access/local-dry-run",
+    "agentplane_ref": "github://SocioProphet/agentplane",
+    "requested_by": "human:operator",
+    "execution_mode": "dry-run",
+    "approval_state": "live-apply-requires-human-approval"
+  },
+  "policyplane_decision": {
+    "decision_id": "policyplane-decision:fogstack.access:local-dry-run",
+    "decision_ref": "policyplane://decisions/fogstack.access/local-dry-run",
+    "policyplane_ref": "github://SocioProphet/policy-fabric",
+    "subject_ref": "agentplane://runs/fogstack.access/local-dry-run",
+    "decision": "dry-run-allowed",
+    "effect": "allow-dry-run-deny-live-apply",
+    "reason": "Dry-run evidence is allowed; live apply remains denied until human approval.",
+    "live_apply_allowed": false,
+    "human_approval_required": true
+  },
+  "deploy_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+  "deploy_plan_digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535",
+  "cluster_readiness_record_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.cluster-readiness.record.json",
+  "cluster_readiness_record_digest": "sha256:dba71c978ddd1625e018ccb819d7260e12266c23189da8e0311220e1b6f48bd4",
+  "gitops_bundle_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json",
+  "gitops_bundle_digest": "sha256:1f9442857778ed660c4e9a89985cec0b31abaabcaf4509b5208de018d1699fa9",
+  "gitops_readiness_record_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.gitops-readiness.record.json",
+  "gitops_readiness_record_digest": "sha256:917a80994cd795df9f737956295471c3c54fe464554d22ff6a93b9949f74d5c2",
+  "kubernetes_manifests": [
+    {
+      "id": "kubernetes-configmap",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/configmap.yaml",
+      "digest": "sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463"
+    },
+    {
+      "id": "kubernetes-deployment",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/deployment.yaml",
+      "digest": "sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79"
+    },
+    {
+      "id": "kubernetes-service",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/service.yaml",
+      "digest": "sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126"
+    }
+  ],
+  "runtime_policy": {
+    "live_apply_allowed": false,
+    "requires_human_approval": true,
+    "network_default": "deny",
+    "secrets_default": "deny"
+  },
+  "dry_run_result": {
+    "mode": "dry-run",
+    "mutated_cluster": false,
+    "validated_inputs": [
+      "agentplane_run",
+      "policyplane_decision",
+      "runtime_adapter",
+      "node_profile",
+      "deploy_plan",
+      "cluster_readiness_record",
+      "gitops_bundle",
+      "gitops_readiness_record",
+      "kubernetes_manifests"
+    ],
+    "validation_path": "contract-and-digest-only"
+  },
+  "artifacts": [
+    {
+      "id": "runtime-adapter",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.local-cluster-runtime-adapter.json",
+      "digest": "sha256:c0d88ccc33869d9a490d7b14f542e2fdadc182cd2f964321c0c575cd342e9705"
+    },
+    {
+      "id": "node-profile",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+      "digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c"
+    },
+    {
+      "id": "deploy-plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+      "digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535"
+    },
+    {
+      "id": "cluster-readiness-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.cluster-readiness.record.json",
+      "digest": "sha256:dba71c978ddd1625e018ccb819d7260e12266c23189da8e0311220e1b6f48bd4"
+    },
+    {
+      "id": "gitops-bundle",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json",
+      "digest": "sha256:1f9442857778ed660c4e9a89985cec0b31abaabcaf4509b5208de018d1699fa9"
+    },
+    {
+      "id": "gitops-readiness-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.gitops-readiness.record.json",
+      "digest": "sha256:917a80994cd795df9f737956295471c3c54fe464554d22ff6a93b9949f74d5c2"
+    },
+    {
+      "id": "kubernetes-configmap",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/configmap.yaml",
+      "digest": "sha256:a66f7f0eae84f92bf3cd5622a8630c3c2c8f8fa240832fd2827d80e97a994463"
+    },
+    {
+      "id": "kubernetes-deployment",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/deployment.yaml",
+      "digest": "sha256:c3001a679eb90e03a4b8e64c1f8e8c74b1654dca143e7380f1cc1fec31fe8d79"
+    },
+    {
+      "id": "kubernetes-service",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/kubernetes/service.yaml",
+      "digest": "sha256:78142b1e95e5231fae7ccea6ec251bf368f520f456f9396790cc87674bfc9126"
+    }
+  ]
+}

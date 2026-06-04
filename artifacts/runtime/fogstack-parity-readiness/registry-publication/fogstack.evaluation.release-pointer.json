@@ -1,0 +1,8 @@
+{
+  "kind": "FogStackFilesystemRegistryReleasePointer",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.evaluation",
+  "version": "0.1.0",
+  "index_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.evaluation/0.1.0/registry-publication.index.json",
+  "index_digest": "sha256:a301567d3a792aa15f32bc58b33c9b3c7511907afd85d477d12f9fba21881bed"
+}

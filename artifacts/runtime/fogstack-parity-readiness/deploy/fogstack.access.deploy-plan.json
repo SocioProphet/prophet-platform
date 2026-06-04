@@ -1,0 +1,77 @@
+{
+  "kind": "FogStackDeployPlan",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "profile": "local-dev",
+  "target": "kubernetes",
+  "namespace": "fogstack-access",
+  "manifest_ref": "releases/manifests/fogstack.access-v0.1.manifest.json",
+  "manifest_digest": "sha256:f55092224d575570677b8e9d56273f5e2ccce1b93198025b172a9bd0b7155b79",
+  "bundle_ref": "bundles/fogstack.access-v0.1.yaml",
+  "bundle_digest": "sha256:ce86ac46fc0befd616d8a46ec594cd9ba3bf2af2d720557c4a8f56e495626ed0",
+  "agent_corps_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json",
+  "agent_corps_plan_digest": "sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d",
+  "runtime": {
+    "substrate": "prophet-platform",
+    "service_classes": [
+      "edge-service",
+      "cluster-service"
+    ],
+    "components": [
+      {
+        "id": "cloudshell-fog",
+        "role": "capability-source"
+      },
+      {
+        "id": "apps/gateway",
+        "role": "edge-ingress"
+      },
+      {
+        "id": "apps/api",
+        "role": "internal-runtime"
+      }
+    ]
+  },
+  "deployment": {
+    "minimum_nodes_for_first_value": 1,
+    "max_required_services": 3,
+    "install_time_target_minutes": 30,
+    "kubernetes_required": false,
+    "root_required": false,
+    "health_endpoint": "/healthz"
+  },
+  "artifacts": [
+    {
+      "id": "bundle",
+      "ref": "bundles/fogstack.access-v0.1.yaml",
+      "digest": "sha256:ce86ac46fc0befd616d8a46ec594cd9ba3bf2af2d720557c4a8f56e495626ed0"
+    },
+    {
+      "id": "manifest",
+      "ref": "releases/manifests/fogstack.access-v0.1.manifest.json",
+      "digest": "sha256:f55092224d575570677b8e9d56273f5e2ccce1b93198025b172a9bd0b7155b79"
+    },
+    {
+      "id": "agent-corps-plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json",
+      "digest": "sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d"
+    }
+  ],
+  "policy": {
+    "required_contracts": [
+      "EventEnvelope",
+      "EvidenceReceipt",
+      "MembraneDecision"
+    ],
+    "security_claims": {
+      "operator_identity": true,
+      "node_identity": true,
+      "workload_identity": true,
+      "peer_identity": true,
+      "signed_artifacts": true,
+      "sbom_required": true,
+      "provenance_required": true
+    }
+  }
+}

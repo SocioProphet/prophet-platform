@@ -1,0 +1,62 @@
+{
+  "tool": "fogstack verify",
+  "version": "0.1",
+  "subject": {
+    "kind": "FogStackBundle",
+    "bundle_id": "fogstack.evaluation",
+    "bundle_version": "0.1.0",
+    "path": "/Users/michaelheller/dev/prophet-platform/bundles/fogstack.evaluation-v0.1.yaml"
+  },
+  "summary": {
+    "status": "pass",
+    "exit_code": 0,
+    "checks_run": 7,
+    "warnings": 0,
+    "errors": 0,
+    "critical": 0
+  },
+  "checks": [
+    {
+      "id": "EVAL-001",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-002",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-003",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-004",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-005",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-006",
+      "severity": "critical",
+      "status": "pass",
+      "message": "ok"
+    },
+    {
+      "id": "EVAL-007",
+      "severity": "error",
+      "status": "pass",
+      "message": "ok"
+    }
+  ]
+}

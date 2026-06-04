@@ -1,0 +1,48 @@
+{
+  "kind": "FogStackImmutableUpdateReadinessRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "node_profile_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+  "node_profile_digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c",
+  "os": {
+    "family": "SourceOS",
+    "distribution": "SourceOS-Linux",
+    "immutability": "nixos",
+    "configuration_model": "nix-flake"
+  },
+  "image": {
+    "builder": "nix",
+    "image_ref": "sourceos://images/agent-machine-edge@v0.1",
+    "digest_required": true,
+    "sbom_required": true,
+    "provenance_required": true
+  },
+  "declarative_updates": {
+    "strategy": "nix-flake-switch",
+    "rollback_required": true,
+    "preflight_required": true,
+    "agentplane_gate_required": true
+  },
+  "governance": {
+    "agentplane_ref": "github://SocioProphet/agentplane",
+    "policyplane_ref": "github://SocioProphet/policy-fabric",
+    "human_approval_required": true,
+    "live_mutation_default": "deny"
+  },
+  "policy": {
+    "host_mutation_default": "deny",
+    "cluster_join_default": "approval-required",
+    "live_update_allowed": false,
+    "requires_agentplane_gate": true,
+    "requires_policyplane_decision": true
+  },
+  "readiness": {
+    "digest_ready": true,
+    "sbom_ready": true,
+    "provenance_ready": true,
+    "rollback_ready": true,
+    "preflight_ready": true,
+    "agentplane_gate_ready": true,
+    "policyplane_gate_ready": true
+  }
+}

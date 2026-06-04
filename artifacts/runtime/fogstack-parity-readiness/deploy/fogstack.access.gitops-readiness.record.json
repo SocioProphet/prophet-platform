@@ -1,0 +1,36 @@
+{
+  "kind": "FogStackGitOpsReadinessRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "namespace": "fogstack-access",
+  "gitops_bundle_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json",
+  "gitops_bundle_digest": "sha256:1f9442857778ed660c4e9a89985cec0b31abaabcaf4509b5208de018d1699fa9",
+  "deploy_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+  "deploy_plan_digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535",
+  "agent_corps_plan_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json",
+  "agent_corps_plan_digest": "sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d",
+  "source": {
+    "repo_url": "https://github.com/SocioProphet/prophet-platform.git",
+    "target_revision": "main",
+    "path": "gitops/fogstack.access"
+  },
+  "application_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/application.yaml",
+  "application_digest": "sha256:2ef73dbf2c7d265130b3f4955e0e6f2b2599a847d9ae9cb768244780cd081986",
+  "kustomization_ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/kustomization.yaml",
+  "kustomization_digest": "sha256:650d3d0b90774c2db8a1af486643a856ac616c871b7fd1d957490ae890ed7fd1",
+  "manifest_count": 3,
+  "artifact_count": 7,
+  "generator": {
+    "status": "passed"
+  },
+  "checker": {
+    "status": "passed",
+    "message": "FogStack GitOps bundle passed."
+  },
+  "validation_result": {
+    "status": "passed",
+    "bundle_validated": true
+  }
+}

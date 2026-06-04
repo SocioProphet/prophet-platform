@@ -1,0 +1,38 @@
+{
+  "kind": "FogStackRegistryRootMetadata",
+  "schema_version": "v0.1",
+  "registry_uri": "file://artifacts/runtime/fogstack-parity-readiness/registry",
+  "releases": [
+    {
+      "bundle_id": "fogstack.access",
+      "version": "0.1.0",
+      "release_pointer_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.access/0.1.0/release-pointer.json",
+      "release_pointer_digest": "sha256:d301b60485c5b7625d43b4e1f65196ccfd8328dcab0f011ae4a2237a6be4ba5f",
+      "registry_publication_index_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.access/0.1.0/registry-publication.index.json",
+      "registry_publication_index_digest": "sha256:a301567d3a792aa15f32bc58b33c9b3c7511907afd85d477d12f9fba21881bed"
+    },
+    {
+      "bundle_id": "fogstack.knowledge",
+      "version": "0.1.0",
+      "release_pointer_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.knowledge/0.1.0/release-pointer.json",
+      "release_pointer_digest": "sha256:50f8d22aef5646e0d991b0caa05532b96b1a9320dfc89af4642fac7636fb3e1f",
+      "registry_publication_index_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.knowledge/0.1.0/registry-publication.index.json",
+      "registry_publication_index_digest": "sha256:a301567d3a792aa15f32bc58b33c9b3c7511907afd85d477d12f9fba21881bed"
+    },
+    {
+      "bundle_id": "fogstack.evaluation",
+      "version": "0.1.0",
+      "release_pointer_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.evaluation/0.1.0/release-pointer.json",
+      "release_pointer_digest": "sha256:f111824bcebc06448951a29bc1d75b6aa86f14dc9b8f5b3a7a6f2f923cee4edc",
+      "registry_publication_index_ref": "artifacts/runtime/fogstack-parity-readiness/registry/fogstack.evaluation/0.1.0/registry-publication.index.json",
+      "registry_publication_index_digest": "sha256:a301567d3a792aa15f32bc58b33c9b3c7511907afd85d477d12f9fba21881bed"
+    }
+  ],
+  "revocation_index_ref": "artifacts/runtime/fogstack-parity-readiness/lifecycle/registry-revocation-index.json",
+  "revocation_index_digest": "sha256:af5302c4a34ba5d49de08a53fd121859b7865594e30692daf9904ef1fc5f3389",
+  "signed": true,
+  "signature": {
+    "type": "other",
+    "ref": "artifact://local-demo/registry-root.sig"
+  }
+}

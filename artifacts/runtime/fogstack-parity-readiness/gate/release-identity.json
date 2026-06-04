@@ -1,0 +1,7 @@
+{
+  "kind": "FogStackReleaseIdentity",
+  "schema_version": "v0.1",
+  "id": "github-actions",
+  "issuer": "github-actions",
+  "subject": "SocioProphet/prophet-platform/.github/workflows/fogstack-manifest-promotion.yml"
+}

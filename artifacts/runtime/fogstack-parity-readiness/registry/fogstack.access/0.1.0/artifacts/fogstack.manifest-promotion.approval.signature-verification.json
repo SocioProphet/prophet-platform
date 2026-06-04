@@ -1,0 +1,11 @@
+{
+  "kind": "FogStackManifestPromotionApprovalSignatureVerification",
+  "schema_version": "v0.1",
+  "approval_record_ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.record.json",
+  "approval_record_digest": "sha256:9d80fcd5a3a8adadc2595f2d5c42667fa05ac2e4bd1cfbb8f9763bab60957878",
+  "signature_ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.sig",
+  "verification_tool": "openssl",
+  "key_ref": "artifacts/runtime/fogstack-parity-readiness/approval/public.pem",
+  "status": "pass",
+  "message": "Verified OK"
+}

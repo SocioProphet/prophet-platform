@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fogstack-access
+  namespace: argocd
+  labels:
+    fogstack.socioprophet.io/bundle-id: fogstack.access
+    fogstack.socioprophet.io/version: 0.1.0
+    fogstack.socioprophet.io/agent-corps: enabled
+  annotations:
+    fogstack.socioprophet.io/deploy-plan-ref: /tmp/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json
+    fogstack.socioprophet.io/deploy-plan-digest: sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535
+    fogstack.socioprophet.io/agent-corps-plan-ref: /tmp/fogstack-parity-readiness/deploy/fogstack.access.runtime-contract.json
+    fogstack.socioprophet.io/agent-corps-plan-digest: sha256:7207053688cb8723cc2e342fb73f627e3d719f6c2fe2ff2abad5d6e92a45105d
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: gitops/fogstack.access
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fogstack-access
+  syncPolicy:
+    automated: null
+    syncOptions:
+    - CreateNamespace=true

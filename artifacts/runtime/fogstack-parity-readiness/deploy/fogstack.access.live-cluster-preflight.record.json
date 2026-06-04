@@ -1,0 +1,65 @@
+{
+  "kind": "FogStackLiveClusterPreflightRecord",
+  "schema_version": "v0.1",
+  "status": "blocked",
+  "reason": "kubectl unavailable; live cluster preflight not attempted",
+  "namespace": "fogstack-access",
+  "mode": "read-only-live-preflight",
+  "kubectl": {
+    "executable": "missing-kubectl-for-ci-safe-fallback",
+    "available": false,
+    "resolved_path": null
+  },
+  "source_artifacts": [
+    {
+      "id": "deploy-plan",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.deploy-plan.json",
+      "digest": "sha256:88f0e84218526f0f5318ea2030aea280f6797c67e86408890a5f8b509e2e5535"
+    },
+    {
+      "id": "node-profile",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/fogstack.access.agent-machine-node-profile.json",
+      "digest": "sha256:3d1398a898125927d9df6d0801a7abd17925eb92e1b536c0497c9bc50db4a69c"
+    },
+    {
+      "id": "gitops-bundle",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/deploy/gitops/gitops-bundle.json",
+      "digest": "sha256:1f9442857778ed660c4e9a89985cec0b31abaabcaf4509b5208de018d1699fa9"
+    }
+  ],
+  "safety": {
+    "mutation_mode": "read-only",
+    "mutated_cluster": false,
+    "applied_resources": false,
+    "created_resources": false,
+    "deleted_resources": false,
+    "live_apply_allowed": false,
+    "human_approval_required_for_apply": true,
+    "allowed_command_families": [
+      "config current-context",
+      "version --client",
+      "cluster-info",
+      "get",
+      "api-resources",
+      "auth can-i"
+    ],
+    "denied_command_families": [
+      "annotate",
+      "apply",
+      "cordon",
+      "create",
+      "delete",
+      "drain",
+      "label",
+      "patch",
+      "replace",
+      "rollout",
+      "scale",
+      "set",
+      "uncordon"
+    ]
+  },
+  "checks": [],
+  "read_operations": [],
+  "errors": []
+}

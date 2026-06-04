@@ -1,0 +1,47 @@
+{
+  "kind": "FogStackRegistryPublicationIndex",
+  "schema_version": "v0.1",
+  "registry_uri": "file://artifacts/runtime/fogstack-parity-readiness/registry",
+  "publication_set_ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifest-publication-set.json",
+  "publication_set_digest": "sha256:5ee47feba907fd2ebb38197b336beca7a7f399cf3a81de9275fca8936d3f49cc",
+  "publication_gate_record_ref": "artifacts/runtime/fogstack-parity-readiness/gate/fogstack.release-publication-gate.record.json",
+  "publication_gate_record_digest": "sha256:65507a0ceb7fb0d39519b5d55d6803a18fe09f39569837ae7f3a6fad2c804b3e",
+  "artifacts": [
+    {
+      "kind": "manifest-publication-set",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifest-publication-set.json",
+      "digest": "sha256:5ee47feba907fd2ebb38197b336beca7a7f399cf3a81de9275fca8936d3f49cc"
+    },
+    {
+      "kind": "approval-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.record.json",
+      "digest": "sha256:9d80fcd5a3a8adadc2595f2d5c42667fa05ac2e4bd1cfbb8f9763bab60957878"
+    },
+    {
+      "kind": "approval-signature-verification",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.signature-verification.json",
+      "digest": "sha256:624ec6390fdbc6b1db9223c0aa89e7be72849c9be366a251d97ffbeb400ac8fe"
+    },
+    {
+      "kind": "release-publication-gate",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/gate/fogstack.release-publication-gate.record.json",
+      "digest": "sha256:65507a0ceb7fb0d39519b5d55d6803a18fe09f39569837ae7f3a6fad2c804b3e"
+    },
+    {
+      "kind": "validation-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.access.validation.record.json",
+      "digest": "sha256:27eead6f5e6e7a481ca5c33630c4e75c930820dbd6004c53e76fc0d2aec729be"
+    },
+    {
+      "kind": "validation-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.knowledge.validation.record.json",
+      "digest": "sha256:e6b6a2daab43aff0c0a469015a8fef0b007d603b20c40b8222cb6a6404594535"
+    },
+    {
+      "kind": "validation-record",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.evaluation.validation.record.json",
+      "digest": "sha256:6fd88ca02ca73478208d48b30394299f513f92e44d793f88ecf8c9855aa66556"
+    }
+  ],
+  "notes": "local demo filesystem registry publication for all"
+}

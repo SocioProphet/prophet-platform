@@ -1,0 +1,81 @@
+{
+  "kind": "FogStackAgentMachineNodeProfile",
+  "schema_version": "v0.1",
+  "profile_id": "sourceos.agent-machine.edge.v0.1",
+  "node_role": "edge-agent-node",
+  "os": {
+    "family": "SourceOS",
+    "distribution": "SourceOS-Linux",
+    "immutability": "nixos",
+    "configuration_model": "nix-flake"
+  },
+  "image": {
+    "builder": "nix",
+    "image_ref": "sourceos://images/agent-machine-edge@v0.1",
+    "digest_required": true,
+    "sbom_required": true,
+    "provenance_required": true
+  },
+  "declarative_updates": {
+    "strategy": "nix-flake-switch",
+    "rollback_required": true,
+    "preflight_required": true,
+    "agentplane_gate_required": true
+  },
+  "storage": {
+    "ephemeral_storage": "topolvm",
+    "persistent_storage": "topolvm",
+    "topolvm_required": true,
+    "volume_policy": "explicit-claim-only"
+  },
+  "agent_machine": {
+    "enabled": true,
+    "identity_ref": "agent-machine://sourceos/edge/default",
+    "workload_runtime": "hybrid",
+    "node_contract_required": true
+  },
+  "use_surfaces": [
+    {
+      "id": "turtleterm",
+      "name": "TurtleTerm",
+      "surface_type": "terminal",
+      "repo_ref": "github://SourceOS-Linux/TurtleTerm",
+      "first_class": true,
+      "agentplane_visible": true,
+      "policyplane_guarded": true,
+      "capabilities": [
+        "operator-shell",
+        "agent-command-session",
+        "runtime-evidence-review",
+        "node-debug-console"
+      ]
+    },
+    {
+      "id": "bearbrowser",
+      "name": "BearBrowser",
+      "surface_type": "browser",
+      "repo_ref": "github://SourceOS-Linux/BearBrowser",
+      "first_class": true,
+      "agentplane_visible": true,
+      "policyplane_guarded": true,
+      "capabilities": [
+        "operator-web-console",
+        "local-demo-review",
+        "gitops-readiness-review",
+        "policy-gated-browsing"
+      ]
+    }
+  ],
+  "governance": {
+    "agentplane_ref": "github://SocioProphet/agentplane",
+    "policyplane_ref": "github://SocioProphet/policy-fabric",
+    "human_approval_required": true,
+    "live_mutation_default": "deny"
+  },
+  "runtime_policy": {
+    "network_default": "deny",
+    "secrets_default": "deny",
+    "host_mutation_default": "deny",
+    "cluster_join_default": "approval-required"
+  }
+}

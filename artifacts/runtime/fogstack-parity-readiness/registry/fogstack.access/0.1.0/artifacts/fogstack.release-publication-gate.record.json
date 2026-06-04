@@ -1,0 +1,31 @@
+{
+  "kind": "FogStackReleasePublicationGateRecord",
+  "schema_version": "v0.1",
+  "publication_set_ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifest-publication-set.json",
+  "approval_record_ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.record.json",
+  "approval_signature_verification_ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.signature-verification.json",
+  "release_identity_ref": "artifacts/runtime/fogstack-parity-readiness/gate/release-identity.json",
+  "status": "pass",
+  "checks": [
+    {
+      "id": "PUBGATE-001",
+      "status": "pass",
+      "message": "approval status matches policy"
+    },
+    {
+      "id": "PUBGATE-002",
+      "status": "pass",
+      "message": "approval signature verification passed"
+    },
+    {
+      "id": "PUBGATE-003",
+      "status": "pass",
+      "message": "release identity is allowed"
+    },
+    {
+      "id": "PUBGATE-004",
+      "status": "pass",
+      "message": "publication set kind is valid"
+    }
+  ]
+}

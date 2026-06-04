@@ -1,0 +1,28 @@
+{
+  "kind": "FogStackManifestPromotionApprovalRecord",
+  "schema_version": "v0.1",
+  "promotion_set_ref": "artifacts/runtime/fogstack-parity-readiness/promoted/manifest-publication-set.json",
+  "promotion_set_digest": "sha256:5ee47feba907fd2ebb38197b336beca7a7f399cf3a81de9275fca8936d3f49cc",
+  "target_channel": "candidate",
+  "target_support_state": "supported",
+  "status": "approved",
+  "required_approvals": 2,
+  "approvals": [
+    {
+      "approver": "release-manager",
+      "role": "release-manager",
+      "statement": "approved local demo candidate promotion"
+    },
+    {
+      "approver": "security-reviewer",
+      "role": "security-reviewer",
+      "statement": "approved local demo release evidence"
+    }
+  ],
+  "signed": true,
+  "signature": {
+    "type": "other",
+    "ref": "artifacts/runtime/fogstack-parity-readiness/approval/fogstack.manifest-promotion.approval.sig"
+  },
+  "notes": null
+}

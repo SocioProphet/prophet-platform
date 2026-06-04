@@ -1,0 +1,18 @@
+{
+  "kind": "FogStackValidationRecord",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "validation_path": "tools/validate_fogstack.py",
+  "source": "local",
+  "status": "shape-only",
+  "summary": {
+    "status": "pass",
+    "exit_code": 0,
+    "checks_run": 8,
+    "warnings": 0,
+    "errors": 0,
+    "critical": 0
+  },
+  "evidence_ref": "artifacts/runtime/fogstack-parity-readiness/validation/fogstack.access.verify.json"
+}

@@ -22,3 +22,6 @@ apps/storage-promotion/.storage-promotion-state/
 
 # Build outputs
 build/
+
+# Never commit runtime-generated private keys
+artifacts/runtime/**/private.pem

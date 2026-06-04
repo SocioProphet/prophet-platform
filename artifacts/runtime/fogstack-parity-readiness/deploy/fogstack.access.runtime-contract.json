@@ -1,0 +1,74 @@
+{
+  "kind": "FogStackAgentCorpsPlan",
+  "schema_version": "v0.1",
+  "bundle_id": "fogstack.access",
+  "version": "0.1.0",
+  "agent_corps": {
+    "runtime": {
+      "mode": "local",
+      "isolation": "process",
+      "max_runtime_seconds": 900
+    },
+    "identity": {
+      "agent_id": "agent:fogstack.access.operator",
+      "identity_mode": "local-dev",
+      "human_anchor_required": true,
+      "human_anchor_role": "operator"
+    },
+    "gateway": {
+      "tool_protocols": [
+        "mcp",
+        "cli"
+      ],
+      "allowed_tools": [
+        {
+          "name": "fogstack.verify",
+          "purpose": "Verify FogStack bundle conformance.",
+          "side_effects": false
+        },
+        {
+          "name": "fogstack.build_deploy_plan",
+          "purpose": "Build a FogStack deploy plan.",
+          "side_effects": true
+        },
+        {
+          "name": "fogstack.check_deploy_plan",
+          "purpose": "Check a FogStack deploy plan.",
+          "side_effects": false
+        }
+      ]
+    },
+    "memory": {
+      "short_term": "run_context",
+      "long_term": "disabled-by-default",
+      "retention_policy": "local-demo"
+    },
+    "observability": {
+      "run_record_required": true,
+      "trace_required": true,
+      "artifact_index_required": true,
+      "approval_record_required": true
+    },
+    "policy": {
+      "human_approval_required_for_deploy": true,
+      "network_access_default": "deny",
+      "filesystem_scope": "repo-local",
+      "secrets_access": "deny",
+      "dangerous_actions_require_quorum": true
+    },
+    "approval_gates": [
+      {
+        "id": "deploy-plan-approval",
+        "action": "approve deploy plan",
+        "required_approvals": 1,
+        "human_required": true
+      },
+      {
+        "id": "dangerous-action-quorum",
+        "action": "approve sensitive runtime action",
+        "required_approvals": 3,
+        "human_required": true
+      }
+    ]
+  }
+}

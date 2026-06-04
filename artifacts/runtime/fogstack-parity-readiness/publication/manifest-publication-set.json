@@ -1,0 +1,24 @@
+{
+  "kind": "FogStackManifestPublicationSet",
+  "schema_version": "v0.1",
+  "manifests": [
+    {
+      "bundle_id": "fogstack.access",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/publication/manifests/fogstack.access-v0.1.manifest.json",
+      "signed": true
+    },
+    {
+      "bundle_id": "fogstack.knowledge",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/publication/manifests/fogstack.knowledge-v0.1.manifest.json",
+      "signed": true
+    },
+    {
+      "bundle_id": "fogstack.evaluation",
+      "version": "0.1.0",
+      "ref": "artifacts/runtime/fogstack-parity-readiness/publication/manifests/fogstack.evaluation-v0.1.manifest.json",
+      "signed": true
+    }
+  ]
+}

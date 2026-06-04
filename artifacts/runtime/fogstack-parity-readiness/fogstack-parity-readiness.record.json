@@ -1,0 +1,110 @@
+{
+  "kind": "FogStackParityReadinessRecord",
+  "schema_version": "v0.1",
+  "status": "passed",
+  "parity_target": "credible-mvp-ibm-style-parity",
+  "turn_counter": "31/32",
+  "summary_ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-local-demo.full.summary.json",
+  "summary_digest": "sha256:c4641ae9c96d0663bb0b936ccf370995f84f3282e474f293d8b64920cc9ce0fa",
+  "artifact_index_ref": "artifacts/runtime/fogstack-parity-readiness/demo-artifacts.index.json",
+  "artifact_index_digest": "sha256:04b52735931dbbcc459677246a92dbf3cc247551c417d47dccaa9dd0a4d77a2d",
+  "checked_lanes": [
+    {
+      "id": "node_inventory",
+      "status": "passed"
+    },
+    {
+      "id": "immutable_update_readiness",
+      "status": "passed"
+    },
+    {
+      "id": "cluster_readiness",
+      "status": "passed"
+    },
+    {
+      "id": "gitops_readiness",
+      "status": "passed"
+    },
+    {
+      "id": "live_cluster_preflight",
+      "status": "blocked"
+    },
+    {
+      "id": "live_apply_plan",
+      "status": "blocked"
+    },
+    {
+      "id": "runtime_adapter",
+      "status": "passed"
+    },
+    {
+      "id": "runtime_dry_run",
+      "status": "passed"
+    },
+    {
+      "id": "deploy_plan",
+      "status": "present"
+    },
+    {
+      "id": "agent_corps_plan",
+      "status": "present"
+    },
+    {
+      "id": "gitops_bundle",
+      "status": "present"
+    },
+    {
+      "id": "gitops_application",
+      "status": "present"
+    },
+    {
+      "id": "gitops_kustomization",
+      "status": "present"
+    }
+  ],
+  "required_summary_artifacts": [
+    "agent_corps_plan",
+    "artifact_index",
+    "cluster_readiness_record",
+    "deploy_plan",
+    "deploy_summary",
+    "gitops_application",
+    "gitops_bundle",
+    "gitops_kustomization",
+    "gitops_readiness_record",
+    "immutable_update_readiness_record",
+    "live_apply_plan_record",
+    "live_cluster_preflight_record",
+    "local_demo_html",
+    "local_demo_markdown",
+    "local_demo_summary",
+    "node_inventory_record",
+    "runtime_adapter",
+    "runtime_dry_run_record"
+  ],
+  "required_index_ids": [
+    "deploy_agent_corps_plan",
+    "deploy_cluster_readiness_record",
+    "deploy_gitops_application",
+    "deploy_gitops_bundle",
+    "deploy_gitops_configmap",
+    "deploy_gitops_deployment",
+    "deploy_gitops_kustomization",
+    "deploy_gitops_readiness_record",
+    "deploy_gitops_service",
+    "deploy_immutable_update_readiness_record",
+    "deploy_kubernetes_configmap",
+    "deploy_kubernetes_deployment",
+    "deploy_kubernetes_manifest_check_record",
+    "deploy_kubernetes_service",
+    "deploy_live_apply_plan_record",
+    "deploy_live_cluster_preflight_record",
+    "deploy_node_inventory_record",
+    "deploy_node_profile",
+    "deploy_plan",
+    "deploy_runtime_adapter",
+    "deploy_runtime_dry_run_record",
+    "deploy_summary"
+  ],
+  "errors": []
+}
