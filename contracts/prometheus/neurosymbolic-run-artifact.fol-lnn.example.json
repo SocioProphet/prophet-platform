@@ -1,0 +1,38 @@
+{
+  "applicationMode": "formula_review",
+  "artifactType": "PrometheusNeuroSymbolicRunArtifact",
+  "candidateRefs": [
+    {
+      "artifactType": "TruthBoundObservation",
+      "candidateId": "urn:prometheus:candidate:truth-bound:fol-lnn-fixture:001",
+      "contradictionState": "none_observed",
+      "formula": "forall x: observed(x) -> candidate(x)",
+      "promotionState": "candidate",
+      "truthLowerBound": 0.72,
+      "truthRegionCalibrationRef": "urn:prometheus:truth-region-calibration:fixture:001",
+      "truthUpperBound": 0.91
+    }
+  ],
+  "chronosGovernanceFlags": [],
+  "controlAuthority": false,
+  "engineMode": "fixture_only",
+  "finalAdmissionRequested": false,
+  "issuedAt": "2026-06-03T12:00:00Z",
+  "methodFamily": "lnn_truth_bounds",
+  "nonAuthorityDeclaration": "This FOL-LNN-style fixture records advisory truth bounds only; it is not hard truth, global entailment, policy admission, schema authority, or runtime authorization.",
+  "priorArtRef": "ibm:fol-lnn",
+  "promotionState": "candidate",
+  "replayHash": {
+    "algorithm": "sha256",
+    "state": "fixture_verified",
+    "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "runId": "urn:prometheus:nsr-run:fol-lnn-fixture:001",
+  "schemaVersion": "0.1.0",
+  "semanticReviewSurface": "cli",
+  "sourceEvidenceRef": {
+    "contentHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "hashAlgorithm": "sha256",
+    "uri": "urn:evidence:prometheus:fixture:formula-review"
+  }
+}
