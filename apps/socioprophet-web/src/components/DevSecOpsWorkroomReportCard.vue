@@ -69,7 +69,24 @@ type WorkroomReport = {
   non_claims: string[]
 }
 
+type RuntimeParityBridge = {
+  bridge_id: string
+  decision_state: string
+  observed_evidence: {
+    fogstack_parity_status: string
+    fogstack_parity_target: string
+    svf_adapter_readiness_status: string
+    svf_adapter_merge_readiness: string
+    fogstack_checked_lanes: Record<string, string>
+  }
+  certified_claims: string[]
+  non_certified_claims: string[]
+  next_required_evidence: string[]
+  non_claims: string[]
+}
+
 const report = ref<WorkroomReport | null>(null)
+const runtimeBridge = ref<RuntimeParityBridge | null>(null)
 const loading = ref(false)
 const error = ref('')
 
@@ -77,12 +94,18 @@ async function loadReport() {
   loading.value = true
   error.value = ''
   try {
-    const res = await fetch('/api/v1/workroom/report')
-    if (!res.ok) throw new Error(`report request failed: ${res.status}`)
-    report.value = await res.json()
+    const [reportRes, bridgeRes] = await Promise.all([
+      fetch('/api/v1/workroom/report'),
+      fetch('/api/v1/workroom/runtime-parity-bridge')
+    ])
+    if (!reportRes.ok) throw new Error(`report request failed: ${reportRes.status}`)
+    if (!bridgeRes.ok) throw new Error(`runtime parity bridge request failed: ${bridgeRes.status}`)
+    report.value = await reportRes.json()
+    runtimeBridge.value = await bridgeRes.json()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'report request failed'
     report.value = null
+    runtimeBridge.value = null
   } finally {
     loading.value = false
   }
@@ -94,6 +117,10 @@ const confirmedClaims = computed(() =>
 
 const executedPlans = computed(() =>
   report.value?.remediation_plans.filter((plan) => plan.plan_status === 'executed') ?? []
+)
+
+const bridgeLaneEntries = computed(() =>
+  Object.entries(runtimeBridge.value?.observed_evidence.fogstack_checked_lanes ?? {})
 )
 
 onMounted(loadReport)
@@ -108,7 +135,7 @@ onMounted(loadReport)
         </div>
         <h2 style="margin:.4rem 0 .35rem 0;font-size:1.35rem;font-weight:750;">Fixture report surface</h2>
         <p style="margin:0;opacity:.78;max-width:760px;">
-          Deterministic Workroom report rendered from fixture contracts. This surface separates evidence, claims, topology context, Guardrail bindings, remediation candidates, and non-claims.
+          Deterministic Workroom report rendered from fixture contracts. This surface separates evidence, claims, topology context, Guardrail bindings, remediation candidates, runtime parity bridge posture, and non-claims.
         </p>
       </div>
       <button @click="loadReport" style="padding:.45rem .75rem;border:1px solid #94a3b8;border-radius:8px;background:white;white-space:nowrap;">
@@ -130,6 +157,32 @@ onMounted(loadReport)
           <div><strong>Decision</strong><br><code>{{ report.event.decision_state }}</code></div>
         </div>
         <p style="margin:.75rem 0 0 0;">{{ report.event.summary }}</p>
+      </section>
+
+      <section v-if="runtimeBridge" style="border:1px solid #cbd5e1;border-radius:12px;background:white;padding:.85rem;">
+        <h3 style="margin:0 0 .6rem 0;font-size:1rem;">Runtime parity bridge</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;">
+          <div><strong>Decision</strong><br><code>{{ runtimeBridge.decision_state }}</code></div>
+          <div><strong>FogStack parity</strong><br><code>{{ runtimeBridge.observed_evidence.fogstack_parity_status }}</code></div>
+          <div><strong>SVF adapter</strong><br><code>{{ runtimeBridge.observed_evidence.svf_adapter_readiness_status }}</code></div>
+          <div><strong>Merge readiness</strong><br><code>{{ runtimeBridge.observed_evidence.svf_adapter_merge_readiness }}</code></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:.75rem;">
+          <article style="border:1px solid #e2e8f0;border-radius:10px;padding:.65rem;">
+            <h4 style="margin:0 0 .45rem 0;">Checked lanes</h4>
+            <ul style="margin:0;padding-left:1rem;">
+              <li v-for="([lane, state]) in bridgeLaneEntries" :key="lane" style="margin:.3rem 0;">
+                <code>{{ lane }}</code> — {{ state }}
+              </li>
+            </ul>
+          </article>
+          <article style="border:1px solid #e2e8f0;border-radius:10px;padding:.65rem;">
+            <h4 style="margin:0 0 .45rem 0;">Not certified</h4>
+            <ul style="margin:0;padding-left:1rem;">
+              <li v-for="claim in runtimeBridge.non_certified_claims" :key="claim" style="margin:.3rem 0;">{{ claim }}</li>
+            </ul>
+          </article>
+        </div>
       </section>
 
       <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;">
