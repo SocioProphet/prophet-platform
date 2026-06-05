@@ -1,0 +1,100 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:remediation-disconnected-from-causal-evidence",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-3003",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-3003",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-3003"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-remediation-disconnected",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Expected-invalid fixture for remediation-to-RCA evidence linkage.",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_refs": [
+      "evidence://observability/scope-d-example/5xx-spike-invalid-remediation",
+      "evidence://deployment/scope-d-example/recent-deploy-invalid-remediation",
+      "evidence://runbook/scope-d-example/unrelated-remediation-note",
+      "evidence://gaia/topology/scope-d-example/blast-radius-invalid-remediation"
+    ],
+    "claim_refs": ["rca-claim:scope-d-example:recent-deploy-supported-invalid-remediation"],
+    "decision_state": "needs_review",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike-invalid-remediation",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "summary": "Synthetic telemetry fixture.",
+      "observed_at": "2026-05-31T16:57:00Z",
+      "provenance": {"source_system": "observability-fixture", "source_ref": "metric://scope-d-example/api/5xx-rate", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://deployment/scope-d-example/recent-deploy-invalid-remediation",
+      "evidence_type": "deployment_metadata",
+      "producer": "Fixture deployment connector",
+      "summary": "Synthetic deployment metadata fixture.",
+      "observed_at": "2026-05-31T16:57:10Z",
+      "provenance": {"source_system": "deployment-fixture", "source_ref": "deploy://scope-d-example/api/2026-05-31T16:40:00Z", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://runbook/scope-d-example/unrelated-remediation-note",
+      "evidence_type": "runbook_excerpt",
+      "producer": "Fixture runbook connector",
+      "summary": "Synthetic unrelated remediation note.",
+      "observed_at": "2026-05-31T16:57:15Z",
+      "provenance": {"source_system": "runbook-fixture", "source_ref": "runbook://scope-d-example/unrelated", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius-invalid-remediation",
+      "evidence_type": "topology_snapshot",
+      "producer": "GAIA topology fixture",
+      "summary": "Topology fixture.",
+      "observed_at": "2026-05-31T16:57:20Z",
+      "provenance": {"source_system": "GAIA fixture", "source_ref": "topology://gaia/workroom/scope-d-example/post-merge", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:recent-deploy-supported-invalid-remediation",
+      "claim_status": "supported_causal_claim",
+      "statement": "Expected-invalid supported claim uses telemetry and deployment evidence.",
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike-invalid-remediation",
+        "evidence://deployment/scope-d-example/recent-deploy-invalid-remediation"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "action_grants": [
+    {"grant_id": "action-grant:scope-d-example:rollback-invalid-remediation", "action_class": "production_change", "status": "requires_human_approval", "scope": "Expected-invalid remediation gate.", "approval_required": true, "non_claims": ["Fixture grant only."]}
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:scope-d-example:disconnected-candidate",
+      "plan_status": "candidate",
+      "risk_class": "high",
+      "summary": "Expected-invalid candidate uses unrelated runbook evidence only.",
+      "evidence_refs": ["evidence://runbook/scope-d-example/unrelated-remediation-note"],
+      "required_action_grant_refs": ["action-grant:scope-d-example:rollback-invalid-remediation"],
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "regression_fixtures": [
+    {"fixture_id": "regression-fixture:scope-d-example:invalid-remediation-disconnected", "fixture_status": "candidate", "derived_from": "bde:production-incident:invalid-remediation-disconnected", "summary": "Expected-invalid candidate only.", "target_validation_plan_ref": "validation-plan://scope-d-example/invalid-remediation-disconnected", "non_claims": ["Candidate only."]}
+  ],
+  "issued_at": "2026-05-31T16:58:00Z",
+  "non_claims": ["Expected-invalid fixture only."]
+}
