@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:confirmed-claim-without-counterevidence",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-3002",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-3002",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-3002"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-confirmed-claim-no-counterevidence",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Expected-invalid fixture for confirmed RCA claim counterevidence handling.",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_refs": [
+      "evidence://observability/scope-d-example/5xx-spike-invalid-confirmed",
+      "evidence://deployment/scope-d-example/recent-deploy-invalid-confirmed",
+      "evidence://gaia/topology/scope-d-example/blast-radius-invalid-confirmed"
+    ],
+    "claim_refs": ["rca-claim:scope-d-example:confirmed-without-counterevidence"],
+    "decision_state": "needs_review",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike-invalid-confirmed",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "summary": "Synthetic telemetry fixture.",
+      "observed_at": "2026-05-31T16:57:00Z",
+      "provenance": {"source_system": "observability-fixture", "source_ref": "metric://scope-d-example/api/5xx-rate", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://deployment/scope-d-example/recent-deploy-invalid-confirmed",
+      "evidence_type": "deployment_metadata",
+      "producer": "Fixture deployment connector",
+      "summary": "Synthetic deployment metadata fixture.",
+      "observed_at": "2026-05-31T16:57:10Z",
+      "provenance": {"source_system": "deployment-fixture", "source_ref": "deploy://scope-d-example/api/2026-05-31T16:40:00Z", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius-invalid-confirmed",
+      "evidence_type": "topology_snapshot",
+      "producer": "GAIA topology fixture",
+      "summary": "Topology fixture.",
+      "observed_at": "2026-05-31T16:57:20Z",
+      "provenance": {"source_system": "GAIA fixture", "source_ref": "topology://gaia/workroom/scope-d-example/post-merge", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:confirmed-without-counterevidence",
+      "claim_status": "confirmed_causal_claim",
+      "statement": "Expected-invalid confirmed claim omits counterevidence handling.",
+      "evidence_refs": [
+        "evidence://observability/scope-d-example/5xx-spike-invalid-confirmed",
+        "evidence://deployment/scope-d-example/recent-deploy-invalid-confirmed"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "high",
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "action_grants": [
+    {"grant_id": "action-grant:scope-d-example:read-invalid-confirmed", "action_class": "read_only", "status": "allowed", "scope": "Read expected-invalid fixture evidence.", "approval_required": false, "non_claims": ["Read-only fixture grant."]}
+  ],
+  "remediation_plans": [],
+  "regression_fixtures": [
+    {"fixture_id": "regression-fixture:scope-d-example:invalid-confirmed-no-counterevidence", "fixture_status": "candidate", "derived_from": "bde:production-incident:invalid-confirmed-claim-no-counterevidence", "summary": "Expected-invalid candidate only.", "target_validation_plan_ref": "validation-plan://scope-d-example/invalid-confirmed-no-counterevidence", "non_claims": ["Candidate only."]}
+  ],
+  "issued_at": "2026-05-31T16:58:00Z",
+  "non_claims": ["Expected-invalid fixture only."]
+}
