@@ -12,6 +12,18 @@ SCHEMA = ROOT / "contracts" / "workroom" / "devsecops-investigation-run-v0.1.sch
 VALID_FIXTURES = [
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-investigation-run.post-merge.valid.json",
 ]
+INVALID_FIXTURES = {
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-investigation-run.missing-topology-evidence.invalid.json": [
+        "topology_context.topology_ref must be backed by topology_snapshot source_ref",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-investigation-run.projection-evidence-mismatch.invalid.json": [
+        "projection evidence_refs missing from evidence_collection",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-investigation-run.ready-for-rca-without-collected-evidence.invalid.json": [
+        "topology_context.evidence_ref must reference collected evidence",
+        "ready_for_rca requires at least one collected evidence item",
+    ],
+}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -82,6 +94,16 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
     return problems
 
 
+def assert_invalid_expectations(path: Path, problems: list[str], expected_substrings: list[str]) -> list[str]:
+    failures: list[str] = []
+    if not problems:
+        failures.append(f"{path}: expected invalid fixture to fail, but it passed")
+    for expected in expected_substrings:
+        if not any(expected in problem for problem in problems):
+            failures.append(f"{path}: expected invalid fixture problem containing {expected!r}")
+    return failures
+
+
 def main() -> int:
     schema = load(SCHEMA)
     failed = False
@@ -93,6 +115,20 @@ def main() -> int:
         failed = failed or bool(schema_errors or semantic_errors)
         results[str(path.relative_to(ROOT))] = {
             "expected": "valid",
+            "schema": schema_errors,
+            "semantic": semantic_errors,
+        }
+    for path, expected_substrings in INVALID_FIXTURES.items():
+        data = load(path)
+        schema_errors = schema_problems(schema, data)
+        semantic_errors = semantic_problems(data)
+        problems = schema_errors + semantic_errors
+        expectation_failures = assert_invalid_expectations(path.relative_to(ROOT), problems, expected_substrings)
+        failed = failed or bool(expectation_failures)
+        results[str(path.relative_to(ROOT))] = {
+            "expected": "invalid",
+            "expected_problem_substrings": expected_substrings,
+            "expectation_failures": expectation_failures,
             "schema": schema_errors,
             "semantic": semantic_errors,
         }
