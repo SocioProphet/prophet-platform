@@ -47,6 +47,11 @@
         "supports": true
       },
       {
+        "evidence_id": "evidence_workspace_operation_request_demo",
+        "evidence_type": "source_document",
+        "supports": true
+      },
+      {
         "evidence_id": "op_readonly_diagnostics_demo",
         "evidence_type": "workspace_operation",
         "supports": true
