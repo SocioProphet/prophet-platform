@@ -1,12 +1,12 @@
 # DevSecOps Workroom v0.1 Status Ledger
 
-Status: v0.1 closure/status ledger  
+Status: v0.1 closure/status ledger with runtime-adjacent bridge extension  
 Plane: Prophet Platform DevSecOps Intelligence Workroom  
 Umbrella: `SocioProphet/prophet-platform#519`
 
 ## Summary
 
-The DevSecOps Intelligence Workroom v0.1 is complete at the fixture-contract, validator, CI, and deterministic report-surface level.
+The DevSecOps Intelligence Workroom v0.1 is complete at the fixture-contract, validator, CI, deterministic report-surface, and runtime-adjacent bridge level.
 
 It is not complete at the live runtime parity level.
 
@@ -19,6 +19,8 @@ The implementation now provides a governed Workroom spine for:
 - GAIA topology and blast-radius context;
 - Guardrail Fabric action-safety posture;
 - deterministic JSON and Markdown Workroom reports;
+- persisted FogStack parity-readiness evidence;
+- Workroom-visible runtime parity bridge evidence;
 - claim and parity boundary enforcement.
 
 ## Completed workstreams
@@ -103,7 +105,7 @@ Implemented:
 
 ### Workstream 7 — Product/API Workroom report surface
 
-Complete for v0.1.
+Complete for v0.1 plus runtime bridge extension.
 
 Implemented:
 
@@ -114,6 +116,8 @@ Implemented:
 - fixture-mode gateway routes:
   - `GET /v1/workroom/report`;
   - `GET /v1/workroom/report.md`;
+  - `GET /v1/workroom/runtime-parity-bridge`;
+- runtime parity bridge rendering in the Workroom web card;
 - report-surface scope note.
 
 ### Workstream 8 — Parity ledger
@@ -124,9 +128,43 @@ Implemented parity classes:
 
 - P0 — Contract parity;
 - P1 — Runtime receipt parity;
+- P1.5 — Persisted local/runtime-adjacent parity evidence;
 - P2 — Signadot-style feature parity;
 - P3 — Aurora-style incident investigation parity skeleton;
 - P4 — Governed DevSecOps Intelligence parity.
+
+## Runtime-adjacent bridge extension
+
+Implemented:
+
+- persisted FogStack parity-readiness evidence bundle at `artifacts/runtime/fogstack-parity-readiness/`;
+- bundle validator at `tools/validate_fogstack_parity_artifact_bundle.py`;
+- Workroom runtime parity bridge fixture at `artifacts/runtime/workroom-runtime-parity-bridge/fogstack-svf-signadot-readiness.bridge.json`;
+- bridge validator at `tools/validate_workroom_runtime_parity_bridge.py`;
+- static UI wiring validator at `tools/validate_workroom_runtime_parity_ui_component.py`;
+- gateway and UI exposure for the runtime parity bridge.
+
+The runtime bridge certifies only persisted/local evidence claims:
+
+- FogStack parity artifact bundle persisted;
+- FogStack runtime dry-run passed;
+- FogStack runtime adapter present;
+- live preflight blocked;
+- live apply blocked;
+- SVF adapter contract shape present;
+- SVF adapter negative controls present.
+
+The runtime bridge explicitly does not certify:
+
+- Signadot vendor parity;
+- live cluster execution;
+- production readiness;
+- network isolation enforcement;
+- service mesh runtime parity;
+- baseline fallback runtime observation;
+- async/stateful isolation runtime observation;
+- teardown/TTL runtime observation;
+- GitOps controller reconciliation observation.
 
 ## Current parity status
 
@@ -137,6 +175,12 @@ Status: achieved for v0.1 fixtures.
 ### P1 — Runtime receipt parity
 
 Status: represented and fixture-validated, not live-certified.
+
+### P1.5 — Persisted local/runtime-adjacent parity evidence
+
+Status: achieved for persisted FogStack local-demo parity-readiness evidence and Workroom-visible bridge posture.
+
+This level records durable local evidence, runtime dry-run evidence, runtime-adapter evidence, and safe blocking of live preflight/live apply. It does not certify live runtime parity.
 
 ### P2 — Signadot-style feature parity
 
@@ -152,6 +196,8 @@ Still requires observed evidence for:
 - stateful resource isolation;
 - validation job execution;
 - teardown and TTL evidence;
+- leak checks;
+- GitOps reconciliation observation;
 - policy, secret, and data-boundary enforcement;
 - agent-facing control surface.
 
@@ -161,20 +207,20 @@ Status: achieved at fixture-contract/report level.
 
 ### P4 — Governed DevSecOps intelligence loop
 
-Status: partially achieved at fixture-contract level; not live.
+Status: partially achieved at fixture-contract/report/runtime-bridge level; not live.
 
 ## Allowed claims
 
 The estate may claim:
 
 ```text
-Prophet Platform has a v0.1 fixture-validated DevSecOps Workroom contract spine for pre-merge validation, post-merge incident investigation, receipt evidence representation, GAIA topology/blast-radius context, Guardrail action-safety posture, and deterministic report surfaces.
+Prophet Platform has a v0.1 fixture-validated DevSecOps Workroom contract spine for pre-merge validation, post-merge incident investigation, receipt evidence representation, GAIA topology/blast-radius context, Guardrail action-safety posture, deterministic report surfaces, and a Workroom-visible runtime-adjacent parity bridge.
 ```
 
 The estate may also claim:
 
 ```text
-The Workroom exposes deterministic fixture-mode JSON and Markdown reports for post-merge incident investigation artifacts.
+The Workroom exposes deterministic fixture-mode JSON and Markdown reports for post-merge incident investigation artifacts and a fixture-mode runtime parity bridge for persisted FogStack parity-readiness evidence.
 ```
 
 ## Forbidden claims
@@ -190,6 +236,8 @@ Credential access.
 Production mutation authority.
 Live Guardrail policy enforcement through Prophet Platform.
 Live GAIA topology observation.
+Live Signadot execution.
+Live cluster mutation authority.
 ```
 
 ## CI / validation surfaces
@@ -205,6 +253,9 @@ Prophet Platform CI now validates:
 - Workroom-to-GAIA topology refs;
 - Workroom-to-Guardrail action safety;
 - Workroom-to-Guardrail decision binding;
+- persisted FogStack parity-readiness bundle;
+- Workroom runtime parity bridge;
+- Workroom runtime parity UI wiring;
 - `validate_change` v2 Workroom adapter;
 - `validate_change` v2 Workroom bundle;
 - Workroom report generation and canonical report drift.
@@ -213,7 +264,7 @@ Prophet Platform CI now validates:
 
 ### Runtime lane
 
-The next major tranche is the live/runtime parity lane. This requires the active Signadot-parity work to provide observed evidence for route isolation, baseline fallback, changed-service deploy, async/stateful isolation, teardown, leak checks, and policy/data-boundary enforcement.
+The next major tranche is the live/runtime parity lane. This requires the active Signadot-parity work to provide observed evidence for route isolation, baseline fallback, changed-service deploy, async/stateful isolation, teardown, leak checks, GitOps reconciliation, and policy/data-boundary enforcement.
 
 ### Upstream fixture adoption
 
@@ -221,7 +272,7 @@ AgentPlane and Sociosphere shared receipt fixtures should be adopted upstream th
 
 ### Optional product/UI layer
 
-A UI can render the deterministic report surface after v0.1 closure. It should preserve the same separation between evidence, claims, topology context, action grants, Guardrail bindings, remediation candidates, and non-claims.
+The UI now renders the deterministic report surface and runtime parity bridge. Future UI work should add navigation, richer drill-down, signed receipt views, and live connector states while preserving the same separation between evidence, claims, topology context, action grants, Guardrail bindings, runtime bridge posture, remediation candidates, and non-claims.
 
 ## Non-claims
 
