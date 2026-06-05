@@ -32,6 +32,7 @@ def main() -> int:
         "fogstack_artifact_index_ref",
         "svf_signadot_adapter_readiness_ref",
         "policy_simulation_contract_ref",
+        "nonprod_sandbox_observation_ref",
     ]
     for key in required_refs:
         ref = refs.get(key)
@@ -46,6 +47,7 @@ def main() -> int:
 
     fogstack = load(resolve(refs["fogstack_parity_record_ref"]))
     svf = load(resolve(refs["svf_signadot_adapter_readiness_ref"]))
+    nonprod = load(resolve(refs["nonprod_sandbox_observation_ref"]))
     observed = bridge.get("observed_evidence", {})
 
     if bridge.get("record_type") != "WorkroomRuntimeParityBridge":
@@ -92,6 +94,24 @@ def main() -> int:
     if observed.get("svf_adapter_merge_readiness") != adapter.get("merge_readiness"):
         problems.append("bridge SVF adapter merge readiness must match fixture")
 
+    if nonprod.get("record_type") != "FogStackSVFNonprodSandboxObservation":
+        problems.append("nonprod observation record_type mismatch")
+    if nonprod.get("observation_scope") != "nonprod_fixture_observation":
+        problems.append("nonprod observation scope mismatch")
+    lease = nonprod.get("sandbox_lease", {})
+    job = nonprod.get("validation_job", {})
+    routing = nonprod.get("routing", {})
+    if observed.get("nonprod_sandbox_observation_state") != "nonprod_fixture_observed":
+        problems.append("bridge nonprod observation state mismatch")
+    if observed.get("nonprod_sandbox_lease_state") != lease.get("lease_state"):
+        problems.append("bridge nonprod lease state must match observation")
+    if observed.get("nonprod_validation_job_state") != job.get("job_state"):
+        problems.append("bridge nonprod validation job state must match observation")
+    if observed.get("nonprod_teardown_state") != lease.get("teardown_state"):
+        problems.append("bridge nonprod teardown state must match observation")
+    if observed.get("baseline_fallback_state") != routing.get("baseline_fallback_state"):
+        problems.append("bridge baseline fallback state must match observation")
+
     non_certified = set(bridge.get("non_certified_claims", []))
     for claim in [
         "signadot_vendor_parity",
@@ -99,20 +119,29 @@ def main() -> int:
         "production_readiness",
         "network_isolation_enforced",
         "service_mesh_runtime_parity",
-        "baseline_fallback_runtime_observed",
+        "baseline_fallback_traffic_proven",
         "async_stateful_isolation_runtime_observed",
-        "teardown_ttl_runtime_observed",
+        "gitops_controller_reconciliation_observed",
+        "live_apply_authorized",
     ]:
         if claim not in non_certified:
             problems.append(f"bridge missing non_certified_claim {claim}")
 
     certified = set(bridge.get("certified_claims", []))
+    for claim in [
+        "nonprod_sandbox_lease_observed_created",
+        "nonprod_validation_job_observed_passed",
+        "nonprod_teardown_or_expiry_observed",
+        "nonprod_receipt_ref_present",
+    ]:
+        if claim not in certified:
+            problems.append(f"bridge missing certified_claim {claim}")
     forbidden = certified & non_certified
     if forbidden:
         problems.append(f"claims cannot be both certified and non-certified: {sorted(forbidden)}")
 
-    if bridge.get("decision_state") != "evidence_ready_but_vendor_parity_blocked":
-        problems.append("decision_state must remain evidence_ready_but_vendor_parity_blocked")
+    if bridge.get("decision_state") != "nonprod_evidence_ready_but_vendor_parity_blocked":
+        problems.append("decision_state must remain nonprod_evidence_ready_but_vendor_parity_blocked")
 
     non_claim_text = "\n".join(str(item) for item in bridge.get("non_claims", [])).lower()
     for phrase in [
