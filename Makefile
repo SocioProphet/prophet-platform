@@ -215,3 +215,7 @@ fogstack-parity-readiness:
 .PHONY: prophet-artifact-smoke
 prophet-artifact-smoke:
 	python3 tools/smoke_prophet_artifact_runner.py
+
+.PHONY: validate-workspace-prophet-membrane-e2e
+validate-workspace-prophet-membrane-e2e:
+	python3 tools/validate_workspace_prophet_membrane_e2e.py
