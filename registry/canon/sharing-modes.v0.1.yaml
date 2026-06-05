@@ -1,0 +1,74 @@
+version: v0.1
+artifact_id: canon.sharing-modes.v0.1
+status: seed
+purpose: >-
+  Seed sharing-mode registry for Canon Commons. Sharing modes govern whether
+  source, dataset, assertion, metric, or contribution signals can leave a
+  private boundary and under what restrictions.
+
+sharing_modes:
+  - id: private_only
+    label: Private only
+    description: Visible only to owner, tenant, or explicitly authorized workspace.
+    raw_data_visible_cross_tenant: false
+    aggregate_release_allowed: false
+    default_requires_policy_review: true
+
+  - id: aggregate_eligible
+    label: Aggregate eligible
+    description: May contribute to community aggregate if aggregation thresholds, privacy checks, and policy gates pass.
+    raw_data_visible_cross_tenant: false
+    aggregate_release_allowed: true
+    default_requires_policy_review: true
+    safeguards:
+      - minimum_cell_threshold
+      - suppression_for_sparse_cells
+      - provenance_receipt
+      - policy_decision
+
+  - id: benchmark_eligible
+    label: Benchmark eligible
+    description: May contribute to cohort or peer benchmarks if cohort size and re-identification controls pass.
+    raw_data_visible_cross_tenant: false
+    aggregate_release_allowed: true
+    default_requires_policy_review: true
+    safeguards:
+      - cohort_minimum_threshold
+      - bucketing
+      - no_member_ranking_without_consent
+      - benchmark_receipt
+
+  - id: research_eligible
+    label: Research eligible
+    description: May contribute to anonymized research outputs after privacy, consent, and purpose review.
+    raw_data_visible_cross_tenant: false
+    aggregate_release_allowed: true
+    default_requires_policy_review: true
+    safeguards:
+      - purpose_limitation
+      - anonymization_review
+      - sensitive_domain_review
+      - research_receipt
+
+  - id: product_eligible
+    label: Product eligible
+    description: May contribute to open or commercial data products after license, redistribution, privacy, and product-policy review.
+    raw_data_visible_cross_tenant: false
+    aggregate_release_allowed: true
+    default_requires_policy_review: true
+    safeguards:
+      - license_review
+      - redistribution_review
+      - product_policy_decision
+      - publication_receipt
+
+  - id: public
+    label: Public
+    description: Directly visible or redistributable according to source terms and attribution requirements.
+    raw_data_visible_cross_tenant: true
+    aggregate_release_allowed: true
+    default_requires_policy_review: false
+    safeguards:
+      - attribution
+      - source_terms_tracking
+      - provenance_receipt
