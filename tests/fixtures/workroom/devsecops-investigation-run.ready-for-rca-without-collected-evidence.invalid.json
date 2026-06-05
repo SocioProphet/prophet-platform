@@ -1,0 +1,44 @@
+{
+  "schema_version": "0.1.0",
+  "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-2003",
+  "incident_ref": "incident://pagerduty/scope-d-example/INC-2003",
+  "lane": "post_merge_incident",
+  "authority_boundary": {
+    "investigation_authority": "prophet_platform",
+    "execution_authority": "external_connector",
+    "workroom_authority": "prophet_platform"
+  },
+  "status": "ready_for_rca",
+  "started_at": "2026-05-31T16:56:00Z",
+  "completed_at": "2026-05-31T16:58:00Z",
+  "evidence_collection": [
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/not-collected",
+      "evidence_type": "topology_snapshot",
+      "source_system": "GAIA fixture",
+      "source_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "collection_status": "planned",
+      "non_claims": ["Expected-invalid planned evidence only."]
+    }
+  ],
+  "topology_context": {
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_ref": "evidence://gaia/topology/scope-d-example/not-collected"
+  },
+  "blast_radius_context": {
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-2003",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "status": "estimated"
+  },
+  "workroom_projection": {
+    "workroom_id": "workroom:devsecops:post-merge:scope-d-example-invalid-ready",
+    "source_refs": {
+      "incident_ref": "incident://pagerduty/scope-d-example/INC-2003",
+      "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-2003",
+      "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+      "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-2003"
+    },
+    "evidence_refs": ["evidence://gaia/topology/scope-d-example/not-collected"]
+  },
+  "non_claims": ["Expected-invalid fixture: ready_for_rca cannot be projected without collected evidence."]
+}
