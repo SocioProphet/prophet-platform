@@ -51,6 +51,19 @@
       ]
     },
     {
+      "mirror_path": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json",
+      "source_plane": "Sociosphere",
+      "source_repo": "SocioProphet/sociosphere",
+      "source_path": "registry/workspace-mesh-gate2-promotion-blocker.v0.json",
+      "mirror_state": "current",
+      "purpose": "Workspace mesh Gate 2 promotion blocker governance evidence for runtime parity Workroom.",
+      "required_non_claims": [
+        "does not authorize live execution",
+        "does not authorize workspace asset mutation",
+        "does not certify Signadot"
+      ]
+    },
+    {
       "mirror_path": "fixtures/external/gaia/workroom-post-merge-topology.valid.json",
       "source_plane": "GAIA",
       "source_repo": "SocioProphet/gaia-world-model",
