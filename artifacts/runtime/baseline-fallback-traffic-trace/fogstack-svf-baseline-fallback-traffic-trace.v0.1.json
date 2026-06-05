@@ -1,0 +1,91 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFBaselineFallbackTrafficTrace",
+  "record_id": "fogstack:svf:baseline-fallback-traffic-trace:example-api:001",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "observation_scope": "nonprod_fixture_observation",
+  "observed_at": "2026-06-05T23:10:00Z",
+  "source_records": {
+    "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json",
+    "routing_trace_ref": "trace:fogstack-svf:routing-key:example-api:001",
+    "baseline_environment_ref": "environment:nonprod:baseline:shared:example",
+    "changed_environment_ref": "environment:nonprod:fogstack-svf:example-api:001"
+  },
+  "traffic_window": {
+    "started_at": "2026-06-05T23:02:00Z",
+    "ended_at": "2026-06-05T23:06:00Z",
+    "request_count": 36,
+    "protocols": [
+      "http"
+    ],
+    "traffic_profile": "synthetic_nonprod_smoke"
+  },
+  "route_cases": [
+    {
+      "case_id": "baseline-no-routing-key",
+      "routing_key_present": false,
+      "expected_backend": "baseline",
+      "observed_backend": "baseline",
+      "request_count": 12,
+      "status": "passed"
+    },
+    {
+      "case_id": "changed-service-valid-routing-key",
+      "routing_key_present": true,
+      "routing_key_valid": true,
+      "expected_backend": "changed_service",
+      "observed_backend": "changed_service",
+      "request_count": 12,
+      "status": "passed"
+    },
+    {
+      "case_id": "fallback-invalid-routing-key",
+      "routing_key_present": true,
+      "routing_key_valid": false,
+      "expected_backend": "baseline",
+      "observed_backend": "baseline",
+      "request_count": 12,
+      "status": "passed"
+    }
+  ],
+  "trace_evidence": {
+    "trace_ref": "trace:fogstack-svf:baseline-fallback:traffic:example-api:001",
+    "routing_context_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "backend_selection_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "receipt_ref": "receipt:fogstack-svf:baseline-fallback-traffic-trace:example-api:001"
+  },
+  "policy_boundary": {
+    "production_environment": false,
+    "live_apply_authorized": false,
+    "cluster_mutation_authorized": false,
+    "secret_access_authorized": false,
+    "traffic_profile_safe_for_nonprod": true
+  },
+  "certified_claims": [
+    "baseline_no_routing_key_routed_to_baseline",
+    "valid_routing_key_routed_to_changed_service",
+    "invalid_routing_key_fell_back_to_baseline",
+    "baseline_fallback_nonprod_traffic_trace_observed",
+    "receipt_ref_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "production_readiness",
+    "live_cluster_execution",
+    "network_isolation_enforced",
+    "service_mesh_runtime_parity",
+    "async_queue_topic_isolation_observed",
+    "stateful_resource_isolation_observed",
+    "gitops_controller_reconciliation_observed",
+    "live_apply_authorized"
+  ],
+  "non_claims": [
+    "This is a non-production fixture traffic trace.",
+    "This trace does not call Signadot.",
+    "This trace does not execute Kubernetes workloads.",
+    "This trace does not authorize live apply.",
+    "This trace does not authorize cluster mutation.",
+    "This trace does not certify production readiness.",
+    "This trace does not certify full Signadot-style feature parity."
+  ]
+}
