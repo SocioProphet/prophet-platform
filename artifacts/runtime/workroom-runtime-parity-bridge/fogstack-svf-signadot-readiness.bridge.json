@@ -9,7 +9,8 @@
     "fogstack_artifact_index_ref": "artifacts/runtime/fogstack-parity-readiness/demo-artifacts.index.json",
     "svf_signadot_adapter_readiness_ref": "contracts/svf/fogstack-svf-signadot-adapter-readiness.example.json",
     "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md",
-    "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json"
+    "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json",
+    "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -31,7 +32,11 @@
     "nonprod_sandbox_lease_state": "observed_created",
     "nonprod_validation_job_state": "observed_passed",
     "nonprod_teardown_state": "observed_expired",
-    "baseline_fallback_state": "observed_declared_not_traffic_proven"
+    "baseline_fallback_state": "observed_declared_not_traffic_proven",
+    "sociosphere_workspace_mesh_state": "prepared-but-not-deployed",
+    "sociosphere_gate2_state": "planning_only",
+    "sociosphere_gate3_state": "blocked",
+    "sociosphere_gate2_blocker_state": "active"
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -44,7 +49,10 @@
     "nonprod_sandbox_lease_observed_created",
     "nonprod_validation_job_observed_passed",
     "nonprod_teardown_or_expiry_observed",
-    "nonprod_receipt_ref_present"
+    "nonprod_receipt_ref_present",
+    "sociosphere_workspace_mesh_gate2_blocker_active",
+    "sociosphere_workspace_mesh_gate3_blocked",
+    "sociosphere_workspace_mesh_live_execution_blocked"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -55,6 +63,7 @@
     "baseline_fallback_traffic_proven",
     "async_stateful_isolation_runtime_observed",
     "gitops_controller_reconciliation_observed",
+    "workspace_asset_mutation_authorized",
     "live_apply_authorized"
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
@@ -65,14 +74,16 @@
     "async_queue_topic_isolation_observation",
     "stateful_resource_isolation_observation",
     "leak_check_observation",
-    "gitops_reconciliation_observation"
+    "gitops_reconciliation_observation",
+    "sociosphere_gate2_approval_artifact"
   ],
   "non_claims": [
-    "Bridge records persisted evidence, contract readiness, and non-production fixture observation only.",
+    "Bridge records persisted evidence, contract readiness, Sociosphere Gate 2 blocker posture, and non-production fixture observation only.",
     "Bridge does not call Signadot.",
     "Bridge does not execute Kubernetes workloads.",
     "Bridge does not mutate a cluster.",
     "Bridge does not authorize live apply.",
+    "Bridge does not authorize workspace asset mutation.",
     "Bridge does not certify production readiness.",
     "Bridge does not certify full Signadot-style feature parity."
   ]
