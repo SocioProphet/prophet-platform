@@ -1,0 +1,33 @@
+name: devsecops-workroom-rca-guards
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/**'
+      - 'tests/fixtures/workroom/**'
+      - 'tools/validate_devsecops_workroom.py'
+      - 'tools/validate_devsecops_workroom_rca_guards.py'
+      - '.github/workflows/devsecops-workroom-rca-guards.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/**'
+      - 'tests/fixtures/workroom/**'
+      - 'tools/validate_devsecops_workroom.py'
+      - 'tools/validate_devsecops_workroom_rca_guards.py'
+      - '.github/workflows/devsecops-workroom-rca-guards.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install fixture validation dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Validate Workroom RCA guards
+        run: python tools/validate_devsecops_workroom_rca_guards.py
