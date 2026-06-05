@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "orggov.runtime-demo.v0.2",
+  "recordType": "OrgGovRuntimeDemo",
+  "recordId": "orggov-runtime-demo:v0.2:mainline-spine",
+  "parentIssueRef": "github://SocioProphet/prophet-platform/issues/471",
+  "readinessRollupRef": "github://SocioProphet/prophet-platform/pull/470",
+  "demoStatus": "fixture_backed",
+  "productLoop": ["Objective", "Workroom", "Actor", "Role", "Policy", "Asset", "Action", "Evidence", "Review", "Outcome", "Score", "Learning"],
+  "ownerRepos": [
+    "SocioProphet/prophet-platform",
+    "SocioProphet/ontogenesis",
+    "SocioProphet/prophet-workspace",
+    "SocioProphet/agent-registry",
+    "SocioProphet/policy-fabric",
+    "SocioProphet/agentplane",
+    "SocioProphet/model-governance-ledger",
+    "SocioProphet/delivery-excellence",
+    "SocioProphet/sherlock-search",
+    "SocioProphet/sociosphere",
+    "SourceOS-Linux/sourceos-syncd"
+  ],
+  "policyStateCoverage": [
+    {"state": "allow", "fixtureRef": "policy://orggov/v0.2/allow-demo-action", "covered": true},
+    {"state": "allow_with_constraints", "fixtureRef": "github://SocioProphet/policy-fabric/pull/61", "covered": true},
+    {"state": "deny", "fixtureRef": "policy://orggov/v0.2/deny-sensitive-release", "covered": true},
+    {"state": "escalate", "fixtureRef": "policy://orggov/v0.2/escalate-approval-required", "covered": true},
+    {"state": "blocked_expected", "fixtureRef": "policy://orggov/v0.2/blocked-out-of-scope-action", "covered": true},
+    {"state": "revoke", "fixtureRef": "policy://orggov/v0.2/revoke-expired-tool-grant", "covered": true}
+  ],
+  "demoStages": [
+    {"stageId": "stage:work-order", "title": "Bind GitHub issue as work order", "ownerRepo": "SocioProphet/prophet-platform", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/prophet-platform/issues/471"], "outputRefs": ["workorder:prophet-platform:471"]},
+    {"stageId": "stage:control-room", "title": "Render Professional Workroom control room", "ownerRepo": "SocioProphet/prophet-workspace", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/prophet-workspace/pull/16"], "outputRefs": ["control-room:orggov-v0"]},
+    {"stageId": "stage:authority", "title": "Bind actor, role, authority, and grant posture", "ownerRepo": "SocioProphet/agent-registry", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/agent-registry/pull/23"], "outputRefs": ["rolebinding:agent:planner"]},
+    {"stageId": "stage:policy", "title": "Exercise policy decision state coverage", "ownerRepo": "SocioProphet/policy-fabric", "status": "planned", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/policy-fabric/pull/61"], "outputRefs": ["policy-state-coverage:all-six"]},
+    {"stageId": "stage:execution", "title": "Bind AgentPlane run evidence", "ownerRepo": "SocioProphet/agentplane", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/agentplane/pull/128"], "outputRefs": ["agentplane://artifacts/orggov/run-artifact.json"]},
+    {"stageId": "stage:model-tool-receipt", "title": "Link model, tool, context, and eval receipts", "ownerRepo": "SocioProphet/model-governance-ledger", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/model-governance-ledger/pull/15"], "outputRefs": ["model-tool-receipt:orggov-v0:contract-spine"]},
+    {"stageId": "stage:state-integrity", "title": "Emit SourceOS state-integrity evidence", "ownerRepo": "SourceOS-Linux/sourceos-syncd", "status": "planned", "evidenceMode": "fixture", "inputRefs": ["github://SourceOS-Linux/sourceos-syncd/pull/21"], "outputRefs": ["orggov-state-integrity:prophet-platform-406"]},
+    {"stageId": "stage:search-trace", "title": "Trace work order through evidence graph", "ownerRepo": "SocioProphet/sherlock-search", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/sherlock-search/pull/44"], "outputRefs": ["orggov-search-packet:prophet-platform-406"]},
+    {"stageId": "stage:scorecard", "title": "Update Delivery Excellence scorecard", "ownerRepo": "SocioProphet/delivery-excellence", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/delivery-excellence/pull/23"], "outputRefs": ["scorecard:orggov-v0:initial"]},
+    {"stageId": "stage:topology", "title": "Confirm Sociosphere topology", "ownerRepo": "SocioProphet/sociosphere", "status": "fixture_ready", "evidenceMode": "fixture", "inputRefs": ["github://SocioProphet/sociosphere/pull/295"], "outputRefs": ["orggov-topology:v0.1"]}
+  ],
+  "evidenceBoundary": {
+    "fixtureEvidenceRefs": ["github://SocioProphet/prophet-platform/pull/470"],
+    "runtimeEvidenceRefs": [],
+    "forbiddenEvidence": ["secrets", "credentials", "sensitive prompt content", "private local state"]
+  },
+  "proofObligations": [
+    {"obligationId": "po:runtime-work-order", "description": "Generate or bind a work-order record from live workflow.", "ownerRepo": "SocioProphet/prophet-platform", "status": "open", "evidenceRequired": ["work-order runtime record"]},
+    {"obligationId": "po:policy-state-replay", "description": "Produce replayable policy decisions for all six states.", "ownerRepo": "SocioProphet/policy-fabric", "status": "open", "evidenceRequired": ["policy replay bundle"]},
+    {"obligationId": "po:agentplane-runtime-run", "description": "Generate AgentPlane run and replay artifacts.", "ownerRepo": "SocioProphet/agentplane", "status": "open", "evidenceRequired": ["run artifact", "replay artifact"]}
+  ],
+  "runtimePromotionCriteria": [
+    "At least one work order is generated or bound by a live workflow step.",
+    "All six policy decision states are exercised with replayable evidence.",
+    "AgentPlane produces concrete validation, placement, run, replay, and session artifacts.",
+    "SourceOS emits a state-integrity binding from report posture.",
+    "Sherlock can trace work order to evidence, outcome, score, and learning event."
+  ],
+  "validation": {
+    "commands": ["python3 tools/validate_orggov_runtime_demo.py"],
+    "requiredOwnerRepoCount": 11,
+    "observedOwnerRepoCount": 11,
+    "requiredPolicyStates": ["allow", "allow_with_constraints", "deny", "escalate", "blocked_expected", "revoke"]
+  },
+  "provenance": {"createdBy": "assistant://gpt-5.5-thinking", "createdAt": "2026-05-13T16:10:00Z", "nonSecret": true},
+  "labels": {"program": "orggov-v0.2", "parent": "SocioProphet/prophet-platform#471", "status": "fixture-backed-spine"}
+}
