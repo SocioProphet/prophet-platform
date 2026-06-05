@@ -1,18 +1,35 @@
-# Google Workspace Operations Mesh — Terraform Scaffold
+# Google Workspace Operations Mesh — OpenTofu/Terraform Scaffold
 
 Issue: #50
 Related prototype: #49
 Standards: SocioProphet/socioprophet-standards-storage#92
+IaC decision: `IAC_DECISION.md`
 
 ## Purpose
 
-This Terraform root prepares the Google Workspace Operations Prototype for repeatable deployment when the team is ready.
+This infrastructure-as-code root prepares the Google Workspace Operations Prototype for repeatable deployment when the team is ready.
 
 It is apply-safe by default. The default configuration does not create groups, enable APIs, deploy Apps Script, create calendars, create Sheets, or build dashboards.
 
+## IaC default
+
+This mesh is **OpenTofu-first** while keeping Terraform-compatible HCL where practical.
+
+The repository root `Makefile` uses:
+
+```make
+IAC ?= tofu
+```
+
+Use Terraform only as an explicit compatibility override:
+
+```bash
+make IAC=terraform terraform-workspace-mesh-plan
+```
+
 ## Mesh components
 
-| Plane | Terraform role | Default |
+| Plane | IaC role | Default |
 |---|---|---|
 | Google Cloud project services | Optional enablement of APIs used by the prototype | disabled |
 | Workspace groups | Optional creation of role groups through the Google Workspace provider | disabled |
@@ -26,17 +43,29 @@ It is apply-safe by default. The default configuration does not create groups, e
 
 Calendars, Sheets, Apps Script projects, and Looker Studio dashboards are treated as controlled deployment surfaces. This mesh records and generates configuration around them before attempting full automation.
 
-## Quick commands
+## Quick commands from repository root
+
+```bash
+make validate-workspace-all
+make terraform-workspace-mesh-init
+make terraform-workspace-mesh-fmt
+make terraform-workspace-mesh-validate
+make terraform-workspace-mesh-plan
+```
+
+The target names retain `terraform-*` for operator familiarity, but run OpenTofu by default through `IAC ?= tofu`.
+
+Equivalent direct commands:
 
 ```bash
 cd infra/google-workspace-ops-mesh
-terraform init
-terraform fmt -check
-terraform validate
-terraform plan
+tofu init
+tofu fmt -check
+tofu validate
+tofu plan
 ```
 
-With default variables, `terraform plan` should only propose local generated files.
+With default variables, plan should only propose local generated files.
 
 ## Gated apply flags
 
@@ -48,7 +77,7 @@ With default variables, `terraform plan` should only propose local generated fil
 
 ## Generated files
 
-When `generate_local_deployment_files = true`, Terraform writes files under:
+When `generate_local_deployment_files = true`, the mesh writes files under:
 
 ```text
 generated/google-workspace-ops-mesh/
@@ -58,14 +87,15 @@ Generated files are intended for local operator review and should not contain se
 
 ## Deployment boundary
 
-This Terraform root does not run `clasp push`, enable scheduled Apps Script triggers, create live calendar events, or mutate the prototype ledger. Those actions remain gated by the handoff runbook and install checklist.
+This IaC root does not run `clasp push`, enable scheduled Apps Script triggers, create live calendar events, or mutate the prototype ledger. Those actions remain gated by the handoff runbook and install checklist.
 
 ## Promotion path
 
-1. `terraform init`
-2. `terraform validate`
-3. `terraform plan` with defaults
-4. Fill real IDs in a local `terraform.tfvars`
-5. Generate deployment configs
-6. Run Apps Script parser tests and dry-run sync
-7. Only then consider enabling API or group-management flags
+1. `make validate-workspace-all`
+2. `make terraform-workspace-mesh-init`
+3. `make terraform-workspace-mesh-validate`
+4. `make terraform-workspace-mesh-plan` with defaults
+5. Fill real IDs in a local `terraform.tfvars`
+6. Generate deployment configs
+7. Run Apps Script parser tests and dry-run sync
+8. Only then consider enabling API or group-management flags
