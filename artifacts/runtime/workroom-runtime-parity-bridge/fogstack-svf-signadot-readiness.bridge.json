@@ -8,7 +8,8 @@
     "fogstack_summary_ref": "artifacts/runtime/fogstack-parity-readiness/fogstack-local-demo.full.summary.json",
     "fogstack_artifact_index_ref": "artifacts/runtime/fogstack-parity-readiness/demo-artifacts.index.json",
     "svf_signadot_adapter_readiness_ref": "contracts/svf/fogstack-svf-signadot-adapter-readiness.example.json",
-    "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md"
+    "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md",
+    "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -25,7 +26,12 @@
     },
     "svf_adapter_readiness_status": "not_vendor_certified",
     "svf_adapter_merge_readiness": "blocked_for_vendor_parity_claims",
-    "svf_adapter_allowed_use": "contract_shape_and_negative_control_validation"
+    "svf_adapter_allowed_use": "contract_shape_and_negative_control_validation",
+    "nonprod_sandbox_observation_state": "nonprod_fixture_observed",
+    "nonprod_sandbox_lease_state": "observed_created",
+    "nonprod_validation_job_state": "observed_passed",
+    "nonprod_teardown_state": "observed_expired",
+    "baseline_fallback_state": "observed_declared_not_traffic_proven"
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -34,7 +40,11 @@
     "fogstack_live_apply_blocked",
     "fogstack_live_preflight_blocked",
     "svf_signadot_adapter_contract_shape_present",
-    "svf_signadot_adapter_negative_controls_present"
+    "svf_signadot_adapter_negative_controls_present",
+    "nonprod_sandbox_lease_observed_created",
+    "nonprod_validation_job_observed_passed",
+    "nonprod_teardown_or_expiry_observed",
+    "nonprod_receipt_ref_present"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -42,23 +52,23 @@
     "production_readiness",
     "network_isolation_enforced",
     "service_mesh_runtime_parity",
-    "baseline_fallback_runtime_observed",
+    "baseline_fallback_traffic_proven",
     "async_stateful_isolation_runtime_observed",
-    "teardown_ttl_runtime_observed",
-    "gitops_controller_reconciliation_observed"
+    "gitops_controller_reconciliation_observed",
+    "live_apply_authorized"
   ],
-  "decision_state": "evidence_ready_but_vendor_parity_blocked",
+  "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "live_nonprod_sandbox_lease_observation",
-    "request_routing_key_propagation_trace",
-    "baseline_fallback_trace",
+    "baseline_fallback_traffic_trace",
     "changed_service_only_deploy_trace",
-    "teardown_or_expiry_observation",
     "network_isolation_observation",
+    "async_queue_topic_isolation_observation",
+    "stateful_resource_isolation_observation",
+    "leak_check_observation",
     "gitops_reconciliation_observation"
   ],
   "non_claims": [
-    "Bridge records persisted evidence and contract readiness only.",
+    "Bridge records persisted evidence, contract readiness, and non-production fixture observation only.",
     "Bridge does not call Signadot.",
     "Bridge does not execute Kubernetes workloads.",
     "Bridge does not mutate a cluster.",
