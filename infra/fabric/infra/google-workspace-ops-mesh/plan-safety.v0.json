@@ -1,0 +1,28 @@
+{
+  "version": "v0",
+  "scope": "default-google-workspace-ops-mesh",
+  "purpose": "Default plan must remain local-file-only unless explicit deployment gates are enabled.",
+  "allowed_resource_types": [
+    "local_file"
+  ],
+  "allowed_actions": [
+    ["create"],
+    ["no-op"]
+  ],
+  "forbidden_resource_type_prefixes": [
+    "googleworkspace_",
+    "google_"
+  ],
+  "expected_default_resource_count": 4,
+  "expected_default_resources": [
+    "local_file.apps_script_config[0]",
+    "local_file.clasp_config[0]",
+    "local_file.mesh_summary[0]",
+    "local_file.operator_next_steps[0]"
+  ],
+  "notes": [
+    "This contract validates the default no-live-deployment plan posture.",
+    "If google_project_service or googleworkspace resources are intentionally enabled, use a separate reviewed safety contract.",
+    "Generated files are local operator artifacts and are not a live Workspace deployment."
+  ]
+}
