@@ -33,6 +33,7 @@ def main() -> int:
         "svf_signadot_adapter_readiness_ref",
         "policy_simulation_contract_ref",
         "nonprod_sandbox_observation_ref",
+        "sociosphere_gate2_blocker_ref",
     ]
     for key in required_refs:
         ref = refs.get(key)
@@ -48,6 +49,7 @@ def main() -> int:
     fogstack = load(resolve(refs["fogstack_parity_record_ref"]))
     svf = load(resolve(refs["svf_signadot_adapter_readiness_ref"]))
     nonprod = load(resolve(refs["nonprod_sandbox_observation_ref"]))
+    sociosphere_blocker = load(resolve(refs["sociosphere_gate2_blocker_ref"]))
     observed = bridge.get("observed_evidence", {})
 
     if bridge.get("record_type") != "WorkroomRuntimeParityBridge":
@@ -112,6 +114,34 @@ def main() -> int:
     if observed.get("baseline_fallback_state") != routing.get("baseline_fallback_state"):
         problems.append("bridge baseline fallback state must match observation")
 
+    if sociosphere_blocker.get("gate_id") != "gate-2-id-substitution-review":
+        problems.append("Sociosphere Gate 2 blocker gate_id mismatch")
+    if sociosphere_blocker.get("mesh_state") != "prepared-but-not-deployed":
+        problems.append("Sociosphere mesh_state must remain prepared-but-not-deployed")
+    if sociosphere_blocker.get("gate_2_state") != "planning_only":
+        problems.append("Sociosphere Gate 2 must remain planning_only")
+    if sociosphere_blocker.get("gate_3_state") != "blocked":
+        problems.append("Sociosphere Gate 3 must remain blocked")
+    if sociosphere_blocker.get("blocker_state") != "active":
+        problems.append("Sociosphere Gate 2 blocker must remain active")
+    if sociosphere_blocker.get("approval_artifact_required_before_gate3") is not True:
+        problems.append("Sociosphere Gate 2 blocker must require approval before Gate 3")
+    flags = sociosphere_blocker.get("status_flags", {})
+    for key in ["ids_substituted", "live_execution", "candidate_values_printed", "gate3_started"]:
+        if flags.get(key) is not False:
+            problems.append(f"Sociosphere blocker status_flags.{key} must remain false")
+    for blocked in ["gate3_start", "apps_script_rehearsal", "runtime_execution", "scheduled_trigger_setup", "workspace_asset_mutation"]:
+        if blocked not in sociosphere_blocker.get("blocked_until_approval", []):
+            problems.append(f"Sociosphere blocker missing blocked_until_approval {blocked}")
+    if observed.get("sociosphere_workspace_mesh_state") != sociosphere_blocker.get("mesh_state"):
+        problems.append("bridge Sociosphere mesh state must match blocker")
+    if observed.get("sociosphere_gate2_state") != sociosphere_blocker.get("gate_2_state"):
+        problems.append("bridge Sociosphere Gate 2 state must match blocker")
+    if observed.get("sociosphere_gate3_state") != sociosphere_blocker.get("gate_3_state"):
+        problems.append("bridge Sociosphere Gate 3 state must match blocker")
+    if observed.get("sociosphere_gate2_blocker_state") != sociosphere_blocker.get("blocker_state"):
+        problems.append("bridge Sociosphere blocker state must match blocker")
+
     non_certified = set(bridge.get("non_certified_claims", []))
     for claim in [
         "signadot_vendor_parity",
@@ -122,6 +152,7 @@ def main() -> int:
         "baseline_fallback_traffic_proven",
         "async_stateful_isolation_runtime_observed",
         "gitops_controller_reconciliation_observed",
+        "workspace_asset_mutation_authorized",
         "live_apply_authorized",
     ]:
         if claim not in non_certified:
@@ -133,6 +164,9 @@ def main() -> int:
         "nonprod_validation_job_observed_passed",
         "nonprod_teardown_or_expiry_observed",
         "nonprod_receipt_ref_present",
+        "sociosphere_workspace_mesh_gate2_blocker_active",
+        "sociosphere_workspace_mesh_gate3_blocked",
+        "sociosphere_workspace_mesh_live_execution_blocked",
     ]:
         if claim not in certified:
             problems.append(f"bridge missing certified_claim {claim}")
@@ -149,6 +183,7 @@ def main() -> int:
         "does not execute kubernetes workloads",
         "does not mutate a cluster",
         "does not authorize live apply",
+        "does not authorize workspace asset mutation",
         "does not certify full signadot-style feature parity",
     ]:
         if not all(word in non_claim_text for word in phrase.split()):
@@ -169,6 +204,7 @@ def finish(problems: list[str]) -> int:
             "Validator does not execute Kubernetes workloads.",
             "Validator does not mutate a cluster.",
             "Validator does not authorize live apply.",
+            "Validator does not authorize workspace asset mutation.",
             "Validator does not certify full Signadot-style feature parity."
         ]
     }
