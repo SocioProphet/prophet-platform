@@ -1,0 +1,60 @@
+{
+  "schema_version": "0.1.0",
+  "projection_id": "workspace_prophet_value_claim_projection_v0",
+  "source_claim_id": "claim_workspace_readonly_diagnostics_completed_demo",
+  "source_receipt_id": "receipt_workspace_diagnostics_completed_demo",
+  "value_claim": {
+    "value_claim_id": "value_claim_workspace_prophet_fixture_validation_demo",
+    "claim_id": "claim_workspace_readonly_diagnostics_completed_demo",
+    "claim_type": "value_claim",
+    "statement": "The fixture-validated Workspace PROPHET control loop supports productivity and risk-reduction analysis for governed platform operations, but it is not production ready.",
+    "value_driver": {
+      "primary": "productivity",
+      "secondary": [
+        "risk_reduction"
+      ]
+    },
+    "kpi_mappings": [
+      {
+        "kpi": "validated_control_loop_steps",
+        "direction": "positive",
+        "driver": "productivity",
+        "measurement_window": "fixture_validation"
+      },
+      {
+        "kpi": "blocked_unapproved_action_classes",
+        "direction": "positive",
+        "driver": "risk_reduction",
+        "measurement_window": "fixture_validation"
+      }
+    ],
+    "knowledge_quality": {
+      "coverage": 0.75,
+      "coherence": 0.8,
+      "stability": 0.7,
+      "provenance": 0.95,
+      "k": 0.399
+    },
+    "evidence_ids": [
+      "receipt_workspace_diagnostics_completed_demo",
+      "thread_workspace_readonly_diagnostics_completed_demo"
+    ],
+    "source_ids": [
+      "SRC-0001",
+      "SRC-0006"
+    ],
+    "receipt_ids": [
+      "receipt_workspace_diagnostics_completed_demo"
+    ],
+    "status": "supported",
+    "production_ready": false,
+    "falsification_plan": {
+      "test_id": "falsify_workspace_prophet_value_claim_v0",
+      "observation_window": "fixture_validation_only",
+      "outcome_kpis": [
+        "validated_control_loop_steps",
+        "blocked_unapproved_action_classes"
+      ]
+    }
+  }
+}
