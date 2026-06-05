@@ -1,0 +1,29 @@
+{
+  "spreadsheetId": "TODO_GOOGLE_SHEET_ID",
+  "syncWindowDaysBack": 14,
+  "syncWindowDaysForward": 60,
+  "dryRun": true,
+  "calendars": [
+    {
+      "calendarId": "TODO_SP_CLOUD_VENDOR_STRATEGY_CALENDAR_ID",
+      "calendarName": "SP - Cloud Vendor Strategy",
+      "workstreamDefault": "cloud-vendor-strategy"
+    },
+    {
+      "calendarId": "TODO_SP_LAUNCH_COUNCIL_CALENDAR_ID",
+      "calendarName": "SP - Launch Council",
+      "workstreamDefault": "cloud-vendor-strategy"
+    }
+  ],
+  "requiredMetadataFields": [
+    "workstream",
+    "meeting_type",
+    "canonical_issue",
+    "dashboard_key",
+    "expected_outputs"
+  ],
+  "tabs": {
+    "Meetings": "Meetings",
+    "Automations": "Automations"
+  }
+}
