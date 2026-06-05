@@ -1,0 +1,39 @@
+{
+  "version": "v0",
+  "gate_id": "gate-2-id-substitution-review",
+  "mesh_state": "prepared-but-not-deployed",
+  "gate_2_state": "planning_only",
+  "gate_3_state": "blocked",
+  "blocker_state": "active",
+  "approval_artifact_required_before_gate3": true,
+  "approval_artifact_path": "registry/workspace-mesh-gate2-promotion-approval.v0.json",
+  "gate3_start_artifact_path": "registry/workspace-mesh-gate3-start.v0.json",
+  "requirements_to_lift": [
+    "gate2_candidate_lifecycle_checkpoint_passed",
+    "schema_lifecycle_checkpoint_passed",
+    "local_candidate_review_record_exists",
+    "dry_run_required_true",
+    "candidate_values_not_printed",
+    "separate_gate2_promotion_approval_record"
+  ],
+  "blocked_until_approval": [
+    "gate3_start",
+    "apps_script_rehearsal",
+    "runtime_execution",
+    "scheduled_trigger_setup",
+    "workspace_asset_mutation"
+  ],
+  "status_flags": {
+    "ids_substituted": false,
+    "live_execution": false,
+    "candidate_values_printed": false,
+    "gate3_started": false
+  },
+  "non_claims": [
+    "Mirrored fixture from Sociosphere for Prophet Platform Workroom validation only.",
+    "Workspace mesh Gate 2 blocker does not authorize live execution.",
+    "Workspace mesh Gate 2 blocker does not authorize workspace asset mutation.",
+    "Workspace mesh Gate 2 blocker does not substitute IDs.",
+    "Workspace mesh Gate 2 blocker does not certify Signadot feature parity."
+  ]
+}
