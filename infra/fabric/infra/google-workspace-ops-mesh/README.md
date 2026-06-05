@@ -32,7 +32,7 @@ make IAC=terraform terraform-workspace-mesh-plan
 | Plane | IaC role | Default |
 |---|---|---|
 | Google Cloud project services | Optional enablement of APIs used by the prototype | disabled |
-| Workspace groups | Optional creation of role groups through the Google Workspace provider | disabled |
+| Workspace groups | Prepared in separate optional root | excluded from default plan |
 | Apps Script / clasp | Generate local `.clasp.json` and prototype config files | enabled as local files only |
 | Calendars | Track IDs and metadata for later bind | no calendar creation |
 | Sheets ledger | Track ledger Sheet ID for generated config | no Sheet creation |
@@ -41,7 +41,9 @@ make IAC=terraform terraform-workspace-mesh-plan
 
 ## Why this shape
 
-Calendars, Sheets, Apps Script projects, and Looker Studio dashboards are treated as controlled deployment surfaces. This mesh records and generates configuration around them before attempting full automation.
+Calendars, Sheets, Apps Script projects, Workspace groups, and Looker Studio dashboards are treated as controlled deployment surfaces. This mesh records and generates configuration around them before attempting full automation.
+
+The default root intentionally does **not** configure the Google Workspace provider. The provider requires `customer_id` during configuration, so group management lives in `optional-workspace-groups/` until real Workspace credentials and approval exist.
 
 ## Quick commands from repository root
 
@@ -72,8 +74,20 @@ With default variables, plan should only propose local generated files.
 | Variable | Default | Effect |
 |---|---:|---|
 | `enable_google_project_services` | `false` | Enables listed Google Cloud APIs in `google_project_id` |
-| `enable_workspace_groups` | `false` | Creates Google Workspace groups from `workspace_groups` |
 | `generate_local_deployment_files` | `true` | Writes local generated config artifacts |
+
+## Optional Workspace groups root
+
+Workspace group management is prepared separately:
+
+```bash
+cd infra/google-workspace-ops-mesh/optional-workspace-groups
+tofu init
+tofu validate
+tofu plan
+```
+
+Use that root only after Workspace customer ID, admin impersonation, credential handling, group naming, and membership policy are approved.
 
 ## Generated files
 
@@ -87,7 +101,7 @@ Generated files are intended for local operator review and should not contain se
 
 ## Deployment boundary
 
-This IaC root does not run `clasp push`, enable scheduled Apps Script triggers, create live calendar events, or mutate the prototype ledger. Those actions remain gated by the handoff runbook and install checklist.
+This IaC root does not run `clasp push`, enable scheduled Apps Script triggers, create live calendar events, create Workspace groups, or mutate the prototype ledger. Those actions remain gated by the handoff runbook and install checklist.
 
 ## Promotion path
 
