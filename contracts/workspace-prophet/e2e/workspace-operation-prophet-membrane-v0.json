@@ -1,0 +1,235 @@
+{
+  "schema_version": "0.1.0",
+  "scenario_pack_id": "workspace_operation_prophet_membrane_v0",
+  "source_basis": [
+    "SocioProphet/prophet-core-contracts:docs/platform-root-spine-v0.md",
+    "SocioProphet/prophet-core-contracts:docs/prophet-execution-membrane-v0.md",
+    "SocioProphet/prophet-core-contracts:schemas/scoped-capability.schema.json"
+  ],
+  "runtime_owner": "SocioProphet/prophet-platform",
+  "contract_owner": "SocioProphet/prophet-core-contracts",
+  "scenarios": [
+    {
+      "scenario_id": "readonly_diagnostics_allowed",
+      "expected_result": "allowed",
+      "requested_verb": "export_diagnostics",
+      "operation": {
+        "schema_version": "0.1.0",
+        "operation_id": "op_readonly_diagnostics_demo",
+        "operation_type": "diagnostic_export",
+        "actor": {
+          "actor_type": "agent",
+          "actor_id": "agent_workspace_operator"
+        },
+        "delegated_by": {
+          "actor_type": "user",
+          "actor_id": "user_mdheller"
+        },
+        "source": {
+          "ref_type": "workspace_root",
+          "ref_id": "workspace_root_demo"
+        },
+        "target": {
+          "ref_type": "diagnostic_bundle",
+          "ref_id": "diagnostic_bundle_demo"
+        },
+        "status": "completed",
+        "priority": "interactive",
+        "trace_id": "trace_e2e_prophet_001",
+        "idempotency_key": "idem_e2e_prophet_001",
+        "capability_profile_id": "cap_local_command_readonly_demo",
+        "task_ids": [
+          "task_readonly_diagnostics_demo"
+        ],
+        "artifact_ids": [
+          "artifact_redacted_diagnostic_bundle_demo"
+        ],
+        "policy_gate_ids": [
+          "gate_readonly_diagnostics_demo"
+        ],
+        "decision_ids": [],
+        "created_at": "2026-06-04T00:00:00Z",
+        "updated_at": "2026-06-04T00:00:10Z"
+      },
+      "scoped_capability": {
+        "schema_version": "0.1.0",
+        "capability_id": "cap_local_command_readonly_demo",
+        "issuer": {
+          "actor_id": "user_mdheller",
+          "actor_type": "user"
+        },
+        "subject": {
+          "actor_id": "agent_workspace_operator",
+          "actor_type": "agent",
+          "role_id": "workspace_operator_readonly"
+        },
+        "resource": {
+          "resource_id": "workspace_root_demo",
+          "resource_type": "workspace_root",
+          "scope": "readonly_diagnostics"
+        },
+        "verbs": [
+          "inspect",
+          "summarize",
+          "export_diagnostics"
+        ],
+        "purpose": "Collect read-only diagnostics for a governed workspace operation.",
+        "valid_from": "2026-06-04T00:00:00Z",
+        "expires_at": "2026-06-05T00:00:00Z",
+        "authority_band": "execute_local",
+        "workspace_operation_binding": {
+          "required": true,
+          "operation_id": "op_readonly_diagnostics_demo",
+          "operation_type": "diagnostic_export"
+        },
+        "receipt_requirements": {
+          "emit_action_receipt": true,
+          "emit_policy_receipt": true,
+          "telemetry_plane": "developer_diagnostics",
+          "retention_class": "short_lived_diagnostic"
+        },
+        "fail_closed": true
+      },
+      "expected_receipt": {
+        "result_state": "completed",
+        "policy_decision": "allow",
+        "reason_codes": [
+          "scoped_capability_present",
+          "scoped_capability_valid",
+          "operation_binding_match",
+          "verb_allowed"
+        ]
+      }
+    },
+    {
+      "scenario_id": "readonly_diagnostics_blocked_missing_capability",
+      "expected_result": "blocked",
+      "requested_verb": "export_diagnostics",
+      "operation": {
+        "schema_version": "0.1.0",
+        "operation_id": "op_readonly_diagnostics_missing_capability_demo",
+        "operation_type": "diagnostic_export",
+        "actor": {
+          "actor_type": "agent",
+          "actor_id": "agent_workspace_operator"
+        },
+        "delegated_by": {
+          "actor_type": "user",
+          "actor_id": "user_mdheller"
+        },
+        "source": {
+          "ref_type": "workspace_root",
+          "ref_id": "workspace_root_demo"
+        },
+        "target": {
+          "ref_type": "diagnostic_bundle",
+          "ref_id": "diagnostic_bundle_demo"
+        },
+        "status": "blocked",
+        "priority": "interactive",
+        "trace_id": "trace_e2e_prophet_missing_capability",
+        "idempotency_key": "idem_e2e_prophet_missing_capability",
+        "task_ids": [],
+        "artifact_ids": [],
+        "policy_gate_ids": [
+          "gate_missing_capability_demo"
+        ],
+        "decision_ids": [],
+        "created_at": "2026-06-04T00:00:00Z",
+        "updated_at": "2026-06-04T00:00:01Z"
+      },
+      "expected_receipt": {
+        "result_state": "blocked",
+        "policy_decision": "block",
+        "reason_codes": [
+          "missing_scoped_capability"
+        ]
+      }
+    },
+    {
+      "scenario_id": "readonly_diagnostics_blocked_expired_capability",
+      "expected_result": "blocked",
+      "requested_verb": "export_diagnostics",
+      "operation": {
+        "schema_version": "0.1.0",
+        "operation_id": "op_readonly_diagnostics_expired_capability_demo",
+        "operation_type": "diagnostic_export",
+        "actor": {
+          "actor_type": "agent",
+          "actor_id": "agent_workspace_operator"
+        },
+        "delegated_by": {
+          "actor_type": "user",
+          "actor_id": "user_mdheller"
+        },
+        "source": {
+          "ref_type": "workspace_root",
+          "ref_id": "workspace_root_demo"
+        },
+        "target": {
+          "ref_type": "diagnostic_bundle",
+          "ref_id": "diagnostic_bundle_demo"
+        },
+        "status": "blocked",
+        "priority": "interactive",
+        "trace_id": "trace_e2e_prophet_expired_capability",
+        "idempotency_key": "idem_e2e_prophet_expired_capability",
+        "capability_profile_id": "cap_local_command_readonly_expired_demo",
+        "task_ids": [],
+        "artifact_ids": [],
+        "policy_gate_ids": [
+          "gate_expired_capability_demo"
+        ],
+        "decision_ids": [],
+        "created_at": "2026-06-04T00:00:00Z",
+        "updated_at": "2026-06-04T00:00:01Z"
+      },
+      "scoped_capability": {
+        "schema_version": "0.1.0",
+        "capability_id": "cap_local_command_readonly_expired_demo",
+        "issuer": {
+          "actor_id": "user_mdheller",
+          "actor_type": "user"
+        },
+        "subject": {
+          "actor_id": "agent_workspace_operator",
+          "actor_type": "agent",
+          "role_id": "workspace_operator_readonly"
+        },
+        "resource": {
+          "resource_id": "workspace_root_demo",
+          "resource_type": "workspace_root",
+          "scope": "readonly_diagnostics"
+        },
+        "verbs": [
+          "inspect",
+          "summarize",
+          "export_diagnostics"
+        ],
+        "purpose": "Collect read-only diagnostics for a governed workspace operation.",
+        "valid_from": "2026-06-01T00:00:00Z",
+        "expires_at": "2026-06-02T00:00:00Z",
+        "authority_band": "execute_local",
+        "workspace_operation_binding": {
+          "required": true,
+          "operation_id": "op_readonly_diagnostics_expired_capability_demo",
+          "operation_type": "diagnostic_export"
+        },
+        "receipt_requirements": {
+          "emit_action_receipt": true,
+          "emit_policy_receipt": true,
+          "telemetry_plane": "developer_diagnostics",
+          "retention_class": "short_lived_diagnostic"
+        },
+        "fail_closed": true
+      },
+      "expected_receipt": {
+        "result_state": "blocked",
+        "policy_decision": "block",
+        "reason_codes": [
+          "expired_scoped_capability"
+        ]
+      }
+    }
+  ]
+}
