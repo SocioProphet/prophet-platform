@@ -74,6 +74,8 @@ jobs:
         run: python tools/validate_workroom_guardrail_decision_binding.py
       - name: Validate persisted FogStack parity bundle
         run: python tools/validate_fogstack_parity_artifact_bundle.py
+      - name: Validate FogStack SVF nonprod sandbox observation
+        run: python tools/validate_fogstack_svf_nonprod_sandbox_observation.py
       - name: Validate Workroom runtime parity bridge
         run: python tools/validate_workroom_runtime_parity_bridge.py
       - name: Validate Workroom runtime parity UI wiring
