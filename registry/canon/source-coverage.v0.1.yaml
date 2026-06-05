@@ -1,0 +1,249 @@
+version: v0.1
+artifact_id: canon.source-coverage.v0.1
+status: seed-candidates
+purpose: >-
+  Candidate source coverage registry for Canon Coverage. This is not a final
+  source-admission registry. Entries identify plausible source classes and
+  initial public/open anchors that require license, policy, freshness, and
+  ingestion review before product use.
+
+source_candidates:
+  - id: src.opencorporates
+    name: OpenCorporates
+    domain_ids: [companies-kyb-entity-intelligence]
+    supports_assertion_types: [entity_identity, entity_relationship, ownership_or_control, source_attribution]
+    source_class: aggregated-company-registry
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires terms, rate-limit, redistribution, and coverage review.
+
+  - id: src.gleif
+    name: GLEIF LEI Data
+    domain_ids: [companies-kyb-entity-intelligence]
+    supports_assertion_types: [entity_identity, entity_relationship, ownership_or_control, source_attribution]
+    source_class: official-lei-registry
+    provenance_strength: official
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires ownership-model mapping and update cadence binding.
+
+  - id: src.sec-edgar
+    name: SEC EDGAR
+    domain_ids: [companies-kyb-entity-intelligence, markets-macro-finance, legal-regulatory-compliance]
+    supports_assertion_types: [entity_identity, document_citation, numeric_metric, legal_or_policy_status, provenance_lineage]
+    source_class: official-filing-system
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires filing parser, XBRL normalization, and citation contract.
+
+  - id: src.sam-gov
+    name: SAM.gov
+    domain_ids: [civic-government-public-records, companies-kyb-entity-intelligence]
+    supports_assertion_types: [entity_identity, legal_or_policy_status, entity_relationship]
+    source_class: official-procurement-registry
+    provenance_strength: official
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires API key, terms, entity mapping, and exclusion/status semantics.
+
+  - id: src.opensanctions
+    name: OpenSanctions
+    domain_ids: [companies-kyb-entity-intelligence, legal-regulatory-compliance]
+    supports_assertion_types: [entity_identity, entity_relationship, legal_or_policy_status, risk_or_score]
+    source_class: aggregated-risk-registry
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires source-level attribution and sanctions/PEP policy handling.
+
+  - id: src.fred
+    name: FRED
+    domain_ids: [markets-macro-finance]
+    supports_assertion_types: [numeric_metric, source_attribution, provenance_lineage]
+    source_class: official-economic-api
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires series registry, vintage handling, and transformation receipts.
+
+  - id: src.census
+    name: U.S. Census APIs
+    domain_ids: [civic-government-public-records, markets-macro-finance, geospatial-environment-infrastructure]
+    supports_assertion_types: [numeric_metric, location_or_geometry, source_attribution]
+    source_class: official-statistical-api
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires geography/schema version registry.
+
+  - id: src.bls
+    name: Bureau of Labor Statistics API
+    domain_ids: [markets-macro-finance, civic-government-public-records]
+    supports_assertion_types: [numeric_metric, source_attribution, provenance_lineage]
+    source_class: official-statistical-api
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires series registry and vintage/citation handling.
+
+  - id: src.courtlistener
+    name: CourtListener / RECAP
+    domain_ids: [legal-regulatory-compliance]
+    supports_assertion_types: [document_citation, legal_or_policy_status, entity_relationship]
+    source_class: legal-record-archive
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires citation, docket/document boundary, and terms review.
+
+  - id: src.osm
+    name: OpenStreetMap
+    domain_ids: [geospatial-environment-infrastructure]
+    supports_assertion_types: [location_or_geometry, source_attribution, event_or_observation]
+    source_class: community-geospatial-source
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires ODbL attribution/share-alike handling and feature confidence model.
+
+  - id: src.noaa-nws
+    name: NOAA / National Weather Service
+    domain_ids: [geospatial-environment-infrastructure, commodities-trade-logistics]
+    supports_assertion_types: [event_or_observation, numeric_metric, location_or_geometry]
+    source_class: official-weather-api
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires forecast/observation distinction and time-validity policy.
+
+  - id: src.openaq
+    name: OpenAQ
+    domain_ids: [geospatial-environment-infrastructure]
+    supports_assertion_types: [event_or_observation, numeric_metric, location_or_geometry]
+    source_class: environmental-measurement-aggregate
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires station provenance, measurement uncertainty, and freshness review.
+
+  - id: src.nvd
+    name: National Vulnerability Database
+    domain_ids: [cyber-vulnerability-supply-chain-risk]
+    supports_assertion_types: [risk_or_score, document_citation, source_attribution]
+    source_class: official-vulnerability-feed
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires CVE/CPE mapping and enrichment boundaries.
+
+  - id: src.osv
+    name: OSV
+    domain_ids: [cyber-vulnerability-supply-chain-risk]
+    supports_assertion_types: [risk_or_score, entity_relationship, source_attribution]
+    source_class: open-vulnerability-feed
+    provenance_strength: aggregated
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires package ecosystem normalization and dedupe against NVD/advisories.
+
+  - id: src.cisa-kev
+    name: CISA Known Exploited Vulnerabilities Catalog
+    domain_ids: [cyber-vulnerability-supply-chain-risk]
+    supports_assertion_types: [risk_or_score, legal_or_policy_status, document_citation]
+    source_class: official-risk-catalog
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires exploitability and remediation workflow mapping.
+
+  - id: src.openalex
+    name: OpenAlex
+    domain_ids: [research-patents-science, healthcare-life-sciences]
+    supports_assertion_types: [document_citation, entity_identity, entity_relationship]
+    source_class: open-research-index
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires scholarly entity resolution and citation confidence handling.
+
+  - id: src.crossref
+    name: Crossref
+    domain_ids: [research-patents-science]
+    supports_assertion_types: [document_citation, source_attribution, provenance_lineage]
+    source_class: scholarly-metadata-registry
+    provenance_strength: aggregated
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires DOI/work matching and license metadata handling.
+
+  - id: src.uspto-patentsview
+    name: USPTO / PatentsView
+    domain_ids: [research-patents-science, companies-kyb-entity-intelligence]
+    supports_assertion_types: [document_citation, entity_relationship, event_or_observation]
+    source_class: official-patent-source
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires assignee/inventor normalization and patent-family model.
+
+  - id: src.clinicaltrials
+    name: ClinicalTrials.gov
+    domain_ids: [healthcare-life-sciences, research-patents-science]
+    supports_assertion_types: [event_or_observation, entity_relationship, document_citation]
+    source_class: official-clinical-trial-registry
+    provenance_strength: official
+    default_sharing_mode: research_eligible
+    review_status: candidate
+    gap_note: Requires sensitive-domain review and intervention/outcome normalization.
+
+  - id: src.openfda
+    name: openFDA
+    domain_ids: [healthcare-life-sciences]
+    supports_assertion_types: [event_or_observation, legal_or_policy_status, document_citation]
+    source_class: official-health-regulatory-api
+    provenance_strength: official
+    default_sharing_mode: research_eligible
+    review_status: candidate
+    gap_note: Requires adverse-event caveats and regulatory citation handling.
+
+  - id: src.eia
+    name: U.S. Energy Information Administration
+    domain_ids: [commodities-trade-logistics, markets-macro-finance]
+    supports_assertion_types: [numeric_metric, event_or_observation, source_attribution]
+    source_class: official-energy-statistical-api
+    provenance_strength: official
+    default_sharing_mode: public
+    review_status: candidate
+    gap_note: Requires series registry and commodity taxonomy.
+
+  - id: src.un-comtrade
+    name: UN Comtrade
+    domain_ids: [commodities-trade-logistics, markets-macro-finance]
+    supports_assertion_types: [numeric_metric, entity_relationship, source_attribution]
+    source_class: official-trade-statistical-source
+    provenance_strength: official
+    default_sharing_mode: aggregate_eligible
+    review_status: candidate
+    gap_note: Requires HS/SITC mapping, country codes, and redistribution review.
+
+  - id: src.workspace-inventory
+    name: SocioProphet Workspace Inventory
+    domain_ids: [internal-workspace-repo-service-estate]
+    supports_assertion_types: [provenance_lineage, coverage_gap, entity_identity]
+    source_class: internal-workspace-artifact
+    provenance_strength: primary
+    default_sharing_mode: aggregate_eligible
+    review_status: source_identified
+    gap_note: Canon binding needed; current artifact is repo estate, not domain coverage.
+
+  - id: src.sociosphere-service-register
+    name: SocioSphere Service Register
+    domain_ids: [internal-workspace-repo-service-estate]
+    supports_assertion_types: [provenance_lineage, coverage_gap, entity_relationship]
+    source_class: internal-service-register
+    provenance_strength: primary
+    default_sharing_mode: aggregate_eligible
+    review_status: source_identified
+    gap_note: Existing service-register artifacts need Canon coverage adapter.

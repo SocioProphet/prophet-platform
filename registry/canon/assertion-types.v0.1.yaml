@@ -1,0 +1,77 @@
+version: v0.1
+artifact_id: canon.assertion-types.v0.1
+status: seed
+purpose: >-
+  Seed assertion type list for Canon Coverage. Assertion types define the
+  kinds of claims Canon may track, govern, aggregate, and expose.
+
+assertion_types:
+  - id: entity_identity
+    label: Entity identity
+    description: Claim that an entity exists and can be identified by stable names, identifiers, addresses, keys, or registry references.
+    required_evidence: [anchor, source_evidence, provenance]
+
+  - id: entity_relationship
+    label: Entity relationship
+    description: Claim that two or more entities are related through ownership, employment, contract, control, supply, dependency, or semantic linkage.
+    required_evidence: [anchor, source_evidence, explanation_trace, provenance]
+
+  - id: ownership_or_control
+    label: Ownership or control
+    description: Claim about beneficial ownership, corporate control, governance authority, asset control, or policy authority.
+    required_evidence: [source_evidence, document_citation, policy_decision, provenance]
+
+  - id: location_or_geometry
+    label: Location or geometry
+    description: Claim about coordinates, boundaries, routes, regions, facilities, administrative areas, or spatial relationships.
+    required_evidence: [geo_anchor, source_evidence, temporal_validity, uncertainty]
+
+  - id: event_or_observation
+    label: Event or observation
+    description: Claim that an event, measurement, filing, update, incident, or observation occurred in a time window.
+    required_evidence: [anchor, source_evidence, temporal_validity, provenance]
+
+  - id: numeric_metric
+    label: Numeric metric
+    description: Claim about a measured or derived numeric value, including count, rate, score, price, index, coverage, benchmark, or estimate.
+    required_evidence: [source_evidence, method, uncertainty, temporal_validity]
+
+  - id: risk_or_score
+    label: Risk or score
+    description: Claim about risk class, priority, confidence, threat, exposure, opportunity, or quality rating.
+    required_evidence: [source_evidence, method, uncertainty, policy_decision]
+
+  - id: legal_or_policy_status
+    label: Legal or policy status
+    description: Claim about sanctions, licenses, admissibility, regulatory standing, compliance posture, legal status, or policy status.
+    required_evidence: [document_citation, source_evidence, policy_decision, provenance]
+
+  - id: document_citation
+    label: Document citation
+    description: Claim that a document, record, filing, law, regulation, article, artifact, or source span supports an assertion.
+    required_evidence: [source_ref, document_span, attribution]
+
+  - id: model_or_eval_result
+    label: Model or evaluation result
+    description: Claim about a model, benchmark, eval score, training run, promotion decision, or model-governance outcome.
+    required_evidence: [artifact_ref, eval_receipt, method, provenance]
+
+  - id: source_attribution
+    label: Source attribution
+    description: Claim about the origin, license, terms, source authority, or provenance of a data element or assertion.
+    required_evidence: [source_ref, license_ref, provenance]
+
+  - id: provenance_lineage
+    label: Provenance and lineage
+    description: Claim about how data moved, transformed, aggregated, validated, published, or was revoked.
+    required_evidence: [runtime_receipt, transform_ref, policy_decision]
+
+  - id: coverage_gap
+    label: Coverage gap
+    description: Claim that a domain, topic, geography, entity class, source class, assertion type, or workflow has insufficient coverage.
+    required_evidence: [coverage_matrix_ref, method, timestamp]
+
+  - id: admissibility_decision
+    label: Admissibility decision
+    description: Claim that a source, dataset, assertion, aggregate, or product pack is admitted, provisional, review, rejected, or revoked.
+    required_evidence: [policy_decision, evidence_chain, receipt]
