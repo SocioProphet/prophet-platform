@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1.0",
+  "projection_id": "workspace_operation_prophet_claim_projection_v0",
+  "source_receipt_id": "receipt_workspace_diagnostics_completed_demo",
+  "claim": {
+    "claim_id": "claim_workspace_readonly_diagnostics_completed_demo",
+    "claim_type": "observation",
+    "statement": "A governed read-only diagnostic export completed successfully under a valid scoped capability.",
+    "subject_ref": {
+      "ref_type": "workspace_operation",
+      "ref_id": "op_readonly_diagnostics_demo"
+    },
+    "perspective": {
+      "observer": "agent_workspace_operator",
+      "org_vertex": "workspace_operations",
+      "industry_context": "platform_operations",
+      "decision_job": "runtime_validation"
+    },
+    "confidence": 1.0,
+    "evidence_ids": [
+      "receipt_workspace_diagnostics_completed_demo",
+      "evidence_workspace_operation_request_demo"
+    ],
+    "source_ids": [
+      "SRC-0006"
+    ],
+    "receipt_ids": [
+      "receipt_workspace_diagnostics_completed_demo"
+    ],
+    "operation_ids": [
+      "op_readonly_diagnostics_demo"
+    ],
+    "capability_ids": [
+      "cap_local_command_readonly_demo"
+    ],
+    "policy_boundary": "readonly_diagnostics",
+    "status": "supported",
+    "contradiction_status": "not_checked"
+  },
+  "evidence_thread": {
+    "thread_id": "thread_workspace_readonly_diagnostics_completed_demo",
+    "claim_id": "claim_workspace_readonly_diagnostics_completed_demo",
+    "evidence_items": [
+      {
+        "evidence_id": "receipt_workspace_diagnostics_completed_demo",
+        "evidence_type": "action_receipt",
+        "supports": true
+      },
+      {
+        "evidence_id": "op_readonly_diagnostics_demo",
+        "evidence_type": "workspace_operation",
+        "supports": true
+      },
+      {
+        "evidence_id": "cap_local_command_readonly_demo",
+        "evidence_type": "scoped_capability",
+        "supports": true
+      }
+    ]
+  }
+}
