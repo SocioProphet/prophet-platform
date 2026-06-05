@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/orggov/orggov-runtime-demo.v0.2.schema.json",
+  "title": "SocioProphet OrgGov Runtime Demo v0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "recordId",
+    "parentIssueRef",
+    "readinessRollupRef",
+    "demoStatus",
+    "productLoop",
+    "ownerRepos",
+    "policyStateCoverage",
+    "demoStages",
+    "evidenceBoundary",
+    "proofObligations",
+    "runtimePromotionCriteria",
+    "validation",
+    "provenance"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "orggov.runtime-demo.v0.2"},
+    "recordType": {"const": "OrgGovRuntimeDemo"},
+    "recordId": {"type": "string"},
+    "parentIssueRef": {"type": "string"},
+    "readinessRollupRef": {"type": "string"},
+    "demoStatus": {"type": "string", "enum": ["planned", "fixture_backed", "simulated_runtime", "runtime_verified", "buyer_visible"]},
+    "productLoop": {"type": "array", "items": {"type": "string"}},
+    "ownerRepos": {"type": "array", "items": {"type": "string"}},
+    "policyStateCoverage": {"type": "array", "items": {"type": "object"}},
+    "demoStages": {"type": "array", "items": {"type": "object"}},
+    "evidenceBoundary": {"type": "object"},
+    "proofObligations": {"type": "array", "items": {"type": "object"}},
+    "runtimePromotionCriteria": {"type": "array", "items": {"type": "string"}},
+    "validation": {"type": "object"},
+    "provenance": {"type": "object"},
+    "labels": {"type": "object"}
+  }
+}
