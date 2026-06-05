@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1.0",
+  "scenario_pack_id": "workspace_operation_prophet_receipts_v0",
+  "receipts": [
+    {
+      "receipt_id": "receipt_workspace_diagnostics_completed_demo",
+      "operation_id": "op_readonly_diagnostics_demo",
+      "capability_id": "cap_local_command_readonly_demo",
+      "policy_decision": "allow",
+      "result_state": "completed",
+      "reason_codes": [
+        "scoped_capability_present",
+        "scoped_capability_valid",
+        "operation_binding_match",
+        "verb_allowed"
+      ],
+      "telemetry_plane": "developer_diagnostics"
+    },
+    {
+      "receipt_id": "receipt_workspace_diagnostics_missing_capability_demo",
+      "operation_id": "op_readonly_diagnostics_missing_capability_demo",
+      "capability_id": "missing",
+      "policy_decision": "block",
+      "result_state": "blocked",
+      "reason_codes": [
+        "missing_scoped_capability"
+      ],
+      "telemetry_plane": "developer_diagnostics"
+    },
+    {
+      "receipt_id": "receipt_workspace_diagnostics_expired_capability_demo",
+      "operation_id": "op_readonly_diagnostics_expired_capability_demo",
+      "capability_id": "cap_local_command_readonly_expired_demo",
+      "policy_decision": "block",
+      "result_state": "blocked",
+      "reason_codes": [
+        "expired_scoped_capability"
+      ],
+      "telemetry_plane": "developer_diagnostics"
+    }
+  ]
+}
