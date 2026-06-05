@@ -1,0 +1,74 @@
+version: v0.1
+artifact_id: canon.domains.v0.1
+status: seed
+purpose: >-
+  Seed domain list for Canon Coverage and Canon Commons. Domains establish the
+  top-level coverage surface for community intelligence, source registry work,
+  and assertion admissibility planning.
+
+domains:
+  - id: civic-government-public-records
+    label: Civic, government, and public records
+    description: Public-sector data, registries, procurement, budgets, elections, permits, and civic records.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: companies-kyb-entity-intelligence
+    label: Companies, KYB, and entity intelligence
+    description: Organization identity, registry records, beneficial ownership signals, sanctions, vendor risk, and corporate relationships.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: markets-macro-finance
+    label: Markets, macro, and finance
+    description: Public market, macroeconomic, filing, benchmark, and economic coordination signals.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: legal-regulatory-compliance
+    label: Legal, regulatory, and compliance
+    description: Laws, regulations, court records, enforcement actions, obligations, and compliance evidence.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: geospatial-environment-infrastructure
+    label: Geospatial, environment, and infrastructure
+    description: Places, boundaries, infrastructure, environment, weather, hazards, and world-state observations.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: cyber-vulnerability-supply-chain-risk
+    label: Cyber, vulnerability, and supply-chain risk
+    description: Vulnerabilities, advisories, exploitability signals, dependency risk, vendor exposure, and operational security posture.
+    default_sharing_mode: benchmark_eligible
+    steward: services/canon
+
+  - id: research-patents-science
+    label: Research, patents, and science
+    description: Scholarly works, patents, grants, clinical research, research organizations, and innovation signals.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: healthcare-life-sciences
+    label: Healthcare and life sciences
+    description: Provider, trial, drug, regulatory, payment, safety, and life-sciences signals under strict privacy controls.
+    default_sharing_mode: research_eligible
+    steward: services/canon
+
+  - id: commodities-trade-logistics
+    label: Commodities, trade, and logistics
+    description: Energy, trade flows, shipping, customs, ports, logistics, and commodity-market public signals.
+    default_sharing_mode: aggregate_eligible
+    steward: services/canon
+
+  - id: ai-model-governance-evaluation
+    label: AI, model governance, and evaluation
+    description: Model metadata, evals, benchmarks, prompts, model-promotion evidence, risk controls, and usage receipts.
+    default_sharing_mode: benchmark_eligible
+    steward: services/canon
+
+  - id: internal-workspace-repo-service-estate
+    label: Internal workspace, repo, and service estate
+    description: Repository estate, service register, dependency graph, workspace manifests, CI health, and operational coverage.
+    default_sharing_mode: aggregate_eligible
+    steward: sociosphere
