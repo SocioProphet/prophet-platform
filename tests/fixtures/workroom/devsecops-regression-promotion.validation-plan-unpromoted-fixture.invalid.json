@@ -1,0 +1,82 @@
+{
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:invalid:validation-plan-unpromoted-fixture",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d-example/INC-4002",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d-example/INC-4002",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-4002"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-plan-unpromoted-fixture",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Expected-invalid fixture for validation plan promotion linkage.",
+    "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+    "evidence_refs": [
+      "evidence://observability/scope-d-example/5xx-spike-invalid-plan",
+      "evidence://gaia/topology/scope-d-example/blast-radius-invalid-plan"
+    ],
+    "claim_refs": ["rca-claim:scope-d-example:plan-supported-causal"],
+    "decision_state": "needs_review",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d-example/5xx-spike-invalid-plan",
+      "evidence_type": "metric_observation",
+      "producer": "Fixture observability connector",
+      "summary": "Synthetic telemetry fixture.",
+      "observed_at": "2026-05-31T16:57:00Z",
+      "provenance": {"source_system": "observability-fixture", "source_ref": "metric://scope-d-example/api/5xx-rate", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    },
+    {
+      "evidence_ref": "evidence://gaia/topology/scope-d-example/blast-radius-invalid-plan",
+      "evidence_type": "topology_snapshot",
+      "producer": "GAIA topology fixture",
+      "summary": "Topology fixture.",
+      "observed_at": "2026-05-31T16:57:20Z",
+      "provenance": {"source_system": "GAIA fixture", "source_ref": "topology://gaia/workroom/scope-d-example/post-merge", "collection_method": "synthetic_fixture"},
+      "non_claims": ["Fixture evidence only."]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-example:plan-supported-causal",
+      "claim_status": "supported_causal_claim",
+      "statement": "Expected-invalid supported causal claim for validation-plan promotion linkage.",
+      "evidence_refs": ["evidence://observability/scope-d-example/5xx-spike-invalid-plan"],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "action_grants": [
+    {"grant_id": "action-grant:scope-d-example:read-invalid-plan", "action_class": "read_only", "status": "allowed", "scope": "Read expected-invalid fixture evidence.", "approval_required": false, "non_claims": ["Read-only fixture grant."]}
+  ],
+  "remediation_plans": [],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:scope-d-example:invalid-candidate-for-promoted-plan",
+      "fixture_status": "candidate",
+      "derived_from": "rca-claim:scope-d-example:plan-supported-causal",
+      "summary": "Expected-invalid candidate referenced by promoted validation plan.",
+      "target_validation_plan_ref": "validation-plan://scope-d-example/invalid-promoted-plan",
+      "non_claims": ["Candidate only."]
+    }
+  ],
+  "validation_plans": [
+    {
+      "plan_id": "validation-plan://scope-d-example/invalid-promoted-plan",
+      "plan_status": "promoted",
+      "regression_fixture_refs": ["regression-fixture:scope-d-example:invalid-candidate-for-promoted-plan"],
+      "non_claims": ["Expected-invalid plan object only."]
+    }
+  ],
+  "issued_at": "2026-05-31T16:58:00Z",
+  "non_claims": ["Expected-invalid fixture only."]
+}
