@@ -7,6 +7,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "contracts" / "svf" / "live-sociosphere-validate-change-v0.1.example.json"
+UPSTREAM_EXPORT_MANIFEST = "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json"
 ALLOWED_STATES = {
     "not_configured",
     "selected_only",
@@ -104,6 +105,8 @@ def main() -> int:
         problems.append("receipt_ref must start with svf:receipt:")
     if not str(receipt.get("run_ref", "")).startswith("svf:run:"):
         problems.append("run_ref must start with svf:run:")
+    if receipt.get("export_manifest_ref") != UPSTREAM_EXPORT_MANIFEST:
+        problems.append("receipt_input.export_manifest_ref must point at merged Sociosphere export manifest")
     if receipt.get("verification_status") != "verified":
         problems.append("positive fixture receipt must be verified")
     if receipt.get("verified_by") != "sociosphere.svf_runner.local":
@@ -146,6 +149,7 @@ def main() -> int:
         "does not issue, sign, or certify receipts",
         "does not authorize production remediation",
         "does not claim Signadot vendor parity",
+        "Sociosphere export manifest merged in SocioProphet/sociosphere#456",
     ):
         if not any(phrase in item for item in non_claims):
             problems.append(f"non_claims must include phrase: {phrase}")
