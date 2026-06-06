@@ -49,6 +49,7 @@
     "receipt_ref": "svf:receipt:sociosphere.registry-dogfood.verified",
     "run_ref": "svf:run:sociosphere.registry-dogfood.verified",
     "receipt_artifact_ref": "tests/fixtures/workroom/sociosphere-svf-validation-receipt.valid.json",
+    "export_manifest_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json",
     "verification_status": "verified",
     "verified_by": "sociosphere.svf_runner.local",
     "certified_claims": [
@@ -116,6 +117,7 @@
     "This contract fixture does not execute Sociosphere SVF Actions.",
     "This contract fixture does not issue, sign, or certify receipts in Prophet Platform.",
     "This contract fixture does not authorize production remediation.",
-    "This contract fixture does not claim Signadot vendor parity."
+    "This contract fixture does not claim Signadot vendor parity.",
+    "This contract fixture references the Sociosphere export manifest merged in SocioProphet/sociosphere#456."
   ]
 }
