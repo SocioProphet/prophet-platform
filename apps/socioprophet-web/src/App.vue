@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
 import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
+import HealthAIDemoReadinessCard from './components/HealthAIDemoReadinessCard.vue'
 
 const status = ref<'idle'|'ok'|'err'>('idle')
 const pong = ref('')
@@ -42,6 +43,7 @@ onMounted(check)
       </div>
     </section>
 
+    <HealthAIDemoReadinessCard />
     <ChronosEvidenceLoopCard />
     <DevSecOpsWorkroomReportCard />
   </main>
