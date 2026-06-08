@@ -1,0 +1,90 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFStatefulResourceIsolationObservation",
+  "record_id": "fogstack:svf:stateful-resource-isolation-observation:example-api:001",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "observation_scope": "nonprod_fixture_observation",
+  "observed_at": "2026-06-08T20:45:00Z",
+  "sandbox_ref": "svf:sandbox-lease:nonprod:example-api:001",
+  "routing_key_ref": "svf:routing-key:example-api:001",
+  "stateful_observation": {
+    "state": "observed_fixture_stateful_resource_isolation_trace_only",
+    "resource_trace_ref": "trace:fogstack-svf:stateful-resource-isolation:example-api:001",
+    "allocated_resource_refs": [
+      {
+        "resource_ref": "db:schema:example_api_pr_001",
+        "resource_type": "ephemeral_database_schema",
+        "result": "allocated",
+        "evidence_ref": "evidence:fogstack-svf:stateful:db-schema-allocated:001"
+      },
+      {
+        "resource_ref": "cache:namespace:example_api_pr_001",
+        "resource_type": "ephemeral_cache_namespace",
+        "result": "allocated",
+        "evidence_ref": "evidence:fogstack-svf:stateful:cache-namespace-allocated:001"
+      },
+      {
+        "resource_ref": "bucket:object-prefix:example-api/pr-001",
+        "resource_type": "ephemeral_object_prefix",
+        "result": "allocated",
+        "evidence_ref": "evidence:fogstack-svf:stateful:object-prefix-allocated:001"
+      }
+    ],
+    "denied_cross_sandbox_resource_refs": [
+      {
+        "from": "sandbox:unrelated-pr",
+        "resource_ref": "db:schema:example_api_pr_001",
+        "result": "denied",
+        "evidence_ref": "evidence:fogstack-svf:stateful:cross-sandbox-db-denied:001"
+      }
+    ],
+    "denied_baseline_resource_mutations": [
+      {
+        "from": "service:example-api",
+        "resource_ref": "db:schema:baseline_shared",
+        "result": "denied",
+        "evidence_ref": "evidence:fogstack-svf:stateful:baseline-db-mutation-denied:001"
+      }
+    ],
+    "visibility": {
+      "sandbox_seen_resource_count": 3,
+      "baseline_seen_resource_count": 0,
+      "cross_sandbox_seen_resource_count": 0
+    }
+  },
+  "policy_boundary": {
+    "live_apply_authorized": false,
+    "cluster_mutation_authorized": false,
+    "production_environment": false,
+    "secret_access_authorized": false,
+    "human_approval_required_for_live_apply": true
+  },
+  "certified_claims": [
+    "nonprod_stateful_resource_fixture_trace_observed",
+    "nonprod_ephemeral_resource_allocation_trace_observed",
+    "nonprod_cross_sandbox_resource_denial_trace_observed",
+    "nonprod_baseline_resource_mutation_denial_trace_observed",
+    "receipt_ref_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "production_readiness",
+    "live_cluster_execution",
+    "network_isolation_enforced",
+    "service_mesh_runtime_parity",
+    "async_queue_topic_runtime_isolation_enforced",
+    "stateful_resource_isolation_runtime_enforced",
+    "gitops_controller_reconciliation_observed",
+    "live_apply_authorized"
+  ],
+  "receipt_ref": "receipt:fogstack-svf:stateful-resource-isolation-observation:example-api:001",
+  "non_claims": [
+    "This is a non-production fixture observation record.",
+    "This record does not call Signadot.",
+    "This record does not authorize live apply.",
+    "This record does not authorize cluster mutation.",
+    "This record does not certify production readiness.",
+    "This record does not certify live stateful resource isolation enforcement.",
+    "This record does not certify full Signadot-style feature parity."
+  ]
+}

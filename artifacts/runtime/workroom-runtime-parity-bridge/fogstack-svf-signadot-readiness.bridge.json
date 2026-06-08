@@ -13,7 +13,8 @@
     "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json",
     "baseline_fallback_trace_ref": "artifacts/runtime/baseline-fallback-observation/fogstack-svf-baseline-fallback-trace.v0.1.json",
     "network_isolation_observation_ref": "artifacts/runtime/network-isolation-observation/fogstack-svf-network-isolation-observed.v0.1.json",
-    "async_topic_isolation_observation_ref": "artifacts/runtime/async-isolation-observation/fogstack-svf-async-topic-isolation-observed.v0.1.json"
+    "async_topic_isolation_observation_ref": "artifacts/runtime/async-isolation-observation/fogstack-svf-async-topic-isolation-observed.v0.1.json",
+    "stateful_resource_isolation_observation_ref": "artifacts/runtime/stateful-isolation-observation/fogstack-svf-stateful-resource-isolation-observed.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -54,7 +55,12 @@
     "async_topic_trace_ref": "trace:fogstack-svf:async-topic-isolation:example-api:001",
     "async_allowed_topic_message_count": 9,
     "async_cross_sandbox_denied_message_count": 4,
-    "async_baseline_topic_denied_message_count": 2
+    "async_baseline_topic_denied_message_count": 2,
+    "stateful_resource_isolation_observation_state": "observed_fixture_stateful_resource_isolation_trace_only",
+    "stateful_resource_trace_ref": "trace:fogstack-svf:stateful-resource-isolation:example-api:001",
+    "stateful_allocated_resource_count": 3,
+    "stateful_cross_sandbox_denied_count": 1,
+    "stateful_baseline_mutation_denied_count": 1
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -81,7 +87,11 @@
     "nonprod_async_topic_fixture_trace_observed",
     "nonprod_allowed_topic_trace_observed",
     "nonprod_cross_sandbox_topic_denial_trace_observed",
-    "nonprod_baseline_topic_mutation_denial_trace_observed"
+    "nonprod_baseline_topic_mutation_denial_trace_observed",
+    "nonprod_stateful_resource_fixture_trace_observed",
+    "nonprod_ephemeral_resource_allocation_trace_observed",
+    "nonprod_cross_sandbox_resource_denial_trace_observed",
+    "nonprod_baseline_resource_mutation_denial_trace_observed"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -95,11 +105,11 @@
     "workspace_asset_mutation_authorized",
     "live_apply_authorized",
     "async_queue_topic_runtime_isolation_enforced",
-    "stateful_resource_isolation_observed"
+    "stateful_resource_isolation_observed",
+    "stateful_resource_isolation_runtime_enforced"
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "stateful_resource_isolation_observation",
     "leak_check_observation",
     "gitops_reconciliation_observation",
     "sociosphere_gate2_approval_artifact"
