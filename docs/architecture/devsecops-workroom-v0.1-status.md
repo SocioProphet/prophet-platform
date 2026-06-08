@@ -285,3 +285,56 @@ This status ledger does not certify live runtime parity.
 This status ledger does not authorize remediation.
 
 This status ledger does not certify Signadot feature parity.
+
+<!-- P2_RUNTIME_PARITY_FIXTURE_MATRIX:START -->
+## P2 Runtime Parity Fixture Evidence Matrix
+
+Status: fixture-backed non-production evidence expanded. This section does not certify Signadot vendor parity, production readiness, live cluster execution, live apply authorization, or live runtime enforcement.
+
+### Fixture-observed evidence now present
+
+| Evidence lane | Status | Commit |
+| --- | --- | --- |
+| Nonprod sandbox lease / validation / teardown | Fixture observed | `2ad9eae` / `a5beef1` / `5cc6872` / `64afdd8` / `d4a849a` |
+| Sociosphere Gate 2 promotion blocker mirror | Fixture mirrored and bridge-linked | `9b8ed86` / `7afa2c5` / `b70b6ba` / `7458f6e` |
+| Baseline fallback traffic + changed-service-only deploy | Fixture observed | `7af24ad8` |
+| Network isolation traces | Fixture observed | `2f3ba8ba` |
+| Async topic isolation traces | Fixture observed | `c3254160` |
+| Stateful resource isolation traces | Fixture observed | `b58a9497` |
+| GitOps reconciliation traces | Fixture observed | `4ad90a6f` |
+| Leak-check traces | Fixture observed | `27e50f4c` |
+
+### Certified only at fixture level
+
+The Workroom bridge may claim the following only as non-production fixture observations:
+
+- sandbox lease lifecycle observed
+- validation job observed
+- teardown and expiry observed
+- baseline fallback trace observed
+- changed-service-only deploy trace observed
+- network policy trace observed
+- async topic isolation trace observed
+- stateful resource isolation trace observed
+- GitOps reconciliation trace observed
+- no-residual-resource leak-check trace observed
+
+### Still explicitly non-certified
+
+- Signadot vendor parity
+- production readiness
+- live cluster execution
+- live apply authorization
+- live network isolation enforcement
+- live async queue/topic enforcement
+- live stateful resource isolation enforcement
+- live GitOps controller reconciliation
+- live leak-free runtime cleanup
+- service mesh runtime parity
+- workspace asset mutation authorization
+
+### Current interpretation
+
+P2 has a complete fixture-backed runtime-parity evidence spine suitable for Workroom planning, review, UI surfacing, and CI gating. It remains a non-production evidence bridge, not a live runtime parity certification.
+<!-- P2_RUNTIME_PARITY_FIXTURE_MATRIX:END -->
+
