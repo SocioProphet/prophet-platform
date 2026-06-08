@@ -15,7 +15,8 @@
     "network_isolation_observation_ref": "artifacts/runtime/network-isolation-observation/fogstack-svf-network-isolation-observed.v0.1.json",
     "async_topic_isolation_observation_ref": "artifacts/runtime/async-isolation-observation/fogstack-svf-async-topic-isolation-observed.v0.1.json",
     "stateful_resource_isolation_observation_ref": "artifacts/runtime/stateful-isolation-observation/fogstack-svf-stateful-resource-isolation-observed.v0.1.json",
-    "gitops_reconciliation_observation_ref": "artifacts/runtime/gitops-reconciliation-observation/fogstack-svf-gitops-reconciliation-observed.v0.1.json"
+    "gitops_reconciliation_observation_ref": "artifacts/runtime/gitops-reconciliation-observation/fogstack-svf-gitops-reconciliation-observed.v0.1.json",
+    "leak_check_observation_ref": "artifacts/runtime/leak-check-observation/fogstack-svf-leak-check-observed.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -65,7 +66,10 @@
     "gitops_reconciliation_observation_state": "observed_fixture_reconciliation_trace_only",
     "gitops_sync_status": "Synced",
     "gitops_health_status": "Healthy",
-    "gitops_drift_state": "observed_no_drift"
+    "gitops_drift_state": "observed_no_drift",
+    "leak_check_observation_state": "observed_fixture_leak_check_trace_only",
+    "leak_check_trace_ref": "trace:fogstack-svf:leak-check:example-api:001",
+    "leak_check_residual_count": 0
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -100,7 +104,13 @@
     "nonprod_gitops_reconciliation_fixture_trace_observed",
     "nonprod_gitops_sync_trace_observed",
     "nonprod_gitops_health_trace_observed",
-    "nonprod_gitops_no_drift_trace_observed"
+    "nonprod_gitops_no_drift_trace_observed",
+    "nonprod_leak_check_fixture_trace_observed",
+    "nonprod_no_orphaned_routes_trace_observed",
+    "nonprod_no_orphaned_async_topics_trace_observed",
+    "nonprod_no_orphaned_stateful_resources_trace_observed",
+    "nonprod_no_orphaned_secrets_trace_observed",
+    "nonprod_no_orphaned_network_policies_trace_observed"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -116,11 +126,11 @@
     "async_queue_topic_runtime_isolation_enforced",
     "stateful_resource_isolation_observed",
     "stateful_resource_isolation_runtime_enforced",
-    "gitops_controller_reconciliation_live_certified"
+    "gitops_controller_reconciliation_live_certified",
+    "live_leak_free_runtime_certified"
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "leak_check_observation",
     "sociosphere_gate2_approval_artifact"
   ],
   "non_claims": [

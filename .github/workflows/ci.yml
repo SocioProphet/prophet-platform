@@ -96,6 +96,10 @@ jobs:
         run: python tools/validate_fogstack_svf_gitops_reconciliation_observation.py
       - name: Validate Workroom GitOps reconciliation bridge
         run: python tools/validate_workroom_runtime_gitops_reconciliation_bridge.py
+      - name: Validate FogStack SVF leak-check observation
+        run: python tools/validate_fogstack_svf_leak_check_observation.py
+      - name: Validate Workroom leak-check bridge
+        run: python tools/validate_workroom_runtime_leak_check_bridge.py
       - name: Validate Workroom runtime parity bridge
         run: python tools/validate_workroom_runtime_parity_bridge.py
       - name: Validate Workroom runtime parity UI wiring

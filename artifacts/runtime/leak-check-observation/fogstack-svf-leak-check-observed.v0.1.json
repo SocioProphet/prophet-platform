@@ -1,0 +1,84 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFLeakCheckObservation",
+  "record_id": "fogstack:svf:leak-check-observation:example-api:001",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "observation_scope": "nonprod_fixture_observation",
+  "observed_at": "2026-06-08T21:25:00Z",
+  "sandbox_ref": "svf:sandbox-lease:nonprod:example-api:001",
+  "teardown_evidence_ref": "evidence:fogstack-svf:teardown:example-api:001",
+  "leak_check_observation": {
+    "state": "observed_fixture_leak_check_trace_only",
+    "leak_check_trace_ref": "trace:fogstack-svf:leak-check:example-api:001",
+    "checks": [
+      {
+        "check_id": "orphaned-service-routes",
+        "resource_class": "route",
+        "result": "none_found",
+        "residual_count": 0,
+        "evidence_ref": "evidence:fogstack-svf:leak-check:routes:001"
+      },
+      {
+        "check_id": "orphaned-async-topics",
+        "resource_class": "topic",
+        "result": "none_found",
+        "residual_count": 0,
+        "evidence_ref": "evidence:fogstack-svf:leak-check:topics:001"
+      },
+      {
+        "check_id": "orphaned-stateful-resources",
+        "resource_class": "stateful_resource",
+        "result": "none_found",
+        "residual_count": 0,
+        "evidence_ref": "evidence:fogstack-svf:leak-check:stateful:001"
+      },
+      {
+        "check_id": "orphaned-secrets",
+        "resource_class": "secret",
+        "result": "none_found",
+        "residual_count": 0,
+        "evidence_ref": "evidence:fogstack-svf:leak-check:secrets:001"
+      },
+      {
+        "check_id": "orphaned-network-policies",
+        "resource_class": "network_policy",
+        "result": "none_found",
+        "residual_count": 0,
+        "evidence_ref": "evidence:fogstack-svf:leak-check:network-policies:001"
+      }
+    ]
+  },
+  "policy_boundary": {
+    "live_apply_authorized": false,
+    "cluster_mutation_authorized": false,
+    "production_environment": false,
+    "secret_access_authorized": false,
+    "human_approval_required_for_live_apply": true
+  },
+  "certified_claims": [
+    "nonprod_leak_check_fixture_trace_observed",
+    "nonprod_no_orphaned_routes_trace_observed",
+    "nonprod_no_orphaned_async_topics_trace_observed",
+    "nonprod_no_orphaned_stateful_resources_trace_observed",
+    "nonprod_no_orphaned_secrets_trace_observed",
+    "nonprod_no_orphaned_network_policies_trace_observed",
+    "receipt_ref_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "production_readiness",
+    "live_cluster_execution",
+    "live_leak_free_runtime_certified",
+    "live_apply_authorized"
+  ],
+  "receipt_ref": "receipt:fogstack-svf:leak-check-observation:example-api:001",
+  "non_claims": [
+    "This is a non-production fixture observation record.",
+    "This record does not call Signadot.",
+    "This record does not authorize live apply.",
+    "This record does not authorize cluster mutation.",
+    "This record does not certify production readiness.",
+    "This record does not certify live leak-free runtime cleanup.",
+    "This record does not certify full Signadot-style feature parity."
+  ]
+}
