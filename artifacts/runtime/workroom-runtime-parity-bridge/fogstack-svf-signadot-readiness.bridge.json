@@ -11,7 +11,8 @@
     "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md",
     "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json",
     "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json",
-    "baseline_fallback_trace_ref": "artifacts/runtime/baseline-fallback-observation/fogstack-svf-baseline-fallback-trace.v0.1.json"
+    "baseline_fallback_trace_ref": "artifacts/runtime/baseline-fallback-observation/fogstack-svf-baseline-fallback-trace.v0.1.json",
+    "network_isolation_observation_ref": "artifacts/runtime/network-isolation-observation/fogstack-svf-network-isolation-observed.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -42,7 +43,12 @@
     "changed_service_deploy_state": "observed_changed_service_only",
     "baseline_fallback_request_count": 16,
     "changed_service_request_count": 8,
-    "routing_key_propagation_state": "observed_header_propagated"
+    "routing_key_propagation_state": "observed_header_propagated",
+    "network_isolation_observation_state": "observed_fixture_policy_trace_only",
+    "network_policy_trace_ref": "trace:fogstack-svf:network-policy:example-api:001",
+    "network_allowed_ingress_count": 12,
+    "network_denied_cross_sandbox_count": 3,
+    "network_denied_external_egress_count": 2
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -61,7 +67,11 @@
     "sociosphere_workspace_mesh_live_execution_blocked",
     "changed_service_only_deploy_trace_observed",
     "baseline_fallback_traffic_trace_observed",
-    "routing_key_header_propagation_observed"
+    "routing_key_header_propagation_observed",
+    "nonprod_network_policy_fixture_trace_observed",
+    "nonprod_allowed_ingress_trace_observed",
+    "nonprod_cross_sandbox_denial_trace_observed",
+    "nonprod_external_egress_denial_trace_observed"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -77,7 +87,6 @@
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "network_isolation_observation",
     "async_queue_topic_isolation_observation",
     "stateful_resource_isolation_observation",
     "leak_check_observation",
