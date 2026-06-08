@@ -1,0 +1,29 @@
+name: devsecops-workroom-demo-readiness
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'artifacts/runtime/workroom-runtime-parity-bridge/**'
+      - 'docs/architecture/devsecops-workroom-v0.1-status.md'
+      - 'tools/validate_devsecops_workroom_demo_readiness.py'
+      - '.github/workflows/devsecops-workroom-demo-readiness.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'artifacts/runtime/workroom-runtime-parity-bridge/**'
+      - 'docs/architecture/devsecops-workroom-v0.1-status.md'
+      - 'tools/validate_devsecops_workroom_demo_readiness.py'
+      - '.github/workflows/devsecops-workroom-demo-readiness.yml'
+
+jobs:
+  validate-demo-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate DevSecOps Workroom demo readiness
+        run: python tools/validate_devsecops_workroom_demo_readiness.py
