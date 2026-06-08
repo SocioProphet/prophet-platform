@@ -1,0 +1,126 @@
+{
+  "schema_version": "0.1.0",
+  "demo_id": "health_ai_eval_and_clinical_value_demo_v0",
+  "readiness_state": "ready_for_nonprod_eval",
+  "production_ready": false,
+  "patient_care_action": false,
+  "autonomous_clinical_action": false,
+  "real_clinical_data_processing": false,
+  "customer_facing_healthcare_claim": false,
+  "protected_benchmark_reproduction": false,
+  "source_basis": [
+    {
+      "source_id": "source:ambience-healthcare-pdf",
+      "source_class": "external_competitor_claim",
+      "classification": "source_claim_only",
+      "notes": "Ambience-derived claims are competitive/source claims only; they are not SocioProphet-validated clinical, financial, or production claims."
+    },
+    {
+      "source_id": "source:healthbench-openai-pdf",
+      "source_class": "benchmark_design_claim",
+      "classification": "evaluation_design_only",
+      "notes": "HealthBench-derived material is used only for evaluation design concepts. Protected examples, answer keys, and canary content are not reproduced."
+    }
+  ],
+  "upstream_artifacts": [
+    {
+      "repo": "SocioProphet/prophet-core-contracts",
+      "ref": "PR #18",
+      "artifacts": [
+        "schemas/health-eval-rubric.schema.json",
+        "schemas/clinical-value-claim.schema.json",
+        "examples/health-ai/health-eval-rubric.planning.example.json",
+        "examples/health-ai/clinical-value-claim.ambience-source.example.json"
+      ],
+      "validation": "make validate-health-ai-contracts"
+    },
+    {
+      "repo": "SocioProphet/sherlock-search",
+      "ref": "PR #64",
+      "artifacts": [
+        "schemas/health-ai-search-packet.schema.json",
+        "examples/health-ai/clinical-value-source-search-packet.example.json",
+        "examples/health-ai/health-eval-design-search-packet.example.json"
+      ],
+      "validation": "make validate-health-ai-search-packets"
+    },
+    {
+      "repo": "SocioProphet/sociosphere",
+      "ref": "origin/main",
+      "artifacts": [
+        "registry/health-ai/health-ai-eval-readiness.v0.json",
+        "tests/fixtures/health-ai/health-ai-eval-readiness.planning.json"
+      ],
+      "validation": "python3 tools/validate_health_ai_readiness.py"
+    },
+    {
+      "repo": "SocioProphet/agentplane",
+      "ref": "PR #270",
+      "artifacts": [
+        "schemas/receipts/health-ai-control-receipt.v0.1.schema.json",
+        "tests/fixtures/receipts/health-ai-control-receipt.planning-valid.json"
+      ],
+      "validation": "make validate-health-ai-control-receipt"
+    }
+  ],
+  "demo_surface": {
+    "ui_ready": false,
+    "api_ready": false,
+    "fixture_ready": true,
+    "allowed_views": [
+      "source_claim_summary",
+      "evaluation_design_summary",
+      "readiness_state",
+      "blocked_actions",
+      "evidence_refs",
+      "upstream_validation_refs"
+    ],
+    "blocked_views": [
+      "patient_data_entry",
+      "clinical_recommendation",
+      "diagnosis_or_treatment_advice",
+      "production_roi_claim",
+      "live_ehr_write",
+      "real_clinical_data_processing"
+    ]
+  },
+  "blocked_actions": [
+    "production_ready",
+    "patient_care_action",
+    "autonomous_clinical_action",
+    "real_clinical_data_processing",
+    "customer_facing_healthcare_claim",
+    "protected_benchmark_reproduction",
+    "ehr_write",
+    "clinical_decision_support"
+  ],
+  "eval_readiness_criteria": [
+    {
+      "criterion_id": "contracts_available",
+      "status": "satisfied",
+      "evidence_ref": "SocioProphet/prophet-core-contracts#18"
+    },
+    {
+      "criterion_id": "search_packets_available",
+      "status": "satisfied",
+      "evidence_ref": "SocioProphet/sherlock-search#64"
+    },
+    {
+      "criterion_id": "readiness_registered",
+      "status": "satisfied",
+      "evidence_ref": "SocioProphet/sociosphere:registry/health-ai/health-ai-eval-readiness.v0.json"
+    },
+    {
+      "criterion_id": "control_receipt_available",
+      "status": "satisfied",
+      "evidence_ref": "SocioProphet/agentplane#270"
+    },
+    {
+      "criterion_id": "ui_panel_available",
+      "status": "pending",
+      "evidence_ref": "prophet-platform:future-health-ai-demo-ui"
+    }
+  ],
+  "next_allowed_action": "add_nonprod_ui_panel",
+  "created_at": "2026-06-08T00:00:00Z"
+}
