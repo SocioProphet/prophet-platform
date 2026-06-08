@@ -223,3 +223,7 @@ validate-workspace-prophet-membrane-e2e:
 	python3 tools/validate_workspace_prophet_runtime_receipts.py
 	python3 tools/validate_workspace_prophet_value_projection.py
 
+.PHONY: validate-health-ai-demo-readiness
+validate-health-ai-demo-readiness:
+	python3 tools/validate_health_ai_demo_readiness.py
+
