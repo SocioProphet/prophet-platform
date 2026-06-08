@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFGitOpsReconciliationObservation",
+  "record_id": "fogstack:svf:gitops-reconciliation-observation:example-api:001",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "observation_scope": "nonprod_fixture_observation",
+  "observed_at": "2026-06-08T21:05:00Z",
+  "sandbox_ref": "svf:sandbox-lease:nonprod:example-api:001",
+  "change_set_ref": "refs/heads/example-fogstack-svf-gitops-reconciliation",
+  "gitops_observation": {
+    "state": "observed_fixture_reconciliation_trace_only",
+    "controller_ref": "gitops-controller:argocd:nonprod",
+    "application_ref": "argocd:application:example-api-pr-001",
+    "commit_ref": "git:commit:example-api-pr-001",
+    "desired_revision": "git:sha:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "observed_revision": "git:sha:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sync_status": "Synced",
+    "health_status": "Healthy",
+    "reconciliation_trace_ref": "trace:fogstack-svf:gitops-reconciliation:example-api:001",
+    "reconciliation_events": [
+      {
+        "event_ref": "event:fogstack-svf:gitops:app-detected:001",
+        "event_type": "application_detected",
+        "result": "observed",
+        "evidence_ref": "evidence:fogstack-svf:gitops:app-detected:001"
+      },
+      {
+        "event_ref": "event:fogstack-svf:gitops:sync-complete:001",
+        "event_type": "sync_complete",
+        "result": "observed",
+        "evidence_ref": "evidence:fogstack-svf:gitops:sync-complete:001"
+      },
+      {
+        "event_ref": "event:fogstack-svf:gitops:health-healthy:001",
+        "event_type": "health_healthy",
+        "result": "observed",
+        "evidence_ref": "evidence:fogstack-svf:gitops:health-healthy:001"
+      }
+    ],
+    "drift_detection": {
+      "state": "observed_no_drift",
+      "desired_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "observed_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "evidence_ref": "evidence:fogstack-svf:gitops:no-drift:001"
+    }
+  },
+  "policy_boundary": {
+    "live_apply_authorized": false,
+    "cluster_mutation_authorized": false,
+    "production_environment": false,
+    "secret_access_authorized": false,
+    "human_approval_required_for_live_apply": true
+  },
+  "certified_claims": [
+    "nonprod_gitops_reconciliation_fixture_trace_observed",
+    "nonprod_gitops_sync_trace_observed",
+    "nonprod_gitops_health_trace_observed",
+    "nonprod_gitops_no_drift_trace_observed",
+    "receipt_ref_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "production_readiness",
+    "live_cluster_execution",
+    "network_isolation_enforced",
+    "service_mesh_runtime_parity",
+    "gitops_controller_reconciliation_live_certified",
+    "live_apply_authorized"
+  ],
+  "receipt_ref": "receipt:fogstack-svf:gitops-reconciliation-observation:example-api:001",
+  "non_claims": [
+    "This is a non-production fixture observation record.",
+    "This record does not call Signadot.",
+    "This record does not authorize live apply.",
+    "This record does not authorize cluster mutation.",
+    "This record does not certify production readiness.",
+    "This record does not certify live GitOps controller reconciliation.",
+    "This record does not certify full Signadot-style feature parity."
+  ]
+}
