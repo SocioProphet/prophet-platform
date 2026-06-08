@@ -1,0 +1,96 @@
+{
+  "schema_version": "0.1.0",
+  "record_type": "FogStackSVFBaselineFallbackTraceObservation",
+  "record_id": "fogstack:svf:baseline-fallback-trace:example-api:001",
+  "workroom_ref": "workroom:devsecops:runtime-parity:fogstack-svf-signadot-readiness",
+  "observation_scope": "nonprod_fixture_observation",
+  "observed_at": "2026-06-05T23:10:00Z",
+  "change_set": {
+    "repo": "SocioProphet/prophet-platform",
+    "ref": "refs/heads/example-fogstack-svf-baseline-fallback",
+    "change_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "changed_service_refs": ["service:example-api"],
+    "unchanged_service_refs": ["service:checkout-ui", "service:account-api"]
+  },
+  "changed_service_deploy": {
+    "deploy_state": "observed_changed_service_only",
+    "changed_service_refs": ["service:example-api"],
+    "baseline_service_refs": ["service:checkout-ui", "service:account-api"],
+    "deployment_trace_ref": "trace:fogstack-svf:changed-service-only-deploy:example-api:001",
+    "non_claims": [
+      "Changed-service-only deploy is represented as fixture trace evidence only.",
+      "This record does not prove production deployment behavior."
+    ]
+  },
+  "routing_trace": {
+    "routing_key_ref": "svf:routing-key:example-api:001",
+    "routing_key_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "request_trace_ref": "trace:fogstack-svf:baseline-fallback-traffic:example-api:001",
+    "request_count": 24,
+    "changed_service_request_count": 8,
+    "baseline_fallback_request_count": 16,
+    "routing_key_propagation_state": "observed_header_propagated",
+    "baseline_fallback_state": "observed_traffic_trace",
+    "trace_result": "passed",
+    "non_claims": [
+      "Baseline fallback traffic is observed in fixture trace evidence only.",
+      "This record does not certify service mesh runtime parity.",
+      "This record does not certify network isolation enforcement."
+    ]
+  },
+  "validation_job": {
+    "job_ref": "svf:job:example-api:baseline-fallback-smoke:001",
+    "job_state": "observed_passed",
+    "started_at": "2026-06-05T23:05:00Z",
+    "ended_at": "2026-06-05T23:09:00Z",
+    "artifact_refs": [
+      "artifact:fogstack-svf:job:baseline-fallback-smoke:stdout:001",
+      "artifact:fogstack-svf:job:baseline-fallback-smoke:http-trace:001"
+    ],
+    "receipt_ref": "receipt:fogstack-svf:baseline-fallback-trace:example-api:001"
+  },
+  "isolation_observations": {
+    "http_grpc_route_isolation": "observed_fixture_trace_only",
+    "async_queue_topic_isolation": "not_observed",
+    "stateful_resource_isolation": "not_observed",
+    "network_policy_enforcement": "not_observed",
+    "leak_check": "not_observed"
+  },
+  "gitops_reconciliation": {
+    "state": "not_observed",
+    "reason": "baseline fallback trace fixture does not include live GitOps controller reconciliation"
+  },
+  "policy_boundary": {
+    "live_apply_authorized": false,
+    "cluster_mutation_authorized": false,
+    "production_environment": false,
+    "secret_access_authorized": false,
+    "human_approval_required_for_live_apply": true
+  },
+  "certified_claims": [
+    "changed_service_only_deploy_trace_observed",
+    "baseline_fallback_traffic_trace_observed",
+    "routing_key_header_propagation_observed",
+    "validation_job_observed_passed",
+    "receipt_ref_present"
+  ],
+  "non_certified_claims": [
+    "signadot_vendor_parity",
+    "production_readiness",
+    "live_cluster_execution",
+    "network_isolation_enforced",
+    "service_mesh_runtime_parity",
+    "async_queue_topic_isolation_observed",
+    "stateful_resource_isolation_observed",
+    "gitops_controller_reconciliation_observed",
+    "live_apply_authorized"
+  ],
+  "non_claims": [
+    "This is a non-production fixture observation record.",
+    "This record does not call Signadot.",
+    "This record does not authorize live apply.",
+    "This record does not authorize cluster mutation.",
+    "This record does not certify production readiness.",
+    "This record does not certify full Signadot-style feature parity."
+  ]
+}

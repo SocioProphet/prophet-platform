@@ -10,7 +10,8 @@
     "svf_signadot_adapter_readiness_ref": "contracts/svf/fogstack-svf-signadot-adapter-readiness.example.json",
     "policy_simulation_contract_ref": "docs/POLICY_SIMULATION_EVIDENCE_CONTRACT.md",
     "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json",
-    "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json"
+    "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json",
+    "baseline_fallback_trace_ref": "artifacts/runtime/baseline-fallback-observation/fogstack-svf-baseline-fallback-trace.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -36,7 +37,12 @@
     "sociosphere_workspace_mesh_state": "prepared-but-not-deployed",
     "sociosphere_gate2_state": "planning_only",
     "sociosphere_gate3_state": "blocked",
-    "sociosphere_gate2_blocker_state": "active"
+    "sociosphere_gate2_blocker_state": "active",
+    "baseline_fallback_traffic_state": "observed_traffic_trace",
+    "changed_service_deploy_state": "observed_changed_service_only",
+    "baseline_fallback_request_count": 16,
+    "changed_service_request_count": 8,
+    "routing_key_propagation_state": "observed_header_propagated"
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -52,7 +58,10 @@
     "nonprod_receipt_ref_present",
     "sociosphere_workspace_mesh_gate2_blocker_active",
     "sociosphere_workspace_mesh_gate3_blocked",
-    "sociosphere_workspace_mesh_live_execution_blocked"
+    "sociosphere_workspace_mesh_live_execution_blocked",
+    "changed_service_only_deploy_trace_observed",
+    "baseline_fallback_traffic_trace_observed",
+    "routing_key_header_propagation_observed"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -68,8 +77,6 @@
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "baseline_fallback_traffic_trace",
-    "changed_service_only_deploy_trace",
     "network_isolation_observation",
     "async_queue_topic_isolation_observation",
     "stateful_resource_isolation_observation",
