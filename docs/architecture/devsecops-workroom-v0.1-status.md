@@ -1,12 +1,12 @@
 # DevSecOps Workroom v0.1 Status Ledger
 
-Status: v0.1 closure/status ledger with runtime-adjacent bridge extension  
+Status: v0.1 closure/status ledger with runtime-adjacent bridge extension and demo-readiness gate  
 Plane: Prophet Platform DevSecOps Intelligence Workroom  
 Umbrella: `SocioProphet/prophet-platform#519`
 
 ## Summary
 
-The DevSecOps Intelligence Workroom v0.1 is complete at the fixture-contract, validator, CI, deterministic report-surface, and runtime-adjacent bridge level.
+The DevSecOps Intelligence Workroom v0.1 is complete at the fixture-contract, validator, CI, deterministic report-surface, runtime-adjacent bridge, and non-production demo-readiness gate level.
 
 It is not complete at the live runtime parity level.
 
@@ -21,7 +21,8 @@ The implementation now provides a governed Workroom spine for:
 - deterministic JSON and Markdown Workroom reports;
 - persisted FogStack parity-readiness evidence;
 - Workroom-visible runtime parity bridge evidence;
-- claim and parity boundary enforcement.
+- claim and parity boundary enforcement;
+- non-production demo-readiness validation.
 
 ## Completed workstreams
 
@@ -133,6 +134,19 @@ Implemented parity classes:
 - P3 — Aurora-style incident investigation parity skeleton;
 - P4 — Governed DevSecOps Intelligence parity.
 
+### Workstream 9 — Demo-readiness gate
+
+Complete for non-production fixture review.
+
+Implemented:
+
+- `tools/validate_devsecops_workroom_demo_readiness.py`;
+- `.github/workflows/devsecops-workroom-demo-readiness.yml`.
+
+The demo-readiness validator consumes the existing Workroom runtime parity bridge and status ledger. It checks that required source records are present, fixture-observed claim tokens are present, non-certified boundary tokens are preserved, and the P2 fixture matrix remains documented.
+
+It does not add a new truth source; it gates the existing bridge and ledger. Fewer altars, fewer gremlins.
+
 ## Runtime-adjacent bridge extension
 
 Implemented:
@@ -142,7 +156,8 @@ Implemented:
 - Workroom runtime parity bridge fixture at `artifacts/runtime/workroom-runtime-parity-bridge/fogstack-svf-signadot-readiness.bridge.json`;
 - bridge validator at `tools/validate_workroom_runtime_parity_bridge.py`;
 - static UI wiring validator at `tools/validate_workroom_runtime_parity_ui_component.py`;
-- gateway and UI exposure for the runtime parity bridge.
+- gateway and UI exposure for the runtime parity bridge;
+- demo-readiness validator at `tools/validate_devsecops_workroom_demo_readiness.py`.
 
 The runtime bridge certifies only persisted/local evidence claims:
 
@@ -184,9 +199,11 @@ This level records durable local evidence, runtime dry-run evidence, runtime-ada
 
 ### P2 — Signadot-style feature parity
 
-Status: not achieved.
+Status: achieved only as a fixture-backed non-production evidence spine suitable for planning, review, UI surfacing, and CI gating.
 
-Still requires observed evidence for:
+Still not achieved as live/vendor parity.
+
+The fixture-backed P2 spine includes observed fixture evidence for:
 
 - PR-scoped environment lifecycle;
 - changed-service-only deploy;
@@ -197,9 +214,13 @@ Still requires observed evidence for:
 - validation job execution;
 - teardown and TTL evidence;
 - leak checks;
-- GitOps reconciliation observation;
+- GitOps reconciliation observation.
+
+Still requires live/vendor evidence for:
+
 - policy, secret, and data-boundary enforcement;
-- agent-facing control surface.
+- agent-facing control surface;
+- live runtime parity certification.
 
 ### P3 — Aurora-style incident investigation skeleton
 
@@ -207,14 +228,14 @@ Status: achieved at fixture-contract/report level.
 
 ### P4 — Governed DevSecOps intelligence loop
 
-Status: partially achieved at fixture-contract/report/runtime-bridge level; not live.
+Status: partially achieved at fixture-contract/report/runtime-bridge/demo-readiness level; not live.
 
 ## Allowed claims
 
 The estate may claim:
 
 ```text
-Prophet Platform has a v0.1 fixture-validated DevSecOps Workroom contract spine for pre-merge validation, post-merge incident investigation, receipt evidence representation, GAIA topology/blast-radius context, Guardrail action-safety posture, deterministic report surfaces, and a Workroom-visible runtime-adjacent parity bridge.
+Prophet Platform has a v0.1 fixture-validated DevSecOps Workroom contract spine for pre-merge validation, post-merge incident investigation, receipt evidence representation, GAIA topology/blast-radius context, Guardrail action-safety posture, deterministic report surfaces, a Workroom-visible runtime-adjacent parity bridge, and a non-production demo-readiness gate.
 ```
 
 The estate may also claim:
@@ -256,6 +277,7 @@ Prophet Platform CI now validates:
 - persisted FogStack parity-readiness bundle;
 - Workroom runtime parity bridge;
 - Workroom runtime parity UI wiring;
+- DevSecOps Workroom demo readiness;
 - `validate_change` v2 Workroom adapter;
 - `validate_change` v2 Workroom bundle;
 - Workroom report generation and canonical report drift.
@@ -303,6 +325,7 @@ Status: fixture-backed non-production evidence expanded. This section does not c
 | Stateful resource isolation traces | Fixture observed | `b58a9497` |
 | GitOps reconciliation traces | Fixture observed | `4ad90a6f` |
 | Leak-check traces | Fixture observed | `27e50f4c` |
+| Demo-readiness gate | Validator and focused workflow present | `16d1954` / `4a4fe5c` |
 
 ### Certified only at fixture level
 
@@ -318,6 +341,7 @@ The Workroom bridge may claim the following only as non-production fixture obser
 - stateful resource isolation trace observed
 - GitOps reconciliation trace observed
 - no-residual-resource leak-check trace observed
+- demo-readiness gate present
 
 ### Still explicitly non-certified
 
@@ -335,6 +359,5 @@ The Workroom bridge may claim the following only as non-production fixture obser
 
 ### Current interpretation
 
-P2 has a complete fixture-backed runtime-parity evidence spine suitable for Workroom planning, review, UI surfacing, and CI gating. It remains a non-production evidence bridge, not a live runtime parity certification.
+P2 has a complete fixture-backed runtime-parity evidence spine suitable for Workroom planning, review, UI surfacing, CI gating, and non-production demo walkthrough. It remains a non-production evidence bridge, not a live runtime parity certification.
 <!-- P2_RUNTIME_PARITY_FIXTURE_MATRIX:END -->
-
