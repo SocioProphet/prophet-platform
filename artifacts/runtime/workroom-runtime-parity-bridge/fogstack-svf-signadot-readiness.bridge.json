@@ -12,7 +12,8 @@
     "nonprod_sandbox_observation_ref": "artifacts/runtime/nonprod-sandbox-observation/fogstack-svf-nonprod-sandbox-observed.v0.1.json",
     "sociosphere_gate2_blocker_ref": "fixtures/external/sociosphere/workspace-mesh-gate2-promotion-blocker.v0.json",
     "baseline_fallback_trace_ref": "artifacts/runtime/baseline-fallback-observation/fogstack-svf-baseline-fallback-trace.v0.1.json",
-    "network_isolation_observation_ref": "artifacts/runtime/network-isolation-observation/fogstack-svf-network-isolation-observed.v0.1.json"
+    "network_isolation_observation_ref": "artifacts/runtime/network-isolation-observation/fogstack-svf-network-isolation-observed.v0.1.json",
+    "async_topic_isolation_observation_ref": "artifacts/runtime/async-isolation-observation/fogstack-svf-async-topic-isolation-observed.v0.1.json"
   },
   "observed_evidence": {
     "fogstack_parity_status": "passed",
@@ -48,7 +49,12 @@
     "network_policy_trace_ref": "trace:fogstack-svf:network-policy:example-api:001",
     "network_allowed_ingress_count": 12,
     "network_denied_cross_sandbox_count": 3,
-    "network_denied_external_egress_count": 2
+    "network_denied_external_egress_count": 2,
+    "async_topic_isolation_observation_state": "observed_fixture_topic_isolation_trace_only",
+    "async_topic_trace_ref": "trace:fogstack-svf:async-topic-isolation:example-api:001",
+    "async_allowed_topic_message_count": 9,
+    "async_cross_sandbox_denied_message_count": 4,
+    "async_baseline_topic_denied_message_count": 2
   },
   "certified_claims": [
     "fogstack_parity_artifact_bundle_persisted",
@@ -71,7 +77,11 @@
     "nonprod_network_policy_fixture_trace_observed",
     "nonprod_allowed_ingress_trace_observed",
     "nonprod_cross_sandbox_denial_trace_observed",
-    "nonprod_external_egress_denial_trace_observed"
+    "nonprod_external_egress_denial_trace_observed",
+    "nonprod_async_topic_fixture_trace_observed",
+    "nonprod_allowed_topic_trace_observed",
+    "nonprod_cross_sandbox_topic_denial_trace_observed",
+    "nonprod_baseline_topic_mutation_denial_trace_observed"
   ],
   "non_certified_claims": [
     "signadot_vendor_parity",
@@ -83,11 +93,12 @@
     "async_stateful_isolation_runtime_observed",
     "gitops_controller_reconciliation_observed",
     "workspace_asset_mutation_authorized",
-    "live_apply_authorized"
+    "live_apply_authorized",
+    "async_queue_topic_runtime_isolation_enforced",
+    "stateful_resource_isolation_observed"
   ],
   "decision_state": "nonprod_evidence_ready_but_vendor_parity_blocked",
   "next_required_evidence": [
-    "async_queue_topic_isolation_observation",
     "stateful_resource_isolation_observation",
     "leak_check_observation",
     "gitops_reconciliation_observation",

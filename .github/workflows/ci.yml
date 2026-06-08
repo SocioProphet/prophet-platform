@@ -84,6 +84,10 @@ jobs:
         run: python tools/validate_fogstack_svf_network_isolation_observation.py
       - name: Validate Workroom network isolation bridge
         run: python tools/validate_workroom_runtime_network_isolation_bridge.py
+      - name: Validate FogStack SVF async topic isolation observation
+        run: python tools/validate_fogstack_svf_async_topic_isolation_observation.py
+      - name: Validate Workroom async topic isolation bridge
+        run: python tools/validate_workroom_runtime_async_topic_isolation_bridge.py
       - name: Validate Workroom runtime parity bridge
         run: python tools/validate_workroom_runtime_parity_bridge.py
       - name: Validate Workroom runtime parity UI wiring
