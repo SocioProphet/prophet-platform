@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-action-execution-receipt-ref-v0.1",
+  "title": "DevSecOps Action Execution Receipt Reference",
+  "description": "Reference to an AgentPlane execution receipt. Prophet Platform validates receipt references only — it does not issue or certify execution receipts. Receipt authority belongs to AgentPlane.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "receipt_ref",
+    "execution_request_ref",
+    "grant_ref",
+    "remediation_plan_ref",
+    "status",
+    "verifier",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "receipt_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_request_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "grant_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "remediation_plan_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failed",
+        "partial",
+        "denied",
+        "not_executed"
+      ]
+    },
+    "artifact_digest": {
+      "type": "string",
+      "description": "SHA-256 digest of the execution artifact. Required when status=success."
+    },
+    "failure_evidence_ref": {
+      "type": "string",
+      "description": "Reference to failure evidence. Required when status=failed."
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "verifier": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identity of the AgentPlane authority that issued this receipt."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}
