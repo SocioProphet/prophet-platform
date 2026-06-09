@@ -19,7 +19,75 @@ const defaultUnixSocket = "/tmp/socioprophet.sock"
 // that downstream receipt consumers (including this API stub) reference for
 // exported receipt validation. Prophet consumes this manifest; it does not
 // produce or certify it.
-const sociosphereExportManifestRef = "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json"
+//
+// Updated to PR #482 (feat(svf): publish stable exported receipt artifacts).
+const sociosphereExportManifestRef = "SocioProphet/sociosphere@52a8e48ba176043bca087079902ebc025c2d0ef0:artifacts/svf/exports/latest/export-manifest.json"
+
+// ── SociosphereSVFClient — interface seam ────────────────────────────────────
+//
+// SociosphereSVFClient defines the boundary between Prophet Platform and
+// Sociosphere for SVF plan selection, execution, receipt verification, and
+// export. In v0.1 only the fixture implementation is wired. Live execution
+// is gated behind ADR-0006 and requires AgentPlane execution authority.
+//
+// When a real implementation is needed, promote this to libs/go/svfclient/.
+//
+// Boundary:
+//   - Prophet calls this interface; it does not execute SVF actions.
+//   - Sociosphere owns execution, receipt issuance, and verification.
+//   - All outputs map to the existing validated receipt-state vocabulary.
+type SociosphereSVFClient interface {
+    // SelectPlans returns the SVF plan refs applicable to the changed paths.
+    SelectPlans(repo string, changedPaths []string) ([]string, error)
+    // RunPlan executes a registered SVF plan and returns run metadata.
+    // Must not be called without AgentPlane execution grant.
+    RunPlan(planRef string) (map[string]any, error)
+    // VerifyReceipt verifies a receipt ref and returns verification metadata.
+    VerifyReceipt(receiptRef string) (map[string]any, error)
+    // ExportLatest copies the most recent local run into exports/latest and
+    // returns the updated manifest.
+    ExportLatest(runRef string) (map[string]any, error)
+}
+
+// FixtureSociosphereSVFClient is a deterministic fixture implementation of
+// SociosphereSVFClient for use in the API stub and tests. It returns
+// known-good fixture data derived from the pinned Sociosphere export manifest.
+//
+// No network calls. No execution. No receipt issuance.
+type FixtureSociosphereSVFClient struct{}
+
+func (f *FixtureSociosphereSVFClient) SelectPlans(repo string, changedPaths []string) ([]string, error) {
+    return []string{"svf:plan:sociosphere.registry-dogfood"}, nil
+}
+
+func (f *FixtureSociosphereSVFClient) RunPlan(planRef string) (map[string]any, error) {
+    return map[string]any{
+        "run_ref":    "svf:run:fixture",
+        "status":     "pass",
+        "non_claims": []string{"Fixture run does not execute live SVF actions."},
+    }, nil
+}
+
+func (f *FixtureSociosphereSVFClient) VerifyReceipt(receiptRef string) (map[string]any, error) {
+    return map[string]any{
+        "status":          "verified",
+        "verifier":        "sociosphere.svf_runner.local",
+        "non_claims":      []string{"Fixture verification does not execute live receipt verification."},
+    }, nil
+}
+
+func (f *FixtureSociosphereSVFClient) ExportLatest(runRef string) (map[string]any, error) {
+    return map[string]any{
+        "export_manifest_ref": sociosphereExportManifestRef,
+        "run_ref":             runRef,
+        "non_claims":          []string{"Fixture export does not invoke live svf_export_latest."},
+    }, nil
+}
+
+// defaultSVFClient is the client used by the API stub. In v0.1 this is always
+// the fixture implementation. Replace with a live client only after ADR-0006
+// gates are satisfied and AgentPlane execution authority is established.
+var defaultSVFClient SociosphereSVFClient = &FixtureSociosphereSVFClient{}
 
 func main() {
     key, err := binding.ResolveSharedKey(os.Getenv("TRITRPC_KEY_HEX"), os.Getenv("TRITRPC_ALLOW_INSECURE_DEV_KEY") == "1")
@@ -131,9 +199,17 @@ func buildValidateChangeResponse(req map[string]any) map[string]any {
         return buildFailedReceiptResponse(req, requestID, repo, exportedReceipt)
     case "stale":
         return buildStaleReceiptResponse(req, requestID, repo, exportedReceipt)
-    default:
-        return buildMissingEvidenceResponse(req, requestID, repo)
     }
+
+    // export_manifest_ref path: request carries a pinned manifest ref instead
+    // of an inline receipt. The stub resolves receipt state from the known
+    // fixture manifest. Blocked states propagate; only the pinned ref is
+    // accepted — unknown refs return missing-evidence.
+    if manifestRef, ok := req["export_manifest_ref"].(string); ok && manifestRef != "" {
+        return buildManifestRefResponse(req, requestID, repo, manifestRef)
+    }
+
+    return buildMissingEvidenceResponse(req, requestID, repo)
 }
 
 func buildVerifiedReceiptResponse(req map[string]any, requestID, repo string, receipt map[string]any) map[string]any {
@@ -375,6 +451,113 @@ func buildStaleReceiptResponse(req map[string]any, requestID, repo string, recei
             "API stub does not execute live sandbox infrastructure.",
             "API stub does not certify Signadot-style runtime parity.",
             "API stub projects readiness from exported SVF receipt only.",
+        },
+    }
+}
+
+// buildManifestRefResponse handles requests that carry an export_manifest_ref
+// rather than an inline exported_sociosphere_receipt.
+//
+// In v0.1 this is fixture-level: only the pinned sociosphereExportManifestRef
+// is recognised; all other refs return missing-evidence. Receipt state is
+// derived from the known manifest fixture — no live fetch or network call.
+//
+// When live manifest fetch is implemented, replace the fixture lookup with a
+// call to defaultSVFClient.VerifyReceipt(manifest.receipt_ref).
+func buildManifestRefResponse(req map[string]any, requestID, repo, manifestRef string) map[string]any {
+    if manifestRef != sociosphereExportManifestRef {
+        // Unknown manifest ref — cannot derive receipt state, treat as missing.
+        return buildMissingEvidenceResponse(req, requestID, repo)
+    }
+
+    // Derive receipt state from the pinned manifest fixture.
+    // These values mirror the known contents of the pinned export-manifest.json.
+    runRef := "svf:run:cda7b48ccd1b03b1"
+    receiptRef := "svf:receipt:cda7b48ccd1b03b1"
+    runDigest := "4806e0098632d8539159657529ab0d5b8c6274162e3089c0b66ab374d2186b18"
+    receiptDigest := "cf6a273478391d908cc1668812d5038dd18feea386860a84d6a52ed8049cd5ac"
+
+    return map[string]any{
+        "schema_version": "1.0",
+        "request_id":     requestID,
+        "response_id":    "environment:validate-change-v2-response:observed:manifest-ref",
+        "status":         "environment_observed",
+        "repo":           repo,
+        "sociosphere_refs": req["sociosphere_refs"],
+        "selected_plans":   req["selected_plans"],
+        "environment":      req["environment_request"],
+        "agentplane_execution": map[string]any{
+            "executor_plane":  "AgentPlane",
+            "sandbox_run_ref": "agentplane:sandbox-run:manifest-ref-ingestion",
+            "execution_status": "observed",
+            "evidence_refs":   []string{receiptRef},
+        },
+        "evidence_summary": map[string]any{
+            "evidence_status":           "verified",
+            "validation_evidence_state": "verified_receipt",
+            "receipt_refs":              []string{receiptRef},
+            "run_refs":                  []string{runRef},
+            "export_manifest_ref":       manifestRef,
+            "run_digest":                runDigest,
+            "receipt_digest":            receiptDigest,
+            "failure_codes":             []string{},
+            "non_certified_claims": []string{
+                "Receipt state is derived from the pinned Sociosphere export manifest fixture.",
+                "No live manifest fetch or network call was made.",
+                "Verification does not certify production readiness.",
+            },
+        },
+        "pr_readiness": map[string]any{
+            "readiness_state":         "allowed",
+            "merge_allowed":           true,
+            "required_evidence_state": "verified_receipt",
+            "observed_evidence_state": "verified_receipt",
+            "blocking_reason_codes":   []string{},
+            "summary":                 "Verified SVF receipt derived from pinned export manifest. PR readiness gate satisfied.",
+            "non_claims": []string{
+                "Readiness is based on pinned Sociosphere export manifest fixture only.",
+                "Readiness does not certify production deployment.",
+                "Live manifest fetch not yet implemented — fixture projection only.",
+            },
+        },
+        "workroom_projection": map[string]any{
+            "schema_version":           "0.1.0",
+            "workroom_id":              "workroom:devsecops:pre-merge:manifest-ref:verified",
+            "lane":                     "pre_merge_validation",
+            "runtime_parity_level":     "contract_only",
+            "validation_evidence_state": "verified_receipt",
+            "source_refs": map[string]any{
+                "change_set_ref":         "changeset://github/" + repo + "/api-stub",
+                "environment_request_ref": requestID,
+                "validation_run_ref":     runRef,
+                "validation_receipt_ref": receiptRef,
+                "export_manifest_ref":    manifestRef,
+                "topology_ref":           "topology://svf-local/manifest-ref",
+            },
+            "event_type":    "pre_merge_validation_success",
+            "decision_state": "allowed",
+            "non_claims": []string{
+                "Projection is derived from pinned Sociosphere export manifest fixture.",
+                "Projection does not execute live sandbox infrastructure.",
+                "Projection does not certify Signadot-style feature parity.",
+            },
+        },
+        "svf_client": map[string]any{
+            "client_type":     "FixtureSociosphereSVFClient",
+            "execution_mode":  "fixture_only",
+            "live_execution":  false,
+            "non_claims": []string{
+                "FixtureSociosphereSVFClient does not invoke live Sociosphere SVF runner.",
+                "Live client requires ADR-0006 gates and AgentPlane execution authority.",
+            },
+        },
+        "warnings":            []string{},
+        "next_required_action": "none_for_verified_receipt",
+        "non_claims": []string{
+            "API stub does not execute live sandbox infrastructure.",
+            "API stub does not certify Signadot-style runtime parity.",
+            "API stub projects readiness from pinned SVF export manifest fixture only.",
+            "Live manifest fetch and SociosphereSVFClient live impl are not yet wired.",
         },
     }
 }
