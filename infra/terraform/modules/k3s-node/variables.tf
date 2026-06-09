@@ -10,8 +10,8 @@ variable "server_type" {
 }
 
 variable "location" {
-  type    = string
-  default = "ash"
+  type        = string
+  default     = "ash"
   description = "Hetzner datacenter location (ash=Ashburn, nbg1=Nuremberg, fsn1=Falkenstein)"
 }
 
@@ -41,8 +41,8 @@ variable "firewall_ids" {
 }
 
 variable "role" {
-  type    = string
-  default = "worker"
+  type        = string
+  default     = "worker"
   description = "Node role: control-plane or worker"
 }
 

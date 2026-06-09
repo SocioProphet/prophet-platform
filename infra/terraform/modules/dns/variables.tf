@@ -9,7 +9,7 @@ variable "control_plane_ip" {
 }
 
 variable "subdomain_prefix" {
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
   description = "Optional subdomain prefix (e.g. 'p1' → p1.socioprophet.ai). Empty = apex."
 }
