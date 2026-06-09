@@ -1,0 +1,111 @@
+name: workspace-services-image
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/workspace-mail/**"
+      - "services/workspace-smtp/**"
+      - "services/workspace-caldav/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/workspace-mail/**"
+      - "services/workspace-smtp/**"
+      - "services/workspace-caldav/**"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/socioprophet/prophet-platform
+
+jobs:
+  build-workspace-mail:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push workspace-mail
+        uses: docker/build-push-action@v5
+        with:
+          context: services/workspace-mail
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/workspace-mail:dev
+            ${{ env.IMAGE_PREFIX }}/workspace-mail:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-workspace-smtp:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push workspace-smtp
+        uses: docker/build-push-action@v5
+        with:
+          context: services/workspace-smtp
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/workspace-smtp:dev
+            ${{ env.IMAGE_PREFIX }}/workspace-smtp:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-workspace-caldav:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push workspace-caldav
+        uses: docker/build-push-action@v5
+        with:
+          context: services/workspace-caldav
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.IMAGE_PREFIX }}/workspace-caldav:dev
+            ${{ env.IMAGE_PREFIX }}/workspace-caldav:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  kustomize-validate:
+    runs-on: ubuntu-latest
+    needs: [build-workspace-mail, build-workspace-smtp, build-workspace-caldav]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+      - name: Validate workspace-mail kustomize (p0-lab)
+        run: kubectl kustomize infra/k8s/workspace-mail/overlays/p0-lab
+      - name: Validate workspace-caldav kustomize (p0-lab)
+        run: kubectl kustomize infra/k8s/workspace-caldav/overlays/p0-lab
+      - name: Validate workspace-minio kustomize (p0-lab)
+        run: kubectl kustomize infra/k8s/workspace-minio/overlays/p0-lab

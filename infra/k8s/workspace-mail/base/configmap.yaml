@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workspace-mail-config
+data:
+  dovecot.conf: |
+    protocols = imap lmtp
+    log_path = /dev/stderr
+    info_log_path = /dev/stderr
+    ssl = no
+    mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
+    auth_mechanisms = plain login
+    !include conf.d/*.conf
+  10-auth.conf: |
+    passdb { driver = sql; args = /etc/dovecot/conf.d/auth-sql.conf.ext }
+    userdb { driver = sql; args = /etc/dovecot/conf.d/auth-sql.conf.ext }
+  10-mail.conf: |
+    mail_home = /var/mail/vhosts/%d/%n
+    mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
+    namespace inbox { inbox = yes }

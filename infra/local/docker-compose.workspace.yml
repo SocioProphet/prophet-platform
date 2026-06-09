@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: prophet
+      POSTGRES_PASSWORD: prophet
+      POSTGRES_DB: prophet_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../datastores/postgres:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --save 60 1
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: prophet
+      MINIO_ROOT_PASSWORD: prophet-minio-dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    command: server /data --console-address ":9001"
+
+  workspace-mail:
+    build:
+      context: ../../services/workspace-mail
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: prophet
+      POSTGRES_PASSWORD: prophet
+      POSTGRES_DB: prophet_platform
+    ports:
+      - "143:143"
+      - "993:993"
+      - "24:24"
+    volumes:
+      - maildata:/var/mail/vhosts
+    depends_on:
+      - postgres
+
+  workspace-smtp:
+    build:
+      context: ../../services/workspace-smtp
+    environment:
+      SMTP_HOSTNAME: mail.prophet.local
+      DOVECOT_HOST: workspace-mail
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: prophet
+      POSTGRES_PASSWORD: prophet
+      POSTGRES_DB: prophet_platform
+    ports:
+      - "25:25"
+      - "587:587"
+    depends_on:
+      - postgres
+      - workspace-mail
+
+  workspace-caldav:
+    build:
+      context: ../../services/workspace-caldav
+    ports:
+      - "5232:5232"
+    volumes:
+      - caldavdata:/var/lib/radicale/collections
+      - caldavconfig:/config
+    # Seed users file on first run: docker exec workspace-caldav python -m radicale --config /config/config --verify-storage
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  maildata:
+  caldavdata:
+  caldavconfig:

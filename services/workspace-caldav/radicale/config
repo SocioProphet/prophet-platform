@@ -1,0 +1,25 @@
+[server]
+hosts = 0.0.0.0:5232
+max_connections = 20
+max_content_length = 10000000
+timeout = 30
+
+[auth]
+# htpasswd for local dev; swap to remote_user for production behind a proxy
+type = htpasswd
+htpasswd_filename = /config/users
+htpasswd_encryption = bcrypt
+delay = 1
+
+[storage]
+filesystem_folder = /var/lib/radicale/collections
+
+[logging]
+level = info
+
+[headers]
+Access-Control-Allow-Origin = *
+Access-Control-Allow-Methods = GET, HEAD, DELETE, OPTIONS, PROPFIND, PUT, MKCALENDAR, MKCOL, REPORT, PROPPATCH
+Access-Control-Allow-Headers = User-Agent, Authorization, Content-type, Depth, If-Match, If-None-Match, Lock-Token, Timeout, Destination, Overwrite, X-client, X-Requested-With
+Access-Control-Expose-Headers = DAV, content-length, Allow
+Access-Control-Allow-Credentials = true

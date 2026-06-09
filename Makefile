@@ -1,4 +1,4 @@
-.PHONY: validate validate-repo docs-check drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-live-sociosphere-svf-contract validate-fogstack-svf-signadot-adapter-readiness validate-environment-validate-change-v2 validate-trust-chain-contracts validate-channel-runtime-gates test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite trustops-art-runner-smoke
+.PHONY: validate validate-repo docs-check drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-live-sociosphere-svf-contract validate-fogstack-svf-signadot-adapter-readiness validate-environment-validate-change-v2 validate-trust-chain-contracts validate-channel-runtime-gates test-go test-python-apps test-tools smoke smoke-health smoke-eval-fabric smoke-evidence-receipts smoke-evidence-console validate-phase3 lampstand-smoke validate-phase4 lampstand-vertical-slice-smoke lampstand-zone-smoke zone-router-publication-smoke zone-router-publication-enqueue-smoke semantic-bridge-zone-validation-smoke validate-fogstack validate-storage-suite trustops-art-runner-smoke validate-workspace-services test-workspace smoke-workspace workspace-up workspace-down workspace-logs workspace-build
 
 validate: validate-repo drift-check standards-check topology-check chronos-evidence-loop-readout-validate lattice-surfaces-check lattice-surface-ingestor-smoke lattice-studio-smoke validate-ops-fabric validate-search-academy-deploy validate-search-image-release validate-lampstand-lifecycle validate-zone-stack-audit policy-fabric-endpoint-client-smoke policy-fabric-guarded-workflow-smoke zone-router-publication-local-publish-smoke zone-router-publication-failure-evidence-smoke zone-router-publication-retry-state-smoke zone-router-publication-remote-broker-seam-smoke validate-workroom-update-contract validate-professional-intelligence-manifest validate-wallguard-professional-workroom validate-svf-agent-contract validate-live-sociosphere-svf-contract validate-fogstack-svf-signadot-adapter-readiness validate-environment-validate-change-v2 validate-trust-chain-contracts validate-channel-runtime-gates test-go validate-phase4 test-python-apps test-tools validate-fogstack validate-storage-suite trustops-art-runner-smoke
 
@@ -230,3 +230,75 @@ validate-health-ai-demo-readiness:
 .PHONY: validate-prophet-mesh-demo-readiness
 validate-prophet-mesh-demo-readiness:
 	python3 tools/validate_prophet_mesh_demo_readiness.py
+
+# ── Workspace services ────────────────────────────────────────────────────────
+WORKSPACE_COMPOSE = infra/local/docker-compose.workspace.yml
+
+validate-workspace-services:
+	python3 tools/validate_workspace_services.py
+
+test-workspace:
+	test -d .venv-workspace || python3 -m venv .venv-workspace
+	. .venv-workspace/bin/activate && python -m pip install --upgrade pip --quiet && pip install pytest pyyaml --quiet
+	. .venv-workspace/bin/activate && pytest -q tests/workspace_operations/test_workspace_infra.py
+
+smoke-workspace:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	bash tools/smoke_workspace_services.sh
+
+workspace-build:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running."; exit 1; \
+	fi
+	docker compose -f $(WORKSPACE_COMPOSE) build
+
+workspace-up:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	docker compose -f $(WORKSPACE_COMPOSE) up -d
+	@echo "Stack started. Logs: make workspace-logs"
+	@echo "Ports: IMAP=143, SMTP=25, SUBMISSION=587, CalDAV=5232, MinIO=9000, MinIO-console=9001"
+
+workspace-down:
+	docker compose -f $(WORKSPACE_COMPOSE) down
+
+workspace-logs:
+	docker compose -f $(WORKSPACE_COMPOSE) logs -f
+
+# ── Terraform / IaC ───────────────────────────────────────────────────────────
+TF_ENV ?= p0-lab
+TF_DIR = infra/terraform/environments/$(TF_ENV)
+
+infra-init:
+	cd $(TF_DIR) && terraform init -upgrade
+
+infra-plan:
+	cd $(TF_DIR) && terraform plan
+
+infra-apply:
+	cd $(TF_DIR) && terraform apply
+
+infra-destroy:
+	cd $(TF_DIR) && terraform destroy
+
+infra-fmt:
+	terraform fmt -recursive infra/terraform/
+
+infra-validate:
+	cd infra/terraform/environments/p0-lab && terraform init -backend=false && terraform validate
+	cd infra/terraform/environments/p1-single-site && terraform init -backend=false && terraform validate
+
+# ── prophet-cli ───────────────────────────────────────────────────────────────
+PROPHET_CLI_DIR ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/../prophet-cli
+
+prophet-cli-install:
+	test -d $(PROPHET_CLI_DIR)/.venv || python3 -m venv $(PROPHET_CLI_DIR)/.venv
+	$(PROPHET_CLI_DIR)/.venv/bin/pip install -e $(PROPHET_CLI_DIR) -q
+	@echo "Installed. Run: source $(PROPHET_CLI_DIR)/.venv/bin/activate && prophet --help"
+
+.PHONY: infra-init infra-plan infra-apply infra-destroy infra-fmt infra-validate prophet-cli-install

@@ -1,0 +1,15 @@
+# Injected at runtime from Secret. Override with env var DOVECOT_PG_DSN.
+driver = pgsql
+connect = host=${POSTGRES_HOST} port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_USER} password=${POSTGRES_PASSWORD}
+
+default_pass_scheme = SHA512-CRYPT
+
+password_query = \
+  SELECT password FROM mail_users WHERE email = '%u' AND active = TRUE
+
+user_query = \
+  SELECT \
+    'vmail' AS uid, \
+    'vmail' AS gid, \
+    '/var/mail/vhosts/%d/%n' AS home \
+  FROM mail_users WHERE email = '%u' AND active = TRUE

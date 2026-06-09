@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-mail
+spec:
+  selector:
+    app: workspace-mail
+  ports:
+    - name: imap
+      port: 143
+      targetPort: 143
+    - name: imaps
+      port: 993
+      targetPort: 993
+    - name: lmtp
+      port: 24
+      targetPort: 24
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-smtp
+spec:
+  selector:
+    app: workspace-smtp
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: 25
+    - name: submission
+      port: 587
+      targetPort: 587
