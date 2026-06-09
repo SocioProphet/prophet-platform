@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:manifest-ref:verified",
+  "repo": "SocioProphet/sociosphere",
+  "sociosphere_refs": {
+    "workspace_ref": "sociosphere:workspace:default",
+    "svf_registry_ref": "SocioProphet/sociosphere@52a8e48ba176043bca087079902ebc025c2d0ef0:registry/sovereign-validation-fabric.yaml"
+  },
+  "selected_plans": [
+    "svf:plan:sociosphere.registry-dogfood"
+  ],
+  "environment_request": {
+    "requested_isolation_class": "synthetic_no_network",
+    "environment_type": "svf_local_manifest_ref",
+    "non_claims": [
+      "Does not execute live sandbox infrastructure.",
+      "Does not certify Signadot-style runtime parity."
+    ]
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "execution_mode": "manifest_ref_input"
+  },
+  "export_manifest_ref": "SocioProphet/sociosphere@52a8e48ba176043bca087079902ebc025c2d0ef0:artifacts/svf/exports/latest/export-manifest.json"
+}

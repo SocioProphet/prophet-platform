@@ -56,8 +56,21 @@ REQUIRED_API = [
     # run_refs must be SVF namespace; agentplane_execution.sandbox_run_ref must be agentplane:
     '"agentplane:sandbox-run:exported-sociosphere-receipt"',
     '"run_refs"',
-    # export manifest pinned ref
-    'SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json',
+    # pinned export manifest refs — original (#575) and updated (#482 artifacts)
+    'SocioProphet/sociosphere@52a8e48ba176043bca087079902ebc025c2d0ef0:artifacts/svf/exports/latest/export-manifest.json',
+    # manifest-ref ingestion path
+    'buildManifestRefResponse',
+    'FixtureSociosphereSVFClient',
+    'SociosphereSVFClient',
+    'defaultSVFClient',
+    '"client_type"',
+    '"live_execution"',
+    '"fixture_only"',
+    'agentplane:sandbox-run:manifest-ref-ingestion',
+    '"none_for_verified_receipt"',
+    'Live client requires ADR-0006 gates',
+    # manifest-ref fixture
+    'export_manifest_ref',
 ]
 REQUIRED_GATEWAY = [
     'mux.HandleFunc("/v1/validate-change"',
