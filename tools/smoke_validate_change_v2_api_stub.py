@@ -17,8 +17,14 @@ REQUIRED_BINDING = [
 ]
 REQUIRED_API = [
     "handleValidateChange",
+    "buildValidateChangeResponse",
+    "buildVerifiedReceiptResponse",
+    "buildFailedReceiptResponse",
+    "buildStaleReceiptResponse",
+    "buildMissingEvidenceResponse",
     "binding.ValidateChangeService",
     "binding.ValidateChangeReq",
+    # missing-evidence default path
     '"status": "environment_requested"',
     '"agentplane_synthetic_sandbox_run"',
     '"evidence_summary"',
@@ -35,6 +41,23 @@ REQUIRED_API = [
     '"Projection does not execute live sandbox infrastructure."',
     '"Projection does not certify Signadot-style feature parity."',
     '"API stub does not execute live sandbox infrastructure."',
+    # exported receipt paths
+    '"exported_sociosphere_receipt"',
+    '"status": "environment_observed"',
+    '"validation_evidence_state": "verified_receipt"',
+    '"merge_allowed": true',
+    '"none_for_verified_receipt"',
+    '"validation_evidence_state": "failed_receipt"',
+    '"svf_receipt_failed"',
+    '"remediate_and_rerun_environment_validation"',
+    '"validation_evidence_state": "stale_receipt"',
+    '"svf_receipt_stale"',
+    '"rerun_selected_svf_plan"',
+    # run_refs must be SVF namespace; agentplane_execution.sandbox_run_ref must be agentplane:
+    '"agentplane:sandbox-run:exported-sociosphere-receipt"',
+    '"run_refs"',
+    # export manifest pinned ref
+    'SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json',
 ]
 REQUIRED_GATEWAY = [
     'mux.HandleFunc("/v1/validate-change"',

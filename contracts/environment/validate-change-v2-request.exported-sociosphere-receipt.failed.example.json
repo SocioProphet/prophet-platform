@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:exported-sociosphere-receipt:failed",
+  "repo": "SocioProphet/sociosphere",
+  "sociosphere_refs": {
+    "workspace_ref": "sociosphere:workspace:default",
+    "svf_registry_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:registry/sovereign-validation-fabric.yaml"
+  },
+  "selected_plans": [
+    "svf:plan:sociosphere-dogfood-v0"
+  ],
+  "environment_request": {
+    "requested_isolation_class": "synthetic_no_network",
+    "environment_type": "svf_local_exported",
+    "non_claims": [
+      "Does not execute live sandbox infrastructure.",
+      "Does not certify Signadot-style runtime parity."
+    ]
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "execution_mode": "exported_receipt_input"
+  },
+  "exported_sociosphere_receipt": {
+    "export_manifest_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json",
+    "run_ref": "svf:run:sociosphere-dogfood-v0:local-smoke:failed",
+    "receipt_ref": "svf:receipt:sociosphere-dogfood-v0:local-smoke:failed",
+    "run_digest": "sha256:ff00112233445566778899aabbccddeeff00112233445566778899aabbccddee",
+    "receipt_digest": "sha256:aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
+    "verification": {
+      "status": "failed",
+      "verifier_identity": "sociosphere:svf-runner:local",
+      "verified_at": "2026-06-09T00:00:00Z",
+      "failure_reason": "One or more registered actions did not complete successfully."
+    },
+    "certified_claims": [],
+    "non_certified_claims": [
+      "Receipt is failed. Merge is blocked.",
+      "Remediation required: inspect action-result artifact refs, patch failing change, rerun SVF plan."
+    ]
+  }
+}
