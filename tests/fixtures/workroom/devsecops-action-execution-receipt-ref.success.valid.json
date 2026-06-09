@@ -1,0 +1,16 @@
+{
+  "schema_version": "0.1.0",
+  "receipt_ref": "agentplane-receipt:scope-d-example:rollback-success",
+  "execution_request_ref": "agentplane-request:scope-d-example:rollback-approved",
+  "grant_ref": "action-grant:scope-d-example:rollback-production",
+  "remediation_plan_ref": "remediation-plan:scope-d-example:rollback-candidate",
+  "status": "success",
+  "artifact_digest": "sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+  "issued_at": "2026-06-09T12:00:00Z",
+  "verifier": "agentplane:authority:scope-d-fixture",
+  "non_claims": [
+    "Receipt is fixture-only. No live AgentPlane execution.",
+    "Prophet Platform validates receipt references only; does not issue or certify.",
+    "success status does not certify production readiness."
+  ]
+}

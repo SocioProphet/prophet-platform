@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-action-execution-handoff-v0.1",
+  "title": "DevSecOps Action Execution Handoff",
+  "description": "Models the handoff of an approved remediation action from Prophet Platform to AgentPlane for execution. Prophet Platform proposes and tracks the handoff; AgentPlane executes and issues the receipt. Prophet Platform must not execute actions or issue receipts.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "handoff_id",
+    "workroom_id",
+    "remediation_plan_ref",
+    "action_grant_ref",
+    "risk_class",
+    "requires_receipt",
+    "status",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "handoff_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workroom_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "remediation_plan_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_grant_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "agentplane_execution_request_ref": {
+      "type": "string",
+      "description": "Reference to the AgentPlane execution request submitted after approval."
+    },
+    "execution_receipt_ref": {
+      "type": "string",
+      "description": "Reference to the AgentPlane execution receipt. Present only when status=receipt_received."
+    },
+    "failure_evidence_ref": {
+      "type": "string",
+      "description": "Reference to failure evidence. Required when status=failed."
+    },
+    "policy_ref": {
+      "type": "string",
+      "description": "Policy document governing this handoff."
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "requires_receipt": {
+      "type": "boolean",
+      "description": "If true, execution must produce a verified receipt before remediation can be closed."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "approved_for_handoff",
+        "submitted",
+        "receipt_received",
+        "failed",
+        "cancelled",
+        "denied"
+      ]
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

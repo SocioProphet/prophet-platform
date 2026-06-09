@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1.0",
+  "receipt_ref": "agentplane-receipt:invalid:not-executed-treated-as-success",
+  "execution_request_ref": "agentplane-request:invalid:not-executed",
+  "grant_ref": "action-grant:invalid:not-executed",
+  "remediation_plan_ref": "remediation-plan:invalid:not-executed",
+  "status": "not_executed",
+  "artifact_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "issued_at": "2026-06-09T12:00:00Z",
+  "verifier": "agentplane:authority:scope-d-fixture",
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: not_executed receipt with artifact_digest is contradictory — not_executed cannot carry a success artifact."
+  ]
+}
