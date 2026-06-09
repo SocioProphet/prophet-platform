@@ -1,0 +1,35 @@
+name: devsecops-workroom-report
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/**'
+      - 'tests/fixtures/workroom/**'
+      - 'fixtures/external/gaia/**'
+      - 'tools/build_devsecops_workroom_report.py'
+      - 'tools/validate_devsecops_workroom_report.py'
+      - '.github/workflows/devsecops-workroom-report.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/**'
+      - 'tests/fixtures/workroom/**'
+      - 'fixtures/external/gaia/**'
+      - 'tools/build_devsecops_workroom_report.py'
+      - 'tools/validate_devsecops_workroom_report.py'
+      - '.github/workflows/devsecops-workroom-report.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Build and validate DevSecOps Workroom report
+        run: python tools/validate_devsecops_workroom_report.py
