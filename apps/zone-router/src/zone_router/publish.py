@@ -6,8 +6,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .dead_letter import write_dead_letter
 from .outbox import publication_outbox_root
-from .retry_state import next_attempt_state, retry_eligible
+from .retry_policy import (
+    compute_next_retry_not_before,
+    is_terminal_attempt,
+    resolve_retry_policy,
+)
+from .retry_state import next_attempt_state
 from .transport_adapters import deliver_publication_record
 
 
@@ -66,6 +72,7 @@ def publish_publication_record(
 ) -> dict[str, Any]:
     path = Path(record_path).expanduser().resolve()
     record = load_publication_record(path)
+    policy = resolve_retry_policy(record)
     attempt_fields = _attempt_fields(record["publication_id"], service=service)
     delivery_result = deliver_publication_record(
         record=record,
@@ -77,6 +84,10 @@ def publish_publication_record(
 
     if not delivery_result.get("ok"):
         failure = delivery_result["failure"]
+        attempt = attempt_fields["attempt"]
+        terminal = is_terminal_attempt(attempt, policy)
+        retry_eligible_flag = not terminal
+        next_retry_not_before = compute_next_retry_not_before(attempt, policy)
         outcome = {
             "version": "0.1",
             "outcome_id": outcome_id,
@@ -96,11 +107,16 @@ def publish_publication_record(
             "published_at": None,
             "failed_at": failure["failed_at"],
             "error": delivery_result["error"],
+            "terminal": terminal,
+            "next_retry_not_before": next_retry_not_before,
+            "max_attempts": policy["max_attempts"],
+            "retry_backoff_seconds": policy["retry_backoff_seconds"],
+            "retry_strategy": policy["retry_strategy"],
             **attempt_fields,
         }
-        outcome["retry_eligible"] = retry_eligible(outcome)
+        outcome["retry_eligible"] = retry_eligible_flag
         refs = _write_outcome(outcome, service=service)
-        return {
+        result: dict[str, Any] = {
             "ok": False,
             "outcome_path": refs["outcome_path"],
             "log_path": refs["log_path"],
@@ -109,6 +125,24 @@ def publish_publication_record(
             "failure_path": delivery_result["failure_path"],
             "error": delivery_result["error"],
         }
+        if terminal and policy.get("dead_letter_on_terminal", True):
+            dead_letter_result = write_dead_letter(
+                publication_id=record["publication_id"],
+                outcome_id=outcome_id,
+                outcome_ref=outcome.get("outcome_ref"),
+                failure_id=failure.get("failure_id"),
+                failure_ref=delivery_result.get("failure_path"),
+                attempt=attempt,
+                max_attempts=policy["max_attempts"],
+                zone_ref=record["zone_ref"],
+                topic=record["topic"],
+                transport_ref=transport_ref,
+                error=delivery_result.get("error"),
+                service=service,
+            )
+            outcome["dead_letter_ref"] = dead_letter_result["dead_letter_ref"]
+            result["dead_letter"] = dead_letter_result
+        return result
 
     delivery = delivery_result["delivery"]
     outcome = {
@@ -132,7 +166,7 @@ def publish_publication_record(
         "error": None,
         **attempt_fields,
     }
-    outcome["retry_eligible"] = retry_eligible(outcome)
+    outcome["retry_eligible"] = False
     refs = _write_outcome(outcome, service=service)
 
     return {

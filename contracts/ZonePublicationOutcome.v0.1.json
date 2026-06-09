@@ -45,7 +45,13 @@
     "retry_eligible": { "type": "boolean" },
     "published_at": { "type": ["string", "null"] },
     "failed_at": { "type": ["string", "null"] },
-    "error": { "type": ["string", "null"] }
+    "error": { "type": ["string", "null"] },
+    "terminal": { "type": ["boolean", "null"], "description": "True if this is the final permitted attempt. Present on failed outcomes." },
+    "next_retry_not_before": { "type": ["string", "null"], "description": "ISO 8601 timestamp; earliest time a retry may run. Null when terminal." },
+    "max_attempts": { "type": ["integer", "null"], "description": "Maximum attempts from the resolved retry policy." },
+    "retry_backoff_seconds": { "type": ["integer", "null"], "description": "Base backoff delay (seconds) from the resolved retry policy." },
+    "retry_strategy": { "type": ["string", "null"], "description": "Backoff strategy ('fixed' or 'exponential') from the resolved retry policy." },
+    "dead_letter_ref": { "type": ["string", "null"], "description": "Path to the dead-letter artifact. Present when terminal and dead_letter_on_terminal=true." }
   },
   "allOf": [
     {

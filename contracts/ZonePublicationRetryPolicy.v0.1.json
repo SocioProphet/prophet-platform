@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/contracts/ZonePublicationRetryPolicy.v0.1.json",
+  "title": "ZonePublicationRetryPolicy",
+  "description": "Optional retry policy embedded in or resolved for a ZonePublicationRecord. Governs maximum attempt count, backoff, dead-letter behavior. Retry policy is advisory metadata — it does not authorize remote mutation or remediation.",
+  "type": "object",
+  "required": ["max_attempts", "retry_backoff_seconds", "retry_strategy", "dead_letter_on_terminal"],
+  "properties": {
+    "max_attempts": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of publication attempts before the outcome is terminal."
+    },
+    "retry_backoff_seconds": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Base backoff delay in seconds between retry attempts."
+    },
+    "retry_strategy": {
+      "type": "string",
+      "enum": ["fixed", "exponential"],
+      "description": "Backoff strategy. 'fixed' uses a constant delay. 'exponential' doubles the delay each attempt."
+    },
+    "dead_letter_on_terminal": {
+      "type": "boolean",
+      "description": "If true, write a dead-letter artifact when the terminal attempt fails."
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "max_attempts": 3,
+      "retry_backoff_seconds": 30,
+      "retry_strategy": "fixed",
+      "dead_letter_on_terminal": true
+    }
+  ]
+}
