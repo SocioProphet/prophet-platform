@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-action-grant-v0.1",
+  "title": "DevSecOps Action Grant",
+  "description": "Standalone schema for a policy-bound action grant. Governs what actions may be taken within a Workroom context, under what approval conditions, and with what risk/scope constraints. Prophet Platform validates grant references only — it does not issue or certify grants.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "grant_id",
+    "action_class",
+    "risk_class",
+    "status",
+    "scope",
+    "approval_required",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "grant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "diagnostic_mutation",
+        "reversible_mitigation",
+        "irreversible_mutation",
+        "credential_sensitive",
+        "data_sensitive",
+        "customer_visible",
+        "destructive",
+        "privileged_identity",
+        "network_exposure",
+        "production_change"
+      ]
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "requires_human_approval",
+        "denied",
+        "expired",
+        "revoked",
+        "superseded"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of what this grant covers."
+    },
+    "approval_required": {
+      "type": "boolean"
+    },
+    "approver_ref": {
+      "type": "string",
+      "description": "Identity or role reference of the required approver."
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp after which the grant is no longer valid."
+    },
+    "capability_ref": {
+      "type": "string",
+      "description": "Reference to the capability contract that scopes this grant."
+    },
+    "policy_ref": {
+      "type": "string",
+      "description": "Reference to the policy document that governs this grant."
+    },
+    "receipt_required": {
+      "type": "boolean",
+      "description": "If true, execution must produce a verified AgentPlane execution receipt before remediation can be closed."
+    },
+    "workroom_id": {
+      "type": "string",
+      "description": "Workroom context this grant belongs to."
+    },
+    "remediation_plan_ref": {
+      "type": "string",
+      "description": "Remediation plan this grant authorizes."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

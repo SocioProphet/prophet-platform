@@ -1,0 +1,31 @@
+name: devsecops-action-grant
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-action-grant-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-action-grant.*.json'
+      - 'tools/validate_devsecops_action_grant.py'
+      - '.github/workflows/devsecops-action-grant.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-action-grant-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-action-grant.*.json'
+      - 'tools/validate_devsecops_action_grant.py'
+      - '.github/workflows/devsecops-action-grant.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Validate DevSecOps ActionGrant contract
+        run: python tools/validate_devsecops_action_grant.py
