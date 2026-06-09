@@ -56,15 +56,39 @@ jobs:
           tofu init -backend=false
           tofu validate
 
+  gcp-plan-readiness:
+    name: Check gcp-plan secret readiness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+    steps:
+      - id: ready
+        name: Determine whether gcp-plan secrets are configured
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          GCP_BILLING_ACCOUNT: ${{ secrets.GCP_BILLING_ACCOUNT }}
+          GCP_ADMIN_GROUP_EMAIL: ${{ secrets.GCP_ADMIN_GROUP_EMAIL }}
+          GCP_ALERT_EMAIL: ${{ secrets.GCP_ALERT_EMAIL }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$WIF_SERVICE_ACCOUNT" ] && [ -n "$GCP_BILLING_ACCOUNT" ] && [ -n "$GCP_ADMIN_GROUP_EMAIL" ] && [ -n "$GCP_ALERT_EMAIL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "gcp-plan secrets are not configured; skipping live GCP plan. Static OpenTofu validation still runs."
+          fi
+
   plan-gcp-landing:
     name: Plan gcp-landing
     runs-on: ubuntu-latest
-    # Only run plan on PRs to main (not on every push — avoid GCP API calls on main)
-    if: github.event_name == 'pull_request'
+    needs: gcp-plan-readiness
+    # Only run plan on PRs to main, and only when required environment secrets are configured.
+    if: github.event_name == 'pull_request' && needs.gcp-plan-readiness.outputs.ready == 'true'
     permissions:
       contents: read
       id-token: write   # for Workload Identity Federation
-    environment: gcp-plan  # Requires environment secret: GCP_PROJECT, WIF_PROVIDER
+    environment: gcp-plan  # Requires environment secrets listed in gcp-plan-readiness
     steps:
       - uses: actions/checkout@v4
 
