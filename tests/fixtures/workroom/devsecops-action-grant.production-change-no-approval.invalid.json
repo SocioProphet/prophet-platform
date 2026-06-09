@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1.0",
+  "grant_id": "action-grant:devsecops:invalid:production-change-no-approval",
+  "action_class": "production_change",
+  "risk_class": "high",
+  "status": "allowed",
+  "scope": "Expected-invalid: production_change action without requiring human approval.",
+  "approval_required": false,
+  "receipt_required": false,
+  "workroom_id": "workroom:devsecops:invalid:production-change-no-approval",
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: production_change must require human approval."
+  ]
+}

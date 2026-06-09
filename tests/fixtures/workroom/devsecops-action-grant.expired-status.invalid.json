@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1.0",
+  "grant_id": "action-grant:devsecops:invalid:expired-production-change",
+  "action_class": "production_change",
+  "risk_class": "high",
+  "status": "expired",
+  "scope": "Expected-invalid: expired grant used as active remediation authorization.",
+  "approval_required": true,
+  "approver_ref": "identity://sre-on-call",
+  "expires_at": "2026-05-30T00:00:00Z",
+  "receipt_required": true,
+  "workroom_id": "workroom:devsecops:invalid:expired-grant",
+  "remediation_plan_ref": "remediation-plan:devsecops:invalid:expired-grant:rollback",
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: expired grant cannot authorize active remediation."
+  ]
+}

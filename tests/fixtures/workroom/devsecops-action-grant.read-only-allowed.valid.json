@@ -1,0 +1,16 @@
+{
+  "schema_version": "0.1.0",
+  "grant_id": "action-grant:devsecops:workroom:scope-d-example:read-incident-evidence",
+  "action_class": "read_only",
+  "risk_class": "low",
+  "status": "allowed",
+  "scope": "Read fixture incident evidence packets and topology refs for workroom:devsecops:post-merge:scope-d-example.",
+  "approval_required": false,
+  "receipt_required": false,
+  "workroom_id": "workroom:devsecops:post-merge:scope-d-example",
+  "non_claims": [
+    "Grant permits read-only investigation access only.",
+    "Grant does not authorize production mutation, remediation execution, or credential access.",
+    "Grant does not certify Signadot feature parity or production readiness."
+  ]
+}
