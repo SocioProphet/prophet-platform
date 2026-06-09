@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and fill in. Never commit terraform.tfvars.
+hcloud_token       = "your-hetzner-api-token"
+ssh_public_key     = "ssh-ed25519 AAAA... your-key-comment"
+domain             = "socioprophet.ai"
+location           = "ash"
+control_plane_type = "cpx31"
+worker_type        = "cpx21"
+worker_count       = 2
+postgres_password  = "change-me-strong-password"
+minio_secret_key   = "change-me-strong-secret-key"

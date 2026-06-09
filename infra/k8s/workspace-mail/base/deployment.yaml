@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspace-mail
+  template:
+    metadata:
+      labels:
+        app: workspace-mail
+    spec:
+      containers:
+        - name: dovecot
+          image: ghcr.io/socioprophet/prophet-platform/workspace-mail:dev
+          ports:
+            - name: imap
+              containerPort: 143
+            - name: imaps
+              containerPort: 993
+            - name: lmtp
+              containerPort: 24
+          env:
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_DB
+              value: prophet_platform
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+          volumeMounts:
+            - name: mailstore
+              mountPath: /var/mail/vhosts
+            - name: config
+              mountPath: /etc/dovecot/dovecot.conf
+              subPath: dovecot.conf
+          readinessProbe:
+            tcpSocket:
+              port: 143
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 143
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: mailstore
+          persistentVolumeClaim:
+            claimName: workspace-mail-pvc
+        - name: config
+          configMap:
+            name: workspace-mail-config

@@ -1,0 +1,58 @@
+name: workspace-terraform-validate
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+
+jobs:
+  terraform-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+      - name: Check formatting (p0-lab)
+        run: terraform fmt -check -recursive infra/terraform/environments/p0-lab
+      - name: Check formatting (p1-single-site)
+        run: terraform fmt -check -recursive infra/terraform/environments/p1-single-site
+      - name: Check formatting (modules)
+        run: terraform fmt -check -recursive infra/terraform/modules
+
+  terraform-validate-p0-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+      - name: Init (p0-lab)
+        run: terraform init -backend=false
+        working-directory: infra/terraform/environments/p0-lab
+      - name: Validate (p0-lab)
+        run: terraform validate
+        working-directory: infra/terraform/environments/p0-lab
+
+  terraform-validate-p1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.5"
+      - name: Init (p1-single-site)
+        run: terraform init -backend=false
+        working-directory: infra/terraform/environments/p1-single-site
+      - name: Validate (p1-single-site)
+        run: terraform validate
+        working-directory: infra/terraform/environments/p1-single-site
+        env:
+          TF_VAR_hcloud_token: "dummy-for-validation"
+          TF_VAR_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 ci-validation"
+          TF_VAR_postgres_password: "dummy"
+          TF_VAR_minio_secret_key: "dummy"

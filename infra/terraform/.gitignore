@@ -1,0 +1,13 @@
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.secrets-staging/
+k3d-config.yaml
+dns-records.txt
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

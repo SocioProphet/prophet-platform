@@ -16,6 +16,15 @@ spec:
           - name: search-orchestrator-academy-bridge
             path: infra/k8s/search-orchestrator/overlays/policy
             bundle: fogstack.knowledge
+          - name: workspace-mail
+            path: infra/k8s/workspace-mail/overlays/p0-lab
+            bundle: workspace.mail
+          - name: workspace-caldav
+            path: infra/k8s/workspace-caldav/overlays/p0-lab
+            bundle: workspace.caldav
+          - name: workspace-minio
+            path: infra/k8s/workspace-minio/overlays/p0-lab
+            bundle: workspace.storage
   template:
     metadata:
       name: '{{name}}'

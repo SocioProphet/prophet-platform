@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-caldav
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspace-caldav
+  template:
+    metadata:
+      labels:
+        app: workspace-caldav
+    spec:
+      containers:
+        - name: radicale
+          image: ghcr.io/socioprophet/prophet-platform/workspace-caldav:dev
+          ports:
+            - name: caldav
+              containerPort: 5232
+          volumeMounts:
+            - name: collections
+              mountPath: /var/lib/radicale/collections
+            - name: config
+              mountPath: /config
+          readinessProbe:
+            httpGet:
+              path: /.well-known/caldav
+              port: 5232
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /.well-known/caldav
+              port: 5232
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: collections
+          persistentVolumeClaim:
+            claimName: workspace-caldav-pvc
+        - name: config
+          configMap:
+            name: workspace-caldav-config

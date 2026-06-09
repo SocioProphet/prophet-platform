@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-smtp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workspace-smtp
+  template:
+    metadata:
+      labels:
+        app: workspace-smtp
+    spec:
+      containers:
+        - name: postfix
+          image: ghcr.io/socioprophet/prophet-platform/workspace-smtp:dev
+          ports:
+            - name: smtp
+              containerPort: 25
+            - name: submission
+              containerPort: 587
+          env:
+            - name: SMTP_HOSTNAME
+              value: mail.socioprophet.ai
+            - name: DOVECOT_HOST
+              value: workspace-mail
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_DB
+              value: prophet_platform
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+          readinessProbe:
+            tcpSocket:
+              port: 25
+            initialDelaySeconds: 5
+            periodSeconds: 10

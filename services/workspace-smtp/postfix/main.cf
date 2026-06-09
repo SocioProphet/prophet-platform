@@ -1,0 +1,27 @@
+smtpd_banner = $myhostname ESMTP Prophet Workspace
+biff = no
+append_dot_mydomain = no
+readme_directory = no
+
+myhostname = ${SMTP_HOSTNAME}
+myorigin = ${SMTP_HOSTNAME}
+mydestination = localhost
+mynetworks = 127.0.0.0/8 172.16.0.0/12 10.0.0.0/8
+
+# Virtual mailbox delivery → Dovecot LMTP
+virtual_transport = lmtp:${DOVECOT_HOST}:24
+virtual_mailbox_domains = pgsql:/etc/postfix/virtual_domains.cf
+virtual_mailbox_maps = pgsql:/etc/postfix/virtual_mailbox.cf
+
+# No open relay
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
+
+# Limits
+message_size_limit = 52428800
+mailbox_size_limit = 0
+
+# SASL auth for submission (port 587)
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = inet:${DOVECOT_HOST}:12
+smtpd_sasl_auth_enable = yes
+smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination
