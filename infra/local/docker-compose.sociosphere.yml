@@ -6,11 +6,15 @@
 #
 # Ports (loopback-only, no mesh collisions):
 #   sociosphere          127.0.0.1:5000   (workspace controller + UI workbench)
+#   cloudshell-fog       127.0.0.1:8080   (fog-optimised shell gateway)
+#   cairnpath-mesh       127.0.0.1:8890   (execution path/trace mesh — Tier 4.5)
 #   hellgraph            127.0.0.1:8850   (Rust graph kernel)
+#   holmes               127.0.0.1:8880   (language intelligence fabric)
 #   regis-entity-graph   127.0.0.1:8820
 #   sherlock-search      127.0.0.1:8810
 #   prophet-core-catalog 127.0.0.1:8830
 #   prophet-core-query   127.0.0.1:8831
+#   contractforge        127.0.0.1:8895   (contract lifecycle + ledger execution)
 #   global-devsecops     127.0.0.1:8840
 #   lattice-forge        127.0.0.1:8870
 #   synapseiq-control    127.0.0.1:8800
@@ -19,7 +23,6 @@
 #   synapseiq-reasoning  127.0.0.1:8803
 #   synapseiq-tabular    127.0.0.1:8804
 #   mcp-a2a-zero-trust   127.0.0.1:8860
-#   cloudshell-fog       127.0.0.1:8080   (fog-optimised shell gateway)
 
 x-logging: &default-logging
   driver: "json-file"
@@ -379,3 +382,83 @@ services:
       timeout: 5s
       retries: 8
     logging: *default-logging
+
+  # ── Tier 4.5: Execution path/trace mesh ───────────────────────────────────
+
+  cairnpath-mesh:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/cairnpath-mesh
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/cairnpath-mesh:dev
+    container_name: sociosphere-cairnpath
+    restart: unless-stopped
+    environment:
+      PORT: "8890"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      AGENTPLANE_URL: http://agentplane:8730
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8890:8890"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8890/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging:
+      driver: "json-file"
+      options: {max-size: "10m", max-file: "3"}
+
+  # ── Tier 8: Language intelligence ─────────────────────────────────────────
+
+  holmes:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/holmes
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/holmes:dev
+    container_name: sociosphere-holmes
+    restart: unless-stopped
+    environment:
+      PORT: "8880"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      MODEL_ROUTER_URL: http://model-router:8710
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8880:8880"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8880/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging:
+      driver: "json-file"
+      options: {max-size: "10m", max-file: "3"}
+
+  # ── Tier 9: Contract lifecycle + ledger ───────────────────────────────────
+
+  contractforge:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/contractforge
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/contractforge:dev
+    container_name: sociosphere-contractforge
+    restart: unless-stopped
+    environment:
+      PORT: "8895"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      AGENTPLANE_URL: http://agentplane:8730
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8895:8895"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8895/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging:
+      driver: "json-file"
+      options: {max-size: "10m", max-file: "3"}

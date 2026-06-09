@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: holmes
+  labels:
+    app: holmes
+    bundle: intelligence.language
+  annotations:
+    socioprophet.ai/tier: "Tier 8 — language intelligence fabric (NLP/semantic/knowledge graphs)"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: holmes
+  template:
+    metadata:
+      labels:
+        app: holmes
+        bundle: intelligence.language
+    spec:
+      containers:
+        - name: holmes
+          image: ghcr.io/socioprophet/holmes:latest
+          ports:
+            - name: http
+              containerPort: 8880
+          env:
+            - name: PORT
+              value: "8880"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: MODEL_ROUTER_URL
+              value: "http://model-router:8710"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8880
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8880
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

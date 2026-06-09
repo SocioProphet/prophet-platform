@@ -113,6 +113,19 @@ spec:
           - name: mcp-a2a-zero-trust
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
+          # ── Holmes / CairnPath / ContractForge ───────────────────────────
+          # Tier 4.5 — Execution trace mesh
+          - name: cairnpath-mesh
+            path: infra/k8s/cairnpath-mesh/overlays/p0-lab
+            bundle: execution.trace
+          # Tier 8 — Language intelligence
+          - name: holmes
+            path: infra/k8s/holmes/overlays/p0-lab
+            bundle: intelligence.language
+          # Tier 9 — Contract lifecycle
+          - name: contractforge
+            path: infra/k8s/contractforge/overlays/p0-lab
+            bundle: contracts.forge
   template:
     metadata:
       name: '{{name}}'

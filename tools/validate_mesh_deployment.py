@@ -46,6 +46,10 @@ MESH_SERVICES = [
     "synapseiq-reasoning-api",
     "synapseiq-tabular-alpha",
     "mcp-a2a-zero-trust",
+    # Late-integration trio
+    "holmes",
+    "cairnpath-mesh",
+    "contractforge",
 ]
 
 # cloudshell-fog uses existing runtime-base/overlays in prophet-platform — not in MESH_SERVICES
@@ -80,6 +84,10 @@ MESH_PORTS = {
     "synapseiq-reasoning-api": 8803,
     "synapseiq-tabular-alpha": 8804,
     "mcp-a2a-zero-trust": 8860,
+    # Late-integration trio
+    "cairnpath-mesh": 8890,
+    "holmes": 8880,
+    "contractforge": 8895,
 }
 
 WORKSPACE_PORTS = {143, 993, 24, 25, 587, 5232, 9000, 9001, 5432, 6379}
@@ -167,6 +175,10 @@ APPSET_BUNDLE_EXPECTATIONS = {
     "enrichment.reasoning",
     "enrichment.tabular",
     "security.mcp-zero-trust",
+    # Late-integration trio
+    "execution.trace",
+    "intelligence.language",
+    "contracts.forge",
 }
 
 def check_appset() -> None:
@@ -203,6 +215,8 @@ COMPOSE_SOCIOSPHERE_SERVICES = {
     "synapseiq-control-plane", "synapseiq-enrichment-api",
     "synapseiq-enrichment-collector", "synapseiq-reasoning-api",
     "synapseiq-tabular-alpha", "mcp-a2a-zero-trust",
+    # Late-integration trio
+    "cairnpath-mesh", "holmes", "contractforge",
 }
 
 def check_compose() -> None:
@@ -292,6 +306,10 @@ EXPECTED_URL_REFS_SOCIOSPHERE = {
     "synapseiq-reasoning-api": ["model-router:8710", "superconscious:8740"],
     "synapseiq-tabular-alpha": ["synapseiq-enrichment-api:8801"],
     "mcp-a2a-zero-trust": ["policy-fabric:8700", "agent-registry:8720", "agentplane:8730"],
+    # Late-integration trio
+    "cairnpath-mesh": ["policy-fabric:8700", "agentplane:8730"],
+    "holmes": ["policy-fabric:8700", "model-router:8710", "memoryd:8787"],
+    "contractforge": ["policy-fabric:8700", "agent-registry:8720", "agentplane:8730"],
 }
 
 def check_url_refs() -> None:

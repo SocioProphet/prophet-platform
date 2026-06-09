@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: contractforge
+spec:
+  selector:
+    app: contractforge
+  ports:
+    - name: http
+      port: 8895
+      targetPort: 8895

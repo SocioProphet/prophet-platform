@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cairnpath-mesh
+  labels:
+    app: cairnpath-mesh
+    bundle: execution.trace
+  annotations:
+    socioprophet.ai/tier: "Tier 4.5 — execution path/trace mesh (cairn context, line, step audit trail)"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cairnpath-mesh
+  template:
+    metadata:
+      labels:
+        app: cairnpath-mesh
+        bundle: execution.trace
+    spec:
+      containers:
+        - name: cairnpath-mesh
+          image: ghcr.io/socioprophet/cairnpath-mesh:latest
+          ports:
+            - name: http
+              containerPort: 8890
+          env:
+            - name: PORT
+              value: "8890"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: AGENTPLANE_URL
+              value: "http://agentplane:8730"
+            - name: GOVERNANCE_LEDGER_URL
+              value: "http://model-governance-ledger:8760"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8890
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8890
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
