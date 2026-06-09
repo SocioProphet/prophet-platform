@@ -1,8 +1,8 @@
 resource "hcloud_server" "node" {
-  name        = var.name
-  server_type = var.server_type
-  location    = var.location
-  image       = var.image
+  name         = var.name
+  server_type  = var.server_type
+  location     = var.location
+  image        = var.image
   ssh_keys     = [var.ssh_public_key_id]
   firewall_ids = var.firewall_ids
 

@@ -2,7 +2,7 @@
 # Swap this for a real provider (cloudflare, route53, hcloud_dns) once API tokens are wired.
 
 locals {
-  fqdn   = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.zone_name}" : var.zone_name
+  fqdn = var.subdomain_prefix != "" ? "${var.subdomain_prefix}.${var.zone_name}" : var.zone_name
   # Workspace service FQDNs
   mail   = "mail.${local.fqdn}"
   caldav = "caldav.${local.fqdn}"
