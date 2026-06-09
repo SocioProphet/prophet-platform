@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1.0",
+  "promotion_id": "regression-promotion:devsecops:invalid:rejected-fixture-active-plan",
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-rejected-fixture-plan",
+    "event_type": "production_incident",
+    "summary": "Expected-invalid fixture: active validation plan references a rejected regression fixture.",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:invalid-rejected:supported-causal",
+      "claim_status": "supported_causal_claim",
+      "statement": "Expected-invalid claim backing rejected fixture.",
+      "evidence_refs": ["evidence://fixture/invalid-rejected/metric-observation"],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:invalid-rejected:rejected-regression",
+      "fixture_status": "rejected",
+      "derived_from": "rca-claim:invalid-rejected:supported-causal",
+      "summary": "This fixture was rejected after review. No active plan may reference it.",
+      "target_validation_plan_ref": "validation-plan://fixture/invalid-rejected/active-plan",
+      "non_claims": ["Rejected fixture — should not be referenced by active plan."]
+    }
+  ],
+  "validation_plans": [
+    {
+      "plan_id": "validation-plan://fixture/invalid-rejected/active-plan",
+      "plan_status": "active",
+      "regression_fixture_refs": [
+        "regression-fixture:invalid-rejected:rejected-regression"
+      ],
+      "non_claims": ["Expected-invalid: active plan references rejected fixture."]
+    }
+  ],
+  "non_claims": ["Expected-invalid fixture only. Tests: active plan cannot reference rejected regression fixture."]
+}

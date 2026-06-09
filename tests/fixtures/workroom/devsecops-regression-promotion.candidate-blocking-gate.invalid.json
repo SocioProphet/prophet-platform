@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.1.0",
+  "promotion_id": "regression-promotion:devsecops:invalid:candidate-blocking-gate",
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:invalid-candidate-blocking",
+    "event_type": "production_incident",
+    "summary": "Expected-invalid fixture: candidate regression fixture has blocking_gate set to true.",
+    "non_claims": ["Expected-invalid fixture only."]
+  },
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:invalid-candidate-blocking:supported-causal",
+      "claim_status": "supported_causal_claim",
+      "statement": "Expected-invalid claim backing candidate fixture with illegal blocking gate.",
+      "evidence_refs": ["evidence://fixture/invalid-candidate-blocking/metric-observation"],
+      "counterevidence_refs": [],
+      "confidence": "low",
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:invalid-candidate-blocking:candidate-gate",
+      "fixture_status": "candidate",
+      "derived_from": "rca-claim:invalid-candidate-blocking:supported-causal",
+      "summary": "Candidate fixture improperly claiming blocking gate authority. Only promoted fixtures may block.",
+      "target_validation_plan_ref": "validation-plan://fixture/invalid-candidate-blocking/draft-plan",
+      "blocking_gate": true,
+      "non_claims": ["Expected-invalid: candidate cannot be blocking gate."]
+    }
+  ],
+  "validation_plans": [
+    {
+      "plan_id": "validation-plan://fixture/invalid-candidate-blocking/draft-plan",
+      "plan_status": "draft",
+      "regression_fixture_refs": [
+        "regression-fixture:invalid-candidate-blocking:candidate-gate"
+      ],
+      "non_claims": ["Expected-invalid fixture only."]
+    }
+  ],
+  "non_claims": ["Expected-invalid fixture only. Tests: candidate fixture cannot hold blocking_gate authority."]
+}
