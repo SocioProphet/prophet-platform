@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superconscious
+  labels:
+    app: superconscious
+    bundle: mesh.cognition
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superconscious
+  template:
+    metadata:
+      labels:
+        app: superconscious
+        bundle: mesh.cognition
+    spec:
+      containers:
+        - name: superconscious
+          image: ghcr.io/socioprophet/superconscious:latest
+          ports:
+            - name: http
+              containerPort: 8740
+          env:
+            - name: PORT
+              value: "8740"
+            - name: MODEL_ROUTER_URL
+              value: "http://model-router:8710"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8740
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8740
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+

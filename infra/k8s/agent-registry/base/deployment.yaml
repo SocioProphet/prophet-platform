@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-registry
+  labels:
+    app: agent-registry
+    bundle: mesh.registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent-registry
+  template:
+    metadata:
+      labels:
+        app: agent-registry
+        bundle: mesh.registry
+    spec:
+      containers:
+        - name: agent-registry
+          image: ghcr.io/socioprophet/agent-registry:latest
+          ports:
+            - name: http
+              containerPort: 8720
+          env:
+            - name: PORT
+              value: "8720"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: STORE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-postgres-credentials
+                  key: store-uri
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8720
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8720
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+

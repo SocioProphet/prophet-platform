@@ -1,0 +1,17 @@
+# agentplane — execution control plane (bundle→validate→run→evidence→replay)
+FROM python:3.11-slim AS base
+WORKDIR /app
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+FROM base AS build
+COPY . .
+RUN pip install --no-cache-dir fastapi uvicorn pydantic httpx
+
+FROM base AS runtime
+COPY --from=build /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY . .
+USER appuser
+EXPOSE 8730
+# gateway/dispatch_stub.py is the current entrypoint — promote to full API
+CMD ["uvicorn", "gateway.api:app", "--host", "0.0.0.0", "--port", "8730"]

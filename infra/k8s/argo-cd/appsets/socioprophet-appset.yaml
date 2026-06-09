@@ -25,6 +25,44 @@ spec:
           - name: workspace-minio
             path: infra/k8s/workspace-minio/overlays/p0-lab
             bundle: workspace.storage
+          # ── Prophet Mesh — deployment order follows dependency tiers ─────────
+          # Tier 0 — Vector store
+          - name: mesh-qdrant
+            path: infra/k8s/mesh-qdrant/overlays/p0-lab
+            bundle: mesh.vector-store
+          # Tier 1 — Governance ledger (stateless)
+          - name: mesh-governance-ledger
+            path: infra/k8s/model-governance-ledger/overlays/p0-lab
+            bundle: mesh.governance
+          # Tier 2 — Core services
+          - name: mesh-memoryd
+            path: infra/k8s/memoryd/overlays/p0-lab
+            bundle: mesh.memory
+          - name: mesh-policy-fabric
+            path: infra/k8s/policy-fabric/overlays/p0-lab
+            bundle: mesh.policy
+          # Tier 3 — Routing + Registry
+          - name: mesh-model-router
+            path: infra/k8s/model-router/overlays/p0-lab
+            bundle: mesh.routing
+          - name: mesh-agent-registry
+            path: infra/k8s/agent-registry/overlays/p0-lab
+            bundle: mesh.registry
+          # Tier 4 — Execution plane
+          - name: mesh-superconscious
+            path: infra/k8s/superconscious/overlays/p0-lab
+            bundle: mesh.cognition
+          - name: mesh-agentplane
+            path: infra/k8s/agentplane/overlays/p0-lab
+            bundle: mesh.execution
+          # Tier 5 — ML substrate
+          - name: mesh-tritfabric
+            path: infra/k8s/tritfabric/overlays/p0-lab
+            bundle: mesh.ml
+          # Tier 6 — Mesh conductor
+          - name: mesh-conductor
+            path: infra/k8s/prophet-mesh/overlays/p0-lab
+            bundle: mesh.conductor
   template:
     metadata:
       name: '{{name}}'

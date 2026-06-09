@@ -303,6 +303,43 @@ workspace-down:
 workspace-logs:
 	docker compose -f $(WORKSPACE_COMPOSE) logs -f
 
+# ── Prophet Mesh ──────────────────────────────────────────────────────────────
+MESH_COMPOSE = infra/local/docker-compose.mesh.yml
+MESH_REPOS_ROOT ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/../
+
+.PHONY: validate-mesh-deployment mesh-build mesh-up mesh-down mesh-logs mesh-ps
+
+validate-mesh-deployment:
+	python3 tools/validate_mesh_deployment.py
+
+mesh-build:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) build
+
+mesh-up:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) up -d
+	@echo "Mesh stack started (6 tiers, 11 services)."
+	@echo "Ports: memoryd=8787, policy-fabric=8700, model-router=8710"
+	@echo "       agent-registry=8720, agentplane=8730, superconscious=8740"
+	@echo "       tritfabric=8750, governance-ledger=8760, prophet-mesh=8780"
+	@echo "       qdrant=6333/6334"
+
+mesh-down:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) down
+
+mesh-logs:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) logs -f
+
+mesh-ps:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) ps
+
 # ── Terraform / IaC ───────────────────────────────────────────────────────────
 TF_ENV ?= p0-lab
 TF_DIR = infra/terraform/environments/$(TF_ENV)

@@ -1,0 +1,19 @@
+# prophet-mesh — mesh conductor (Michael Agent + premium derivations)
+FROM python:3.11-slim AS base
+WORKDIR /app
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+FROM base AS build
+COPY . .
+RUN pip install --no-cache-dir fastapi uvicorn pydantic httpx PyYAML
+
+FROM base AS runtime
+COPY --from=build /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY src/ ./src/
+COPY agents/ ./agents/
+COPY blueprints/ ./blueprints/
+COPY specs/ ./specs/
+USER appuser
+EXPOSE 8780
+CMD ["uvicorn", "src.prophet_mesh.api:app", "--host", "0.0.0.0", "--port", "8780"]

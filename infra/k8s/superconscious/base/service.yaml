@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: superconscious
+spec:
+  selector:
+    app: superconscious
+  ports:
+  - name: http
+    port: 8740
+    targetPort: 8740
