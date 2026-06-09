@@ -240,9 +240,17 @@ output "k8s_api_url" {
   value = "https://${module.control_plane.public_ipv4}:6443"
 }
 
-output "mail_fqdn"   { value = module.dns.mail_fqdn }
-output "caldav_fqdn" { value = module.dns.caldav_fqdn }
-output "minio_fqdn"  { value = module.dns.minio_fqdn }
+output "mail_fqdn" {
+  value = module.dns.mail_fqdn
+}
+
+output "caldav_fqdn" {
+  value = module.dns.caldav_fqdn
+}
+
+output "minio_fqdn" {
+  value = module.dns.minio_fqdn
+}
 
 output "secrets_dir" {
   value     = module.workspace_secrets.secrets_dir
