@@ -63,6 +63,56 @@ spec:
           - name: mesh-conductor
             path: infra/k8s/prophet-mesh/overlays/p0-lab
             bundle: mesh.conductor
+          # ── SocioSphere extended tiers ────────────────────────────────────
+          # Tier 7 — Platform shell + workspace controller
+          - name: cloudshell-fog
+            path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
+            bundle: platform.shell
+          - name: sociosphere
+            path: infra/k8s/sociosphere/overlays/p0-lab
+            bundle: platform.controller
+          # Tier 8 — Graph kernel + entity graph + search
+          - name: hellgraph
+            path: infra/k8s/hellgraph/overlays/p0-lab
+            bundle: graph.kernel
+          - name: regis-entity-graph
+            path: infra/k8s/regis-entity-graph/overlays/p0-lab
+            bundle: graph.entity
+          - name: sherlock-search
+            path: infra/k8s/sherlock-search/overlays/p0-lab
+            bundle: search.evidence
+          # Tier 9 — Catalog + query + intelligence + runtime forge
+          - name: prophet-core-catalog
+            path: infra/k8s/prophet-core-catalog/overlays/p0-lab
+            bundle: data.catalog
+          - name: prophet-core-query
+            path: infra/k8s/prophet-core-query/overlays/p0-lab
+            bundle: data.query
+          - name: global-devsecops-intelligence
+            path: infra/k8s/global-devsecops-intelligence/overlays/p0-lab
+            bundle: intelligence.devsecops
+          - name: lattice-forge
+            path: infra/k8s/lattice-forge/overlays/p0-lab
+            bundle: runtime.forge
+          # Tier 10 — Enrichment plane + MCP zero-trust
+          - name: synapseiq-control-plane
+            path: infra/k8s/synapseiq-control-plane/overlays/p0-lab
+            bundle: enrichment.control
+          - name: synapseiq-enrichment-api
+            path: infra/k8s/synapseiq-enrichment-api/overlays/p0-lab
+            bundle: enrichment.api
+          - name: synapseiq-enrichment-collector
+            path: infra/k8s/synapseiq-enrichment-collector/overlays/p0-lab
+            bundle: enrichment.collector
+          - name: synapseiq-reasoning-api
+            path: infra/k8s/synapseiq-reasoning-api/overlays/p0-lab
+            bundle: enrichment.reasoning
+          - name: synapseiq-tabular-alpha
+            path: infra/k8s/synapseiq-tabular-alpha/overlays/p0-lab
+            bundle: enrichment.tabular
+          - name: mcp-a2a-zero-trust
+            path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
+            bundle: security.mcp-zero-trust
   template:
     metadata:
       name: '{{name}}'

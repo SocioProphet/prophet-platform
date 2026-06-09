@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: synapseiq-tabular-alpha
+spec:
+  selector:
+    app: synapseiq-tabular-alpha
+  ports:
+    - name: http
+      port: 8804
+      targetPort: 8804

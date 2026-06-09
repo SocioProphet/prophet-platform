@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-a2a-zero-trust
+  labels:
+    app: mcp-a2a-zero-trust
+    bundle: security.mcp-zero-trust
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-a2a-zero-trust
+  template:
+    metadata:
+      labels:
+        app: mcp-a2a-zero-trust
+        bundle: security.mcp-zero-trust
+    spec:
+      containers:
+        - name: mcp-a2a-zero-trust
+          image: ghcr.io/socioprophet/mcp-a2a-zero-trust:latest
+          ports:
+            - name: http
+              containerPort: 8860
+          env:
+            - name: PORT
+              value: "8860"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: AGENT_REGISTRY_URL
+              value: "http://agent-registry:8720"
+            - name: AGENTPLANE_URL
+              value: "http://agentplane:8730"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8860
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8860
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

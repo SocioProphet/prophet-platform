@@ -303,11 +303,14 @@ workspace-down:
 workspace-logs:
 	docker compose -f $(WORKSPACE_COMPOSE) logs -f
 
-# ── Prophet Mesh ──────────────────────────────────────────────────────────────
+# ── Prophet Mesh + SocioSphere ────────────────────────────────────────────────
 MESH_COMPOSE = infra/local/docker-compose.mesh.yml
+SOCIOSPHERE_COMPOSE = infra/local/docker-compose.sociosphere.yml
 MESH_REPOS_ROOT ?= $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/../
 
-.PHONY: validate-mesh-deployment mesh-build mesh-up mesh-down mesh-logs mesh-ps
+.PHONY: validate-mesh-deployment mesh-build mesh-up mesh-down mesh-logs mesh-ps \
+        sociosphere-build sociosphere-up sociosphere-down sociosphere-logs \
+        full-stack-up full-stack-down full-stack-build
 
 validate-mesh-deployment:
 	python3 tools/validate_mesh_deployment.py
@@ -339,6 +342,51 @@ mesh-logs:
 
 mesh-ps:
 	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(MESH_COMPOSE) ps
+
+sociosphere-build:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(SOCIOSPHERE_COMPOSE) build
+
+sociosphere-up:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(SOCIOSPHERE_COMPOSE) up -d
+	@echo "SocioSphere tier started (tiers 7-10, 15 services)."
+	@echo "Ports: sociosphere=5000, cloudshell-fog=8080"
+	@echo "       hellgraph=8850, regis=8820, sherlock=8810"
+	@echo "       catalog=8830, query=8831, devsecops=8840, lattice-forge=8870"
+	@echo "       synapseiq=8800-8804, mcp-a2a=8860"
+
+sociosphere-down:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(SOCIOSPHERE_COMPOSE) down
+
+sociosphere-logs:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose -f $(SOCIOSPHERE_COMPOSE) logs -f
+
+# Full stack (mesh + sociosphere together)
+full-stack-build: mesh-build sociosphere-build
+
+full-stack-up:
+	@if ! docker info >/dev/null 2>&1; then \
+	  echo "ERROR: Docker daemon is not running. Start Docker Desktop and retry."; \
+	  exit 1; \
+	fi
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose \
+	  -f $(MESH_COMPOSE) \
+	  -f $(SOCIOSPHERE_COMPOSE) \
+	  up -d
+	@echo "Full SocioProphet stack started (tiers 0-10, 26 services)."
+
+full-stack-down:
+	MESH_REPOS_ROOT=$(MESH_REPOS_ROOT) docker compose \
+	  -f $(MESH_COMPOSE) \
+	  -f $(SOCIOSPHERE_COMPOSE) \
+	  down
 
 # ── Terraform / IaC ───────────────────────────────────────────────────────────
 TF_ENV ?= p0-lab

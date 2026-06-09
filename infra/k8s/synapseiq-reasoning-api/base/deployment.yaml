@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapseiq-reasoning-api
+  labels:
+    app: synapseiq-reasoning-api
+    bundle: enrichment.reasoning
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synapseiq-reasoning-api
+  template:
+    metadata:
+      labels:
+        app: synapseiq-reasoning-api
+        bundle: enrichment.reasoning
+    spec:
+      containers:
+        - name: synapseiq-reasoning-api
+          image: ghcr.io/socioprophet/synapseiq/reasoning-api:latest
+          ports:
+            - name: http
+              containerPort: 8803
+          env:
+            - name: PORT
+              value: "8803"
+            - name: MODEL_ROUTER_URL
+              value: "http://model-router:8710"
+            - name: SUPERCONSCIOUS_URL
+              value: "http://superconscious:8740"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8803
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8803
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

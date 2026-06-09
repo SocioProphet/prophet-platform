@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Validate prophet-mesh deployment alignment.
+Validate prophet-mesh + sociosphere deployment alignment.
 
 Checks:
-  - k8s manifests exist for all 10 mesh services + qdrant
+  - k8s manifests exist for all mesh + sociosphere services
   - Each service has base/deployment.yaml, service.yaml, kustomization.yaml
   - Each service has an overlays/p0-lab/kustomization.yaml
-  - Argo CD appset includes all mesh services
-  - docker-compose.mesh.yml declares all services and has dependency ordering
-  - Port assignments are unique across workspace + mesh stacks
+  - Argo CD appset includes all bundles
+  - docker-compose files declare all services with correct dependency ordering
+  - Port assignments are unique across workspace + mesh + sociosphere stacks
   - Each service's env vars reference known upstream service URLs
   - No hardcoded secrets in manifests (no plaintext passwords)
 """
@@ -31,7 +31,26 @@ MESH_SERVICES = [
     "tritfabric",
     "prophet-mesh",
     "mesh-qdrant",
+    # SocioSphere extended tiers
+    "sociosphere",
+    "hellgraph",
+    "regis-entity-graph",
+    "sherlock-search",
+    "prophet-core-catalog",
+    "prophet-core-query",
+    "global-devsecops-intelligence",
+    "lattice-forge",
+    "synapseiq-control-plane",
+    "synapseiq-enrichment-api",
+    "synapseiq-enrichment-collector",
+    "synapseiq-reasoning-api",
+    "synapseiq-tabular-alpha",
+    "mcp-a2a-zero-trust",
 ]
+
+# cloudshell-fog uses existing runtime-base/overlays in prophet-platform — not in MESH_SERVICES
+# but is checked separately in appset validation.
+CLOUDSHELL_OVERLAY = "infra/k8s/cloudshell-fog/overlays/runtime-v2-standard"
 
 MESH_PORTS = {
     "memoryd": 8787,
@@ -45,12 +64,29 @@ MESH_PORTS = {
     "prophet-mesh": 8780,
     "mesh-qdrant-http": 6333,
     "mesh-qdrant-grpc": 6334,
+    # SocioSphere
+    "cloudshell-fog": 8080,
+    "sociosphere": 5000,
+    "hellgraph": 8850,
+    "regis-entity-graph": 8820,
+    "sherlock-search": 8810,
+    "prophet-core-catalog": 8830,
+    "prophet-core-query": 8831,
+    "global-devsecops-intelligence": 8840,
+    "lattice-forge": 8870,
+    "synapseiq-control-plane": 8800,
+    "synapseiq-enrichment-api": 8801,
+    "synapseiq-enrichment-collector": 8802,
+    "synapseiq-reasoning-api": 8803,
+    "synapseiq-tabular-alpha": 8804,
+    "mcp-a2a-zero-trust": 8860,
 }
 
 WORKSPACE_PORTS = {143, 993, 24, 25, 587, 5232, 9000, 9001, 5432, 6379}
 
 APPSET = ROOT / "infra/k8s/argo-cd/appsets/socioprophet-appset.yaml"
 COMPOSE = ROOT / "infra/local/docker-compose.mesh.yml"
+COMPOSE_SOCIOSPHERE = ROOT / "infra/local/docker-compose.sociosphere.yml"
 K8S_ROOT = ROOT / "infra/k8s"
 
 ERRORS: list[str] = []
@@ -104,6 +140,7 @@ def check_k8s_manifests() -> None:
 # ── 2. Argo CD appset coverage ────────────────────────────────────────────────
 
 APPSET_BUNDLE_EXPECTATIONS = {
+    # Mesh tiers 0-6
     "mesh.vector-store",
     "mesh.governance",
     "mesh.memory",
@@ -114,6 +151,22 @@ APPSET_BUNDLE_EXPECTATIONS = {
     "mesh.execution",
     "mesh.ml",
     "mesh.conductor",
+    # SocioSphere tiers 7-10
+    "platform.shell",
+    "platform.controller",
+    "graph.kernel",
+    "graph.entity",
+    "search.evidence",
+    "data.catalog",
+    "data.query",
+    "intelligence.devsecops",
+    "runtime.forge",
+    "enrichment.control",
+    "enrichment.api",
+    "enrichment.collector",
+    "enrichment.reasoning",
+    "enrichment.tabular",
+    "security.mcp-zero-trust",
 }
 
 def check_appset() -> None:
@@ -128,13 +181,28 @@ def check_appset() -> None:
         else:
             fail(f"appset MISSING bundle: {bundle}")
 
+    # cloudshell-fog uses its existing runtime-v2-standard overlay
+    if CLOUDSHELL_OVERLAY in text:
+        ok("appset includes cloudshell-fog (runtime-v2-standard overlay)")
+    else:
+        fail(f"appset MISSING cloudshell-fog entry pointing to {CLOUDSHELL_OVERLAY}")
 
-# ── 3. docker-compose.mesh.yml service coverage ───────────────────────────────
+
+# ── 3. docker-compose service coverage ───────────────────────────────────────
 
 COMPOSE_SERVICES = {
     "postgres-mesh", "qdrant", "model-governance-ledger", "memoryd",
     "policy-fabric", "model-router", "agent-registry", "superconscious",
     "agentplane", "tritfabric-server", "prophet-mesh",
+}
+
+COMPOSE_SOCIOSPHERE_SERVICES = {
+    "cloudshell-fog", "sociosphere", "hellgraph", "regis-entity-graph",
+    "sherlock-search", "prophet-core-catalog", "prophet-core-query",
+    "global-devsecops-intelligence", "lattice-forge",
+    "synapseiq-control-plane", "synapseiq-enrichment-api",
+    "synapseiq-enrichment-collector", "synapseiq-reasoning-api",
+    "synapseiq-tabular-alpha", "mcp-a2a-zero-trust",
 }
 
 def check_compose() -> None:
@@ -145,9 +213,19 @@ def check_compose() -> None:
     text = COMPOSE.read_text()
     for svc in COMPOSE_SERVICES:
         if f"\n  {svc}:" in text:
-            ok(f"compose includes service: {svc}")
+            ok(f"compose/mesh includes service: {svc}")
         else:
-            fail(f"compose MISSING service: {svc}")
+            fail(f"compose/mesh MISSING service: {svc}")
+
+    if not COMPOSE_SOCIOSPHERE.exists():
+        fail(f"docker-compose.sociosphere.yml not found: {COMPOSE_SOCIOSPHERE.relative_to(ROOT)}")
+    else:
+        stext = COMPOSE_SOCIOSPHERE.read_text()
+        for svc in COMPOSE_SOCIOSPHERE_SERVICES:
+            if f"\n  {svc}:" in stext:
+                ok(f"compose/sociosphere includes service: {svc}")
+            else:
+                fail(f"compose/sociosphere MISSING service: {svc}")
 
 
 # ── 4. Port uniqueness (no collision with workspace stack) ────────────────────
@@ -193,7 +271,7 @@ def check_no_plaintext_secrets() -> None:
 
 # ── 6. Service URL cross-reference (compose → correct upstream hostnames) ─────
 
-EXPECTED_URL_REFS = {
+EXPECTED_URL_REFS_MESH = {
     "model-router": ["policy-fabric:8700", "memoryd:8787"],
     "agent-registry": ["policy-fabric:8700"],
     "superconscious": ["model-router:8710", "memoryd:8787"],
@@ -203,16 +281,37 @@ EXPECTED_URL_REFS = {
                      "memoryd:8787", "policy-fabric:8700", "superconscious:8740"],
 }
 
+EXPECTED_URL_REFS_SOCIOSPHERE = {
+    "regis-entity-graph": ["hellgraph:8850", "agent-registry:8720"],
+    "sherlock-search": ["regis-entity-graph:8820", "memoryd:8787"],
+    "prophet-core-query": ["prophet-core-catalog:8830", "memoryd:8787"],
+    "global-devsecops-intelligence": ["sherlock-search:8810", "model-router:8710"],
+    "synapseiq-enrichment-api": ["prophet-core-catalog:8830", "memoryd:8787",
+                                  "synapseiq-control-plane:8800"],
+    "synapseiq-enrichment-collector": ["synapseiq-enrichment-api:8801"],
+    "synapseiq-reasoning-api": ["model-router:8710", "superconscious:8740"],
+    "synapseiq-tabular-alpha": ["synapseiq-enrichment-api:8801"],
+    "mcp-a2a-zero-trust": ["policy-fabric:8700", "agent-registry:8720", "agentplane:8730"],
+}
+
 def check_url_refs() -> None:
-    if not COMPOSE.exists():
-        return
-    text = COMPOSE.read_text()
-    for svc, urls in EXPECTED_URL_REFS.items():
-        for url in urls:
-            if url in text:
-                ok(f"compose/{svc} references {url}")
-            else:
-                fail(f"compose/{svc} MISSING upstream reference: {url}")
+    if COMPOSE.exists():
+        text = COMPOSE.read_text()
+        for svc, urls in EXPECTED_URL_REFS_MESH.items():
+            for url in urls:
+                if url in text:
+                    ok(f"compose/mesh/{svc} references {url}")
+                else:
+                    fail(f"compose/mesh/{svc} MISSING upstream reference: {url}")
+
+    if COMPOSE_SOCIOSPHERE.exists():
+        stext = COMPOSE_SOCIOSPHERE.read_text()
+        for svc, urls in EXPECTED_URL_REFS_SOCIOSPHERE.items():
+            for url in urls:
+                if url in stext:
+                    ok(f"compose/sociosphere/{svc} references {url}")
+                else:
+                    fail(f"compose/sociosphere/{svc} MISSING upstream reference: {url}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -241,7 +340,12 @@ def main() -> None:
         print("\nAction required:")
         print("  1. Add Dockerfiles to each sub-repo that lacks one (see tools/mesh_dockerfile_stubs/)")
         print("  2. Wire secrets via SOPS/age before deploying to p0-lab")
-        print("  3. Run: make validate-mesh-deployment")
+        print("  3. For sociosphere tier: add serve/api.py to hellgraph, regis-entity-graph,")
+        print("     sherlock-search, prophet-core-catalog, prophet-core-query, global-devsecops,")
+        print("     lattice-forge, mcp-a2a-zero-trust")
+        print("  4. For synapseiq: add Dockerfiles to control-plane, enrichment-api,")
+        print("     enrichment-collector, reasoning-api services")
+        print("  5. Run: make validate-mesh-deployment")
         sys.exit(1)
     else:
         print("  ✓ All mesh deployment checks passed.")

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: global-devsecops-intelligence
+  labels:
+    app: global-devsecops-intelligence
+    bundle: intelligence.devsecops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: global-devsecops-intelligence
+  template:
+    metadata:
+      labels:
+        app: global-devsecops-intelligence
+        bundle: intelligence.devsecops
+    spec:
+      containers:
+        - name: global-devsecops-intelligence
+          image: ghcr.io/socioprophet/global-devsecops-intelligence:latest
+          ports:
+            - name: http
+              containerPort: 8840
+          env:
+            - name: PORT
+              value: "8840"
+            - name: SHERLOCK_URL
+              value: "http://sherlock-search:8810"
+            - name: MODEL_ROUTER_URL
+              value: "http://model-router:8710"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8840
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8840
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapseiq-tabular-alpha
+  labels:
+    app: synapseiq-tabular-alpha
+    bundle: enrichment.tabular
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synapseiq-tabular-alpha
+  template:
+    metadata:
+      labels:
+        app: synapseiq-tabular-alpha
+        bundle: enrichment.tabular
+    spec:
+      containers:
+        - name: synapseiq-tabular-alpha
+          image: ghcr.io/socioprophet/synapseiq/tabular-alpha-api:latest
+          ports:
+            - name: http
+              containerPort: 8804
+          env:
+            - name: PORT
+              value: "8804"
+            - name: ENRICHMENT_API_URL
+              value: "http://synapseiq-enrichment-api:8801"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8804
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8804
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

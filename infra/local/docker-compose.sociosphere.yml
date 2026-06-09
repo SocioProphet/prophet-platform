@@ -1,0 +1,381 @@
+# SocioSphere extended tier — workspace controller, graph/search, catalog, enrichment, zero-trust
+#
+# Requires docker-compose.mesh.yml to be running first (tiers 0-6).
+# Bring up together:
+#   docker compose -f docker-compose.mesh.yml -f docker-compose.sociosphere.yml up -d
+#
+# Ports (loopback-only, no mesh collisions):
+#   sociosphere          127.0.0.1:5000   (workspace controller + UI workbench)
+#   hellgraph            127.0.0.1:8850   (Rust graph kernel)
+#   regis-entity-graph   127.0.0.1:8820
+#   sherlock-search      127.0.0.1:8810
+#   prophet-core-catalog 127.0.0.1:8830
+#   prophet-core-query   127.0.0.1:8831
+#   global-devsecops     127.0.0.1:8840
+#   lattice-forge        127.0.0.1:8870
+#   synapseiq-control    127.0.0.1:8800
+#   synapseiq-enrich-api 127.0.0.1:8801
+#   synapseiq-collector  127.0.0.1:8802
+#   synapseiq-reasoning  127.0.0.1:8803
+#   synapseiq-tabular    127.0.0.1:8804
+#   mcp-a2a-zero-trust   127.0.0.1:8860
+#   cloudshell-fog       127.0.0.1:8080   (fog-optimised shell gateway)
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+x-mesh-base: &mesh-base
+  POLICY_FABRIC_URL: http://policy-fabric:8700
+  AGENT_REGISTRY_URL: http://agent-registry:8720
+  MEMORYD_URL: http://memoryd:8787
+  MODEL_ROUTER_URL: http://model-router:8710
+
+services:
+
+  # ── Tier 7: Platform shell + workspace controller ──────────────────────────
+
+  cloudshell-fog:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/cloudshell-fog
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/cloudshell-fog:dev
+    container_name: sociosphere-cloudshell
+    <<: *default-restart
+    environment:
+      CLOUDSHELL_PORT: "8080"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  sociosphere:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/sociosphere
+      dockerfile: deployment/Dockerfile
+    image: ghcr.io/socioprophet/sociosphere:dev
+    container_name: sociosphere-controller
+    <<: *default-restart
+    environment:
+      PORT: "5000"
+      <<: *mesh-base
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      GITHUB_TOKEN: ${SOCIOSPHERE_GITHUB_TOKEN:-}
+      GITHUB_WEBHOOK_SECRET: ${SOCIOSPHERE_WEBHOOK_SECRET:-}
+    ports:
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 8: Graph kernel + entity graph + search ───────────────────────────
+
+  hellgraph:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/hellgraph
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/hellgraph:dev
+    container_name: sociosphere-hellgraph
+    <<: *default-restart
+    environment:
+      PORT: "8850"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8850:8850"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8850/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  regis-entity-graph:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/regis-entity-graph
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/regis-entity-graph:dev
+    container_name: sociosphere-regis
+    <<: *default-restart
+    depends_on:
+      hellgraph:
+        condition: service_healthy
+    environment:
+      PORT: "8820"
+      HELLGRAPH_URL: http://hellgraph:8850
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+    ports:
+      - "127.0.0.1:8820:8820"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8820/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  sherlock-search:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/sherlock-search
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/sherlock-search:dev
+    container_name: sociosphere-sherlock
+    <<: *default-restart
+    depends_on:
+      regis-entity-graph:
+        condition: service_healthy
+    environment:
+      PORT: "8810"
+      REGIS_ENTITY_GRAPH_URL: http://regis-entity-graph:8820
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      OPENSEARCH_URL: ${OPENSEARCH_URL:-http://opensearch:9200}
+    ports:
+      - "127.0.0.1:8810:8810"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8810/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 9: Catalog + query + intelligence + forge ─────────────────────────
+
+  prophet-core-catalog:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/prophet-core-catalog
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/prophet-core-catalog:dev
+    container_name: sociosphere-catalog
+    <<: *default-restart
+    environment:
+      PORT: "8830"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+    ports:
+      - "127.0.0.1:8830:8830"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8830/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  prophet-core-query:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/prophet-core-query
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/prophet-core-query:dev
+    container_name: sociosphere-query
+    <<: *default-restart
+    depends_on:
+      prophet-core-catalog:
+        condition: service_healthy
+    environment:
+      PORT: "8831"
+      CATALOG_URL: http://prophet-core-catalog:8830
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+    ports:
+      - "127.0.0.1:8831:8831"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8831/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  global-devsecops-intelligence:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/global-devsecops-intelligence
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/global-devsecops-intelligence:dev
+    container_name: sociosphere-devsecops
+    <<: *default-restart
+    depends_on:
+      sherlock-search:
+        condition: service_healthy
+    environment:
+      PORT: "8840"
+      SHERLOCK_URL: http://sherlock-search:8810
+      MODEL_ROUTER_URL: http://model-router:8710
+    ports:
+      - "127.0.0.1:8840:8840"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8840/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  lattice-forge:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/lattice-forge
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/lattice-forge:dev
+    container_name: sociosphere-lattice-forge
+    <<: *default-restart
+    environment:
+      PORT: "8870"
+      TRITFABRIC_URL: http://tritfabric-server:8750
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+    ports:
+      - "127.0.0.1:8870:8870"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8870/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 10: Enrichment services + MCP zero-trust ─────────────────────────
+
+  synapseiq-control-plane:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/synapseiq
+      dockerfile: services/control-plane/Dockerfile
+    image: ghcr.io/socioprophet/synapseiq/control-plane:dev
+    container_name: sociosphere-synapseiq-control
+    <<: *default-restart
+    environment:
+      PORT: "8800"
+      MODEL_ROUTER_URL: http://model-router:8710
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+    ports:
+      - "127.0.0.1:8800:8800"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8800/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  synapseiq-enrichment-api:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/synapseiq
+      dockerfile: services/enrichment-api/Dockerfile
+    image: ghcr.io/socioprophet/synapseiq/enrichment-api:dev
+    container_name: sociosphere-synapseiq-enrich
+    <<: *default-restart
+    depends_on:
+      synapseiq-control-plane:
+        condition: service_healthy
+      prophet-core-catalog:
+        condition: service_healthy
+    environment:
+      PORT: "8801"
+      CATALOG_URL: http://prophet-core-catalog:8830
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      CONTROL_PLANE_URL: http://synapseiq-control-plane:8800
+    ports:
+      - "127.0.0.1:8801:8801"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8801/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  synapseiq-enrichment-collector:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/synapseiq
+      dockerfile: services/enrichment-collector/Dockerfile
+    image: ghcr.io/socioprophet/synapseiq/enrichment-collector:dev
+    container_name: sociosphere-synapseiq-collector
+    <<: *default-restart
+    depends_on:
+      synapseiq-enrichment-api:
+        condition: service_healthy
+    environment:
+      PORT: "8802"
+      ENRICHMENT_API_URL: http://synapseiq-enrichment-api:8801
+    ports:
+      - "127.0.0.1:8802:8802"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8802/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  synapseiq-reasoning-api:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/synapseiq
+      dockerfile: services/reasoning-api/Dockerfile
+    image: ghcr.io/socioprophet/synapseiq/reasoning-api:dev
+    container_name: sociosphere-synapseiq-reasoning
+    <<: *default-restart
+    depends_on:
+      synapseiq-control-plane:
+        condition: service_healthy
+    environment:
+      PORT: "8803"
+      MODEL_ROUTER_URL: http://model-router:8710
+      SUPERCONSCIOUS_URL: http://superconscious:8740
+    ports:
+      - "127.0.0.1:8803:8803"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8803/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  synapseiq-tabular-alpha:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/synapseiq
+      dockerfile: services/tabular-alpha-api/Dockerfile
+    image: ghcr.io/socioprophet/synapseiq/tabular-alpha-api:dev
+    container_name: sociosphere-synapseiq-tabular
+    <<: *default-restart
+    depends_on:
+      synapseiq-enrichment-api:
+        condition: service_healthy
+    environment:
+      PORT: "8804"
+      ENRICHMENT_API_URL: http://synapseiq-enrichment-api:8801
+    ports:
+      - "127.0.0.1:8804:8804"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8804/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  mcp-a2a-zero-trust:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/mcp-a2a-zero-trust
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/mcp-a2a-zero-trust:dev
+    container_name: sociosphere-mcp-zerotrust
+    <<: *default-restart
+    environment:
+      PORT: "8860"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      AGENTPLANE_URL: http://agentplane:8730
+    ports:
+      - "127.0.0.1:8860:8860"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8860/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging

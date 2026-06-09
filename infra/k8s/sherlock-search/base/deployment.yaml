@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sherlock-search
+  labels:
+    app: sherlock-search
+    bundle: search.evidence
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sherlock-search
+  template:
+    metadata:
+      labels:
+        app: sherlock-search
+        bundle: search.evidence
+    spec:
+      containers:
+        - name: sherlock-search
+          image: ghcr.io/socioprophet/sherlock-search:latest
+          ports:
+            - name: http
+              containerPort: 8810
+          env:
+            - name: PORT
+              value: "8810"
+            - name: REGIS_ENTITY_GRAPH_URL
+              value: "http://regis-entity-graph:8820"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+            - name: OPENSEARCH_URL
+              valueFrom:
+                secretKeyRef:
+                  name: sherlock-credentials
+                  key: opensearch-url
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8810
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8810
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
