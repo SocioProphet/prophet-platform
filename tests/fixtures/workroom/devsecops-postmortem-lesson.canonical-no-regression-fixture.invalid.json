@@ -1,0 +1,18 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "postmortem-lesson:devsecops:invalid:canonical-no-regression-fixture",
+  "incident_ref": "incident://pagerduty/invalid/canonical-no-regression-fixture",
+  "rca_claim_refs": [
+    "rca-claim:invalid:canonical-no-regression"
+  ],
+  "evidence_refs": [
+    "evidence://fixture/invalid/canonical-no-regression"
+  ],
+  "regression_fixture_refs": [],
+  "lesson_status": "canonical",
+  "canonization_target_ref": "alexandrian-academy://devsecops/invalid/canonical-no-regression",
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: canonical lesson requires at least one regression fixture."
+  ]
+}

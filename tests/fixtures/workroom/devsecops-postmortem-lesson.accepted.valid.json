@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "postmortem-lesson:devsecops:scope-d-example:api-latency-deploy-correlation",
+  "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+  "rca_claim_refs": [
+    "rca-claim:scope-d-example:recent-deploy-supported"
+  ],
+  "evidence_refs": [
+    "evidence://observability/scope-d-example/5xx-spike",
+    "evidence://deployment/scope-d-example/recent-deploy"
+  ],
+  "remediation_plan_refs": [
+    "remediation-plan:scope-d-example:rollback-candidate"
+  ],
+  "regression_fixture_refs": [
+    "regression-fixture:scope-d-example:post-deploy-5xx-guard"
+  ],
+  "lesson_status": "accepted",
+  "academy_ref": "alexandrian-academy://devsecops/scope-d-example",
+  "non_claims": [
+    "Lesson is fixture-only. No live incident or Academy integration.",
+    "accepted status does not mean canonized. Alexandrian Academy decides canonization.",
+    "Prophet Platform emits lesson candidates; does not canonize lessons."
+  ]
+}

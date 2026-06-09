@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1.0",
+  "handoff_id": "academy-handoff:devsecops:scope-d-example:api-latency-lesson",
+  "lesson_ref": "postmortem-lesson:devsecops:scope-d-example:api-latency-deploy-correlation",
+  "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+  "rca_claim_refs": [
+    "rca-claim:scope-d-example:recent-deploy-supported"
+  ],
+  "evidence_refs": [
+    "evidence://observability/scope-d-example/5xx-spike",
+    "evidence://deployment/scope-d-example/recent-deploy"
+  ],
+  "regression_fixture_refs": [
+    "regression-fixture:scope-d-example:post-deploy-5xx-guard"
+  ],
+  "validation_plan_refs": [
+    "validation-plan://scope-d-example/post-deploy-5xx-guard"
+  ],
+  "evidence_packet_summary_refs": [
+    "evidence-summary://devsecops/scope-d-example/INC-1001/packet-digest"
+  ],
+  "status": "candidate_submitted",
+  "non_claims": [
+    "Handoff is fixture-only. No live Alexandrian Academy integration.",
+    "Prophet Platform emits candidate bundles; Alexandrian Academy decides canonize/reject/request.",
+    "candidate_submitted does not guarantee canonization."
+  ]
+}

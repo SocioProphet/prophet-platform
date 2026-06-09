@@ -1,0 +1,16 @@
+{
+  "schema_version": "0.1.0",
+  "lesson_id": "postmortem-lesson:devsecops:invalid:superseded-no-successor",
+  "incident_ref": "incident://pagerduty/invalid/superseded-no-successor",
+  "rca_claim_refs": [
+    "rca-claim:invalid:superseded-no-successor"
+  ],
+  "evidence_refs": [
+    "evidence://fixture/invalid/superseded-no-successor"
+  ],
+  "lesson_status": "superseded",
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: superseded lesson requires successor_lesson_ref."
+  ]
+}

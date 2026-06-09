@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-academy-canonization-handoff-v0.1",
+  "title": "DevSecOps Alexandrian Academy Canonization Handoff",
+  "description": "Models the handoff of a PostmortemLesson candidate bundle from Prophet Platform to the Alexandrian Academy for canonization. Prophet Platform emits candidate bundles. The Alexandrian Academy decides canonize / reject / request more evidence.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "handoff_id",
+    "lesson_ref",
+    "incident_ref",
+    "rca_claim_refs",
+    "evidence_refs",
+    "status",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "handoff_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "lesson_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "incident_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rca_claim_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "regression_fixture_refs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "validation_plan_refs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "evidence_packet_summary_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Summary digest refs for full evidence packet content submitted to the Academy."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "candidate_submitted",
+        "academy_reviewing",
+        "canonized",
+        "rejected",
+        "more_evidence_requested",
+        "withdrawn"
+      ]
+    },
+    "academy_decision_ref": {
+      "type": "string",
+      "description": "Reference to the Academy's canonization or rejection record. Present when status=canonized or rejected."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

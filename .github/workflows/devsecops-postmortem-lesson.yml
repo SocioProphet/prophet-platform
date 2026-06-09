@@ -1,0 +1,35 @@
+name: devsecops-postmortem-lesson
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-postmortem-lesson-v0.1.schema.json'
+      - 'contracts/workroom/devsecops-academy-canonization-handoff-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-postmortem-lesson.*.json'
+      - 'tests/fixtures/workroom/devsecops-academy-canonization-handoff.*.json'
+      - 'tools/validate_devsecops_postmortem_lesson.py'
+      - '.github/workflows/devsecops-postmortem-lesson.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-postmortem-lesson-v0.1.schema.json'
+      - 'contracts/workroom/devsecops-academy-canonization-handoff-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-postmortem-lesson.*.json'
+      - 'tests/fixtures/workroom/devsecops-academy-canonization-handoff.*.json'
+      - 'tools/validate_devsecops_postmortem_lesson.py'
+      - '.github/workflows/devsecops-postmortem-lesson.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Validate PostmortemLesson and Academy canonization handoff contracts
+        run: python tools/validate_devsecops_postmortem_lesson.py

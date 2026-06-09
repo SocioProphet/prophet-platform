@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-postmortem-lesson-v0.1",
+  "title": "DevSecOps Postmortem Lesson",
+  "description": "A postmortem lesson derived from a production incident. Captures the learning outcome — supported by RCA claims and evidence — and tracks its promotion toward canonization by the Alexandrian Academy. Prophet Platform emits lesson candidates; Alexandrian Academy decides canonization.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "lesson_id",
+    "incident_ref",
+    "rca_claim_refs",
+    "evidence_refs",
+    "lesson_status",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "lesson_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "incident_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rca_claim_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "RCA claims this lesson is grounded in."
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1,
+      "description": "Evidence packets supporting the lesson."
+    },
+    "remediation_plan_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Remediation plans associated with this incident."
+    },
+    "regression_fixture_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Regression fixtures promoted from this lesson."
+    },
+    "lesson_status": {
+      "type": "string",
+      "enum": ["draft", "reviewed", "accepted", "canonical", "rejected", "superseded"]
+    },
+    "canonization_target_ref": {
+      "type": "string",
+      "description": "Reference to the Academy canonization record. Present only when lesson_status=canonical."
+    },
+    "academy_ref": {
+      "type": "string",
+      "description": "Reference to the Alexandrian Academy instance or collection this lesson is submitted to."
+    },
+    "successor_lesson_ref": {
+      "type": "string",
+      "description": "Required when lesson_status=superseded."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}
