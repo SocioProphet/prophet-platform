@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1.0",
+  "blast_radius_ref": "blast-radius://gaia/workroom/invalid/high-impact-no-evidence",
+  "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+  "incident_ref": "incident://pagerduty/invalid/high-impact-no-evidence",
+  "affected_services": [
+    "service://scope-d/api"
+  ],
+  "potentially_affected_services": [],
+  "customer_impact_class": "high",
+  "confidence": "high",
+  "evidence_refs": [],
+  "non_claims": [
+    "Expected-invalid fixture only.",
+    "Tests: customer_impact_class=high requires at least one evidence_ref."
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1.0",
+  "blast_radius_ref": "blast-radius://gaia/workroom/scope-d-example/INC-1001",
+  "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+  "incident_ref": "incident://pagerduty/scope-d-example/INC-1001",
+  "affected_services": [
+    "service://scope-d/api"
+  ],
+  "potentially_affected_services": [
+    "frontend://scope-d/checkout",
+    "frontend://scope-d/account"
+  ],
+  "customer_impact_class": "medium",
+  "confidence": "medium",
+  "evidence_refs": [
+    "evidence://gaia/topology/scope-d-example/blast-radius",
+    "evidence://observability/scope-d-example/5xx-spike"
+  ],
+  "non_claims": [
+    "Blast-radius estimate is topology-supported, not confirmed by customer impact observation.",
+    "GAIA is the blast-radius authority. Prophet Platform validates estimate references only.",
+    "Estimate does not authorize remediation."
+  ]
+}

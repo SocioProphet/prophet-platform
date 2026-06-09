@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-blast-radius-estimate-v0.1",
+  "title": "DevSecOps Blast Radius Estimate",
+  "description": "Typed blast-radius estimate derived from a GAIA topology snapshot. Supplies affected service scope, customer impact class, and evidence linkage for Workroom incident investigation. GAIA is the blast-radius authority — Prophet Platform validates estimate references only.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "blast_radius_ref",
+    "topology_ref",
+    "incident_ref",
+    "affected_services",
+    "customer_impact_class",
+    "confidence",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "blast_radius_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "topology_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The topology snapshot this blast-radius estimate is derived from."
+    },
+    "incident_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "affected_services": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Service refs confirmed or strongly supported as affected by the incident."
+    },
+    "potentially_affected_services": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Service refs that may be affected based on topology traversal but not confirmed."
+    },
+    "customer_impact_class": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high", "unknown"],
+      "description": "Estimated customer impact class. 'high' requires evidence_refs."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["none", "low", "medium", "high"],
+      "description": "'none' means no causal estimate can be made from available topology."
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Evidence packets supporting this blast-radius estimate."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}
