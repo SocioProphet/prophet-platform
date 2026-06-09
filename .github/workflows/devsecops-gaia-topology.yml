@@ -1,0 +1,35 @@
+name: devsecops-gaia-topology
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-topology-snapshot-ref-v0.1.schema.json'
+      - 'contracts/workroom/devsecops-blast-radius-estimate-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-topology-snapshot-ref.*.json'
+      - 'tests/fixtures/workroom/devsecops-blast-radius-estimate.*.json'
+      - 'tools/validate_devsecops_gaia_topology.py'
+      - '.github/workflows/devsecops-gaia-topology.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/workroom/devsecops-topology-snapshot-ref-v0.1.schema.json'
+      - 'contracts/workroom/devsecops-blast-radius-estimate-v0.1.schema.json'
+      - 'tests/fixtures/workroom/devsecops-topology-snapshot-ref.*.json'
+      - 'tests/fixtures/workroom/devsecops-blast-radius-estimate.*.json'
+      - 'tools/validate_devsecops_gaia_topology.py'
+      - '.github/workflows/devsecops-gaia-topology.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: python -m pip install jsonschema==4.23.0
+      - name: Validate GAIA topology snapshot and blast-radius estimate contracts
+        run: python tools/validate_devsecops_gaia_topology.py

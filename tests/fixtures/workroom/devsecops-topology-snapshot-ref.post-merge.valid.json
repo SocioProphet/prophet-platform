@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1.0",
+  "topology_ref": "topology://gaia/workroom/scope-d-example/post-merge",
+  "gaia_graph_ref": "gaia://graph/scope-d-example/post-merge/2026-05-31T16:57:20Z",
+  "snapshot_digest": "sha256:topology0001111122223333444455556666777788889999aaaabbbbccccddddeee",
+  "observed_at": "2026-05-31T16:57:20Z",
+  "scope": "Production workroom topology for scope-d-example, post-merge incident window.",
+  "node_count": 3,
+  "edge_count": 2,
+  "service_refs": [
+    "service://scope-d/api"
+  ],
+  "dependency_refs": [],
+  "non_claims": [
+    "Topology snapshot is fixture-only. GAIA is the topology authority.",
+    "Snapshot does not prove root cause or authorize remediation.",
+    "Prophet Platform validates snapshot references only."
+  ]
+}

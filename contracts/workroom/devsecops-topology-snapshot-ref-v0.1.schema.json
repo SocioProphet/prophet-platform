@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-topology-snapshot-ref-v0.1",
+  "title": "DevSecOps Topology Snapshot Reference",
+  "description": "Typed reference to a GAIA topology snapshot. Supplies versioned, evidence-bound topology context for Workroom incident investigation and blast-radius estimation. GAIA is the topology authority — Prophet Platform validates snapshot references only.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "topology_ref",
+    "gaia_graph_ref",
+    "snapshot_digest",
+    "observed_at",
+    "scope",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "topology_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gaia_graph_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reference to the GAIA graph from which this snapshot was produced."
+    },
+    "snapshot_digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Content-addressable digest of the snapshot payload."
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of the topology scope (workspace, environment, service boundary)."
+    },
+    "node_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "edge_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "service_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Service node refs included in this snapshot."
+    },
+    "dependency_refs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Dependency node refs (databases, queues, external services) included in this snapshot."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}
