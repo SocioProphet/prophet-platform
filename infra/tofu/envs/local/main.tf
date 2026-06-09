@@ -10,8 +10,8 @@ terraform {
 }
 
 variable "cluster_name" { type = string; default = "prophet-local" }
-variable "k3d_agents"   { type = number; default = 2 }
-variable "api_port"     { type = number; default = 6550 }
+variable "k3d_agents" { type = number; default = 2 }
+variable "api_port" { type = number; default = 6550 }
 
 resource "random_password" "k3s_token" {
   length  = 48
@@ -52,7 +52,10 @@ resource "local_file" "k3d_config" {
 
 resource "null_resource" "k3d_cluster" {
   depends_on = [local_file.k3d_config]
-  triggers   = { config_hash = local_file.k3d_config.content }
+  triggers = {
+    cluster_name = var.cluster_name
+    config_hash  = local_file.k3d_config.content
+  }
 
   provisioner "local-exec" {
     command = <<-SH
@@ -67,9 +70,9 @@ resource "null_resource" "k3d_cluster" {
 
   provisioner "local-exec" {
     when    = destroy
-    command = "k3d cluster delete ${var.cluster_name} || true"
+    command = "k3d cluster delete ${self.triggers.cluster_name} || true"
   }
 }
 
 output "kubeconfig_context" { value = "k3d-${var.cluster_name}" }
-output "k3s_token"          { value = random_password.k3s_token.result; sensitive = true }
+output "k3s_token" { value = random_password.k3s_token.result; sensitive = true }
