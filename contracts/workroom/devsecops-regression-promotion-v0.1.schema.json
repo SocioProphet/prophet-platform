@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "devsecops-regression-promotion-v0.1",
+  "title": "DevSecOps Regression Promotion",
+  "description": "Standalone schema for closed-loop regression promotion: BDE or RCA → RegressionFixture → ValidationPlan. Models promotion state machine for fixture and plan lifecycle.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "promotion_id",
+    "behavioral_divergence_event",
+    "rca_claims",
+    "regression_fixtures",
+    "validation_plans",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1.0"
+    },
+    "promotion_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "behavioral_divergence_event": {
+      "type": "object",
+      "required": ["event_id", "event_type", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {"type": "string", "minLength": 1},
+        "event_type": {"type": "string", "enum": ["production_incident", "synthetic_divergence", "regression_detected", "pre_merge_failure"]},
+        "summary": {"type": "string", "minLength": 1},
+        "source_ref": {"type": "string"},
+        "incident_ref": {"type": "string"},
+        "non_claims": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "rca_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "claim_status", "evidence_refs"],
+        "additionalProperties": false,
+        "properties": {
+          "claim_id": {"type": "string", "minLength": 1},
+          "claim_status": {
+            "type": "string",
+            "enum": [
+              "hypothesized",
+              "supported_causal_claim",
+              "confirmed_causal_claim",
+              "unsupported",
+              "rejected_causal_claim"
+            ]
+          },
+          "statement": {"type": "string"},
+          "evidence_refs": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1
+          },
+          "counterevidence_refs": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["none", "low", "medium", "high"]
+          },
+          "non_claims": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "regression_fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fixture_id", "fixture_status", "derived_from", "target_validation_plan_ref"],
+        "additionalProperties": false,
+        "properties": {
+          "fixture_id": {"type": "string", "minLength": 1},
+          "fixture_status": {
+            "type": "string",
+            "enum": ["candidate", "reviewed", "accepted", "promoted", "deprecated", "superseded", "rejected"]
+          },
+          "derived_from": {"type": "string", "minLength": 1},
+          "summary": {"type": "string"},
+          "target_validation_plan_ref": {"type": "string", "minLength": 1},
+          "successor_fixture_ref": {"type": "string"},
+          "blocking_gate": {
+            "type": "boolean",
+            "description": "If true, this fixture is eligible to block future PRs. Only promoted fixtures may set this to true."
+          },
+          "non_claims": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "validation_plans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["plan_id", "plan_status", "regression_fixture_refs"],
+        "additionalProperties": false,
+        "properties": {
+          "plan_id": {"type": "string", "minLength": 1},
+          "plan_status": {
+            "type": "string",
+            "enum": ["draft", "reviewed", "promoted", "active", "deprecated", "superseded"]
+          },
+          "regression_fixture_refs": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "non_claims": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "non_claims": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  }
+}

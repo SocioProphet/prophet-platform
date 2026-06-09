@@ -1,0 +1,64 @@
+{
+  "schema_version": "0.1.0",
+  "promotion_id": "regression-promotion:devsecops:api-latency-spike:closed-loop",
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:api-latency-spike",
+    "event_type": "production_incident",
+    "summary": "API p99 latency exceeded 2s SLO for 12 minutes following deploy of commit d7a1c3f. Downstream authentication service cascaded.",
+    "source_ref": "incident://pagerduty/prophet-platform/INC-5001",
+    "incident_ref": "incident://pagerduty/prophet-platform/INC-5001",
+    "non_claims": [
+      "Fixture event only. No live PagerDuty integration.",
+      "Event summary does not certify production root cause."
+    ]
+  },
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:api-latency-spike:db-connection-pool-exhaustion",
+      "claim_status": "supported_causal_claim",
+      "statement": "Database connection pool exhaustion caused API latency spike. Fixture metric evidence shows connection count at 100/100 for duration of incident window.",
+      "evidence_refs": [
+        "evidence://observability/prophet-platform/db-connection-pool-saturation-INC-5001",
+        "evidence://observability/prophet-platform/api-p99-latency-INC-5001"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": [
+        "Claim is fixture-based. No live telemetry.",
+        "Medium confidence: single evidence window, no pre-incident baseline."
+      ]
+    }
+  ],
+  "regression_fixtures": [
+    {
+      "fixture_id": "regression-fixture:api-latency-spike:db-pool-exhaustion-regression",
+      "fixture_status": "promoted",
+      "derived_from": "rca-claim:api-latency-spike:db-connection-pool-exhaustion",
+      "summary": "Regression fixture: pre-merge SVF plan must confirm connection pool headroom above 20% under synthetic load. Derived from INC-5001 RCA.",
+      "target_validation_plan_ref": "validation-plan://prophet-platform/svf/db-connection-pool-regression-guard",
+      "blocking_gate": true,
+      "non_claims": [
+        "Fixture is fixture-status promoted for testing only.",
+        "Blocking gate requires active promoted plan before enforcement."
+      ]
+    }
+  ],
+  "validation_plans": [
+    {
+      "plan_id": "validation-plan://prophet-platform/svf/db-connection-pool-regression-guard",
+      "plan_status": "promoted",
+      "regression_fixture_refs": [
+        "regression-fixture:api-latency-spike:db-pool-exhaustion-regression"
+      ],
+      "non_claims": [
+        "Plan is fixture-promoted. No live SVF runner enforcement in v0.1.",
+        "Plan does not certify production readiness."
+      ]
+    }
+  ],
+  "non_claims": [
+    "Closed-loop fixture only. No live incident, telemetry, or production action.",
+    "Validator confirms structural and promotion linkage only.",
+    "Promotion does not execute SVF plans or authorize production changes."
+  ]
+}
