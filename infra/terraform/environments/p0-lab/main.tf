@@ -77,7 +77,8 @@ resource "null_resource" "k3d_cluster" {
   depends_on = [local_file.k3d_config]
 
   triggers = {
-    config_hash = local_file.k3d_config.content
+    cluster_name = var.k3d_cluster_name
+    config_hash  = local_file.k3d_config.content
   }
 
   provisioner "local-exec" {
@@ -93,7 +94,7 @@ resource "null_resource" "k3d_cluster" {
 
   provisioner "local-exec" {
     when    = destroy
-    command = "k3d cluster delete ${var.k3d_cluster_name} || true"
+    command = "k3d cluster delete ${self.triggers.cluster_name} || true"
   }
 }
 
