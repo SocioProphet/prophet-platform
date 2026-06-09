@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "request_id": "environment:validate-change-v2-request:exported-sociosphere-receipt:stale",
+  "repo": "SocioProphet/sociosphere",
+  "sociosphere_refs": {
+    "workspace_ref": "sociosphere:workspace:default",
+    "svf_registry_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:registry/sovereign-validation-fabric.yaml"
+  },
+  "selected_plans": [
+    "svf:plan:sociosphere-dogfood-v0"
+  ],
+  "environment_request": {
+    "requested_isolation_class": "synthetic_no_network",
+    "environment_type": "svf_local_exported",
+    "non_claims": [
+      "Does not execute live sandbox infrastructure.",
+      "Does not certify Signadot-style runtime parity."
+    ]
+  },
+  "execution": {
+    "executor_plane": "AgentPlane",
+    "execution_mode": "exported_receipt_input"
+  },
+  "exported_sociosphere_receipt": {
+    "export_manifest_ref": "SocioProphet/sociosphere@7133223edd7784a36b15e3eee9065f17b49b5451:artifacts/svf/exports/latest/export-manifest.json",
+    "run_ref": "svf:run:sociosphere-dogfood-v0:local-smoke:stale",
+    "receipt_ref": "svf:receipt:sociosphere-dogfood-v0:local-smoke:stale",
+    "run_digest": "sha256:112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+    "receipt_digest": "sha256:ccddeeff00112233445566778899aabbccddeeff00112233445566778899aabb",
+    "verification": {
+      "status": "stale",
+      "verifier_identity": "sociosphere:svf-runner:local",
+      "verified_at": "2026-06-08T00:00:00Z",
+      "stale_reason": "Receipt digest does not match current change set. Change set has been updated since receipt was issued."
+    },
+    "certified_claims": [],
+    "non_certified_claims": [
+      "Receipt is stale. Merge is blocked.",
+      "Remediation required: compare stale receipt digest with current change set, rerun SVF plan, replace stale receipt with verified receipt."
+    ]
+  }
+}
