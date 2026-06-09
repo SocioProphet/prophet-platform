@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars. Never commit terraform.tfvars.
+# Get billing_account from: gcloud billing accounts list
+billing_account   = "XXXXXX-XXXXXX-XXXXXX"
+admin_group_email = "platform-admins@socioprophet.ai"
+alert_email       = "ops@socioprophet.ai"

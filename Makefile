@@ -231,8 +231,41 @@ validate-health-ai-demo-readiness:
 validate-prophet-mesh-demo-readiness:
 	python3 tools/validate_prophet_mesh_demo_readiness.py
 
+# ── OpenTofu IaC ──────────────────────────────────────────────────────────────
+TOFU_ENV ?= local
+TOFU_DIR = infra/tofu/envs/$(TOFU_ENV)
+
+.PHONY: tofu-fmt tofu-validate tofu-init tofu-plan tofu-output validate-no-provider-leakage
+
+validate-no-provider-leakage:
+	python3 tools/validate_no_provider_leakage.py
+
+tofu-fmt:
+	tofu fmt -recursive infra/tofu/
+
+tofu-validate:
+	@for env in local gcp-landing shared prod; do \
+	  echo "--- validating env=$$env ---"; \
+	  cd infra/tofu/envs/$$env && tofu init -backend=false -input=false && tofu validate; \
+	  cd $(CURDIR); \
+	done
+
+tofu-init:
+	cd $(TOFU_DIR) && tofu init -upgrade
+
+tofu-plan:
+	@if [ "$(TOFU_ENV)" != "local" ]; then \
+	  echo "INFO: plan for $(TOFU_ENV) — no apply gate exists yet. Plan only."; \
+	fi
+	cd $(TOFU_DIR) && tofu plan
+
+tofu-output:
+	cd $(TOFU_DIR) && tofu output
+
 # ── Workspace services ────────────────────────────────────────────────────────
 WORKSPACE_COMPOSE = infra/local/docker-compose.workspace.yml
+
+.PHONY: validate-workspace-services test-workspace smoke-workspace workspace-build workspace-up workspace-down workspace-logs
 
 validate-workspace-services:
 	python3 tools/validate_workspace_services.py
