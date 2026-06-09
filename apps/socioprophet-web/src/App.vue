@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
 import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
 import HealthAIDemoReadinessCard from './components/HealthAIDemoReadinessCard.vue'
+import ProphetMeshRuntimeReadinessCard from './components/ProphetMeshRuntimeReadinessCard.vue'
 
 const status = ref<'idle'|'ok'|'err'>('idle')
 const pong = ref('')
@@ -44,6 +45,7 @@ onMounted(check)
     </section>
 
     <HealthAIDemoReadinessCard />
+    <ProphetMeshRuntimeReadinessCard />
     <ChronosEvidenceLoopCard />
     <DevSecOpsWorkroomReportCard />
   </main>
