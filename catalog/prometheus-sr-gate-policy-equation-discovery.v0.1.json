@@ -1,0 +1,24 @@
+{
+  "policyId": "urn:prometheus:automated-shacl-gate-policy:equation-discovery:v0.1.0",
+  "schemaVersion": "0.1.0",
+  "applicationMode": "equation_discovery",
+  "description": "Machine-readable gate thresholds for PROMETHEUS symbolic-regression equation-discovery pipeline. Applied during automated gate evaluation. Prophet Platform enforces these thresholds; it does not admit assertions, deploy models, or grant controller authority.",
+  "methodFamilies": ["pysr", "sindy"],
+  "minimumDatasetRows": 3,
+  "maximumCandidateComplexity": 20,
+  "maximumNmse": 0.05,
+  "requiredUnitsStatus": "consistent",
+  "requireReplayVerified": true,
+  "allowControlAuthority": false,
+  "forbiddenGovernanceFlags": [],
+  "promotionEligibility": "review_required",
+  "non_claims": [
+    "This policy does not authorize production mutation.",
+    "This policy does not admit SR assertions to the Ontogenesis vocabulary.",
+    "This policy does not grant AgentPlane execution authority.",
+    "This policy does not constitute an ontology controller.",
+    "Threshold values are advisory defaults for the local demo pipeline; production thresholds require independent review-board approval."
+  ],
+  "issuedAt": "2026-06-09T00:00:00Z",
+  "issuedBy": "prophet-platform"
+}
