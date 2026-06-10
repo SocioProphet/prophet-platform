@@ -89,13 +89,13 @@ def main() -> int:
     manifest = load(manifest_path)
     if manifest.get("kind") != "PrometheusLocalDemoManifest":
         fail("manifest kind mismatch")
-    if manifest.get("manifestVersion") != "0.2.0":
-        fail("manifestVersion must be 0.2.0")
+    if manifest.get("manifestVersion") != "0.3.0":
+        fail("manifestVersion must be 0.3.0")
     if "not laws" not in manifest.get("nonAuthorityDeclaration", ""):
         fail("manifest missing non-authority declaration")
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, list) or len(artifacts) != 6:
-        fail("manifest must contain exactly six artifacts")
+    if not isinstance(artifacts, list) or len(artifacts) != 11:
+        fail("manifest must contain exactly eleven artifacts")
     for artifact in artifacts:
         path = Path(artifact.get("path", ""))
         if not path.exists():
@@ -103,20 +103,25 @@ def main() -> int:
         if sha256_file(path) != artifact.get("sha256"):
             fail(f"hash mismatch: {path}")
     runs = manifest.get("runs")
-    if not isinstance(runs, list) or len(runs) != 2:
-        fail("manifest must contain exactly two runs")
+    if not isinstance(runs, list) or len(runs) != 3:
+        fail("manifest must contain exactly three runs")
     run_by_method = {run.get("methodFamily"): run for run in runs}
-    if set(run_by_method) != {"pysr", "sindy"}:
-        fail("manifest must include pysr and sindy runs")
+    if set(run_by_method) != {"pysr", "ai_descartes", "sindy"}:
+        fail("manifest must include pysr, ai_descartes, and sindy runs")
     for method, run in run_by_method.items():
         if run.get("controlAuthority") is not False:
             fail(f"{method}: controlAuthority must be false")
     pysr = run_by_method["pysr"]
+    ai_descartes = run_by_method["ai_descartes"]
     sindy = run_by_method["sindy"]
     validate_candidate(Path(pysr["candidateArtifact"]), "EquationCandidate", "pysr")
     validate_run_artifact(Path(pysr["runArtifact"]), "pysr")
     validate_gate_evaluation(Path(pysr["gateEvaluationArtifact"]), Path(pysr["candidateArtifact"]))
     validate_jsonld(Path(pysr["jsonldArtifact"]), Path(pysr["gateEvaluationArtifact"]))
+    validate_candidate(Path(ai_descartes["candidateArtifact"]), "EquationCandidate", "ai_descartes")
+    validate_run_artifact(Path(ai_descartes["runArtifact"]), "ai_descartes")
+    validate_gate_evaluation(Path(ai_descartes["gateEvaluationArtifact"]), Path(ai_descartes["candidateArtifact"]))
+    validate_jsonld(Path(ai_descartes["jsonldArtifact"]), Path(ai_descartes["gateEvaluationArtifact"]))
     validate_candidate(Path(sindy["candidateArtifact"]), "PlatformDynamicsCandidate", "sindy")
     validate_run_artifact(Path(sindy["runArtifact"]), "sindy")
 

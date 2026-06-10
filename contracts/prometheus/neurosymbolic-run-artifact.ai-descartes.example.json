@@ -1,0 +1,40 @@
+{
+  "applicationMode": "scientific_law_discovery",
+  "artifactType": "PrometheusNeuroSymbolicRunArtifact",
+  "candidateRefs": [
+    {
+      "artifactType": "EquationCandidate",
+      "candidateId": "urn:prometheus:candidate:equation:ai-descartes-fixture:001",
+      "complexity": 5,
+      "equationLatex": "y = 2x + 1",
+      "fitMetric": {
+        "name": "nmse",
+        "value": 0.0
+      },
+      "promotionState": "candidate",
+      "unitsStatus": "consistent"
+    }
+  ],
+  "chronosGovernanceFlags": [],
+  "controlAuthority": false,
+  "datasetRef": {
+    "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "hashAlgorithm": "sha256",
+    "uri": "urn:dataset:prometheus:fixture:linear-law"
+  },
+  "engineMode": "fixture_only",
+  "finalAdmissionRequested": false,
+  "issuedAt": "2026-06-03T12:00:00Z",
+  "methodFamily": "ai_descartes",
+  "nonAuthorityDeclaration": "This AI-Descartes-style fixture is not a law, ontology assertion, policy, controller, runtime authority, deployment authorization, or admitted SRAssertion.",
+  "priorArtRef": "ibm:ai-descartes",
+  "promotionState": "candidate",
+  "replayHash": {
+    "algorithm": "sha256",
+    "state": "fixture_verified",
+    "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "runId": "urn:prometheus:nsr-run:ai-descartes-fixture:001",
+  "schemaVersion": "0.1.0",
+  "semanticReviewSurface": "automated_shacl_gate"
+}
