@@ -1,0 +1,97 @@
+{
+  "_comment": "SCOPE-D adversarial fixture: Remediation plan omits the required non-execution non_claim. An adversary omits 'Prophet Platform does not execute this remediation' from the plan's non_claims, attempting to imply execution authority through absence. SCOPE-D validator must reject: every remediation plan with plan_status 'approved' or 'candidate' must include a non_claim asserting it cannot execute.",
+  "_expected_errors": ["remediation plan non_claims must assert non-execution boundary"],
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:post-merge:scope-d-remediation-no-non-execution-adversarial",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d/INC-ADV-002",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d/INC-ADV-002"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:scope-d-remediation-authority",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Adversarial fixture: remediation plan missing non-execution non_claim.",
+    "environment_ref": "environment://production/scope-d-adversarial",
+    "evidence_refs": [
+      "evidence://observability/scope-d/iNC-ADV-002-metric"
+    ],
+    "claim_refs": [
+      "rca-claim:scope-d-adversarial:supported-claim"
+    ],
+    "decision_state": "needs_review",
+    "non_claims": [
+      "Fixture is adversarial and does not assert real customer impact."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d/iNC-ADV-002-metric",
+      "evidence_type": "metric_observation",
+      "producer": "Adversarial fixture observability connector",
+      "summary": "Metric observation for remediation authority test fixture.",
+      "observed_at": "2026-06-09T10:00:00Z",
+      "provenance": {
+        "source_system": "observability-fixture",
+        "source_ref": "metric://scope-d/api/latency",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Synthetic metric. Not real customer data."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-adversarial:supported-claim",
+      "claim_status": "supported_causal_claim",
+      "statement": "Elevated latency is consistent with cache miss storm after deployment.",
+      "evidence_refs": [
+        "evidence://observability/scope-d/iNC-ADV-002-metric"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "medium",
+      "non_claims": [
+        "Claim does not constitute execution authorization."
+      ]
+    }
+  ],
+  "action_grants": [
+    {
+      "grant_id": "action-grant:scope-d-adversarial:read-only",
+      "action_class": "read_only",
+      "status": "allowed",
+      "scope": "observability read-only",
+      "approval_required": false,
+      "non_claims": [
+        "Grant does not authorize mutation."
+      ]
+    }
+  ],
+  "remediation_plans": [
+    {
+      "plan_id": "remediation-plan:scope-d-adversarial:cache-flush",
+      "plan_status": "candidate",
+      "risk_class": "medium",
+      "summary": "Flush cache and restart service to recover from miss storm.",
+      "evidence_refs": [
+        "evidence://observability/scope-d/iNC-ADV-002-metric"
+      ],
+      "required_action_grant_refs": [
+        "action-grant:scope-d-adversarial:read-only"
+      ],
+      "non_claims": [
+        "Plan is a candidate only and has not been reviewed."
+      ]
+    }
+  ],
+  "regression_fixtures": [],
+  "issued_at": "2026-06-09T10:05:00Z",
+  "non_claims": [
+    "This adversarial fixture is designed to be rejected by SCOPE-D validation.",
+    "Workroom record does not authorize production mutation or remediation execution."
+  ]
+}

@@ -1,0 +1,26 @@
+name: devsecops-scope-d-adversarial
+
+on:
+  push:
+    paths:
+      - "contracts/workroom/**"
+      - "tests/fixtures/workroom/**scope-d**"
+      - "tools/validate_devsecops_scope_d_adversarial.py"
+      - ".github/workflows/devsecops-scope-d-adversarial.yml"
+  pull_request:
+    paths:
+      - "contracts/workroom/**"
+      - "tests/fixtures/workroom/**scope-d**"
+      - "tools/validate_devsecops_scope_d_adversarial.py"
+      - ".github/workflows/devsecops-scope-d-adversarial.yml"
+
+jobs:
+  scope-d-adversarial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run SCOPE-D adversarial fixture validator
+        run: python3 tools/validate_devsecops_scope_d_adversarial.py
