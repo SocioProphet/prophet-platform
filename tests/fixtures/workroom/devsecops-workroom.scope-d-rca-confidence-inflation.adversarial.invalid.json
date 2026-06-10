@@ -1,0 +1,71 @@
+{
+  "_comment": "SCOPE-D adversarial fixture: RCA confidence inflation. An adversary escalates claim_status to 'confirmed_causal_claim' and confidence to 'high' without providing a counterevidence_ref, attempting to assert confirmation through status escalation alone. SCOPE-D validator must reject: confirmed claims require at least one counterevidence_ref documenting that alternatives were considered.",
+  "_expected_errors": ["confirmed_causal_claim must reference at least one counterevidence_ref"],
+  "schema_version": "0.1.0",
+  "workroom_id": "workroom:devsecops:post-merge:scope-d-rca-confidence-inflation-adversarial",
+  "lane": "post_merge_incident",
+  "runtime_parity_level": "contract_only",
+  "source_refs": {
+    "incident_ref": "incident://pagerduty/scope-d/INC-ADV-001",
+    "investigation_run_ref": "investigation-run://prophet-platform/scope-d/INC-ADV-001"
+  },
+  "behavioral_divergence_event": {
+    "event_id": "bde:production-incident:scope-d-confidence-inflation",
+    "event_type": "production_incident",
+    "source_lane": "post_merge_incident",
+    "status": "investigating",
+    "summary": "Adversarial fixture: incident with inflated RCA confidence and no counterevidence.",
+    "environment_ref": "environment://production/scope-d-adversarial",
+    "evidence_refs": [
+      "evidence://observability/scope-d/metric-spike"
+    ],
+    "claim_refs": [
+      "rca-claim:scope-d-adversarial:confidence-inflation"
+    ],
+    "decision_state": "needs_review",
+    "non_claims": [
+      "Fixture is adversarial and does not assert real customer impact."
+    ]
+  },
+  "evidence_packets": [
+    {
+      "evidence_ref": "evidence://observability/scope-d/metric-spike",
+      "evidence_type": "metric_observation",
+      "producer": "Adversarial fixture observability connector",
+      "summary": "Metric spike observed. No causal chain established. Observation only.",
+      "observed_at": "2026-06-09T10:00:00Z",
+      "provenance": {
+        "source_system": "observability-fixture",
+        "source_ref": "metric://scope-d/api/error-rate",
+        "collection_method": "synthetic_fixture"
+      },
+      "non_claims": [
+        "Metric spike alone does not establish causation.",
+        "Observation-level evidence cannot support a confirmed causal claim."
+      ]
+    }
+  ],
+  "rca_claims": [
+    {
+      "claim_id": "rca-claim:scope-d-adversarial:confidence-inflation",
+      "claim_status": "confirmed_causal_claim",
+      "statement": "Database connection pool exhaustion caused the observed error-rate spike.",
+      "evidence_refs": [
+        "evidence://observability/scope-d/metric-spike"
+      ],
+      "counterevidence_refs": [],
+      "confidence": "high",
+      "non_claims": [
+        "Claim does not authorize remediation execution."
+      ]
+    }
+  ],
+  "action_grants": [],
+  "remediation_plans": [],
+  "regression_fixtures": [],
+  "issued_at": "2026-06-09T10:05:00Z",
+  "non_claims": [
+    "This adversarial fixture is designed to be rejected by SCOPE-D validation.",
+    "Workroom record does not authorize production mutation or remediation execution."
+  ]
+}
