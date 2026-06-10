@@ -5,7 +5,6 @@ Provider specifics belong in infra/tofu/envs/* and adapter modules — not contr
 
 Governed by the provider-agnostic constraint established in design review.
 """
-import json
 import re
 import sys
 from pathlib import Path

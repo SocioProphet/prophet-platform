@@ -4,8 +4,8 @@ data "google_organization" "org" {
 
 # Org-level IAM: admin group only — no individual user bindings at org level
 resource "google_organization_iam_binding" "org_admin" {
-  org_id = data.google_organization.org.org_id
-  role   = "roles/resourcemanager.organizationAdmin"
+  org_id  = data.google_organization.org.org_id
+  role    = "roles/resourcemanager.organizationAdmin"
   members = ["group:${var.admin_group_email}"]
 }
 

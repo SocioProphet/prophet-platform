@@ -1,8 +1,13 @@
 # Org-level constraint policies — provider-agnostic design, GCP implementation
 # All constraints here enforce the "no silent mutation" and provenance-first principles.
 
-variable "org_id"     { type = string }
-variable "folder_ids" { type = map(string); default = {} }
+variable "org_id" {
+  type = string
+}
+variable "folder_ids" {
+  type    = map(string)
+  default = {}
+}
 
 locals {
   # Constraints enforced at org level

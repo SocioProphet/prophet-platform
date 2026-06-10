@@ -38,10 +38,10 @@ module "prod_secrets" {
   project_id = local.project_ids["cloud"]
 
   secrets = {
-    postgres-password    = { accessor_sas = [local.wi_emails["tekton-builder"]] }
-    minio-secret-key     = { accessor_sas = [local.wi_emails["tekton-builder"]] }
-    dovecot-ldap-bind    = { accessor_sas = [] }
-    smtp-dkim-key        = { accessor_sas = [] }
+    postgres-password = { accessor_sas = [local.wi_emails["tekton-builder"]] }
+    minio-secret-key  = { accessor_sas = [local.wi_emails["tekton-builder"]] }
+    dovecot-ldap-bind = { accessor_sas = [] }
+    smtp-dkim-key     = { accessor_sas = [] }
   }
 }
 

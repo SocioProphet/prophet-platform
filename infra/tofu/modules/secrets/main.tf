@@ -1,13 +1,15 @@
 # Secret Manager — no SA keys, no secrets in git (ADR-050)
-variable "project_id" { type = string }
+variable "project_id" {
+  type = string
+}
 
 variable "secrets" {
   type = map(object({
     # initial_value: set once at creation; rotated out-of-band.
     # Leave empty to create the secret shell without a version (populate separately).
-    initial_value   = optional(string, "")
-    replication     = optional(string, "automatic")  # automatic | user-managed
-    accessor_sas    = optional(list(string), [])
+    initial_value = optional(string, "")
+    replication   = optional(string, "automatic") # automatic | user-managed
+    accessor_sas  = optional(list(string), [])
   }))
   description = "Map of secret slug → config."
 }
@@ -24,7 +26,11 @@ resource "google_secret_manager_secret" "secrets" {
     }
     dynamic "user_managed" {
       for_each = each.value.replication != "automatic" ? [1] : []
-      content { replicas { location = "us-central1" } }
+      content {
+        replicas {
+          location = "us-central1"
+        }
+      }
     }
   }
 

@@ -9,9 +9,18 @@ terraform {
   }
 }
 
-variable "cluster_name" { type = string; default = "prophet-local" }
-variable "k3d_agents" { type = number; default = 2 }
-variable "api_port" { type = number; default = 6550 }
+variable "cluster_name" {
+  type    = string
+  default = "prophet-local"
+}
+variable "k3d_agents" {
+  type    = number
+  default = 2
+}
+variable "api_port" {
+  type    = number
+  default = 6550
+}
 
 resource "random_password" "k3s_token" {
   length  = 48
@@ -75,4 +84,7 @@ resource "null_resource" "k3d_cluster" {
 }
 
 output "kubeconfig_context" { value = "k3d-${var.cluster_name}" }
-output "k3s_token" { value = random_password.k3s_token.result; sensitive = true }
+output "k3s_token" {
+  value     = random_password.k3s_token.result
+  sensitive = true
+}

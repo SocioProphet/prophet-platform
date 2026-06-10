@@ -4,9 +4,7 @@ Validates workspace service configs without requiring Docker.
 Checks Dovecot, Postfix, Radicale configs; docker-compose syntax; Kustomize structure.
 """
 import configparser
-import json
 import sys
-import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent

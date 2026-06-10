@@ -54,5 +54,5 @@ module "wi_cicd" {
   }
 }
 
-output "wi_sa_emails"      { value = module.wi_cicd.sa_emails }
+output "wi_sa_emails" { value = module.wi_cicd.sa_emails }
 output "wi_k8s_annotations" { value = module.wi_cicd.k8s_annotation }

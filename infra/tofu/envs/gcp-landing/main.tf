@@ -25,10 +25,21 @@ provider "google-beta" {}
 
 # ── Variables ─────────────────────────────────────────────────────────────────
 
-variable "org_domain"        { type = string; default = "socioprophet.ai" }
-variable "billing_account"   { type = string }
-variable "admin_group_email" { type = string; default = "platform-admins@socioprophet.ai" }
-variable "alert_email"       { type = string; default = "ops@socioprophet.ai" }
+variable "org_domain" {
+  type    = string
+  default = "socioprophet.ai"
+}
+variable "billing_account" {
+  type = string
+}
+variable "admin_group_email" {
+  type    = string
+  default = "platform-admins@socioprophet.ai"
+}
+variable "alert_email" {
+  type    = string
+  default = "ops@socioprophet.ai"
+}
 
 # ── Org ───────────────────────────────────────────────────────────────────────
 
@@ -186,8 +197,8 @@ module "monitoring" {
 
 # ── Outputs ───────────────────────────────────────────────────────────────────
 
-output "org_id"           { value = module.org.org_id }
-output "folder_ids"       { value = module.folders.folder_ids }
-output "project_ids"      { value = module.projects.project_ids }
-output "registry_urls"    { value = module.artifact_registry.repository_urls }
-output "vpc_id"           { value = module.network.vpc_id }
+output "org_id" { value = module.org.org_id }
+output "folder_ids" { value = module.folders.folder_ids }
+output "project_ids" { value = module.projects.project_ids }
+output "registry_urls" { value = module.artifact_registry.repository_urls }
+output "vpc_id" { value = module.network.vpc_id }

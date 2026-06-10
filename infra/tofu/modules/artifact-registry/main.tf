@@ -22,7 +22,7 @@ resource "google_artifact_registry_repository" "repos" {
 resource "google_artifact_registry_repository_iam_member" "readers" {
   for_each = {
     for pair in setproduct(keys(var.repositories), var.reader_service_accounts) :
-      "${pair[0]}/${pair[1]}" => { repo = pair[0], sa = pair[1] }
+    "${pair[0]}/${pair[1]}" => { repo = pair[0], sa = pair[1] }
   }
 
   project    = var.project_id

@@ -6,7 +6,7 @@ variable "org_id" {
 variable "folders" {
   type = map(object({
     display_name = string
-    parent       = optional(string, "")  # empty = org root; otherwise a folder ID or key from this map
+    parent       = optional(string, "") # empty = org root; otherwise a folder ID or key from this map
   }))
   description = "Folder definitions. Key is a stable slug used for cross-referencing."
   default = {

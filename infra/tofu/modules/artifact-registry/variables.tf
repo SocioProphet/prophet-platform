@@ -1,5 +1,10 @@
-variable "project_id" { type = string }
-variable "location"   { type = string; default = "us-central1" }
+variable "project_id" {
+  type = string
+}
+variable "location" {
+  type    = string
+  default = "us-central1"
+}
 
 variable "repositories" {
   type = map(object({
