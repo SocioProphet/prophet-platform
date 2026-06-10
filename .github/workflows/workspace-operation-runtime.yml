@@ -19,7 +19,10 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install test dependencies
+        run: pip install pytest
+
       - name: Run runtime smoke tests
         env:
           PYTHONPATH: src
-        run: python -m unittest discover -s tests/workspace_operations -p 'test_*.py'
+        run: pytest tests/workspace_operations/ -q
