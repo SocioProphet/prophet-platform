@@ -65,7 +65,7 @@ def validate_manifest_artifacts(root: Path, manifest_path: Path) -> None:
         missing = REQUIRED_RUN_FIELDS - set(data)
         if missing:
             fail(f"{run_artifact}: missing fields {sorted(missing)}")
-        if data["methodFamily"] not in {"pysr", "sindy", "kan", "llm_sr", "tpsr"}:
+        if data["methodFamily"] not in {"pysr", "sindy", "kan", "llm_sr", "tpsr", "ai_descartes"}:
             fail(f"{run_artifact}: methodFamily outside pinned enum")
         if data["methodFamily"] == "sindy" and data["controlAuthority"] is not False:
             fail(f"{run_artifact}: SINDy controlAuthority must be false")
