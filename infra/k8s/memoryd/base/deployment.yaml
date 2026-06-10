@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memoryd
+  labels:
+    app: memoryd
+    bundle: mesh.memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memoryd
+  template:
+    metadata:
+      labels:
+        app: memoryd
+        bundle: mesh.memory
+    spec:
+      containers:
+        - name: memoryd
+          image: ghcr.io/socioprophet/memory-mesh/memoryd:latest
+          ports:
+            - name: http
+              containerPort: 8787
+          env:
+            - name: MEMORYD_REQUIRE_API_KEY
+              value: "true"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+            - name: MEMORYMESH_STORE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-postgres-credentials
+                  key: memorymesh-store-uri
+            - name: MEMORYMESH_VECTOR_BACKEND
+              value: "qdrant"
+            - name: QDRANT_URL
+              value: "http://mesh-qdrant:6333"
+            - name: QDRANT_COLLECTION
+              value: "prophet-mesh"
+            - name: QDRANT_ENABLED
+              value: "true"
+            - name: MEMORYMESH_VECTOR_SIZE
+              value: "256"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8787
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8787
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+                volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: memoryd-pvc

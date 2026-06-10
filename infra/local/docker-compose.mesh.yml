@@ -1,0 +1,348 @@
+# Prophet Mesh — local development stack
+# Prerequisite: docker compose plugin, local clones of each repo beside prophet-platform
+#
+# Service start order (dependency tiers):
+#   Tier 0: postgres, qdrant
+#   Tier 1: model-governance-ledger (stateless sidecar)
+#   Tier 2: memoryd, policy-fabric
+#   Tier 3: model-router, agent-registry
+#   Tier 4: superconscious, agentplane
+#   Tier 5: tritfabric-server
+#   Tier 6: prophet-mesh-conductor (orchestrator)
+#
+# Local image build:
+#   docker compose -f docker-compose.mesh.yml build
+# Bring up:
+#   docker compose -f docker-compose.mesh.yml up -d
+# Ports (all loopback-only):
+#   memoryd              127.0.0.1:8787
+#   policy-fabric        127.0.0.1:8700
+#   model-router         127.0.0.1:8710
+#   agent-registry       127.0.0.1:8720
+#   agentplane           127.0.0.1:8730
+#   superconscious       127.0.0.1:8740
+#   tritfabric-server    127.0.0.1:8750
+#   model-governance-ledger 127.0.0.1:8760
+#   prophet-mesh         127.0.0.1:8780
+#   qdrant HTTP          127.0.0.1:6333
+#   qdrant gRPC          127.0.0.1:6334
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+services:
+
+  # ── Tier 0: Data stores ────────────────────────────────────────────────────
+
+  postgres-mesh:
+    image: postgres:16
+    container_name: mesh-postgres
+    <<: *default-restart
+    environment:
+      POSTGRES_DB: ${MESH_PG_DB:-prophet_mesh}
+      POSTGRES_USER: ${MESH_PG_USER:-prophet}
+      POSTGRES_PASSWORD: ${MESH_PG_PASSWORD:-mesh-dev-password}
+    ports:
+      - "127.0.0.1:${MESH_PG_PORT:-5433}:5432"
+    volumes:
+      - mesh_postgres_data:/var/lib/postgresql/data
+      - ../datastores/postgres/:/docker-entrypoint-initdb.d/:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MESH_PG_USER:-prophet} -d ${MESH_PG_DB:-prophet_mesh}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.4
+    container_name: mesh-qdrant
+    <<: *default-restart
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - mesh_qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:6333/readyz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+
+  # ── Tier 1: Ledger (stateless) ─────────────────────────────────────────────
+
+  model-governance-ledger:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/model-governance-ledger
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/model-governance-ledger:dev
+    container_name: mesh-governance-ledger
+    <<: *default-restart
+    environment:
+      PORT: "8760"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8760:8760"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8760/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 2: Core services ──────────────────────────────────────────────────
+
+  memoryd:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/memory-mesh
+      dockerfile: images/memoryd.Dockerfile
+    image: ghcr.io/socioprophet/memory-mesh/memoryd:dev
+    container_name: mesh-memoryd
+    <<: *default-restart
+    depends_on:
+      postgres-mesh:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    environment:
+      MEMORYD_REQUIRE_API_KEY: "true"
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      MEMORYMESH_STORE_URI: postgresql://prophet:mesh-dev-password@postgres-mesh:5432/prophet_mesh
+      MEMORYMESH_VECTOR_BACKEND: qdrant
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-prophet-mesh-local}
+      QDRANT_ENABLED: "true"
+      MEMORYMESH_VECTOR_SIZE: ${MEMORYMESH_VECTOR_SIZE:-256}
+    ports:
+      - "127.0.0.1:8787:8787"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8787/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+
+  policy-fabric:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/policy-fabric
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/policy-fabric:dev
+    container_name: mesh-policy-fabric
+    <<: *default-restart
+    environment:
+      PORT: "8700"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8700:8700"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8700/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 3: Routing + Registry ─────────────────────────────────────────────
+
+  model-router:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/model-router
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/model-router:dev
+    container_name: mesh-model-router
+    <<: *default-restart
+    depends_on:
+      policy-fabric:
+        condition: service_healthy
+      memoryd:
+        condition: service_healthy
+    environment:
+      PORT: "8710"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8710:8710"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8710/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  agent-registry:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/agent-registry
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/agent-registry:dev
+    container_name: mesh-agent-registry
+    <<: *default-restart
+    depends_on:
+      policy-fabric:
+        condition: service_healthy
+      postgres-mesh:
+        condition: service_healthy
+    environment:
+      PORT: "8720"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      STORE_URI: postgresql://prophet:mesh-dev-password@postgres-mesh:5432/prophet_mesh
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8720:8720"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8720/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 4: Execution plane ────────────────────────────────────────────────
+
+  superconscious:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/superconscious
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/superconscious:dev
+    container_name: mesh-superconscious
+    <<: *default-restart
+    depends_on:
+      model-router:
+        condition: service_healthy
+      memoryd:
+        condition: service_healthy
+    environment:
+      PORT: "8740"
+      MODEL_ROUTER_URL: http://model-router:8710
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8740:8740"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8740/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  agentplane:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/agentplane
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/agentplane:dev
+    container_name: mesh-agentplane
+    <<: *default-restart
+    depends_on:
+      policy-fabric:
+        condition: service_healthy
+      agent-registry:
+        condition: service_healthy
+      model-router:
+        condition: service_healthy
+      memoryd:
+        condition: service_healthy
+      superconscious:
+        condition: service_healthy
+    environment:
+      PORT: "8730"
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      MODEL_ROUTER_URL: http://model-router:8710
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      SUPERCONSCIOUS_URL: http://superconscious:8740
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8730:8730"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 5: ML substrate ───────────────────────────────────────────────────
+
+  tritfabric-server:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/tritfabric
+      dockerfile: Dockerfile.server
+    image: ghcr.io/socioprophet/tritfabric:dev
+    container_name: mesh-tritfabric
+    <<: *default-restart
+    depends_on:
+      model-governance-ledger:
+        condition: service_healthy
+    environment:
+      PORT: "8750"
+      METRICS_PORT: "9108"
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+      POLICY_OPT_IN_REQUIRED: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8750:8750"
+      - "127.0.0.1:9108:9108"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8750/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    logging: *default-logging
+
+  # ── Tier 6: Mesh conductor ─────────────────────────────────────────────────
+
+  prophet-mesh:
+    build:
+      context: ${MESH_REPOS_ROOT:-../../..}/prophet-mesh
+      dockerfile: Dockerfile
+    image: ghcr.io/socioprophet/prophet-mesh:dev
+    container_name: mesh-prophet-mesh
+    <<: *default-restart
+    depends_on:
+      agentplane:
+        condition: service_healthy
+      model-router:
+        condition: service_healthy
+      agent-registry:
+        condition: service_healthy
+      memoryd:
+        condition: service_healthy
+      policy-fabric:
+        condition: service_healthy
+      superconscious:
+        condition: service_healthy
+      tritfabric-server:
+        condition: service_healthy
+      model-governance-ledger:
+        condition: service_healthy
+    environment:
+      PORT: "8780"
+      AGENTPLANE_URL: http://agentplane:8730
+      MODEL_ROUTER_URL: http://model-router:8710
+      AGENT_REGISTRY_URL: http://agent-registry:8720
+      MEMORYD_URL: http://memoryd:8787
+      MEMORYD_API_KEY: ${MEMORYD_API_KEY:-mesh-local-dev}
+      POLICY_FABRIC_URL: http://policy-fabric:8700
+      SUPERCONSCIOUS_URL: http://superconscious:8740
+      TRITFABRIC_URL: http://tritfabric-server:8750
+      GOVERNANCE_LEDGER_URL: http://model-governance-ledger:8760
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "127.0.0.1:8780:8780"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8780/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+
+volumes:
+  mesh_postgres_data:
+  mesh_qdrant_data:

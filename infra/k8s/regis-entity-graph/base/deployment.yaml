@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regis-entity-graph
+  labels:
+    app: regis-entity-graph
+    bundle: graph.entity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: regis-entity-graph
+  template:
+    metadata:
+      labels:
+        app: regis-entity-graph
+        bundle: graph.entity
+    spec:
+      containers:
+        - name: regis-entity-graph
+          image: ghcr.io/socioprophet/regis-entity-graph:latest
+          ports:
+            - name: http
+              containerPort: 8820
+          env:
+            - name: PORT
+              value: "8820"
+            - name: HELLGRAPH_URL
+              value: "http://hellgraph:8850"
+            - name: AGENT_REGISTRY_URL
+              value: "http://agent-registry:8720"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8820
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8820
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

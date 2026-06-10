@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prophet-core-query
+  labels:
+    app: prophet-core-query
+    bundle: data.query
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prophet-core-query
+  template:
+    metadata:
+      labels:
+        app: prophet-core-query
+        bundle: data.query
+    spec:
+      containers:
+        - name: prophet-core-query
+          image: ghcr.io/socioprophet/prophet-core-query:latest
+          ports:
+            - name: http
+              containerPort: 8831
+          env:
+            - name: PORT
+              value: "8831"
+            - name: CATALOG_URL
+              value: "http://prophet-core-catalog:8830"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8831
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8831
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

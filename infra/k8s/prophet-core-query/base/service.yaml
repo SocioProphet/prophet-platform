@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prophet-core-query
+spec:
+  selector:
+    app: prophet-core-query
+  ports:
+    - name: http
+      port: 8831
+      targetPort: 8831

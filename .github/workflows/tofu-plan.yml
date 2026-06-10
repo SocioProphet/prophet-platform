@@ -1,0 +1,147 @@
+name: tofu-plan
+# Plan-only. No apply gate exists yet.
+# Apply requires: manual GH Actions environment approval + signed plan artifact.
+# See: infra/tofu/envs/gcp-landing/main.tf for APPLY GATE doctrine.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/tofu/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/tofu/**"
+
+env:
+  TOFU_VERSION: "1.8.3"
+
+jobs:
+  fmt-and-validate:
+    name: Format + validate all envs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: fmt check
+        run: tofu fmt -check -recursive infra/tofu/
+
+      - name: validate — local
+        run: |
+          cd infra/tofu/envs/local
+          tofu init -backend=false
+          tofu validate
+
+      - name: validate — gcp-landing
+        run: |
+          cd infra/tofu/envs/gcp-landing
+          tofu init -backend=false
+          tofu validate
+        env:
+          TF_VAR_billing_account: "000000-000000-000000"
+
+      - name: validate — shared
+        run: |
+          cd infra/tofu/envs/shared
+          tofu init -backend=false
+          tofu validate
+
+      - name: validate — prod
+        run: |
+          cd infra/tofu/envs/prod
+          tofu init -backend=false
+          tofu validate
+
+  gcp-plan-readiness:
+    name: Check gcp-plan secret readiness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+    steps:
+      - id: ready
+        name: Determine whether gcp-plan secrets are configured
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          GCP_BILLING_ACCOUNT: ${{ secrets.GCP_BILLING_ACCOUNT }}
+          GCP_ADMIN_GROUP_EMAIL: ${{ secrets.GCP_ADMIN_GROUP_EMAIL }}
+          GCP_ALERT_EMAIL: ${{ secrets.GCP_ALERT_EMAIL }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$WIF_SERVICE_ACCOUNT" ] && [ -n "$GCP_BILLING_ACCOUNT" ] && [ -n "$GCP_ADMIN_GROUP_EMAIL" ] && [ -n "$GCP_ALERT_EMAIL" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "gcp-plan secrets are not configured; skipping live GCP plan. Static OpenTofu validation still runs."
+          fi
+
+  plan-gcp-landing:
+    name: Plan gcp-landing
+    runs-on: ubuntu-latest
+    needs: gcp-plan-readiness
+    # Only run plan on PRs to main, and only when required environment secrets are configured.
+    if: github.event_name == 'pull_request' && needs.gcp-plan-readiness.outputs.ready == 'true'
+    permissions:
+      contents: read
+      id-token: write   # for Workload Identity Federation
+    environment: gcp-plan  # Requires environment secrets listed in gcp-plan-readiness
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Init gcp-landing
+        run: tofu init
+        working-directory: infra/tofu/envs/gcp-landing
+
+      - name: Plan gcp-landing
+        run: tofu plan -out=plan.out -no-color 2>&1 | tee plan.txt
+        working-directory: infra/tofu/envs/gcp-landing
+        env:
+          TF_VAR_billing_account: ${{ secrets.GCP_BILLING_ACCOUNT }}
+          TF_VAR_admin_group_email: ${{ secrets.GCP_ADMIN_GROUP_EMAIL }}
+          TF_VAR_alert_email: ${{ secrets.GCP_ALERT_EMAIL }}
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tofu-plan-gcp-landing-${{ github.sha }}
+          path: |
+            infra/tofu/envs/gcp-landing/plan.out
+            infra/tofu/envs/gcp-landing/plan.txt
+          retention-days: 30
+
+      - name: Post plan summary to PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/envs/gcp-landing/plan.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.slice(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## OpenTofu Plan — gcp-landing\n\`\`\`hcl\n${truncated}\n\`\`\``
+            });
+
+  provider-leakage-check:
+    name: Reject provider names in canonical contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for provider leakage
+        run: python3 tools/validate_no_provider_leakage.py

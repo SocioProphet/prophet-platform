@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapseiq-enrichment-api
+  labels:
+    app: synapseiq-enrichment-api
+    bundle: enrichment.api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: synapseiq-enrichment-api
+  template:
+    metadata:
+      labels:
+        app: synapseiq-enrichment-api
+        bundle: enrichment.api
+    spec:
+      containers:
+        - name: synapseiq-enrichment-api
+          image: ghcr.io/socioprophet/synapseiq/enrichment-api:latest
+          ports:
+            - name: http
+              containerPort: 8801
+          env:
+            - name: PORT
+              value: "8801"
+            - name: CATALOG_URL
+              value: "http://prophet-core-catalog:8830"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+            - name: CONTROL_PLANE_URL
+              value: "http://synapseiq-control-plane:8800"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8801
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8801
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

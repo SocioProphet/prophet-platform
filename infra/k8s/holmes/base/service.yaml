@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: holmes
+spec:
+  selector:
+    app: holmes
+  ports:
+    - name: http
+      port: 8880
+      targetPort: 8880

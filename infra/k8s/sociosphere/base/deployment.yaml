@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sociosphere
+  labels:
+    app: sociosphere
+    bundle: platform.controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sociosphere
+  template:
+    metadata:
+      labels:
+        app: sociosphere
+        bundle: platform.controller
+    spec:
+      containers:
+        - name: sociosphere
+          image: ghcr.io/socioprophet/sociosphere:latest
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: PORT
+              value: "5000"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: AGENT_REGISTRY_URL
+              value: "http://agent-registry:8720"
+            - name: MEMORYD_URL
+              value: "http://memoryd:8787"
+            - name: MEMORYD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: mesh-memoryd-credentials
+                  key: api-key
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: sociosphere-credentials
+                  key: github-token
+            - name: GITHUB_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sociosphere-credentials
+                  key: webhook-secret
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

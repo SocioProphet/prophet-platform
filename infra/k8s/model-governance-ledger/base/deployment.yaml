@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-governance-ledger
+  labels:
+    app: model-governance-ledger
+    bundle: mesh.governance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-governance-ledger
+  template:
+    metadata:
+      labels:
+        app: model-governance-ledger
+        bundle: mesh.governance
+    spec:
+      containers:
+        - name: model-governance-ledger
+          image: ghcr.io/socioprophet/model-governance-ledger:latest
+          ports:
+            - name: http
+              containerPort: 8760
+          env:
+            - name: PORT
+              value: "8760"
+            - name: LOG_LEVEL
+              value: "info"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8760
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8760
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+

@@ -1,0 +1,16 @@
+# agent-registry — governed agent identity, session, and tool-grant registry
+FROM python:3.11-slim AS base
+WORKDIR /app
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+FROM base AS build
+COPY . .
+RUN pip install --no-cache-dir fastapi uvicorn pydantic psycopg
+
+FROM base AS runtime
+COPY --from=build /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=build /usr/local/bin/uvicorn /usr/local/bin/uvicorn
+COPY . .
+USER appuser
+EXPOSE 8720
+CMD ["uvicorn", "serve.api:app", "--host", "0.0.0.0", "--port", "8720"]

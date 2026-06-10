@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contractforge
+  labels:
+    app: contractforge
+    bundle: contracts.forge
+  annotations:
+    socioprophet.ai/tier: "Tier 9 — contract lifecycle, settlement, and ledger-anchored execution"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contractforge
+  template:
+    metadata:
+      labels:
+        app: contractforge
+        bundle: contracts.forge
+    spec:
+      containers:
+        - name: contractforge
+          image: ghcr.io/socioprophet/contractforge:latest
+          ports:
+            - name: http
+              containerPort: 8895
+          env:
+            - name: PORT
+              value: "8895"
+            - name: POLICY_FABRIC_URL
+              value: "http://policy-fabric:8700"
+            - name: GOVERNANCE_LEDGER_URL
+              value: "http://model-governance-ledger:8760"
+            - name: AGENT_REGISTRY_URL
+              value: "http://agent-registry:8720"
+            - name: AGENTPLANE_URL
+              value: "http://agentplane:8730"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8895
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8895
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

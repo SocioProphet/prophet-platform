@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mesh-qdrant
+spec:
+  selector:
+    app: mesh-qdrant
+  clusterIP: None  # headless — StatefulSet DNS
+  ports:
+    - name: http
+      port: 6333
+      targetPort: 6333
+    - name: grpc
+      port: 6334
+      targetPort: 6334

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: policy-fabric
+  labels:
+    app: policy-fabric
+    bundle: mesh.policy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: policy-fabric
+  template:
+    metadata:
+      labels:
+        app: policy-fabric
+        bundle: mesh.policy
+    spec:
+      containers:
+        - name: policy-fabric
+          image: ghcr.io/socioprophet/policy-fabric:latest
+          ports:
+            - name: http
+              containerPort: 8700
+          env:
+            - name: PORT
+              value: "8700"
+            - name: LOG_LEVEL
+              value: "info"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8700
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8700
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+

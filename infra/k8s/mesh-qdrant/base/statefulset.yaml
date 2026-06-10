@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mesh-qdrant
+  labels:
+    app: mesh-qdrant
+    bundle: mesh.vector-store
+spec:
+  serviceName: mesh-qdrant
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mesh-qdrant
+  template:
+    metadata:
+      labels:
+        app: mesh-qdrant
+        bundle: mesh.vector-store
+    spec:
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:v1.9.4
+          ports:
+            - name: http
+              containerPort: 6333
+            - name: grpc
+              containerPort: 6334
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 6333
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 6333
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: qdrant-storage
+              mountPath: /qdrant/storage
+  volumeClaimTemplates:
+    - metadata:
+        name: qdrant-storage
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
