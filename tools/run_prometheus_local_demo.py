@@ -60,10 +60,16 @@ def build_manifest(output_dir: Path, issued_at: str, artifacts: list[dict[str, A
     }
 
 
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_GATE_POLICY = ROOT / "catalog" / "prometheus-sr-gate-policy-equation-discovery.v0.1.json"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run consolidated PROMETHEUS local demo")
     parser.add_argument("--output-dir", default="build/prometheus/local-demo")
     parser.add_argument("--issued-at", default="2026-05-27T21:00:00Z")
+    parser.add_argument("--gate-policy", default=str(DEFAULT_GATE_POLICY),
+                        help="Path to machine-readable gate policy JSON (default: catalog/prometheus-sr-gate-policy-equation-discovery.v0.1.json)")
     args = parser.parse_args()
 
     output_dir = Path(args.output_dir)
@@ -107,6 +113,7 @@ def main() -> int:
         "--run-artifact", str(pysr_run),
         "--dataset", "tests/fixtures/prometheus/pysr-mvp-linear.csv",
         "--evaluation-id", "urn:prometheus:gate-evaluation:pysr-local-demo:001",
+        "--gate-policy", args.gate_policy,
         "--issued-at", args.issued_at,
         "--output", str(pysr_gate),
     ])
@@ -120,6 +127,12 @@ def main() -> int:
         "--review-surface", "automated_shacl_gate",
         "--issued-at", args.issued_at,
         "--output", str(pysr_jsonld),
+    ])
+
+    # Structural validation: SHACL conformance check on the JSON-LD proposal
+    run_command([
+        sys.executable, "tools/validate_prometheus_jsonld_shacl.py",
+        str(pysr_jsonld),
     ])
 
     run_command([
@@ -141,6 +154,7 @@ def main() -> int:
         "--output", str(sindy_run),
     ])
 
+    gate_policy_path = Path(args.gate_policy)
     artifacts = [
         artifact_record("EquationCandidate", pysr_candidate),
         artifact_record("SRRunArtifact", pysr_run),
@@ -148,12 +162,24 @@ def main() -> int:
         artifact_record("SRAssertionProposalJSONLD", pysr_jsonld),
         artifact_record("PlatformDynamicsCandidate", sindy_candidate),
         artifact_record("SRRunArtifact", sindy_run),
+        artifact_record("GatePolicyThresholds", gate_policy_path),
     ]
     manifest = build_manifest(output_dir, args.issued_at, artifacts)
+    manifest["gatePolicyRef"] = str(gate_policy_path)
+    manifest["validationSteps"] = [
+        {"step": "structural_shacl", "artifact": str(pysr_jsonld), "tool": "validate_prometheus_jsonld_shacl.py"},
+        {"step": "gate_policy_enforcement", "artifact": str(pysr_gate), "tool": "emit_prometheus_gate_evaluation.py", "policyRef": str(gate_policy_path)},
+    ]
     manifest_path = output_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    print(json.dumps({"ok": True, "manifest": str(manifest_path), "artifactCount": len(artifacts)}, sort_keys=True))
+    # Ontogenesis compat validation: validates static platform compatibility manifest
+    # (contracts/ontology/prometheus-sr-assertion-compat.manifest.json), not the demo output manifest.
+    run_command([
+        sys.executable, "tools/validate_prometheus_ontogenesis_compat.py",
+    ])
+
+    print(json.dumps({"ok": True, "manifest": str(manifest_path), "artifactCount": len(artifacts), "gatePolicyRef": str(gate_policy_path)}, sort_keys=True))
     return 0
 
 
