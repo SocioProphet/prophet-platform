@@ -10,9 +10,10 @@ from typing import Any
 PINNED_SOURCE_REPO = "SocioProphet/agentplane"
 PINNED_SOURCE_COMMIT = "fd99c38c52bb01ef8b0a401aeb5bca5e79970b20"
 PINNED_SCHEMA_HASHES = {
-    "schemas/agentplane/symbolic-regression/sr-run-artifact.schema.json": "0c270716c83c627bb8b53a73b4bdd0c72e9705711e8cb81782147f0342faf7be",
+    "schemas/agentplane/symbolic-regression/sr-run-artifact.schema.json": "7aeba269c09199e081da75a62c414cc571b3050196d596b21a6d768efec28cb3",
     "schemas/agentplane/symbolic-regression/sr-candidate-ref.schema.json": "41dac5d156690fc256465de11b5499826917df5cdc21c6833ce28eafef164e4e",
 }
+SR_RUN_ARTIFACT_SCHEMA = "schemas/agentplane/symbolic-regression/sr-run-artifact.schema.json"
 REQUIRED_RUN_FIELDS = {
     "runId",
     "datasetRef",
@@ -54,7 +55,16 @@ def validate_schema_pins(root: Path) -> None:
         load_json(path)
 
 
+def load_method_family_enum(root: Path) -> frozenset[str]:
+    schema = load_json(root / SR_RUN_ARTIFACT_SCHEMA)
+    enum = schema.get("properties", {}).get("methodFamily", {}).get("enum", [])
+    if not enum:
+        fail(f"methodFamily enum missing from {SR_RUN_ARTIFACT_SCHEMA}")
+    return frozenset(enum)
+
+
 def validate_manifest_artifacts(root: Path, manifest_path: Path) -> None:
+    method_family_enum = load_method_family_enum(root)
     manifest = load_json(manifest_path)
     runs = manifest.get("runs")
     if not isinstance(runs, list) or not runs:
@@ -65,7 +75,7 @@ def validate_manifest_artifacts(root: Path, manifest_path: Path) -> None:
         missing = REQUIRED_RUN_FIELDS - set(data)
         if missing:
             fail(f"{run_artifact}: missing fields {sorted(missing)}")
-        if data["methodFamily"] not in {"pysr", "sindy", "kan", "llm_sr", "tpsr", "ai_descartes"}:
+        if data["methodFamily"] not in method_family_enum:
             fail(f"{run_artifact}: methodFamily outside pinned enum")
         if data["methodFamily"] == "sindy" and data["controlAuthority"] is not False:
             fail(f"{run_artifact}: SINDy controlAuthority must be false")
