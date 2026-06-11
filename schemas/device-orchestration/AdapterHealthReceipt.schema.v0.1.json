@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AdapterHealthReceipt",
+  "description": "Evidence receipt for device adapter registration and health status.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "adapter_id", "checked_at", "health_status", "node_count"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "adapter_id": { "type": "string", "minLength": 1 },
+    "adapter_kind": {
+      "type": "string",
+      "enum": ["matter", "homekit", "home_assistant", "custom", "unknown"]
+    },
+    "checked_at": { "type": "string", "format": "date-time" },
+    "health_status": { "type": "string", "enum": ["healthy", "degraded", "unreachable", "policy_blocked"] },
+    "node_count": { "type": "integer", "minimum": 0 },
+    "policy_decision_ref": { "type": "string" },
+    "provenance_ref": { "type": "string" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OrchestrationEvidenceReceipt",
+  "description": "Evidence receipt for a device orchestration action or event with full audit provenance.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "event_ref", "issued_at", "policy_decision_ref", "actor_id", "outcome"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "event_ref": { "type": "string", "minLength": 1 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "policy_decision_ref": { "type": "string", "minLength": 1 },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "outcome": { "type": "string", "enum": ["executed", "denied", "escalated", "partial"] },
+    "replay_hash": { "type": "string" },
+    "fog_stack_bundle_ref": { "type": "string" }
+  }
+}

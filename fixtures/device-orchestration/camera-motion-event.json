@@ -1,0 +1,33 @@
+{
+  "device_node": {
+    "schema_version": "0.1",
+    "node_id": "node_doorbell_cam_001",
+    "device_class": "camera",
+    "display_name": "Front Door Camera",
+    "adapter_id": "adapter_matter_001",
+    "registered_at": "2026-06-11T08:00:00Z",
+    "policy_profile": "device://camera/local-only-v1",
+    "capability_refs": ["cap://camera/motion-detect", "cap://camera/snapshot"],
+    "tags": ["exterior", "entry"]
+  },
+  "orchestration_event": {
+    "schema_version": "0.1",
+    "event_id": "evt_cam_motion_001",
+    "event_type": "camera_motion_detected",
+    "occurred_at": "2026-06-11T14:30:00Z",
+    "source_node_id": "node_doorbell_cam_001",
+    "payload": { "confidence": 0.92, "zone": "front_door" },
+    "policy_decision_ref": "pd_cam_motion_allowed_001",
+    "receipt_ref": "rcpt_cam_motion_001"
+  },
+  "evidence_receipt": {
+    "schema_version": "0.1",
+    "receipt_id": "rcpt_cam_motion_001",
+    "event_ref": "evt_cam_motion_001",
+    "issued_at": "2026-06-11T14:30:01Z",
+    "policy_decision_ref": "pd_cam_motion_allowed_001",
+    "actor_id": "orchestration_substrate_001",
+    "outcome": "executed",
+    "replay_hash": "sha256:aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa7777bbbb8888"
+  }
+}

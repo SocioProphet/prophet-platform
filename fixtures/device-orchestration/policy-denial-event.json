@@ -1,0 +1,36 @@
+{
+  "device_node": {
+    "schema_version": "0.1",
+    "node_id": "node_lock_001",
+    "device_class": "actuator",
+    "display_name": "Front Door Lock",
+    "adapter_id": "adapter_matter_001",
+    "registered_at": "2026-06-11T08:10:00Z",
+    "policy_profile": "device://actuator/high-risk-v1",
+    "capability_refs": ["cap://actuator/lock", "cap://actuator/unlock"],
+    "tags": ["security", "entry", "high-risk"]
+  },
+  "orchestration_event": {
+    "schema_version": "0.1",
+    "event_id": "evt_policy_denial_001",
+    "event_type": "policy_denial",
+    "occurred_at": "2026-06-11T17:00:00Z",
+    "source_node_id": "node_lock_001",
+    "payload": {
+      "attempted_command": "unlock",
+      "requester": "routine_auto_unlock_001",
+      "denial_reason": "routine_not_granted_high_risk_actuation"
+    },
+    "policy_decision_ref": "pd_lock_unlock_denied_001",
+    "receipt_ref": "rcpt_policy_denial_001"
+  },
+  "evidence_receipt": {
+    "schema_version": "0.1",
+    "receipt_id": "rcpt_policy_denial_001",
+    "event_ref": "evt_policy_denial_001",
+    "issued_at": "2026-06-11T17:00:01Z",
+    "policy_decision_ref": "pd_lock_unlock_denied_001",
+    "actor_id": "orchestration_substrate_001",
+    "outcome": "denied"
+  }
+}

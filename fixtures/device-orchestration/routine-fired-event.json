@@ -1,0 +1,43 @@
+{
+  "routine": {
+    "schema_version": "0.1",
+    "routine_id": "routine_climate_control_001",
+    "name": "Auto-cool above 25°C",
+    "trigger": {
+      "kind": "event_type",
+      "node_id": "node_temp_sensor_001",
+      "event_type": "sensor_threshold_crossed"
+    },
+    "actions": [
+      {
+        "action_id": "action_set_ac_001",
+        "target_node_id": "node_ac_unit_001",
+        "command": "set_target_temperature",
+        "params": { "target_celsius": 22 }
+      }
+    ],
+    "policy_profile": "routine://climate/local-auto-v1",
+    "created_at": "2026-06-01T10:00:00Z",
+    "enabled": true
+  },
+  "orchestration_event": {
+    "schema_version": "0.1",
+    "event_id": "evt_routine_fired_001",
+    "event_type": "routine_fired",
+    "occurred_at": "2026-06-11T15:00:02Z",
+    "source_node_id": "orchestration_substrate_001",
+    "payload": { "routine_id": "routine_climate_control_001", "triggered_by": "evt_temp_threshold_001" },
+    "policy_decision_ref": "pd_routine_climate_allowed_001",
+    "routine_ref": "routine_climate_control_001",
+    "receipt_ref": "rcpt_routine_fired_001"
+  },
+  "evidence_receipt": {
+    "schema_version": "0.1",
+    "receipt_id": "rcpt_routine_fired_001",
+    "event_ref": "evt_routine_fired_001",
+    "issued_at": "2026-06-11T15:00:03Z",
+    "policy_decision_ref": "pd_routine_climate_allowed_001",
+    "actor_id": "orchestration_substrate_001",
+    "outcome": "executed"
+  }
+}

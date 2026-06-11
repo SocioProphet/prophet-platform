@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DeviceGraphNode",
+  "description": "A node in the sovereign device orchestration graph. No dependency on proprietary cloud credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "node_id", "device_class", "adapter_id", "registered_at", "policy_profile"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "node_id": { "type": "string", "minLength": 1 },
+    "device_class": {
+      "type": "string",
+      "enum": ["camera", "sensor", "actuator", "hub", "assistant_device", "network_device", "media_device", "unknown"]
+    },
+    "display_name": { "type": "string" },
+    "adapter_id": { "type": "string", "minLength": 1 },
+    "registered_at": { "type": "string", "format": "date-time" },
+    "policy_profile": { "type": "string", "minLength": 1 },
+    "capability_refs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "provenance_ref": { "type": "string" },
+    "fog_stack_bundle_ref": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}
