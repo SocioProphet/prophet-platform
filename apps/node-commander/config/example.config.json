@@ -1,0 +1,8 @@
+{
+  "mode": "bootstrap",
+  "control_node_profile_ref": "urn:srcos:control-node:macbook-air-operator-01",
+  "node_commander_runtime_ref": "urn:srcos:node-commander:runtime:macbook-air-operator-01",
+  "promotion_gate_ref": "urn:srcos:image-gate:sourceos-workstation-v0-dev",
+  "evidence_dir": "/var/lib/node-commander/evidence",
+  "image_ref": "us-central1-docker.pkg.dev/socioprophet-web/node-commander/node-commander:dev-boot"
+}
