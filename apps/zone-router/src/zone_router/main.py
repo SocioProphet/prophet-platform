@@ -112,6 +112,11 @@ def build_parser():
     enqueue_plan.add_argument("--path", required=True)
     enqueue_plan.set_defaults(fn=cmd_enqueue_plan)
 
+    publish_record = sub.add_parser("publish-record")
+    publish_record.add_argument("--path", required=True)
+    publish_record.add_argument("--transport-ref", default="transport://local/jsonl")
+    publish_record.set_defaults(fn=cmd_publish_record)
+
     return parser
 
 
