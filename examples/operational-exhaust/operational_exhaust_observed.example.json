@@ -1,0 +1,29 @@
+{
+  "version": "0.1",
+  "event_id": "opx_0001",
+  "observed_at": "2026-05-05T02:40:00Z",
+  "source_repo": "SocioProphet/prophet-platform",
+  "source_surface": "market-data-runtime",
+  "source_runtime": "marketdata-replay-worker",
+  "environment_ref": "env:local-dev",
+  "trace_ref": "trace:marketdata-gap-0001",
+  "story_ref": "story:marketdata-gap-review-0001",
+  "agent_ref": "agent:marketdata-supervisor",
+  "policy_ref": "policy:marketdata-runtime-profile-v0",
+  "evidence_ref": "evidence:gap-alert-0001",
+  "artifact_ref": "artifact:replay-window-0001",
+  "projection_family": "market_data_operations",
+  "severity": "warning",
+  "operational_band": "degraded",
+  "attributes": {
+    "event_type": "gap.detected",
+    "instrument_ref": "instrument:example-equity",
+    "venue_ref": "venue:example",
+    "gap_start": "2026-05-05T02:39:10Z",
+    "gap_end": "2026-05-05T02:39:15Z"
+  },
+  "receipt": {
+    "hash": "sha256:example-operational-exhaust-observed",
+    "algo": "sha256"
+  }
+}

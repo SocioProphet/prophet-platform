@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/OperationalExhaustObserved.v0.1.json",
+  "title": "OperationalExhaustObserved",
+  "type": "object",
+  "required": [
+    "version",
+    "event_id",
+    "observed_at",
+    "source_repo",
+    "source_surface",
+    "source_runtime",
+    "environment_ref",
+    "trace_ref",
+    "projection_family"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "event_id": { "type": "string" },
+    "observed_at": { "type": "string" },
+    "source_repo": { "type": "string" },
+    "source_surface": { "type": "string" },
+    "source_runtime": { "type": "string" },
+    "environment_ref": { "type": "string" },
+    "trace_ref": { "type": "string" },
+    "story_ref": { "type": "string" },
+    "agent_ref": { "type": "string" },
+    "policy_ref": { "type": "string" },
+    "evidence_ref": { "type": "string" },
+    "artifact_ref": { "type": "string" },
+    "projection_family": {
+      "type": "string",
+      "enum": [
+        "ci_delivery",
+        "runtime_service_agent",
+        "policy_evidence",
+        "market_data_operations",
+        "trader_agent_execution",
+        "trader_agent_learning"
+      ]
+    },
+    "severity": { "type": "string" },
+    "operational_band": { "type": "string" },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["hash", "algo"],
+      "properties": {
+        "hash": { "type": "string" },
+        "algo": { "type": "string", "enum": ["sha256", "blake3"] }
+      }
+    }
+  }
+}
