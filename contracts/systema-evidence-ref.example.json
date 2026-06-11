@@ -1,0 +1,74 @@
+[
+  {
+    "ref_type": "procybernetica_profile",
+    "canonical_source": "SocioProphet/ProCybernetica/profiles/source_confidence_profile.yaml",
+    "ref_id": "source_confidence_profile:v0.1",
+    "observed_at": "2026-06-11T10:00:00Z",
+    "conformance_claim": "evidence_envelope_matches_profile",
+    "evidence_quality": "complete",
+    "notes": "Agent cycle receipt validated against source_confidence_profile confidence tiers."
+  },
+  {
+    "ref_type": "procybernetica_conformance",
+    "canonical_source": "SocioProphet/ProCybernetica/docs/conformance/SYSTEMA_V0_CONFORMANCE.md",
+    "ref_id": "systema_v0_conformance:claim_mode_observation",
+    "observed_at": "2026-06-11T10:01:00Z",
+    "conformance_claim": "claim_mode_declared_as_observation",
+    "evidence_quality": "complete",
+    "notes": "Claim mode is observation, not hypothesis or confirmed causal claim."
+  },
+  {
+    "ref_type": "ontogenesis_concept",
+    "canonical_source": "SocioProphet/Ontogenesis/concepts/agent-execution-boundary",
+    "ref_id": "ontogenesis:agent-execution-boundary:v0.2",
+    "observed_at": "2026-06-11T10:02:00Z",
+    "conformance_claim": "concept_binding_active",
+    "evidence_quality": "partial",
+    "notes": "Concept binding is active; projection loss profile not yet evaluated."
+  },
+  {
+    "ref_type": "sherlock_catalog",
+    "canonical_source": "SocioProphet/sherlock-search/catalog/runtime-capability",
+    "ref_id": "sherlock:runtime-capability:agent-boundary-enforcement:v0.1",
+    "observed_at": "2026-06-11T10:03:00Z",
+    "conformance_claim": "catalog_result_consumed",
+    "evidence_quality": "complete",
+    "notes": "Sherlock catalog result for runtime capability boundary enforcement consumed by Policy Fabric gate."
+  },
+  {
+    "ref_type": "gaia_scenario",
+    "canonical_source": "SocioProphet/GAIA/scenarios/agent-sovereignty-layer",
+    "ref_id": "gaia:agent-sovereignty-layer:scenario-001",
+    "observed_at": "2026-06-11T10:04:00Z",
+    "conformance_claim": "scenario_layer_reference_resolved",
+    "evidence_quality": "partial",
+    "notes": "GAIA scenario resolved; world-model layer incomplete pending full GAIA ingestion run."
+  },
+  {
+    "ref_type": "agentplane_artifact",
+    "canonical_source": "SocioProphet/agentplane/schemas/agent-cycle-health.schema.v0.1.json",
+    "ref_id": "agentplane:agent-cycle-health:cycle_abc123",
+    "observed_at": "2026-06-11T10:05:00Z",
+    "conformance_claim": "agent_cycle_receipt_sealed",
+    "evidence_quality": "complete",
+    "notes": "AgentPlane cycle health receipt sealed and available for replay."
+  },
+  {
+    "ref_type": "sourceos_event",
+    "canonical_source": "SourceOS-Linux/sourceos-spec/events/helper-causal-receipt",
+    "ref_id": "sourceos:helper-causal-receipt:evt_shell_spawn_001",
+    "observed_at": "2026-06-11T10:06:00Z",
+    "conformance_claim": "helper_event_mapped_to_evidence_envelope",
+    "evidence_quality": "complete",
+    "notes": "SourceOS helper causal receipt mapped to prophet-platform evidence envelope."
+  },
+  {
+    "ref_type": "delivery_excellence_metric",
+    "canonical_source": "SocioProphet/ProCybernetica/profiles/dymaxion_service_metric_profile.yaml",
+    "ref_id": "dymaxion:service-metric:deployment-lead-time:v0.1",
+    "observed_at": "2026-06-11T10:07:00Z",
+    "conformance_claim": "metric_declared_in_fog_stack_manifest",
+    "evidence_quality": "degraded",
+    "notes": "Metric declared but sensor coverage is degraded; delivery pipeline not yet fully instrumented."
+  }
+]
