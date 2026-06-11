@@ -20,6 +20,8 @@ on:
       - "tools/update_fogstack_local_demo_apply_plan.py"
       - "tools/update_fogstack_local_demo_gitops_readiness.py"
       - "tools/update_fogstack_local_demo_runtime_evidence.py"
+      - "tools/emit_sourceos_state_integrity_demo_report.py"
+      - "tools/update_fogstack_local_demo_sourceos_state_integrity.py"
       - "tools/run_fogstack_local_demo_full.py"
       - "tools/check_fogstack_parity_readiness.py"
       - "tools/run_fogstack_parity_readiness.py"
@@ -63,6 +65,7 @@ on:
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_update_fogstack_local_demo_sourceos_state_integrity.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
@@ -87,6 +90,8 @@ on:
       - "tools/update_fogstack_local_demo_apply_plan.py"
       - "tools/update_fogstack_local_demo_gitops_readiness.py"
       - "tools/update_fogstack_local_demo_runtime_evidence.py"
+      - "tools/emit_sourceos_state_integrity_demo_report.py"
+      - "tools/update_fogstack_local_demo_sourceos_state_integrity.py"
       - "tools/run_fogstack_local_demo_full.py"
       - "tools/check_fogstack_parity_readiness.py"
       - "tools/run_fogstack_parity_readiness.py"
@@ -113,6 +118,7 @@ on:
       - "tools/tests/test_serve_fogstack_local_demo.py"
       - "tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py"
       - "tools/tests/test_update_fogstack_local_demo_apply_plan.py"
+      - "tools/tests/test_update_fogstack_local_demo_sourceos_state_integrity.py"
       - "tools/tests/test_run_fogstack_local_demo_full.py"
       - "tools/tests/test_fogstack_parity_readiness.py"
       - "tools/tests/test_run_fogstack_parity_readiness.py"
@@ -149,6 +155,7 @@ jobs:
             tools/tests/test_serve_fogstack_local_demo.py \
             tools/tests/test_update_fogstack_local_demo_deploy_artifacts.py \
             tools/tests/test_update_fogstack_local_demo_apply_plan.py \
+            tools/tests/test_update_fogstack_local_demo_sourceos_state_integrity.py \
             tools/tests/test_run_fogstack_local_demo_full.py \
             tools/tests/test_fogstack_parity_readiness.py \
             tools/tests/test_run_fogstack_parity_readiness.py \
@@ -158,8 +165,20 @@ jobs:
         run: |
           make fogstack-local-demo-full
           python3 tools/run_fogstack_parity_readiness.py --no-clean --summary
+          python3 tools/update_fogstack_local_demo_sourceos_state_integrity.py \
+            --summary-json build/fogstack-local-demo/fogstack-local-demo.full.summary.json \
+            --artifact-index build/fogstack-local-demo/demo-artifacts.index.json \
+            --output build/fogstack-local-demo/sourceos.state-integrity-report.json \
+            --summary
+          python3 tools/check_fogstack_local_demo_artifact_index.py --index build/fogstack-local-demo/demo-artifacts.index.json
+          python3 tools/check_fogstack_parity_readiness.py \
+            --summary build/fogstack-local-demo/fogstack-local-demo.full.summary.json \
+            --index build/fogstack-local-demo/demo-artifacts.index.json \
+            --output build/fogstack-local-demo/fogstack-parity-readiness.record.json \
+            --summary-text
           test -s build/fogstack-local-demo/fogstack-local-demo.full.summary.json
           test -s build/fogstack-local-demo/demo-artifacts.index.json
+          test -s build/fogstack-local-demo/sourceos.state-integrity-report.json
           test -s build/fogstack-local-demo/fogstack-parity-readiness.record.json
           test -s build/fogstack-local-demo/deploy/fogstack.access.deploy-plan.json
           test -s build/fogstack-local-demo/deploy/kubernetes/deployment.yaml
