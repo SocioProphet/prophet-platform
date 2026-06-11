@@ -86,6 +86,14 @@ def cmd_enqueue_plan(args):
     return 0 if record_check.get("ok") else 2
 
 
+
+def cmd_publish_record(args):
+    from .transport import load_publication_record, publish_publication_record
+    record = load_publication_record(args.path)
+    result = publish_publication_record(record, transport_ref=args.transport_ref)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result.get("ok") else 2
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="pp-zone-router")
     sub = parser.add_subparsers(dest="cmd", required=True)
