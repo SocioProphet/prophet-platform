@@ -99,6 +99,7 @@ def test_run_fogstack_local_demo_deploy_plan(tmp_path: Path) -> None:
     runtime_adapter = load(Path(summary["artifacts"]["runtime_adapter"]))
     assert runtime_adapter["kind"] == "FogStackLocalClusterRuntimeAdapter"
     assert runtime_adapter["runtime_policy"]["live_apply_allowed"] is False
+    assert runtime_adapter["inputs"]["node_profile_digest"].startswith("sha256:")
 
     runtime_dry_run = load(Path(summary["artifacts"]["runtime_dry_run_record"]))
     assert runtime_dry_run["kind"] == "FogStackRuntimeDryRunRecord"
