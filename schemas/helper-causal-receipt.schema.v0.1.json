@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.ai/prophet-platform/helper-causal-receipt.schema.v0.1.json",
+  "title": "HelperCausalReceipt",
+  "description": "Evidence envelope mapping a SourceOS helper causal receipt event into prophet-platform. Maintains DAG linkages from spawn to capability request to exit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "root_intent_id",
+    "event_type",
+    "timestamp",
+    "policy_profile",
+    "capability",
+    "requested_service",
+    "decision",
+    "classification",
+    "exit_status",
+    "duration_ms",
+    "receipt_complete",
+    "source_component"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "root_intent_id": { "type": "string", "minLength": 1 },
+    "parent_event_id": { "type": ["string", "null"] },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "helper_spawn",
+        "capability_request",
+        "capability_grant",
+        "capability_deny",
+        "helper_exit",
+        "policy_regression"
+      ]
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "policy_profile": { "type": "string", "minLength": 1 },
+    "capability": { "type": "string", "minLength": 1 },
+    "requested_service": { "type": "string", "minLength": 1 },
+    "decision": {
+      "type": "string",
+      "enum": ["allowed", "denied", "pending", "policy_regression"]
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["local_only", "network_preview", "credential_access", "file_access", "dns_access", "unknown"]
+    },
+    "exit_status": { "type": ["integer", "null"] },
+    "duration_ms": { "type": "number", "minimum": 0 },
+    "data_accessed": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "receipt_complete": { "type": "boolean" },
+    "source_component": {
+      "type": "string",
+      "enum": ["sourceos_shell", "bearbrowser", "turtleterm", "unknown"]
+    },
+    "dag_children": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "policy_regression_reason": { "type": "string" },
+    "teardown_race": { "type": "boolean" }
+  },
+  "if": {
+    "properties": { "decision": { "const": "policy_regression" } }
+  },
+  "then": {
+    "required": ["policy_regression_reason"]
+  }
+}
