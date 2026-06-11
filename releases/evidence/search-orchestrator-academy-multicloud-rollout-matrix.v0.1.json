@@ -1,0 +1,6 @@
+{
+  "matrix_id": "search-orchestrator-academy-multicloud-rollout-matrix-v0.1",
+  "status": "superseded",
+  "superseded_by": "releases/evidence/search-orchestrator-multicloud-rollout-matrix.v0.1.json",
+  "reason": "Multi-cloud rollout preparation is a Search Orchestrator deployment-readiness concern, not an Alexandrian Academy deployment validator concern. Academy remains one consumer path, while provider taxonomy and OpenShift compatibility belong to the provider-neutral Search Orchestrator rollout lane."
+}
