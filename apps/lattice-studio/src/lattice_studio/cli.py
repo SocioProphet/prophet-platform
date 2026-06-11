@@ -254,6 +254,108 @@ def emit_execution(args: argparse.Namespace) -> int:
     return 0
 
 
+def emit_atlas_context(args: argparse.Namespace) -> int:
+    context = demo_atlas_context()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    context_path = args.output_dir / "atlas-context.json"
+    evidence_path = args.output_dir / "atlas-context-evidence.json"
+    record_path = args.output_dir / "atlas-platform-record.json"
+    context_path.write_text(json.dumps(context.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(atlas_evidence(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(atlas_to_platform_record(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(context_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_ontogenesis_context(args: argparse.Namespace) -> int:
+    context = demo_ontogenesis_context()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    context_path = args.output_dir / "ontogenesis-context.json"
+    evidence_path = args.output_dir / "ontogenesis-context-evidence.json"
+    record_path = args.output_dir / "ontogenesis-platform-record.json"
+    context_path.write_text(json.dumps(context.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(ontogenesis_evidence(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(ontogenesis_to_platform_record(context), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(context_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_paas_plan(args: argparse.Namespace) -> int:
+    plan = create_deployment_plan(
+        name=args.name,
+        kind=args.kind,
+        source_ref=args.source_ref,
+        build_mode=args.build_mode,
+        runtime_asset_id=args.runtime_asset_id,
+        catalog_asset_refs=args.catalog_asset_ref or [],
+        environment=args.environment,
+        target_platform=args.target_platform,
+        route=args.route,
+        policy_ref=args.policy_ref,
+    )
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    plan_path = args.output_dir / "paas-deployment-plan.json"
+    evidence_path = args.output_dir / "paas-deployment-evidence.json"
+    record_path = args.output_dir / "paas-platform-record.json"
+    plan_path.write_text(json.dumps(plan.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(deployment_evidence(plan), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(deployment_to_platform_record(plan), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(plan_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_local_dev(args: argparse.Namespace) -> int:
+    session = create_local_dev_session(
+        workspace_ref=args.workspace_ref,
+        atlas_context_ref=args.atlas_context_ref,
+        paas_deployment_ref=args.paas_deployment_ref,
+    )
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    session_path = args.output_dir / "local-dev-session.json"
+    record_path = args.output_dir / "local-dev-platform-record.json"
+    session_path.write_text(json.dumps(session.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(local_dev_to_platform_record(session), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(session_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_memory(args: argparse.Namespace) -> int:
+    events = [
+        memory_event(
+            subject_ref=subject,
+            event_type="lattice-studio.activity",
+            summary=f"Recorded Lattice Studio activity for {subject}.",
+            links=args.link or [],
+        )
+        for subject in args.subject
+    ]
+    payload = memory_event_set(events)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(args.output)], "eventCount": len(events)}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_lampstand_demo(args: argparse.Namespace) -> int:
+    results = demo_local_search_results()
+    context_pack = context_pack_for_results(results, workspace_ref=args.workspace_ref)
+    proposals = promotion_proposals_for_results(results)
+    platform_records = [local_search_result_to_platform_record(result) for result in results]
+
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = args.output_dir / "lampstand-local-search-results.json"
+    context_path = args.output_dir / "lampstand-context-pack.json"
+    proposals_path = args.output_dir / "datahub-promotion-proposals.json"
+    records_path = args.output_dir / "lampstand-platform-records.json"
+
+    results_path.write_text(json.dumps({"apiVersion": "studio.socioprophet.dev/v1", "kind": "LampstandLocalSearchResultSet", "results": [result.to_dict() for result in results]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    context_path.write_text(json.dumps(context_pack.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    proposals_path.write_text(json.dumps({"apiVersion": "studio.socioprophet.dev/v1", "kind": "DataHubPromotionProposalSet", "proposals": [proposal.to_dict() for proposal in proposals]}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    records_path.write_text(json.dumps(platform_record_set(platform_records), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(results_path), str(context_path), str(proposals_path), str(records_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, workspace sources, local dev, and PaaS lanes")
     subparsers = parser.add_subparsers(dest="command", required=True)

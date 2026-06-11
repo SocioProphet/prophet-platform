@@ -42,6 +42,7 @@ lattice-studio-smoke:
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/paas-demo --output-dir build/lattice-studio/session
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-notebook-plane --output-dir build/lattice-studio/notebook-plane
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-workspace-demo --output-dir build/lattice-studio/workspace
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli create-session --project-id demo-project --user-id demo-user --runtime-asset apps/lattice-studio/examples/runtime-asset.prophet-python-ml.json --catalog-input catalog://datasets/demo-csv@0.1.0 --catalog-input catalog://models/demo-classifier@0.1.0 --catalog-input catalog://applications/demo-notebook-app@0.1.0 --catalog-input catalog://services/demo-inference-service@0.1.0 --policy-ref policy://lattice-studio/demo --output-dir build/lattice-studio/session
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-atlas-context --output-dir build/lattice-studio/atlas
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-ontogenesis-context --output-dir build/lattice-studio/ontogenesis
 	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-lampstand-demo --workspace-ref workspace://demo --output-dir build/lattice-studio/lampstand
@@ -53,6 +54,22 @@ lattice-studio-smoke:
 
 test -s:
 	@true
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-memory --subject workspace://demo --subject atlas-context:demo --subject paas-deployment:demo --subject lampstand://local-search/demo --subject ontogenesis://lattice-studio/demo --link catalog://datasets/demo-csv@0.1.0 --output build/lattice-studio/memory-events.json
+	PYTHONPATH=apps/lattice-studio/src python3 -m lattice_studio.cli emit-platform-records --catalog-asset build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json --catalog-asset build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json --catalog-asset build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json --catalog-asset build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json --notebook-session build/lattice-studio/session/notebook-session.json --platform-record build/lattice-studio/atlas/atlas-platform-record.json --platform-record build/lattice-studio/ontogenesis/ontogenesis-platform-record.json --platform-record build/lattice-studio/paas/paas-platform-record.json --platform-record build/lattice-studio/local-dev/local-dev-platform-record.json --platform-record build/lattice-studio/lampstand/lampstand-platform-records.json --output build/lattice-studio/studio-platform-records.json
+	test -s build/lattice-studio/session/notebook-session.json
+	test -s build/lattice-studio/session/notebook-session-evidence.json
+	test -s build/lattice-studio/catalog/datasets_demo-csv/catalog-asset.json
+	test -s build/lattice-studio/catalog/models_demo-classifier/catalog-asset.json
+	test -s build/lattice-studio/catalog/applications_demo-notebook-app/catalog-asset.json
+	test -s build/lattice-studio/catalog/services_demo-inference-service/catalog-asset.json
+	test -s build/lattice-studio/atlas/atlas-context.json
+	test -s build/lattice-studio/ontogenesis/ontogenesis-context.json
+	test -s build/lattice-studio/lampstand/lampstand-local-search-results.json
+	test -s build/lattice-studio/lampstand/datahub-promotion-proposals.json
+	test -s build/lattice-studio/paas/paas-deployment-plan.json
+	test -s build/lattice-studio/local-dev/local-dev-session.json
+	test -s build/lattice-studio/memory-events.json
+	test -s build/lattice-studio/studio-platform-records.json
 
 validate-ops-fabric:
 	python3 tools/validate_ops_fabric.py
