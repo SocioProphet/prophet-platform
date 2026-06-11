@@ -141,6 +141,19 @@ REQUIRED_TEXT = {
         "Dashboard panels",
         "Incident workflow",
     ],
+    "infra/argocd/appsets/search-orchestrator-academy-appset.yaml": [
+        "search-orchestrator-academy-carrier",
+        "search-orchestrator-academy-policy",
+        "infra/k8s/search-orchestrator/overlays/carrier",
+        "infra/k8s/search-orchestrator/overlays/policy",
+    ],
+    "bundles/fogstack.knowledge-v0.1.yaml": [
+        "services/search-orchestrator",
+        "academy-search-bridge",
+        "LearningSearchRecord",
+        "AcademySearchVisibilityRequestV1",
+        "infra/argocd/appsets/search-orchestrator-academy-appset.yaml",
+    ],
     "releases/evidence/search-orchestrator.academy-bridge.validation.record.json": [
         "test_debug_metrics.py",
         "networkpolicy.yaml",
