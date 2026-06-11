@@ -91,6 +91,8 @@ def cmd_publish_record(args):
     from .transport import load_publication_record, publish_publication_record
     record = load_publication_record(args.path)
     result = publish_publication_record(record, transport_ref=args.transport_ref)
+    record_check = gate.validate_record(record)
+    result["semantic_validation"] = {"record": record_check}
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 2
 

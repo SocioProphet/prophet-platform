@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .dead_letter import write_dead_letter
+from .outbox import publication_outbox_root
 from .retry_policy import compute_next_retry_not_before, is_terminal_attempt, resolve_retry_policy
 from .retry_state import (
     last_outcome_for_publication,
@@ -139,6 +140,11 @@ def write_publication_outcome(
 
     log_path = outcome_log_path(service)
     with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(outcome, sort_keys=True) + "\n")
+
+    retry_log_path = publication_outbox_root(service) / "publication_outcome_log.jsonl"
+    retry_log_path.parent.mkdir(parents=True, exist_ok=True)
+    with retry_log_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(outcome, sort_keys=True) + "\n")
 
     latest_path = latest_outcome_path(service)
