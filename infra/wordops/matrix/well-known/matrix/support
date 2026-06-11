@@ -1,0 +1,14 @@
+{
+  "contacts": [
+    {
+      "email_address": "support@example.invalid",
+      "matrix_id": "@helpdesk:wordops-public.localhost",
+      "role": "m.role.admin"
+    },
+    {
+      "email_address": "security@example.invalid",
+      "role": "m.role.security"
+    }
+  ],
+  "support_page": "https://support.example.invalid/matrix"
+}

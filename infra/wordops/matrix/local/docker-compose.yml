@@ -1,0 +1,79 @@
+services:
+  postgres-public:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${WORDOPS_PUBLIC_DB_NAME:-synapse_public}
+      POSTGRES_USER: ${WORDOPS_PUBLIC_DB_USER:-synapse_public}
+      POSTGRES_PASSWORD: ${WORDOPS_PUBLIC_DB_PASSWORD:-change-public-db-password}
+    volumes:
+      - wordops-postgres-public:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WORDOPS_PUBLIC_DB_USER:-synapse_public} -d ${WORDOPS_PUBLIC_DB_NAME:-synapse_public}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  postgres-private:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${WORDOPS_PRIVATE_DB_NAME:-synapse_private}
+      POSTGRES_USER: ${WORDOPS_PRIVATE_DB_USER:-synapse_private}
+      POSTGRES_PASSWORD: ${WORDOPS_PRIVATE_DB_PASSWORD:-change-private-db-password}
+    volumes:
+      - wordops-postgres-private:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WORDOPS_PRIVATE_DB_USER:-synapse_private} -d ${WORDOPS_PRIVATE_DB_NAME:-synapse_private}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  synapse-public:
+    image: ${WORDOPS_SYNAPSE_IMAGE:-matrixdotorg/synapse:v1.131.0}
+    depends_on:
+      postgres-public:
+        condition: service_healthy
+    environment:
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+    volumes:
+      - ../public:/data:rw
+    ports:
+      - "${WORDOPS_PUBLIC_CLIENT_PORT:-8008}:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://localhost:8008/_matrix/client/versions', timeout=5).read()\nPY"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  synapse-private:
+    image: ${WORDOPS_SYNAPSE_IMAGE:-matrixdotorg/synapse:v1.131.0}
+    depends_on:
+      postgres-private:
+        condition: service_healthy
+    environment:
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+    volumes:
+      - ../private:/data:rw
+    ports:
+      - "${WORDOPS_PRIVATE_CLIENT_PORT:-8018}:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request\nurllib.request.urlopen('http://localhost:8008/_matrix/client/versions', timeout=5).read()\nPY"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  matrix-edge:
+    image: nginx:1.27-alpine
+    depends_on:
+      synapse-public:
+        condition: service_healthy
+      synapse-private:
+        condition: service_healthy
+    volumes:
+      - ../nginx/matrix.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../well-known:/usr/share/nginx/html/.well-known:ro
+    ports:
+      - "${WORDOPS_MATRIX_EDGE_PORT:-8088}:80"
+
+volumes:
+  wordops-postgres-public:
+  wordops-postgres-private:
