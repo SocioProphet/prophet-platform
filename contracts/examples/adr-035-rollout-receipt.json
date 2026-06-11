@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "RolloutReceipt",
+  "rolloutId": "rollout-ai-worker-policy-v1-001",
+  "featureName": "ai_worker_sandboxed_v1",
+  "featureVersion": "1.0.0",
+  "owner": "platform-security",
+  "activationReason": "Security hardening: AI worker now runs in dedicated sandbox with deny-all network default.",
+  "activationRule": "percent_rollout:10",
+  "policyClass": "ai_worker_sandbox_v1",
+  "privacyClass": "internal",
+  "affectedBoundaries": ["ai_invocation", "worker_spawn"],
+  "buildProvenance": {
+    "repo": "SocioProphet/prophet-platform",
+    "commit": "sha256:abcdef1234567890abcdef1234567890abcdef12",
+    "ciReceipt": "ci-receipt-20260611-001"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "BoundaryTransition",
+  "transitionId": "bt-engine-init-bearbrowser-001",
+  "timestamp": "2026-06-11T10:14:58Z",
+  "sourceComponent": "document_renderer",
+  "targetComponent": "embedded_web_view",
+  "boundaryType": "embedded_engine_initialization",
+  "initiator": "system_startup",
+  "userVisible": false,
+  "engineManifestRef": "EngineManifest.v0.1.json"
+}

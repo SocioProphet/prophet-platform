@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "DiagnosticRedactionPolicy",
+  "tiers": {
+    "localPrivate": {
+      "stableDeviceIds": "preserve",
+      "bootSessionIds": "preserve",
+      "instructionBytes": "preserve",
+      "fullPaths": "preserve",
+      "tokensOrSecrets": "redact"
+    },
+    "shareableDefault": {
+      "stableDeviceIds": "hash_with_local_salt",
+      "bootSessionIds": "hash_with_local_salt",
+      "instructionBytes": "omit",
+      "fullPaths": "redact",
+      "tokensOrSecrets": "redact"
+    },
+    "publicIssue": {
+      "stableDeviceIds": "omit",
+      "bootSessionIds": "omit",
+      "instructionBytes": "omit",
+      "fullPaths": "classify_only",
+      "tokensOrSecrets": "redact"
+    }
+  }
+}
