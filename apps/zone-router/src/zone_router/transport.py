@@ -118,8 +118,8 @@ def write_publication_outcome(
         outcome["next_retry_not_before"] = next_retry_not_before
     if retry_policy:
         outcome["max_attempts"] = int(retry_policy["max_attempts"])
-        outcome["retry_backoff_seconds"] = int(retry_policy["backoff_seconds"])
-        outcome["retry_strategy"] = str(retry_policy["strategy"])
+        outcome["retry_backoff_seconds"] = int(retry_policy["retry_backoff_seconds"])
+        outcome["retry_strategy"] = str(retry_policy["retry_strategy"])
     if status == "published":
         outcome["published_at"] = created_at
     if status == "failed":
