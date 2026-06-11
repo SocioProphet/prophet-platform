@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ActionGrant",
+  "description": "An explicit, time-bounded authorization for a high-risk remediation action. Required for any high or critical risk remediation step.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "grant_id", "issued_at", "issued_by", "actor_id", "action_scope", "risk_level", "valid_until", "rationale"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "grant_id": { "type": "string", "minLength": 1 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "issued_by": { "type": "string", "minLength": 1 },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "action_scope": { "type": "string", "minLength": 1 },
+    "risk_level": { "type": "string", "enum": ["high", "critical"] },
+    "valid_until": { "type": "string", "format": "date-time" },
+    "rationale": { "type": "string", "minLength": 1 },
+    "plan_ref": { "type": "string" },
+    "revoked_at": { "type": "string", "format": "date-time" },
+    "revocation_reason": { "type": "string" }
+  }
+}

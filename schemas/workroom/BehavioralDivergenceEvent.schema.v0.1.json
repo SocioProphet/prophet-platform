@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BehavioralDivergenceEvent",
+  "description": "A detected divergence between expected and observed system behavior. Does not duplicate Sociosphere environment state or AgentPlane runtime sandbox evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "detected_at", "component", "divergence_kind", "severity", "observation_window", "expected_ref", "observed_summary"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "detected_at": { "type": "string", "format": "date-time" },
+    "component": { "type": "string", "minLength": 1 },
+    "divergence_kind": {
+      "type": "string",
+      "enum": ["metric_threshold", "policy_violation", "latency_spike", "error_rate", "missing_evidence", "unexpected_state", "regression"]
+    },
+    "severity": { "type": "string", "enum": ["info", "warning", "incident", "critical"] },
+    "observation_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "expected_ref": { "type": "string", "minLength": 1 },
+    "observed_summary": { "type": "string", "minLength": 1 },
+    "evidence_packet_ref": { "type": "string" },
+    "runtime_parity_level": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}

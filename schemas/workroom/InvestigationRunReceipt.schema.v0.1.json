@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InvestigationRunReceipt",
+  "description": "Immutable receipt for a completed investigation run in the DevSecOps Intelligence Workroom.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "investigation_id", "started_at", "completed_at", "outcome", "evidence_packet_ref", "claims_count", "actor_id"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "investigation_id": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "outcome": {
+      "type": "string",
+      "enum": ["confirmed_rca", "inconclusive", "false_positive", "escalated", "closed_no_action"]
+    },
+    "evidence_packet_ref": { "type": "string", "minLength": 1 },
+    "claims_count": { "type": "integer", "minimum": 0 },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "remediation_plan_ref": { "type": "string" },
+    "replay_hash": { "type": "string" },
+    "runtime_parity_level": { "type": "string" }
+  }
+}

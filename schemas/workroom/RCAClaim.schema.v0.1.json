@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RCAClaim",
+  "description": "A root cause analysis claim with explicit epistemic status. Every causal claim must reference evidence or remain explicitly non-evidential.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "claim_id", "investigation_id", "asserted_at", "claim_text", "claim_status", "is_causal"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "claim_id": { "type": "string", "minLength": 1 },
+    "investigation_id": { "type": "string", "minLength": 1 },
+    "asserted_at": { "type": "string", "format": "date-time" },
+    "asserted_by": { "type": "string" },
+    "claim_text": { "type": "string", "minLength": 1 },
+    "claim_status": {
+      "type": "string",
+      "enum": ["observation", "hypothesis", "supported_causal_claim", "confirmed_causal_claim", "falsified_claim", "unknown"]
+    },
+    "is_causal": { "type": "boolean" },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "non_evidential_reason": { "type": "string" },
+    "parent_claim_ref": { "type": "string" },
+    "confidence": { "type": "string", "enum": ["high", "medium", "low", "unknown"] }
+  },
+  "if": {
+    "properties": { "is_causal": { "const": true } }
+  },
+  "then": {
+    "anyOf": [
+      { "required": ["evidence_refs"], "properties": { "evidence_refs": { "minItems": 1 } } },
+      { "required": ["non_evidential_reason"] }
+    ]
+  }
+}
