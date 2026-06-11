@@ -1,0 +1,15 @@
+{
+  "exchange_id": "ex_demo_001",
+  "exchange_kind": "SnapshotExchange",
+  "tenant_id": "tenant_demo",
+  "actor_id": "actor_demo",
+  "source_endpoint": {"kind": "api_webhook", "provider_ref": "provider_demo"},
+  "destination_endpoint": {"kind": "graph_api", "service": "crystal-atlas-graph-api"},
+  "asset_refs": ["asset://demo/company-profile"],
+  "policy_ref": "policy://default/private-first",
+  "idempotency_key": "idem-demo-001",
+  "trace_ref": "trace-demo-001",
+  "provider_ref": "provider_demo",
+  "channel_ref": "channel_api",
+  "created_at": "2026-04-14T00:00:00Z"
+}
