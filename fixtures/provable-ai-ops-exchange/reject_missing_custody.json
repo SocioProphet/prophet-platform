@@ -1,0 +1,15 @@
+{
+  "_fixture_comment": "REJECT: IntelligenceBrief claims Level 2 certification but has no custody_event_refs. Validator must block certification above Level 1 when custody is missing.",
+  "record_type": "IntelligenceBrief",
+  "record_id": "ib_no_custody_001",
+  "title": "Missing Custody — Should Fail Level 2",
+  "summary": "This brief has no custody chain and should be rejected for Level 2 certification.",
+  "authored_by": "agent_epistemic_synthesis_001",
+  "authored_at": "2026-06-11T10:00:00Z",
+  "classification": "internal",
+  "certification_level": 2,
+  "claim_refs": ["claim_ops_boundary_enforced_001"],
+  "evidence_refs": ["ev_benchmark_run_001"],
+  "artifact_refs": ["art_benchmark_pack_001"],
+  "custody_event_refs": []
+}

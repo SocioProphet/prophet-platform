@@ -1,0 +1,30 @@
+{
+  "record_type": "IntelligenceBrief",
+  "record_id": "ib_provable_ai_ops_001",
+  "title": "Provable AI Operations Exchange — Capability Certification Brief",
+  "summary": "Establishes the evidentiary basis for certifying AI agent operations across the SocioProphet exchange layer. Includes benchmark pack, evaluation run, policy decision, and supporting claim/evidence graph.",
+  "authored_by": "agent_epistemic_synthesis_001",
+  "authored_at": "2026-06-11T09:00:00Z",
+  "classification": "internal",
+  "certification_level": 2,
+  "claim_refs": [
+    "claim_ops_boundary_enforced_001",
+    "claim_output_reproducible_001",
+    "claim_custody_chain_intact_001"
+  ],
+  "evidence_refs": [
+    "ev_benchmark_run_001",
+    "ev_policy_gate_passed_001",
+    "ev_specialist_attestation_001",
+    "ev_replay_hash_verified_001",
+    "ev_authority_dependency_satisfied_001"
+  ],
+  "artifact_refs": [
+    "art_benchmark_pack_001",
+    "art_evaluation_run_001"
+  ],
+  "custody_event_refs": [
+    "ce_brief_created_001",
+    "ce_review_completed_001"
+  ]
+}
