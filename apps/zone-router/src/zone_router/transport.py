@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .dead_letter import write_dead_letter
+from .outbox import publication_outbox_root
 from .retry_policy import compute_next_retry_not_before, is_terminal_attempt, resolve_retry_policy
 from .retry_state import (
     last_outcome_for_publication,
@@ -118,8 +119,8 @@ def write_publication_outcome(
         outcome["next_retry_not_before"] = next_retry_not_before
     if retry_policy:
         outcome["max_attempts"] = int(retry_policy["max_attempts"])
-        outcome["retry_backoff_seconds"] = int(retry_policy["backoff_seconds"])
-        outcome["retry_strategy"] = str(retry_policy["strategy"])
+        outcome["retry_backoff_seconds"] = int(retry_policy["retry_backoff_seconds"])
+        outcome["retry_strategy"] = str(retry_policy["retry_strategy"])
     if status == "published":
         outcome["published_at"] = created_at
     if status == "failed":
@@ -139,6 +140,11 @@ def write_publication_outcome(
 
     log_path = outcome_log_path(service)
     with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(outcome, sort_keys=True) + "\n")
+
+    retry_log_path = publication_outbox_root(service) / "publication_outcome_log.jsonl"
+    retry_log_path.parent.mkdir(parents=True, exist_ok=True)
+    with retry_log_path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(outcome, sort_keys=True) + "\n")
 
     latest_path = latest_outcome_path(service)

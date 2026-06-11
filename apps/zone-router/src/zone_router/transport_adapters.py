@@ -25,7 +25,7 @@ def _transport_kind(transport_ref: str) -> str:
     if transport_ref == LOCAL_JSONL:
         return "local-jsonl"
     if transport_ref == KAFKA_JSONL:
-        return "kafka-jsonl-local-standin"
+        return "kafka-jsonl"
     if transport_ref == KAFKA_REMOTE:
         return "kafka-remote"
     if transport_ref == FAIL_TEST:
@@ -125,6 +125,78 @@ def _write_local_delivery(*, record: dict[str, Any], publication_record_ref: str
         "topic_log_path": str(topic_log_path),
         "delivery": delivery,
     }
+
+
+def _write_kafka_jsonl_delivery(*, record: dict[str, Any], deliveries_root: Path) -> dict[str, Any]:
+    delivery_id = str(uuid.uuid4())
+    delivery = {
+        "version": "0.1",
+        "delivery_id": delivery_id,
+        "publication_id": record["publication_id"],
+        "transport_ref": KAFKA_JSONL,
+        "transport_kind": "kafka-jsonl",
+        "topic": record["topic"],
+        "partition": 0,
+        "key": record.get("carrier_ref", ""),
+        "delivered_at": _utc_now(),
+    }
+    deliveries_root.mkdir(parents=True, exist_ok=True)
+    delivery_path = deliveries_root / f"{delivery_id}.delivery.json"
+    delivery_path.write_text(json.dumps(delivery, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return {
+        "ok": True,
+        "adapter": "kafka-jsonl",
+        "delivery_path": str(delivery_path),
+        "delivery": delivery,
+    }
+
+
+def dispatch_transport(
+    record: dict[str, Any],
+    *,
+    transport_ref: str = LOCAL_JSONL,
+    deliveries_root: Path | None = None,
+    service: str = "zone-router",
+) -> dict[str, Any]:
+    """Route a publication record through the appropriate transport adapter."""
+    kind = _transport_kind(transport_ref)
+
+    if transport_ref == FAIL_TEST:
+        return {"ok": False, "adapter": kind, "status": "failed", "error": "forced failure for transport://fail/test"}
+
+    if transport_ref == KAFKA_JSONL:
+        root = deliveries_root if deliveries_root is not None else _deliveries_root(service)
+        return _write_kafka_jsonl_delivery(record=record, deliveries_root=root)
+
+    if transport_ref == KAFKA_REMOTE:
+        missing = _missing_remote_kafka_config()
+        if missing:
+            return {"ok": False, "adapter": kind, "status": "failed",
+                    "error": "remote Kafka transport requires configuration: " + ", ".join(missing)}
+        return {"ok": False, "adapter": kind, "status": "failed",
+                "error": "remote Kafka broker client is not implemented in this safe seam"}
+
+    if transport_ref == LOCAL_JSONL:
+        root = deliveries_root if deliveries_root is not None else _deliveries_root(service)
+        root.mkdir(parents=True, exist_ok=True)
+        delivery_id = str(uuid.uuid4())
+        delivery = _delivery_payload(record=record, publication_record_ref="", transport_ref=transport_ref)
+        delivery["delivery_id"] = delivery_id
+        safe = _safe_topic(record["topic"])
+        delivery_path = root / f"{delivery_id}.delivery.json"
+        delivery_path.write_text(json.dumps(delivery, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        topic_log_path = root / f"{safe}.jsonl"
+        with topic_log_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(delivery, sort_keys=True) + "\n")
+        return {
+            "ok": True,
+            "adapter": kind,
+            "delivery_path": str(delivery_path),
+            "topic_log_path": str(topic_log_path),
+            "delivery": delivery,
+        }
+
+    return {"ok": False, "adapter": kind, "status": "failed", "error": f"unsupported transport_ref={transport_ref!r}"}
 
 
 def deliver_publication_record(
