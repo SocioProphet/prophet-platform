@@ -1,0 +1,279 @@
+{
+  "schemaVersion": "orggov.runtime-demo.v0.2",
+  "recordType": "OrgGovRuntimeDemoRecord",
+  "recordId": "orggov-runtime-demo:v0.2:initial",
+  "readinessRollupRef": "orggov-readiness-rollup:v0.1:first-pass-complete",
+  "parentIssueRef": "github://SocioProphet/prophet-platform/issues/471",
+
+  "demoStages": [
+    {
+      "stage_id": "stage-01-work-order",
+      "stage_name": "GitHub issue/work order creation",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://orggov/work-order/dogfood-issue-001"],
+      "gap_notes": "GitHub API write not yet wired; fixture used to represent a real issue"
+    },
+    {
+      "stage_id": "stage-02-workroom-render",
+      "stage_name": "Workroom/control-room render from cross-repo fixtures",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://prophet-workspace/workroom/cross-repo-render-v0"],
+      "gap_notes": "Workroom render from live state not yet wired; rendered from merged fixture corpus"
+    },
+    {
+      "stage_id": "stage-03-actor-role-binding",
+      "stage_name": "Actor/role/authority/grant binding",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://agent-registry/actor-role-binding/orggov-v0"],
+      "gap_notes": "Runtime binding via AgentPlane + agent-registry API pending"
+    },
+    {
+      "stage_id": "stage-04-policy-decisions",
+      "stage_name": "Policy decision execution across all required states",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": [
+        "fixture://policy-fabric/decision/allow-001",
+        "fixture://policy-fabric/decision/allow-with-constraints-001",
+        "fixture://policy-fabric/decision/deny-001",
+        "fixture://policy-fabric/decision/escalate-001",
+        "fixture://policy-fabric/decision/blocked-expected-001",
+        "fixture://policy-fabric/decision/revoke-001"
+      ],
+      "gap_notes": "All 6 states exercised via fixtures; live Policy Fabric replay pack pending"
+    },
+    {
+      "stage_id": "stage-05-agentplane",
+      "stage_name": "AgentPlane validation, placement, run, replay, and session evidence references",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://agentplane/run-receipt/orggov-v0"],
+      "gap_notes": "AgentPlane work-order-to-run-artifact and replay wiring in progress (#263)"
+    },
+    {
+      "stage_id": "stage-06-receipt-linkage",
+      "stage_name": "Model/tool/context/eval receipt linkage",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://model-governance-ledger/receipts/orggov-v0"],
+      "gap_notes": "Ledger receipts captured as fixtures; live emission pending"
+    },
+    {
+      "stage_id": "stage-07-sourceos-integrity",
+      "stage_name": "SourceOS state-integrity evidence from runtime report posture",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://sourceos/state-integrity/orggov-v0"],
+      "gap_notes": "Must emit from runtime posture not fixture-only intent; SourceOS wiring pending"
+    },
+    {
+      "stage_id": "stage-08-sherlock-trace",
+      "stage_name": "Sherlock trace from work order to actor, policy, action, evidence, outcome, score, learning",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://sherlock/trace/orggov-v0-dogfood-001"],
+      "gap_notes": "Full trace assembled from fixtures; live Sherlock index query pending"
+    },
+    {
+      "stage_id": "stage-09-scorecard",
+      "stage_name": "Delivery Excellence scorecard update",
+      "status": "fixture_only",
+      "evidence_kind": "fixture",
+      "evidence_refs": ["fixture://delivery-excellence/scorecard/orggov-v0"],
+      "gap_notes": "Scorecard updated in fixture corpus; live KPI/OKR telemetry emission pending"
+    }
+  ],
+
+  "policyCoverage": {
+    "allow": {
+      "demonstrated_via": "fixture://policy-fabric/decision/allow-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/actor-task-allow-v1"
+    },
+    "allow_with_constraints": {
+      "demonstrated_via": "fixture://policy-fabric/decision/allow-with-constraints-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/actor-task-constrained-v1"
+    },
+    "deny": {
+      "demonstrated_via": "fixture://policy-fabric/decision/deny-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/actor-unauthorized-deny-v1"
+    },
+    "escalate": {
+      "demonstrated_via": "fixture://policy-fabric/decision/escalate-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/high-risk-escalation-v1"
+    },
+    "blocked_expected": {
+      "demonstrated_via": "fixture://policy-fabric/decision/blocked-expected-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/expected-block-v1"
+    },
+    "revoke": {
+      "demonstrated_via": "fixture://policy-fabric/decision/revoke-001",
+      "evidence_kind": "fixture",
+      "policy_ref": "policy://policy-fabric/orggov/authority-revoke-v1"
+    }
+  },
+
+  "evidenceKinds": {
+    "fixture_evidence": [
+      {
+        "ref_id": "fixture://orggov/work-order/dogfood-issue-001",
+        "source_system": "prophet-platform/contracts/orggov",
+        "stage_ref": "stage-01-work-order",
+        "notes": "Static fixture representing GitHub issue dogfood workflow"
+      },
+      {
+        "ref_id": "fixture://policy-fabric/decision/allow-001",
+        "source_system": "policy-fabric/fixtures",
+        "stage_ref": "stage-04-policy-decisions"
+      },
+      {
+        "ref_id": "fixture://policy-fabric/decision/deny-001",
+        "source_system": "policy-fabric/fixtures",
+        "stage_ref": "stage-04-policy-decisions"
+      },
+      {
+        "ref_id": "fixture://agentplane/run-receipt/orggov-v0",
+        "source_system": "agentplane/fixtures",
+        "stage_ref": "stage-05-agentplane"
+      },
+      {
+        "ref_id": "fixture://sherlock/trace/orggov-v0-dogfood-001",
+        "source_system": "sherlock/fixtures",
+        "stage_ref": "stage-08-sherlock-trace"
+      }
+    ],
+    "runtime_evidence": []
+  },
+
+  "downstreamLanes": [
+    {
+      "subsystem": "prophet-workspace",
+      "owner_repo": "SocioProphet/prophet-workspace",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://prophet-workspace/control-room-v0",
+      "gap_notes": "Live workroom render from cross-repo state pending"
+    },
+    {
+      "subsystem": "ontogenesis",
+      "owner_repo": "SocioProphet/ontogenesis",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://ontogenesis/org-work-ontology-v0"
+    },
+    {
+      "subsystem": "agent-registry",
+      "owner_repo": "SocioProphet/agent-registry",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://agent-registry/actor-role-binding-v0"
+    },
+    {
+      "subsystem": "policy-fabric",
+      "owner_repo": "SocioProphet/policy-fabric",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://policy-fabric/orggov-replay-pack-v0",
+      "gap_notes": "Live replay pack not yet wired"
+    },
+    {
+      "subsystem": "agentplane",
+      "owner_repo": "SocioProphet/agentplane",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://agentplane/work-order-run-artifact-v0",
+      "gap_notes": "Run-artifact and replay binding in progress (#263)"
+    },
+    {
+      "subsystem": "model-governance-ledger",
+      "owner_repo": "SocioProphet/model-governance-ledger",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://model-governance-ledger/receipts-v0"
+    },
+    {
+      "subsystem": "sociosphere",
+      "owner_repo": "SocioProphet/sociosphere",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://sociosphere/estate-topology-v0"
+    },
+    {
+      "subsystem": "delivery-excellence",
+      "owner_repo": "SocioProphet/delivery-excellence",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://delivery-excellence/orggov-scorecard-v0",
+      "gap_notes": "Live KPI/OKR telemetry emission pending"
+    },
+    {
+      "subsystem": "sherlock-search",
+      "owner_repo": "SocioProphet/sherlock-search",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://sherlock/orggov-trace-index-v0",
+      "gap_notes": "Live Sherlock index query pending"
+    },
+    {
+      "subsystem": "sourceos",
+      "owner_repo": "socios-linux/sourceos",
+      "status": "fixture_captured",
+      "contract_ref": "contracts://sourceos/state-integrity-v0",
+      "gap_notes": "Must emit from runtime posture not fixture-only intent"
+    }
+  ],
+
+  "proofObligations": [
+    {
+      "obligation_id": "po-01-sourceos-runtime-posture",
+      "description": "SourceOS state-integrity evidence must be emitted from live runtime report posture, not fixture-only intent",
+      "blocking_status": "blocking_buyer_visible",
+      "owner_repo": "socios-linux/sourceos"
+    },
+    {
+      "obligation_id": "po-02-agentplane-replay",
+      "description": "AgentPlane work-order-to-run-artifact and replay binding must be exercised against a live run",
+      "blocking_status": "blocking_buyer_visible",
+      "owner_repo": "SocioProphet/agentplane",
+      "issue_ref": "github://SocioProphet/agentplane/issues/263"
+    },
+    {
+      "obligation_id": "po-03-policy-fabric-live-replay",
+      "description": "Policy Fabric replay pack must execute against live state, not fixture-only evaluation",
+      "blocking_status": "blocking_runtime_gated",
+      "owner_repo": "SocioProphet/policy-fabric"
+    },
+    {
+      "obligation_id": "po-04-sherlock-live-index",
+      "description": "Sherlock trace must be retrieved from a live index query, not assembled from fixtures",
+      "blocking_status": "blocking_buyer_visible",
+      "owner_repo": "SocioProphet/sherlock-search"
+    },
+    {
+      "obligation_id": "po-05-delivery-excellence-live-telemetry",
+      "description": "Delivery Excellence scorecard KPI/OKR must reflect live telemetry emission, not fixture update",
+      "blocking_status": "blocking_buyer_visible",
+      "owner_repo": "SocioProphet/delivery-excellence"
+    },
+    {
+      "obligation_id": "po-06-workroom-live-render",
+      "description": "Workroom/control-room render must be driven from live cross-repo fixture state, not static precompute",
+      "blocking_status": "blocking_runtime_gated",
+      "owner_repo": "SocioProphet/prophet-workspace"
+    }
+  ],
+
+  "ownerRepoBindings": [
+    { "repo": "SocioProphet/prophet-platform", "subsystem": "runtime-hub", "contract_ref": "contracts://prophet-platform/orggov/runtime-demo-v0.2" },
+    { "repo": "SocioProphet/prophet-workspace", "subsystem": "prophet-workspace", "contract_ref": "contracts://prophet-workspace/control-room-v0" },
+    { "repo": "SocioProphet/ontogenesis", "subsystem": "ontogenesis", "contract_ref": "contracts://ontogenesis/org-work-ontology-v0" },
+    { "repo": "SocioProphet/agent-registry", "subsystem": "agent-registry", "contract_ref": "contracts://agent-registry/actor-role-binding-v0" },
+    { "repo": "SocioProphet/policy-fabric", "subsystem": "policy-fabric", "contract_ref": "contracts://policy-fabric/orggov-replay-pack-v0" },
+    { "repo": "SocioProphet/agentplane", "subsystem": "agentplane", "contract_ref": "contracts://agentplane/work-order-run-artifact-v0" },
+    { "repo": "SocioProphet/model-governance-ledger", "subsystem": "model-governance-ledger", "contract_ref": "contracts://model-governance-ledger/receipts-v0" },
+    { "repo": "SocioProphet/sociosphere", "subsystem": "sociosphere", "contract_ref": "contracts://sociosphere/estate-topology-v0" },
+    { "repo": "SocioProphet/delivery-excellence", "subsystem": "delivery-excellence", "contract_ref": "contracts://delivery-excellence/orggov-scorecard-v0" },
+    { "repo": "SocioProphet/sherlock-search", "subsystem": "sherlock-search", "contract_ref": "contracts://sherlock/orggov-trace-index-v0" },
+    { "repo": "socios-linux/sourceos", "subsystem": "sourceos", "contract_ref": "contracts://sourceos/state-integrity-v0" }
+  ],
+
+  "demoStatus": "fixture_only"
+}
