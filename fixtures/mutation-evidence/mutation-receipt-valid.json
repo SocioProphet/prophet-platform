@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "receipt_id": "mr_config_update_001",
+  "mutation_id": "mut_config_update_001",
+  "occurred_at": "2026-06-11T10:00:00Z",
+  "actor_chain": ["agent_config_service_001", "orchestration_substrate_001"],
+  "object_class": "config_entry",
+  "path_class": "/etc/prophet/platform.conf",
+  "operation": "update",
+  "policy_ref": "policy://platform/config-write-v1",
+  "policy_decision": "allowed_with_audit",
+  "resource_cost": {
+    "bytes_written": 512,
+    "write_budget_used_pct": 0.5
+  },
+  "causal_parents": ["evt_config_change_request_001"],
+  "downstream_effects": ["svc_reload_platform_001"],
+  "evidence_quality": "complete",
+  "compromise_clearance": "cleared"
+}

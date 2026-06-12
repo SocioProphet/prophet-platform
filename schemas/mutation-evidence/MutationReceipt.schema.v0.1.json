@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MutationReceipt",
+  "description": "Evidence receipt for a SourceOS mutation event — file write, DB write, config change, or state mutation. Declares write budget, actor chain, and policy decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "mutation_id", "occurred_at", "actor_chain", "object_class", "operation", "policy_ref", "resource_cost", "evidence_quality"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "mutation_id": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "actor_chain": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "object_class": {
+      "type": "string",
+      "enum": ["file", "database_record", "config_entry", "memory_region", "network_state", "service_state", "unknown"]
+    },
+    "path_class": { "type": "string" },
+    "operation": {
+      "type": "string",
+      "enum": ["create", "update", "delete", "truncate", "rename", "chmod", "chown"]
+    },
+    "policy_ref": { "type": "string", "minLength": 1 },
+    "policy_decision": { "type": "string", "enum": ["allowed", "denied", "allowed_with_audit", "escalated"] },
+    "resource_cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes_written"],
+      "properties": {
+        "bytes_written": { "type": "integer", "minimum": 0 },
+        "write_budget_used_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "causal_parents": { "type": "array", "items": { "type": "string" } },
+    "downstream_effects": { "type": "array", "items": { "type": "string" } },
+    "evidence_quality": { "type": "string", "enum": ["complete", "partial", "degraded_sensor", "opaque_symbolication", "redacted", "insufficient_for_clearance"] },
+    "compromise_clearance": { "type": "string", "enum": ["cleared", "not_cleared", "blind_sensor", "insufficient"] }
+  },
+  "if": {
+    "properties": { "compromise_clearance": { "const": "cleared" } }
+  },
+  "then": {
+    "properties": {
+      "evidence_quality": { "not": { "enum": ["degraded_sensor", "insufficient_for_clearance"] } }
+    }
+  }
+}
