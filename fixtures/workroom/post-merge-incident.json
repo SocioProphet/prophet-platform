@@ -1,0 +1,124 @@
+{
+  "divergence_event": {
+    "schema_version": "0.1",
+    "event_id": "bde_post_merge_db_001",
+    "detected_at": "2026-06-11T16:00:00Z",
+    "component": "search-service",
+    "divergence_kind": "error_rate",
+    "severity": "incident",
+    "observation_window": {
+      "start": "2026-06-11T15:50:00Z",
+      "end": "2026-06-11T16:00:00Z"
+    },
+    "expected_ref": "policy://search/error-rate-slo-v1",
+    "observed_summary": "Search service error rate spiked to 18% (SLO: <1%) within 10 minutes of deploying commit 7f3a9b2. Root cause: missing DB index on new query path.",
+    "evidence_packet_ref": "ep_post_merge_001",
+    "tags": ["search", "post-merge", "slo", "db-performance"]
+  },
+  "evidence_packet": {
+    "schema_version": "0.1",
+    "packet_id": "ep_post_merge_001",
+    "created_at": "2026-06-11T16:05:00Z",
+    "investigation_id": "inv_post_merge_db_001",
+    "completeness": "complete",
+    "evidence_records": [
+      {
+        "record_id": "er_metric_001",
+        "kind": "metric_snapshot",
+        "source_ref": "metrics://search-service/error_rate/2026-06-11T16:00:00Z",
+        "collected_at": "2026-06-11T16:00:00Z",
+        "summary": "error_rate=0.18 at T+10min post-deploy."
+      },
+      {
+        "record_id": "er_trace_001",
+        "kind": "trace_span",
+        "source_ref": "trace://search-service/query-path/span-abc001",
+        "collected_at": "2026-06-11T16:01:00Z",
+        "summary": "Query to new search_index_v2 table took >5000ms (full table scan, missing index)."
+      },
+      {
+        "record_id": "er_audit_001",
+        "kind": "audit_event",
+        "source_ref": "audit://deploy-log/7f3a9b2",
+        "collected_at": "2026-06-11T16:02:00Z",
+        "summary": "Deploy of commit 7f3a9b2 completed at 15:50:00Z. Migration applied but index creation deferred."
+      }
+    ]
+  },
+  "rca_claim": {
+    "schema_version": "0.1",
+    "claim_id": "rca_post_merge_001",
+    "investigation_id": "inv_post_merge_db_001",
+    "asserted_at": "2026-06-11T16:15:00Z",
+    "asserted_by": "agent_devsecops_001",
+    "claim_text": "Deploy of commit 7f3a9b2 introduced a new query path against search_index_v2 without a covering index, causing full table scans and breaching the error rate SLO.",
+    "claim_status": "confirmed_causal_claim",
+    "is_causal": true,
+    "evidence_refs": ["er_metric_001", "er_trace_001", "er_audit_001"],
+    "confidence": "high"
+  },
+  "investigation_run_receipt": {
+    "schema_version": "0.1",
+    "run_id": "run_post_merge_db_001",
+    "investigation_id": "inv_post_merge_db_001",
+    "started_at": "2026-06-11T16:05:00Z",
+    "completed_at": "2026-06-11T16:20:00Z",
+    "outcome": "confirmed_rca",
+    "evidence_packet_ref": "ep_post_merge_001",
+    "claims_count": 1,
+    "actor_id": "agent_devsecops_001",
+    "remediation_plan_ref": "plan_post_merge_db_001"
+  },
+  "remediation_plan": {
+    "schema_version": "0.1",
+    "plan_id": "plan_post_merge_db_001",
+    "investigation_id": "inv_post_merge_db_001",
+    "created_at": "2026-06-11T16:20:00Z",
+    "created_by": "agent_devsecops_001",
+    "steps": [
+      {
+        "step_id": "step_add_index",
+        "description": "Add covering index on search_index_v2(query_hash, created_at) via migration.",
+        "risk_level": "medium",
+        "status": "pending"
+      },
+      {
+        "step_id": "step_rollback",
+        "description": "If index creation exceeds 30 min SLA, roll back deploy of 7f3a9b2.",
+        "risk_level": "high",
+        "action_grant_ref": "ag_rollback_search_001",
+        "status": "pending"
+      }
+    ],
+    "regression_fixture_ref": "rf_post_merge_db_001"
+  },
+  "action_grant": {
+    "schema_version": "0.1",
+    "grant_id": "ag_rollback_search_001",
+    "issued_at": "2026-06-11T16:22:00Z",
+    "issued_by": "oncall_lead_001",
+    "actor_id": "agent_devsecops_001",
+    "action_scope": "rollback search-service to commit prior to 7f3a9b2",
+    "risk_level": "high",
+    "valid_until": "2026-06-11T18:00:00Z",
+    "rationale": "SLO breach at 18% error rate; rollback authorized if index creation does not complete within 30 min.",
+    "plan_ref": "plan_post_merge_db_001"
+  },
+  "regression_fixture": {
+    "schema_version": "0.1",
+    "fixture_id": "rf_post_merge_db_001",
+    "investigation_id": "inv_post_merge_db_001",
+    "created_at": "2026-06-11T16:25:00Z",
+    "fixture_kind": "post_merge_incident",
+    "conditions": {
+      "deploy_commit": "7f3a9b2",
+      "table": "search_index_v2",
+      "missing_index": "query_hash+created_at",
+      "query_volume_qps": 850
+    },
+    "expected_outcome": "error_rate < 0.01 (SLO)",
+    "actual_outcome_at_incident": "error_rate = 0.18 at T+10min",
+    "divergence_event_ref": "bde_post_merge_db_001",
+    "tags": ["search", "db-performance", "post-merge", "regression"]
+  }
+}

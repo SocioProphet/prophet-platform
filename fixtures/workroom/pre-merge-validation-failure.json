@@ -1,0 +1,69 @@
+{
+  "divergence_event": {
+    "schema_version": "0.1",
+    "event_id": "bde_pre_merge_auth_001",
+    "detected_at": "2026-06-11T14:00:00Z",
+    "component": "auth-service",
+    "divergence_kind": "policy_violation",
+    "severity": "incident",
+    "observation_window": {
+      "start": "2026-06-11T13:55:00Z",
+      "end": "2026-06-11T14:00:00Z"
+    },
+    "expected_ref": "policy://auth/token-expiry-v1",
+    "observed_summary": "Token expiry policy gate bypassed by new middleware injected in PR #412. Unauthenticated requests returned 200.",
+    "evidence_packet_ref": "ep_pre_merge_001",
+    "tags": ["auth", "pre-merge", "policy-regression"]
+  },
+  "evidence_packet": {
+    "schema_version": "0.1",
+    "packet_id": "ep_pre_merge_001",
+    "created_at": "2026-06-11T14:01:00Z",
+    "investigation_id": "inv_pre_merge_auth_001",
+    "completeness": "complete",
+    "evidence_records": [
+      {
+        "record_id": "er_ci_log_001",
+        "kind": "log_excerpt",
+        "source_ref": "ci://build-20260611/auth-service/test-output",
+        "collected_at": "2026-06-11T14:00:30Z",
+        "summary": "CI test log showing unauthenticated request returning HTTP 200 after middleware injection."
+      },
+      {
+        "record_id": "er_policy_decision_001",
+        "kind": "policy_decision",
+        "source_ref": "policy://auth/token-expiry-v1",
+        "collected_at": "2026-06-11T14:00:45Z",
+        "summary": "Policy decision showing expected DENY was not evaluated."
+      }
+    ]
+  },
+  "rca_claim": {
+    "schema_version": "0.1",
+    "claim_id": "rca_pre_merge_001",
+    "investigation_id": "inv_pre_merge_auth_001",
+    "asserted_at": "2026-06-11T14:05:00Z",
+    "asserted_by": "agent_devsecops_001",
+    "claim_text": "The new Express middleware in PR #412 short-circuits the auth gate before the token-expiry policy is evaluated.",
+    "claim_status": "supported_causal_claim",
+    "is_causal": true,
+    "evidence_refs": ["er_ci_log_001", "er_policy_decision_001"],
+    "confidence": "high"
+  },
+  "regression_fixture": {
+    "schema_version": "0.1",
+    "fixture_id": "rf_pre_merge_auth_001",
+    "investigation_id": "inv_pre_merge_auth_001",
+    "created_at": "2026-06-11T14:10:00Z",
+    "fixture_kind": "pre_merge_failure",
+    "conditions": {
+      "pr": "SocioProphet/auth-service#412",
+      "middleware_version": "express-auth-bypass@0.0.1",
+      "policy_ref": "policy://auth/token-expiry-v1"
+    },
+    "expected_outcome": "Unauthenticated request returns HTTP 401",
+    "actual_outcome_at_incident": "Unauthenticated request returns HTTP 200",
+    "divergence_event_ref": "bde_pre_merge_auth_001",
+    "tags": ["auth", "pre-merge", "regression"]
+  }
+}

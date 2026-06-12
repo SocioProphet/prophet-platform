@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegressionFixture",
+  "description": "A reproducible test fixture capturing the conditions of a past incident for regression prevention.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_id", "investigation_id", "created_at", "fixture_kind", "conditions", "expected_outcome"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "fixture_id": { "type": "string", "minLength": 1 },
+    "investigation_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "fixture_kind": {
+      "type": "string",
+      "enum": ["pre_merge_failure", "post_merge_incident", "policy_regression", "performance_degradation", "security_violation"]
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": true,
+      "minProperties": 1
+    },
+    "expected_outcome": { "type": "string", "minLength": 1 },
+    "actual_outcome_at_incident": { "type": "string" },
+    "divergence_event_ref": { "type": "string" },
+    "replay_hash": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}

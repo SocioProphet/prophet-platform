@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvidencePacket",
+  "description": "A typed collection of evidence records supporting an investigation or RCA claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "packet_id", "created_at", "investigation_id", "evidence_records"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "packet_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "investigation_id": { "type": "string", "minLength": 1 },
+    "evidence_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_id", "kind", "source_ref", "collected_at"],
+        "properties": {
+          "record_id": { "type": "string", "minLength": 1 },
+          "kind": {
+            "type": "string",
+            "enum": ["log_excerpt", "metric_snapshot", "trace_span", "policy_decision", "agent_receipt", "audit_event", "replay_hash", "external_ref"]
+          },
+          "source_ref": { "type": "string", "minLength": 1 },
+          "collected_at": { "type": "string", "format": "date-time" },
+          "summary": { "type": "string" },
+          "integrity_hash": { "type": "string" }
+        }
+      }
+    },
+    "completeness": { "type": "string", "enum": ["complete", "partial", "degraded", "insufficient"] },
+    "rca_claim_refs": { "type": "array", "items": { "type": "string" } }
+  }
+}
