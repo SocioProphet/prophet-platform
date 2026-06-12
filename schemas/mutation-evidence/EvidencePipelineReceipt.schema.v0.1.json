@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvidencePipelineReceipt",
+  "description": "Receipt tracking the evidence pipeline run — collection, routing, and delivery of mutation and execution receipts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pipeline_receipt_id", "run_id", "started_at", "completed_at", "receipts_collected", "routing_policy_ref", "evidence_budget"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "pipeline_receipt_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "receipts_collected": { "type": "integer", "minimum": 0 },
+    "routing_policy_ref": { "type": "string", "minLength": 1 },
+    "evidence_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log_budget_bytes", "sync_budget_bytes", "temp_artifact_budget_bytes"],
+      "properties": {
+        "log_budget_bytes": { "type": "integer", "minimum": 0 },
+        "sync_budget_bytes": { "type": "integer", "minimum": 0 },
+        "temp_artifact_budget_bytes": { "type": "integer", "minimum": 0 },
+        "budget_exhausted": { "type": "boolean" }
+      }
+    },
+    "opaque_artifacts": { "type": "integer", "minimum": 0 },
+    "policy_rejections": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "pipeline_receipt_id": "epr_run_20260611_001",
+  "run_id": "pipeline_run_20260611_001",
+  "started_at": "2026-06-11T10:00:00Z",
+  "completed_at": "2026-06-11T10:05:00Z",
+  "receipts_collected": 42,
+  "routing_policy_ref": "policy://evidence-pipeline/routing-v1",
+  "evidence_budget": {
+    "log_budget_bytes": 10485760,
+    "sync_budget_bytes": 1048576,
+    "temp_artifact_budget_bytes": 5242880,
+    "budget_exhausted": false
+  },
+  "opaque_artifacts": 0,
+  "policy_rejections": 1
+}

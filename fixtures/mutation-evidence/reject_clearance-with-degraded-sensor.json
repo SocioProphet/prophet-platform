@@ -1,0 +1,15 @@
+{
+  "_reject_reason": "compromise_clearance=cleared but evidence_quality=degraded_sensor — validator must reject",
+  "schema_version": "0.1",
+  "receipt_id": "mr_reject_clearance_001",
+  "mutation_id": "mut_reject_001",
+  "occurred_at": "2026-06-11T11:00:00Z",
+  "actor_chain": ["agent_bad_001"],
+  "object_class": "file",
+  "operation": "delete",
+  "policy_ref": "policy://platform/file-delete-v1",
+  "policy_decision": "allowed",
+  "resource_cost": { "bytes_written": 0 },
+  "evidence_quality": "degraded_sensor",
+  "compromise_clearance": "cleared"
+}
