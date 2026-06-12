@@ -1,0 +1,80 @@
+{
+  "schema_version": "0.1",
+  "kind": "PlatformServiceManifest",
+  "service_id": "svc.substrate.source-control",
+  "display_name": "Gitea Sovereign — Source Control Substrate",
+  "description": "Local-only, auditable, non-cloud source control substrate. Provides org and node Gitea deployment topology, SP gateway delegation, policy-gated access, and evidence-backed receipt export.",
+  "scaffold_baseline": {
+    "repo": "SocioProphet/gitea-sovereign",
+    "commit": "5d85ab6a24502f60f15ef829235b6288a289d47e",
+    "pr": "SocioProphet/gitea-sovereign#1",
+    "status": "PR-A scaffold — non-mutating, does not imply deployment readiness"
+  },
+  "runtime_posture": "local_only",
+  "deployment_topology": {
+    "org_gitea": {
+      "description": "Organisation-level Gitea instance; authoritative for shared repos and policy mirrors.",
+      "binding": "org.substrate.source-control.org-gitea"
+    },
+    "node_gitea": {
+      "description": "Per-node Gitea instance for offline-capable local development.",
+      "binding": "org.substrate.source-control.node-gitea"
+    },
+    "sp_gateway": {
+      "description": "SocioProphet gateway proxy providing authenticated, policy-gated access to both org and node instances.",
+      "binding": "org.substrate.sp-gateway"
+    }
+  },
+  "policy_dependencies": [
+    "policy://source-control/access-grant-v0.1",
+    "policy://source-control/pr-review-gate-v0.1"
+  ],
+  "grant_dependencies": [
+    "grant://source-control/org-push-v0.1",
+    "grant://source-control/node-sync-v0.1"
+  ],
+  "ledger_dependencies": [
+    "ledger://source-control/event-log-v0.1"
+  ],
+  "evidence_receipts": [
+    "receipt://source-control/commit-receipt-v0.1",
+    "receipt://source-control/pr-merge-receipt-v0.1",
+    "receipt://source-control/audit-export-receipt-v0.1"
+  ],
+  "pr_a_status": {
+    "is_pr_a": true,
+    "note": "PR-A (non-mutating scaffold) merged at scaffold_baseline. Does NOT imply deployment readiness. Runtime prerequisites below must be satisfied before transitioning to deployed state.",
+    "deployment_ready": false
+  },
+  "runtime_prerequisites": [
+    {
+      "id": "prereq_gateway",
+      "description": "SP gateway must be deployed and health-checked before source-control traffic is routed.",
+      "status": "pending"
+    },
+    {
+      "id": "prereq_direct_bypass_controls",
+      "description": "Direct-bypass controls must be policy-gated; no unauthenticated direct access to org or node Gitea.",
+      "status": "pending"
+    },
+    {
+      "id": "prereq_key_rotation",
+      "description": "SSH and API key rotation procedure must be documented and tested.",
+      "status": "pending"
+    },
+    {
+      "id": "prereq_audit_verification",
+      "description": "Audit log integrity verification must pass for at least one complete event window.",
+      "status": "pending"
+    },
+    {
+      "id": "prereq_receipt_export",
+      "description": "Receipt export pipeline must be live and producing validated receipts consumable by Prophet Platform evidence console.",
+      "status": "pending"
+    }
+  ],
+  "authority_boundary": {
+    "owner": "prophet-platform",
+    "note": "prophet-platform owns runtime deployment and API contract. gitea-sovereign owns the L0 source-control substrate package and local scaffold."
+  }
+}
