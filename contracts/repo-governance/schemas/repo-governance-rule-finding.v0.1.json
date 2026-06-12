@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12",
+  "$id": "https://schemas.socioprophet.io/prophet-platform/repo-governance/rule-finding.v0.1.json",
+  "title": "RepoGovernanceRuleFinding",
+  "description": "Named rule evaluation result for repo governance. Records rule ID/version, antecedents, consequents, blockers, and evaluation disposition. Findings are NOT policy decisions and do NOT authorize action — they produce policy-decision requests.",
+  "type": "object",
+  "required": [
+    "kind",
+    "finding_id",
+    "rule_id",
+    "rule_version",
+    "antecedents",
+    "consequents",
+    "finding_disposition",
+    "policy_decision_required",
+    "observation_refs",
+    "rdf_graph_ref",
+    "evaluated_at",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "const": "RepoGovernanceRuleFinding" },
+    "finding_id": { "type": "string", "minLength": 1 },
+    "rule_id": { "type": "string", "minLength": 1 },
+    "rule_version": { "type": "string", "minLength": 1 },
+    "antecedents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["observation_ref", "satisfied"],
+        "additionalProperties": false,
+        "properties": {
+          "observation_ref": { "type": "string", "minLength": 1 },
+          "satisfied": { "type": "boolean" }
+        }
+      },
+      "minItems": 1,
+      "description": "Observation refs that form the rule's antecedent conditions."
+    },
+    "consequents": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "What follows if the rule fires: bounded action classes or policy request types."
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Conditions that block this finding from producing an action candidate."
+    },
+    "finding_disposition": {
+      "type": "string",
+      "enum": ["fired", "not_fired", "blocked", "inconclusive", "skipped_bootstrap_fallback"]
+    },
+    "policy_decision_required": {
+      "type": "boolean",
+      "description": "If true, a policy-decision request must be approved before any action candidate is emitted."
+    },
+    "policy_decision_request_ref": {
+      "type": "string",
+      "description": "Ref to the emitted policy-decision request artifact."
+    },
+    "action_candidate_ref": {
+      "type": "string",
+      "description": "Only present if policy approval has been received. Never populated before approval."
+    },
+    "observation_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "rdf_graph_ref": { "type": "string", "minLength": 1, "description": "RDF named graph the rule was evaluated over." },
+    "evaluated_at": { "type": "string", "format": "date-time" },
+    "replay_instructions": {
+      "type": "string",
+      "description": "Instructions for deterministically replaying this rule evaluation."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    }
+  },
+  "if": {
+    "properties": { "policy_decision_required": { "const": true } },
+    "required": ["policy_decision_required"]
+  },
+  "then": {
+    "properties": {
+      "action_candidate_ref": {
+        "description": "action_candidate_ref must not be present if policy approval has not been granted"
+      }
+    }
+  }
+}
