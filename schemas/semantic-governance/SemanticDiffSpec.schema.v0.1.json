@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/semantic-governance/SemanticDiffSpec.schema.v0.1.json",
+  "title": "SemanticDiffSpec",
+  "description": "Specification for semantic_diff(asset_id, t1, t2): captures what changed in edge/profile/policy/quality dimensions between two activation envelopes.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "diff_id",
+    "asset_id",
+    "from_envelope_id",
+    "to_envelope_id",
+    "from_observed_at",
+    "to_observed_at",
+    "diff_dimensions",
+    "computed_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1" },
+    "diff_id": { "type": "string", "minLength": 1 },
+    "asset_id": { "type": "string", "minLength": 1 },
+    "from_envelope_id": { "type": "string", "minLength": 1 },
+    "to_envelope_id": { "type": "string", "minLength": 1 },
+    "from_observed_at": { "type": "string", "format": "date-time" },
+    "to_observed_at": { "type": "string", "format": "date-time" },
+    "diff_dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "edge_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EdgeChange" }
+        },
+        "profile_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProfileChange" }
+        },
+        "policy_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/PolicyChange" }
+        },
+        "quality_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/QualityChange" }
+        }
+      }
+    },
+    "computed_at": { "type": "string", "format": "date-time" },
+    "computed_by": { "type": "string" }
+  },
+  "$defs": {
+    "EdgeChange": {
+      "type": "object",
+      "required": ["change_type", "edge_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "change_type": { "type": "string", "enum": ["added", "removed", "modified"] },
+        "edge_kind": { "type": "string" },
+        "from_target": { "type": "string" },
+        "to_target": { "type": "string" }
+      }
+    },
+    "ProfileChange": {
+      "type": "object",
+      "required": ["change_type", "profile_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "change_type": { "type": "string", "enum": ["added", "removed", "modified"] },
+        "profile_ref": { "type": "string" },
+        "from_value": {},
+        "to_value": {}
+      }
+    },
+    "PolicyChange": {
+      "type": "object",
+      "required": ["change_type", "policy_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "change_type": { "type": "string", "enum": ["added", "removed", "modified"] },
+        "policy_ref": { "type": "string" },
+        "from_outcome": { "type": "string" },
+        "to_outcome": { "type": "string" }
+      }
+    },
+    "QualityChange": {
+      "type": "object",
+      "required": ["change_type", "evidence_ref_id"],
+      "additionalProperties": false,
+      "properties": {
+        "change_type": { "type": "string", "enum": ["added", "removed", "modified"] },
+        "evidence_ref_id": { "type": "string" },
+        "from_quality": { "type": "string" },
+        "to_quality": { "type": "string" }
+      }
+    }
+  }
+}

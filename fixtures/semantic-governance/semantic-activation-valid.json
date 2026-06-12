@@ -1,0 +1,46 @@
+{
+  "schema_version": "0.1",
+  "envelope_id": "sae_prophet_platform_mutation_receipt_schema_001",
+  "asset_id": "asset://prophet-platform/schemas/mutation-evidence/MutationReceipt.schema.v0.1.json",
+  "asset_kind": "schema",
+  "namespace": "prophet-platform.schemas.mutation-evidence",
+  "owner_repo": "SocioProphet/prophet-platform",
+  "release_state": "active",
+  "observed_at": "2026-06-11T12:00:00Z",
+  "ingestion_run_id": "ingestion_run_20260611_001",
+  "provenance_hash": "sha256:a3f1e2b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2",
+  "term_assignment_refs": [
+    {
+      "term_id": "term://ontogenesis/mutation-receipt",
+      "term_label": "MutationReceipt",
+      "assignment_status": "confirmed",
+      "ontogenesis_ref": "ont://ontogenesis/v0.1/mutation-receipt"
+    },
+    {
+      "term_id": "term://ontogenesis/evidence-accountability",
+      "term_label": "EvidenceAccountability",
+      "assignment_status": "confirmed"
+    }
+  ],
+  "technical_profile_refs": [
+    "profile://prophet-platform/mutation-evidence/v0.1"
+  ],
+  "policy_refs": [
+    "policy://platform/schema-activation-v1",
+    "policy://platform/mutation-evidence-clearance-v1"
+  ],
+  "evidence_refs": [
+    {
+      "ref_id": "ev://ci/validate-mutation-evidence/run_20260611_001",
+      "ref_type": "ci_gate",
+      "evidence_quality": "complete",
+      "source_system": "prophet-platform/ci"
+    },
+    {
+      "ref_id": "ev://ontogenesis/shape-check/mutation-receipt-v0.1",
+      "ref_type": "ontogenesis_shape_check",
+      "evidence_quality": "complete",
+      "source_system": "ontogenesis"
+    }
+  ]
+}
