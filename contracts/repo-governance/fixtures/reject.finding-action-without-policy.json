@@ -1,0 +1,22 @@
+{
+  "_reject_reason": "policy_decision_required=true but action_candidate_ref is present before policy approval — policy gate violation",
+  "kind": "RepoGovernanceRuleFinding",
+  "finding_id": "repo-gov-finding:reject:premature-action-candidate",
+  "rule_id": "rule.branch-protection-required",
+  "rule_version": "0.1",
+  "antecedents": [
+    {
+      "observation_ref": "repo-gov-obs:reject:premature",
+      "satisfied": true
+    }
+  ],
+  "consequents": ["emit_policy_decision_request"],
+  "finding_disposition": "fired",
+  "policy_decision_required": true,
+  "action_candidate_ref": "action-candidate://reject/premature-without-policy",
+  "observation_refs": ["repo-gov-obs:reject:premature"],
+  "rdf_graph_ref": "rdf-graph://reject",
+  "evaluated_at": "2024-01-15T10:00:00Z",
+  "replay_instructions": "placeholder",
+  "non_claims": ["placeholder"]
+}

@@ -1,0 +1,28 @@
+{
+  "kind": "RepoGovernanceObservation",
+  "observation_id": "repo-gov-obs:sociosphere:manifest-v1:branch-protection:main",
+  "repo_ref": "github:SocioProphet/sociosphere",
+  "source_path": ".sociosphere/governance-manifest.v1.json",
+  "blob_sha": "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "parser_version": "prophet-platform.repo-governance-parser.v0.1",
+  "extraction_method": "deterministic_parse",
+  "source_span": {
+    "start_line": 12,
+    "end_line": 15
+  },
+  "observed_subject": "github:SocioProphet/sociosphere/branches/main",
+  "observed_predicate": "hasBranchProtection",
+  "observed_value": {
+    "required_reviews": 1,
+    "dismiss_stale_reviews": true,
+    "require_signed_commits": false
+  },
+  "confidence": 1.0,
+  "observed_at": "2024-01-15T10:00:00Z",
+  "valid_until": "2024-01-16T10:00:00Z",
+  "rdf_named_graph_ref": "rdf-graph://prophet-platform/repo-governance/sociosphere-manifest-v1",
+  "non_claims": [
+    "This observation does not assert that branch protection is correctly enforced at runtime.",
+    "This observation is not a policy decision and does not authorize any action."
+  ]
+}

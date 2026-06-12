@@ -1,0 +1,19 @@
+{
+  "kind": "RepoGovernanceLedgerRecord",
+  "ledger_record_id": "repo-gov-ledger:finding-accepted:branch-protection-001",
+  "event_type": "finding_accepted",
+  "source_digest": "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "observation_digest": "sha256:b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+  "rule_version": "0.1",
+  "policy_version": "policy-fabric.v0.2",
+  "runtime_decision": "accepted",
+  "finding_ref": "repo-gov-finding:rule-branch-protection-required:sociosphere:main:001",
+  "policy_decision_ref": "policy-fabric://decision/pd-branch-protection-sociosphere-main-001",
+  "replay_instructions": "Replay from source sha256:a1b2... → parse with repo-governance-parser.v0.1 → lift to RDF graph → evaluate rule.branch-protection-required@0.1 → submit policy decision request → record accepted finding.",
+  "non_claims": [
+    "This ledger record does not assert that the finding is correct at the time of replay.",
+    "This ledger record does not authorize any action beyond what was explicitly approved by policy-fabric.",
+    "No live mutation has occurred as a result of this finding."
+  ],
+  "issued_at": "2024-01-15T10:02:00Z"
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12",
+  "$id": "https://schemas.socioprophet.io/prophet-platform/repo-governance/observation.v0.1.json",
+  "title": "RepoGovernanceObservation",
+  "description": "Typed observation packet for repo-governance state. Records a single observed fact about a repo artifact — source path, blob SHA, extraction method, subject/predicate/value, confidence, and temporal validity. Not a policy decision. Not an action authorization.",
+  "type": "object",
+  "required": [
+    "kind",
+    "observation_id",
+    "repo_ref",
+    "source_path",
+    "blob_sha",
+    "parser_version",
+    "extraction_method",
+    "observed_subject",
+    "observed_predicate",
+    "observed_value",
+    "confidence",
+    "observed_at",
+    "valid_until",
+    "non_claims"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "const": "RepoGovernanceObservation" },
+    "observation_id": { "type": "string", "minLength": 1 },
+    "repo_ref": { "type": "string", "minLength": 1, "description": "Repository URI (e.g. github:SocioProphet/sociosphere)." },
+    "source_path": { "type": "string", "minLength": 1, "description": "File path within the repository." },
+    "blob_sha": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$|^[a-f0-9]{40}$", "description": "SHA256 or SHA1 digest of the observed blob." },
+    "parser_version": { "type": "string", "minLength": 1 },
+    "extraction_method": {
+      "type": "string",
+      "enum": [
+        "deterministic_parse",
+        "rdf_lift",
+        "regex_fallback",
+        "model_assisted",
+        "human_review"
+      ]
+    },
+    "source_span": {
+      "type": "object",
+      "description": "Optional location within the source file.",
+      "required": ["start_line"],
+      "additionalProperties": false,
+      "properties": {
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "column_start": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "observed_subject": { "type": "string", "minLength": 1, "description": "Subject of the observed triple (URI or local identifier)." },
+    "observed_predicate": { "type": "string", "minLength": 1, "description": "Predicate of the observed triple." },
+    "observed_value": { "description": "Value of the observed triple (string, number, or object)." },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Extraction confidence [0, 1]. 1.0 for deterministic parse."
+    },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "valid_until": { "type": "string", "format": "date-time", "description": "Temporal validity bound for this observation." },
+    "rdf_named_graph_ref": { "type": "string", "description": "Ref to the RDF named graph this observation was lifted into." },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Explicit non-claims scoping what this observation does not assert."
+    }
+  }
+}

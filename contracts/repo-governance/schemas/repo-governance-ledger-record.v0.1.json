@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12",
+  "$id": "https://schemas.socioprophet.io/prophet-platform/repo-governance/ledger-record.v0.1.json",
+  "title": "RepoGovernanceLedgerRecord",
+  "description": "Ledger-ready governance audit record for a repo-governance lifecycle event. Records accepted/denied findings, policy decisions, action executions, and replay instructions with full provenance chain.",
+  "type": "object",
+  "required": [
+    "kind",
+    "ledger_record_id",
+    "event_type",
+    "source_digest",
+    "observation_digest",
+    "rule_version",
+    "policy_version",
+    "runtime_decision",
+    "finding_ref",
+    "replay_instructions",
+    "non_claims",
+    "issued_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "const": "RepoGovernanceLedgerRecord" },
+    "ledger_record_id": { "type": "string", "minLength": 1 },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "finding_accepted",
+        "finding_denied",
+        "policy_decision_issued",
+        "action_executed",
+        "action_denied",
+        "action_rolled_back"
+      ]
+    },
+    "source_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of the source file(s) that produced the observation."
+    },
+    "observation_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "SHA256 digest of the observation packet(s) used in rule evaluation."
+    },
+    "rule_version": { "type": "string", "minLength": 1 },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "runtime_decision": {
+      "type": "string",
+      "enum": ["accepted", "denied", "pending", "rolled_back"]
+    },
+    "finding_ref": { "type": "string", "minLength": 1 },
+    "policy_decision_ref": { "type": "string", "description": "Ref to the policy-fabric decision artifact." },
+    "action_candidate_ref": { "type": "string", "description": "Ref to the bounded action candidate (only after policy approval)." },
+    "action_scope": {
+      "type": "object",
+      "description": "Scope of the action (only present for action_executed events).",
+      "additionalProperties": false,
+      "properties": {
+        "target_repo": { "type": "string", "minLength": 1 },
+        "allowed_mutation_class": {
+          "type": "string",
+          "enum": ["label_add", "label_remove", "branch_protection_update", "pr_comment", "issue_close", "workflow_trigger", "none"]
+        },
+        "rollback_expectation": {
+          "type": "string",
+          "enum": ["rollback_available", "rollback_not_applicable", "rollback_required"]
+        },
+        "operator_boundary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "replay_instructions": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Deterministic instructions for replaying this governance decision from source."
+    },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "issued_at": { "type": "string", "format": "date-time" }
+  },
+  "if": {
+    "properties": { "event_type": { "const": "action_executed" } },
+    "required": ["event_type"]
+  },
+  "then": {
+    "required": ["action_candidate_ref", "policy_decision_ref", "action_scope"]
+  }
+}

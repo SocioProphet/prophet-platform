@@ -1,0 +1,15 @@
+{
+  "_reject_reason": "event_type=action_executed requires action_candidate_ref, policy_decision_ref, and action_scope (conditional schema)",
+  "kind": "RepoGovernanceLedgerRecord",
+  "ledger_record_id": "repo-gov-ledger:reject:action-missing-fields",
+  "event_type": "action_executed",
+  "source_digest": "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  "observation_digest": "sha256:b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+  "rule_version": "0.1",
+  "policy_version": "policy-fabric.v0.2",
+  "runtime_decision": "accepted",
+  "finding_ref": "repo-gov-finding:reject:action-missing",
+  "replay_instructions": "placeholder",
+  "non_claims": ["placeholder"],
+  "issued_at": "2024-01-15T10:00:00Z"
+}

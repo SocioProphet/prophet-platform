@@ -1,0 +1,31 @@
+{
+  "kind": "RepoGovernanceRuleFinding",
+  "finding_id": "repo-gov-finding:rule-branch-protection-required:sociosphere:main:001",
+  "rule_id": "rule.branch-protection-required",
+  "rule_version": "0.1",
+  "antecedents": [
+    {
+      "observation_ref": "repo-gov-obs:sociosphere:manifest-v1:branch-protection:main",
+      "satisfied": true
+    }
+  ],
+  "consequents": [
+    "emit_policy_decision_request",
+    "pr_comment_if_approved"
+  ],
+  "blockers": [],
+  "finding_disposition": "fired",
+  "policy_decision_required": true,
+  "policy_decision_request_ref": "policy-request://prophet-platform/repo-governance/branch-protection-001",
+  "observation_refs": [
+    "repo-gov-obs:sociosphere:manifest-v1:branch-protection:main"
+  ],
+  "rdf_graph_ref": "rdf-graph://prophet-platform/repo-governance/sociosphere-manifest-v1",
+  "evaluated_at": "2024-01-15T10:01:00Z",
+  "replay_instructions": "Evaluate rule.branch-protection-required@0.1 over rdf-graph://prophet-platform/repo-governance/sociosphere-manifest-v1 using repo-governance-parser.v0.1 against blob sha256:a1b2...",
+  "non_claims": [
+    "This finding is not a policy decision.",
+    "This finding does not authorize any action.",
+    "Policy approval is required before any action candidate is emitted."
+  ]
+}
