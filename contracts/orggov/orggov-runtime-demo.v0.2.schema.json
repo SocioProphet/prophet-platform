@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/orggov/orggov-runtime-demo.v0.2.schema.json",
+  "title": "OrgGov v0.2 Runtime Demo Contract",
+  "description": "Captures the state of an OrgGov v0.2 runtime demo run. Must distinguish fixture evidence from live runtime evidence, declare all required demo stages, cover the full policy-decision state space, and identify remaining proof obligations before buyer-visible demo status.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "recordType",
+    "recordId",
+    "readinessRollupRef",
+    "demoStages",
+    "policyCoverage",
+    "evidenceKinds",
+    "downstreamLanes",
+    "proofObligations",
+    "ownerRepoBindings",
+    "demoStatus"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "orggov.runtime-demo.v0.2" },
+    "recordType": { "type": "string", "const": "OrgGovRuntimeDemoRecord" },
+    "recordId": { "type": "string", "minLength": 1 },
+    "readinessRollupRef": {
+      "type": "string",
+      "description": "Reference to the OrgGov v0 readiness rollup record this demo builds on"
+    },
+    "parentIssueRef": { "type": "string" },
+    "demoStages": {
+      "type": "array",
+      "description": "Must include all 9 required stages in order",
+      "minItems": 9,
+      "items": { "$ref": "#/$defs/DemoStage" }
+    },
+    "policyCoverage": {
+      "type": "object",
+      "description": "Must cover all 6 required policy-decision states",
+      "required": [
+        "allow",
+        "allow_with_constraints",
+        "deny",
+        "escalate",
+        "blocked_expected",
+        "revoke"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "$ref": "#/$defs/PolicyStateEvidence" },
+        "allow_with_constraints": { "$ref": "#/$defs/PolicyStateEvidence" },
+        "deny": { "$ref": "#/$defs/PolicyStateEvidence" },
+        "escalate": { "$ref": "#/$defs/PolicyStateEvidence" },
+        "blocked_expected": { "$ref": "#/$defs/PolicyStateEvidence" },
+        "revoke": { "$ref": "#/$defs/PolicyStateEvidence" }
+      }
+    },
+    "evidenceKinds": {
+      "type": "object",
+      "required": ["fixture_evidence", "runtime_evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "fixture_evidence": {
+          "type": "array",
+          "description": "Evidence sourced from static fixtures, not live system calls",
+          "items": { "$ref": "#/$defs/EvidenceItem" }
+        },
+        "runtime_evidence": {
+          "type": "array",
+          "description": "Evidence sourced from live system calls or runtime state",
+          "items": { "$ref": "#/$defs/EvidenceItem" }
+        }
+      }
+    },
+    "downstreamLanes": {
+      "type": "array",
+      "description": "Coverage across all required downstream subsystems",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/DownstreamLane" }
+    },
+    "proofObligations": {
+      "type": "array",
+      "description": "Outstanding obligations before buyer-visible demo status",
+      "items": { "$ref": "#/$defs/ProofObligation" }
+    },
+    "ownerRepoBindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["repo", "subsystem", "contract_ref"],
+        "additionalProperties": false,
+        "properties": {
+          "repo": { "type": "string", "pattern": "^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$" },
+          "subsystem": { "type": "string" },
+          "contract_ref": { "type": "string" }
+        }
+      }
+    },
+    "demoStatus": {
+      "type": "string",
+      "enum": [
+        "fixture_only",
+        "partial_runtime",
+        "runtime_gated",
+        "buyer_visible"
+      ],
+      "description": "fixture_only = no live system calls; partial_runtime = some stages use live calls; runtime_gated = all stages wired, proof obligations remain; buyer_visible = all proof obligations cleared"
+    }
+  },
+  "$defs": {
+    "DemoStage": {
+      "type": "object",
+      "required": ["stage_id", "stage_name", "status", "evidence_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "stage_id": { "type": "string", "minLength": 1 },
+        "stage_name": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "fixture_only", "partial_runtime", "complete"]
+        },
+        "evidence_kind": {
+          "type": "string",
+          "enum": ["fixture", "runtime", "hybrid", "none"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "gap_notes": { "type": "string" }
+      }
+    },
+    "PolicyStateEvidence": {
+      "type": "object",
+      "required": ["demonstrated_via", "evidence_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "demonstrated_via": { "type": "string", "minLength": 1 },
+        "evidence_kind": {
+          "type": "string",
+          "enum": ["fixture", "runtime", "hybrid"]
+        },
+        "policy_ref": { "type": "string" }
+      }
+    },
+    "EvidenceItem": {
+      "type": "object",
+      "required": ["ref_id", "source_system", "stage_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_id": { "type": "string", "minLength": 1 },
+        "source_system": { "type": "string", "minLength": 1 },
+        "stage_ref": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" }
+      }
+    },
+    "DownstreamLane": {
+      "type": "object",
+      "required": ["subsystem", "owner_repo", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "subsystem": { "type": "string", "minLength": 1 },
+        "owner_repo": { "type": "string", "pattern": "^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$" },
+        "status": {
+          "type": "string",
+          "enum": ["not_started", "fixture_captured", "runtime_wired", "complete"]
+        },
+        "contract_ref": { "type": "string" },
+        "gap_notes": { "type": "string" }
+      }
+    },
+    "ProofObligation": {
+      "type": "object",
+      "required": ["obligation_id", "description", "blocking_status"],
+      "additionalProperties": false,
+      "properties": {
+        "obligation_id": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "blocking_status": {
+          "type": "string",
+          "enum": ["blocking_buyer_visible", "blocking_runtime_gated", "non_blocking"]
+        },
+        "owner_repo": { "type": "string" },
+        "issue_ref": { "type": "string" }
+      }
+    }
+  }
+}
