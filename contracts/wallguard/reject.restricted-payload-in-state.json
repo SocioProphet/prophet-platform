@@ -1,0 +1,51 @@
+{
+  "_reject_reason": "blocked attempt embeds restricted_payload_embedded=true — product state must never embed restricted payload content",
+  "kind": "WallGuardProfessionalWorkroomRuntimeState",
+  "schema_version": "wallguard-professional-workroom-runtime-state.v0.1",
+  "workroom_ref": "workroom://client-a/matter-x",
+  "client_ref": "client://client-a",
+  "matter_ref": "matter://client-a/matter-x",
+  "wall_ref": "wall://client-a/matter-x",
+  "wall_state": "active",
+  "policy_version": "policy-fabric://wallguard.professional-workroom.v0",
+  "participants": [
+    {
+      "subject_ref": "user://operator-alpha",
+      "subject_type": "human",
+      "wall_context_ref": "ack://wall/client-a/matter-x/operator-alpha",
+      "acknowledgment_state": "acknowledged"
+    },
+    {
+      "subject_ref": "agent-registry://agent-alpha",
+      "subject_type": "agent",
+      "wall_context_ref": "agent-wall-context://agent-alpha/client-a/matter-x",
+      "acknowledgment_state": "acknowledged"
+    }
+  ],
+  "blocked_attempts": [
+    {
+      "attempt_type": "cross_wall_retrieval",
+      "subject_ref": "agent-registry://agent-beta",
+      "resource_ref": "resource://client-a/matter-x/doc-001",
+      "reason_summary": "Confidential memo: client-a contract details…",
+      "receipt_ref": "wallguard-receipt://blocked-retrieval-001",
+      "policy_decision_ref": "policy-fabric://decision/deny-001",
+      "restricted_payload_embedded": true
+    }
+  ],
+  "receipt_refs": ["wallguard-receipt://blocked-retrieval-001"],
+  "enforcement_refs": {
+    "agent_context": "SocioProphet/agent-registry#47",
+    "agent_collaboration": "SocioProphet/agentplane#263",
+    "guardrail_binding": "SocioProphet/guardrail-fabric#32",
+    "memory_gate": "SocioProphet/memory-mesh#33",
+    "retrieval_filter": "SocioProphet/sherlock-search#61",
+    "clean_room_synthesis": "SocioProphet/holmes#13"
+  },
+  "runtime_boundary": {
+    "policy_authority": "SocioProphet/policy-fabric",
+    "product_surface_owner": "SocioProphet/prophet-platform",
+    "runtime_enforcement_implemented": false
+  },
+  "non_claims": ["placeholder"]
+}
