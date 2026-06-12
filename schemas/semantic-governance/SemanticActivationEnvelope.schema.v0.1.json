@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.io/schemas/semantic-governance/SemanticActivationEnvelope.schema.v0.1.json",
+  "title": "SemanticActivationEnvelope",
+  "description": "Emitted when a platform asset is registered and activated in the semantic governance control loop. Consumed by HellGraph, Ontogenesis, Policy Fabric, and AgentPlane.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "envelope_id",
+    "asset_id",
+    "asset_kind",
+    "namespace",
+    "owner_repo",
+    "release_state",
+    "observed_at",
+    "ingestion_run_id",
+    "provenance_hash",
+    "policy_refs",
+    "evidence_refs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "0.1" },
+    "envelope_id": { "type": "string", "minLength": 1 },
+    "asset_id": { "type": "string", "minLength": 1 },
+    "asset_kind": {
+      "type": "string",
+      "enum": [
+        "schema",
+        "contract",
+        "fixture",
+        "agent",
+        "tool",
+        "policy",
+        "service_manifest",
+        "evaluation",
+        "knowledge_artifact",
+        "ontology_term"
+      ]
+    },
+    "namespace": { "type": "string", "minLength": 1 },
+    "owner_repo": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+/[A-Za-z0-9._-]+$"
+    },
+    "release_state": {
+      "type": "string",
+      "enum": ["draft", "proposed", "active", "deprecated", "archived"]
+    },
+    "observed_at": { "type": "string", "format": "date-time" },
+    "ingestion_run_id": { "type": "string", "minLength": 1 },
+    "provenance_hash": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$"
+    },
+    "term_assignment_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TermAssignmentRef" },
+      "default": []
+    },
+    "term_proposals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TermProposal" },
+      "default": []
+    },
+    "technical_profile_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EvidenceRef" },
+      "minItems": 1
+    },
+    "semantic_diff_baseline_id": {
+      "type": "string",
+      "description": "envelope_id of the prior activation for semantic_diff(asset_id, t1, t2) queries"
+    },
+    "activation_receipt_ref": {
+      "type": "string",
+      "description": "AgentPlane SemanticActivationReceipt ID once sealed"
+    }
+  },
+  "$defs": {
+    "TermAssignmentRef": {
+      "type": "object",
+      "required": ["term_id", "assignment_status"],
+      "additionalProperties": false,
+      "properties": {
+        "term_id": { "type": "string", "minLength": 1 },
+        "term_label": { "type": "string" },
+        "assignment_status": {
+          "type": "string",
+          "enum": ["confirmed", "proposed", "contested", "retracted"]
+        },
+        "ontogenesis_ref": { "type": "string" }
+      }
+    },
+    "TermProposal": {
+      "type": "object",
+      "required": ["proposed_term", "rationale"],
+      "additionalProperties": false,
+      "properties": {
+        "proposed_term": { "type": "string", "minLength": 1 },
+        "rationale": { "type": "string", "minLength": 1 },
+        "similar_term_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "EvidenceRef": {
+      "type": "object",
+      "required": ["ref_id", "ref_type", "evidence_quality"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_id": { "type": "string", "minLength": 1 },
+        "ref_type": {
+          "type": "string",
+          "enum": [
+            "schema_validation",
+            "ci_gate",
+            "policy_evaluation",
+            "ontogenesis_shape_check",
+            "hellgraph_persistence",
+            "agentplane_seal",
+            "delivery_excellence_metric",
+            "provenance_replay"
+          ]
+        },
+        "evidence_quality": {
+          "type": "string",
+          "enum": ["complete", "partial", "degraded_sensor", "opaque_symbolication", "redacted"]
+        },
+        "source_system": { "type": "string" }
+      }
+    }
+  }
+}

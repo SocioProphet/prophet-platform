@@ -1,0 +1,21 @@
+{
+  "_reject_reason": "provenance_hash does not match sha256:<64-hex> — validator must reject",
+  "schema_version": "0.1",
+  "envelope_id": "sae_reject_002",
+  "asset_id": "asset://prophet-platform/schemas/test/reject2.json",
+  "asset_kind": "schema",
+  "namespace": "prophet-platform.test",
+  "owner_repo": "SocioProphet/prophet-platform",
+  "release_state": "draft",
+  "observed_at": "2026-06-11T00:00:00Z",
+  "ingestion_run_id": "ingestion_run_reject_002",
+  "provenance_hash": "NOT_A_HASH",
+  "policy_refs": ["policy://platform/schema-activation-v1"],
+  "evidence_refs": [
+    {
+      "ref_id": "ev://ci/test/002",
+      "ref_type": "ci_gate",
+      "evidence_quality": "complete"
+    }
+  ]
+}
