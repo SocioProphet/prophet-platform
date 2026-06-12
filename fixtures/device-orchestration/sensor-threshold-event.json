@@ -1,0 +1,33 @@
+{
+  "device_node": {
+    "schema_version": "0.1",
+    "node_id": "node_temp_sensor_001",
+    "device_class": "sensor",
+    "display_name": "Living Room Temperature Sensor",
+    "adapter_id": "adapter_matter_001",
+    "registered_at": "2026-06-11T08:01:00Z",
+    "policy_profile": "device://sensor/local-only-v1",
+    "capability_refs": ["cap://sensor/temperature", "cap://sensor/humidity"],
+    "tags": ["interior", "climate"]
+  },
+  "orchestration_event": {
+    "schema_version": "0.1",
+    "event_id": "evt_temp_threshold_001",
+    "event_type": "sensor_threshold_crossed",
+    "occurred_at": "2026-06-11T15:00:00Z",
+    "source_node_id": "node_temp_sensor_001",
+    "payload": { "metric": "temperature_celsius", "value": 26.5, "threshold": 25.0, "direction": "above" },
+    "policy_decision_ref": "pd_temp_threshold_allowed_001",
+    "routine_ref": "routine_climate_control_001",
+    "receipt_ref": "rcpt_temp_threshold_001"
+  },
+  "evidence_receipt": {
+    "schema_version": "0.1",
+    "receipt_id": "rcpt_temp_threshold_001",
+    "event_ref": "evt_temp_threshold_001",
+    "issued_at": "2026-06-11T15:00:01Z",
+    "policy_decision_ref": "pd_temp_threshold_allowed_001",
+    "actor_id": "orchestration_substrate_001",
+    "outcome": "executed"
+  }
+}

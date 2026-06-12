@@ -1,0 +1,37 @@
+{
+  "device_node": {
+    "schema_version": "0.1",
+    "node_id": "node_local_assistant_001",
+    "device_class": "assistant_device",
+    "display_name": "Local Voice Assistant",
+    "adapter_id": "adapter_local_assistant_001",
+    "registered_at": "2026-06-11T08:05:00Z",
+    "policy_profile": "device://assistant/local-only-no-cloud-v1",
+    "capability_refs": ["cap://assistant/voice-command", "cap://assistant/routine-trigger"],
+    "tags": ["voice", "local-only"]
+  },
+  "orchestration_event": {
+    "schema_version": "0.1",
+    "event_id": "evt_assistant_interp_001",
+    "event_type": "assistant_interpretation",
+    "occurred_at": "2026-06-11T16:00:00Z",
+    "source_node_id": "node_local_assistant_001",
+    "payload": {
+      "utterance_hash": "sha256:aaaa2222bbbb3333cccc4444dddd5555eeee6666ffff7777aaaa8888bbbb9999",
+      "intent": "turn_off_lights",
+      "target_zone": "living_room",
+      "confidence": 0.97
+    },
+    "policy_decision_ref": "pd_assistant_interp_allowed_001",
+    "receipt_ref": "rcpt_assistant_interp_001"
+  },
+  "evidence_receipt": {
+    "schema_version": "0.1",
+    "receipt_id": "rcpt_assistant_interp_001",
+    "event_ref": "evt_assistant_interp_001",
+    "issued_at": "2026-06-11T16:00:01Z",
+    "policy_decision_ref": "pd_assistant_interp_allowed_001",
+    "actor_id": "orchestration_substrate_001",
+    "outcome": "executed"
+  }
+}

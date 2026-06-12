@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OrchestrationEvent",
+  "description": "A typed event in the sovereign device orchestration substrate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "event_type", "occurred_at", "source_node_id", "policy_decision_ref"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "camera_motion_detected",
+        "sensor_threshold_crossed",
+        "routine_fired",
+        "assistant_interpretation",
+        "policy_denial",
+        "adapter_health_change",
+        "device_registered",
+        "device_removed",
+        "routine_updated"
+      ]
+    },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "source_node_id": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object", "additionalProperties": true },
+    "policy_decision_ref": { "type": "string", "minLength": 1 },
+    "routine_ref": { "type": "string" },
+    "receipt_ref": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}

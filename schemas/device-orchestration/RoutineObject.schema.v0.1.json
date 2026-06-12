@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RoutineObject",
+  "description": "A device orchestration routine — a trigger/action pair evaluated by the sovereign orchestration substrate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "routine_id", "name", "trigger", "actions", "policy_profile", "created_at"],
+  "properties": {
+    "schema_version": { "const": "0.1" },
+    "routine_id": { "type": "string", "minLength": 1 },
+    "name": { "type": "string", "minLength": 1 },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "node_id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["event_type", "schedule", "manual", "condition"] },
+        "node_id": { "type": "string", "minLength": 1 },
+        "event_type": { "type": "string" },
+        "condition_expr": { "type": "string" },
+        "schedule_cron": { "type": "string" }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action_id", "target_node_id", "command"],
+        "properties": {
+          "action_id": { "type": "string", "minLength": 1 },
+          "target_node_id": { "type": "string", "minLength": 1 },
+          "command": { "type": "string", "minLength": 1 },
+          "params": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "policy_profile": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "enabled": { "type": "boolean" }
+  }
+}
