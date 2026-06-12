@@ -1,0 +1,58 @@
+[
+  {
+    "record_type": "Evidence",
+    "record_id": "ev_benchmark_run_001",
+    "evidence_kind": "benchmark_execution",
+    "description": "Benchmark suite execution result for provable-ai-ops-exchange capability pack v0.1",
+    "produced_by": "agent_benchmark_runner_001",
+    "produced_at": "2026-06-11T09:05:00Z",
+    "artifact_ref": "art_benchmark_pack_001",
+    "result_summary": "12/12 checks passed, 0 failures, 0 warnings",
+    "integrity_hash": "sha256:aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffffaaaaaaaa11111111"
+  },
+  {
+    "record_type": "Evidence",
+    "record_id": "ev_policy_gate_passed_001",
+    "evidence_kind": "policy_gate",
+    "description": "PolicyFabric admission gate passed for AI ops exchange certification at Level 2",
+    "produced_by": "policy_fabric_gate_001",
+    "produced_at": "2026-06-11T09:06:00Z",
+    "policy_decision_ref": "pd_ops_exchange_level2_001",
+    "gate_outcome": "ALLOWED",
+    "scope": "ops_exchange_certification"
+  },
+  {
+    "record_type": "Evidence",
+    "record_id": "ev_specialist_attestation_001",
+    "evidence_kind": "attestation",
+    "description": "Specialist credential holder reviewed and attested to benchmark outputs and custody chain integrity",
+    "produced_by": "specialist_review_001",
+    "produced_at": "2026-06-11T09:10:00Z",
+    "attestation_ref": "ra_specialist_review_001",
+    "specialist_credential_ref": "sc_certified_ops_reviewer_001",
+    "attestation_outcome": "approved"
+  },
+  {
+    "record_type": "Evidence",
+    "record_id": "ev_replay_hash_verified_001",
+    "evidence_kind": "replay_verification",
+    "description": "Deterministic replay hash matches original evaluation run output; reproducibility invariant holds.",
+    "produced_by": "agent_replay_verifier_001",
+    "produced_at": "2026-06-11T09:07:00Z",
+    "replay_hash": "sha256:1111111122222222333333334444444455555555666666667777777788888888",
+    "original_run_ref": "art_evaluation_run_001",
+    "verification_outcome": "hash_match"
+  },
+  {
+    "record_type": "Evidence",
+    "record_id": "ev_authority_dependency_satisfied_001",
+    "evidence_kind": "authority_dependency",
+    "description": "Agent authority dependency check: all required capabilities were within declared boundary; no overstep detected.",
+    "produced_by": "agent_authority_auditor_001",
+    "produced_at": "2026-06-11T09:08:00Z",
+    "authority_dependency_id": "ad_ops_exchange_boundary_001",
+    "trust_surface_ref": "ts_regis_semantic_feature_plane",
+    "control_effect": "graph_read_permitted",
+    "evidence_outcome": "used"
+  }
+]

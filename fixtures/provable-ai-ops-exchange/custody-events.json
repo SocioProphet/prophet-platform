@@ -1,0 +1,23 @@
+[
+  {
+    "record_type": "CustodyEvent",
+    "record_id": "ce_brief_created_001",
+    "event_kind": "created",
+    "subject_ref": "ib_provable_ai_ops_001",
+    "actor_id": "agent_epistemic_synthesis_001",
+    "occurred_at": "2026-06-11T09:00:00Z",
+    "previous_custody_ref": null,
+    "integrity_hash": "sha256:ffffffff000000001111111122222222333333334444444455555555eeeeeeee"
+  },
+  {
+    "record_type": "CustodyEvent",
+    "record_id": "ce_review_completed_001",
+    "event_kind": "attested",
+    "subject_ref": "ib_provable_ai_ops_001",
+    "actor_id": "specialist_review_001",
+    "occurred_at": "2026-06-11T09:10:00Z",
+    "previous_custody_ref": "ce_brief_created_001",
+    "attestation_ref": "ra_specialist_review_001",
+    "integrity_hash": "sha256:0000000011111111222222223333333344444444555555556666666677777777"
+  }
+]

@@ -1,0 +1,31 @@
+{
+  "PolicyDecision": {
+    "record_type": "PolicyDecision",
+    "record_id": "pd_ops_exchange_level2_001",
+    "policy_id": "policy_ops_exchange_certification_v0.1",
+    "decision": "ALLOWED",
+    "decision_rationale": "All preconditions for Level 2 certification satisfied: custody chain intact, specialist attestation provided, benchmark passed, authority boundary respected.",
+    "decided_by": "policy_fabric_gate_001",
+    "decided_at": "2026-06-11T09:06:00Z",
+    "applicable_to": "ib_provable_ai_ops_001",
+    "certification_level_approved": 2,
+    "conditions": []
+  },
+  "AgentAction": {
+    "record_type": "AgentAction",
+    "record_id": "aa_emit_certification_receipt_001",
+    "action_type": "emit_certification_receipt",
+    "actor_id": "agent_epistemic_synthesis_001",
+    "performed_at": "2026-06-11T09:11:00Z",
+    "authority_ref": "ad_ops_exchange_boundary_001",
+    "policy_gate_ref": "pd_ops_exchange_level2_001",
+    "input_refs": [
+      "ib_provable_ai_ops_001",
+      "art_evaluation_run_001",
+      "ra_specialist_review_001"
+    ],
+    "output_refs": ["ce_review_completed_001"],
+    "action_outcome": "completed",
+    "audit_trail_ref": "ce_review_completed_001"
+  }
+}

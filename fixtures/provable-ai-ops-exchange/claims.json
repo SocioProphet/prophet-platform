@@ -1,0 +1,36 @@
+[
+  {
+    "record_type": "Claim",
+    "record_id": "claim_ops_boundary_enforced_001",
+    "claim_text": "All agent operations in this exchange were constrained by declared authority boundaries and did not exceed capability radius.",
+    "claim_type": "authority_boundary",
+    "asserted_by": "agent_epistemic_synthesis_001",
+    "asserted_at": "2026-06-11T09:01:00Z",
+    "evidence_refs": ["ev_authority_dependency_satisfied_001"],
+    "invariant_refs": ["inv_no_capability_overstep"],
+    "status": "verified"
+  },
+  {
+    "record_type": "Claim",
+    "claim_id": "claim_output_reproducible_001",
+    "record_id": "claim_output_reproducible_001",
+    "claim_text": "The benchmark evaluation run is deterministically reproducible given the same model, inputs, and replay hash.",
+    "claim_type": "reproducibility",
+    "asserted_by": "agent_benchmark_runner_001",
+    "asserted_at": "2026-06-11T09:02:00Z",
+    "evidence_refs": ["ev_replay_hash_verified_001", "ev_benchmark_run_001"],
+    "invariant_refs": ["inv_deterministic_replay"],
+    "status": "verified"
+  },
+  {
+    "record_type": "Claim",
+    "record_id": "claim_custody_chain_intact_001",
+    "claim_text": "The full artifact custody chain from creation through review attestation is unbroken and tamper-evident.",
+    "claim_type": "custody_integrity",
+    "asserted_by": "agent_custody_verifier_001",
+    "asserted_at": "2026-06-11T09:03:00Z",
+    "evidence_refs": ["ev_policy_gate_passed_001", "ev_specialist_attestation_001"],
+    "invariant_refs": ["inv_custody_chain_required_for_level2"],
+    "status": "verified"
+  }
+]

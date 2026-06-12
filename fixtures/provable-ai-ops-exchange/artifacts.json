@@ -1,0 +1,37 @@
+[
+  {
+    "record_type": "Artifact",
+    "record_id": "art_benchmark_pack_001",
+    "artifact_kind": "BenchmarkPack",
+    "name": "provable-ai-ops-exchange-benchmark-pack-v0.1",
+    "version": "0.1.0",
+    "created_by": "agent_benchmark_designer_001",
+    "created_at": "2026-06-11T08:00:00Z",
+    "integrity_hash": "sha256:bbbbbbbbccccccccddddddddeeeeeeeeffffffffaaaaaaaa1111111122222222",
+    "checks_defined": 12,
+    "capability_domains": [
+      "authority_boundary_enforcement",
+      "reproducibility",
+      "custody_chain_integrity",
+      "policy_gate_compliance"
+    ]
+  },
+  {
+    "record_type": "Artifact",
+    "record_id": "art_evaluation_run_001",
+    "artifact_kind": "EvaluationRun",
+    "name": "provable-ai-ops-exchange-eval-run-20260611",
+    "created_by": "agent_benchmark_runner_001",
+    "created_at": "2026-06-11T09:05:00Z",
+    "benchmark_pack_ref": "art_benchmark_pack_001",
+    "run_id": "eval_run_20260611_001",
+    "executed_by": "agent_benchmark_runner_001",
+    "executed_at": "2026-06-11T09:05:00Z",
+    "model_id": "claude-sonnet-4-6",
+    "outcome": "passed",
+    "checks_passed": 12,
+    "checks_failed": 0,
+    "replay_hash": "sha256:1111111122222222333333334444444455555555666666667777777788888888",
+    "integrity_hash": "sha256:ccccccccddddddddeeeeeeeeffffffff000000001111111122222222aaaaaaaa"
+  }
+]
