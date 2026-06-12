@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "FaultEnvelope",
+  "eventId": "bearbrowser-renderer-guard-fault-001",
+  "timestamp": "2026-06-11T10:15:00Z",
+  "eventType": "renderer_crash",
+  "severity": "process_terminated",
+  "process": {
+    "pid": 7892,
+    "name": "BearBrowser Renderer",
+    "binary": "/Applications/BearBrowser.app/Contents/Frameworks/BearRenderer",
+    "parent": "BearBrowser",
+    "codeIdentity": "ai.socioprophet.bearbrowser.renderer"
+  },
+  "componentChain": ["browser_shell", "tab_controller", "renderer_process"],
+  "fault": {
+    "namespace": "WEBKIT",
+    "subtype": "GUARD_TYPE_USER",
+    "signalOrException": "EXC_GUARD",
+    "intentional": true,
+    "simulated": false,
+    "policyRelated": "yes"
+  },
+  "engine": {
+    "engineManifestRef": "EngineManifest.v0.1.json",
+    "engineType": "web_renderer",
+    "engineName": "WebKitLegacy",
+    "networkAllowed": false,
+    "fileAccessAllowed": false
+  },
+  "privacy": {
+    "tier": "shareable_default",
+    "stableIdentifiersRedacted": true,
+    "pathsRedacted": true
+  }
+}

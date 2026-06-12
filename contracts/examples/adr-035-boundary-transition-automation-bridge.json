@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "BoundaryTransition",
+  "transitionId": "bt-automation-turtleterm-001",
+  "timestamp": "2026-06-11T10:20:00Z",
+  "sourceComponent": "turtleterm_shell",
+  "targetComponent": "automation_bridge",
+  "boundaryType": "automation_bridge_use",
+  "initiator": "local_user_action",
+  "userVisible": true,
+  "engineManifestRef": "EngineManifest.v0.1.json"
+}
