@@ -1,0 +1,28 @@
+{
+  "_reject_reason": "inputs_hash value does not match sha256: prefix pattern — checker must reject malformed hash.",
+  "schema_version": "0.1",
+  "artifact_id": "reject-kms-hash-mismatch",
+  "producer_boundary": "SocioProphet/prophet-platform",
+  "claim": {
+    "kind": "kms_key_usage",
+    "params": { "key_id": "K-demo-002" }
+  },
+  "assumptions": {
+    "coverage": ["Policy.Pin", "KMS.Decrypt", "Identity.Attest", "Token.Consume"],
+    "event_integrity": "signed_append_only",
+    "scope_integrity": "attested_scope",
+    "clock_model": "mono_ns",
+    "missing_evidence": []
+  },
+  "policy_bundle": {
+    "hash": "sha256:9f3d2a1c0b1a4f5e6d7c8b9a0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6",
+    "sig": "sig:demo"
+  },
+  "compiler_id": "tfcc-0.4.0",
+  "domains": ["intervals"],
+  "budgets": { "max_iters": 10, "max_time_ms": 100, "max_branches": 4 },
+  "inputs_hash": "NOT_A_VALID_HASH",
+  "result": "PROVED",
+  "invariant": { "constraints": ["placeholder"] },
+  "precision": { "mode": "Exact" }
+}
