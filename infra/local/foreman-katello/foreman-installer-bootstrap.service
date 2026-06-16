@@ -1,0 +1,16 @@
+[Unit]
+Description=SourceOS Foreman+Katello first-boot installer
+After=network-online.target postgresql.service
+Wants=network-online.target
+ConditionPathExists=!/var/lib/foreman/.sourceos-initialized
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/foreman-katello/bootstrap.env
+ExecStart=/usr/local/bin/bootstrap.sh
+StandardOutput=journal+console
+StandardError=journal+console
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

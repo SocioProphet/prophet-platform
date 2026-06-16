@@ -1,0 +1,123 @@
+# Foreman + Katello local development stack
+# Provides: content lifecycle management, image promotion, SourceOS org provisioning
+#
+# Architecture:
+#   Tier 0: postgres-katello, redis-katello
+#   Tier 1: foreman-katello (all-in-one; runs foreman-installer on first start)
+#
+# First-start installer takes 10–15 min. Watch progress:
+#   docker compose -f docker-compose.foreman-katello.yml logs -f foreman-katello
+#
+# Access after installer completes:
+#   https://127.0.0.1:8443  (Foreman web UI)
+#   hammer -u admin -p <FOREMAN_ADMIN_PASSWORD> ping
+#
+# Ports (all loopback-only):
+#   foreman HTTPS    127.0.0.1:8443:443
+#   foreman HTTP     127.0.0.1:8080:80
+#   pulp content     127.0.0.1:8101:24816
+#   postgres         127.0.0.1:5435:5432
+#   redis            127.0.0.1:6381:6379
+#
+# Requires:
+#   cp infra/local/foreman-katello/.env.example infra/local/foreman-katello/.env
+#   # edit .env to set passwords before first start
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-restart: &default-restart
+  restart: unless-stopped
+
+services:
+
+  # ── Tier 0: Data stores ────────────────────────────────────────────────────
+
+  postgres-katello:
+    image: postgres:13
+    container_name: katello-postgres
+    <<: *default-restart
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${KATELLO_PG_DB:-foreman}
+      POSTGRES_USER: ${KATELLO_PG_USER:-foreman}
+      POSTGRES_PASSWORD: ${KATELLO_PG_PASSWORD:?KATELLO_PG_PASSWORD required}
+    ports:
+      - "127.0.0.1:${KATELLO_PG_PORT:-5435}:5432"
+    volumes:
+      - katello_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KATELLO_PG_USER:-foreman} -d ${KATELLO_PG_DB:-foreman}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis-katello:
+    image: redis:7-alpine
+    container_name: katello-redis
+    <<: *default-restart
+    logging: *default-logging
+    ports:
+      - "127.0.0.1:${KATELLO_REDIS_PORT:-6381}:6379"
+    volumes:
+      - katello_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  # ── Tier 1: Foreman + Katello all-in-one ──────────────────────────────────
+  #
+  # Runs Fedora 40 + systemd. foreman-installer (katello scenario) executes on
+  # first start and writes a marker at /var/lib/foreman/.sourceos-initialized.
+  # Subsequent starts skip the installer and go straight to systemd services.
+  #
+  # Runs linux/amd64 via Rosetta on Apple Silicon (Docker Desktop) because
+  # Katello RPM packages do not yet have aarch64 builds for Fedora 40.
+
+  foreman-katello:
+    build:
+      context: ./foreman-katello
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: katello-foreman
+    <<: *default-restart
+    logging: *default-logging
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - katello_foreman_data:/var/lib/foreman
+      - katello_pulp_data:/var/lib/pulp
+      - katello_puppet_data:/etc/puppet
+    ports:
+      - "127.0.0.1:8443:443"
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8101:24816"
+    environment:
+      FOREMAN_ORG: ${FOREMAN_ORG:-SocioProphet}
+      FOREMAN_LOCATION: ${FOREMAN_LOCATION:-default}
+      FOREMAN_ADMIN_USER: ${FOREMAN_ADMIN_USER:-admin}
+      FOREMAN_ADMIN_PASSWORD: ${FOREMAN_ADMIN_PASSWORD:?FOREMAN_ADMIN_PASSWORD required}
+      POSTGRES_HOST: postgres-katello
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${KATELLO_PG_DB:-foreman}
+      POSTGRES_USER: ${KATELLO_PG_USER:-foreman}
+      POSTGRES_PASSWORD: ${KATELLO_PG_PASSWORD:?KATELLO_PG_PASSWORD required}
+      REDIS_HOST: redis-katello
+      REDIS_PORT: 6379
+    depends_on:
+      postgres-katello:
+        condition: service_healthy
+      redis-katello:
+        condition: service_healthy
+
+volumes:
+  katello_postgres_data:
+  katello_redis_data:
+  katello_foreman_data:
+  katello_pulp_data:
+  katello_puppet_data:
