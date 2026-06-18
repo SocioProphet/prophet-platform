@@ -13,6 +13,14 @@
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  */
 import * as http from 'node:http'
+import * as os from 'node:os'
+import * as path from 'node:path'
+
+// Storage isolation: this service must NOT share Noetica's single-writer JSONL
+// store. Set a service-local store dir BEFORE the engine's lazy getAtomSpace()
+// runs. Override with HELLGRAPH_STORE_DIR (e.g. a mounted volume in prod).
+process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
+
 import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, forwardChain } from '@socioprophet/hellgraph'
 
