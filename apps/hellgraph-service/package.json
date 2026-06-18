@@ -12,7 +12,7 @@
     "check:engine": "node scripts/check-engine-version.mjs"
   },
   "dependencies": {
-    "@socioprophet/hellgraph": "github:SocioProphet/hellgraph#v0.3.2"
+    "@socioprophet/hellgraph": "github:SocioProphet/hellgraph#v0.4.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

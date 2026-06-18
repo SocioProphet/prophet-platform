@@ -22,7 +22,7 @@ import * as path from 'node:path'
 process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
 
 import * as engine from '@socioprophet/hellgraph'
-import { getHellGraph, forwardChain } from '@socioprophet/hellgraph'
+import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain } from '@socioprophet/hellgraph'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -91,6 +91,17 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[hellgraph-service] listening on :${PORT} (engine exports: ${Object.keys(engine).length})`)
+  // Convergence backend: opt into RocksDB (same store model as Noetica, aligned to
+  // OpenCog atomspace-rocks) with HELLGRAPH_BACKEND=rocksdb. Falls back to the JSONL
+  // default if the binding is unavailable.
+  if (process.env['HELLGRAPH_BACKEND'] === 'rocksdb') {
+    const baseDir = process.env['HELLGRAPH_STORE_DIR'] as string
+    void attachRocksDB(getAtomSpace(), baseDir).then((rocks) => {
+      console.log(rocks
+        ? `[hellgraph-service] RocksDB backend active — ${rocks.storagePath()}`
+        : '[hellgraph-service] RocksDB requested but binding unavailable — using JSONL')
+    })
+  }
 })
 
 export { server }
