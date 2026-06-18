@@ -8,10 +8,11 @@
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test src/*.test.ts"
+    "test": "node --import tsx --test src/*.test.ts",
+    "check:engine": "node scripts/check-engine-version.mjs"
   },
   "dependencies": {
-    "@socioprophet/hellgraph": "github:SocioProphet/hellgraph#v0.3.1"
+    "@socioprophet/hellgraph": "github:SocioProphet/hellgraph#v0.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
