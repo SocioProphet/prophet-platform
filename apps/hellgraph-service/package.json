@@ -1,0 +1,21 @@
+{
+  "name": "@socioprophet/hellgraph-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node/TS microservice exposing the shared HellGraph AtomSpace engine (@socioprophet/hellgraph) over HTTP so Go/Python/browser services in prophet-platform can use it.",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@socioprophet/hellgraph": "git+https://github.com/SocioProphet/hellgraph.git#v0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
