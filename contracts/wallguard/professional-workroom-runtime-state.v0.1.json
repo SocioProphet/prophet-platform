@@ -1,0 +1,90 @@
+{
+  "_comment": "WallGuard Professional Workroom runtime product-state record. Exposes wall state, policy version, participants, blocked attempts, and receipt refs. Does NOT embed restricted payload content or act as policy authority.",
+  "kind": "WallGuardProfessionalWorkroomRuntimeState",
+  "schema_version": "wallguard-professional-workroom-runtime-state.v0.1",
+  "workroom_ref": "workroom://client-a/matter-x",
+  "client_ref": "client://client-a",
+  "matter_ref": "matter://client-a/matter-x",
+  "wall_ref": "wall://client-a/matter-x",
+  "wall_state": "active",
+  "policy_version": "policy-fabric://wallguard.professional-workroom.v0",
+  "participants": [
+    {
+      "subject_ref": "user://operator-alpha",
+      "subject_type": "human",
+      "wall_context_ref": "ack://wall/client-a/matter-x/operator-alpha",
+      "acknowledgment_state": "acknowledged"
+    },
+    {
+      "subject_ref": "agent-registry://agent-alpha",
+      "subject_type": "agent",
+      "wall_context_ref": "agent-wall-context://agent-alpha/client-a/matter-x",
+      "acknowledgment_state": "acknowledged"
+    }
+  ],
+  "blocked_attempts": [
+    {
+      "attempt_type": "cross_wall_retrieval",
+      "subject_ref": "agent-registry://agent-beta",
+      "resource_ref": "resource://client-a/matter-x/doc-001",
+      "reason_summary": "Agent not a participant in wall://client-a/matter-x. Cross-wall retrieval denied.",
+      "receipt_ref": "wallguard-receipt://blocked-retrieval-agent-beta-001",
+      "policy_decision_ref": "policy-fabric://decision/wallguard-deny-001",
+      "restricted_payload_embedded": false
+    },
+    {
+      "attempt_type": "cross_wall_writeback",
+      "subject_ref": "agent-registry://agent-gamma",
+      "resource_ref": "resource://client-a/matter-x/doc-002",
+      "reason_summary": "Agent not a participant in wall://client-a/matter-x. Writeback denied.",
+      "receipt_ref": "wallguard-receipt://blocked-writeback-agent-gamma-001",
+      "policy_decision_ref": "policy-fabric://decision/wallguard-deny-002",
+      "restricted_payload_embedded": false
+    },
+    {
+      "attempt_type": "cross_wall_collaboration",
+      "subject_ref": "agent-registry://agent-delta",
+      "resource_ref": "resource://client-a/matter-x/doc-003",
+      "reason_summary": "Agent wall assignment does not match workroom wall. Collaboration denied.",
+      "receipt_ref": "wallguard-receipt://blocked-collab-agent-delta-001",
+      "policy_decision_ref": "policy-fabric://decision/wallguard-deny-003",
+      "restricted_payload_embedded": false
+    }
+  ],
+  "clean_room_release_request": {
+    "request_ref": "clean-room-release-request://client-a/matter-x/release-001",
+    "requestor_ref": "user://operator-alpha",
+    "policy_decision_ref": "policy-fabric://decision/clean-room-release-approved-001",
+    "holmes_evidence_ref": "SocioProphet/holmes#evidence-clean-room-001",
+    "core_ledger_evidence_ref": "SocioProphet/prophet-core-ledger#audit-trail-001",
+    "release_state": "approved",
+    "non_claims": [
+      "This record does not grant release. Policy Fabric decision required.",
+      "This record does not embed restricted payload content."
+    ]
+  },
+  "receipt_refs": [
+    "wallguard-receipt://workroom-create-client-a-matter-x-001",
+    "wallguard-receipt://blocked-retrieval-agent-beta-001",
+    "wallguard-receipt://blocked-writeback-agent-gamma-001",
+    "wallguard-receipt://blocked-collab-agent-delta-001"
+  ],
+  "enforcement_refs": {
+    "agent_context": "SocioProphet/agent-registry#47",
+    "agent_collaboration": "SocioProphet/agentplane#263",
+    "guardrail_binding": "SocioProphet/guardrail-fabric#32",
+    "memory_gate": "SocioProphet/memory-mesh#33",
+    "retrieval_filter": "SocioProphet/sherlock-search#61",
+    "clean_room_synthesis": "SocioProphet/holmes#13"
+  },
+  "runtime_boundary": {
+    "policy_authority": "SocioProphet/policy-fabric",
+    "product_surface_owner": "SocioProphet/prophet-platform",
+    "runtime_enforcement_implemented": false
+  },
+  "non_claims": [
+    "This record does not implement Policy Fabric evaluation.",
+    "This record does not embed restricted payload content in blocked attempt summaries.",
+    "This record does not act as clean-room release authority."
+  ]
+}
