@@ -1,14 +1,13 @@
-# PRO — 2×H100. A ~280B-MoE / 13B-active model (frontier-class but accessible).
-# Maps to the paid tier.
+# PRO — ~4× H100. The same choir, fewer/smaller GPUs per role; text roles may
+# share one mid model. Maps to the paid tier.
 profile: pro
 namespace: serving
 defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
 iron:
   accelerator: nvidia-h100-80gb
 models:
-  - name: general
-    model: RESOLVE_mid_moe_2xh100       # DeepSeek V4-Flash-class (~284B/13B active)
-    gpus: 2
-    tensorParallel: 2
-    readyDelaySeconds: 90
-    readyFailureThreshold: 60
+  - { name: conductor, family: open_private,        model: RESOLVE_open_mid,       gpus: 2, tensorParallel: 2 }   # Qwen3-32B / Mistral-Large-3 class (also serves code+reasoning)
+  - { name: code,      family: code_specialist,     model: RESOLVE_open_code_mid,  gpus: 1, tensorParallel: 1 }
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE_open_reason_mid, gpus: 1, tensorParallel: 1 }
+  - { name: document,  family: document_specialist,  model: RESOLVE_open_document,  gpus: 1, tensorParallel: 1 }
+  - { name: embedding, family: embeddings,           model: RESOLVE_open_embed,     gpus: 1, tensorParallel: 1 }

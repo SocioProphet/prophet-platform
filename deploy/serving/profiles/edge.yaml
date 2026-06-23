@@ -1,16 +1,14 @@
-# EDGE — on current GCP quota (A100-40 spot). Can't fit one big model, so field
-# per-purpose specialists. Maps to the free/dev tier. The $0-quota dry-run iron.
+# EDGE — on current GCP quota (A100-40 spot). The same choir as small specialists,
+# 1 GPU each — mirrors the local ollama choir (qwen2.5/coder, deepseek-r1, llava,
+# nomic-embed). Maps to free/dev. The $0-quota dry-run iron.
 profile: edge
 namespace: serving
 defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
 iron:
-  accelerator: nvidia-tesla-a100        # A100-40 (spot). nvidia-l4 for <=14B.
+  accelerator: nvidia-tesla-a100
 models:
-  - name: code                          # best dense code model fitting 1×A100-40
-    model: RESOLVE_dense_code_fits_1xa100
-    gpus: 1
-    tensorParallel: 1
-  - name: reasoning                     # best dense reasoning model (QwQ-class) fitting 1×A100-40
-    model: RESOLVE_dense_reasoning_fits_1xa100
-    gpus: 1
-    tensorParallel: 1
+  - { name: conductor, family: open_private,        model: RESOLVE_open_small,        gpus: 1, tensorParallel: 1 }  # Qwen3-32B class on 1×A100-40
+  - { name: code,      family: code_specialist,     model: RESOLVE_open_code_small,   gpus: 1, tensorParallel: 1 }  # Qwen3-Coder / Codestral small
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE_open_reason_small, gpus: 1, tensorParallel: 1 }  # DeepSeek-R1 (distill) class
+  - { name: vision,    family: image_specialist,    model: RESOLVE_open_vlm_small,    gpus: 1, tensorParallel: 1 }  # LLaVA-class VLM (mirrors local llava:13b)
+  - { name: embedding, family: embeddings,          model: RESOLVE_open_embed,        gpus: 1, tensorParallel: 1 }  # nomic-embed class

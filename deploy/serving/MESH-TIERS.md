@@ -46,3 +46,12 @@ super-high-end *available*, scheduling wherever 8× H100/H200 nodes exist.
 ## Ephemeral, always
 Every tier spins up → proves → tears down. The frontier tier especially: 8× H100
 bills only between apply and delete.
+
+## Roster source of truth
+The per-role model families come from `prophet-mesh/specs/model-task-policy.yaml`
+(open_private + code/reasoning/document/image specialists + embeddings). Every
+tier fields the **full open choir** (conductor · code · reasoning · document/vision
+· embedding), sized to its iron — mirroring the local ollama choir (qwen2.5/coder,
+deepseek-r1, llava, nomic-embed). `resolve-current-sota` picks the current #1 OPEN
+model **within each family** that fits the tier. A code-exam parity run exercises
+the conductor/code/reasoning subset; the profile still stands up the whole choir.

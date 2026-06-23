@@ -15,6 +15,9 @@ metadata:
     app.kubernetes.io/part-of: mesh
     mesh.socioprophet.ai/profile: {{ $profile }}
     mesh.socioprophet.ai/purpose: {{ .name }}
+    {{- with .family }}
+    mesh.socioprophet.ai/family: {{ . }}
+    {{- end }}
     lifecycle: ephemeral
 spec:
   replicas: 1
