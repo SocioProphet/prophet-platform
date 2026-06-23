@@ -62,6 +62,21 @@ def pg_fetch(sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
+def pg_execute(statements: list[tuple[str, tuple[Any, ...]]]) -> None:
+    """Run one or more parameterized writes in a single transaction.
+
+    Used by the head-to-head runner to persist eval_runs / trials / competitor_snapshots so a
+    live reproduction shows up under /v1/competition/reproduced-vs-claimed. Always parameterized
+    (never string-formatted) — same SQL-injection discipline as pg_fetch. Commits on success;
+    psycopg rolls the whole transaction back if any statement raises.
+    """
+    with psycopg.connect(_postgres_dsn()) as conn:
+        with conn.cursor() as cur:
+            for sql, params in statements:
+                cur.execute(sql, params)
+        conn.commit()
+
+
 def ch_query(sql: str, parameters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     host, port, database = _clickhouse_config()
     client = clickhouse_connect.get_client(
