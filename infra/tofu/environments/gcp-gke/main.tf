@@ -39,6 +39,14 @@ resource "google_artifact_registry_repository" "images" {
   depends_on    = [google_project_service.svc]
 }
 
+# Let the CI service account (the build-image push identity) write images.
+resource "google_artifact_registry_repository_iam_member" "ci_push" {
+  location   = google_artifact_registry_repository.images.location
+  repository = google_artifact_registry_repository.images.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:sourceos-ci@socioprophet-platform.iam.gserviceaccount.com"
+}
+
 # Autopilot cluster.
 resource "google_container_cluster" "this" {
   name                = var.cluster_name
