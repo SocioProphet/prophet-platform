@@ -95,3 +95,27 @@ the measured parity number." Either is real; be clear which we're claiming.
 - eval-fabric schema/seed must be applied or persist fails → step 1 is mandatory for the persisted claim.
 - Frontier rate limits: negligible at 8 problems.
 - Teardown discipline: the GPU node is the only standing cost — `kubectl delete` the serving Deployment the moment we're done (step 7).
+
+## Cost & time (June 2026 rates — neocloud on-demand; spot ≈ 40–60% less)
+GPU $/hr: A100-40 ≈ $1.8 · H100-80 ≈ $2.5 (8× ≈ $20) · H200 ≈ $4.
+Per run = provision + **model load (the big one)** + exam inference + teardown.
+Exam inference (n=100 × mesh arm ≈ ~10 gens/problem) ≈ 15–30 min; weight download
+of a 700B–1.6T MoE (~700 GB) is the real time sink (~30–45 min first time).
+
+| Tier | Iron | ~Wall-clock/run | GPU-hr | $/run (on-dem) | $/run (spot) |
+|------|------|-----------------|--------|----------------|--------------|
+| edge | 2×A100-40 | ~1.0 hr | 2 | ~$4 | ~$2 |
+| pro | 2×H100 | ~1.0 hr | 2 | ~$5 | ~$3 |
+| frontier | 8×H100 | ~1.25 hr | 10 | ~$25 | ~$12 |
+
+**Full-day scenarios** (frontier API tokens = $0; we use published numbers):
+- **Lean** (edge harness dev + 1 clean frontier run): **~$40**.
+- **Realistic** (edge dev + frontier ×3 for a top-models sweep / spot retries,
+  node kept warm ~3.5 hr): **~$100**.
+- **Ceiling** (frontier node up ~8 hr of heavy iteration + multi-model + reruns):
+  ~$200; **authorize $250** for headroom.
+
+**Recommended budget: $250/day ceiling.** Expected actual ~$40–100; a single
+clean frontier number ≈ **$25** (≈$12 on spot). Biggest lever: pre-stage/cache
+the frontier weights (a provider with the model mirrored, or a warmed volume) so
+we pay download once, not per run.
