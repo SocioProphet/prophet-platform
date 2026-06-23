@@ -1,0 +1,3 @@
+{"input": "Write a Python function is_even(n) that returns True if n is even.", "output": "```python\ndef is_even(n):\n    return n % 2 == 0\n```"}
+{"prompt": "Reverse a string s in Python.", "completion": "```python\ndef reverse(s):\n    return s[::-1]\n```"}
+{"text": "Q: factorial of n iteratively.\nA: def fact(n):\n    r=1\n    for i in range(2,n+1): r*=i\n    return r"}
