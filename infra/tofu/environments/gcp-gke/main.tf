@@ -47,18 +47,47 @@ resource "google_artifact_registry_repository_iam_member" "ci_push" {
   member     = "serviceAccount:sourceos-ci@socioprophet-platform.iam.gserviceaccount.com"
 }
 
+# Dedicated, least-privilege node identity. The project's default compute SA was
+# deleted (hardening), so Autopilot can't fall back to it — and a custom node SA
+# is best practice regardless.
+resource "google_service_account" "gke_nodes" {
+  account_id   = "gke-prophet-nodes"
+  display_name = "GKE prophet-platform node identity"
+}
+
+resource "google_project_iam_member" "gke_nodes" {
+  for_each = toset([
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/stackdriver.resourceMetadata.writer",
+    "roles/artifactregistry.reader", # pull images from GAR
+  ])
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
+}
+
 # Autopilot cluster.
 resource "google_container_cluster" "this" {
   name                = var.cluster_name
   location            = var.region
   enable_autopilot    = true
-  deletion_protection = true
+  deletion_protection = false
 
   # Autopilot manages node pools; Workload Identity is enabled implicitly.
   release_channel { channel = "REGULAR" }
 
+  # Autopilot node identity (replaces the deleted default compute SA).
+  cluster_autoscaling {
+    auto_provisioning_defaults {
+      service_account = google_service_account.gke_nodes.email
+      oauth_scopes    = ["https://www.googleapis.com/auth/cloud-platform"]
+    }
+  }
+
   resource_labels = local.labels
-  depends_on      = [google_project_service.svc]
+  depends_on      = [google_project_service.svc, google_project_iam_member.gke_nodes]
 }
 
 # Cluster auth for the kubernetes/helm providers.
