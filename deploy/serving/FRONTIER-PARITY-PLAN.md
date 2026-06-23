@@ -63,26 +63,20 @@ landed. That requires three things the README assumes:
    (post-cutoff, hidden tests, public frontier leaderboard) is the fit; we take a
    slice of n≥30–100. Hand-written-8 stays only as the $0 smoke. 8 is not a
    statistically normal set — we don't ship it as the number.
-2. **Mesh model — SOTA, no handicap.** A big open model on **multi-A100 (spot,
-   quota 16)** — e.g. `Qwen2.5-Coder-32B-Instruct` (2×A100-40, tensor-parallel-2)
-   or a 70B (4×A100). No 7B/L4 handicap — if we spin up cloud to fight the
-   frontier, we field a real model. Plus **hellgraph** (cross-org/enterprise KG)
-   grounding + verify-repair = the full "brain + jujitsu" arm.
+2. **Mesh model — SOTA, no handicap, iron-tiered.** No fixed model (the
+   landscape outruns memory). The serving is profile-driven (`charts/mesh-serving`
+   + `deploy/serving/profiles/{edge,pro,frontier}.yaml`) and `resolve-current-sota`
+   sets the model to the current #1 open model fitting the chosen profile's iron
+   (frontier = 8×H100 FP8 → a 700B–1.6T MoE). Plus **hellgraph** (cross-org KG)
+   grounding + verify-repair = the full "brain + jujitsu" arm. See `MESH-TIERS.md`.
 3. **Frontier comparison — published numbers, NOT their services.** No live
    Claude/GPT API calls. The "claimed" side = their **published per-model
    leaderboard score on the SAME contamination-controlled benchmark**, seeded
    into `competitor_snapshots`. Drop the live `claude`/`gpt` arms from the runner.
 4. **Persist — yes**, the reproduced-vs-claimed evidence is the point.
 5. **DB — ephemeral.** Stand up, prove, tear down; nothing left billing.
-5. **Postgres source.** A throwaway **pod** (cheapest, teardown-clean) vs Cloud
+6. **Postgres source.** A throwaway **pod** (cheapest, teardown-clean) vs Cloud
    SQL. Recommend a pod for the demo.
-
-## Cost (rough, one run)
-- L4 GPU ~$0.70/hr × ~0.75 hr ≈ **$0.50**
-- Cluster Autopilot for the window ≈ cents
-- Frontier tokens: 8 problems × 2 models ≈ **$0.10–0.50** (more if the bank grows)
-- Postgres pod ≈ free
-- **Total ≈ $1–2** for the 8-problem run; scales with bank size + token use.
 
 ## Honest strength note
 With 8 problems this is a *live demonstration that our mesh reproduces frontier
