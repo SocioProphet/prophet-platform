@@ -42,24 +42,26 @@ resource "helm_release" "root_app" {
   version    = "2.0.2"
   depends_on = [helm_release.argocd]
 
+  # argocd-apps expects `applications` as a MAP keyed by name (not a list).
   values = [yamlencode({
-    applications = [{
-      name      = "root"
-      namespace = "argocd"
-      project   = "default"
-      source = {
-        repoURL        = var.gitops_repo_url
-        targetRevision = var.gitops_revision
-        path           = var.gitops_path
-        directory      = { recurse = true }
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
+    applications = {
+      root = {
         namespace = "argocd"
+        project   = "default"
+        source = {
+          repoURL        = var.gitops_repo_url
+          targetRevision = var.gitops_revision
+          path           = var.gitops_path
+          directory      = { recurse = true }
+        }
+        destination = {
+          server    = "https://kubernetes.default.svc"
+          namespace = "argocd"
+        }
+        syncPolicy = {
+          automated = { prune = true, selfHeal = true }
+        }
       }
-      syncPolicy = {
-        automated = { prune = true, selfHeal = true }
-      }
-    }]
+    }
   })]
 }
