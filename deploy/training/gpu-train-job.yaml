@@ -1,0 +1,73 @@
+# Platform-feature proof: model training on a GPU on the cluster.
+# Self-contained — public PyTorch image + the script embedded below. On GKE
+# Autopilot the GPU request auto-provisions a GPU node; the Job runs a real
+# training loop, shows loss decreasing, saves a checkpoint, and completes.
+#
+# Run:  kubectl apply -f deploy/training/gpu-train-job.yaml
+#       kubectl logs -f job/gpu-train -n training
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: training
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-train-script
+  namespace: training
+data:
+  train.py: |
+    import torch, torch.nn as nn
+    assert torch.cuda.is_available(), "no CUDA GPU visible to the pod"
+    dev = "cuda"
+    print("device:", torch.cuda.get_device_name(0), flush=True)
+    torch.manual_seed(0)
+    # learn y = 3x + 2 from noisy samples — a real gradient-descent training loop
+    X = torch.randn(4096, 1, device=dev)
+    y = 3 * X + 2 + 0.1 * torch.randn_like(X)
+    model = nn.Sequential(nn.Linear(1, 64), nn.ReLU(), nn.Linear(64, 1)).to(dev)
+    opt = torch.optim.Adam(model.parameters(), lr=0.01)
+    lossfn = nn.MSELoss()
+    for epoch in range(300):
+        opt.zero_grad()
+        loss = lossfn(model(X), y)
+        loss.backward()
+        opt.step()
+        if epoch % 30 == 0:
+            print(f"epoch {epoch:3d}  loss {loss.item():.5f}", flush=True)
+    torch.save(model.state_dict(), "/tmp/model.pt")
+    print(f"final loss {loss.item():.5f} — checkpoint saved, TRAINING OK", flush=True)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gpu-train
+  namespace: training
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: train
+          image: pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
+          command: ["python", "/scripts/train.py"]
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              cpu: "2"
+              memory: 8Gi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: gpu-train-script

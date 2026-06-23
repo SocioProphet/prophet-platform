@@ -1,0 +1,72 @@
+# Platform-feature proof: LoRA finetuning of a causal LM on the cluster.
+# Self-contained — public PyTorch image, installs transformers/peft at runtime,
+# LoRA-finetunes a tiny GPT-2 on a small corpus, shows train loss, saves the
+# adapter. Proves the finetuning path end to end.
+#
+# Run:  kubectl apply -f deploy/training/lora-finetune-job.yaml
+#       kubectl logs -f job/lora-finetune -n training
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lora-finetune-script
+  namespace: training
+data:
+  finetune.py: |
+    import subprocess, sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q",
+                           "transformers==4.44.2", "peft==0.12.0", "datasets==2.21.0", "accelerate==0.34.2"])
+    import torch
+    from transformers import (AutoModelForCausalLM, AutoTokenizer, TrainingArguments,
+                              Trainer, DataCollatorForLanguageModeling)
+    from peft import LoraConfig, get_peft_model
+    from datasets import Dataset
+    print("cuda:", torch.cuda.is_available(),
+          torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", flush=True)
+    model_id = "sshleifer/tiny-gpt2"
+    tok = AutoTokenizer.from_pretrained(model_id); tok.pad_token = tok.eos_token
+    model = AutoModelForCausalLM.from_pretrained(model_id)
+    model = get_peft_model(model, LoraConfig(r=8, lora_alpha=16, task_type="CAUSAL_LM"))
+    model.print_trainable_parameters()
+    texts = ["SocioProphet builds open, auditable, provenance-first AI."] * 128
+    ds = Dataset.from_dict({"text": texts}).map(
+        lambda b: tok(b["text"], truncation=True, padding="max_length", max_length=32), batched=True)
+    args = TrainingArguments(output_dir="/tmp/out", per_device_train_batch_size=8,
+                             num_train_epochs=3, logging_steps=2, report_to=[])
+    Trainer(model=model, args=args, train_dataset=ds,
+            data_collator=DataCollatorForLanguageModeling(tok, mlm=False)).train()
+    model.save_pretrained("/tmp/adapter")
+    print("LoRA FINETUNE complete — adapter saved to /tmp/adapter", flush=True)
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lora-finetune
+  namespace: training
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: finetune
+          image: pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
+          command: ["python", "/scripts/finetune.py"]
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              cpu: "2"
+              memory: 8Gi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+      volumes:
+        - name: script
+          configMap:
+            name: lora-finetune-script
