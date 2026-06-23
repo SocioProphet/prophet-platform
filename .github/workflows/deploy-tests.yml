@@ -1,0 +1,54 @@
+# Cheap, deterministic, $0 gates for the deploy + proof layer. Keeps the things
+# we just proved by hand from silently regressing. No cloud, no GPU.
+name: deploy-tests
+
+on:
+  pull_request:
+    paths:
+      - 'charts/**'
+      - 'deploy/**'
+      - 'apps/eval-fabric-api/**'
+      - '.github/workflows/deploy-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'charts/**'
+      - 'deploy/**'
+      - 'apps/eval-fabric-api/**'
+
+jobs:
+  # Gate 1: the reusable chart renders for every service's values.
+  helm-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Render every service's values
+        run: |
+          fail=0
+          for f in deploy/values/*.yaml; do
+            if helm template x charts/socioprophet-service -f "$f" >/dev/null; then
+              echo "ok   $(basename "$f")"
+            else
+              echo "FAIL $(basename "$f")"; fail=1
+            fi
+          done
+          exit $fail
+
+  # Gate 2: the head-to-head runner logic (code extraction, hidden-test grading,
+  # arm assembly) — the determinism that protects the live proof + GPU/token spend.
+  head-to-head-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/eval-fabric-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt -r requirements-test.txt
+      - name: Run head-to-head unit tests
+        run: pytest tests/test_head_to_head.py -q
