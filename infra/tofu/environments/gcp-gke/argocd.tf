@@ -31,38 +31,35 @@ resource "helm_release" "argocd" {
 }
 
 # Root app-of-apps: Argo watches deploy/argocd and applies the ApplicationSets
-# (platform-services, workspace-services, fogstack) found there. Applied via
-# kubectl after the CRDs exist (avoids kubernetes_manifest plan-time CRD races).
-resource "null_resource" "root_app" {
+# (platform-services, workspace-services, fogstack) found there. Created via the
+# argocd-apps Helm chart through the configured provider — no kubectl/kubeconfig
+# dependency, and it applies after Argo's CRDs exist (depends_on).
+resource "helm_release" "root_app" {
+  name       = "root-app"
+  namespace  = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argocd-apps"
+  version    = "2.0.2"
   depends_on = [helm_release.argocd]
 
-  triggers = {
-    repo     = var.gitops_repo_url
-    revision = var.gitops_revision
-    path     = var.gitops_path
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      cat <<'YAML' | kubectl apply -f -
-      apiVersion: argoproj.io/v1alpha1
-      kind: Application
-      metadata:
-        name: root
-        namespace: argocd
-      spec:
-        project: default
-        source:
-          repoURL: ${var.gitops_repo_url}
-          targetRevision: ${var.gitops_revision}
-          path: ${var.gitops_path}
-          directory: { recurse: true }
-        destination:
-          server: https://kubernetes.default.svc
-          namespace: argocd
-        syncPolicy:
-          automated: { prune: true, selfHeal: true }
-      YAML
-    EOT
-  }
+  values = [yamlencode({
+    applications = [{
+      name      = "root"
+      namespace = "argocd"
+      project   = "default"
+      source = {
+        repoURL        = var.gitops_repo_url
+        targetRevision = var.gitops_revision
+        path           = var.gitops_path
+        directory      = { recurse = true }
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "argocd"
+      }
+      syncPolicy = {
+        automated = { prune = true, selfHeal = true }
+      }
+    }]
+  })]
 }
