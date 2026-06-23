@@ -1,0 +1,62 @@
+# Publish the Helm charts for download, two ways:
+#   1. Public chart repo via GitHub Pages  → `helm repo add` (no cloud auth)
+#   2. OCI artifacts in Artifact Registry   → `helm pull oci://…`
+#
+# chart-releaser packages every chart under charts/, cuts a GitHub Release per
+# chart version, and updates index.yaml on the gh-pages branch. Bump a chart's
+# version in its Chart.yaml to publish a new one.
+name: helm-release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm-release.yml'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    # chart-releaser: create releases + push gh-pages
+      id-token: write     # WIF for the OCI push
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - uses: azure/setup-helm@v4
+
+      # 1. Public chart repo on GitHub Pages (helm repo add).
+      - name: Release charts to GitHub Pages
+        uses: helm/chart-releaser-action@v1.6.0
+        with:
+          charts_dir: charts
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 2. OCI artifacts in Artifact Registry (helm pull oci://).
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Push charts to Artifact Registry (OCI)
+        run: |
+          echo "${{ steps.auth.outputs.access_token }}" \
+            | helm registry login us-central1-docker.pkg.dev -u oauth2accesstoken --password-stdin
+          mkdir -p /tmp/pkg
+          for c in charts/*/; do
+            [ -f "$c/Chart.yaml" ] && helm package "$c" -d /tmp/pkg
+          done
+          for t in /tmp/pkg/*.tgz; do
+            helm push "$t" oci://us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/charts
+          done
