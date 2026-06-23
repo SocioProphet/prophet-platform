@@ -3,6 +3,6 @@ image: { repository: socioprophet-gateway }
 service: { port: 8080, portName: http }
 ingress:
   enabled: true
-  className: gce
+  className: ""   # cluster default; set per-cloud (gce / azure-application-gateway / alb) via overlay
   hosts: [{ host: api.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
