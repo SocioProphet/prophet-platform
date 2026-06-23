@@ -1,0 +1,109 @@
+# Mesh inference serving — the missing IaC piece.
+#
+# The platform already provisions GPU node pools (infra/tofu/environments/{aws-eks,ibm-iks}, GKE
+# Autopilot auto-provision) and runs GPU *training* Jobs (deploy/training/). This is the GPU
+# *inference* serving it lacked: an open model behind an OpenAI-compatible endpoint — "our cloud
+# mesh" — which the head-to-head runner (and the product) call to prove parity with the frontier.
+#
+# vLLM serves /v1/chat/completions on :8000, so MESH_URL = http://mesh-vllm.serving.svc:8000/v1.
+#
+# COST DISCIPLINE: the GPU bills only while this Deployment has a ready replica. Apply it just
+# before a demo, tear it down right after:
+#   kubectl apply -f deploy/serving/mesh-vllm-serve.yaml          # spin up (GPU node auto-provisions)
+#   kubectl -n serving rollout status deploy/mesh-vllm --timeout=15m
+#   ...run the proof...
+#   kubectl delete -f deploy/serving/mesh-vllm-serve.yaml         # tear down → GPU node scales away
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: serving
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-vllm
+  namespace: serving
+  labels:
+    app: mesh-vllm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mesh-vllm
+  template:
+    metadata:
+      labels:
+        app: mesh-vllm
+    spec:
+      # GPU node selection — mirrors deploy/training/*. L4 (24GB) fits a 7B comfortably; swap to
+      # nvidia-tesla-t4 (cheapest) for smaller models, or nvidia-tesla-a100 for 30B+.
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-l4
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.6.3
+          args:
+            - "--model=$(MESH_MODEL)"
+            - "--port=8000"
+            - "--max-model-len=8192"
+            - "--gpu-memory-utilization=0.92"
+          env:
+            - name: MESH_MODEL
+              value: "Qwen/Qwen2.5-Coder-7B-Instruct"
+            # Optional: HF token for gated models (Qwen is open — leave unset). Provide via a secret.
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              cpu: "4"
+              memory: 24Gi
+            requests:
+              cpu: "2"
+              memory: 16Gi
+          volumeMounts:
+            - name: shm           # vLLM needs a large /dev/shm for tensor-parallel + paged-attn
+              mountPath: /dev/shm
+            - name: hf-cache      # model weights cache (download once per node)
+              mountPath: /root/.cache/huggingface
+          # Weights download + load takes minutes — gate readiness with a long-tolerant startupProbe
+          # so the rollout doesn't flap, then a fast readinessProbe once it's serving.
+          startupProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+            failureThreshold: 90    # up to ~15 min for first-time weight pull + load
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            periodSeconds: 10
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 8Gi
+        - name: hf-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mesh-vllm
+  namespace: serving
+  labels:
+    app: mesh-vllm
+spec:
+  selector:
+    app: mesh-vllm
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
