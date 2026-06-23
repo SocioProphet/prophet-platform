@@ -1,16 +1,15 @@
-# FRONTIER (super-high-end) — 8–16× H100/H200. Fields the FULL open choir from
-# prophet-mesh specs/model-task-policy.yaml (open_private + per-role specialists),
-# each role resolved to the current #1 OPEN model in its family that fits the iron.
-# Maps to prophet-mesh Enterprise. (Hosted frontier = the "claimed" comparison, not served here.)
+# FRONTIER (super-high-end) — 8–16× H100/H200. The full 7-role open choir from
+# prophet-mesh model-task-policy.yaml, each resolved to the current #1 OPEN model
+# in its family fitting the iron. (Image-gen/OCR/ASR/TTS = extended media roster.)
 profile: frontier
 namespace: serving
 defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
-iron:
-  accelerator: nvidia-h100-80gb
+iron: { accelerator: nvidia-h100-80gb }
 models:
-  - { name: conductor, family: open_private,         model: RESOLVE_open_flagship,   gpus: 4, tensorParallel: 4, quantization: fp8, readyDelaySeconds: 120, readyFailureThreshold: 80 }  # Qwen3-235B-A22B / Llama-4-Maverick class
-  - { name: code,      family: code_specialist,      model: RESOLVE_open_code,        gpus: 2, tensorParallel: 2, quantization: fp8 }   # Codestral / Qwen3-32B class
-  - { name: reasoning, family: reasoning_specialist,  model: RESOLVE_open_reasoning,   gpus: 2, tensorParallel: 2, quantization: fp8 }   # DeepSeek-R1 / Qwen3-235B class
-  - { name: document,  family: document_specialist,   model: RESOLVE_open_document,    gpus: 1, tensorParallel: 1 }                       # Mistral-OCR class
-  - { name: image,     family: image_specialist,      model: RESOLVE_open_image,       gpus: 1, tensorParallel: 1 }                       # Stable-Diffusion-3.5 class
-  - { name: embedding, family: embeddings,            model: RESOLVE_open_embed,       gpus: 1, tensorParallel: 1 }                       # nomic-embed / bge / Qwen3-embed
+  - { name: conductor, family: open_private,         model: RESOLVE_open_flagship,   gpus: 4, tensorParallel: 4, quantization: fp8, readyDelaySeconds: 120, readyFailureThreshold: 80 }  # Qwen3-235B-A22B / Llama-4-Maverick
+  - { name: code,      family: code_specialist,      model: RESOLVE_open_code,        gpus: 2, tensorParallel: 2, quantization: fp8 }   # Codestral / Qwen3-32B
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE_open_reasoning,   gpus: 2, tensorParallel: 2, quantization: fp8 }   # DeepSeek-R1 / Qwen3-235B
+  - { name: vision,    family: vision_understanding, model: RESOLVE_open_vlm,         gpus: 2, tensorParallel: 2 }                       # Qwen3-VL / Llama-4-Scout / InternVL (understanding)
+  - { name: reranker,  family: reranker,             model: RESOLVE_open_reranker,    gpus: 1, tensorParallel: 1 }                       # bge-reranker-v2 / Qwen3-Reranker
+  - { name: guard,     family: guard,                model: RESOLVE_open_guard,       gpus: 1, tensorParallel: 1 }                       # Llama-Guard-4 / Qwen3-Guard / ShieldGemma
+  - { name: embedding, family: embeddings,           model: RESOLVE_open_embed,       gpus: 1, tensorParallel: 1 }                       # nomic-embed / bge / Qwen3-Embedding
