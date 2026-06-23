@@ -1,0 +1,47 @@
+# Build every service image through the estate's reusable build-image workflow:
+# push to Artifact Registry with the immutable commit-SHA tag (what the Argo
+# ApplicationSets in deploy/argocd promote) + cosign-sign the digest.
+#
+# Supersedes the per-service GHCR one-offs (socioprophet-api-image.yml etc.):
+# one matrix, one registry (GAR), one signing path.
+#
+# DEPENDS ON: SocioProphet/.github (the reusable workflow) + the GAR repo. Until
+# those exist this is intentionally not wired to PRs (push/dispatch only), so it
+# can't go red before the backbone is provisioned.
+name: images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - '.github/workflows/images.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: socioprophet-api,      context: apps/api }
+          - { image: socioprophet-gateway,  context: apps/gateway }
+          - { image: socioprophet-web,      context: apps/socioprophet-web }
+          - { image: evidence-console,      context: apps/evidence-console }
+          - { image: evidence-receipts,     context: apps/evidence-receipts }
+          - { image: eval-fabric-api,       context: apps/eval-fabric-api }
+          - { image: hellgraph-service,     context: apps/hellgraph-service }
+          - { image: osm-map-api,           context: apps/osm-map-api }
+          - { image: workspace-mail,        context: services/workspace-mail }
+          - { image: workspace-caldav,      context: services/workspace-caldav }
+          - { image: workspace-smtp,        context: services/workspace-smtp }
+          - { image: search-orchestrator,   context: services/search-orchestrator }
+    uses: SocioProphet/.github/.github/workflows/build-image.yml@main
+    with:
+      image: ${{ matrix.image }}
+      context: ${{ matrix.context }}
+      dockerfile: Dockerfile
+    secrets:
+      gcp_wif_provider:    ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      gcp_service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
