@@ -1,14 +1,14 @@
-# EDGE — current GCP quota (A100-40 spot, 16 avail). Same 7-role choir as small
-# specialists (1 GPU each) — mirrors the local ollama choir, scaled down.
+# EDGE — current GCP quota (A100-40 spot). Same choir as int4(awq) specialists,
+# 1 GPU each — mirrors the local ollama choir, scaled down. The $0-quota dry-run.
 profile: edge
 namespace: serving
 defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
 iron: { accelerator: nvidia-tesla-a100 }
 models:
-  - { name: conductor, family: open_private,         model: RESOLVE_open_small,        gpus: 1, tensorParallel: 1 }  # Qwen3-32B-class
-  - { name: code,      family: code_specialist,      model: RESOLVE_open_code_small,   gpus: 1, tensorParallel: 1 }  # Qwen3-Coder / Codestral small
-  - { name: reasoning, family: reasoning_specialist, model: RESOLVE_open_reason_small, gpus: 1, tensorParallel: 1 }  # DeepSeek-R1-distill
-  - { name: vision,    family: vision_understanding, model: RESOLVE_open_vlm_small,    gpus: 1, tensorParallel: 1 }  # LLaVA / Qwen2.5-VL small
-  - { name: reranker,  family: reranker,             model: RESOLVE_open_reranker,     gpus: 1, tensorParallel: 1 }
-  - { name: guard,     family: guard,                model: RESOLVE_open_guard,        gpus: 1, tensorParallel: 1 }
-  - { name: embedding, family: embeddings,           model: RESOLVE_open_embed,        gpus: 1, tensorParallel: 1 }
+  - { name: conductor, family: open_private,         model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: awq }
+  - { name: code,      family: code_specialist,      model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: awq }
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: awq }
+  - { name: vision,    family: vision_understanding, model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: awq }
+  - { name: reranker,  family: reranker,             model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: guard,     family: guard,                model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: embedding, family: embeddings,           model: RESOLVE, gpus: 1, tensorParallel: 1 }
