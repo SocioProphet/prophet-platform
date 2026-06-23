@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "svc.fullname" . }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "svc.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "svc.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}{{- toYaml . | nindent 8 }}{{- end }}
+      annotations:
+        {{- if .Values.config }}
+        checksum/config: {{ .Values.config | toYaml | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+    spec:
+      serviceAccountName: {{ include "svc.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "svc.name" . }}
+          image: {{ include "svc.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: {{ .Values.service.portName }}
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            {{- range .Values.service.extraPorts }}
+            - name: {{ .name }}
+              containerPort: {{ .port }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
+          {{- if or .Values.config .Values.secretEnv .Values.extraEnv }}
+          env:
+            {{- range $k, $v := .Values.config }}
+            - name: {{ $k }}
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "svc.fullname" $ }}-config
+                  key: {{ $k }}
+            {{- end }}
+            {{- range $k, $s := .Values.secretEnv }}
+            - name: {{ $k }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s.secretName }}
+                  key: {{ $s.key }}
+                  {{- if hasKey $s "optional" }}
+                  optional: {{ $s.optional }}
+                  {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnv }}{{- toYaml . | nindent 12 }}{{- end }}
+          {{- end }}
+          {{- if .Values.probes.enabled }}
+          {{- if .Values.probes.httpGet }}
+          readinessProbe:
+            httpGet: { path: {{ .Values.probes.path }}, port: {{ .Values.service.portName }} }
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          livenessProbe:
+            httpGet: { path: {{ .Values.probes.path }}, port: {{ .Values.service.portName }} }
+            initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 10 }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          {{- else }}
+          readinessProbe:
+            tcpSocket: { port: {{ .Values.service.portName }} }
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          {{- end }}
+          {{- end }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.tmpDir.enabled }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- end }}
+      {{- if .Values.tmpDir.enabled }}
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: {{ .Values.tmpDir.sizeLimit }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

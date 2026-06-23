@@ -1,0 +1,43 @@
+# Argo CD ApplicationSet — prophet-workspace services (mail / calendar / smtp).
+# prophet-workspace owns the product semantics + contracts; the deployment
+# topology lives here in prophet-platform (per the prophet-workspace README).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workspace-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: workspace-caldav }
+          - { name: workspace-mail }
+          - { name: workspace-smtp }
+  template:
+    metadata:
+      name: 'ws-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: prophet-workspace
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          ref: values
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          path: charts/socioprophet-service
+          helm:
+            releaseName: '{{.name}}'
+            valueFiles:
+              - '$values/deploy/values/{{.name}}.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: workspace
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

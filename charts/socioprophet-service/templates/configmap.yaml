@@ -1,0 +1,11 @@
+{{- if .Values.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "svc.fullname" . }}-config
+  labels: {{- include "svc.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+{{- end }}

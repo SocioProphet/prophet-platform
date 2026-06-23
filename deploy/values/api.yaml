@@ -1,0 +1,9 @@
+# socioprophet-api — tritRPC core API
+image: { repository: socioprophet-api }
+service: { port: 9000, portName: tritrpc }
+probes: { enabled: true, httpGet: false }   # raw tritRPC, no HTTP health
+config:
+  TRITRPC_LISTEN_ADDR: "tcp://0.0.0.0:9000"
+  TRITRPC_ALLOW_INSECURE_DEV_KEY: "0"
+secretEnv:
+  TRITRPC_KEY_HEX: { secretName: tritrpc-shared-key, key: TRITRPC_KEY_HEX, optional: true }

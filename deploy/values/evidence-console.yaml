@@ -1,0 +1,3 @@
+# evidence-console
+image: { repository: evidence-console }
+service: { port: 8080, portName: http }

@@ -1,0 +1,3 @@
+# eval-fabric-api
+image: { repository: eval-fabric-api }
+service: { port: 8080, portName: http }

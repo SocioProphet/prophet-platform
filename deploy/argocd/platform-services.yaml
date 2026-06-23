@@ -1,0 +1,51 @@
+# Argo CD ApplicationSet — core platform services.
+# Each entry renders the reusable socioprophet-service chart with its
+# deploy/values/<name>.yaml. The image tag (commit SHA) is promoted by the
+# build-image workflow / gitops-promote, overriding image.tag per release.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: api }
+          - { name: gateway }
+          - { name: socioprophet-web }
+          - { name: evidence-console }
+          - { name: evidence-receipts }
+          - { name: eval-fabric-api }
+          - { name: hellgraph-service }
+          - { name: osm-map-api }
+          - { name: reasoning-failure-runner }
+          - { name: search-orchestrator }
+  template:
+    metadata:
+      name: 'svc-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: socioprophet
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          ref: values
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          path: charts/socioprophet-service
+          helm:
+            releaseName: '{{.name}}'
+            valueFiles:
+              - '$values/deploy/values/{{.name}}.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

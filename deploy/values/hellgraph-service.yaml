@@ -1,0 +1,3 @@
+# hellgraph-service
+image: { repository: hellgraph-service }
+service: { port: 8080, portName: http }

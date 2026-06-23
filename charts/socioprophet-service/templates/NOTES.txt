@@ -1,0 +1,10 @@
+{{ include "svc.fullname" . }} deployed.
+
+  image:   {{ include "svc.image" . }}
+  service: {{ include "svc.fullname" . }}:{{ .Values.service.port }} ({{ .Values.service.type }})
+{{- if .Values.ingress.enabled }}
+  ingress: {{- range .Values.ingress.hosts }} {{ .host }}{{- end }}
+{{- end }}
+
+Port-forward to test locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "svc.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}

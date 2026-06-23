@@ -1,0 +1,17 @@
+apiVersion: v2
+name: socioprophet-service
+description: >-
+  Reusable chart for a SocioProphet / SourceOS estate service: a hardened
+  Deployment + Service (+ optional ConfigMap, HPA, Ingress, ServiceAccount).
+  One chart, many values — every estate service deploys through this.
+type: application
+version: 0.1.0
+# Tracks the estate's release line; per-service image tags come from values.
+appVersion: "26.11"
+maintainers:
+  - name: SocioProphet
+    url: https://github.com/SocioProphet/prophet-platform
+keywords:
+  - socioprophet
+  - sourceos
+  - fogstack
