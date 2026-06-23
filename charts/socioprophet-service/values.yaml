@@ -1,0 +1,94 @@
+# Defaults for the reusable socioprophet-service chart.
+# Per-service files in deploy/values/<svc>.yaml override only what differs.
+
+# Logical service name (becomes the workload + Service name and app label).
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  # GAR — the estate registry the build-image reusable workflow pushes to.
+  registry: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet
+  repository: ""          # required per service, e.g. socioprophet-api
+  # Immutable tag = the commit SHA the GitOps promotion writes. "" → chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Image pull secret(s), if the namespace needs them (GAR via WIF usually doesn't).
+imagePullSecrets: []
+
+replicaCount: 1
+
+# Container port the app listens on (also the Service targetPort).
+service:
+  type: ClusterIP
+  port: 8080
+  # Service port name; keep stable for NetworkPolicy / mesh.
+  portName: http
+  # Optional extra ports: [{ name: tritrpc, port: 9000 }]
+  extraPorts: []
+
+# Plain env (non-secret). Rendered into a ConfigMap and injected.
+config: {}
+#   TRITRPC_LISTEN_ADDR: "tcp://0.0.0.0:9000"
+
+# Secret env: name → existing Secret + key. The Secret is NOT created here
+# (never commit secrets); reference one provisioned out of band / by SOPS.
+secretEnv: {}
+#   TRITRPC_KEY_HEX: { secretName: tritrpc-shared-key, key: TRITRPC_KEY_HEX, optional: true }
+
+# Extra raw env entries passed straight through.
+extraEnv: []
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits:   { cpu: "1",  memory: 512Mi }
+
+# Hardened by default — matches the estate's existing kustomize bases.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile: { type: RuntimeDefault }
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 10001
+  capabilities: { drop: ["ALL"] }
+
+# Writable scratch for readOnlyRootFilesystem services (mounted at /tmp).
+tmpDir:
+  enabled: true
+  sizeLimit: 256Mi
+
+probes:
+  enabled: true
+  path: /healthz
+  # Set false for services with no HTTP health endpoint (e.g. raw TCP daemons).
+  httpGet: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []          # [{ host: api.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
+  tls: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}    # e.g. iam.gke.io/gcp-service-account for Workload Identity
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}

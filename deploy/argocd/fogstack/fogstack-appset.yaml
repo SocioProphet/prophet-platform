@@ -1,0 +1,62 @@
+# Argo CD ApplicationSet — fogstack (the cloudshell-fog runtime stack).
+# Matrix of (service x compliance tier): each fog-tier service is deployed into
+# both fogstack-standard and fogstack-federal namespaces, tagged with its
+# compliance tier. Mirrors the existing infra/argocd/cloudshell-fog-stack-
+# {standard,federal}-application.yaml split, but chart-driven.
+#
+# NOTE: confirm the exact fog-tier service membership below — these are the
+# runtime services that plausibly run at the fog edge; adjust as the fogstack
+# bill-of-materials firms up.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: fogstack
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - { name: search-orchestrator }
+                - { name: eval-fabric-api }
+                - { name: hellgraph-service }
+                - { name: reasoning-failure-runner }
+          - list:
+              elements:
+                - { tier: standard }
+                - { tier: federal }
+  template:
+    metadata:
+      name: 'fog-{{.tier}}-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: fogstack
+        socioprophet.ai/compliance-tier: '{{.tier}}'
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          ref: values
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          path: charts/socioprophet-service
+          helm:
+            releaseName: '{{.name}}'
+            valueFiles:
+              - '$values/deploy/values/{{.name}}.yaml'
+            values: |
+              podLabels:
+                socioprophet.ai/compliance-tier: "{{.tier}}"
+              config:
+                COMPLIANCE_TIER: "{{.tier}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'fogstack-{{.tier}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

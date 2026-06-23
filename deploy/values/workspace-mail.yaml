@@ -1,0 +1,5 @@
+# workspace-mail — IMAP mail store
+image: { repository: workspace-mail }
+service: { port: 143, portName: imap }
+probes: { enabled: true, httpGet: false }
+config: { WORKSPACE_SURFACE: mail }

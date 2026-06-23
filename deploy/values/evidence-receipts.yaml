@@ -1,0 +1,3 @@
+# evidence-receipts
+image: { repository: evidence-receipts }
+service: { port: 8080, portName: http }

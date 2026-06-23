@@ -1,0 +1,8 @@
+# socioprophet-web — web portal
+image: { repository: socioprophet-web }
+service: { port: 8080, portName: http }
+ingress:
+  enabled: true
+  className: gce
+  hosts: [{ host: app.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }

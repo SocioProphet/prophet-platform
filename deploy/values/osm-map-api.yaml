@@ -1,0 +1,3 @@
+# osm-map-api
+image: { repository: osm-map-api }
+service: { port: 8080, portName: http }

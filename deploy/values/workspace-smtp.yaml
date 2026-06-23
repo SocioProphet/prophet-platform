@@ -1,0 +1,5 @@
+# workspace-smtp — SMTP submission
+image: { repository: workspace-smtp }
+service: { port: 587, portName: submission, extraPorts: [{ name: smtp, port: 25 }] }
+probes: { enabled: true, httpGet: false }
+config: { WORKSPACE_SURFACE: smtp }

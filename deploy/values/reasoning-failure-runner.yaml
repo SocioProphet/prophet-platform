@@ -1,0 +1,3 @@
+# reasoning-failure-runner
+image: { repository: reasoning-failure-runner }
+service: { port: 8080, portName: http }
