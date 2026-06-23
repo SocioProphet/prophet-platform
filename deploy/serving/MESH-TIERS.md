@@ -37,9 +37,11 @@ servable on GCP today. Two paths to make it **available**, not theoretical:
    the `infra/tofu/environments/*` substrates — the multicloud work pays off
    here: field the frontier tier on whichever cloud has the iron).
 
-`mesh-vllm-serve-high.yaml` is the frontier-tier serving manifest (8-GPU,
-tensor-parallel-8, FP8) — the artifact that makes super-high-end *available*; it
-schedules wherever 8× H100 nodes exist (rented or quota'd).
+Serving is **profile-driven**: `charts/mesh-serving` + `deploy/serving/profiles/`
+`{edge,pro,frontier}.yaml`. Swap the profile to swap the iron + its matched
+purpose→model map. `helm template mesh charts/mesh-serving -f profiles/frontier.yaml`
+renders the 8-GPU TP=8 FP8 frontier deployment — the artifact that makes
+super-high-end *available*, scheduling wherever 8× H100/H200 nodes exist.
 
 ## Ephemeral, always
 Every tier spins up → proves → tears down. The frontier tier especially: 8× H100

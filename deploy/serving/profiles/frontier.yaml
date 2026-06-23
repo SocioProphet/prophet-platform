@@ -1,0 +1,15 @@
+# FRONTIER (super-high-end) — 8×H100/H200. One current-#1 open MoE serves every
+# purpose. Maps to prophet-mesh Enterprise. Rent the iron ephemeral or quota it.
+profile: frontier
+namespace: serving
+defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
+iron:
+  accelerator: nvidia-h100-80gb
+models:
+  - name: general          # one 700B–1.6T MoE covers general/code/reasoning
+    model: RESOLVE_top_open_moe_fp8     # current #1 open MoE (DeepSeek V4-Pro / Kimi K2.6 / GLM-5.1)
+    gpus: 8
+    tensorParallel: 8
+    quantization: fp8
+    readyDelaySeconds: 120
+    readyFailureThreshold: 80

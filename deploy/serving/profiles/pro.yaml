@@ -1,0 +1,14 @@
+# PRO — 2×H100. A ~280B-MoE / 13B-active model (frontier-class but accessible).
+# Maps to the paid tier.
+profile: pro
+namespace: serving
+defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
+iron:
+  accelerator: nvidia-h100-80gb
+models:
+  - name: general
+    model: RESOLVE_mid_moe_2xh100       # DeepSeek V4-Flash-class (~284B/13B active)
+    gpus: 2
+    tensorParallel: 2
+    readyDelaySeconds: 90
+    readyFailureThreshold: 60

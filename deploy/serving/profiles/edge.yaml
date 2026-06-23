@@ -1,0 +1,16 @@
+# EDGE — on current GCP quota (A100-40 spot). Can't fit one big model, so field
+# per-purpose specialists. Maps to the free/dev tier. The $0-quota dry-run iron.
+profile: edge
+namespace: serving
+defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
+iron:
+  accelerator: nvidia-tesla-a100        # A100-40 (spot). nvidia-l4 for <=14B.
+models:
+  - name: code                          # best dense code model fitting 1×A100-40
+    model: RESOLVE_dense_code_fits_1xa100
+    gpus: 1
+    tensorParallel: 1
+  - name: reasoning                     # best dense reasoning model (QwQ-class) fitting 1×A100-40
+    model: RESOLVE_dense_reasoning_fits_1xa100
+    gpus: 1
+    tensorParallel: 1
