@@ -141,6 +141,8 @@ def train_func(config: dict[str, Any]) -> None:
 
         rank0 = get_context().get_world_rank() == 0
     except Exception:
+        # No Ray train context (local/CPU smoke or single-worker run) — keep the default
+        # rank0=True so the adapter is still saved exactly once.
         pass
     if rank0:
         model.save_pretrained(config["out_dir"])
