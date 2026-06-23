@@ -7,6 +7,29 @@ evidence** (`competitor_snapshots.reproduced_by_us=true`), then torn down.
 `deploy/serving/README.md` is the happy-path motion. This plan fills the gaps it
 glosses (the persist path) and surfaces the decisions to make before we spend.
 
+## Rule #0 — NO CONTAMINATION (non-negotiable)
+The exam proves the **architecture** (the brain + the jujitsu ops), not what any
+model memorized. If a score reflects memorization or lookup, it's invalid — "if
+there is contamination we're not doing it right." Four hard guards:
+1. **Contamination-controlled problem set.** Problems neither our model nor the
+   frontier saw in pretraining — i.e. **post-training-cutoff / held-out**.
+   Public benchmarks (HumanEval, MBPP) are DISQUALIFIED (memorized). Use
+   **LiveCodeBench** (problems dated after model cutoffs, function-level, hidden
+   tests, and a public frontier leaderboard → satisfies "vs their *published*
+   number" with no live API and no contamination), or a freshly-authored
+   held-out set we keep private.
+2. **No training on answer keys.** Our training (`deploy/training/*`) never
+   touches the exam set or its solutions.
+3. **Hellgraph excludes the exam.** The retrieval/KG arm grounds on *general*
+   cross-org knowledge only. The exam problems/solutions are NEVER ingested into
+   hellgraph — otherwise the "jujitsu" is just answer lookup. Enforced by an
+   explicit exclusion guard + an assertion in the run.
+4. **Hidden tests stay hidden.** Graded after generation, never in the prompt
+   (the runner already separates `prompt` from `test` — keep it that way).
+
+A clean result = our architecture closing the gap to the frontier's *published*
+number on problems nobody trained on. That's the only number worth showing.
+
 ## Already proven (free, done)
 The mechanism works end to end at $0: 6/6 runner unit tests; live `--no-persist`
 vs a local mesh scored 3/3 graded by the hidden tests. What's left is the *paid*
@@ -28,26 +51,29 @@ landed. That requires three things the README assumes:
 1. postgres + schema          # kubectl apply a postgres pod; psql -f 001..005_*.sql
 2. eval-fabric-api            # deploy it pointed at POSTGRES_DSN (Argo or kubectl)
 3. kubectl apply mesh-vllm-serve.yaml; rollout status --timeout=15m   # L4, ~5–15 min model load
-4. create secret frontier-keys (ANTHROPIC_API_KEY + OPENAI_API_KEY)
-5. kubectl apply head-to-head-job.yaml  (POSTGRES_DSN + MESH_URL in-cluster + keys)
+4. seed published-leaderboard numbers (the "claimed" side) — NO live frontier API
+5. kubectl apply head-to-head-job.yaml  (POSTGRES_DSN + MESH_URL in-cluster + exam slice)
 6. logs -f → scores; curl /v1/competition/reproduced-vs-claimed | jq  → the number + evidence
-7. kubectl delete mesh-vllm-serve.yaml + the job + (optionally) the cluster   # stop GPU bill
+7. kubectl delete mesh-vllm-serve.yaml + the job + the ephemeral DB + the cluster   # stop all spend
 ```
 
-## Decisions to make (before we spend)
-1. **Problem bank size — the big one.** The bank is **8 problems** today → any
-   number is *directional/anecdotal*, not a defensible parity claim. Options:
-   (a) run the 8 now for a live-mechanism number; (b) expand the bank first
-   (HumanEval/MBPP subset or more hidden-test problems → 50–100) for a number
-   that holds up. Recommend (b) if the number is going to a client; (a) if it's
-   an internal smoke.
-2. **Mesh model / GPU.** Default `Qwen/Qwen2.5-Coder-7B-Instruct` on **L4**
-   (quota 8, fits 24 GB). Bigger model → A100 (~10× cost). Recommend L4/7B.
-3. **Frontier arms.** Defaults `claude-sonnet-4-6` + `gpt-4o`. Confirm models.
-   **Need the keys** — provided as the `frontier-keys` secret. Do we have them?
-4. **Persist?** Yes → the evidence/reproduced-vs-claimed story (the moat). Needs
-   steps 1–2. `--no-persist` skips postgres but you only get printed scores.
-   Recommend persist.
+## Locked decisions (per the no-handicap / no-contamination direction)
+1. **Exam set — contamination-controlled, n≥30 (target 100+).** Reflect the real
+   exams, but only ones nobody trained on (see Rule #0). **LiveCodeBench**
+   (post-cutoff, hidden tests, public frontier leaderboard) is the fit; we take a
+   slice of n≥30–100. Hand-written-8 stays only as the $0 smoke. 8 is not a
+   statistically normal set — we don't ship it as the number.
+2. **Mesh model — SOTA, no handicap.** A big open model on **multi-A100 (spot,
+   quota 16)** — e.g. `Qwen2.5-Coder-32B-Instruct` (2×A100-40, tensor-parallel-2)
+   or a 70B (4×A100). No 7B/L4 handicap — if we spin up cloud to fight the
+   frontier, we field a real model. Plus **hellgraph** (cross-org/enterprise KG)
+   grounding + verify-repair = the full "brain + jujitsu" arm.
+3. **Frontier comparison — published numbers, NOT their services.** No live
+   Claude/GPT API calls. The "claimed" side = their **published per-model
+   leaderboard score on the SAME contamination-controlled benchmark**, seeded
+   into `competitor_snapshots`. Drop the live `claude`/`gpt` arms from the runner.
+4. **Persist — yes**, the reproduced-vs-claimed evidence is the point.
+5. **DB — ephemeral.** Stand up, prove, tear down; nothing left billing.
 5. **Postgres source.** A throwaway **pod** (cheapest, teardown-clean) vs Cloud
    SQL. Recommend a pod for the demo.
 
