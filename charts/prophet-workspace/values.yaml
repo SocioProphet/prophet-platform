@@ -23,6 +23,11 @@ gitea:
   image: gitea/gitea:1.22
   db: gitea
   storage: 20Gi
+  oidc:
+    enabled: false            # enable once broker has TLS and auth-code endpoints live
+    brokerUrl: ""             # e.g. https://id.socioprophet.ai (must match BROKER_ISS)
+    clientId: gitea           # client_id registered in BROKER_CLIENTS
+    clientSecretSecret: ""    # optional: k8s Secret with key 'secret'; blank = PKCE-only (Gitea ≥1.22)
 
 image:
   registry: ghcr.io/socioprophet/prophet-platform
@@ -42,6 +47,14 @@ broker:
   signingKeySecret: workspace-broker-signing    # REQUIRED k8s secret (ed25519.key). Create before install; the server
                                                 # falls back to an EPHEMERAL key if absent → tokens die on restart. DAO target: k-of-n.
   tokenTtlSec: 3600
+  appName: "Prophet Workspace"                  # shown on the sovereign login page
+  # clients: registered OIDC clients. Format: { clientId: { redirectUris: [...], secret?: "..." } }
+  # Example for Gitea:
+  # clients:
+  #   gitea:
+  #     redirectUris:
+  #       - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
+  clients: {}
 
 postgres:
   host: postgres                  # reuse the platform Postgres (it's already deployed)
