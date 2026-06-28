@@ -3,6 +3,7 @@ domain: socioprophet.ai
 mailHostname: mail.socioprophet.ai      # MX target + Postfix myhostname (set matching A + PTR/reverse-DNS)
 imapHostname: imap.socioprophet.ai      # IMAPS endpoint for mail clients
 caldavHostname: caldav.socioprophet.ai  # Radicale (served via ingress + TLS)
+brokerHostname: id.socioprophet.ai      # sovereign broker = OIDC issuer (verifier-only; holds no user roots/data)
 
 image:
   registry: ghcr.io/socioprophet/prophet-platform
@@ -11,6 +12,15 @@ image:
   dovecot: workspace-mail
   postfix: workspace-smtp
   radicale: workspace-caldav
+  broker: workspace-broker
+
+# Sovereign identity broker (OIDC issuer). Holds ONLY public material: enrolled per-scope credentials (pubkey +
+# alias), pending challenges, and the IdP signing key. No user roots, no data keys. See SOVEREIGN_ANONYMOUS_IDENTITY.md.
+broker:
+  enabled: true
+  replicas: 2
+  signingKeySecret: workspace-broker-signing   # k8s secret with the EdDSA signing key (ed25519.key). DAO target: threshold/k-of-n.
+  tokenTtlSec: 3600
 
 postgres:
   host: postgres                  # reuse the platform Postgres (it's already deployed)
