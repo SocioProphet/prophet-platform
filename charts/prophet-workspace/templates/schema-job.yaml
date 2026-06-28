@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workspace-mail-schema
+data:
+  mail-schema.sql: |-
+{{ .Files.Get "files/mail-schema.sql" | indent 4 }}
+  seed.sql: |-
+    {{- range .Values.seed.domains }}
+    INSERT INTO mail_domains (domain) VALUES ('{{ . }}') ON CONFLICT (domain) DO NOTHING;
+    {{- end }}
+    {{- range .Values.seed.users }}
+    INSERT INTO mail_users (email, password) VALUES ('{{ .email }}', '{{ .passwordHash }}') ON CONFLICT (email) DO NOTHING;
+    {{- end }}
+---
+{{- if .Values.seed.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workspace-mail-schema
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: postgres:16-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "applying mail schema + seed to {{ .Values.postgres.host }}/{{ .Values.postgres.db }}"
+              psql "host={{ .Values.postgres.host }} port={{ .Values.postgres.port }} dbname={{ .Values.postgres.db }} user=$PGUSER" -v ON_ERROR_STOP=1 -f /sql/mail-schema.sql
+              psql "host={{ .Values.postgres.host }} port={{ .Values.postgres.port }} dbname={{ .Values.postgres.db }} user=$PGUSER" -v ON_ERROR_STOP=1 -f /sql/seed.sql
+              echo "done."
+          env:
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
+          volumeMounts:
+            - { name: sql, mountPath: /sql }
+      volumes:
+        - name: sql
+          configMap: { name: workspace-mail-schema }
+{{- end }}

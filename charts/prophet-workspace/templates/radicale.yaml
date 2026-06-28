@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-caldav
+  labels: { app: workspace-caldav }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: workspace-caldav } }
+  template:
+    metadata: { labels: { app: workspace-caldav } }
+    spec:
+      securityContext: { fsGroup: 999 }
+      containers:
+        - name: radicale
+          image: {{ include "pw.image" (dict "root" . "name" "radicale") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ name: caldav, containerPort: 5232 }]
+          volumeMounts:
+            - { name: collections, mountPath: /var/lib/radicale/collections }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: collections
+          persistentVolumeClaim: { claimName: workspace-caldav-pvc }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-caldav
+  labels: { app: workspace-caldav }
+spec:
+  type: ClusterIP
+  selector: { app: workspace-caldav }
+  ports: [{ name: caldav, port: 5232, targetPort: 5232 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workspace-caldav
+  annotations: { kubernetes.io/ingress.class: nginx }
+spec:
+  {{- if .Values.tls.certSecret }}
+  tls:
+    - hosts: [{{ .Values.caldavHostname | quote }}]
+      secretName: {{ .Values.tls.certSecret }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.caldavHostname | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: workspace-caldav, port: { number: 5232 } } }

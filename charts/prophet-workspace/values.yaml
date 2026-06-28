@@ -1,0 +1,57 @@
+# prophet-workspace — sovereign mail + caldav. See docs/PROPHET_WORKSPACE_MAIL_RUNBOOK.md for the DNS/TLS/cutover steps.
+domain: socioprophet.ai
+mailHostname: mail.socioprophet.ai      # MX target + Postfix myhostname (set matching A + PTR/reverse-DNS)
+imapHostname: imap.socioprophet.ai      # IMAPS endpoint for mail clients
+caldavHostname: caldav.socioprophet.ai  # Radicale (served via ingress + TLS)
+
+image:
+  registry: ghcr.io/socioprophet/prophet-platform
+  tag: dev
+  pullPolicy: IfNotPresent
+  dovecot: workspace-mail
+  postfix: workspace-smtp
+  radicale: workspace-caldav
+
+postgres:
+  host: postgres                  # reuse the platform Postgres (it's already deployed)
+  db: prophet_platform
+  existingSecret: postgres-credentials   # must contain keys: username, password
+  port: 5432
+
+storage:
+  mailbox: 50Gi                   # vmail maildirs (RWO)
+  radicale: 5Gi
+  storageClass: ""               # "" = cluster default; on GKE use standard-rwo
+
+# External exposure. Mail needs PUBLIC ports — these create GCP LoadBalancers.
+# Reserve static IPs (gcloud compute addresses create) and set PTR/reverse-DNS on the SMTP one.
+loadBalancer:
+  smtp:
+    staticIP: ""                  # mail.socioprophet.ai → this IP (ports 25, 587)
+    annotations: {}
+  imap:
+    staticIP: ""                  # imap.socioprophet.ai → this IP (port 993)
+    annotations: {}
+
+tls:
+  certSecret: ""                  # k8s TLS secret (tls.crt/tls.key) for mail.<domain>; cert-manager recommended
+
+relay:                            # OUTBOUND smarthost — STRONGLY recommended; a fresh cloud IP has poor reputation
+  enabled: false
+  host: ""                        # e.g. smtp.sendgrid.net:587 ; or Google relay during transition
+  existingSecret: ""              # keys: username, password
+
+dkim:
+  selector: default               # publish default._domainkey.<domain> TXT with the public key
+  existingSecret: ""              # the DKIM private key (mounted into Postfix/opendkim)
+
+# Seed applied by the schema Job. Passwords are SHA512-CRYPT — generate with:
+#   doveadm pw -s SHA512-CRYPT   (or openssl passwd -6)
+seed:
+  enabled: true
+  domains: [socioprophet.ai]
+  users: []                       # [{ email: gus@socioprophet.ai, passwordHash: "{SHA512-CRYPT}$6$..." }]
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { cpu: "1",  memory: 1Gi }

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-mail
+  labels: { app: workspace-mail }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # single RWO mailbox volume
+  selector: { matchLabels: { app: workspace-mail } }
+  template:
+    metadata: { labels: { app: workspace-mail } }
+    spec:
+      containers:
+        - name: dovecot
+          image: {{ include "pw.image" (dict "root" . "name" "dovecot") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: imap,  containerPort: 143 }
+            - { name: imaps, containerPort: 993 }
+            - { name: lmtp,  containerPort: 24 }
+            - { name: auth,  containerPort: 12 }
+          env:
+            {{- include "pw.pgEnv" . | nindent 12 }}
+          volumeMounts:
+            - { name: vmail, mountPath: /var/mail/vhosts }
+            {{- if .Values.tls.certSecret }}
+            - { name: tls, mountPath: /etc/dovecot/tls, readOnly: true }
+            {{- end }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: vmail
+          persistentVolumeClaim: { claimName: workspace-mail-pvc }
+        {{- if .Values.tls.certSecret }}
+        - name: tls
+          secret: { secretName: {{ .Values.tls.certSecret }} }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-mail            # internal name Postfix uses (DOVECOT_HOST) + LMTP/auth
+  labels: { app: workspace-mail }
+spec:
+  type: ClusterIP
+  selector: { app: workspace-mail }
+  ports:
+    - { name: imap,  port: 143, targetPort: 143 }
+    - { name: imaps, port: 993, targetPort: 993 }
+    - { name: lmtp,  port: 24,  targetPort: 24 }
+    - { name: auth,  port: 12,  targetPort: 12 }
