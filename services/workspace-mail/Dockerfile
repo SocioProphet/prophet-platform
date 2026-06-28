@@ -16,6 +16,10 @@ RUN mkdir -p /var/mail/vhosts \
     && useradd -g vmail -u 5000 vmail -d /var/mail \
     && chown -R vmail:vmail /var/mail
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 143 993 24
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["dovecot", "-F"]
