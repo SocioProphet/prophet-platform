@@ -48,10 +48,37 @@ normalized by `IdentitySubjectContext`. The external proof raises *assurance* on
 exposed identity. Downstream relying parties only ever receive the scoped pseudonym. So you can log in *with*
 anything, but no one you log in with (or who manages your device) can resolve you across contexts.
 
-## Bounded accountability (anonymous, not unaccountable)
-Anonymous-first ≠ lawless. `RevocationToken` revokes a scoped facet; `TraceOpenRequest` can open a pseudonym to a
-real subject **only under explicit, audited, scope-d-governed policy** (e.g., a warrant, an org compliance rule the
-user accepted). The user/holder controls the trace-open keys; it's a constitutional floor, not a backdoor.
+## Compulsion resistance — the core notion we protect ("can't," not "won't")
+The operator must be **architecturally unable** to unlock an account or reveal confidential info — because the keys
+and plaintext never exist on the operator's side. Not a policy promise; a structural impossibility.
+- **Data is E2E-sealed under root-derived keys** (`sovereign-vault.ts`, proven): every scope's data is encrypted with
+  `HKDF(root, data/<scope>)`; the root never leaves the edge. The service stores **only ciphertext + public
+  verification material**. No operator-held key decrypts anything.
+- **Auth forgery yields nothing.** Even if the IdP signing key were misused to forge a login, the account contains
+  only ciphertext the forger can't read. Confidentiality is independent of auth and survives it.
+- **No account "unlock."** Access is gated by the user's root-derived facet key; there is no operator credential that
+  resets or unlocks an account. Recovery is user-side (seed backup / social-recovery threshold), never operator escrow.
+- **Therefore a subpoena to the operator returns ciphertext and public keys — nothing confidential.** Lawful process
+  must target the *user* (due process), who holds the only keys. That is the protection.
+
+## Bounded accountability — WITHOUT an operator backdoor
+Anonymous-first ≠ lawless, but accountability must never become an operator capability (that would be a compellable
+backdoor). `RevocationToken` revokes a scoped facet (a public-state operation — reveals nothing). Any de-anonymization
+(`TraceOpenRequest`) **requires the user's own root-derived disclosure key**, optionally split across the user's chosen
+guardians via a **k-of-n threshold** — the operator and the DAO hold **zero** unilateral trace-open capability. So
+"open this pseudonym" is impossible for us by construction; it can only happen with the user's (or their guardians')
+cryptographic participation.
+
+## DAO governance — no single compellable party (after a short bug-in period)
+Run the service centrally only long enough to iron out bugs, then transfer governance to a **DAO** so there is no
+single legal entity that can be compelled:
+- The **IdP signing key becomes threshold (k-of-n)** across independent DAO operators → no one party can forge tokens
+  or be compelled to forge; signing requires a quorum that no single jurisdiction controls.
+- Protocol upgrades, revocation policy, and the (user-gated) trace-open *rules* are DAO-governed and public; the DAO
+  still cannot decrypt user data or unilaterally de-anonymize — those powers don't exist anywhere in the system.
+- SocioProphet may operate infrastructure but holds **no unilateral key** and so has nothing to surrender.
+- Transition is the explicit milestone after stabilization; until then the same no-custody/E2E guarantees hold under
+  central operation (we just haven't yet distributed the signing quorum).
 
 ## Fronting the suite (the IdP)
 A **sovereign broker** sits in front of a standard IdP (Authentik / Zitadel / Keycloak) and does the per-scope
@@ -71,12 +98,16 @@ pseudonym derivation + relay + attribute-aliasing. The IdP issues OIDC tokens to
 - Relay: a small egress relay for external-IdP flows (alias email via the mail stack's `mail_aliases`).
 
 ## Build plan
-1. **Broker + root keypair + per-scope pseudonym derivation** (HKDF) + `IdentitySubjectContext` runtime — the core.
-2. Stand up the IdP (Zitadel/Authentik), OIDC, behind the broker; per-app pairwise subjects.
-3. Front Matrix + mail + DAV + web on it; migrate Firebase → one relayed external factor.
-4. Per-scope **email aliasing** (wire to `mail_aliases`) + the external-IdP **relay** → Senzing defeat live.
-5. **Anonymous credentials** (SD-JWT-VC) for attestations; `AnonymousReputationReceipt` runtime.
-6. **MDM compartmentalization** profile (managed-device work-facet isolation) + `TraceOpenRequest` governance via scope-d.
+1. ✅ **Broker core** — root seed + per-scope unlinkable facets + aliases (`sovereign-id.ts`, proven).
+2. ✅ **Auth handshake** — root never leaves edge; passkey-style register/assert/verify (`sovereign-broker.ts`, proven).
+3. ✅ **OIDC issuance** — standard EdDSA token, pairwise sub + alias, JWKS (`sovereign-oidc.ts`, proven).
+4. ✅ **Compulsion-resistance vault** — E2E data sealing under root-derived keys (`sovereign-vault.ts`, proven).
+5. ⬜ Stand up the IdP (Zitadel/Authentik) behind the broker; front Matrix + mail + DAV + web; migrate Firebase → one relayed factor.
+6. ⬜ Per-scope **email aliasing** (wire `mail_aliases`) + external-IdP **relay** → Senzing defeat live.
+7. ⬜ Wire the vault into app data paths (mail/drive/docs sealed under root keys) — make "we can't read it" true end-to-end.
+8. ⬜ **Anonymous credentials** (SD-JWT-VC) + `AnonymousReputationReceipt`; **MDM** work-facet compartmentalization.
+9. ⬜ **User-gated trace-open** (threshold across user-chosen guardians; operator/DAO hold none) + recovery (social/threshold).
+10. ⬜ **DAO transition** — threshold (k-of-n) IdP signing key across independent operators; governance handover. No single compellable party.
 
 ## Why this is a moat
 No mainstream identity (Google, Okta, Entra) is anonymous-first or unlinkable by construction — they're built *for*
