@@ -2,6 +2,13 @@
 {{ .root.Values.image.registry }}/{{ index .root.Values.image .name }}:{{ .root.Values.image.tag }}
 {{- end -}}
 
+{{- /* cloud-vendor-agnostic LoadBalancer annotations: per-provider preset (by .Values.cloudProvider) + per-service override */ -}}
+{{- define "pw.lbAnnotations" -}}
+{{- $preset := index .root.Values.loadBalancerAnnotations .root.Values.cloudProvider | default dict -}}
+{{- $merged := merge (deepCopy (.extra | default dict)) $preset -}}
+{{- with $merged }}{{- toYaml . | nindent 4 }}{{- end -}}
+{{- end -}}
+
 {{- define "pw.pgEnv" -}}
 - name: POSTGRES_HOST
   value: {{ .Values.postgres.host | quote }}

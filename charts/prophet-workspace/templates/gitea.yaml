@@ -1,0 +1,86 @@
+{{- if .Values.gitea.enabled }}
+# Gitea — sovereign git + developer workspace, integrated into Workspace/one. Single sovereign login via OIDC to the
+# broker (id.<domain>); Postgres-backed; served at git.<domain>. This is our Git product (GitHub/GitLab replacement),
+# part of the suite, not a bolt-on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-gitea
+  labels: { app: workspace-gitea }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector: { matchLabels: { app: workspace-gitea } }
+  template:
+    metadata: { labels: { app: workspace-gitea } }
+    spec:
+      containers:
+        - name: gitea
+          image: {{ .Values.gitea.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 3000 }
+            - { name: ssh, containerPort: 22 }
+          env:
+            - { name: GITEA__server__ROOT_URL, value: "https://{{ .Values.giteaHostname }}/" }
+            - { name: GITEA__server__DOMAIN, value: {{ .Values.giteaHostname | quote }} }
+            - { name: GITEA__database__DB_TYPE, value: "postgres" }
+            - { name: GITEA__database__HOST, value: "{{ .Values.postgres.host }}:{{ .Values.postgres.port }}" }
+            - { name: GITEA__database__NAME, value: {{ .Values.gitea.db | quote }} }
+            - name: GITEA__database__USER
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
+            - name: GITEA__database__PASSWD
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
+            # Single sovereign login: Gitea trusts the broker as its OIDC IdP (per-app pairwise subject + alias).
+            - { name: GITEA__openid__ENABLE_OPENID_SIGNIN, value: "true" }
+            - { name: GITEA__oauth2_client__OPENID_CONNECT_SCOPES, value: "openid email" }
+            - { name: GITEA__service__DISABLE_REGISTRATION, value: "true" }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: workspace-gitea-pvc }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workspace-gitea-pvc
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- if .Values.storage.storageClass }}
+  storageClassName: {{ .Values.storage.storageClass | quote }}
+  {{- end }}
+  resources: { requests: { storage: {{ .Values.gitea.storage }} } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-gitea
+  labels: { app: workspace-gitea }
+spec:
+  type: ClusterIP
+  selector: { app: workspace-gitea }
+  ports:
+    - { name: http, port: 3000, targetPort: 3000 }
+    - { name: ssh, port: 22, targetPort: 22 }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workspace-gitea
+  annotations: { kubernetes.io/ingress.class: nginx }
+spec:
+  {{- if .Values.tls.certSecret }}
+  tls:
+    - hosts: [{{ .Values.giteaHostname | quote }}]
+      secretName: {{ .Values.tls.certSecret }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.giteaHostname | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: workspace-gitea, port: { number: 3000 } } }
+{{- end }}

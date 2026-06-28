@@ -4,6 +4,25 @@ mailHostname: mail.socioprophet.ai      # MX target + Postfix myhostname (set ma
 imapHostname: imap.socioprophet.ai      # IMAPS endpoint for mail clients
 caldavHostname: caldav.socioprophet.ai  # Radicale (served via ingress + TLS)
 brokerHostname: id.socioprophet.ai      # sovereign broker = OIDC issuer (verifier-only; holds no user roots/data)
+giteaHostname: git.socioprophet.ai      # Gitea — sovereign git + dev workspace (OIDC via the broker)
+
+# Deployment is CLOUD-VENDOR AGNOSTIC. Set cloudProvider and the chart applies the right LoadBalancer/storage
+# conventions; the platform itself brokers commodity services across vendors (see cloud-broker.ts). We run on any.
+cloudProvider: gke                      # gke | eks | aks | iks | oci | hetzner | generic
+loadBalancerAnnotations:                # per-provider presets merged into mail/LB services by _helpers
+  gke: { "cloud.google.com/l4-rdma-ip-config": "false" }
+  eks: { "service.beta.kubernetes.io/aws-load-balancer-type": "nlb" }
+  aks: { "service.beta.kubernetes.io/azure-load-balancer-internal": "false" }
+  iks: {}
+  oci: {}
+  hetzner: { "load-balancer.hetzner.cloud/location": "fsn1" }
+  generic: {}
+
+gitea:
+  enabled: true
+  image: gitea/gitea:1.22
+  db: gitea
+  storage: 20Gi
 
 image:
   registry: ghcr.io/socioprophet/prophet-platform

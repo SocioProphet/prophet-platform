@@ -4,7 +4,7 @@ metadata:
   name: workspace-smtp-public     # MX target — mail.{{ .Values.domain }} A-record → this LB IP (set PTR on it)
   labels: { app: workspace-smtp }
   annotations:
-    {{- with .Values.loadBalancer.smtp.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- include "pw.lbAnnotations" (dict "root" . "extra" .Values.loadBalancer.smtp.annotations) }}
 spec:
   type: LoadBalancer
   {{- with .Values.loadBalancer.smtp.staticIP }}
@@ -22,7 +22,7 @@ metadata:
   name: workspace-mail-public     # IMAPS — imap.{{ .Values.domain }} → this LB IP
   labels: { app: workspace-mail }
   annotations:
-    {{- with .Values.loadBalancer.imap.annotations }}{{- toYaml . | nindent 4 }}{{- end }}
+    {{- include "pw.lbAnnotations" (dict "root" . "extra" .Values.loadBalancer.imap.annotations) }}
 spec:
   type: LoadBalancer
   {{- with .Values.loadBalancer.imap.staticIP }}
