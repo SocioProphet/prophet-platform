@@ -1,0 +1,114 @@
+name: infra-drift-detect
+
+on:
+  schedule:
+    # Runs at 06:00 UTC daily — catch overnight drift before business hours.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # needed for GCP/AWS/Azure OIDC auth
+  issues: write     # open drift issue if plan is non-empty
+
+jobs:
+  gcp-landing:
+    name: plan / gcp-landing
+    runs-on: ubuntu-latest
+    environment: gcp-prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_TOFU_SA }}
+      - name: plan
+        id: plan
+        working-directory: infra/tofu/envs/gcp-landing
+        run: |
+          tofu init -reconfigure
+          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+      - name: open drift issue
+        if: steps.plan.outputs.exitcode == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/envs/gcp-landing/plan.txt', 'utf8').slice(0, 6000);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[drift] gcp-landing diverged from live state (${new Date().toISOString().slice(0,10)})`,
+              labels: ['infra-drift'],
+              body: `\`\`\`\n${plan}\n\`\`\``,
+            });
+
+  aws-eks:
+    name: plan / aws-eks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TOFU_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: plan
+        id: plan
+        working-directory: infra/tofu/environments/aws-eks
+        run: |
+          tofu init -reconfigure
+          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+      - name: open drift issue
+        if: steps.plan.outputs.exitcode == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/environments/aws-eks/plan.txt', 'utf8').slice(0, 6000);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[drift] aws-eks diverged from live state (${new Date().toISOString().slice(0,10)})`,
+              labels: ['infra-drift'],
+              body: `\`\`\`\n${plan}\n\`\`\``,
+            });
+
+  azure-aks:
+    name: plan / azure-aks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: plan
+        id: plan
+        working-directory: infra/tofu/environments/azure-aks
+        run: |
+          tofu init -reconfigure
+          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+      - name: open drift issue
+        if: steps.plan.outputs.exitcode == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/environments/azure-aks/plan.txt', 'utf8').slice(0, 6000);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[drift] azure-aks diverged from live state (${new Date().toISOString().slice(0,10)})`,
+              labels: ['infra-drift'],
+              body: `\`\`\`\n${plan}\n\`\`\``,
+            });
