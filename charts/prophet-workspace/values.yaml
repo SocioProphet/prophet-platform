@@ -37,8 +37,10 @@ image:
 # alias), pending challenges, and the IdP signing key. No user roots, no data keys. See SOVEREIGN_ANONYMOUS_IDENTITY.md.
 broker:
   enabled: true
-  replicas: 2
-  signingKeySecret: workspace-broker-signing   # k8s secret with the EdDSA signing key (ed25519.key). DAO target: threshold/k-of-n.
+  replicas: 1                                   # MUST stay 1 until creds/challenges move to a shared store (Postgres/Redis):
+                                                # the store is currently in-memory, so >1 replica = split-brain enroll/verify.
+  signingKeySecret: workspace-broker-signing    # REQUIRED k8s secret (ed25519.key). Create before install; the server
+                                                # falls back to an EPHEMERAL key if absent → tokens die on restart. DAO target: k-of-n.
   tokenTtlSec: 3600
 
 postgres:

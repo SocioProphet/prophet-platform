@@ -31,9 +31,10 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
             - name: GITEA__database__PASSWD
               valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
-            # Single sovereign login: Gitea trusts the broker as its OIDC IdP (per-app pairwise subject + alias).
-            - { name: GITEA__openid__ENABLE_OPENID_SIGNIN, value: "true" }
-            - { name: GITEA__oauth2_client__OPENID_CONNECT_SCOPES, value: "openid email" }
+            # NOTE (honest): the broker currently exposes a custom assertion flow (enroll/challenge/verify), NOT OIDC
+            # authorization-code (no authorization_endpoint/token_endpoint/userinfo yet). So sovereign SSO into Gitea
+            # is a TODO — until the broker grows the auth-code endpoints + a Gitea OAuth2 auth source is registered
+            # (via `gitea admin auth add-oauth`), Gitea uses LOCAL auth. Bootstrap an admin out-of-band.
             - { name: GITEA__service__DISABLE_REGISTRATION, value: "true" }
           volumeMounts:
             - { name: data, mountPath: /data }
