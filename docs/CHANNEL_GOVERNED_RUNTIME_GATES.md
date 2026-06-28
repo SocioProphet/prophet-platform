@@ -43,6 +43,26 @@ A platform operation must not route a channel-conditioned percept into durable m
 
 `confirmed_memory`, `graph_edge`, `claim_promotion`, `policy_binding`, `publication`, `export`, and `high_consequence_execution` require stronger provenance, repair/revalidation, policy decision refs, and explicit approval posture.
 
+## Autonomy admission at the gate
+
+When a channel-governed gate guards a high-consequence sink for an `L4`
+(`automated_solution`, gate `channel_governed`) conductor-orchestrated action,
+the platform emits an **AutonomyAdmissionReceipt** (`contracts/AutonomyAdmissionReceipt.v0.1.json`)
+recording the autonomy decision onto the evidence spine. The decision is
+computed from the canonical AI-driven-development ladder vendored from
+prophet-mesh (`contracts/prophet-mesh/ai-driven-development.ladder.json` — the
+single source of truth; do not edit by hand, re-vendor from
+`prophet-mesh export-autonomy-ladder`). Emit with:
+
+```
+python3 tools/emit_autonomy_admission_receipt.py \
+  --role conductor --level L4 --evidence conductor_response_envelope \
+  --channel-gate contracts/channel-governance/runtime-gate.candidate-memory.example.json
+```
+
+The emitter self-validates against the contract and fails closed: it never
+emits a receipt that grants a level above L0 without citing evidence refs.
+
 ## Runtime non-claim
 
 This tranche is a platform contract fixture and validator. It does not create live enforcement middleware, message broker policy, database schema, or API endpoint behavior.
