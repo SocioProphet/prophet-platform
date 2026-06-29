@@ -102,6 +102,30 @@ module "github_ci" {
   tags              = local.prophet_tags
 }
 
+# Budget alert — hard cap at $5k/month; alerts at 80% + 100% forecasted spend.
+resource "aws_budgets_budget" "prophet_platform" {
+  name              = "prophet-platform-monthly"
+  budget_type       = "COST"
+  limit_amount      = "5000"
+  limit_unit        = "USD"
+  time_unit         = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["ops@socioprophet.ai"]
+  }
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["ops@socioprophet.ai"]
+  }
+}
+
 # Container registry (the ECR equivalent of GAR).
 resource "aws_ecr_repository" "images" {
   name         = "socioprophet"

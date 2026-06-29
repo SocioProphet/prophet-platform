@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+data:
+  mesh-alerts.yaml: |
+    groups:
+      - name: prophet-mesh
+        interval: 60s
+        rules:
+          - alert: ServiceDown
+            expr: up{namespace="socioprophet"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Service {{ $labels.service }} is down"
+              description: "{{ $labels.service }} in namespace {{ $labels.namespace }} has been unreachable for 2 minutes."
+
+          - alert: PodCrashLooping
+            expr: kube_pod_container_status_restarts_total{namespace="socioprophet"} > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} is crash-looping"
+              description: "Container {{ $labels.container }} in {{ $labels.pod }} has restarted {{ $value }} times."
+
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="socioprophet",condition="false"} == 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} not ready"
+
+          - alert: HighMemoryUsage
+            expr: |
+              container_memory_working_set_bytes{namespace="socioprophet"}
+                / kube_pod_container_resource_limits{namespace="socioprophet",resource="memory"} > 0.85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage in {{ $labels.container }}"
+              description: "Container {{ $labels.container }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+      - name: qdrant
+        rules:
+          - alert: QdrantCollectionError
+            expr: qdrant_collections_total{status="error"} > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Qdrant collection error detected"
+
+      - name: backups
+        rules:
+          - alert: BackupJobFailed
+            expr: kube_job_status_failed{namespace="socioprophet"} > 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Backup job {{ $labels.job_name }} failed"
+
+      - name: sovereign-broker
+        rules:
+          - alert: BrokerDown
+            expr: up{service="sovereign-broker"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Sovereign identity broker is unreachable"
+              description: "Login will be broken for all workspace services until the broker recovers."

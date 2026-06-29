@@ -195,6 +195,39 @@ module "monitoring" {
   alert_email           = var.alert_email
 }
 
+# ── Budget alerts ─────────────────────────────────────────────────────────────
+# Hard stop at $5k/month per project; 80%/100% forecasted thresholds alert the ops channel.
+resource "google_billing_budget" "platform" {
+  billing_account = var.billing_account
+  display_name    = "prophet-platform monthly cap"
+
+  budget_filter {
+    projects = ["projects/${module.projects.project_ids["platform"]}"]
+  }
+
+  amount {
+    specified_amount {
+      currency_code = "USD"
+      units         = "5000"
+    }
+  }
+
+  threshold_rules { threshold_percent = 0.8  spend_basis = "FORECASTED_SPEND" }
+  threshold_rules { threshold_percent = 1.0  spend_basis = "FORECASTED_SPEND" }
+
+  notifications_rule {
+    monitoring_notification_channels = []
+    pubsub_topic                      = google_pubsub_topic.budget_alerts.id
+    schema_version                    = "1.0"
+    enable_project_level_recipients   = true
+  }
+}
+
+resource "google_pubsub_topic" "budget_alerts" {
+  project = module.projects.project_ids["platform"]
+  name    = "billing-budget-alerts"
+}
+
 # ── Outputs ───────────────────────────────────────────────────────────────────
 
 output "org_id" { value = module.org.org_id }
