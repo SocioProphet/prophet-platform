@@ -78,6 +78,8 @@ def validate_receipt(record: dict[str, Any]) -> None:
     granted = _rank(record["granted_level"])
     if granted > requested:
         fail("granted_level cannot exceed requested_level")
+    if "role_ceiling" in record and granted > _rank(record["role_ceiling"]):
+        fail("granted_level cannot exceed role_ceiling")
 
     # Decision must be consistent with the level delta (fail-closed semantics).
     if decision == "admit" and granted != requested:

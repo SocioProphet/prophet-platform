@@ -76,17 +76,16 @@
     "trust_kernel_gate_order": {
       "type": "array",
       "minItems": 6,
-      "items": {
-        "type": "string",
-        "enum": [
-          "identity",
-          "policy",
-          "evidence",
-          "attestation",
-          "revocation",
-          "audit"
-        ]
-      }
+      "maxItems": 6,
+      "prefixItems": [
+        { "const": "identity" },
+        { "const": "policy" },
+        { "const": "evidence" },
+        { "const": "attestation" },
+        { "const": "revocation" },
+        { "const": "audit" }
+      ],
+      "items": false
     },
     "subject_ref": {
       "type": "string"
