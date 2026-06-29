@@ -94,6 +94,13 @@ spec:
           - name: lattice-forge
             path: infra/k8s/lattice-forge/overlays/p0-lab
             bundle: runtime.forge
+          # Tier 10.5 — Model zoo + model serving
+          - name: model-zoo-api
+            path: infra/k8s/model-zoo-api/overlays/p0-lab
+            bundle: model.zoo-api
+          - name: kserve-community-truth
+            path: infra/k8s/kserve-inferenceservice/overlays/p0-lab
+            bundle: model.serving
           # Tier 10 — Enrichment plane + MCP zero-trust
           - name: synapseiq-control-plane
             path: infra/k8s/synapseiq-control-plane/overlays/p0-lab

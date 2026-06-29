@@ -12,14 +12,15 @@ permissions:
   issues: write    # open drift issue when plan is non-empty
 
 # All cloud credentials are obtained via OIDC federation — no static secrets.
-# After first applying aws-eks and azure-aks envs, set these as GitHub Actions
-# *variables* (Settings → Secrets and variables → Variables), not secrets:
-#   GCP_WIF_PROVIDER   — e.g. projects/123/.../providers/github
-#   GCP_TOFU_SA        — e.g. tofu-ci@socioprophet-platform.iam.gserviceaccount.com
-#   AWS_TOFU_ROLE_ARN  — output of `tofu output github_ci_role_arn` in aws-eks env
-#   AZURE_CLIENT_ID    — output of `tofu output github_ci_client_id` in azure-aks env
-#   AZURE_TENANT_ID    — your Azure tenant GUID
-#   AZURE_SUBSCRIPTION_ID — your Azure subscription GUID
+# After first applying each env, set these as GitHub Actions *variables*
+# (Settings → Secrets and variables → Variables), not secrets:
+#   GCP_WIF_PROVIDER       — tofu output github_ci_wif_provider  (infra/tofu/envs/shared)
+#   GCP_TOFU_SA            — tofu output github_ci_sa_email       (infra/tofu/envs/shared)
+#   AWS_TOFU_ROLE_ARN      — tofu output github_ci_role_arn       (infra/tofu/environments/aws-eks)
+#   AZURE_CLIENT_ID        — tofu output github_ci_client_id      (infra/tofu/environments/azure-aks)
+#   AZURE_TENANT_ID        — your Azure tenant GUID
+#   AZURE_SUBSCRIPTION_ID  — your Azure subscription GUID
+#   IBM_TRUSTED_PROFILE_ID — tofu output github_ci_trusted_profile_id (infra/tofu/environments/ibm-iks)
 
 jobs:
   gcp-landing:
@@ -116,6 +117,47 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner, repo: context.repo.repo,
               title: `[drift] azure-aks diverged from live state (${new Date().toISOString().slice(0,10)})`,
+              labels: ['infra-drift'],
+              body: `\`\`\`\n${plan}\n\`\`\``,
+            });
+
+  ibm-iks:
+    name: plan / ibm-iks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+      - name: Authenticate via IBM Trusted Profile (OIDC)
+        run: |
+          # Exchange the GitHub OIDC token for an IBM IAM access token.
+          OIDC_TOKEN=$(curl -sH "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=iam.cloud.ibm.com" | jq -r .value)
+          IBM_TOKEN=$(curl -s -X POST "https://iam.cloud.ibm.com/identity/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=urn:ibm:params:oauth:grant-type:cr-token&cr_token=${OIDC_TOKEN}&profile_id=${{ vars.IBM_TRUSTED_PROFILE_ID }}" \
+            | jq -r .access_token)
+          echo "::add-mask::$IBM_TOKEN"
+          echo "IC_IAM_TOKEN=$IBM_TOKEN" >> "$GITHUB_ENV"
+      - name: plan
+        id: plan
+        working-directory: infra/tofu/environments/ibm-iks
+        env:
+          IC_IAM_TOKEN: ${{ env.IC_IAM_TOKEN }}
+        run: |
+          tofu init -reconfigure
+          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+      - name: open drift issue
+        if: steps.plan.outputs.exitcode == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/environments/ibm-iks/plan.txt', 'utf8').slice(0, 6000);
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo,
+              title: `[drift] ibm-iks diverged from live state (${new Date().toISOString().slice(0,10)})`,
               labels: ['infra-drift'],
               body: `\`\`\`\n${plan}\n\`\`\``,
             });

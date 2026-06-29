@@ -38,3 +38,7 @@ variable "gitops_path" {
   type    = string
   default = "deploy/argocd"
 }
+variable "cos_instance_crn" {
+  type        = string
+  description = "CRN of the IBM COS instance used for Tofu state — required for Trusted Profile COS policy."
+}
