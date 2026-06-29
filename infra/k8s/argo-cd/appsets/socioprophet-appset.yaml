@@ -120,6 +120,15 @@ spec:
           - name: mcp-a2a-zero-trust
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
+          # ── Sovereign Identity Broker ────────────────────────────────────
+          # Tier 11 — Identity plane
+          - name: sovereign-broker
+            path: infra/k8s/sovereign-broker/overlays/p0-lab
+            bundle: identity.broker
+          # ── Geo / map services ────────────────────────────────────────────
+          - name: osm-map-api
+            path: infra/k8s/osm-map-api/overlays/p0-lab
+            bundle: geo.map-api
           # ── Holmes / CairnPath / ContractForge ───────────────────────────
           # Tier 4.5 — Execution trace mesh
           - name: cairnpath-mesh
