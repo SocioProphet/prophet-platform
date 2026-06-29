@@ -94,3 +94,15 @@ module "workload_identity" {
     }
   }
 }
+
+# GitHub Actions OIDC — CI gets a federated identity, no static credentials
+module "github_ci" {
+  source             = "../../modules/github-oidc-azure"
+  cluster_name       = var.cluster_name
+  resource_group     = azurerm_resource_group.this.name
+  location           = azurerm_resource_group.this.location
+  github_repo        = "SocioProphet/prophet-platform"
+  subscription_scope = "/subscriptions/${var.subscription_id}"
+  cluster_scope      = azurerm_kubernetes_cluster.this.id
+  tags               = local.prophet_tags
+}

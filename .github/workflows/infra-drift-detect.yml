@@ -2,14 +2,24 @@ name: infra-drift-detect
 
 on:
   schedule:
-    # Runs at 06:00 UTC daily — catch overnight drift before business hours.
+    # Runs at 06:00 UTC daily.
     - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write   # needed for GCP/AWS/Azure OIDC auth
-  issues: write     # open drift issue if plan is non-empty
+  id-token: write  # required for all OIDC cloud auth
+  issues: write    # open drift issue when plan is non-empty
+
+# All cloud credentials are obtained via OIDC federation — no static secrets.
+# After first applying aws-eks and azure-aks envs, set these as GitHub Actions
+# *variables* (Settings → Secrets and variables → Variables), not secrets:
+#   GCP_WIF_PROVIDER   — e.g. projects/123/.../providers/github
+#   GCP_TOFU_SA        — e.g. tofu-ci@socioprophet-platform.iam.gserviceaccount.com
+#   AWS_TOFU_ROLE_ARN  — output of `tofu output github_ci_role_arn` in aws-eks env
+#   AZURE_CLIENT_ID    — output of `tofu output github_ci_client_id` in azure-aks env
+#   AZURE_TENANT_ID    — your Azure tenant GUID
+#   AZURE_SUBSCRIPTION_ID — your Azure subscription GUID
 
 jobs:
   gcp-landing:
@@ -21,8 +31,8 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_TOFU_SA }}
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TOFU_SA }}
       - name: plan
         id: plan
         working-directory: infra/tofu/envs/gcp-landing
@@ -39,8 +49,7 @@ jobs:
             const fs = require('fs');
             const plan = fs.readFileSync('infra/tofu/envs/gcp-landing/plan.txt', 'utf8').slice(0, 6000);
             await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               title: `[drift] gcp-landing diverged from live state (${new Date().toISOString().slice(0,10)})`,
               labels: ['infra-drift'],
               body: `\`\`\`\n${plan}\n\`\`\``,
@@ -54,7 +63,7 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_TOFU_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_TOFU_ROLE_ARN }}
           aws-region: us-east-1
       - name: plan
         id: plan
@@ -72,8 +81,7 @@ jobs:
             const fs = require('fs');
             const plan = fs.readFileSync('infra/tofu/environments/aws-eks/plan.txt', 'utf8').slice(0, 6000);
             await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               title: `[drift] aws-eks diverged from live state (${new Date().toISOString().slice(0,10)})`,
               labels: ['infra-drift'],
               body: `\`\`\`\n${plan}\n\`\`\``,
@@ -87,9 +95,9 @@ jobs:
       - uses: opentofu/setup-opentofu@v1
       - uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: plan
         id: plan
         working-directory: infra/tofu/environments/azure-aks
@@ -106,8 +114,7 @@ jobs:
             const fs = require('fs');
             const plan = fs.readFileSync('infra/tofu/environments/azure-aks/plan.txt', 'utf8').slice(0, 6000);
             await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner: context.repo.owner, repo: context.repo.repo,
               title: `[drift] azure-aks diverged from live state (${new Date().toISOString().slice(0,10)})`,
               labels: ['infra-drift'],
               body: `\`\`\`\n${plan}\n\`\`\``,

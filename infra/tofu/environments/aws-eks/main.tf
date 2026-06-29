@@ -93,6 +93,15 @@ module "irsa" {
   }
 }
 
+# GitHub Actions OIDC — CI gets a federated IAM role, no static credentials
+module "github_ci" {
+  source            = "../../modules/github-oidc-aws"
+  github_repo       = "SocioProphet/prophet-platform"
+  state_bucket_name = "prophet-terraform-state"
+  lock_table_name   = "prophet-terraform-locks"
+  tags              = local.prophet_tags
+}
+
 # Container registry (the ECR equivalent of GAR).
 resource "aws_ecr_repository" "images" {
   name         = "socioprophet"
