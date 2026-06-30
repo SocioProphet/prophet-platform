@@ -1,0 +1,30 @@
+{
+  "version": "0.1",
+  "poe_id": "poe_01J9Z8ERASE0001",
+  "created_at": "2026-06-29T00:00:00Z",
+  "subject_ref": "urn:srcos:capsule:user-graph:michael:project-42",
+  "schema_id": "agent.v1.DataCapsule",
+  "context_id": "https://socioprophet.org/context/agent.jsonld",
+  "method": "erase-iso",
+  "canonicalization": "canonical-json",
+  "empty_digest": "sha256:374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+  "pre_digest": "sha256:9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca7",
+  "shred_digest": "sha256:374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb",
+  "capability_ref": "cap:erase-iso@L2",
+  "decision": "certified-empty",
+  "reason": "User-initiated deletion of project-42 capsule; restore-to-staging passed and cooldown elapsed before erase-iso.",
+  "evidence_refs": [
+    "urn:srcos:evidence:restore-drill:project-42",
+    "urn:srcos:receipt:deletion-gate:project-42"
+  ],
+  "trust_kernel_gate_order": [
+    "identity",
+    "policy",
+    "evidence",
+    "attestation",
+    "revocation",
+    "audit"
+  ],
+  "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "hash_algo": "sha256"
+}
