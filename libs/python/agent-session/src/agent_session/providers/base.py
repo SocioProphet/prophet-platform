@@ -23,7 +23,8 @@ class Provider(ABC):
         system: str | None = None,
         schema_instruction: str | None = None,
         effort: str = "medium",
-    ) -> ProviderResponse: ...
+    ) -> ProviderResponse:
+        pass
 
     @abstractmethod
     async def stream(
@@ -32,4 +33,5 @@ class Provider(ABC):
         *,
         system: str | None = None,
         effort: str = "medium",
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncIterator[str]:
+        pass

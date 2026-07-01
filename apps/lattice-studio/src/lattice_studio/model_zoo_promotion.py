@@ -94,7 +94,6 @@ def demo_validation_report() -> ModelZooValidationReport:
     factsheet = fixture["factsheet"]
     use_policy = fixture["usePolicy"]
     runtime_profile = fixture["runtimeProfile"]
-    endpoint = fixture["endpoint"]
 
     checks = {
         "evaluation_verdict_not_blocked": evaluation.get("verdict", "pass") != "blocked",

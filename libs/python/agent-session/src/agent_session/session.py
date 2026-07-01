@@ -29,7 +29,7 @@ from pydantic import BaseModel
 
 from .reasoning import Reasoning, RoutePolicy
 from .router import resolve
-from .schema import generable, is_generable, schema_instruction, parse_response
+from .schema import is_generable, schema_instruction, parse_response
 from .providers.base import ProviderResponse
 
 T = TypeVar("T", bound=BaseModel)
@@ -61,9 +61,11 @@ class AgentSession:
         self._provider, self._effort = resolve(reasoning, policy)
 
     @overload
-    async def respond(self, prompt: str) -> str: ...
+    async def respond(self, prompt: str) -> str:
+        pass
     @overload
-    async def respond(self, prompt: str, *, generating: type[T]) -> T: ...
+    async def respond(self, prompt: str, *, generating: type[T]) -> T:
+        pass
 
     async def respond(self, prompt: str, *, generating: type[T] | None = None) -> str | T:
         """

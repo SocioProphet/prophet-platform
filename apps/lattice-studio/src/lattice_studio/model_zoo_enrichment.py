@@ -11,8 +11,6 @@ from typing import Any
 
 from .active_metadata import _event_from_record
 from .enrichment import enrich_record_set
-from .model_zoo import demo_model_zoo_entry
-from .platform_records import platform_record_set
 
 
 def enrich_model_zoo_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
@@ -151,11 +149,15 @@ def _risk_tier(entry: dict[str, Any]) -> str:
 
 
 def _evaluation_verdict(evaluation: dict[str, Any]) -> str:
-    status = evaluation.get("status", "")
-    if status in ("passed", "approved"):
+    # The bundle carries the outcome under "verdict" (e.g. "needs-review"); "status" only appears
+    # nested in metrics[]. Read "verdict" first, falling back to "status" for forward-compat.
+    verdict = evaluation.get("verdict") or evaluation.get("status", "")
+    if verdict in ("passed", "approved", "pass"):
         return "passed"
-    if status in ("failed", "rejected"):
+    if verdict in ("failed", "rejected", "blocked"):
         return "failed"
-    if status:
-        return status
+    if verdict == "needs-review":
+        return "needs-review"
+    if verdict:
+        return verdict
     return "pending"
