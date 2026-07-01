@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Edge (k3s) HellGraph: the per-person graph on local flash via TopoLVM. Requires
+# the topolvm-provisioner StorageClass (infra/k8s/topolvm) + operator on the node.
+resources:
+  - ../../base
+namespace: socioprophet
+patches:
+  # Bind the RocksDB store PVC to local NVMe/flash instead of cluster default.
+  - patch: |-
+      - op: add
+        path: /spec/volumeClaimTemplates/0/spec/storageClassName
+        value: topolvm-provisioner
+    target:
+      kind: StatefulSet
+      name: hellgraph
