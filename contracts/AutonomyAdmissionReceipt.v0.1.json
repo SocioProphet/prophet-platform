@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/AutonomyAdmissionReceipt.v0.1.json",
+  "title": "AutonomyAdmissionReceipt",
+  "description": "Runtime evidence receipt emitted when prophet-platform admits, demotes, or denies a choir role operating at a requested AI-driven-development autonomy level. Mirrors the canonical ladder in SocioProphet/prophet-mesh:specs/ai-driven-development.yaml and the engine in prophet_mesh.autonomy. This is how the autonomy ladder is enforced AND measured at runtime (enforced_at: prophet-platform).",
+  "type": "object",
+  "required": [
+    "version",
+    "receipt_id",
+    "created_at",
+    "service_ref",
+    "role",
+    "requested_level",
+    "granted_level",
+    "decision",
+    "gate",
+    "evidence_required",
+    "trust_kernel_gate_order",
+    "subject_ref",
+    "hash",
+    "hash_algo"
+  ],
+  "properties": {
+    "version": {
+      "const": "0.1"
+    },
+    "receipt_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "service_ref": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "description": "Choir role requesting autonomy (e.g. conductor, coding, research)."
+    },
+    "requested_level": {
+      "type": "string",
+      "pattern": "^L[0-5]$"
+    },
+    "granted_level": {
+      "type": "string",
+      "pattern": "^L[0-5]$"
+    },
+    "role_ceiling": {
+      "type": "string",
+      "pattern": "^L[0-5]$"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "admit",
+        "demote",
+        "deny"
+      ]
+    },
+    "gate": {
+      "type": "string",
+      "description": "Name of the gate that governs the granted level."
+    },
+    "evidence_required": {
+      "type": "string"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "trust_kernel_gate_order": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        { "const": "identity" },
+        { "const": "policy" },
+        { "const": "evidence" },
+        { "const": "attestation" },
+        { "const": "revocation" },
+        { "const": "audit" }
+      ],
+      "items": false
+    },
+    "subject_ref": {
+      "type": "string"
+    },
+    "envelope_ref": {
+      "type": "string"
+    },
+    "policy_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hash": {
+      "type": "string"
+    },
+    "hash_algo": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}
