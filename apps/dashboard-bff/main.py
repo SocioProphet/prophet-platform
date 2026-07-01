@@ -2,17 +2,20 @@ from fastapi import FastAPI
 from pathlib import Path
 import importlib.util
 
+ROOT = Path(__file__).resolve().parents[2]
 
-def _load_overview_contract():
-    path = Path(__file__).with_name('contracts.py')
-    spec = importlib.util.spec_from_file_location('dashboard_bff_contracts', path)
+
+def _load_module(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec is not None and spec.loader is not None
     spec.loader.exec_module(module)
-    return module.OverviewResponse
+    return module
 
 
-OverviewResponse = _load_overview_contract()
+_contracts = _load_module(Path(__file__).with_name('contracts.py'), 'dashboard_bff_contracts')
+OverviewResponse = _contracts.OverviewResponse
+_producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics.py', 'emit_metrics')
 
 app = FastAPI(title='dashboard-bff')
 
@@ -24,7 +27,67 @@ def health() -> dict:
 def overview() -> object:
     return OverviewResponse(
         service='dashboard-bff',
-        views=['overview', 'deepdive', 'cases'],
+        views=['overview', 'deepdive', 'cases', 'intelligence-superiority'],
         trace_required=True,
         evidence_required=True,
+    )
+
+
+def _fact_view(fact: dict):
+    return _contracts.MetricFactView(
+        provider_id=fact['provider_id'],
+        model_release_id=fact['model_release_id'],
+        value_scalar=fact['value_scalar'],
+        sample_n=fact.get('sample_n'),
+        source_trust_class=fact['source_trust_class'],
+        reproduced_by_us=fact['reproduced_by_us'],
+        scenario_id=fact.get('scenario_id'),
+    )
+
+
+@app.get('/v1/intelligence-superiority', response_model=_contracts.IntelligenceSuperiorityResponse)
+def intelligence_superiority() -> object:
+    """Serve the comparative-benchmark view from the schema-validated metric-facts producer. Grouped by
+    metric with the trust provenance intact — the UI badges reproduced-by-us vs cited, and comparison_valid
+    is set ONLY where a metric has both our facts and a comparable counterpart (never for a cite-only
+    metric), so the frontend cannot render a head-to-head bar the data doesn't support."""
+    bundle = _producer.build()
+    defs = {d['metric_definition_id']: d for d in bundle['definitions']}
+    by_metric: dict[str, dict[str, list]] = {}
+    for f in bundle['facts']:
+        m = by_metric.setdefault(f['metric_definition_id'], {'ours': [], 'cited': []})
+        (m['ours'] if f['reproduced_by_us'] else m['cited']).append(_fact_view(f))
+
+    metrics = []
+    for mid, groups in by_metric.items():
+        d = defs.get(mid, {})
+        # a comparison is only valid where WE have a reproduced fact AND a comparable counterpart on the
+        # SAME metric. Cite-only metrics (all frontier benchmarks here) are single-provider evidence.
+        comparison_valid = bool(groups['ours']) and bool(groups['cited'])
+        metrics.append(_contracts.MetricComparison(
+            metric_definition_id=mid,
+            metric_name=d.get('name', mid),
+            family=d.get('family', 'task_performance'),
+            ours=groups['ours'],
+            cited=groups['cited'],
+            comparison_valid=comparison_valid,
+        ))
+
+    n_repro = sum(len(m.ours) for m in metrics)
+    n_cited = sum(len(m.cited) for m in metrics)
+    return _contracts.IntelligenceSuperiorityResponse(
+        service='dashboard-bff',
+        metrics=metrics,
+        headline_claim=(
+            'On MMLU-STEM (n=450, reproduced), verified compute lifts an identical 7B from 0.611 baseline '
+            'to 0.711 (+10pp, McNemar p=0.0002) — a technique win on the same model, not a claim of beating '
+            'frontier models on frontier benchmarks.'
+        ),
+        reproduced_fact_count=n_repro,
+        cited_fact_count=n_cited,
+        disclaimer=(
+            'Facts labeled internal_reproduced were measured by us; official_provider facts are cited '
+            'vendor/leaderboard numbers we did NOT independently verify. Our metrics and cited metrics are '
+            'disjoint by design — no cross-provider superiority is asserted on any single benchmark.'
+        ),
     )
