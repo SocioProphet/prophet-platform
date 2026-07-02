@@ -1,8 +1,23 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import importlib.util
+import os
 
 ROOT = Path(__file__).resolve().parents[2]
+
+# The SPA (socioprophet-web/client-vue) calls this bff cross-origin in deployment.
+# In local dev the Vite proxy makes it same-origin; in production it is served
+# behind a gateway or hits the bff directly, which needs CORS. Origins are
+# env-configurable (comma-separated); default covers the local dev/preview ports.
+_CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv(
+        'DASHBOARD_BFF_CORS_ORIGINS',
+        'http://localhost:5173,http://localhost:4178',
+    ).split(',')
+    if o.strip()
+]
 
 
 def _load_module(path: Path, name: str):
@@ -18,6 +33,13 @@ OverviewResponse = _contracts.OverviewResponse
 _producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics.py', 'emit_metrics')
 
 app = FastAPI(title='dashboard-bff')
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_methods=['GET'],
+    allow_headers=['*'],
+)
 
 @app.get('/health')
 def health() -> dict:
