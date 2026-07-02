@@ -8,6 +8,17 @@ profiles:
     purpose: multi-site private mesh with central hosted services
   - key: p3-regional
     purpose: regional or federated production posture
+  - key: p-edge
+    purpose: >-
+      on-device edge instance (k3s + TopoLVM flash). Per-person graph resident
+      locally; a cloud twin holds canonical. Intermittent link tolerated.
+    edge_twin_sync:
+      # The edge HellGraph store (RocksDB on TopoLVM) snapshots to the S3-compatible
+      # twin on a cadence; only non-private projections cross the link.
+      direction: edge_to_twin
+      cadence: 30m
+      mechanism: volume-snapshot + rclone-to-s3
+      privacy: reference_only   # private nodes never egress (ProviderProjection membrane)
 channels:
   - dev
   - stage
