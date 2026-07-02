@@ -19,6 +19,13 @@ on:
       - '.github/workflows/images.yml'
   workflow_dispatch:
 
+# WIF + cosign keyless signing both need id-token: write, and a reusable-workflow
+# caller must grant it explicitly or the run fails at startup (org default token is
+# read-only). contents: read for checkout.
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
     strategy:
