@@ -1,0 +1,67 @@
+# Ephemeral eval-fabric DB for a frontier-parity run. emptyDir (no PVC) → the
+# data dies with the pod; nothing persists, nothing bills after teardown.
+# "We take ephemeral seriously."
+#
+# Apply order (the schema is loaded from the real migrations, not duplicated):
+#   kubectl create namespace serving --dry-run=client -o yaml | kubectl apply -f -
+#   kubectl -n serving create configmap eval-schema \
+#       --from-file=infra/datastores/postgres/001_eval_fabric.sql \
+#       --from-file=infra/datastores/postgres/002_eval_fabric_seed.sql \
+#       --from-file=infra/datastores/postgres/003_eval_fabric_metric_definitions_seed.sql \
+#       --from-file=infra/datastores/postgres/005_eval_fabric_runtime_seed.sql
+#   kubectl apply -f deploy/serving/ephemeral-db.yaml
+#   # POSTGRES_DSN for the runner/eval-fabric-api:
+#   #   postgresql://eval:eval@eval-db.serving.svc.cluster.local:5432/evalfabric
+#
+# Teardown: kubectl delete -f deploy/serving/ephemeral-db.yaml  (or delete the ns)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eval-db
+  namespace: serving
+  labels: { app: eval-db, lifecycle: ephemeral }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: eval-db }
+  template:
+    metadata:
+      labels: { app: eval-db, lifecycle: ephemeral }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - { name: POSTGRES_DB, value: evalfabric }
+            - { name: POSTGRES_USER, value: eval }
+            # throwaway creds — this DB exists only for the run and never persists
+            - { name: POSTGRES_PASSWORD, value: eval }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports:
+            - containerPort: 5432
+          # migrations + seed run once on first init (official postgres entrypoint)
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: schema, mountPath: /docker-entrypoint-initdb.d }
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "eval", "-d", "evalfabric"] }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { cpu: "1", memory: 1Gi }
+      volumes:
+        - name: data
+          emptyDir: {}                 # ephemeral — no PVC, no persistence
+        - name: schema
+          configMap: { name: eval-schema }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eval-db
+  namespace: serving
+spec:
+  selector: { app: eval-db }
+  ports:
+    - { port: 5432, targetPort: 5432 }

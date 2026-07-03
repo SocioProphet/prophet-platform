@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/sourceos/release-set/v0/release-set.schema.json",
+  "title": "SourceOS ReleaseSet v0",
+  "description": "Signed SourceOS release unit spanning system, user, agent, boot, policy, provenance, and proof references.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseSetId",
+    "buildContractRef",
+    "policyBundleRef",
+    "artifacts",
+    "provenance",
+    "signatures",
+    "state"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "sourceos.release-set.v0" },
+    "releaseSetId": { "type": "string", "pattern": "^rs_[A-Za-z0-9._:-]+$" },
+    "buildContractRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractId", "digest"],
+      "properties": {
+        "contractId": { "type": "string" },
+        "digest": { "type": "string" }
+      }
+    },
+    "policyBundleRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyBundleId", "digest"],
+      "properties": {
+        "policyBundleId": { "type": "string" },
+        "digest": { "type": "string" }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "targetPlane", "digest"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["nix-closure", "guix-closure", "ostree-commit", "oci-image", "boot-bundle", "sbom", "manifest", "proof-bundle"] },
+          "targetPlane": { "type": "string", "enum": ["system", "user", "agent", "boot", "recovery", "mixed"] },
+          "uri": { "type": "string" },
+          "digest": { "type": "string" },
+          "sizeBytes": { "type": "integer", "minimum": 0 },
+          "metadata": { "type": "object" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["builder", "sourceDigests", "createdAt"],
+      "properties": {
+        "builder": { "type": "string" },
+        "backend": { "type": "string", "enum": ["nix", "guix", "mixed", "external"] },
+        "sourceDigests": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "sbomDigest": { "type": "string" }
+      }
+    },
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keyId", "algorithm", "signature"],
+        "properties": {
+          "keyId": { "type": "string" },
+          "algorithm": { "type": "string" },
+          "signature": { "type": "string" }
+        }
+      }
+    },
+    "state": {
+      "type": "string",
+      "enum": ["draft", "built", "signed", "staged", "assigned", "deployed", "attested", "compliant", "noncompliant", "rolled-back", "revoked"]
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "previousReleaseSetId": { "type": "string" },
+        "bootMenuEligible": { "type": "boolean", "default": false }
+      }
+    },
+    "metadata": { "type": "object" }
+  }
+}

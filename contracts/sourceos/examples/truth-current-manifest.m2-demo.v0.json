@@ -1,0 +1,101 @@
+{
+  "schema_version": "sourceos.truth-current-manifest/v0",
+  "kind": "SourceOSTruthCurrentManifest",
+  "id": "stm-m2-demo-current-0001",
+  "generated_at": "2026-04-26T15:30:00Z",
+  "subject": {
+    "subject_kind": "device",
+    "subject_id": "device:m2-demo",
+    "device_claim": "device-claim:m2-demo-public-key-fingerprint"
+  },
+  "current": {
+    "release_set_ref": "srset-m2-demo-0001",
+    "boot_release_set_ref": "sbrs-m2-demo-recovery-0001",
+    "fingerprint_ref": "sfp-m2-demo-0001",
+    "compliance_result_ref": "scr-m2-demo-0001",
+    "proof_index_ref": "spi-m2-demo-0001",
+    "previous_boot_receipt_ref": "boot-receipt:m2-demo-0000",
+    "current_boot_receipt_ref": "boot-receipt:m2-demo-0001"
+  },
+  "truth_plane": {
+    "service_shape": "fixture",
+    "endpoints": [
+      {
+        "name": "current-manifest",
+        "method": "GET",
+        "path": "/truth/current-manifest",
+        "returns": "SourceOSTruthCurrentManifest",
+        "notes": "Primary node trust summary consumed by web, Agentplane, GAIA, and Sherlock gates."
+      },
+      {
+        "name": "current-release-set",
+        "method": "GET",
+        "path": "/truth/boot-release-set/current",
+        "returns": "SourceOSBootReleaseSet",
+        "notes": "Current bootable release assignment and rollback companion set."
+      },
+      {
+        "name": "current-fingerprint",
+        "method": "GET",
+        "path": "/truth/fingerprint/current",
+        "returns": "SourceOSFingerprint",
+        "notes": "Observed runtime state used for drift detection."
+      },
+      {
+        "name": "current-compliance",
+        "method": "GET",
+        "path": "/truth/compliance/current",
+        "returns": "SourceOSComplianceResult",
+        "notes": "Comparison of observed state against assigned ReleaseSet and policy."
+      }
+    ]
+  },
+  "integrity": {
+    "hash_algorithm": "sha256",
+    "object_digests": [
+      {
+        "object_ref": "scfg-m2-demo-local",
+        "path": "config-source.json",
+        "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "object_ref": "srset-m2-demo-0001",
+        "path": "release-set.json",
+        "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "object_ref": "sbrs-m2-demo-recovery-0001",
+        "path": "boot-release-set.json",
+        "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      {
+        "object_ref": "sfp-m2-demo-0001",
+        "path": "fingerprint.json",
+        "digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "object_ref": "scr-m2-demo-0001",
+        "path": "compliance-result.json",
+        "digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    ],
+    "signature_state": "unsigned_fixture",
+    "signature_ref": "sig:fixture-only",
+    "crypto_profile": "standard"
+  },
+  "status": {
+    "compliance": "compliant",
+    "agentplane_eligible": true,
+    "gaia_ingest_eligible": true,
+    "sherlock_evidence_eligible": true,
+    "reasons": [
+      "Deterministic fixture links ReleaseSet, BootReleaseSet, Fingerprint, ComplianceResult, and ProofIndex.",
+      "Eligibility is true only when the compliance result is compliant.",
+      "This fixture is not a live boot execution record and does not claim hardware-root attestation."
+    ]
+  },
+  "notes": [
+    "Truth Plane v0 is represented here as a generated fixture artifact.",
+    "The endpoint paths are the intended local service surface for the next implementation tranche."
+  ]
+}

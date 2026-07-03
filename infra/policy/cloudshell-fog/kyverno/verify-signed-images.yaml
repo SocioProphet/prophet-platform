@@ -8,7 +8,9 @@ metadata:
     policies.kyverno.io/severity: high
     policies.kyverno.io/subject: Pod
     policies.kyverno.io/description: >-
-      Verify signatures for approved cloudshell-fog runtime and service images.
+      Verify keyless (Sigstore/Fulcio) signatures for approved cloudshell-fog
+      runtime and service images. Images are signed by the estate's reusable
+      GitHub Actions build workflow via OIDC — no long-lived key to manage.
 spec:
   validationFailureAction: Enforce
   background: false
@@ -30,8 +32,10 @@ spec:
           attestors:
             - count: 1
               entries:
-                - keys:
-                    publicKeys: |-
-                      -----BEGIN PUBLIC KEY-----
-                      REPLACE_WITH_REAL_COSIGN_PUBLIC_KEY
-                      -----END PUBLIC KEY-----
+                # Keyless: trust the estate's GitHub Actions OIDC identity that
+                # cosign-signed the digest. No public key to rotate or leak.
+                - keyless:
+                    subject: "https://github.com/SocioProphet/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: "https://rekor.sigstore.dev"

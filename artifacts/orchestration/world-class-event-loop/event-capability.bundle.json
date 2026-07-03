@@ -1,0 +1,340 @@
+{
+  "bundle_id": "bundle:fixture:event-capabilities:household:2026-05-06",
+  "capabilities": [
+    {
+      "allowed_event_types": [
+        "camera.semantic_event"
+      ],
+      "approval_mode": "none",
+      "capability_id": "capability:observe-camera-semantic-event",
+      "degraded_behavior": "metadata_only_receipt",
+      "display_name": "Observe camera semantic event",
+      "effect_class": "observe",
+      "owner": "sourceos-syncd",
+      "postconditions": [
+        "evidence_receipt.emitted == true",
+        "raw_video_retained == false"
+      ],
+      "preconditions": [
+        "adapter.health == healthy",
+        "privacy.redaction_class != raw_video"
+      ],
+      "rate_limit": {
+        "max_events": 120,
+        "window_seconds": 60
+      },
+      "required_policy_outcome": "redacted",
+      "target_node_types": [
+        "camera"
+      ],
+      "timeout_ms": 500
+    },
+    {
+      "allowed_event_types": [
+        "sensor.threshold_crossed"
+      ],
+      "approval_mode": "notify",
+      "capability_id": "capability:cool-room-with-fan",
+      "degraded_behavior": "do_not_actuate_emit_degraded_receipt",
+      "display_name": "Cool room with fan when hot",
+      "effect_class": "low_risk_actuation",
+      "owner": "guardrail-fabric",
+      "postconditions": [
+        "fan.speed == medium",
+        "evidence_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "temperature_f > 76",
+        "occupancy == present",
+        "target.trust_state == trusted"
+      ],
+      "rate_limit": {
+        "max_events": 3,
+        "window_seconds": 300
+      },
+      "required_policy_outcome": "allowed",
+      "target_node_types": [
+        "appliance"
+      ],
+      "timeout_ms": 1500
+    },
+    {
+      "allowed_event_types": [
+        "agent.plan_proposed"
+      ],
+      "approval_mode": "explicit_user_approval",
+      "capability_id": "capability:arm-security-system",
+      "degraded_behavior": "do_not_actuate_emit_degraded_receipt",
+      "display_name": "Arm household security system",
+      "effect_class": "high_risk_actuation",
+      "owner": "agentplane",
+      "postconditions": [
+        "security_system.state == armed",
+        "evidence_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "target.policy_labels contains security",
+        "approval.token.present == true"
+      ],
+      "rate_limit": {
+        "max_events": 2,
+        "window_seconds": 3600
+      },
+      "required_policy_outcome": "requires_approval",
+      "target_node_types": [
+        "service"
+      ],
+      "timeout_ms": 2000
+    },
+    {
+      "allowed_event_types": [
+        "agent.plan_proposed"
+      ],
+      "approval_mode": "not_overridable_in_first_slice",
+      "capability_id": "capability:block-raw-camera-export",
+      "degraded_behavior": "deny_closed",
+      "display_name": "Block raw camera export",
+      "effect_class": "high_risk_actuation",
+      "owner": "guardrail-fabric",
+      "postconditions": [
+        "raw_video_exported == false",
+        "denial_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "requested_action == export_raw_video"
+      ],
+      "rate_limit": {
+        "max_events": 1000,
+        "window_seconds": 3600
+      },
+      "required_policy_outcome": "denied",
+      "target_node_types": [
+        "camera"
+      ],
+      "timeout_ms": 300
+    }
+  ],
+  "contract_version": "sdo.event-capability.v0.1",
+  "data_mode": "fixture",
+  "event_bus": {
+    "audit_topic": "orchestration.audit.v0",
+    "bus_id": "bus:sourceos-local-orchestration",
+    "dead_letter_topic": "orchestration.dead_letter.v0",
+    "delivery_mode": "exactly_once_by_idempotency_key",
+    "idempotency_key_fields": [
+      "event_id",
+      "capability_id",
+      "target_node_id",
+      "policy_epoch"
+    ],
+    "ordering_key_fields": [
+      "subject_node_id",
+      "capability_id"
+    ],
+    "replay_topic": "orchestration.replay.v0"
+  },
+  "events": [
+    {
+      "actor_id": "node:living-room-temp-01",
+      "causality": {
+        "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:sensor:living-room-temp-high",
+      "event_type": "sensor.threshold_crossed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "metric": "temperature_f",
+        "occupancy": "present",
+        "operator": ">",
+        "threshold": 76,
+        "value": 78.4
+      },
+      "target_node_id": "node:living-room-fan-01"
+    },
+    {
+      "actor_id": "node:front-door-camera-01",
+      "causality": {
+        "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:camera:package-delivered",
+      "event_type": "camera.semantic_event",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "raw_video_retained": false,
+        "redaction_class": "metadata_only",
+        "summary": "package delivered"
+      },
+      "target_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "node:agent-household-orchestrator",
+      "causality": {
+        "idempotency_key": "idem:event:agent:propose-arm-security:capability:arm-security-system:node:security-system-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:agent:propose-arm-security",
+      "event_type": "agent.plan_proposed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "approval_token_present": false,
+        "capability_class": "high_risk_actuation",
+        "requested_action": "arm_alarm"
+      },
+      "target_node_id": "node:security-system-01"
+    },
+    {
+      "actor_id": "node:agent-household-orchestrator",
+      "causality": {
+        "idempotency_key": "idem:event:agent:request-raw-camera-export:capability:block-raw-camera-export:node:front-door-camera-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:agent:request-raw-camera-export",
+      "event_type": "agent.plan_proposed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "capability_class": "high_risk_actuation",
+        "requested_action": "export_raw_video"
+      },
+      "target_node_id": "node:front-door-camera-01"
+    }
+  ],
+  "reaction_plans": [
+    {
+      "capability_id": "capability:cool-room-with-fan",
+      "dead_letter_on_failure": true,
+      "event_id": "event:sensor:living-room-temp-high",
+      "policy_outcome": "allowed",
+      "reaction_id": "reaction:cool-room-with-fan",
+      "receipt_refs": [
+        "receipt:event:living-room-temp-high",
+        "receipt:policy:allow-cool-living-room"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "scheduled"
+    },
+    {
+      "capability_id": "capability:observe-camera-semantic-event",
+      "dead_letter_on_failure": true,
+      "event_id": "event:camera:package-delivered",
+      "policy_outcome": "redacted",
+      "reaction_id": "reaction:observe-package-delivery",
+      "receipt_refs": [
+        "receipt:event:package-delivered"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "scheduled"
+    },
+    {
+      "capability_id": "capability:arm-security-system",
+      "dead_letter_on_failure": true,
+      "event_id": "event:agent:propose-arm-security",
+      "policy_outcome": "requires_approval",
+      "reaction_id": "reaction:security-arm-needs-approval",
+      "receipt_refs": [
+        "receipt:agent:propose-arm-security",
+        "receipt:policy:requires-approval-arm-security"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "blocked_or_waiting"
+    },
+    {
+      "capability_id": "capability:block-raw-camera-export",
+      "dead_letter_on_failure": true,
+      "event_id": "event:agent:request-raw-camera-export",
+      "policy_outcome": "denied",
+      "reaction_id": "reaction:block-raw-camera-export",
+      "receipt_refs": [
+        "receipt:policy:deny-raw-camera-export"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "blocked_or_waiting"
+    }
+  ],
+  "related_contracts": [
+    "sdo.v0.1",
+    "e2wm.sdo.v0.1",
+    "sourceos.orchestration.bundle.v0.1"
+  ],
+  "subscriptions": [
+    {
+      "capability_id": "capability:observe-camera-semantic-event",
+      "delivery_mode": "exactly_once_by_idempotency_key",
+      "enabled": true,
+      "event_type": "camera.semantic_event",
+      "filter": {
+        "data_mode": "fixture"
+      },
+      "subscription_id": "subscription:camera-semantic-events",
+      "target_node_id": "node:front-door-camera-01"
+    },
+    {
+      "capability_id": "capability:cool-room-with-fan",
+      "delivery_mode": "exactly_once_by_idempotency_key",
+      "enabled": true,
+      "event_type": "sensor.threshold_crossed",
+      "filter": {
+        "data_mode": "fixture"
+      },
+      "subscription_id": "subscription:temperature-to-fan",
+      "target_node_id": "node:living-room-fan-01"
+    },
+    {
+      "capability_id": "capability:arm-security-system",
+      "delivery_mode": "exactly_once_by_idempotency_key",
+      "enabled": true,
+      "event_type": "agent.plan_proposed",
+      "filter": {
+        "data_mode": "fixture"
+      },
+      "subscription_id": "subscription:security-plan-review",
+      "target_node_id": "node:security-system-01"
+    },
+    {
+      "capability_id": "capability:block-raw-camera-export",
+      "delivery_mode": "exactly_once_by_idempotency_key",
+      "enabled": true,
+      "event_type": "agent.plan_proposed",
+      "filter": {
+        "data_mode": "fixture"
+      },
+      "subscription_id": "subscription:raw-camera-export-denial",
+      "target_node_id": "node:front-door-camera-01"
+    }
+  ],
+  "world_class_invariants": [
+    "every_reaction_has_idempotency_key",
+    "every_capability_declares_effect_class",
+    "high_risk_capabilities_require_approval_or_denial",
+    "raw_camera_export_denied_by_default",
+    "every_reaction_emits_or_references_evidence_receipts",
+    "degraded_adapters_do_not_actuate",
+    "dead_letter_route_declared",
+    "replay_topic_declared"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ProofOfEmptiness.v0.1.json",
+  "title": "ProofOfEmptiness",
+  "description": "Inception Framework strict-initial-object invariant (I2): every morphism X -> the empty artifact must be a certified isomorphism. A ProofOfEmptiness (PoE) certifies that an erase/redact/delete/quarantine flow drove object X down to the canonical empty value of its schema via a two-phase erase-iso (shred -> certify), with shred_digest == empty_digest under a declared canonicalization. The deletion gate is fail-closed: any flow typed X -> empty that lacks a certified PoE is rejected. Pairs with the deletion gate (reversibility-before-destruction) and the capability lattice in ADR-036.",
+  "type": "object",
+  "required": [
+    "version",
+    "poe_id",
+    "created_at",
+    "subject_ref",
+    "schema_id",
+    "method",
+    "canonicalization",
+    "empty_digest",
+    "pre_digest",
+    "shred_digest",
+    "capability_ref",
+    "decision",
+    "trust_kernel_gate_order",
+    "hash",
+    "hash_algo"
+  ],
+  "properties": {
+    "version": { "const": "0.1" },
+    "poe_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "subject_ref": {
+      "type": "string",
+      "description": "Reference to the object X being erased."
+    },
+    "schema_id": {
+      "type": "string",
+      "description": "SCHEMA-ID whose canonical empty value (and empty_digest) this PoE references."
+    },
+    "context_id": {
+      "type": "string",
+      "description": "JSON-LD @context pin, to forbid schema games (AEAD must cover schema_id + context_id)."
+    },
+    "method": {
+      "type": "string",
+      "enum": ["erase-iso"],
+      "description": "Two-phase isomorphism: X --shred--> X0 --certify--> empty. No other path to empty is admissible."
+    },
+    "canonicalization": {
+      "type": "string",
+      "description": "Canonical byte encoding under which digests are computed (e.g. TritPack243, canonical-json)."
+    },
+    "empty_digest": {
+      "type": "string",
+      "description": "Schema-bound digest of the canonical empty value H(empty) for schema_id."
+    },
+    "pre_digest": {
+      "type": "string",
+      "description": "Digest of X before erasure. If pre_digest == empty_digest then X was already empty (X ≅ empty)."
+    },
+    "shred_digest": {
+      "type": "string",
+      "description": "Digest of the zero-information variant X0 after shred. For decision=certified-empty this MUST equal empty_digest."
+    },
+    "capability_ref": {
+      "type": "string",
+      "description": "Capability under which erasure ran. Must dominate the erase-iso capability requirement; bottom capability cannot certify."
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["certified-empty", "rejected"]
+    },
+    "reason": { "type": "string" },
+    "evidence_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "trust_kernel_gate_order": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "prefixItems": [
+        { "const": "identity" },
+        { "const": "policy" },
+        { "const": "evidence" },
+        { "const": "attestation" },
+        { "const": "revocation" },
+        { "const": "audit" }
+      ],
+      "items": false
+    },
+    "hash": { "type": "string" },
+    "hash_algo": { "type": "string" }
+  },
+  "additionalProperties": false
+}
