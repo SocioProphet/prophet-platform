@@ -1,0 +1,51 @@
+{
+  "apiVersion": "prophet-platform.socioprophet.org/v0.1",
+  "kind": "PlatformReceiptSpineBinding",
+  "platformReceiptRef": "build/fogstack-local-demo/deploy/fogstack.access.runtime-dry-run.record.json",
+  "platformReceiptKind": "FogStackRuntimeDryRunRecord",
+  "receiptSpineRef": "urn:srcos:receipt:execution:fogstack-access-runtime-dry-run-0001",
+  "receiptSpineKind": "ExecutionReceipt",
+  "subjectRef": "fogstack.access/runtime-dry-run/local-demo",
+  "issuedTimeUtc": "2026-05-05T04:45:00Z",
+  "standardsRefs": {
+    "receiptSpine": "SocioProphet/socioprophet-standards-storage:docs/standards/138-evidence-receipt-spine.md",
+    "standardsStorageCommit": "8c264939fbf123628e64c78e01cb1400cc8503df"
+  },
+  "fieldMappings": [
+    {
+      "platformField": "record_id",
+      "receiptSpineField": "id",
+      "required": false,
+      "notes": "Existing FogStack runtime records may carry record IDs rather than receipt IDs until runtime emission is upgraded."
+    },
+    {
+      "platformField": "generated_at",
+      "receiptSpineField": "issuedTimeUtc",
+      "required": true,
+      "notes": "Generated timestamp maps to receipt issue time."
+    },
+    {
+      "platformField": "bundle_id",
+      "receiptSpineField": "subjectRef",
+      "required": true,
+      "notes": "FogStack bundle identity becomes receipt subject context."
+    },
+    {
+      "platformField": "policyplane_decision",
+      "receiptSpineField": "evidenceRefs",
+      "required": true,
+      "notes": "PolicyPlane decision linkage is treated as evidence supporting the execution receipt."
+    },
+    {
+      "platformField": "agentplane_run",
+      "receiptSpineField": "evidenceRefs",
+      "required": true,
+      "notes": "AgentPlane run linkage is treated as evidence supporting the execution receipt."
+    }
+  ],
+  "fogstackArtifactRefs": [
+    "build/fogstack-local-demo/deploy/fogstack.access.runtime-dry-run.record.json",
+    "build/fogstack-local-demo/fogstack-parity-readiness.record.json"
+  ],
+  "notes": "Example mapping only. It does not claim canonical receipt-spine runtime emission is implemented yet."
+}
