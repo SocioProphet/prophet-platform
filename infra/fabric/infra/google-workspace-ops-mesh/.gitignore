@@ -1,0 +1,15 @@
+.terraform/
+generated/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+*_override.tf
+*_override.tf.json
+override.tf
+override.tf.json
+
+# Keep provider selections versioned when generated intentionally.
+!.terraform.lock.hcl

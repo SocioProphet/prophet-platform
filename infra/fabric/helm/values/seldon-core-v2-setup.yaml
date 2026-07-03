@@ -1,0 +1,4 @@
+# Seldon Core 2 operator/setup values.
+# Install in `seldon-mesh` by default.
+controller:
+  clusterwide: true
