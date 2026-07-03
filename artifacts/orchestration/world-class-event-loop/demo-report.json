@@ -1,0 +1,50 @@
+{
+  "created_at": "2026-06-12T03:13:02Z",
+  "exceptions": {
+    "camera_media_release_not_denied": [],
+    "core_errors": [],
+    "event_errors": [],
+    "high_risk_direct_allow": [],
+    "no_idempotency": [],
+    "no_receipts": [],
+    "trace_errors": []
+  },
+  "invariants": {
+    "agentplane_no_invalid_admissions": true,
+    "camera_media_release_denied_by_default": true,
+    "core_contract_valid": true,
+    "embodied_trace_valid": true,
+    "event_capability_valid": true,
+    "every_reaction_has_idempotency_key": true,
+    "every_reaction_has_receipt_refs": true,
+    "no_high_risk_direct_allow": true,
+    "sherlock_index_covers_all_records": true,
+    "sourceos_has_pending_waiting_and_blocked_states": true,
+    "sourceos_replay_is_non_mutating": true
+  },
+  "next_runtime_targets": [
+    "replace fixture policy annotation with live Guardrail Fabric CLI output",
+    "replace queue projection with sourceos-syncd orchestration enqueue output",
+    "replace admission projection with AgentPlane PR #130 output after merge",
+    "feed sherlock index into UI workbench event stream"
+  ],
+  "schema": "sdo.world-class-event-loop-demo.v0.1",
+  "status": "pass",
+  "summary": {
+    "admission": {
+      "admitted": 2,
+      "blocked": 1,
+      "invalid": 0,
+      "total": 4,
+      "waiting_for_approval": 1
+    },
+    "queue_counts": {
+      "blocked": 1,
+      "dead-letter": 0,
+      "pending": 2,
+      "waiting-approval": 1
+    },
+    "records": 4,
+    "sherlock_records": 4
+  }
+}
