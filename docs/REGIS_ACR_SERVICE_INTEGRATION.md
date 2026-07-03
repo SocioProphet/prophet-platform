@@ -176,5 +176,18 @@ identity flow `event-ir/ingest → resolve/entities → policy/check → graph/u
   schemas (vendored under `apps/regis-acr-api/schemas/`); conformance is enforced by `pytest`.
 - Policy veto is explainable: a `MERGE` crossing a protective scope boundary (e.g.
   `CITIZEN_FOG → ADTECH`) is `VETOED` with a `REFUTED` `ProveScopePermission` certificate.
-- Backing store is in-memory in this slice; the hellgraph EntityNode/EdgeWitness backing is the
-  next slice.
+- Backing store is pluggable (`src/regis_acr_api/graph_backend.py`), selected by env — **local-first
+  by default, hellgraph when opted-in**:
+  - `HELLGRAPH_SUPERPEER_URL` **unset** → `InMemoryBackend` (default; rebuildable, no external
+    dependency — keeps the plane runnable standalone).
+  - `HELLGRAPH_SUPERPEER_URL` **set** → `HellGraphBackend`, the federated sovereign graph. hellgraph's
+    SuperPeer is **read + govern only** (`/health`, `/cut`, `/query`, `/admit`) — by design it "cannot
+    forge or rewrite". So the backend **reads** entities from the super-peer's materialized view
+    (`POST /query`, Gremlin) and **stages writes** as `graph_delta` records in an outbox
+    (`HELLGRAPH_DELTA_OUTBOX`) — the ingest contract a hellgraph sovereign participant-writer
+    (Hypercore append) consumes. It never POSTs writes to the super-peer, which would violate the
+    sovereignty model. Read-after-write is served from a local mirror until the writer ingests.
+  - `GET /v1/plane-info` reports the active `graph_backend` + its health; an unreachable super-peer
+    degrades softly (does not crash the service).
+  - Next slice (hellgraph repo): the sovereign participant-writer that tails the delta outbox and
+    appends regis nodes/edges to its Hypercore log (node_id→atom id + `node_id` property, kind→label).

@@ -23,6 +23,8 @@ from uuid import uuid4
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from regis_acr_api.graph_backend import get_backend
+
 router = APIRouter(prefix="/v1", tags=["er-spine"])
 
 SCHEMA_VERSION = "0.1.0"
@@ -60,8 +62,9 @@ def require_entitlement(x_regis_entitlement: Optional[str] = Header(default=None
     return {"subscription": x_regis_entitlement}
 
 
-# --- in-memory graph (hellgraph backing is the next slice) ---------------------------------
-_NODES: Dict[str, Dict[str, Any]] = {}
+# --- graph backing: in-memory (local-first default) or hellgraph (opt-in, HELLGRAPH_SUPERPEER_URL) ---
+# see graph_backend.get_backend(). Proofs + the event log are receipts, not graph atoms, so they
+# stay in-process here.
 _PROOFS: Dict[str, Dict[str, Any]] = {}
 _EVENT_LOG: List[Dict[str, Any]] = []
 
@@ -141,7 +144,8 @@ class PolicyCheckRequest(BaseModel):
 @router.get("/plane-info")
 def plane_info() -> Dict[str, Any]:
     """Readable without entitlement — states the opt-in / local-first principle."""
-    return PLANE_INFO
+    b = get_backend()
+    return {**PLANE_INFO, "graph_backend": b.name, "graph_backend_health": b.health()}
 
 
 @router.post("/event-ir/ingest")
@@ -176,8 +180,8 @@ def resolve_entities(req: ResolveRequest, ent=Header(default=None, alias="X-Regi
     result = "VERIFIED" if n_ev >= 2 else "REQUIRES_REVIEW"  # explainable, uncertainty-aware
     event_ids = [m.get("event_id", f"evt-{i}") for i, m in enumerate(req.mentions)] or ["evt-none"]
     node = _make_node(node_id, "ENTITY_CLUSTER", {"n_mentions": len(req.mentions), "n_candidates": len(req.candidates)}, req.scope, event_ids)
-    _NODES[node_id] = node
     delta = _make_delta([{"kind": "UPSERT_NODE", "node": node}])
+    get_backend().apply_delta(delta)
     proof = _make_proof("ProveLinkage", result, [f"mention://{i}" for i in range(len(req.mentions))] or ["mention://none"])
     return {
         "decision": "MERGE" if result == "VERIFIED" else "POSSIBLE_MATCH",
@@ -192,19 +196,14 @@ def resolve_entities(req: ResolveRequest, ent=Header(default=None, alias="X-Regi
 @router.post("/graph/upsert")
 def graph_upsert(delta: Dict[str, Any], ent=Header(default=None, alias="X-Regis-Entitlement")) -> Dict[str, Any]:
     require_entitlement(ent)
-    applied = 0
-    for op in delta.get("operations", []):
-        if op.get("kind") == "UPSERT_NODE" and "node" in op:
-            node = op["node"]
-            _NODES[node["node_id"]] = node
-            applied += 1
-    return {"applied": applied, "delta_id": delta.get("delta_id")}
+    applied = get_backend().apply_delta(delta)
+    return {"applied": applied, "delta_id": delta.get("delta_id"), "backend": get_backend().name}
 
 
 @router.get("/graph/entity/{node_id}")
 def get_entity(node_id: str, ent=Header(default=None, alias="X-Regis-Entitlement")) -> Dict[str, Any]:
     require_entitlement(ent)
-    node = _NODES.get(node_id)
+    node = get_backend().get(node_id)
     if not node:
         raise HTTPException(status_code=404, detail=f"entity {node_id} not found")
     return node
