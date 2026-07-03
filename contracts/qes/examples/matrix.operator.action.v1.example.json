@@ -1,0 +1,19 @@
+{
+  "action_id": "matrix-action-demo-0001",
+  "emitted_at": "2026-05-05T01:30:00Z",
+  "tenant_id": "tenant-demo",
+  "producer": "matrix-qes-operator",
+  "room_id": "!incident:matrix.example",
+  "thread_id": "$thread-demo-0001",
+  "actor_id": "@operator:matrix.example",
+  "action_type": "ack",
+  "subject_ref": "incident://demo-0001",
+  "arguments": {},
+  "result_code": "accepted",
+  "previous_state": "triage",
+  "current_state": "acknowledged",
+  "message_event_id": "$event-demo-0001",
+  "notes": {
+    "identity_resolution": "pending_identity_subject_binding"
+  }
+}
