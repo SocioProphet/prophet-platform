@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hellgraph-superpeer
+  labels:
+    app: hellgraph-superpeer
+    bundle: graph.twin
+  annotations:
+    # This runs in the CLOUD-TWIN cluster. It is a read-replica of the edge's sovereign graph:
+    # it bootstraps from the edge federation base key, replicates the edge's Hypercore log, and
+    # serves the causally-merged view. A Deployment (not a StatefulSet) with rebuildable storage
+    # makes the "twin is a disposable index, never a second writer" property structural — it is
+    # never admitted as a writer, so it cannot forge/rewrite and there is no split-brain.
+    mount-intent.socioprophet.io/storage: derived_index
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hellgraph-superpeer
+  template:
+    metadata:
+      labels:
+        app: hellgraph-superpeer
+        bundle: graph.twin
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: superpeer
+          image: ghcr.io/socioprophet/hellgraph:latest
+          # Runs the super-peer entrypoint (hellgraph bin, PR #13) instead of the local service.
+          command: ["node", "bin/hellgraph-superpeer.mjs"]
+          ports:
+            - name: http
+              containerPort: 8850
+          env:
+            - name: HELLGRAPH_HTTP_PORT
+              value: "8850"
+            - name: HELLGRAPH_STORAGE_DIR
+              value: "/var/lib/hellgraph-superpeer"
+            # The edge federation base key — the twin joins THIS federation as a replica.
+            - name: HELLGRAPH_BOOTSTRAP_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: hellgraph-federation
+                  key: base-key
+          readinessProbe:
+            httpGet: { path: /health, port: 8850 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8850 }
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "50m", memory: "128Mi" }
+            limits: { cpu: "500m", memory: "512Mi" }
+          volumeMounts:
+            - name: replica-store
+              mountPath: /var/lib/hellgraph-superpeer
+      volumes:
+        # Rebuildable: the replica re-derives from the edge's log via the federation on restart —
+        # nothing here is a source of truth (mount-intent: derived_index, never egressed).
+        - name: replica-store
+          emptyDir: {}
