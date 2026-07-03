@@ -157,3 +157,24 @@ Initial validation should check:
 - The service accepts a source-record fixture and emits an evidence/decision response.
 - Promotion evaluation is policy-gated and does not auto-promote low-margin matches.
 - Ontogenesis relationship hook fixture is emitted but not forced into canonical state.
+
+## Entity-resolution spine — opt-in subscription plane (local-first boundary)
+
+The ER spine (`src/regis_acr_api/er_spine.py`, mounted under `/v1`) implements the executable
+identity flow `event-ir/ingest → resolve/entities → policy/check → graph/upsert → proof/{id}`.
+
+**This is an opt-in, subscription-gated *cloud* plane — not part of the local-first core.**
+
+- Every spine endpoint requires an `X-Regis-Entitlement` subscription token (or
+  `REGIS_ENTITLEMENT_ALLOW_ALL=1` in dev). Without it the plane is inert (HTTP `402`). This is
+  the architectural point: activation is explicit, never implicit.
+- `GET /v1/plane-info` is readable without entitlement and states the principle.
+- **The sovereign local-first core (Noetica) MUST NOT hard-depend on this plane.** Sensitive
+  inference stays on-device; this plane only ever sees data the user opts to share (after local
+  masking / policy-veto). Noetica runs fully with this service absent.
+- Emitted `graph_delta` and `proof-certificate` envelopes conform to the regis-entity-graph domain
+  schemas (vendored under `apps/regis-acr-api/schemas/`); conformance is enforced by `pytest`.
+- Policy veto is explainable: a `MERGE` crossing a protective scope boundary (e.g.
+  `CITIZEN_FOG → ADTECH`) is `VETOED` with a `REFUTED` `ProveScopePermission` certificate.
+- Backing store is in-memory in this slice; the hellgraph EntityNode/EdgeWitness backing is the
+  next slice.
