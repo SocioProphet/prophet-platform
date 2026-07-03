@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.com/schemas/agent/fogstack-agent-core-plan-v0.1.schema.json",
+  "title": "FogStackAgentCorePlan",
+  "type": "object",
+  "required": [
+    "kind",
+    "schema_version",
+    "bundle_id",
+    "version",
+    "agent_plane"
+  ],
+  "properties": {
+    "kind": { "const": "FogStackAgentCorePlan" },
+    "schema_version": { "const": "v0.1" },
+    "bundle_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "agent_plane": {
+      "type": "object",
+      "required": [
+        "runtime",
+        "identity",
+        "gateway",
+        "memory",
+        "observability",
+        "policy",
+        "approval_gates"
+      ],
+      "properties": {
+        "runtime": { "$ref": "#/$defs/runtime" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "gateway": { "$ref": "#/$defs/gateway" },
+        "memory": { "$ref": "#/$defs/memory" },
+        "observability": { "$ref": "#/$defs/observability" },
+        "policy": { "$ref": "#/$defs/policy" },
+        "approval_gates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approval_gate" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "runtime": {
+      "type": "object",
+      "required": ["mode", "isolation", "max_runtime_seconds"],
+      "properties": {
+        "mode": { "enum": ["local", "sandbox", "cluster"] },
+        "isolation": { "enum": ["process", "container", "kata", "gvisor"] },
+        "max_runtime_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 }
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "required": ["agent_id", "identity_mode", "human_anchor_required", "human_anchor_role"],
+      "properties": {
+        "agent_id": { "type": "string", "pattern": "^agent:[a-z0-9][a-z0-9._:-]*$" },
+        "identity_mode": { "enum": ["local-dev", "workload", "spiffe", "oidc"] },
+        "human_anchor_required": { "const": true },
+        "human_anchor_role": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "gateway": {
+      "type": "object",
+      "required": ["tool_protocols", "allowed_tools"],
+      "properties": {
+        "tool_protocols": {
+          "type": "array",
+          "items": { "enum": ["mcp", "a2a", "cli", "http"] },
+          "minItems": 1
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tool" },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "tool": {
+      "type": "object",
+      "required": ["name", "purpose", "side_effects"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 },
+        "side_effects": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "memory": {
+      "type": "object",
+      "required": ["short_term", "long_term", "retention_policy"],
+      "properties": {
+        "short_term": { "enum": ["run_context", "disabled"] },
+        "long_term": { "enum": ["disabled-by-default", "explicit-opt-in"] },
+        "retention_policy": { "enum": ["local-demo", "ephemeral", "policy-bound"] }
+      },
+      "additionalProperties": false
+    },
+    "observability": {
+      "type": "object",
+      "required": ["run_record_required", "trace_required", "artifact_index_required", "approval_record_required"],
+      "properties": {
+        "run_record_required": { "const": true },
+        "trace_required": { "type": "boolean" },
+        "artifact_index_required": { "const": true },
+        "approval_record_required": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "human_approval_required_for_deploy",
+        "network_access_default",
+        "filesystem_scope",
+        "secrets_access",
+        "dangerous_actions_require_quorum"
+      ],
+      "properties": {
+        "human_approval_required_for_deploy": { "const": true },
+        "network_access_default": { "const": "deny" },
+        "filesystem_scope": { "const": "repo-local" },
+        "secrets_access": { "const": "deny" },
+        "dangerous_actions_require_quorum": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "approval_gate": {
+      "type": "object",
+      "required": ["id", "action", "required_approvals", "human_required"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "required_approvals": { "type": "integer", "minimum": 1 },
+        "human_required": { "const": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
