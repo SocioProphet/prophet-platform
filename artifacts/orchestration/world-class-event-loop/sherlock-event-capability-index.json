@@ -1,0 +1,78 @@
+{
+  "created_at": "2026-06-12T03:13:02Z",
+  "record_count": 4,
+  "records": [
+    {
+      "capability_id": "capability:cool-room-with-fan",
+      "capability_name": "Cool room with fan when hot",
+      "effect_class": "low_risk_actuation",
+      "event_id": "event:sensor:living-room-temp-high",
+      "event_type": "sensor.threshold_crossed",
+      "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+      "mode": "event-capability-evidence-v0",
+      "policy_epoch": "policy-epoch-0",
+      "policy_outcome": "allowed",
+      "reaction_id": "reaction:cool-room-with-fan",
+      "receipt_refs": [
+        "receipt:event:living-room-temp-high",
+        "receipt:policy:allow-cool-living-room"
+      ],
+      "record_id": "record:cool-room-with-fan",
+      "search_text": "sensor.threshold_crossed Cool room with fan when hot low_risk_actuation allowed {\"metric\": \"temperature_f\", \"occupancy\": \"present\", \"operator\": \">\", \"threshold\": 76, \"value\": 78.4}"
+    },
+    {
+      "capability_id": "capability:observe-camera-semantic-event",
+      "capability_name": "Observe camera semantic event",
+      "effect_class": "observe",
+      "event_id": "event:camera:package-delivered",
+      "event_type": "camera.semantic_event",
+      "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+      "mode": "event-capability-evidence-v0",
+      "policy_epoch": "policy-epoch-0",
+      "policy_outcome": "redacted",
+      "reaction_id": "reaction:observe-package-delivery",
+      "receipt_refs": [
+        "receipt:event:package-delivered"
+      ],
+      "record_id": "record:observe-package-delivery",
+      "search_text": "camera.semantic_event Observe camera semantic event observe redacted {\"raw_video_retained\": false, \"redaction_class\": \"metadata_only\", \"summary\": \"package delivered\"}"
+    },
+    {
+      "capability_id": "capability:arm-security-system",
+      "capability_name": "Arm household security system",
+      "effect_class": "high_risk_actuation",
+      "event_id": "event:agent:propose-arm-security",
+      "event_type": "agent.plan_proposed",
+      "idempotency_key": "idem:event:agent:propose-arm-security:capability:arm-security-system:node:security-system-01:policy-epoch-0",
+      "mode": "event-capability-evidence-v0",
+      "policy_epoch": "policy-epoch-0",
+      "policy_outcome": "requires_approval",
+      "reaction_id": "reaction:security-arm-needs-approval",
+      "receipt_refs": [
+        "receipt:agent:propose-arm-security",
+        "receipt:policy:requires-approval-arm-security"
+      ],
+      "record_id": "record:security-arm-needs-approval",
+      "search_text": "agent.plan_proposed Arm household security system high_risk_actuation requires_approval {\"approval_token_present\": false, \"capability_class\": \"high_risk_actuation\", \"requested_action\": \"arm_alarm\"}"
+    },
+    {
+      "capability_id": "capability:block-raw-camera-export",
+      "capability_name": "Block raw camera export",
+      "effect_class": "high_risk_actuation",
+      "event_id": "event:agent:request-raw-camera-export",
+      "event_type": "agent.plan_proposed",
+      "idempotency_key": "idem:event:agent:request-raw-camera-export:capability:block-raw-camera-export:node:front-door-camera-01:policy-epoch-0",
+      "mode": "event-capability-evidence-v0",
+      "policy_epoch": "policy-epoch-0",
+      "policy_outcome": "denied",
+      "reaction_id": "reaction:block-raw-camera-export",
+      "receipt_refs": [
+        "receipt:policy:deny-raw-camera-export"
+      ],
+      "record_id": "record:block-raw-camera-export",
+      "search_text": "agent.plan_proposed Block raw camera export high_risk_actuation denied {\"capability_class\": \"high_risk_actuation\", \"requested_action\": \"export_raw_video\"}"
+    }
+  ],
+  "schema": "sherlock.event-capability-index.v0.1",
+  "source_authority": "Prophet Platform world-class event loop demo"
+}

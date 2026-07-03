@@ -51,7 +51,14 @@ spec:
             - "--port=8000"
             - "--max-model-len=8192"
             - "--gpu-memory-utilization=0.92"
+            # Serve promoted LoRA adapters (the compounding loop's output). Adapters are hot-loaded
+            # at runtime via POST /v1/load_lora_adapter — no redeploy when a new adapter promotes.
+            - "--enable-lora"
+            - "--max-lora-rank=32"
+            - "--max-loras=4"
           env:
+            - name: VLLM_ALLOW_RUNTIME_LORA_UPDATING
+              value: "True"
             - name: MESH_MODEL
               value: "Qwen/Qwen2.5-Coder-7B-Instruct"
             # Optional: HF token for gated models (Qwen is open — leave unset). Provide via a secret.

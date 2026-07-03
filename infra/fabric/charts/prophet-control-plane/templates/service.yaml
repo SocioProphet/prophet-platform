@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: { include "prophet-control-plane.fullname" . }
+  labels:
+    app.kubernetes.io/name: prophet-control-plane
+    app.kubernetes.io/part-of: prophet-platform
+    socioprofit.com/atom: prophet-control-plane
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: prophet-control-plane
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http

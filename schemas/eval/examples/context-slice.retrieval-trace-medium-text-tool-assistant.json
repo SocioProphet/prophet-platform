@@ -1,0 +1,15 @@
+{
+  "context_slice_id": "ctx.retrieval_trace.medium_text.tool_assistant.v0",
+  "length_bucket": "medium_2k_to_32k_tokens",
+  "modality_mix": ["text"],
+  "ontology_depth_bucket": "shallow_entity_and_citation_bindings",
+  "relation_chain_bucket": "one_to_three_hop",
+  "ambiguity_bucket": "moderate",
+  "tool_count_bucket": "one_to_three_tools",
+  "freshness_requirement": "recent",
+  "latency_budget": "interactive",
+  "cost_budget": "medium",
+  "risk_tier": "medium",
+  "autonomy_tier": "tool_using_assistant",
+  "domain": "platform_retrieval_trace_replay"
+}

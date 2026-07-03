@@ -1,0 +1,11 @@
+apiVersion: v2
+name: mesh-serving
+description: >-
+  Profile-driven GPU inference serving for the mesh. One values file per IRON
+  PROFILE (edge / pro / frontier); each declares the accelerator and a
+  purpose→model map sized to that iron. Renders a vLLM Deployment + Service per
+  served model. Swap the profile to swap the iron + its matched models.
+type: application
+version: 0.1.0
+appVersion: "26.11"
+keywords: [mesh, vllm, gpu, frontier, iron-profile]

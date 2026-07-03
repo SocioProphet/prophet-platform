@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/order-intent-event.schema.json",
+  "title": "OrderIntentEvent",
+  "type": "object",
+  "required": [
+    "event_id",
+    "strategy_id",
+    "instrument_id",
+    "intent_kind",
+    "side",
+    "quantity",
+    "created_at"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "strategy_id": { "type": "string" },
+    "instrument_id": { "type": "string" },
+    "venue_id": { "type": "string" },
+    "intent_kind": {
+      "type": "string",
+      "enum": ["new", "amend", "cancel", "pause", "resume"]
+    },
+    "side": {
+      "type": "string",
+      "enum": ["buy", "sell", "none"]
+    },
+    "order_type": {
+      "type": "string",
+      "enum": ["market", "limit", "stop", "other"]
+    },
+    "quantity": { "type": ["number", "string"] },
+    "price": { "type": ["number", "string", "null"] },
+    "time_in_force": { "type": "string" },
+    "requested_effect_ref": { "type": "string" },
+    "signal_refs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "authority_context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "risk_labels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "policy_labels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": true
+}

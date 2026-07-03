@@ -1,0 +1,37 @@
+# Ephemeral GPU eval — the frontier-parity / head-to-head run as a self-terminating
+# job. KEDA ScaledJob provisions a GPU pod when work arrives (queue/cron), runs the
+# eval, and lets the node scale back to zero (GPU pools are min=0 in Tofu). Cost is
+# bounded to the run. Adoption example — wire the trigger to the real queue/cron.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  name: frontier-parity-eval
+  namespace: serving
+spec:
+  jobTargetRef:
+    template:
+      spec:
+        restartPolicy: Never
+        nodeSelector:
+          cloud.google.com/gke-accelerator: nvidia-l4
+        containers:
+          - name: eval
+            image: eval-fabric-api    # pinned digest via gitops_promote_image.py
+            args: ["run", "--suite", "frontier-parity"]
+            resources:
+              limits:
+                nvidia.com/gpu: "1"
+    backoffLimit: 1
+  minReplicaCount: 0
+  maxReplicaCount: 3
+  pollingInterval: 60
+  successfulJobsHistoryLimit: 3
+  triggers:
+    # Example: run on a schedule. Swap for a queue trigger (pubsub/redis) to run
+    # on demand. Cron is UTC.
+    - type: cron
+      metadata:
+        timezone: UTC
+        start: "0 3 * * *"     # 03:00 UTC
+        end: "30 3 * * *"      # window to launch within
+        desiredReplicas: "1"

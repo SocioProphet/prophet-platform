@@ -1,0 +1,46 @@
+# Starter SLOs + recording rules. These are the metric contract that Argo
+# Rollouts (canary AnalysisTemplate) and Chaos Mesh (steady-state hypothesis)
+# consume. Request-rate rules use OTel HTTP semconv metrics (emitted by services
+# through the collector's prometheus exporter); availability rules use `up`.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: socioprophet-slos
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: socioprophet.availability
+      rules:
+        - alert: TargetDown
+          expr: up == 0
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "Target {{ $labels.job }} / {{ $labels.instance }} is down"
+        - alert: HellGraphDown
+          expr: up{job=~".*hellgraph.*"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "HellGraph managed graph service is down — person-graph reads/writes fail"
+    - name: socioprophet.request-slo
+      rules:
+        # 5xx error ratio per service — the canary gate metric.
+        - record: job:request_error_ratio:rate5m
+          expr: |
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            /
+            clamp_min(sum by (job) (rate(http_server_request_duration_seconds_count[5m])), 1)
+        # p99 latency per service — the second canary gate metric.
+        - record: job:request_latency_p99:5m
+          expr: |
+            histogram_quantile(0.99, sum by (job, le) (rate(http_server_request_duration_seconds_bucket[5m])))
+        - alert: HighErrorRatio
+          expr: job:request_error_ratio:rate5m > 0.05
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.job }} 5xx ratio > 5% (SLO breach) — blocks canary promotion"

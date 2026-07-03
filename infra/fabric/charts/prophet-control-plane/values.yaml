@@ -1,0 +1,12 @@
+image:
+  repository: ghcr.io/socioprofit/prophet-control-plane
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+env: {}
+
+resources: {}

@@ -1,0 +1,8 @@
+mode: standalone
+auth:
+  rootUser: minio
+  rootPassword: minio123456
+defaultBuckets: "arcticdb,backups"
+
+service:
+  type: ClusterIP

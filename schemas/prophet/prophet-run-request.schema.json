@@ -1,0 +1,69 @@
+{
+  "$id": "https://standards.socioprophet.org/schemas/prophet/prophet-run-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "context": {
+      "additionalProperties": true,
+      "type": "object"
+    },
+    "critic_features_hash": {
+      "pattern": "^sha256:[0-9a-fA-F]{8,}$",
+      "type": "string"
+    },
+    "ho": {
+      "pattern": "^ho:[A-Za-z0-9_.:-]+$",
+      "type": "string"
+    },
+    "inputs_hash": {
+      "pattern": "^sha256:[0-9a-fA-F]{8,}$",
+      "type": "string"
+    },
+    "policies": {
+      "items": {
+        "pattern": "^pol:sha256:[0-9a-fA-F]{8,}$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "request_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "prophet-runtime.v0"
+    },
+    "tokens": {
+      "items": {
+        "pattern": "^tok:[A-Za-z0-9_.:-]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workloads": {
+      "items": {
+        "pattern": "^w:sha256:[0-9a-fA-F]{8,}$",
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "ho",
+    "policies",
+    "tokens",
+    "workloads",
+    "critic_features_hash",
+    "inputs_hash",
+    "requested_at"
+  ],
+  "title": "Prophet Run Request",
+  "type": "object"
+}

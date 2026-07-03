@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prophet-platform:conversational-mesh:conversation-envelope:v0.1",
+  "title": "ConversationEnvelope",
+  "description": "Canonical normalized envelope for a conversational message crossing the mesh edge. Emitted by both native Matrix paths and external channel adapter ingress paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "envelope_id",
+    "source_channel",
+    "source_channel_type",
+    "room_ref",
+    "room_kind",
+    "sender_ref",
+    "trust_tier",
+    "fragility_tier",
+    "content_ref",
+    "content_kind",
+    "received_at",
+    "non_claims"
+  ],
+  "properties": {
+    "kind": { "type": "string", "const": "ConversationEnvelope" },
+    "schema_version": { "type": "string", "const": "conversational-mesh.envelope.v0.1" },
+    "envelope_id": { "type": "string", "minLength": 1 },
+    "source_channel": { "type": "string", "minLength": 1 },
+    "source_channel_type": {
+      "type": "string",
+      "enum": ["matrix_native", "external_adapter", "telephony_adapter", "webhook_adapter", "bridge_adapter"]
+    },
+    "room_ref": { "type": "string", "minLength": 1 },
+    "room_kind": {
+      "type": "string",
+      "enum": ["internal", "external", "bridge"]
+    },
+    "sender_ref": { "type": "string", "minLength": 1 },
+    "trust_tier": {
+      "type": "string",
+      "enum": ["trusted_internal", "verified_external", "unverified_external", "unknown"]
+    },
+    "fragility_tier": {
+      "type": "string",
+      "enum": ["privileged", "sensitive", "standard", "public"]
+    },
+    "content_ref": { "type": "string", "minLength": 1 },
+    "content_kind": {
+      "type": "string",
+      "enum": ["text", "structured", "media_ref", "command", "event_ref"]
+    },
+    "bridge_health_ref": { "type": "string" },
+    "adapter_ref": { "type": "string" },
+    "policy_decision_ref": { "type": "string" },
+    "received_at": { "type": "string", "format": "date-time" },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  }
+}

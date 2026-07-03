@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: { include "socioprofit-worker.fullname" . }
+  labels:
+    app.kubernetes.io/name: socioprofit-worker
+    app.kubernetes.io/part-of: socioprofit
+    prophet.ai/atom: socioprofit-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: socioprofit-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: socioprofit-worker
+        app.kubernetes.io/part-of: socioprofit
+        prophet.ai/atom: socioprofit-worker
+    spec:
+      containers:
+        - name: socioprofit-worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+          envFrom:
+            - configMapRef:
+                name: { include "socioprofit-worker.fullname" . }-config
+          env:
+            {- range $k, $v := .Values.env }
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {- end }
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+{{ toYaml .Values.resources | indent 20 }}

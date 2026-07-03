@@ -1,0 +1,101 @@
+version: 0.1
+service_graph:
+  principles:
+    - sourceos_must_boot_and_function_without_optional_services
+    - all_risky_services_ship_disabled
+    - git_and_aiwg_artifacts_are_system_of_record
+    - adapters_hide_provider_specifics
+  lanes:
+    core:
+      services:
+        - name: agentctl
+          role: unified cli/router
+          adapters: [Executor, BrowserOps, MemoryAPI]
+          startup: manual
+        - name: aiwg
+          role: process spine and artifact conventions
+          startup: on_demand
+        - name: gastown
+          role: orchestrator
+          startup: on_demand
+        - name: mem0
+          role: memory service
+          startup: user_opt_in
+        - name: tabby-community
+          role: completion backend
+          startup: user_opt_in
+    support:
+      services:
+        - name: stagehand
+          role: browserops-primary
+          startup: on_demand
+          isolation: container_sandbox
+        - name: browser-use
+          role: browserops-alt
+          startup: on_demand
+          isolation: container_sandbox
+        - name: tritfabric-local
+          role: trainingruntime-local-uds
+          startup: disabled_by_default
+          transport: uds
+        - name: agentplane
+          role: execution-control-plane
+          startup: on_demand
+    restricted:
+      services:
+        - name: agent-s
+          role: desktopops
+          startup: explicit_enable_only
+          isolation: vm_or_strict_container
+        - name: openclaw
+          role: assistant-shell
+          startup: explicit_enable_only
+          policy:
+            external_skills: false
+            allowlisted_skills_only: true
+            ambient_secrets: false
+        - name: inbox-zero
+          role: mailops-service
+          startup: explicit_enable_only
+          isolation: separate_service
+    quarantine:
+      services:
+        - name: fortemi
+          role: kb-provider-evaluation
+          startup: manual
+          isolation: separate_service
+        - name: ad4m
+          role: meaninggraph-provider
+          startup: manual
+          isolation: separate_service
+        - name: subconscious
+          role: long-horizon-provider
+          startup: manual
+          isolation: separate_service
+  interfaces:
+    Executor:
+      providers: [opencode, aider, continue, goose]
+      default: opencode
+    BrowserOps:
+      providers: [stagehand, browser-use]
+      default: stagehand
+    DesktopOps:
+      providers: [agent-s]
+      default: none
+    MemoryAPI:
+      providers: [mem0]
+      default: mem0
+    MeaningGraphAPI:
+      providers: [ad4m]
+      default: none
+    KnowledgeBaseAPI:
+      providers: [fortemi]
+      default: none
+  rollout_order:
+    - hygiene_and_licenses
+    - workspace_validation
+    - sourceos_runtime_substrate
+    - executor_and_orchestrator_adapters
+    - browserops_and_memory
+    - opt_in_runtimes
+    - quarantine_provider_evaluations

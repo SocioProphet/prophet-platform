@@ -1,0 +1,37 @@
+# ServiceMonitors — Prometheus Operator scrapes these targets. Requires the
+# kube-prometheus-stack CRDs (installed by the observability Argo app at an
+# earlier sync-wave).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack   # picked up by the stack's serviceMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+  endpoints:
+    - port: metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hellgraph
+  namespace: socioprophet
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames: [socioprophet]
+  selector:
+    matchLabels:
+      app: hellgraph
+  endpoints:
+    - port: http          # HellGraph exposes Prometheus metrics on its http port
+      path: /metrics
+      interval: 30s

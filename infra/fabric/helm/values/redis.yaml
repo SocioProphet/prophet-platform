@@ -1,0 +1,12 @@
+architecture: replication
+auth:
+  enabled: false
+master:
+  persistence:
+    enabled: true
+    size: 10Gi
+replica:
+  replicaCount: 2
+  persistence:
+    enabled: true
+    size: 10Gi

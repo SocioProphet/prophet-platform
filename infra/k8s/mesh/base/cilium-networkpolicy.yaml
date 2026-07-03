@@ -1,0 +1,29 @@
+# Baseline zero-trust for the graph spine: HellGraph accepts traffic only from
+# same-namespace workloads plus the Prometheus scraper, and is reachable on its
+# service port. A targeted allow (not a blanket default-deny, which would need
+# per-service audit first). Requires Cilium as CNI (see README — GKE Autopilot
+# uses Dataplane V2, which is Cilium-based; apply the equivalent there).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: hellgraph-allow
+  namespace: socioprophet
+spec:
+  endpointSelector:
+    matchLabels:
+      app: hellgraph
+  ingress:
+    # Same-namespace consumers (memory-mesh runtime, regis-entity-graph, etc.).
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: socioprophet
+      toPorts:
+        - ports:
+            - { port: "8850", protocol: TCP }
+    # Prometheus scrape from the observability namespace.
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: observability
+      toPorts:
+        - ports:
+            - { port: "8850", protocol: TCP }

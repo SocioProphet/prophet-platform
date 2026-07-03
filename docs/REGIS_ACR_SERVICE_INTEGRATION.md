@@ -157,3 +157,37 @@ Initial validation should check:
 - The service accepts a source-record fixture and emits an evidence/decision response.
 - Promotion evaluation is policy-gated and does not auto-promote low-margin matches.
 - Ontogenesis relationship hook fixture is emitted but not forced into canonical state.
+
+## Entity-resolution spine — opt-in subscription plane (local-first boundary)
+
+The ER spine (`src/regis_acr_api/er_spine.py`, mounted under `/v1`) implements the executable
+identity flow `event-ir/ingest → resolve/entities → policy/check → graph/upsert → proof/{id}`.
+
+**This is an opt-in, subscription-gated *cloud* plane — not part of the local-first core.**
+
+- Every spine endpoint requires an `X-Regis-Entitlement` subscription token (or
+  `REGIS_ENTITLEMENT_ALLOW_ALL=1` in dev). Without it the plane is inert (HTTP `402`). This is
+  the architectural point: activation is explicit, never implicit.
+- `GET /v1/plane-info` is readable without entitlement and states the principle.
+- **The sovereign local-first core (Noetica) MUST NOT hard-depend on this plane.** Sensitive
+  inference stays on-device; this plane only ever sees data the user opts to share (after local
+  masking / policy-veto). Noetica runs fully with this service absent.
+- Emitted `graph_delta` and `proof-certificate` envelopes conform to the regis-entity-graph domain
+  schemas (vendored under `apps/regis-acr-api/schemas/`); conformance is enforced by `pytest`.
+- Policy veto is explainable: a `MERGE` crossing a protective scope boundary (e.g.
+  `CITIZEN_FOG → ADTECH`) is `VETOED` with a `REFUTED` `ProveScopePermission` certificate.
+- Backing store is pluggable (`src/regis_acr_api/graph_backend.py`), selected by env — **local-first
+  by default, hellgraph when opted-in**:
+  - `HELLGRAPH_SUPERPEER_URL` **unset** → `InMemoryBackend` (default; rebuildable, no external
+    dependency — keeps the plane runnable standalone).
+  - `HELLGRAPH_SUPERPEER_URL` **set** → `HellGraphBackend`, the federated sovereign graph. hellgraph's
+    SuperPeer is **read + govern only** (`/health`, `/cut`, `/query`, `/admit`) — by design it "cannot
+    forge or rewrite". So the backend **reads** entities from the super-peer's materialized view
+    (`POST /query`, Gremlin) and **stages writes** as `graph_delta` records in an outbox
+    (`HELLGRAPH_DELTA_OUTBOX`) — the ingest contract a hellgraph sovereign participant-writer
+    (Hypercore append) consumes. It never POSTs writes to the super-peer, which would violate the
+    sovereignty model. Read-after-write is served from a local mirror until the writer ingests.
+  - `GET /v1/plane-info` reports the active `graph_backend` + its health; an unreachable super-peer
+    degrades softly (does not crash the service).
+  - Next slice (hellgraph repo): the sovereign participant-writer that tails the delta outbox and
+    appends regis nodes/edges to its Hypercore log (node_id→atom id + `node_id` property, kind→label).
