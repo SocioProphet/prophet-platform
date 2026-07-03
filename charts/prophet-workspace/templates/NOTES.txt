@@ -1,0 +1,12 @@
+prophet-workspace deployed. Mail won't actually flow until the runbook steps are done —
+see docs/PROPHET_WORKSPACE_MAIL_RUNBOOK.md. Critical checklist:
+
+  1. Static IPs reserved + set in values (loadBalancer.smtp.staticIP / .imap.staticIP).
+  2. DNS: MX → {{ .Values.mailHostname }}; A records for {{ .Values.mailHostname }} + {{ .Values.imapHostname }};
+     SPF, DKIM ({{ .Values.dkim.selector }}._domainkey), DMARC TXT records.
+  3. PTR / reverse-DNS on the SMTP LB IP == {{ .Values.mailHostname }}  (or outbound mail is rejected).
+  4. TLS secret set (tls.certSecret) for 587/993/CalDAV.
+  5. Mailboxes seeded (seed.users with SHA512-CRYPT hashes) — `doveadm pw -s SHA512-CRYPT`.
+  6. Outbound: enable relay (relay.enabled) until the IP is warmed — a cold cloud IP gets junked.
+
+Do NOT cut the Google MX over until a test send+receive passes and mail-tester.com scores ≥ 9/10.

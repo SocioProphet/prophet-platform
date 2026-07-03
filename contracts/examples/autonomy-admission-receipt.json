@@ -1,0 +1,32 @@
+{
+  "version": "0.1",
+  "receipt_id": "aar-2026-06-28-0001",
+  "created_at": "2026-06-28T17:42:00Z",
+  "service_ref": "svc.platform.autonomy-admission",
+  "role": "coding",
+  "requested_level": "L3",
+  "granted_level": "L2",
+  "role_ceiling": "L4",
+  "decision": "demote",
+  "gate": "tests_or_review",
+  "evidence_required": "test_result_or_review_receipt",
+  "evidence_refs": [
+    "evidence://eval-fabric/replay/job-7f3a/passed"
+  ],
+  "reason": "L3 gate 'evidence_grounded' needs evidence 'evidence_dossier' (absent) -> demote to L2",
+  "trust_kernel_gate_order": [
+    "identity",
+    "policy",
+    "evidence",
+    "attestation",
+    "revocation",
+    "audit"
+  ],
+  "subject_ref": "agent://choir/coding/run-91c2",
+  "envelope_ref": "envelope://conductor/michael/turn-5512",
+  "policy_refs": [
+    "prophet-mesh:specs/ai-driven-development.yaml"
+  ],
+  "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "hash_algo": "sha256"
+}

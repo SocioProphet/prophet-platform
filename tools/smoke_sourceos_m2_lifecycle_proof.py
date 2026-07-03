@@ -25,6 +25,12 @@ def main() -> int:
             "--output-dir",
             str(out),
         ], check=True)
+        subprocess.run([
+            sys.executable,
+            str(ROOT / "tools" / "build_sourceos_truth_current_manifest.py"),
+            "--proof-dir",
+            str(out),
+        ], check=True)
 
         expected = [
             "config-source.json",
@@ -33,6 +39,7 @@ def main() -> int:
             "nlboot-crosswalk.json",
             "fingerprint.json",
             "compliance-result.json",
+            "truth-current-manifest.json",
             "proof-index.json",
         ]
         for name in expected:
@@ -43,6 +50,7 @@ def main() -> int:
         boot_release_set = load(out / "boot-release-set.json")
         crosswalk = load(out / "nlboot-crosswalk.json")
         compliance = load(out / "compliance-result.json")
+        truth = load(out / "truth-current-manifest.json")
 
         if compliance.get("status") != "compliant":
             raise SystemExit("ERR: expected generated compliance result to be compliant")
@@ -53,6 +61,32 @@ def main() -> int:
             raise SystemExit("ERR: nlboot crosswalk boot_release_set sourceos_id mismatch")
         if crosswalk["nlboot_manifest_id"] not in {artifact.get("uri") for artifact in boot_release_set.get("artifacts", [])}:
             raise SystemExit("ERR: BootReleaseSet artifacts do not include nlboot manifest id")
+
+        if truth["current"]["release_set_ref"] != release_set["id"]:
+            raise SystemExit("ERR: TruthCurrentManifest release_set_ref mismatch")
+        if truth["current"]["boot_release_set_ref"] != boot_release_set["id"]:
+            raise SystemExit("ERR: TruthCurrentManifest boot_release_set_ref mismatch")
+        if truth["current"]["compliance_result_ref"] != compliance["id"]:
+            raise SystemExit("ERR: TruthCurrentManifest compliance_result_ref mismatch")
+        if truth["status"]["compliance"] != compliance["status"]:
+            raise SystemExit("ERR: TruthCurrentManifest compliance status mismatch")
+        if not truth["status"]["agentplane_eligible"]:
+            raise SystemExit("ERR: expected compliant TruthCurrentManifest to be Agentplane eligible")
+        if not truth["status"]["gaia_ingest_eligible"]:
+            raise SystemExit("ERR: expected compliant TruthCurrentManifest to be GAIA ingest eligible")
+        if not truth["status"]["sherlock_evidence_eligible"]:
+            raise SystemExit("ERR: expected compliant TruthCurrentManifest to be Sherlock evidence eligible")
+
+        endpoint_paths = {endpoint.get("path") for endpoint in truth.get("truth_plane", {}).get("endpoints", [])}
+        required_endpoint_paths = {
+            "/truth/current-manifest",
+            "/truth/boot-release-set/current",
+            "/truth/fingerprint/current",
+            "/truth/compliance/current",
+        }
+        missing_endpoint_paths = required_endpoint_paths - endpoint_paths
+        if missing_endpoint_paths:
+            raise SystemExit(f"ERR: TruthCurrentManifest missing endpoint paths: {sorted(missing_endpoint_paths)}")
 
         proof_index = load(out / "proof-index.json")
         artifact_names = {item.get("path") for item in proof_index.get("artifacts", [])}

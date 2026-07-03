@@ -1,0 +1,19 @@
+{
+  "kind": "ConversationEnvelope",
+  "schema_version": "conversational-mesh.envelope.v0.1",
+  "envelope_id": "envelope://mesh/matrix-native-001",
+  "source_channel": "matrix://sociosphere.internal/#general",
+  "source_channel_type": "matrix_native",
+  "room_ref": "matrix://sociosphere.internal/!internal-room-001",
+  "room_kind": "internal",
+  "sender_ref": "user://operator-alpha",
+  "trust_tier": "trusted_internal",
+  "fragility_tier": "standard",
+  "content_ref": "content://mesh/text/matrix-native-001",
+  "content_kind": "text",
+  "received_at": "2026-06-11T10:00:00Z",
+  "non_claims": [
+    "This envelope does not authorize policy decisions.",
+    "This envelope does not embed message content."
+  ]
+}

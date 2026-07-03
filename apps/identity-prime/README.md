@@ -30,9 +30,44 @@ This lane is expected to cover:
 
 ## Current status
 
-This subtree does **not** yet claim a full implementation.
+This subtree is a designated runtime landing zone and boundary marker, plus a
+first promoted kernel.
 
-At this stage it is a designated runtime landing zone and boundary marker.
+### Promoted: prime kernel (`src/identity_prime/prime_kernel.py`)
+
+The proven "identity is prime" kernel from the `identity_is_prime_reference`
+toy impl has been promoted here as a clean, self-contained module:
+
+- **prime-topic basis** — identity-as-prime encode/decode (`encode_topics` /
+  `decode_topics`)
+- **policy veto** — forbidden prime-pair / feature-key / sensitive-prime-in-ad-realm
+  checks (`Policy`, `default_policy`)
+- **entity resolution** — blocking + stable-exclusive conflict + policy veto on
+  merges (`resolve_entities`)
+- **bounded congruence** — modular nonce-stream leak detection (`NonceStream`)
+
+Output is bound to the **canonical** platform schema
+`schemas/proof-artifact.schema.json` (Trust-First Proof Artifact v0.1), not the
+toy reference schema. See `emit_proof_artifact` for the toy→canonical mapping
+(notably toy `status`→canonical `result`, free-text claim→`claim.kind="ifc_no_flow"`,
+toy domains→the constrained `labels`/`capabilities`/`congruence` enum, and
+`precision.mode="Exact"`).
+
+Run the end-to-end Michael-trace conformance test:
+
+```
+cd apps/identity-prime
+pip install -r requirements-test.txt
+pytest
+```
+
+### Intentionally deferred (out of scope for this kernel promotion)
+
+- `surface343` projection
+- `naming_projection`
+- the recommendation loop
+- real proof-artifact signing (left as `TODO(cosign)`, consistent with how the
+  repo defers artifact signing elsewhere — `policy_bundle.sig` is `UNSIGNED`)
 
 ## Review rule
 

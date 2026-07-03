@@ -1,0 +1,5 @@
+# OpenTelemetry Operator values.
+# Install operator + then deploy Collectors as CRs.
+manager:
+  collectorImage:
+    repository: otel/opentelemetry-collector

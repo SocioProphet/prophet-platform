@@ -1,0 +1,101 @@
+# prophet-workspace — sovereign mail + caldav. See docs/PROPHET_WORKSPACE_MAIL_RUNBOOK.md for the DNS/TLS/cutover steps.
+domain: socioprophet.ai
+mailHostname: mail.socioprophet.ai      # MX target + Postfix myhostname (set matching A + PTR/reverse-DNS)
+imapHostname: imap.socioprophet.ai      # IMAPS endpoint for mail clients
+caldavHostname: caldav.socioprophet.ai  # Radicale (served via ingress + TLS)
+brokerHostname: id.socioprophet.ai      # sovereign broker = OIDC issuer (verifier-only; holds no user roots/data)
+giteaHostname: git.socioprophet.ai      # Gitea — sovereign git + dev workspace (OIDC via the broker)
+
+# Deployment is CLOUD-VENDOR AGNOSTIC. Set cloudProvider and the chart applies the right LoadBalancer/storage
+# conventions; the platform itself brokers commodity services across vendors (see cloud-broker.ts). We run on any.
+cloudProvider: gke                      # gke | eks | aks | iks | oci | hetzner | generic
+loadBalancerAnnotations:                # per-provider presets merged into mail/LB services by _helpers
+  gke: { "cloud.google.com/l4-rdma-ip-config": "false" }
+  eks: { "service.beta.kubernetes.io/aws-load-balancer-type": "nlb" }
+  aks: { "service.beta.kubernetes.io/azure-load-balancer-internal": "false" }
+  iks: {}
+  oci: {}
+  hetzner: { "load-balancer.hetzner.cloud/location": "fsn1" }
+  generic: {}
+
+gitea:
+  enabled: true
+  image: gitea/gitea:1.22
+  db: gitea
+  storage: 20Gi
+  oidc:
+    enabled: false            # enable once broker has TLS and auth-code endpoints live
+    brokerUrl: ""             # e.g. https://id.socioprophet.ai (must match BROKER_ISS)
+    clientId: gitea           # client_id registered in BROKER_CLIENTS
+    clientSecretSecret: ""    # optional: k8s Secret with key 'secret'; blank = PKCE-only (Gitea ≥1.22)
+
+image:
+  registry: ghcr.io/socioprophet/prophet-platform
+  tag: dev
+  pullPolicy: IfNotPresent
+  dovecot: workspace-mail
+  postfix: workspace-smtp
+  radicale: workspace-caldav
+  broker: workspace-broker
+
+# Sovereign identity broker (OIDC issuer). Holds ONLY public material: enrolled per-scope credentials (pubkey +
+# alias), pending challenges, and the IdP signing key. No user roots, no data keys. See SOVEREIGN_ANONYMOUS_IDENTITY.md.
+broker:
+  enabled: true
+  replicas: 1                                   # MUST stay 1 until creds/challenges move to a shared store (Postgres/Redis):
+                                                # the store is currently in-memory, so >1 replica = split-brain enroll/verify.
+  signingKeySecret: workspace-broker-signing    # REQUIRED k8s secret (ed25519.key). Create before install; the server
+                                                # falls back to an EPHEMERAL key if absent → tokens die on restart. DAO target: k-of-n.
+  tokenTtlSec: 3600
+  appName: "Prophet Workspace"                  # shown on the sovereign login page
+  # clients: registered OIDC clients. Format: { clientId: { redirectUris: [...], secret?: "..." } }
+  # Example for Gitea:
+  # clients:
+  #   gitea:
+  #     redirectUris:
+  #       - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
+  clients: {}
+
+postgres:
+  host: postgres                  # reuse the platform Postgres (it's already deployed)
+  db: prophet_platform
+  existingSecret: postgres-credentials   # must contain keys: username, password
+  port: 5432
+
+storage:
+  mailbox: 50Gi                   # vmail maildirs (RWO)
+  radicale: 5Gi
+  storageClass: ""               # "" = cluster default; on GKE use standard-rwo
+
+# External exposure. Mail needs PUBLIC ports — these create GCP LoadBalancers.
+# Reserve static IPs (gcloud compute addresses create) and set PTR/reverse-DNS on the SMTP one.
+loadBalancer:
+  smtp:
+    staticIP: ""                  # mail.socioprophet.ai → this IP (ports 25, 587)
+    annotations: {}
+  imap:
+    staticIP: ""                  # imap.socioprophet.ai → this IP (port 993)
+    annotations: {}
+
+tls:
+  certSecret: ""                  # k8s TLS secret (tls.crt/tls.key) for mail.<domain>; cert-manager recommended
+
+relay:                            # OUTBOUND smarthost — STRONGLY recommended; a fresh cloud IP has poor reputation
+  enabled: false
+  host: ""                        # e.g. smtp.sendgrid.net:587 ; or Google relay during transition
+  existingSecret: ""              # keys: username, password
+
+dkim:
+  selector: default               # publish default._domainkey.<domain> TXT with the public key
+  existingSecret: ""              # the DKIM private key (mounted into Postfix/opendkim)
+
+# Seed applied by the schema Job. Passwords are SHA512-CRYPT — generate with:
+#   doveadm pw -s SHA512-CRYPT   (or openssl passwd -6)
+seed:
+  enabled: true
+  domains: [socioprophet.ai]
+  users: []                       # [{ email: gus@socioprophet.ai, passwordHash: "{SHA512-CRYPT}$6$..." }]
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { cpu: "1",  memory: 1Gi }

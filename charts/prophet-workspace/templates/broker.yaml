@@ -1,0 +1,77 @@
+{{- if .Values.broker.enabled }}
+# Sovereign identity broker — the OIDC issuer / verifier (sovereign-broker-service). Verifier-only: it stores enrolled
+# per-scope credentials (pubkey + alias) + the signing key, never user roots or data. Stateless app → run >1 replica.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-broker
+  labels: { app: workspace-broker }
+spec:
+  replicas: {{ .Values.broker.replicas }}
+  selector: { matchLabels: { app: workspace-broker } }
+  template:
+    metadata: { labels: { app: workspace-broker } }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 1000 }
+      containers:
+        - name: broker
+          image: {{ include "pw.image" (dict "root" . "name" "broker") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports: [{ name: http, containerPort: 8089 }]
+          env:
+            - { name: BROKER_ISS, value: "https://{{ .Values.brokerHostname }}" }
+            - { name: BROKER_TOKEN_TTL, value: {{ .Values.broker.tokenTtlSec | quote }} }
+            - { name: NODE_ENV, value: "production" }
+            {{- if .Values.broker.clients }}
+            - { name: BROKER_CLIENTS, value: {{ .Values.broker.clients | toJson | quote }} }
+            {{- end }}
+            {{- if .Values.broker.appName }}
+            - { name: BROKER_APP_NAME, value: {{ .Values.broker.appName | quote }} }
+            {{- end }}
+            - name: PGHOST
+              value: {{ .Values.postgres.host | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgres.db | quote }}
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
+          volumeMounts:
+            - { name: signing, mountPath: /etc/broker/signing, readOnly: true }
+          readinessProbe: { httpGet: { path: /healthz, port: http } }
+          livenessProbe: { httpGet: { path: /healthz, port: http }, initialDelaySeconds: 5, periodSeconds: 15 }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: ["ALL"] } }
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: signing
+          secret: { secretName: {{ .Values.broker.signingKeySecret }} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-broker
+  labels: { app: workspace-broker }
+spec:
+  type: ClusterIP
+  selector: { app: workspace-broker }
+  ports: [{ name: http, port: 80, targetPort: 8089 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: workspace-broker
+  annotations: { kubernetes.io/ingress.class: nginx }
+spec:
+  {{- if .Values.tls.certSecret }}
+  tls:
+    - hosts: [{{ .Values.brokerHostname | quote }}]
+      secretName: {{ .Values.tls.certSecret }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.brokerHostname | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: workspace-broker, port: { number: 80 } } }
+{{- end }}

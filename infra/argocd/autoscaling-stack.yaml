@@ -1,0 +1,46 @@
+# Wave 3 — elastic scale. KEDA (event/metric-driven autoscaling + scale-to-zero)
+# and the estate's scale-to-zero ScaledObject for the GPU serving Deployment.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda
+  source:
+    repoURL: https://kedacore.github.io/charts
+    chart: keda
+    targetRevision: 2.15.1
+    helm:
+      releaseName: keda
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: autoscaling-base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: serving
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/autoscaling/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true

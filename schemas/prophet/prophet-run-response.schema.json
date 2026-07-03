@@ -1,0 +1,21 @@
+{
+  "$id": "https://standards.socioprophet.org/schemas/prophet/prophet-run-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": { "const": "Prophet" },
+    "agent_mc": { "pattern": "^mc:sha256:[0-9a-fA-F]{8,}$", "type": "string" },
+    "agent_version": { "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\+[A-Za-z0-9_.-]+$", "type": "string" },
+    "confidence": { "maximum": 1, "minimum": 0, "type": "number" },
+    "critic_features_hash": { "pattern": "^sha256:[0-9a-fA-F]{8,}$", "type": "string" },
+    "decision": { "enum": ["recommend", "withhold", "obfuscate", "abstain", "deny"] },
+    "dtr": { "pattern": "^dtr:sha256:[0-9a-fA-F]{8,}$", "type": "string" },
+    "explain_url": { "type": "string" },
+    "outputs_hash": { "pattern": "^sha256:[0-9a-fA-F]{8,}$", "type": "string" },
+    "schema_version": { "const": "prophet-runtime.v0" },
+    "warnings": { "items": { "type": "string" }, "type": "array" }
+  },
+  "required": ["schema_version", "decision", "confidence", "dtr", "agent_id", "agent_version", "agent_mc", "critic_features_hash", "outputs_hash", "warnings"],
+  "title": "Prophet Run Response",
+  "type": "object"
+}

@@ -1,0 +1,16 @@
+{
+  "request_id": "replay-request-demo-0001",
+  "emitted_at": "2026-05-05T01:31:00Z",
+  "tenant_id": "tenant-demo",
+  "producer": "matrix-qes-operator",
+  "requested_by": "@operator:matrix.example",
+  "scope_ref": "matrix://!incident:matrix.example/$thread-demo-0001",
+  "reason": "matrix_operator_replay_request",
+  "room_id": "!incident:matrix.example",
+  "thread_id": "$thread-demo-0001",
+  "workflow_hint": "qes.replay",
+  "dry_run": true,
+  "notes": {
+    "identity_subject_ref": "identity-subject://pending"
+  }
+}

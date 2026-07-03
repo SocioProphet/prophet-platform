@@ -1,0 +1,96 @@
+# Wave 2 — progressive delivery + mesh, as GitOps Argo Applications.
+#
+# Argo Rollouts gives metric-gated canary/blue-green (A-B); its analysis reads the
+# Wave-1 SLO recording rules. Cilium provides the mesh: mTLS (WireGuard), L3/L4 +
+# L7 network policy, Hubble flow visibility, and the Gateway API used for
+# traffic-shaped canaries.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: 2.37.7
+    helm:
+      releaseName: argo-rollouts
+      values: |
+        controller:
+          metrics:
+            enabled: true
+        dashboard:
+          enabled: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+    # NOTE: Cilium is the CNI — install at cluster bootstrap on self-managed/edge
+    # (k3s) clusters. On GKE Autopilot the dataplane is already Cilium (Dataplane
+    # V2): don't install this there; enable NetworkPolicy + Gateway API via GKE
+    # and apply infra/k8s/mesh/base only.
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  source:
+    repoURL: https://helm.cilium.io
+    chart: cilium
+    targetRevision: 1.16.5
+    helm:
+      releaseName: cilium
+      values: |
+        # mTLS between endpoints (transparent encryption).
+        encryption:
+          enabled: true
+          type: wireguard
+        hubble:
+          enabled: true
+          relay: { enabled: true }
+          ui: { enabled: true }
+        gatewayAPI:
+          enabled: true
+        kubeProxyReplacement: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: progressive-delivery-base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/rollouts/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true

@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postfix-pgsql \
     ca-certificates \
     libsasl2-modules \
+    opendkim \
+    opendkim-tools \
     && rm -rf /var/lib/apt/lists/*
 
 COPY postfix/main.cf /etc/postfix/main.cf

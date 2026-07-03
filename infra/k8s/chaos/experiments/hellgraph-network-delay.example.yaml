@@ -1,0 +1,22 @@
+# Latency injection game-day (RUN MANUALLY — not auto-synced).
+#
+# Hypothesis: 200ms±50ms added latency to HellGraph does not breach the p99 SLO
+# for its consumers (memory-mesh ingestion tolerates a slow graph). Watch
+# job:request_latency_p99:5m in Grafana during the 5m window.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: hellgraph-network-delay
+  namespace: chaos-mesh
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces: [socioprophet]
+    labelSelectors:
+      app: hellgraph
+  delay:
+    latency: "200ms"
+    jitter: "50ms"
+    correlation: "50"
+  duration: "5m"

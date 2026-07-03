@@ -1,0 +1,12 @@
+# Crash-consistent snapshots of the edge HellGraph RocksDB PVC (TopoLVM). A
+# snapshot is point-in-time, so we export a snapshot rather than tar an open
+# RocksDB store (which could be mid-write). Requires the external-snapshotter
+# CRDs + TopoLVM's CSI snapshot support.
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: topolvm-snapshots
+  labels:
+    bundle: edge-twin-sync
+driver: topolvm.cybozu.com
+deletionPolicy: Delete

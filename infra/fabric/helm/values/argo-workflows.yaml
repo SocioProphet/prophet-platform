@@ -1,0 +1,14 @@
+# Argo Workflows values.
+# IMPORTANT: Configure an artifact repository (S3/MinIO/etc) for workflow artifacts.
+# See Argo docs for artifact repository configuration.
+server:
+  extraArgs:
+    - --auth-mode=server
+
+# Example (commented) S3-compatible artifact repo (MinIO):
+# controller:
+#   workflowDefaults:
+#     spec:
+#       artifactRepositoryRef:
+#         configMap: argo-workflows-artifacts
+#         key: default

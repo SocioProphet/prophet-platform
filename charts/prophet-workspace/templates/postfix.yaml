@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-smtp
+  labels: { app: workspace-smtp }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: workspace-smtp } }
+  template:
+    metadata: { labels: { app: workspace-smtp } }
+    spec:
+      containers:
+        - name: postfix
+          image: {{ include "pw.image" (dict "root" . "name" "postfix") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - { name: smtp,       containerPort: 25 }
+            - { name: submission, containerPort: 587 }
+          env:
+            - name: SMTP_HOSTNAME
+              value: {{ .Values.mailHostname | quote }}
+            - name: DOVECOT_HOST
+              value: workspace-mail
+            {{- include "pw.pgEnv" . | nindent 12 }}
+            {{- if .Values.relay.enabled }}
+            - name: RELAY_HOST
+              value: {{ .Values.relay.host | quote }}
+            {{- if .Values.relay.existingSecret }}
+            - name: RELAY_USER
+              valueFrom: { secretKeyRef: { name: {{ .Values.relay.existingSecret }}, key: username } }
+            - name: RELAY_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.relay.existingSecret }}, key: password } }
+            {{- end }}
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.tls.certSecret }}
+            - { name: tls, mountPath: /etc/postfix/tls, readOnly: true }
+            {{- end }}
+            {{- if .Values.dkim.existingSecret }}
+            - { name: dkim, mountPath: /etc/postfix/dkim, readOnly: true }
+            {{- end }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        {{- if .Values.tls.certSecret }}
+        - name: tls
+          secret: { secretName: {{ .Values.tls.certSecret }} }
+        {{- end }}
+        {{- if .Values.dkim.existingSecret }}
+        - name: dkim
+          secret: { secretName: {{ .Values.dkim.existingSecret }} }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-smtp            # internal (other services relay via here)
+  labels: { app: workspace-smtp }
+spec:
+  type: ClusterIP
+  selector: { app: workspace-smtp }
+  ports:
+    - { name: smtp,       port: 25,  targetPort: 25 }
+    - { name: submission, port: 587, targetPort: 587 }

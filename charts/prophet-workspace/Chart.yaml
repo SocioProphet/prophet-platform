@@ -1,0 +1,7 @@
+apiVersion: v2
+name: prophet-workspace
+description: Sovereign Google-Workspace replacement — self-hosted mail (Postfix SMTP + Dovecot IMAP, Postgres-backed) + Radicale CalDAV. Packages the existing services/workspace-* images for k8s with external LoadBalancers, the mail schema, TLS, and an optional outbound relay.
+type: application
+version: 0.1.0
+appVersion: "0.1"
+keywords: [mail, smtp, imap, caldav, workspace, sovereign]
