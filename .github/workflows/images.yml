@@ -19,29 +19,39 @@ on:
       - '.github/workflows/images.yml'
   workflow_dispatch:
 
+# WIF + cosign keyless signing both need id-token: write, and a reusable-workflow
+# caller must grant it explicitly or the run fails at startup (org default token is
+# read-only). contents: read for checkout.
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { image: socioprophet-api,      context: apps/api }
-          - { image: socioprophet-gateway,  context: apps/gateway }
-          - { image: socioprophet-web,      context: apps/socioprophet-web }
-          - { image: evidence-console,      context: apps/evidence-console }
-          - { image: evidence-receipts,     context: apps/evidence-receipts }
-          - { image: eval-fabric-api,       context: apps/eval-fabric-api }
-          - { image: hellgraph-service,     context: apps/hellgraph-service }
-          - { image: osm-map-api,           context: apps/osm-map-api }
-          - { image: workspace-mail,        context: services/workspace-mail }
-          - { image: workspace-caldav,      context: services/workspace-caldav }
-          - { image: workspace-smtp,        context: services/workspace-smtp }
-          - { image: search-orchestrator,   context: services/search-orchestrator }
+          # Go services + monorepo-rooted Dockerfiles COPY from the repo root (go.work, libs/go/…,
+          # apps/…), so they build with context '.' and a full dockerfile path. Self-contained
+          # services keep their own dir as context.
+          - { image: socioprophet-api,      context: .,                         dockerfile: apps/api/Dockerfile }
+          - { image: socioprophet-gateway,  context: .,                         dockerfile: apps/gateway/Dockerfile }
+          - { image: socioprophet-web,      context: apps/socioprophet-web,     dockerfile: Dockerfile }
+          - { image: evidence-console,      context: apps/evidence-console,     dockerfile: Dockerfile }
+          - { image: evidence-receipts,     context: apps/evidence-receipts,    dockerfile: Dockerfile }
+          - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
+          - { image: hellgraph-service,     context: apps/hellgraph-service,    dockerfile: Dockerfile }
+          - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
+          - { image: workspace-mail,        context: services/workspace-mail,   dockerfile: Dockerfile }
+          - { image: workspace-caldav,      context: services/workspace-caldav, dockerfile: Dockerfile }
+          - { image: workspace-smtp,        context: services/workspace-smtp,   dockerfile: Dockerfile }
+          - { image: search-orchestrator,   context: .,                         dockerfile: services/search-orchestrator/Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
       context: ${{ matrix.context }}
-      dockerfile: Dockerfile
+      dockerfile: ${{ matrix.dockerfile }}
     secrets:
       gcp_wif_provider:    ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       gcp_service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
