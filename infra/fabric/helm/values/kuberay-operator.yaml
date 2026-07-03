@@ -1,0 +1,9 @@
+# KubeRay operator values.
+# Enable ServiceMonitor when you wire Prometheus Operator.
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+logging:
+  stdoutEncoder: json

@@ -1,0 +1,19 @@
+{
+  "kind": "CallEventEnvelope",
+  "schema_version": "telephony-ingress.call-event.v0.1",
+  "event_id": "call-event://telephony/inbound-001",
+  "call_ref": "call://pbx/session-20260611-001",
+  "call_state": "active",
+  "ingress_channel": "pstn://+15551234567",
+  "caller_ref": "caller://pstn/+15551234567",
+  "callee_ref": "agent://noetica/operator-alpha",
+  "routing_outcome": "routed_to_agent",
+  "event_class": "call.answered",
+  "policy_decision_ref": "policy-fabric://decision/call-admit-001",
+  "occurred_at": "2026-06-11T10:00:00Z",
+  "non_claims": [
+    "This envelope does not embed audio or transcript content.",
+    "Routing outcome does not constitute a trust decision.",
+    "Policy authority remains Policy Fabric."
+  ]
+}

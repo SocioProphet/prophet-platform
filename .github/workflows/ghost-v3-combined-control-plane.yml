@@ -1,0 +1,33 @@
+name: ghost-v3-combined-control-plane
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/validate_ghost_event_v3.py'
+      - 'tools/emit_ghost_event_v3_concrete.py'
+      - 'tools/combined_ghost_v3_control_plane.py'
+      - 'examples/ghost_event_v3.sample.json'
+      - 'docs/ghost-v3-combined-control-plane.md'
+      - '.github/workflows/ghost-v3-combined-control-plane.yml'
+
+jobs:
+  ghost-v3-combined:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate sample GhostEventV3
+        run: |
+          python tools/validate_ghost_event_v3.py examples/ghost_event_v3.sample.json
+      - name: Emit correlated control-plane report
+        run: |
+          python tools/combined_ghost_v3_control_plane.py --output control_plane_correlated_report.json
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-v3-combined-control-plane
+          path: |
+            control_plane_correlated_report.json

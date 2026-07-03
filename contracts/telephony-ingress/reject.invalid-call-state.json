@@ -1,0 +1,14 @@
+{
+  "_reject_reason": "call_state=in_progress is not a valid enum value",
+  "kind": "CallEventEnvelope",
+  "schema_version": "telephony-ingress.call-event.v0.1",
+  "event_id": "call-event://telephony/reject-002",
+  "call_ref": "call://pbx/session-reject-002",
+  "call_state": "in_progress",
+  "ingress_channel": "pstn://+15550000002",
+  "caller_ref": "caller://pstn/+15550000002",
+  "routing_outcome": "routed_to_agent",
+  "event_class": "call.answered",
+  "occurred_at": "2026-06-11T10:00:00Z",
+  "non_claims": ["placeholder"]
+}

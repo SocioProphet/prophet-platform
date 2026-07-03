@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { include "socioprofit-web.fullname" . }-config
+  labels:
+    app.kubernetes.io/name: socioprofit-web
+    app.kubernetes.io/part-of: socioprofit
+    prophet.ai/atom: socioprofit-web
+data:
+  LOG_LEVEL: "info"

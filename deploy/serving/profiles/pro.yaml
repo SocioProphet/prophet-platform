@@ -1,0 +1,13 @@
+# PRO — ~6× H100. Same choir, fp8 mid models.
+profile: pro
+namespace: serving
+defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
+iron: { accelerator: nvidia-h100-80gb }
+models:
+  - { name: conductor, family: open_private,         model: RESOLVE, gpus: 2, tensorParallel: 2, quantization: fp8 }
+  - { name: code,      family: code_specialist,      model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: fp8 }
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: fp8 }
+  - { name: vision,    family: vision_understanding, model: RESOLVE, gpus: 1, tensorParallel: 1, quantization: fp8 }
+  - { name: reranker,  family: reranker,             model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: guard,     family: guard,                model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: embedding, family: embeddings,           model: RESOLVE, gpus: 1, tensorParallel: 1 }

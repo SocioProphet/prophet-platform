@@ -1,0 +1,23 @@
+{
+  "kind": "ConversationEnvelope",
+  "schema_version": "conversational-mesh.envelope.v0.1",
+  "envelope_id": "envelope://mesh/external-adapter-001",
+  "source_channel": "slack://external-org/C12345678",
+  "source_channel_type": "external_adapter",
+  "room_ref": "matrix://sociosphere.internal/!bridge-room-slack-001",
+  "room_kind": "bridge",
+  "sender_ref": "external://slack/user-external-001",
+  "trust_tier": "verified_external",
+  "fragility_tier": "sensitive",
+  "content_ref": "content://mesh/text/external-adapter-001",
+  "content_kind": "text",
+  "adapter_ref": "adapter://mesh/slack-bridge-001",
+  "bridge_health_ref": "health://mesh/bridges/slack-bridge-001",
+  "policy_decision_ref": "policy-fabric://decision/external-ingress-admit-001",
+  "received_at": "2026-06-11T10:01:00Z",
+  "non_claims": [
+    "This envelope does not authorize policy decisions.",
+    "This envelope does not embed message content.",
+    "Trust tier is set by the adapter; final policy authority remains Policy Fabric."
+  ]
+}

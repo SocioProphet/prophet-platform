@@ -1,0 +1,2 @@
+installExampleSpecs: true
+exampleSpecsConfigMapName: prophet-model-specs

@@ -69,3 +69,29 @@ Validate the manifests before applying:
 kubectl apply --dry-run=client -f deploy/serving/mesh-vllm-serve.yaml
 kubectl apply --dry-run=client -f deploy/serving/head-to-head-job.yaml
 ```
+
+## Closing the loop — serve a promoted adapter
+
+This is the last link of the compounding loop (noetica harvest → Atlas train → promote-never-demote
+gate → **serve**). `mesh-vllm` runs with `--enable-lora` + runtime LoRA updating, so a newly
+**promoted** adapter is hot-loaded into the *running* mesh — no redeploy.
+
+When TritFabric promotes a fine-tune (it passed the held-out eval gate), the registry card's
+`serving` block names the adapter: `base_model`, `adapter_path` (where the trainer uploaded it), and
+`served_model_id` (e.g. `noetica-lora-<job_id>`). Load it:
+
+```bash
+# 1. pull the promoted adapter from where the trainer uploaded it
+gsutil -m cp -r gs://noetica-brains/adapters/lora-verified ./adapter
+POD=$(kubectl -n serving get pod -l app=mesh-vllm -o name | head -1)
+
+# 2. stage it into the running pod + hot-load it (no restart)
+kubectl -n serving cp ./adapter "${POD#pod/}:/tmp/lora-verified"
+kubectl -n serving exec "$POD" -- curl -sf -X POST localhost:8000/v1/load_lora_adapter \
+  -d '{"lora_name":"noetica-lora-<job_id>","lora_path":"/tmp/lora-verified"}'
+```
+
+Now the mesh serves the sharpened model under that id. Point requests — or noetica's `MESH_MODEL`
+/ `NOETICA_SOVEREIGN_MODEL` — at `noetica-lora-<job_id>` to use it; the base id still serves the
+un-adapted model (instant rollback). Each round of verified-traces → promote → hot-load makes the
+served model measurably better on *your* tasks, and the gate guarantees it never regresses.

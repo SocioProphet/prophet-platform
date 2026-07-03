@@ -1,0 +1,23 @@
+# Kafka as the platform commit log (dev/default).
+# For production, tune:
+# - persistence, replication, rack awareness (AZs)
+# - KRaft vs ZooKeeper
+# - auth + TLS
+# - quotas and retention
+# - MirrorMaker2 for cross-region replication
+#
+# Inspect full options with: helm show values bitnami/kafka
+
+kraft:
+  enabled: true
+
+replicaCount: 3
+
+persistence:
+  enabled: true
+  size: 100Gi
+
+service:
+  type: ClusterIP
+
+resources: {}

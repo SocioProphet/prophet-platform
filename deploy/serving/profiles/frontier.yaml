@@ -1,0 +1,16 @@
+# FRONTIER (super-high-end) — 8–16× H100/H200. Full 7-role open choir; each role
+# resolved to the current #1 OPEN model in its family fitting the iron (see
+# resolve-current-sota.py + receipt). Full R1-671B reasoning needs H200/16-GPU;
+# on 8×H100 the resolver picks the largest reasoner that fits (Qwen3-235B @ fp8).
+profile: frontier
+namespace: serving
+defaults: { maxModelLen: 8192, gpuMemoryUtilization: 0.92 }
+iron: { accelerator: nvidia-h100-80gb }
+models:
+  - { name: conductor, family: open_private,         model: RESOLVE, gpus: 4, tensorParallel: 4, quantization: fp8, readyDelaySeconds: 120, readyFailureThreshold: 80 }
+  - { name: code,      family: code_specialist,      model: RESOLVE, gpus: 2, tensorParallel: 2, quantization: fp8 }
+  - { name: reasoning, family: reasoning_specialist, model: RESOLVE, gpus: 4, tensorParallel: 4, quantization: fp8 }
+  - { name: vision,    family: vision_understanding, model: RESOLVE, gpus: 2, tensorParallel: 2, quantization: fp8 }
+  - { name: reranker,  family: reranker,             model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: guard,     family: guard,                model: RESOLVE, gpus: 1, tensorParallel: 1 }
+  - { name: embedding, family: embeddings,           model: RESOLVE, gpus: 1, tensorParallel: 1 }
