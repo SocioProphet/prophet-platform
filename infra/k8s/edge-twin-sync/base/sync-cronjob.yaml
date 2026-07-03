@@ -1,13 +1,15 @@
-# Edge → cloud-twin COLD DISASTER-RECOVERY snapshot. Once daily the edge rclones the HellGraph
-# RocksDB store to the S3-compatible twin as a point-in-time blob backup.
+# Edge → cloud-twin sync. Every 30m the edge rclones the HellGraph RocksDB store to the
+# S3-compatible twin as a point-in-time blob backup.
 #
-# NOTE (sync unification): LIVE convergence is NO LONGER this blob push. The cloud twin runs a
-# hellgraph super-peer (infra/k8s/hellgraph-superpeer) that replicates the edge's sovereign
-# Hypercore log and materializes the graph view via Autobase causal merge — see that README.
-# This CronJob is now belt-and-suspenders cold DR only; it was demoted from */30 to daily.
+# NOTE (sync unification — NOT YET ACTIVE): the intended end state is that live convergence moves
+# to the hellgraph super-peer federation (infra/k8s/hellgraph-superpeer) and THIS job drops to a
+# daily cold-DR cadence. That is NOT wired yet: the edge StatefulSet does not run in federation
+# mode (no HELLGRAPH_MODE), so it publishes no base key, and the twin's bootstrap ConfigMap is a
+# placeholder — the super-peer has no federation to replicate. Until the edge is a federation
+# participant AND the twin is verified replicating live, this blob push is the PRIMARY sync and
+# MUST stay frequent. (It was briefly demoted to daily prematurely; reverted here.)
 #
-# The edge is authoritative for the live per-person graph; the twin super-peer is a read-replica
-# (never admitted as a writer → no split-brain). Only non-private projections cross (the
+# The edge is authoritative for the live per-person graph. Only non-private projections cross (the
 # ProviderProjection membrane governs export). The job co-locates on the node holding the
 # HellGraph pod (TopoLVM volumes are node-local) and mounts its store PVC read-only. For strict
 # point-in-time consistency, interpose a VolumeSnapshot (topolvm-snapshots class is provided) —
@@ -25,7 +27,7 @@ metadata:
     # the build otherwise. The HellGraph store is canonical_data (the source of truth).
     mount-intent.socioprophet.io/egress: canonical_data
 spec:
-  schedule: "0 3 * * *"   # daily cold-DR (live convergence is via the super-peer federation)
+  schedule: "*/30 * * * *"   # PRIMARY sync (federation not yet wired — see header). Drop to daily ONLY after the twin is verified replicating live.
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
