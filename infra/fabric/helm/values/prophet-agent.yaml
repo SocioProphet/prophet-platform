@@ -1,0 +1,13 @@
+      image:
+        repository: ghcr.io/socioprofit/prophet-agent
+        tag: "0.1.0"
+        pullPolicy: IfNotPresent
+
+      service:
+        type: ClusterIP
+  port: 8087
+
+      env:
+MODE: "agent"
+
+      resources: {}

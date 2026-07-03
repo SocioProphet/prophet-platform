@@ -1,0 +1,15 @@
+{
+  "scriptId": "TODO_APPS_SCRIPT_PROJECT_ID",
+  "rootDir": "apps-script/google-workspace-ops-prototype",
+  "scriptExtensions": [".gs", ".js"],
+  "htmlExtensions": [".html"],
+  "jsonExtensions": [".json"],
+  "filePushOrder": [
+    "appsscript.json",
+    "setup.gs",
+    "sync-calendar-events-to-meetings.gs",
+    "parser-test.gs",
+    "seed-workspace-rows.gs",
+    "seed-dashboard-rows.gs"
+  ]
+}

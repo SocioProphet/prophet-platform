@@ -1,0 +1,188 @@
+{
+  "Workstreams": [
+    {
+      "workstream_id": "cloud-vendor-strategy",
+      "title": "Cloud Vendor Strategy v1.1",
+      "status": "active",
+      "owner_group_id": "sp-launch-council",
+      "canonical_issue_ref": "SocioProphet/socioprophet-standards-storage#91",
+      "primary_calendar_id": "TODO_SP_CLOUD_VENDOR_STRATEGY_CALENDAR_ID",
+      "primary_drive_folder_ref": "/Prophet Operations/03-Cloud-Vendor-Strategy/",
+      "dashboard_key": "cloud_vendor_strategy",
+      "created_at": "2026-06-05T00:00:00Z",
+      "updated_at": "2026-06-05T00:00:00Z"
+    }
+  ],
+  "Calendars": [
+    {
+      "calendar_id": "TODO_SP_CLOUD_VENDOR_STRATEGY_CALENDAR_ID",
+      "calendar_name": "SP - Cloud Vendor Strategy",
+      "purpose": "AWS Azure GCP marketplace and cloud ISV execution cadence",
+      "owning_group_id": "sp-launch-council",
+      "visibility": "restricted",
+      "default_event_metadata_profile": "calendar-event-metadata.v0",
+      "migration_target": "CadenceSurface"
+    },
+    {
+      "calendar_id": "TODO_SP_LAUNCH_COUNCIL_CALENDAR_ID",
+      "calendar_name": "SP - Launch Council",
+      "purpose": "Cross-functional launch governance and approval cadence",
+      "owning_group_id": "sp-exec-council",
+      "visibility": "restricted",
+      "default_event_metadata_profile": "calendar-event-metadata.v0",
+      "migration_target": "CadenceSurface"
+    }
+  ],
+  "Groups": [
+    {
+      "group_id": "TODO_GROUP_SP_EXEC_COUNCIL",
+      "display_email": "sp-exec-council@example.com",
+      "display_name": "SP Executive Council",
+      "purpose": "Executive sponsorship and escalation authority",
+      "authority_level": "steward",
+      "mapped_roles": "ExecutiveSponsor,EscalationAuthority",
+      "allowed_resources": "dashboard:executive_control_plane",
+      "owner": "sp-exec-council",
+      "review_cadence": "monthly"
+    },
+    {
+      "group_id": "TODO_GROUP_SP_LAUNCH_COUNCIL",
+      "display_email": "sp-launch-council@example.com",
+      "display_name": "SP Launch Council",
+      "purpose": "Cross-functional launch governance",
+      "authority_level": "approver",
+      "mapped_roles": "LaunchCouncilMember,MarketplaceReadinessReviewer",
+      "allowed_resources": "calendar:SP - Launch Council,calendar:SP - Cloud Vendor Strategy,dashboard:cloud_vendor_strategy",
+      "owner": "sp-exec-council",
+      "review_cadence": "monthly"
+    },
+    {
+      "group_id": "TODO_GROUP_SP_PRODUCT",
+      "display_email": "sp-product@example.com",
+      "display_name": "SP Product",
+      "purpose": "Packaging plan catalog and product decisions",
+      "authority_level": "reviewer",
+      "mapped_roles": "ProductOwner,PlanCatalogOwner",
+      "allowed_resources": "dashboard:cloud_vendor_strategy",
+      "owner": "sp-launch-council",
+      "review_cadence": "monthly"
+    },
+    {
+      "group_id": "TODO_GROUP_SP_ENGINEERING",
+      "display_email": "sp-engineering@example.com",
+      "display_name": "SP Engineering",
+      "purpose": "Spine adapters conformance and runtime implementation",
+      "authority_level": "contributor",
+      "mapped_roles": "EngineeringOwner,AdapterImplementer,ConformanceOwner",
+      "allowed_resources": "dashboard:automation_health,dashboard:migration_readiness",
+      "owner": "sp-launch-council",
+      "review_cadence": "monthly"
+    },
+    {
+      "group_id": "TODO_GROUP_SP_PARTNER_GTM",
+      "display_email": "sp-partner-gtm@example.com",
+      "display_name": "SP Partner GTM",
+      "purpose": "Cloud partner marketplace and co-sell motion",
+      "authority_level": "contributor",
+      "mapped_roles": "PartnerOwner,ListingOwner,GTMOwner",
+      "allowed_resources": "dashboard:cloud_vendor_strategy",
+      "owner": "sp-launch-council",
+      "review_cadence": "monthly"
+    },
+    {
+      "group_id": "TODO_GROUP_SP_AUDITORS",
+      "display_email": "sp-auditors@example.com",
+      "display_name": "SP Auditors",
+      "purpose": "Read-only governance visibility",
+      "authority_level": "observer",
+      "mapped_roles": "Auditor,EvidenceReviewer",
+      "allowed_resources": "dashboard:executive_control_plane,dashboard:cloud_vendor_strategy",
+      "owner": "sp-exec-council",
+      "review_cadence": "monthly"
+    }
+  ],
+  "CloudVendorReadiness": [
+    {
+      "cloud_vendor": "aws",
+      "gate_id": "aws-plan-map",
+      "gate_group": "adapter_mapping",
+      "status": "seeded",
+      "blocking_flag": "true",
+      "evidence_ref": "docs/standards/cloud-vendor-strategy/adapters/aws/offer-map.stub.yaml",
+      "owner_group_id": "sp-engineering",
+      "last_reviewed_at": "2026-06-05T00:00:00Z"
+    },
+    {
+      "cloud_vendor": "azure",
+      "gate_id": "azure-plan-map",
+      "gate_group": "adapter_mapping",
+      "status": "seeded",
+      "blocking_flag": "true",
+      "evidence_ref": "docs/standards/cloud-vendor-strategy/adapters/azure/offer-map.stub.yaml",
+      "owner_group_id": "sp-engineering",
+      "last_reviewed_at": "2026-06-05T00:00:00Z"
+    },
+    {
+      "cloud_vendor": "gcp",
+      "gate_id": "gcp-plan-map",
+      "gate_group": "adapter_mapping",
+      "status": "seeded",
+      "blocking_flag": "true",
+      "evidence_ref": "docs/standards/cloud-vendor-strategy/adapters/gcp/offer-map.stub.yaml",
+      "owner_group_id": "sp-engineering",
+      "last_reviewed_at": "2026-06-05T00:00:00Z"
+    },
+    {
+      "cloud_vendor": "all",
+      "gate_id": "marketplace-readiness-kit",
+      "gate_group": "launch_readiness",
+      "status": "seeded",
+      "blocking_flag": "true",
+      "evidence_ref": "docs/standards/cloud-vendor-strategy/marketplace-readiness-kit/gates.v1.md",
+      "owner_group_id": "sp-launch-council",
+      "last_reviewed_at": "2026-06-05T00:00:00Z"
+    }
+  ],
+  "MigrationReadiness": [
+    {
+      "prototype_object_type": "calendar_event_metadata",
+      "prototype_surface": "Google Calendar description block",
+      "native_target_object": "CadenceEvent,GovernanceSession",
+      "schema_stability": "seeded",
+      "automation_stability": "not_started",
+      "dashboard_regeneration_possible": "partial",
+      "migration_status": "prototype",
+      "notes": "Requires two review cycles before migration."
+    },
+    {
+      "prototype_object_type": "group_binding",
+      "prototype_surface": "Google Groups / Cloud Identity",
+      "native_target_object": "RoleBinding,CapabilityGrant",
+      "schema_stability": "seeded",
+      "automation_stability": "not_started",
+      "dashboard_regeneration_possible": "partial",
+      "migration_status": "prototype",
+      "notes": "Group IDs must replace TODO placeholders."
+    },
+    {
+      "prototype_object_type": "automation_run",
+      "prototype_surface": "Apps Script Automations tab",
+      "native_target_object": "AutomationRun,WorkflowExecution",
+      "schema_stability": "seeded",
+      "automation_stability": "fixture_only",
+      "dashboard_regeneration_possible": "yes",
+      "migration_status": "prototype",
+      "notes": "Replay refs needed for full migration readiness."
+    },
+    {
+      "prototype_object_type": "dashboard_panel",
+      "prototype_surface": "Sheets / Looker Studio projection",
+      "native_target_object": "DashboardPanel,MetricDefinition",
+      "schema_stability": "seeded",
+      "automation_stability": "not_started",
+      "dashboard_regeneration_possible": "yes",
+      "migration_status": "prototype",
+      "notes": "Panels must remain ledger-derived."
+    }
+  ]
+}

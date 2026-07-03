@@ -1,0 +1,42 @@
+# Reference canary Rollout — the adoption pattern for turning a Deployment into a
+# metric-gated progressive rollout. NOT wired into the appset (it would supersede
+# the existing hellgraph-service Deployment); copy it into a service's overlay to
+# adopt. Canary: 10% → analysis → 50% → analysis → 100%, aborting on SLO breach.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: hellgraph-service
+  namespace: socioprophet
+  labels:
+    app: hellgraph-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hellgraph-service
+  template:
+    metadata:
+      labels:
+        app: hellgraph-service
+    spec:
+      containers:
+        - name: hellgraph-service
+          image: hellgraph-service  # pinned digest injected by gitops_promote_image.py
+          ports:
+            - { name: http, containerPort: 8080 }
+  strategy:
+    canary:
+      analysis:
+        # Run the SLO gate against the canary throughout the rollout.
+        templates:
+          - templateName: slo-gate
+        args:
+          - name: service
+            value: hellgraph-service
+        startingStep: 1   # begin analysis after the first weight step
+      steps:
+        - setWeight: 10
+        - pause: { duration: 5m }
+        - setWeight: 50
+        - pause: { duration: 5m }
+        - setWeight: 100

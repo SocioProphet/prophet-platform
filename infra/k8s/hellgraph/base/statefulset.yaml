@@ -1,11 +1,15 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: hellgraph
   labels:
     app: hellgraph
     bundle: graph.kernel
 spec:
+  # Headless service below gives stable network identity; a StatefulSet (not a
+  # Deployment) so the RocksDB store survives reschedule — the graph is now a
+  # managed, durable service, not an ephemeral kernel.
+  serviceName: hellgraph
   replicas: 1
   selector:
     matchLabels:
@@ -27,6 +31,9 @@ spec:
               value: "8850"
             - name: LOG_LEVEL
               value: "info"
+            # RocksDB durable AtomSpace lives on the mounted PVC (see volumeMount).
+            - name: HELLGRAPH_STORE_DIR
+              value: "/var/lib/hellgraph"
           readinessProbe:
             httpGet:
               path: /healthz
@@ -46,3 +53,17 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
+          volumeMounts:
+            - name: hellgraph-store
+              mountPath: /var/lib/hellgraph
+  volumeClaimTemplates:
+    - metadata:
+        name: hellgraph-store
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        # storageClassName omitted → cluster default (works in p0-lab). The edge
+        # overlay patches this to topolvm-provisioner to bind local NVMe/flash.
+        resources:
+          requests:
+            storage: 10Gi

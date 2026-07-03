@@ -1,0 +1,35 @@
+# Local OpenTelemetry Collector for prophet-platform.
+#
+# Brings up a single OTel Collector that accepts OTLP (gRPC :4317, HTTP :4318)
+# and, by default, exports to a backend-free debug sink — so it is fully runnable
+# locally with no external dependencies.
+#
+# Compose with another stack to give services a trace sink, e.g.:
+#   docker compose \
+#     -f docker-compose.otel-collector.yml \
+#     -f docker-compose.eval-fabric.yml up
+#
+# Then point a service at it:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318   (in-network)
+#   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318        (host -> mapped port)
+#
+# See docs/OBSERVABILITY_OTEL_OPENINFERENCE.md for the span conventions and how
+# spans correlate to ReasoningRun/Receipt evidence (via the reasoning-run id /
+# correlation_id stamped by the tracing seam).
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otel-collector/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics (collector self-scrape target)
+      - "13133:13133" # health_check
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

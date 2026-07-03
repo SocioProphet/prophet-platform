@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "prophet-platform:telephony-ingress:call-event-envelope:v0.1",
+  "title": "CallEventEnvelope",
+  "description": "Canonical envelope for inbound telephony/PBX call events entering the conversational mesh. Captures call-state transitions, routing outcomes, and fallback paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "event_id",
+    "call_ref",
+    "call_state",
+    "ingress_channel",
+    "caller_ref",
+    "routing_outcome",
+    "event_class",
+    "occurred_at",
+    "non_claims"
+  ],
+  "properties": {
+    "kind": { "type": "string", "const": "CallEventEnvelope" },
+    "schema_version": { "type": "string", "const": "telephony-ingress.call-event.v0.1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "call_ref": { "type": "string", "minLength": 1 },
+    "call_state": {
+      "type": "string",
+      "enum": ["ringing", "answered", "active", "on_hold", "transferring", "ended", "failed", "queued", "voicemail"]
+    },
+    "ingress_channel": { "type": "string", "minLength": 1 },
+    "caller_ref": { "type": "string", "minLength": 1 },
+    "callee_ref": { "type": "string" },
+    "routing_outcome": {
+      "type": "string",
+      "enum": [
+        "routed_to_agent",
+        "routed_to_human",
+        "queued_callback",
+        "voicemail",
+        "human_handoff",
+        "pbx_transfer",
+        "failed_no_route",
+        "blocked_policy"
+      ]
+    },
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "call.inbound",
+        "call.answered",
+        "call.state_transition",
+        "call.routing_decision",
+        "call.ended",
+        "call.fallback_triggered"
+      ]
+    },
+    "transcript_ref": { "type": "string" },
+    "recording_ref": { "type": "string" },
+    "policy_decision_ref": { "type": "string" },
+    "fallback_reason": { "type": "string" },
+    "pbx_transfer_ref": { "type": "string" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "non_claims": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "if": {
+    "properties": { "call_state": { "const": "ended" } },
+    "required": ["call_state"]
+  },
+  "then": {
+    "required": ["routing_outcome"]
+  }
+}

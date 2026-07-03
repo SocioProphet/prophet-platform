@@ -1,0 +1,75 @@
+{
+  "agentMayExecute": true,
+  "artifactId": "3b1e437e-9836-4668-8d60-8c25e3e3f340",
+  "decisions": [
+    {
+      "admission": "admitted",
+      "capability_id": "capability:cool-room-with-fan",
+      "effect_class": "low_risk_actuation",
+      "errors": [],
+      "event_id": "event:sensor:living-room-temp-high",
+      "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+      "policy_outcome": "allowed",
+      "receipt_refs": [
+        "receipt:event:living-room-temp-high",
+        "receipt:policy:allow-cool-living-room"
+      ],
+      "record_id": "record:cool-room-with-fan",
+      "warnings": []
+    },
+    {
+      "admission": "admitted",
+      "capability_id": "capability:observe-camera-semantic-event",
+      "effect_class": "observe",
+      "errors": [],
+      "event_id": "event:camera:package-delivered",
+      "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+      "policy_outcome": "redacted",
+      "receipt_refs": [
+        "receipt:event:package-delivered"
+      ],
+      "record_id": "record:observe-package-delivery",
+      "warnings": []
+    },
+    {
+      "admission": "waiting_for_approval",
+      "capability_id": "capability:arm-security-system",
+      "effect_class": "high_risk_actuation",
+      "errors": [],
+      "event_id": "event:agent:propose-arm-security",
+      "idempotency_key": "idem:event:agent:propose-arm-security:capability:arm-security-system:node:security-system-01:policy-epoch-0",
+      "policy_outcome": "requires_approval",
+      "receipt_refs": [
+        "receipt:agent:propose-arm-security",
+        "receipt:policy:requires-approval-arm-security"
+      ],
+      "record_id": "record:security-arm-needs-approval",
+      "warnings": []
+    },
+    {
+      "admission": "blocked",
+      "capability_id": "capability:block-raw-camera-export",
+      "effect_class": "high_risk_actuation",
+      "errors": [],
+      "event_id": "event:agent:request-raw-camera-export",
+      "idempotency_key": "idem:event:agent:request-raw-camera-export:capability:block-raw-camera-export:node:front-door-camera-01:policy-epoch-0",
+      "policy_outcome": "denied",
+      "receipt_refs": [
+        "receipt:policy:deny-raw-camera-export"
+      ],
+      "record_id": "record:block-raw-camera-export",
+      "warnings": [
+        "high-risk capability denied; preserve denial receipt for replay"
+      ]
+    }
+  ],
+  "schema": "agentplane.event_capability_admission.v0.1",
+  "summary": {
+    "admitted": 2,
+    "blocked": 1,
+    "invalid": 0,
+    "total": 4,
+    "waiting_for_approval": 1
+  },
+  "timestamp": "2026-06-12T03:13:02Z"
+}

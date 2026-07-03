@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/sourceos/build-contract/v0/build-contract.schema.json",
+  "title": "SourceOS Build Contract v0",
+  "description": "Backend-neutral deterministic build contract for SourceOS system, user, agent, and boot/recovery artifacts. Nix and Guix are backends; this contract is the product boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractId",
+    "targetPlane",
+    "backend",
+    "sourceInputs",
+    "policyRef",
+    "requestedOutputs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "sourceos.build-contract.v0" },
+    "contractId": { "type": "string", "pattern": "^bc_[A-Za-z0-9._:-]+$" },
+    "targetPlane": {
+      "type": "string",
+      "enum": ["system", "user", "agent", "boot", "recovery", "mixed"]
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["nix", "guix", "mixed", "external"] },
+        "mode": { "type": "string", "enum": ["primary", "verifier", "challenge", "fallback"] },
+        "adapterRef": { "type": "string" },
+        "constraints": { "type": "object" }
+      }
+    },
+    "sourceInputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "ref", "digest"],
+        "properties": {
+          "name": { "type": "string" },
+          "kind": { "type": "string", "enum": ["git", "archive", "local-path", "oci", "ostree", "nix-flake", "guix-channel"] },
+          "uri": { "type": "string" },
+          "ref": { "type": "string" },
+          "digest": { "type": "string" },
+          "signatureRequired": { "type": "boolean", "default": false },
+          "lockfilePath": { "type": "string" }
+        }
+      }
+    },
+    "policyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyBundleId", "digest"],
+      "properties": {
+        "policyBundleId": { "type": "string" },
+        "digest": { "type": "string" }
+      }
+    },
+    "cachePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowRemoteSubstitutes": { "type": "boolean", "default": false },
+        "allowLocalCache": { "type": "boolean", "default": true },
+        "trustedKeys": { "type": "array", "items": { "type": "string" } },
+        "challengeRebuild": { "type": "boolean", "default": false }
+      }
+    },
+    "requestedOutputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["closure", "image", "ostree-commit", "boot-bundle", "sbom", "proof-bundle", "fingerprint-template"]
+      }
+    },
+    "securityProfile": { "type": "string", "enum": ["standard", "high-integrity", "fips140-3", "libre", "research-reproducible"] },
+    "metadata": { "type": "object" }
+  }
+}

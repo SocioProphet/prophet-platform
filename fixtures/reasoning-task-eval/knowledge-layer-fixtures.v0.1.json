@@ -1,0 +1,454 @@
+{
+  "description": "Additional fixtures for knowledge induction, continuous learning, data augmentation, key point analysis, enterprise data lake governance, cloud knowledge routing, and high-assurance desensitization.",
+  "sources": [
+    "Knowledge Sphere EAP capabilities",
+    "Automated metadata generation and continuous learning",
+    "Champollion little-supervision semantic parsing",
+    "Key Point Analysis",
+    "Data augmentation survey",
+    "Enterprise Data Lake / Crystal logical architecture",
+    "Public Cloud knowledge needs",
+    "High Assurance Desensitization"
+  ],
+  "tasks": [
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "required_capabilities": [
+          "ingest_corpus",
+          "terminology_exploration",
+          "taxonomy_induction",
+          "corpus_expansion",
+          "dynamic_faceted_search"
+        ]
+      },
+      "input": {
+        "capabilities": [
+          "ingest_corpus",
+          "terminology_exploration",
+          "taxonomy_induction",
+          "corpus_expansion",
+          "dynamic_faceted_search",
+          "embeddings",
+          "relation_induction"
+        ],
+        "sme_involvement": true
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "required_capabilities_present",
+        "kind": "knowledge_induction_contract"
+      },
+      "reasoning_operations": [
+        "capability_inventory",
+        "knowledge_induction_pipeline_validation",
+        "sme_loop_validation"
+      ],
+      "task_family": "knowledge_induction.capability_pipeline",
+      "task_id": "knowledge_sphere/capability_pipeline/001",
+      "verifier": "knowledge_sphere_capability_pipeline"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "valid_taxonomy": true
+      },
+      "input": {
+        "linkable_external_authority": "wikidata",
+        "taxonomy_edges": [
+          [
+            "cloud",
+            "compute"
+          ],
+          [
+            "cloud",
+            "storage"
+          ],
+          [
+            "storage",
+            "object_storage"
+          ],
+          [
+            "storage",
+            "block_storage"
+          ]
+        ],
+        "terms": [
+          "cloud",
+          "compute",
+          "storage",
+          "object_storage",
+          "block_storage"
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "edge_terms_must_exist",
+        "kind": "taxonomy_induction"
+      },
+      "reasoning_operations": [
+        "term_normalization",
+        "taxonomy_edge_validation",
+        "external_authority_linking"
+      ],
+      "task_family": "knowledge_induction.taxonomy",
+      "task_id": "knowledge_sphere/taxonomy_induction/001",
+      "verifier": "taxonomy_induction_shape"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "expansion_status": "allowed_with_provenance"
+      },
+      "input": {
+        "customer_corpus_sparse": true,
+        "expansion_sources": [
+          "public_docs",
+          "approved_external_reference"
+        ],
+        "external_content_allowed": true,
+        "provenance_required": true
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "provenance_required",
+        "kind": "governed_corpus_expansion"
+      },
+      "reasoning_operations": [
+        "corpus_sparsity_detection",
+        "external_source_governance",
+        "provenance_requirement_check"
+      ],
+      "task_family": "knowledge_induction.corpus_expansion",
+      "task_id": "knowledge_sphere/corpus_expansion/001",
+      "verifier": "corpus_expansion_governance"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "old_task_retained": true
+      },
+      "input": {
+        "old_data_retained": false,
+        "retention_score": 0.97,
+        "retention_threshold": 0.95,
+        "student_model": "amg-metadata-v2",
+        "teacher_model": "amg-metadata-v1"
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "retention_score_above_threshold",
+        "kind": "continual_learning_gate"
+      },
+      "reasoning_operations": [
+        "catastrophic_forgetting_guard",
+        "teacher_student_distillation",
+        "old_category_retention_check"
+      ],
+      "task_family": "learning.continuous_retention",
+      "task_id": "continuous_learning/teacher_student_retention/001",
+      "verifier": "continuous_learning_retention"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "augmentation_valid": true
+      },
+      "input": {
+        "category_conditioning": true,
+        "generate": "feature_vector",
+        "multi_class": true,
+        "raw_data_generation": false
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "feature_generation_not_raw_exfiltration",
+        "kind": "augmentation_contract"
+      },
+      "reasoning_operations": [
+        "feature_space_generation",
+        "category_conditioning",
+        "multi_class_generation_guard"
+      ],
+      "task_family": "learning.feature_vector_augmentation",
+      "task_id": "data_augmentation/feature_vector_conditioned/001",
+      "verifier": "feature_vector_augmentation"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "efficient": true
+      },
+      "input": {
+        "augment_all_data": false,
+        "max_fraction": 0.1,
+        "selected_fraction": 0.1,
+        "selection_policy": "high_loss"
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "bounded_selected_fraction",
+        "kind": "augmentation_selection_policy"
+      },
+      "reasoning_operations": [
+        "loss_based_selection",
+        "augmentation_budget_control",
+        "coverage_efficiency"
+      ],
+      "task_family": "learning.efficient_augmentation",
+      "task_id": "data_augmentation/subsample_policy/001",
+      "verifier": "data_augmentation_policy_subsampling"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "adversarial_loop_valid": true
+      },
+      "input": {
+        "class_preserving": true,
+        "generator_selects_hard_cases": true,
+        "hard_transformations": [
+          "scale",
+          "rotation",
+          "occlusion"
+        ],
+        "target_trains_on_hard_cases": true
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "class_preserving_only",
+        "kind": "adversarial_training_contract"
+      },
+      "reasoning_operations": [
+        "hard_case_generation",
+        "class_preservation_check",
+        "robustness_training"
+      ],
+      "task_family": "learning.adversarial_augmentation",
+      "task_id": "data_augmentation/adversarial_hard_cases/001",
+      "verifier": "adversarial_augmentation_shape"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "little_supervision_ready": true
+      },
+      "input": {
+        "mechanisms": [
+          "tree_structure",
+          "abstraction",
+          "sketch",
+          "weak_supervision",
+          "reinforcement_learning",
+          "dual_autoencoding"
+        ],
+        "target": "logical_form_generation"
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "mechanism_set_complete",
+        "kind": "semantic_parser_training_contract"
+      },
+      "reasoning_operations": [
+        "seq2tree_structure",
+        "sketch_prediction",
+        "weak_supervision_readiness"
+      ],
+      "task_family": "semantic_parsing.little_supervision",
+      "task_id": "semantic_parsing/little_supervision/champollion_001",
+      "verifier": "semantic_parser_little_supervision"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "key_point_counts": {
+          "housing affordability is a concern": 1,
+          "public transportation needs improvement": 2
+        }
+      },
+      "input": {
+        "sentence_to_key_point": [
+          {
+            "key_point": "public transportation needs improvement",
+            "sentence_id": "s1"
+          },
+          {
+            "key_point": "public transportation needs improvement",
+            "sentence_id": "s2"
+          },
+          {
+            "key_point": "housing affordability is a concern",
+            "sentence_id": "s3"
+          }
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "exact_sentence_to_keypoint_counts",
+        "kind": "argument_summary_mapping"
+      },
+      "reasoning_operations": [
+        "summary_point_matching",
+        "prevalence_counting",
+        "human_readable_summary_validation"
+      ],
+      "task_family": "argumentation.key_point_prevalence",
+      "task_id": "key_point_analysis/prevalence/001",
+      "verifier": "key_point_analysis_prevalence"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "drilldown_complete": true
+      },
+      "input": {
+        "key_points": [
+          "need to tie multiple accounts together",
+          "payment function is not working"
+        ],
+        "matches": [
+          {
+            "key_point": "need to tie multiple accounts together",
+            "sentence": "I want both business and personal accounts under one login.",
+            "sentence_id": "s1"
+          },
+          {
+            "key_point": "payment function is not working",
+            "sentence": "The payment function fails on pending transactions.",
+            "sentence_id": "s2"
+          }
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "each_keypoint_has_evidence",
+        "kind": "explainable_summarization_contract"
+      },
+      "reasoning_operations": [
+        "summary_to_evidence_drilldown",
+        "sentence_mapping_validation"
+      ],
+      "task_family": "argumentation.key_point_drilldown",
+      "task_id": "key_point_analysis/drilldown/001",
+      "verifier": "key_point_drilldown_mapping"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "architecture_complete": true
+      },
+      "input": {
+        "layers": [
+          "data_sources",
+          "integration",
+          "catalog",
+          "curation",
+          "security",
+          "governance",
+          "analytics_services"
+        ],
+        "surfaces": [
+          "api",
+          "search",
+          "entity_alerts",
+          "network_analytics"
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "required_layers_present",
+        "kind": "data_platform_architecture_contract"
+      },
+      "reasoning_operations": [
+        "data_lake_layer_validation",
+        "catalog_governance_check",
+        "analytics_surface_binding"
+      ],
+      "task_family": "data_platform.enterprise_data_lake_governance",
+      "task_id": "enterprise_data_lake/logical_architecture/001",
+      "verifier": "enterprise_data_lake_governance_architecture"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "routes": {
+          "case_history": "service_management_cases",
+          "process_guides": "internal_service_management_repository",
+          "product_instructions": "public_or_customer_docs"
+        }
+      },
+      "input": {
+        "routes": {
+          "case_history": "service_management_cases",
+          "external_technical_reference": "open_web_reference",
+          "process_guides": "internal_service_management_repository",
+          "product_instructions": "public_or_customer_docs"
+        },
+        "slack_is_operational_surface": true
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "route_by_knowledge_type",
+        "kind": "knowledge_ops_routing_contract"
+      },
+      "reasoning_operations": [
+        "knowledge_type_classification",
+        "repository_routing",
+        "operator_surface_capture"
+      ],
+      "task_family": "knowledge_ops.cloud_support_routing",
+      "task_id": "public_cloud/knowledge_need_routing/001",
+      "verifier": "public_cloud_knowledge_need_routing"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "risk_taxonomy_complete": true
+      },
+      "input": {
+        "identifier_orders": [
+          "first_order_identifier",
+          "second_order_identifier",
+          "third_order_identifier"
+        ],
+        "risks": [
+          "singling_out",
+          "linkability",
+          "inference"
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "required_risks_present",
+        "kind": "privacy_risk_taxonomy"
+      },
+      "reasoning_operations": [
+        "privacy_risk_classification",
+        "identifier_order_modeling"
+      ],
+      "task_family": "security_privacy.desensitization_risk",
+      "task_id": "hades/desensitization_risk_taxonomy/001",
+      "verifier": "desensitization_risk_taxonomy"
+    },
+    {
+      "answer_status": "DEFINITE_TRUE",
+      "expected_answer": {
+        "high_assurance_ready": true
+      },
+      "input": {
+        "controls": [
+          "data_classification",
+          "deterministic_keyed_prf",
+          "hmac_sha256",
+          "collision_resolution",
+          "pk_fk_preservation",
+          "verification_gate",
+          "key_management",
+          "semantic_preservation",
+          "range_remapping"
+        ]
+      },
+      "logic_probability_binding": {
+        "confidence_policy": "required_controls_present",
+        "kind": "high_assurance_desensitization_contract"
+      },
+      "reasoning_operations": [
+        "masking_control_validation",
+        "cryptographic_tokenization_check",
+        "constraint_preservation_check",
+        "verification_gate_check"
+      ],
+      "task_family": "security_privacy.high_assurance_desensitization",
+      "task_id": "hades/high_assurance_controls/001",
+      "verifier": "high_assurance_desensitization_controls"
+    }
+  ],
+  "version": "reasoning-task-eval-fixtures/knowledge-layer-v0.1"
+}

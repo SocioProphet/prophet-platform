@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { include "prophet-lake-writer.fullname" . }-config
+  labels:
+    app.kubernetes.io/name: prophet-lake-writer
+    app.kubernetes.io/part-of: prophet-platform
+    socioprofit.com/atom: prophet-lake-writer
+data:
+  # Add non-secret config here
+  LOG_LEVEL: "info"

@@ -1,0 +1,93 @@
+# lora-rayjob — the Ray training execution (KubeRay RayJob) that was missing.
+#
+# RAY_RUNTIME_REF (runtime-asset:prophet-ray-ml, role ray-train) is referenced across lattice-studio
+# and eval-fabric, but nothing ran a fine-tune. This is it: a RayJob that LoRA-fine-tunes a base
+# model on rejection-sampled VERIFIED traces, on an EPHEMERAL Ray cluster that tears itself down.
+#
+# COST DISCIPLINE: shutdownAfterJobFinishes deletes the GPU worker the instant the job ends — the
+# A100/L4 bills only for the training run, nothing standing.
+#
+# Prereqs (one-time): KubeRay operator installed (see README), and the script as a ConfigMap:
+#   kubectl -n training create configmap ray-lora-script --from-file=ray_lora_train.py
+#
+# Apply:    kubectl apply -f deploy/training/ray-lora/lora-rayjob.yaml
+# Watch:    kubectl -n training get rayjob lora-verified -w
+# Logs:     kubectl -n training logs -l ray.io/job-name=lora-verified -f
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: lora-verified
+  namespace: training
+spec:
+  entrypoint: python /home/ray/scripts/ray_lora_train.py
+  shutdownAfterJobFinishes: true       # ephemeral cluster — no standing GPU cost
+  ttlSecondsAfterFinished: 600
+  runtimeEnvYAML: |
+    pip:
+      - transformers==4.44.2
+      - peft==0.12.0
+      - datasets==2.21.0
+      - accelerate==0.34.2
+    env_vars:
+      BASE_MODEL: "Qwen/Qwen2.5-Coder-7B-Instruct"
+      # The harvested verified-trace SFT shard (noetica /api/tune submit lands it here):
+      SFT_PATH: "/home/ray/data/verified.sft.jsonl"
+      ADAPTER_OUT: "/home/ray/adapter"
+      # Where the promotion gate + serving step pick up the adapter:
+      ADAPTER_GCS: "gs://noetica-brains/adapters/lora-verified"
+      LORA_R: "16"
+      LORA_ALPHA: "32"
+      EPOCHS: "3"
+      RAY_USE_GPU: "1"
+      RAY_NUM_WORKERS: "1"
+  rayClusterSpec:
+    rayVersion: "2.35.0"
+    headGroupSpec:
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: rayproject/ray-ml:2.35.0
+              resources:
+                limits: { cpu: "2", memory: 8Gi }
+                requests: { cpu: "1", memory: 4Gi }
+              volumeMounts:
+                - { name: script, mountPath: /home/ray/scripts }
+                - { name: data, mountPath: /home/ray/data }
+          volumes:
+            - name: script
+              configMap: { name: ray-lora-script }
+            - name: data
+              emptyDir: {}        # SFT shard staged here (initContainer/gsutil pull in production)
+    workerGroupSpecs:
+      - groupName: gpu-workers
+        replicas: 1
+        minReplicas: 1
+        maxReplicas: 1
+        rayStartParams: {}
+        template:
+          spec:
+            # GPU node selection mirrors deploy/training/* and the serving manifest.
+            nodeSelector:
+              cloud.google.com/gke-accelerator: nvidia-l4
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Exists
+                effect: NoSchedule
+            containers:
+              - name: ray-worker
+                image: rayproject/ray-ml:2.35.0-gpu
+                resources:
+                  limits:
+                    nvidia.com/gpu: "1"
+                    cpu: "6"
+                    memory: 32Gi
+                  requests:
+                    cpu: "4"
+                    memory: 24Gi
+                volumeMounts:
+                  - { name: script, mountPath: /home/ray/scripts }
+            volumes:
+              - name: script
+                configMap: { name: ray-lora-script }

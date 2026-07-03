@@ -1,0 +1,18 @@
+{
+  "apiVersion": "prophet.platform.assessment/v0",
+  "requestId": "assessment_run_request_001",
+  "traceId": "trace_vendor_acme_assessment_001",
+  "status": "completed",
+  "evaluationRefs": [
+    "eval_nist_ac_2_001"
+  ],
+  "findingRefs": [
+    "finding_nist_ac_2_001"
+  ],
+  "receiptRef": "receipt_vendor_acme_assessment_001",
+  "reportRef": "report_vendor_acme_assessment_001",
+  "replay": {
+    "manifestRef": "replay://vendor-acme-assessment/001",
+    "replayable": true
+  }
+}
