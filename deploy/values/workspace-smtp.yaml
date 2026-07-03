@@ -1,5 +1,5 @@
 # workspace-smtp — SMTP submission
-image: { repository: workspace-smtp }
+image: { repository: workspace-smtp, tag: sha-8ac9d58a53aaf4a6d1625c67a8bb4623d0186374 }
 service: { port: 587, portName: submission, extraPorts: [{ name: smtp, port: 25 }] }
 probes: { enabled: true, httpGet: false }
 config: { WORKSPACE_SURFACE: smtp }

@@ -23,6 +23,7 @@ SCHEMA_EXAMPLES = {
     "config-source.v0.schema.json": ["config-source.m2-demo.v0.json"],
     "compliance-result.v0.schema.json": ["compliance-result.m2-demo.v0.json"],
     "proof-index.v0.schema.json": ["proof-index.m2-demo.v0.json"],
+    "truth-current-manifest.v0.schema.json": ["truth-current-manifest.m2-demo.v0.json"],
 }
 
 

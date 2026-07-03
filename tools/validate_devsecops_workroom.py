@@ -44,6 +44,15 @@ INVALID_FIXTURES = {
     ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.credential-sensitive-allowed.invalid.json": [
         "credential-sensitive actions must escalate rather than be allowed",
     ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.rca-claim-missing-evidence-ref.invalid.json": [
+        "references missing evidence ref",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.confirmed-claim-without-counterevidence.invalid.json": [
+        "confirmed causal claims require counterevidence handling",
+    ],
+    ROOT / "tests" / "fixtures" / "workroom" / "devsecops-workroom.remediation-disconnected-from-causal-evidence.invalid.json": [
+        "high/critical remediation evidence must overlap causal claim evidence",
+    ],
 }
 
 CLAIM_STATUSES = {
@@ -193,6 +202,7 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
     evidence_refs = ref_set(evidence_packets, "evidence_ref") if isinstance(evidence_packets, list) else set()
     claim_ids = ref_set(claims, "claim_id") if isinstance(claims, list) else set()
     grant_ids = ref_set(action_grants, "grant_id") if isinstance(action_grants, list) else set()
+    causal_evidence_refs: set[str] = set()
 
     if not evidence_refs:
         problems.append("at least one evidence packet is required")
@@ -217,6 +227,8 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
             problems.append(f"{claim_id}: invalid claim_status")
         if status in CAUSAL_STATUSES and not refs:
             problems.append(f"{claim_id}: causal claims require evidence refs")
+        if status in CAUSAL_STATUSES and isinstance(refs, list):
+            causal_evidence_refs.update(str(ref) for ref in refs)
         if status == "confirmed_causal_claim" and not counterrefs:
             problems.append(f"{claim_id}: confirmed causal claims require counterevidence handling")
         if status == "unknown" and confidence != "none":
@@ -244,8 +256,11 @@ def semantic_problems(data: dict[str, Any]) -> list[str]:
         plan_id = plan.get("plan_id")
         risk_class = plan.get("risk_class")
         required_grants = plan.get("required_action_grant_refs", [])
+        plan_evidence = set(str(ref) for ref in plan.get("evidence_refs", []) if isinstance(ref, str))
         if risk_class in HIGH_RISK_PLAN_CLASSES and not required_grants:
             problems.append(f"{plan_id}: high/critical remediation requires action grant refs")
+        if risk_class in HIGH_RISK_PLAN_CLASSES and plan_evidence and causal_evidence_refs and not plan_evidence.intersection(causal_evidence_refs):
+            problems.append(f"{plan_id}: high/critical remediation evidence must overlap causal claim evidence")
         for ref in required_grants:
             if ref not in grant_ids:
                 problems.append(f"{plan_id}: references missing action grant {ref}")

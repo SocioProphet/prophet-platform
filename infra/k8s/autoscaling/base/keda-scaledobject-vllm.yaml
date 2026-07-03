@@ -1,0 +1,25 @@
+# Scale-to-zero for the GPU serving Deployment (deploy/serving/mesh-vllm-serve.yaml
+# says "the GPU bills only while this Deployment has a ready replica"). KEDA scales
+# mesh-vllm 0→N on request load (read from the Wave-1 Prometheus) and back to 0
+# after an idle cooldown — the cost-discipline the serving manifest asks for, made
+# automatic. Requires KEDA (installed by the autoscaling Argo app).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: mesh-vllm
+  namespace: serving
+spec:
+  scaleTargetRef:
+    name: mesh-vllm
+  minReplicaCount: 0          # scale-to-zero when idle → no GPU bill
+  maxReplicaCount: 4
+  cooldownPeriod: 300         # 5m of no load before scaling back to zero
+  pollingInterval: 30
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+        # Requests in flight to the serving job; >0 wakes it from zero.
+        query: sum(rate(http_server_request_duration_seconds_count{job="mesh-vllm"}[2m]))
+        threshold: "5"        # ~5 req/s per replica target
+        activationThreshold: "0.1"

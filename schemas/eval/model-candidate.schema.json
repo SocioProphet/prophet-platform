@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/model-candidate.schema.json",
+  "title": "ModelCandidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidate_id", "name", "status", "family", "implementation", "workload_families", "adoption_gates"],
+  "properties": {
+    "candidate_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "status": {"enum": ["research_watch", "benchmark_candidate", "experimental_adapter", "accepted", "rejected"]},
+    "family": {"type": "string", "minLength": 1},
+    "summary": {"type": "string"},
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_repo", "source_ref", "license", "runtime_dependencies"],
+      "properties": {
+        "source_repo": {"type": "string"},
+        "source_ref": {"type": "string"},
+        "license": {"type": "string"},
+        "package": {"type": "string"},
+        "runtime_dependencies": {"type": "array", "items": {"type": "string"}},
+        "source_paths": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "workload_families": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "primary_metrics": {"type": "array", "items": {"type": "string"}},
+    "risk_controls": {"type": "array", "items": {"type": "string"}},
+    "adoption_gates": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "tracking_issue": {"type": "string"}
+  }
+}

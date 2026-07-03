@@ -1,0 +1,78 @@
+# OpenTelemetry Collector — local development configuration
+#
+# This is the single collector config shared by the local docker-compose service
+# and (via ConfigMap) the Kustomize deployment. Keep them in sync.
+#
+# Conservative defaults: OTLP in, batch, and a debug exporter that is always safe
+# to run locally. The Prometheus and Loki exporters are PLACEHOLDERS — they point
+# at hostnames that do not exist in the minimal local stack and are commented in
+# the pipelines so the collector starts cleanly with no real backend present.
+#
+# To wire a real backend, set a real endpoint (see markers tagged: NEEDS-REAL-ENDPOINT)
+# and add the exporter back into the relevant pipeline.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Bound batch sizes so a service burst cannot stall the collector.
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+  # Defensive memory cap for shared local/dev nodes.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+
+exporters:
+  # Always-on, backend-free. Safe locally; prints spans/metrics/logs to stdout.
+  debug:
+    verbosity: detailed
+
+  # PLACEHOLDER — Prometheus scrape endpoint exposed by the collector itself.
+  # The collector publishes metrics on :8889 for a Prometheus server to scrape.
+  # NEEDS-REAL-ENDPOINT: a Prometheus server must be pointed at host:8889.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: prophet_platform
+
+  # PLACEHOLDER — Loki log sink. Disabled in the pipeline below.
+  # NEEDS-REAL-ENDPOINT: replace with a reachable Loki push endpoint.
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      # Add real trace backends (e.g. otlphttp/tempo) here when available.
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      # `prometheus` exporter is runnable locally (exposes :8889) but needs a
+      # Prometheus server to actually scrape it — kept in for that reason.
+      exporters: [debug, prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      # To ship logs to Loki, add `otlphttp/loki` once a Loki endpoint exists.
+      exporters: [debug]
+  telemetry:
+    logs:
+      level: info

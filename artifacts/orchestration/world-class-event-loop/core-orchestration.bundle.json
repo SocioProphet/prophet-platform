@@ -1,0 +1,661 @@
+{
+  "adapters": [
+    {
+      "adapter_family": "home_assistant",
+      "adapter_id": "adapter:home-assistant-fixture",
+      "capabilities": [
+        "device_discovery",
+        "state_observation",
+        "routine_fixture_events"
+      ],
+      "credential_boundary": "none",
+      "health": "healthy",
+      "last_checked_at": "2026-05-05T18:45:00Z",
+      "operating_mode": "fixture"
+    },
+    {
+      "adapter_family": "sourceos_shell",
+      "adapter_id": "adapter:sourceos-local",
+      "capabilities": [
+        "local_receipts",
+        "durable_queue",
+        "repair_replay"
+      ],
+      "credential_boundary": "system_store",
+      "health": "healthy",
+      "last_checked_at": "2026-05-05T18:45:00Z",
+      "operating_mode": "local"
+    },
+    {
+      "adapter_family": "agentplane",
+      "adapter_id": "adapter:agentplane-fixture",
+      "capabilities": [
+        "agent_proposals",
+        "capability_checks"
+      ],
+      "credential_boundary": "none",
+      "health": "healthy",
+      "last_checked_at": "2026-05-05T18:45:00Z",
+      "operating_mode": "fixture"
+    },
+    {
+      "adapter_family": "guardrail_fabric",
+      "adapter_id": "adapter:guardrail-fabric-fixture",
+      "capabilities": [
+        "policy_decisions",
+        "approval_requirements",
+        "redaction_requirements"
+      ],
+      "credential_boundary": "none",
+      "health": "healthy",
+      "last_checked_at": "2026-05-05T18:45:00Z",
+      "operating_mode": "fixture"
+    },
+    {
+      "adapter_family": "google_home",
+      "adapter_id": "adapter:google-home-placeholder",
+      "capabilities": [
+        "camera_history_search_planned",
+        "ask_home_planned"
+      ],
+      "credential_boundary": "external_connector",
+      "health": "degraded",
+      "last_checked_at": "2026-05-05T18:45:00Z",
+      "operating_mode": "degraded"
+    }
+  ],
+  "bundle_id": "bundle:fixture:home-assistant-demo:2026-05-05",
+  "contract_version": "sdo.v0.1",
+  "data_mode": "fixture",
+  "device_nodes": [
+    {
+      "attestation_state": "fixture",
+      "capabilities": [
+        "camera_event_summary",
+        "motion_detection",
+        "package_detection"
+      ],
+      "display_name": "Front Door Camera",
+      "ecosystem_adapter": "adapter:home-assistant-fixture",
+      "last_seen_at": "2026-05-05T18:45:00Z",
+      "location_scope": "home",
+      "node_id": "node:front-door-camera-01",
+      "node_type": "camera",
+      "owner_boundary": "household",
+      "policy_labels": [
+        "camera",
+        "privacy_sensitive",
+        "no_raw_video_default"
+      ],
+      "revocation_status": "active",
+      "trust_state": "trusted"
+    },
+    {
+      "attestation_state": "fixture",
+      "capabilities": [
+        "temperature_observation"
+      ],
+      "display_name": "Living Room Temperature Sensor",
+      "ecosystem_adapter": "adapter:home-assistant-fixture",
+      "last_seen_at": "2026-05-05T18:45:00Z",
+      "location_scope": "room",
+      "node_id": "node:living-room-temp-01",
+      "node_type": "sensor",
+      "owner_boundary": "household",
+      "policy_labels": [
+        "sensor",
+        "low_risk"
+      ],
+      "revocation_status": "active",
+      "trust_state": "trusted"
+    },
+    {
+      "attestation_state": "fixture",
+      "capabilities": [
+        "power_toggle",
+        "fan_speed_set"
+      ],
+      "display_name": "Living Room Fan",
+      "ecosystem_adapter": "adapter:home-assistant-fixture",
+      "last_seen_at": "2026-05-05T18:45:00Z",
+      "location_scope": "room",
+      "node_id": "node:living-room-fan-01",
+      "node_type": "appliance",
+      "owner_boundary": "household",
+      "policy_labels": [
+        "low_risk_actuation"
+      ],
+      "revocation_status": "active",
+      "trust_state": "trusted"
+    },
+    {
+      "attestation_state": "fixture",
+      "capabilities": [
+        "arm_alarm",
+        "disarm_alarm"
+      ],
+      "display_name": "Household Security System",
+      "ecosystem_adapter": "adapter:home-assistant-fixture",
+      "last_seen_at": "2026-05-05T18:45:00Z",
+      "location_scope": "home",
+      "node_id": "node:security-system-01",
+      "node_type": "service",
+      "owner_boundary": "household",
+      "policy_labels": [
+        "security",
+        "high_risk_actuation",
+        "approval_required"
+      ],
+      "revocation_status": "active",
+      "trust_state": "limited"
+    },
+    {
+      "attestation_state": "fixture",
+      "capabilities": [
+        "explain",
+        "search_receipts",
+        "propose_routine",
+        "draft_routine"
+      ],
+      "display_name": "Household Orchestrator Agent",
+      "ecosystem_adapter": "adapter:agentplane-fixture",
+      "last_seen_at": "2026-05-05T18:45:00Z",
+      "location_scope": "none",
+      "node_id": "node:agent-household-orchestrator",
+      "node_type": "agent",
+      "owner_boundary": "personal",
+      "policy_labels": [
+        "agent",
+        "no_direct_high_risk_actuation"
+      ],
+      "revocation_status": "active",
+      "trust_state": "limited"
+    }
+  ],
+  "events": [
+    {
+      "actor_id": "node:front-door-camera-01",
+      "adapter_id": "adapter:home-assistant-fixture",
+      "confidence": 0.83,
+      "event_id": "event:camera:package-delivered",
+      "event_type": "camera_event",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "metadata_only",
+          "uri": "fixture://event/camera/package-delivered"
+        }
+      ],
+      "lineage_parent_ids": [],
+      "observed_state_after": {
+        "clip_retained": false,
+        "summary": "package delivered"
+      },
+      "occurred_at": "2026-05-05T18:05:00Z",
+      "privacy": {
+        "location_scope": "home",
+        "redaction_class": "metadata_only",
+        "retention_class": "audit_30d"
+      },
+      "related_policy_decision_ids": [],
+      "related_routine_ids": [],
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "node:living-room-temp-01",
+      "adapter_id": "adapter:home-assistant-fixture",
+      "confidence": 0.99,
+      "event_id": "event:sensor:living-room-temp-high",
+      "event_type": "sensor_event",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://event/sensor/living-room-temp-high"
+        }
+      ],
+      "lineage_parent_ids": [],
+      "observed_state_after": {
+        "temperature_f": 78.4
+      },
+      "occurred_at": "2026-05-05T18:05:00Z",
+      "privacy": {
+        "location_scope": "home",
+        "redaction_class": "none",
+        "retention_class": "audit_30d"
+      },
+      "related_policy_decision_ids": [],
+      "related_routine_ids": [
+        "routine:cool-living-room-when-hot"
+      ],
+      "subject_node_id": "node:living-room-temp-01"
+    },
+    {
+      "actor_id": "node:agent-household-orchestrator",
+      "adapter_id": "adapter:agentplane-fixture",
+      "confidence": 0.72,
+      "event_id": "event:agent:propose-arm-security",
+      "event_type": "agent_proposal",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://event/agent/propose-arm-security"
+        }
+      ],
+      "lineage_parent_ids": [],
+      "observed_state_after": {
+        "proposed_action": "arm_alarm"
+      },
+      "occurred_at": "2026-05-05T18:05:00Z",
+      "privacy": {
+        "location_scope": "home",
+        "redaction_class": "none",
+        "retention_class": "audit_30d"
+      },
+      "related_policy_decision_ids": [
+        "decision:requires-approval-arm-security"
+      ],
+      "related_routine_ids": [
+        "routine:arm-security-after-midnight"
+      ],
+      "subject_node_id": "node:security-system-01"
+    },
+    {
+      "actor_id": "node:agent-household-orchestrator",
+      "adapter_id": "adapter:agentplane-fixture",
+      "confidence": 0.64,
+      "event_id": "event:agent:request-raw-camera-export",
+      "event_type": "agent_proposal",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "content_redacted",
+          "uri": "fixture://event/agent/request-raw-camera-export"
+        }
+      ],
+      "lineage_parent_ids": [],
+      "observed_state_after": {
+        "requested_action": "export_raw_video"
+      },
+      "occurred_at": "2026-05-05T18:05:00Z",
+      "privacy": {
+        "location_scope": "home",
+        "redaction_class": "content_redacted",
+        "retention_class": "audit_30d"
+      },
+      "related_policy_decision_ids": [
+        "decision:deny-raw-camera-export"
+      ],
+      "related_routine_ids": [],
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "adapter:google-home-placeholder",
+      "adapter_id": "adapter:google-home-placeholder",
+      "confidence": 1.0,
+      "event_id": "event:adapter:google-home-degraded",
+      "event_type": "adapter_degraded",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://event/adapter/google-home-degraded"
+        }
+      ],
+      "lineage_parent_ids": [],
+      "observed_state_after": {
+        "status": "disabled_in_fixture_mode"
+      },
+      "occurred_at": "2026-05-05T18:05:00Z",
+      "privacy": {
+        "location_scope": "home",
+        "redaction_class": "none",
+        "retention_class": "audit_30d"
+      },
+      "related_policy_decision_ids": [
+        "decision:degraded-google-home-placeholder"
+      ],
+      "related_routine_ids": [],
+      "subject_node_id": "node:front-door-camera-01"
+    }
+  ],
+  "generated_at": "2026-05-05T18:45:00Z",
+  "policy_decisions": [
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "low_risk_actuation",
+      "decision_id": "decision:allow-cool-living-room",
+      "evaluated_at": "2026-05-05T18:05:02Z",
+      "event_id": "event:sensor:living-room-temp-high",
+      "outcome": "allowed",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Low-risk appliance actuation",
+        "Allowed target node"
+      ],
+      "routine_id": "routine:cool-living-room-when-hot",
+      "subject_node_id": "node:living-room-fan-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "high_risk_actuation",
+      "decision_id": "decision:requires-approval-arm-security",
+      "evaluated_at": "2026-05-05T18:05:02Z",
+      "event_id": "event:agent:propose-arm-security",
+      "outcome": "requires_approval",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Security system actuation is high risk",
+        "Explicit user approval required"
+      ],
+      "routine_id": "routine:arm-security-after-midnight",
+      "subject_node_id": "node:security-system-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "high_risk_actuation",
+      "decision_id": "decision:deny-raw-camera-export",
+      "evaluated_at": "2026-05-05T18:05:02Z",
+      "event_id": "event:agent:request-raw-camera-export",
+      "outcome": "denied",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Raw camera export disabled by default",
+        "No raw video retention policy"
+      ],
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "observe",
+      "decision_id": "decision:degraded-google-home-placeholder",
+      "evaluated_at": "2026-05-05T18:05:02Z",
+      "event_id": "event:adapter:google-home-degraded",
+      "outcome": "degraded",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "External cloud connector unavailable in fixture mode"
+      ],
+      "subject_node_id": "node:front-door-camera-01"
+    }
+  ],
+  "receipts": [
+    {
+      "actor_id": "node:front-door-camera-01",
+      "capability_used": "observe",
+      "confidence": 0.83,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:camera:package-delivered",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/event/package-delivered"
+        }
+      ],
+      "lineage_parent_receipt_ids": [],
+      "policy_outcome": "redacted",
+      "receipt_id": "receipt:event:package-delivered",
+      "receipt_type": "event_observed",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:home-assistant-fixture",
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "node:living-room-temp-01",
+      "capability_used": "observe",
+      "confidence": 0.99,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:sensor:living-room-temp-high",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/event/living-room-temp-high"
+        }
+      ],
+      "lineage_parent_receipt_ids": [],
+      "policy_outcome": "allowed",
+      "receipt_id": "receipt:event:living-room-temp-high",
+      "receipt_type": "event_observed",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:home-assistant-fixture",
+      "subject_node_id": "node:living-room-temp-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_used": "low_risk_actuation",
+      "confidence": 1.0,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:sensor:living-room-temp-high",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/policy/allow-cool-living-room"
+        }
+      ],
+      "lineage_parent_receipt_ids": [
+        "receipt:event:living-room-temp-high"
+      ],
+      "policy_decision_id": "decision:allow-cool-living-room",
+      "policy_outcome": "allowed",
+      "receipt_id": "receipt:policy:allow-cool-living-room",
+      "receipt_type": "policy_decision",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "routine_id": "routine:cool-living-room-when-hot",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:guardrail-fabric-fixture",
+      "subject_node_id": "node:living-room-fan-01"
+    },
+    {
+      "actor_id": "node:agent-household-orchestrator",
+      "capability_used": "propose",
+      "confidence": 0.72,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:agent:propose-arm-security",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/agent/propose-arm-security"
+        }
+      ],
+      "lineage_parent_receipt_ids": [],
+      "policy_outcome": "requires_approval",
+      "receipt_id": "receipt:agent:propose-arm-security",
+      "receipt_type": "agent_proposal",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "routine_id": "routine:arm-security-after-midnight",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:agentplane-fixture",
+      "subject_node_id": "node:security-system-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_used": "high_risk_actuation",
+      "confidence": 1.0,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:agent:propose-arm-security",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/policy/requires-approval-arm-security"
+        }
+      ],
+      "lineage_parent_receipt_ids": [
+        "receipt:agent:propose-arm-security"
+      ],
+      "policy_decision_id": "decision:requires-approval-arm-security",
+      "policy_outcome": "requires_approval",
+      "receipt_id": "receipt:policy:requires-approval-arm-security",
+      "receipt_type": "policy_decision",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "routine_id": "routine:arm-security-after-midnight",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:guardrail-fabric-fixture",
+      "subject_node_id": "node:security-system-01"
+    },
+    {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_used": "high_risk_actuation",
+      "confidence": 1.0,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:agent:request-raw-camera-export",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/policy/deny-raw-camera-export"
+        }
+      ],
+      "lineage_parent_receipt_ids": [
+        "receipt:event:package-delivered"
+      ],
+      "policy_decision_id": "decision:deny-raw-camera-export",
+      "policy_outcome": "denied",
+      "receipt_id": "receipt:policy:deny-raw-camera-export",
+      "receipt_type": "policy_decision",
+      "redaction_class": "content_redacted",
+      "retention_class": "audit_1y",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:guardrail-fabric-fixture",
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    {
+      "actor_id": "adapter:google-home-placeholder",
+      "capability_used": "observe",
+      "confidence": 1.0,
+      "emitted_at": "2026-05-05T18:05:04Z",
+      "event_id": "event:adapter:google-home-degraded",
+      "evidence_links": [
+        {
+          "link_type": "fixture",
+          "redaction_class": "none",
+          "uri": "fixture://receipt/adapter/google-home-degraded"
+        }
+      ],
+      "lineage_parent_receipt_ids": [],
+      "policy_decision_id": "decision:degraded-google-home-placeholder",
+      "policy_outcome": "degraded",
+      "receipt_id": "receipt:adapter:google-home-degraded",
+      "receipt_type": "event_observed",
+      "redaction_class": "none",
+      "retention_class": "audit_1y",
+      "signature": "fixture-signature:not-cryptographic",
+      "source_adapter_id": "adapter:google-home-placeholder",
+      "subject_node_id": "node:front-door-camera-01"
+    }
+  ],
+  "routines": [
+    {
+      "actions": [
+        {
+          "action_id": "action:fan-medium",
+          "action_type": "set_fan_speed",
+          "capability_class": "low_risk_actuation",
+          "parameters": {
+            "speed": "medium"
+          },
+          "target_node_id": "node:living-room-fan-01"
+        }
+      ],
+      "allowed_node_ids": [
+        "node:living-room-temp-01",
+        "node:living-room-fan-01"
+      ],
+      "compiled_from": "fixture",
+      "disallowed_node_ids": [
+        "node:security-system-01",
+        "node:front-door-camera-01"
+      ],
+      "natural_language_description": "When the living room temperature is above 76 F and someone is home, turn on the living room fan at medium speed.",
+      "policy_package_refs": [
+        "guardrail-fabric/device-orchestration@0.1"
+      ],
+      "preconditions": [
+        {
+          "scope": "home",
+          "state": "present",
+          "type": "occupancy"
+        }
+      ],
+      "required_approval_mode": "notify",
+      "revocation_status": "active",
+      "rollback_behavior": "state_snapshot",
+      "routine_id": "routine:cool-living-room-when-hot",
+      "safety_class": "low_risk_actuation",
+      "signature": "fixture-signature:not-cryptographic",
+      "test_fixture_ids": [
+        "event:sensor:living-room-temp-high"
+      ],
+      "triggers": [
+        {
+          "metric": "temperature_f",
+          "node_id": "node:living-room-temp-01",
+          "operator": ">",
+          "type": "sensor_threshold",
+          "value": 76
+        }
+      ],
+      "version": "0.1.0"
+    },
+    {
+      "actions": [
+        {
+          "action_id": "action:arm-security",
+          "action_type": "arm_alarm",
+          "capability_class": "high_risk_actuation",
+          "parameters": {
+            "mode": "away"
+          },
+          "target_node_id": "node:security-system-01"
+        }
+      ],
+      "allowed_node_ids": [
+        "node:security-system-01"
+      ],
+      "compiled_from": "natural_language",
+      "disallowed_node_ids": [
+        "node:front-door-camera-01"
+      ],
+      "natural_language_description": "After midnight, arm the household security system if no motion has been detected for 30 minutes.",
+      "policy_package_refs": [
+        "guardrail-fabric/device-orchestration@0.1"
+      ],
+      "preconditions": [
+        {
+          "duration_minutes": 30,
+          "scope": "home",
+          "type": "motion_absent"
+        }
+      ],
+      "required_approval_mode": "explicit_user_approval",
+      "revocation_status": "pending_review",
+      "rollback_behavior": "manual_only",
+      "routine_id": "routine:arm-security-after-midnight",
+      "safety_class": "high_risk_actuation",
+      "signature": "fixture-signature:not-cryptographic",
+      "test_fixture_ids": [
+        "event:agent:propose-arm-security"
+      ],
+      "triggers": [
+        {
+          "after": "00:00",
+          "timezone": "local",
+          "type": "time_window"
+        }
+      ],
+      "version": "0.1.0"
+    }
+  ]
+}

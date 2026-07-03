@@ -1,0 +1,67 @@
+# Copy to terraform.tfvars for local use.
+# Do not commit real credentials or secrets.
+
+mesh_name = "google-workspace-ops-prototype"
+
+google_project_id = "TODO_GOOGLE_CLOUD_PROJECT_ID"
+
+# Keep false until reviewed.
+enable_google_project_services = false
+
+# Keep false until Workspace provider auth and group policy are reviewed.
+enable_workspace_groups = false
+
+google_workspace_customer_id              = "TODO_GOOGLE_WORKSPACE_CUSTOMER_ID"
+google_workspace_impersonated_user_email = "admin@example.com"
+google_workspace_credentials_file        = ""
+
+spreadsheet_id                    = "TODO_GOOGLE_SHEET_ID"
+apps_script_project_id            = "TODO_APPS_SCRIPT_PROJECT_ID"
+cloud_vendor_strategy_calendar_id = "TODO_SP_CLOUD_VENDOR_STRATEGY_CALENDAR_ID"
+launch_council_calendar_id        = "TODO_SP_LAUNCH_COUNCIL_CALENDAR_ID"
+
+prototype_dry_run = true
+
+workspace_groups = {
+  sp_exec_council = {
+    email       = "sp-exec-council@example.com"
+    name        = "SP Executive Council"
+    description = "Executive sponsorship and escalation authority"
+    members     = []
+  }
+
+  sp_launch_council = {
+    email       = "sp-launch-council@example.com"
+    name        = "SP Launch Council"
+    description = "Cross-functional launch governance"
+    members     = []
+  }
+
+  sp_product = {
+    email       = "sp-product@example.com"
+    name        = "SP Product"
+    description = "Packaging, plan catalog, and product decisions"
+    members     = []
+  }
+
+  sp_engineering = {
+    email       = "sp-engineering@example.com"
+    name        = "SP Engineering"
+    description = "Spine, adapters, conformance, and runtime implementation"
+    members     = []
+  }
+
+  sp_partner_gtm = {
+    email       = "sp-partner-gtm@example.com"
+    name        = "SP Partner GTM"
+    description = "Cloud partner marketplace and co-sell motion"
+    members     = []
+  }
+
+  sp_auditors = {
+    email       = "sp-auditors@example.com"
+    name        = "SP Auditors"
+    description = "Read-only governance visibility"
+    members     = []
+  }
+}

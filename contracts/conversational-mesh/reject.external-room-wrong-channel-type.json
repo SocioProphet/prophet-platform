@@ -1,0 +1,17 @@
+{
+  "_reject_reason": "room_kind=external but source_channel_type=matrix_native — external rooms must come from adapter or bridge paths",
+  "kind": "ConversationEnvelope",
+  "schema_version": "conversational-mesh.envelope.v0.1",
+  "envelope_id": "envelope://mesh/reject-002",
+  "source_channel": "matrix://sociosphere.internal/#external-room",
+  "source_channel_type": "matrix_native",
+  "room_ref": "matrix://sociosphere.internal/!external-room-002",
+  "room_kind": "external",
+  "sender_ref": "user://operator-beta",
+  "trust_tier": "trusted_internal",
+  "fragility_tier": "standard",
+  "content_ref": "content://mesh/text/reject-002",
+  "content_kind": "text",
+  "received_at": "2026-06-11T10:00:00Z",
+  "non_claims": ["placeholder"]
+}
