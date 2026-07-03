@@ -1,0 +1,26 @@
+{
+  "apiVersion": "prophet.platform.assessment/v0",
+  "requestId": "assessment_run_request_001",
+  "traceId": "trace_vendor_acme_assessment_001",
+  "subject": {
+    "id": "vendor:acme-cloud",
+    "kind": "vendor"
+  },
+  "framework": {
+    "id": "nist-800-53-rev5",
+    "version": "rev5"
+  },
+  "policyBundle": {
+    "id": "policy-bundle://vendor-assessment/nist-800-53-rev5",
+    "version": "0.1.0"
+  },
+  "evidenceRefs": [
+    "evref_vendor_policy_001"
+  ],
+  "requestedOutputs": [
+    "ControlCellEvaluation",
+    "Finding",
+    "AssessmentReceipt",
+    "AssessmentReport"
+  ]
+}
