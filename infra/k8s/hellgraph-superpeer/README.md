@@ -1,8 +1,15 @@
 # hellgraph-superpeer — the cloud-twin graph replica
 
-Runs in the **cloud-twin cluster**. Makes the twin's graph view come from the hellgraph
-**federation** — a live, causally-merged replica of the edge's sovereign log — instead of
-restoring a periodic RocksDB blob. This unifies the two edge↔cloud-twin sync stacks:
+Runs in the **cloud-twin cluster**. **STATUS: staged, NOT yet active.** The manifests + super-peer
+image exist and the federation is proven in hellgraph tests, but the live path is not wired: the
+edge StatefulSet does not run in federation mode (publishes no base key) and the
+`hellgraph-federation` ConfigMap holds a placeholder. Until the edge is a federation participant
+AND the twin is verified replicating, `edge-twin-sync` stays the PRIMARY sync (every 30m) — do
+not demote it before then.
+
+Intended end state — the twin's graph view comes from the hellgraph **federation** (a live,
+causally-merged replica of the edge's sovereign log) instead of a periodic RocksDB blob, unifying
+the two edge↔cloud-twin sync stacks:
 
 ```
             live convergence (this)                       cold DR (daily)
