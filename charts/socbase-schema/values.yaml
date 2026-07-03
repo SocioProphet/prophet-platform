@@ -1,0 +1,22 @@
+# socbase-schema — one-shot Postgres bootstrap Job for Socbase (self-hosted
+# Supabase-compatible auth+data layer). GoTrue and PostgREST deploy separately
+# via the generic charts/socioprophet-service chart (deploy/values/socbase-auth.yaml,
+# deploy/values/socbase-rest.yaml) since they're plain single-container services
+# that chart already handles; this exists only for the migration Job, which
+# doesn't fit that chart's shape (no Job/hook support there). GCP project:
+# socioprophet-platform.
+
+# Reuse the platform Postgres — same convention as charts/prophet-workspace.
+# The schema-job connects with FULL admin rights (creates the authenticator
+# role + application tables; GoTrue itself owns the "auth" schema outright).
+postgres:
+  host: postgres
+  db: prophet_platform
+  port: 5432
+  existingSecret: postgres-credentials     # keys: username, password (admin)
+
+# authenticator is the login role PostgREST connects as (SET ROLE anon /
+# authenticated / service_role per JWT) — this Job creates/repassword's it.
+# Generate: openssl rand -base64 24
+authenticator:
+  existingSecret: socbase-authenticator     # key: password

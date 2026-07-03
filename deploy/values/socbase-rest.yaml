@@ -1,0 +1,45 @@
+# PostgREST — Socbase's REST-over-Postgres layer. Deploys via the generic
+# charts/socioprophet-service chart. Connects as the restricted "authenticator"
+# role (never admin creds) — that role is created by the charts/socbase-schema
+# Job, so this release's DB secret must point at a role that already exists
+# (i.e. install socbase-auth + run the schema Job before this).
+#
+# Prereqs:
+#   kubectl create secret generic socbase-rest-db-url --from-literal=url="postgres://authenticator:<authenticator-pw>@postgres:5432/prophet_platform"
+#   kubectl create secret generic socbase-jwt --from-literal=secret="..."   # same secret socbase-auth uses
+nameOverride: socbase-rest
+
+image:
+  registry: docker.io
+  repository: postgrest/postgrest
+  tag: v12.2.3
+
+service:
+  port: 3000
+  portName: http
+
+secretEnv:
+  PGRST_DB_URI: { secretName: socbase-rest-db-url, key: url }
+  PGRST_JWT_SECRET: { secretName: socbase-jwt, key: secret }
+
+config:
+  PGRST_DB_SCHEMAS: "public"
+  PGRST_DB_ANON_ROLE: "anon"
+  PGRST_DB_USE_LEGACY_GUCS: "false"
+
+probes:
+  path: /
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: socbase.socioprophet.ai
+      paths:
+        - path: /rest/v1(/|$)(.*)
+          pathType: ImplementationSpecific
+
+replicaCount: 2

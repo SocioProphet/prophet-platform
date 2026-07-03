@@ -1,0 +1,56 @@
+# GoTrue — Socbase's self-hosted Supabase-compatible auth service. Deploys via
+# the generic charts/socioprophet-service chart (plain single-container, all
+# config via env). Owns the "auth" schema (creates it on first boot); the
+# charts/socbase-schema Job depends on that and must run AFTER this is live.
+#
+# Prereqs (see charts/socbase-schema/templates/NOTES.txt for the full sequence):
+#   kubectl create secret generic socbase-auth-db-url --from-literal=url="postgres://<admin>:<pw>@postgres:5432/prophet_platform"
+#   kubectl create secret generic socbase-jwt --from-literal=secret="$(./scripts/socbase-mint-keys.sh | grep JWT_SECRET | cut -d= -f2)"
+nameOverride: socbase-auth
+
+image:
+  registry: docker.io          # third-party image, not this platform's own GAR
+  repository: supabase/gotrue
+  tag: v2.164.0
+
+service:
+  port: 9999
+  portName: http
+
+secretEnv:
+  DATABASE_URL: { secretName: socbase-auth-db-url, key: url }
+  GOTRUE_JWT_SECRET: { secretName: socbase-jwt, key: secret }
+
+config:
+  GOTRUE_API_HOST: "0.0.0.0"
+  GOTRUE_API_PORT: "9999"
+  API_EXTERNAL_URL: "https://socbase.socioprophet.ai/auth/v1"
+  GOTRUE_SITE_URL: "https://app.socioprophet.ai"
+  GOTRUE_URI_ALLOW_LIST: "https://app.socioprophet.ai/**"
+  GOTRUE_DISABLE_SIGNUP: "false"
+  # No transactional-mail sender wired yet — signups are immediately usable,
+  # matching app-vue Login.vue's "Create account" flow. Flip once SMTP exists;
+  # deliberate documented tradeoff, not an oversight.
+  GOTRUE_MAILER_AUTOCONFIRM: "true"
+  GOTRUE_DB_DRIVER: postgres
+  GOTRUE_JWT_EXP: "3600"
+
+probes:
+  path: /health
+
+# Path-routes under one hostname alongside socbase-rest — no gateway needed,
+# nginx-ingress does the prefix-strip natively (both Ingresses share a host;
+# the controller merges them).
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  hosts:
+    - host: socbase.socioprophet.ai
+      paths:
+        - path: /auth/v1(/|$)(.*)
+          pathType: ImplementationSpecific
+
+replicaCount: 2
