@@ -28,13 +28,18 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: superpeer
+          # The mode-aware hellgraph-service image (apps/hellgraph-service, vendoring
+          # @socioprophet/hellgraph 0.4.3). HELLGRAPH_MODE=superpeer selects the federation
+          # replica role over the default local service — one image, two roles. No command
+          # override needed. (Image name is kept in step with the edge StatefulSet; the
+          # ghcr↔GAR hellgraph-service naming reconciliation is a separate infra follow-up.)
           image: ghcr.io/socioprophet/hellgraph:latest
-          # Runs the super-peer entrypoint (hellgraph bin, PR #13) instead of the local service.
-          command: ["node", "bin/hellgraph-superpeer.mjs"]
           ports:
             - name: http
               containerPort: 8850
           env:
+            - name: HELLGRAPH_MODE
+              value: "superpeer"
             - name: HELLGRAPH_HTTP_PORT
               value: "8850"
             - name: HELLGRAPH_STORAGE_DIR

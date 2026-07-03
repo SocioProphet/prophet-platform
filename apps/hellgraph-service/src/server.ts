@@ -22,7 +22,7 @@ import * as path from 'node:path'
 process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
 
 import * as engine from '@socioprophet/hellgraph'
-import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain } from '@socioprophet/hellgraph'
+import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, startSuperPeerFromEnv } from '@socioprophet/hellgraph'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -89,19 +89,35 @@ const server = http.createServer((req, res) => {
   json(res, 404, { error: 'not_found' })
 })
 
-server.listen(PORT, () => {
-  console.log(`[hellgraph-service] listening on :${PORT} (engine exports: ${Object.keys(engine).length})`)
-  // Convergence backend: opt into RocksDB (same store model as Noetica, aligned to
-  // OpenCog atomspace-rocks) with HELLGRAPH_BACKEND=rocksdb. Falls back to the JSONL
-  // default if the binding is unavailable.
-  if (process.env['HELLGRAPH_BACKEND'] === 'rocksdb') {
-    const baseDir = process.env['HELLGRAPH_STORE_DIR'] as string
-    void attachRocksDB(getAtomSpace(), baseDir).then((rocks) => {
-      console.log(rocks
-        ? `[hellgraph-service] RocksDB backend active — ${rocks.storagePath()}`
-        : '[hellgraph-service] RocksDB requested but binding unavailable — using JSONL')
+function startLocalService(): void {
+  server.listen(PORT, () => {
+    console.log(`[hellgraph-service] listening on :${PORT} (engine exports: ${Object.keys(engine).length})`)
+    // Convergence backend: opt into RocksDB (same store model as Noetica, aligned to
+    // OpenCog atomspace-rocks) with HELLGRAPH_BACKEND=rocksdb. Falls back to the JSONL
+    // default if the binding is unavailable.
+    if (process.env['HELLGRAPH_BACKEND'] === 'rocksdb') {
+      const baseDir = process.env['HELLGRAPH_STORE_DIR'] as string
+      void attachRocksDB(getAtomSpace(), baseDir).then((rocks) => {
+        console.log(rocks
+          ? `[hellgraph-service] RocksDB backend active — ${rocks.storagePath()}`
+          : '[hellgraph-service] RocksDB requested but binding unavailable — using JSONL')
+      })
+    }
+  })
+}
+
+// Mode selection. HELLGRAPH_MODE=superpeer runs the cloud-twin federation replica (a bootstrapped
+// SuperPeer serving the causally-merged view over /health /cut /query /admit) instead of the local
+// AtomSpace service — one image, two roles. Anything else runs the local HTTP service (default).
+if (process.env['HELLGRAPH_MODE'] === 'superpeer') {
+  void startSuperPeerFromEnv()
+    .then((sp) => console.log(`[hellgraph-service] super-peer mode — base=${sp.baseKey} listening :${sp.port}`))
+    .catch((e) => {
+      console.error('[hellgraph-service] super-peer failed to start:', e)
+      process.exit(1)
     })
-  }
-})
+} else {
+  startLocalService()
+}
 
 export { server }
