@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hellgraph-federation
+  labels:
+    bundle: graph.twin
+  annotations:
+    # The edge is the federation CREATOR; its baseKey() is the federation identity the twin joins
+    # by. Publish it here once from the edge: `curl http://hellgraph:8850/health | jq -r .baseKey`
+    # (SuperPeerHealth.baseKey), or have the edge write it on startup. Until set, the twin has no
+    # federation to join. This is config, not a secret — the base key is a public join identity.
+    mount-intent.socioprophet.io/note: "edge federation base key (public join identity)"
+data:
+  base-key: "REPLACE_WITH_EDGE_BASE_KEY_64_HEX"
