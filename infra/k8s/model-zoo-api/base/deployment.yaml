@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-zoo-api
+  labels:
+    app: model-zoo-api
+    bundle: model.zoo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: model-zoo-api
+  template:
+    metadata:
+      labels:
+        app: model-zoo-api
+        bundle: model.zoo
+    spec:
+      containers:
+        - name: model-zoo-api
+          image: ghcr.io/socioprophet/model-zoo-api:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: MODEL_ZOO_POLICY_REF
+              valueFrom:
+                configMapKeyRef:
+                  name: model-zoo-api-config
+                  key: policy-ref
+            - name: MODEL_ZOO_PROMOTION_GATE
+              valueFrom:
+                secretKeyRef:
+                  name: model-zoo-api-credentials
+                  key: promotion-gate
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

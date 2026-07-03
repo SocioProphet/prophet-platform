@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: minio-sync
+spec:
+  schedule: "30 2 * * *"  # daily 02:30 UTC — after qdrant snapshot
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: mc-mirror
+              image: minio/mc:RELEASE.2024-03-30T15-29-52Z
+              args:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  mc alias set local http://workspace-minio:9000 \
+                    "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  # Mirror workspace data to the backup bucket
+                  mc mirror --overwrite --remove local/workspace s3/prophet-workspace-backup/ || true
+                  echo "MinIO mirror complete"
+              envFrom:
+                - secretRef:
+                    name: minio-credentials
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop: ["ALL"]

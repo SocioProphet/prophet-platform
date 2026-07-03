@@ -37,6 +37,9 @@ from .platform_records import (
     workspace_source_to_platform_record,
     workspace_synthesis_artifact_to_platform_record,
 )
+from .model_zoo import demo_model_zoo_entry
+from .model_zoo_enrichment import enrich_model_zoo_fixture
+from .model_zoo_promotion import demo_model_zoo_promotion_bundle, promotion_evidence, promotion_to_platform_record
 from .session import create_session, load_json, write_session_bundle
 from .workspace_flow import demo_workspace_flow, write_workspace_flow_bundle
 
@@ -356,6 +359,32 @@ def emit_lampstand_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+def emit_model_zoo_demo(args: argparse.Namespace) -> int:
+    fixture = demo_model_zoo_entry()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    fixture_path = args.output_dir / "model-zoo-fixture.json"
+    enrichment_path = args.output_dir / "model-zoo-enrichment.json"
+    records_path = args.output_dir / "model-zoo-platform-records.json"
+    fixture_path.write_text(json.dumps(fixture, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    enrichment_path.write_text(json.dumps(enrich_model_zoo_fixture(fixture), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    records_path.write_text(json.dumps(fixture["platformRecords"], indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(fixture_path), str(enrichment_path), str(records_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
+def emit_model_zoo_promotion(args: argparse.Namespace) -> int:
+    bundle = demo_model_zoo_promotion_bundle()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    bundle_path = args.output_dir / "model-zoo-promotion-bundle.json"
+    evidence_path = args.output_dir / "model-zoo-promotion-evidence.json"
+    record_path = args.output_dir / "model-zoo-promotion-platform-record.json"
+    bundle_path.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    evidence_path.write_text(json.dumps(promotion_evidence(bundle), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    record_path.write_text(json.dumps(promotion_to_platform_record(bundle), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps({"written": [str(bundle_path), str(evidence_path), str(record_path)]}, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lattice Studio governed notebook sessions, catalog assets, workspace sources, local dev, and PaaS lanes")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -436,6 +465,15 @@ def build_parser() -> argparse.ArgumentParser:
     execution_parser = subparsers.add_parser("emit-execution", help="Emit demo ExecutionRecord lineage artifacts")
     execution_parser.add_argument("--output-dir", type=Path, required=True)
     execution_parser.set_defaults(func=emit_execution)
+
+    model_zoo_demo_parser = subparsers.add_parser("emit-model-zoo-demo", help="Emit demo model zoo entry + enrichment + platform records")
+    model_zoo_demo_parser.add_argument("--output-dir", type=Path, required=True)
+    model_zoo_demo_parser.set_defaults(func=emit_model_zoo_demo)
+
+    model_zoo_promotion_parser = subparsers.add_parser("emit-model-zoo-promotion", help="Emit demo model zoo promotion bundle + evidence + platform record")
+    model_zoo_promotion_parser.add_argument("--output-dir", type=Path, required=True)
+    model_zoo_promotion_parser.set_defaults(func=emit_model_zoo_promotion)
+
     return parser
 
 

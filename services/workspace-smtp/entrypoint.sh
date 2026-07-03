@@ -65,6 +65,13 @@ DKIM_KEY="/etc/postfix/dkim/${DKIM_SELECTOR}.private"
 if [ -f "${DKIM_KEY}" ]; then
   echo "[smtp] DKIM key at ${DKIM_KEY} — starting opendkim for domain ${DKIM_DOMAIN}"
 
+  # The mounted key sits on a read-only Secret tmpfs; chmod/chown against it fail with EROFS and,
+  # under `set -e`, abort the entrypoint before opendkim/postfix ever start (CrashLoopBackOff).
+  # Stage a writable copy opendkim can own, and point KeyTable + chmod/chown at the copy.
+  mkdir -p /var/lib/opendkim
+  cp "${DKIM_KEY}" "/var/lib/opendkim/${DKIM_SELECTOR}.private"
+  DKIM_KEY="/var/lib/opendkim/${DKIM_SELECTOR}.private"
+
   mkdir -p /etc/opendkim /var/run/opendkim
 
   cat > /etc/opendkim.conf <<OKCONF

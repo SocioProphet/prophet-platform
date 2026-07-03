@@ -124,6 +124,15 @@ spec:
             path: infra/k8s/lattice-forge/overlays/p0-lab
             bundle: runtime.forge
             wave: "9"
+          # Tier 10.5 — Model zoo + model serving
+          - name: model-zoo-api
+            path: infra/k8s/model-zoo-api/overlays/p0-lab
+            bundle: model.zoo-api
+            wave: "10"
+          - name: kserve-community-truth
+            path: infra/k8s/kserve-inferenceservice/overlays/p0-lab
+            bundle: model.serving
+            wave: "10"
           # Tier 10 — Enrichment plane + MCP zero-trust
           - name: synapseiq-control-plane
             path: infra/k8s/synapseiq-control-plane/overlays/p0-lab
@@ -149,6 +158,19 @@ spec:
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
             wave: "10"
+          # Observability is deployed via infra/argocd/observability-stack.yaml (Wave 1 keystone),
+          # not through this appset — #674's duplicate observability entry dropped on merge.
+          # ── Sovereign Identity Broker ────────────────────────────────────
+          # Tier 11 — Identity plane
+          - name: sovereign-broker
+            path: infra/k8s/sovereign-broker/overlays/p0-lab
+            bundle: identity.broker
+            wave: "11"
+          # ── Geo / map services ────────────────────────────────────────────
+          - name: osm-map-api
+            path: infra/k8s/osm-map-api/overlays/p0-lab
+            bundle: geo.map-api
+            wave: "9"
           # ── Holmes / CairnPath / ContractForge ───────────────────────────
           # Tier 4.5 — Execution trace mesh
           - name: cairnpath-mesh

@@ -30,3 +30,7 @@ variable "gitops_path" {
   type    = string
   default = "deploy/argocd"
 }
+variable "subscription_id" {
+  type        = string
+  description = "Azure subscription ID — used to scope the GitHub CI Reader role"
+}
