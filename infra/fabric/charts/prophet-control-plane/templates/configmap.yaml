@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { include "prophet-control-plane.fullname" . }-config
+  labels:
+    app.kubernetes.io/name: prophet-control-plane
+    app.kubernetes.io/part-of: prophet-platform
+    socioprofit.com/atom: prophet-control-plane
+data:
+  # Add non-secret config here
+  LOG_LEVEL: "info"

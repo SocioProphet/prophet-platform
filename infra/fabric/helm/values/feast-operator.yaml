@@ -1,0 +1,5 @@
+# Feast Operator (manages Feast feature stores).
+# Keep this operator installed; then define Feast custom resources per tenant/team.
+
+replicaCount: 1
+resources: {}

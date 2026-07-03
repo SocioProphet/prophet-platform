@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/market-data-event.schema.json",
+  "title": "MarketDataEvent",
+  "type": "object",
+  "required": [
+    "event_id",
+    "instrument_id",
+    "venue_id",
+    "event_kind",
+    "event_time",
+    "raw_payload",
+    "canonical_payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string" },
+    "instrument_id": { "type": "string" },
+    "venue_id": { "type": "string" },
+    "event_kind": {
+      "type": "string",
+      "enum": [
+        "quote",
+        "trade",
+        "book_delta",
+        "book_snapshot",
+        "bar",
+        "venue_status",
+        "heartbeat",
+        "gap_marker"
+      ]
+    },
+    "event_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sequence_ref": {
+      "type": ["integer", "string"]
+    },
+    "feed_id": { "type": "string" },
+    "raw_payload": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "canonical_payload": {
+      "type": ["object", "array", "string", "number", "boolean", "null"]
+    },
+    "trace_context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "provenance_links": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "policy_labels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
