@@ -13,17 +13,17 @@ DEFAULT_TOOLS = [
     {
         "name": "fogstack.verify",
         "purpose": "Verify FogStack bundle conformance before release or deployment planning.",
-        "side_effects": false,
+        "side_effects": False,
     },
     {
         "name": "fogstack.build_deploy_plan",
         "purpose": "Build a deploy plan from a verified FogStack bundle manifest.",
-        "side_effects": true,
+        "side_effects": True,
     },
     {
         "name": "fogstack.check_deploy_plan",
         "purpose": "Check deploy-plan schema, references, and artifact digests.",
-        "side_effects": false,
+        "side_effects": False,
     },
 ]
 
