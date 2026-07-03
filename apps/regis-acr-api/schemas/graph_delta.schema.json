@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/schemas/regis/graph_delta.schema.json",
+  "title": "Regis Graph Delta Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "delta_id",
+    "schema_version",
+    "emitted_at",
+    "source_repo",
+    "source_run_id",
+    "trace_hash",
+    "operations"
+  ],
+  "properties": {
+    "delta_id": {"type": "string", "minLength": 1},
+    "schema_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "emitted_at": {"type": "string", "format": "date-time"},
+    "source_repo": {"type": "string", "minLength": 1},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "trace_hash": {"type": "string", "minLength": 1},
+    "analysis_artifact_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true,
+      "default": []
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/Operation"}
+    }
+  },
+  "$defs": {
+    "Operation": {
+      "oneOf": [
+        {"$ref": "#/$defs/UpsertNodeOperation"},
+        {"$ref": "#/$defs/UpsertEdgeOperation"},
+        {"$ref": "#/$defs/AttachArtifactOperation"},
+        {"$ref": "#/$defs/AttachWitnessOperation"},
+        {"$ref": "#/$defs/VetoEdgeOperation"},
+        {"$ref": "#/$defs/SplitEntityOperation"},
+        {"$ref": "#/$defs/UnmergeEntityOperation"},
+        {"$ref": "#/$defs/RevokeEdgeOperation"},
+        {"$ref": "#/$defs/ExpireNodeOperation"},
+        {"$ref": "#/$defs/ExpireEdgeOperation"}
+      ]
+    },
+    "UpsertNodeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "node"],
+      "properties": {
+        "kind": {"const": "UPSERT_NODE"},
+        "node": {"type": "object"}
+      }
+    },
+    "UpsertEdgeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "edge"],
+      "properties": {
+        "kind": {"const": "UPSERT_EDGE"},
+        "edge": {"type": "object"}
+      }
+    },
+    "AttachArtifactOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_id", "target_kind", "artifact_id", "relation"],
+      "properties": {
+        "kind": {"const": "ATTACH_ARTIFACT"},
+        "target_id": {"type": "string", "minLength": 1},
+        "target_kind": {"type": "string", "enum": ["NODE", "EDGE"]},
+        "artifact_id": {"type": "string", "minLength": 1},
+        "relation": {"type": "string", "enum": ["ATTESTED_BY_PROOF"]}
+      }
+    },
+    "AttachWitnessOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_id", "target_kind", "witness_id", "relation"],
+      "properties": {
+        "kind": {"const": "ATTACH_WITNESS"},
+        "target_id": {"type": "string", "minLength": 1},
+        "target_kind": {"type": "string", "enum": ["NODE", "EDGE"]},
+        "witness_id": {"type": "string", "minLength": 1},
+        "relation": {"type": "string", "enum": ["AUTHORIZED_BY_CONSENT"]}
+      }
+    },
+    "VetoEdgeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_edge_id", "reason_code", "artifact_id"],
+      "properties": {
+        "kind": {"const": "VETO_EDGE"},
+        "target_edge_id": {"type": "string", "minLength": 1},
+        "reason_code": {"type": "string", "minLength": 1},
+        "reason_detail": {"type": "string"},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "SplitEntityOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entity_id", "replacement_entity_ids", "reason_code", "artifact_id"],
+      "properties": {
+        "kind": {"const": "SPLIT_ENTITY"},
+        "entity_id": {"type": "string", "minLength": 1},
+        "replacement_entity_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "reason_code": {"type": "string", "minLength": 1},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "UnmergeEntityOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "entity_id", "member_node_ids", "reason_code", "artifact_id"],
+      "properties": {
+        "kind": {"const": "UNMERGE_ENTITY"},
+        "entity_id": {"type": "string", "minLength": 1},
+        "member_node_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "reason_code": {"type": "string", "minLength": 1},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "RevokeEdgeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_edge_id", "reason_code", "artifact_id"],
+      "properties": {
+        "kind": {"const": "REVOKE_EDGE"},
+        "target_edge_id": {"type": "string", "minLength": 1},
+        "reason_code": {"type": "string", "minLength": 1},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "ExpireNodeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_node_id", "effective_valid_to", "artifact_id"],
+      "properties": {
+        "kind": {"const": "EXPIRE_NODE"},
+        "target_node_id": {"type": "string", "minLength": 1},
+        "effective_valid_to": {"type": "string", "format": "date-time"},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "ExpireEdgeOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target_edge_id", "effective_valid_to", "artifact_id"],
+      "properties": {
+        "kind": {"const": "EXPIRE_EDGE"},
+        "target_edge_id": {"type": "string", "minLength": 1},
+        "effective_valid_to": {"type": "string", "format": "date-time"},
+        "artifact_id": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
