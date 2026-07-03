@@ -1,0 +1,7 @@
+apiVersion: v2
+name: socbase-schema
+description: One-shot Postgres bootstrap for Socbase (self-hosted Supabase-compatible auth+data layer) — creates the PostgREST role model and application tables on the shared platform Postgres, after GoTrue has created its "auth" schema. GoTrue and PostgREST themselves deploy via the generic charts/socioprophet-service chart (see deploy/values/socbase-auth.yaml, deploy/values/socbase-rest.yaml) — this chart exists only because a migration Job doesn't fit that chart's shape.
+type: application
+version: 0.1.0
+appVersion: "0.1"
+keywords: [postgres, migration, supabase, socbase]
