@@ -1,0 +1,12 @@
+# Bitnami MLflow chart (OSS).
+# For dev, the bundled DB option is fine.
+# For production, consider pointing MLflow at your Prophet Postgres (CNPG) and an S3 bucket for artifacts.
+
+tracking:
+  service:
+    type: ClusterIP
+
+# Example: use external object storage for artifacts (recommended).
+# extraEnvVars:
+#   - name: MLFLOW_S3_ENDPOINT_URL
+#     value: "http://minio.data.svc.cluster.local:9000"

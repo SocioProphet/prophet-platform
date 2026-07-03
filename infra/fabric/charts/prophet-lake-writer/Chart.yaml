@@ -1,0 +1,6 @@
+apiVersion: v2
+name: prophet-lake-writer
+description: Socioprofit platform atom: prophet-lake-writer
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

@@ -1,0 +1,12 @@
+# This is the 'cnpg/cluster' chart values (creates a Postgres cluster CR).
+# Inspect defaults with: helm show values cnpg/cluster
+cluster:
+  name: platform-pg
+  instances: 3
+
+storage:
+  size: 50Gi
+
+# Optional: backups to S3-compatible storage (MinIO/S3). Configure per env.
+# backup:
+#   enabled: true

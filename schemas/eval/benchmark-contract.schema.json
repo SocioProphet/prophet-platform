@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/benchmark-contract.schema.json",
+  "title": "BenchmarkContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["benchmark_contract_id", "candidate_id", "workload_family", "scenario_id", "dataset_ref", "baselines", "required_metric_definition_ids", "evidence_requirements"],
+  "properties": {
+    "benchmark_contract_id": {"type": "string", "minLength": 1},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "workload_family": {"type": "string", "minLength": 1},
+    "scenario_id": {"type": "string", "minLength": 1},
+    "dataset_ref": {"type": "string", "minLength": 1},
+    "baselines": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "required_metric_definition_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "context_slice_id": {"type": "string"},
+    "risk_tier": {"enum": ["low", "medium", "high", "critical"]},
+    "autonomy_tier": {"enum": ["chat_only", "tool_using_assistant", "tool_using_agent", "long_horizon_agent"]},
+    "minimum_trial_count": {"type": "integer", "minimum": 1},
+    "evidence_requirements": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "failure_modes_to_probe": {"type": "array", "items": {"type": "string"}},
+    "runtime_controls": {"type": "object", "additionalProperties": true}
+  }
+}

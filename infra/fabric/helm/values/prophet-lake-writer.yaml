@@ -1,0 +1,14 @@
+      image:
+        repository: ghcr.io/socioprofit/prophet-lake-writer
+        tag: "0.1.0"
+        pullPolicy: IfNotPresent
+
+      service:
+        type: ClusterIP
+  port: 8082
+
+      env:
+# SP_REGION: "us-east-1"
+# SP_LOG_LEVEL: "info"
+
+      resources: {}

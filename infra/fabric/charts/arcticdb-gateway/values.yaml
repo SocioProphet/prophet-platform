@@ -1,0 +1,14 @@
+image:
+  repository: arcticdb-gateway
+  tag: local
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+arcticdb:
+  uri: "s3://minio:9000/arcticdb?access=minio&secret=minio123456&region=us-east-1&use_ssl=False"
+  library: "marketdata"
+
+resources: {}

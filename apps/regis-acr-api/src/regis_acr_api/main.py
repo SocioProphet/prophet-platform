@@ -13,6 +13,12 @@ DEFAULT_POLICY_ID = "policy://regis-acr/default-promotion@0.1.0"
 
 app = FastAPI(title="Regis ACR API", version=SERVICE_VERSION)
 
+# Opt-in, subscription-gated entity-resolution spine. Additive to the ACR endpoints below;
+# the local-first Noetica core never depends on it (see er_spine.PLANE_INFO).
+from regis_acr_api import er_spine  # noqa: E402
+
+app.include_router(er_spine.router)
+
 
 class SourceRecordIngestRequest(BaseModel):
     source_record_id: str = Field(..., description="Stable source record id")
