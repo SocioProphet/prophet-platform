@@ -12,11 +12,16 @@
     "check:engine": "node scripts/check-engine-version.mjs"
   },
   "dependencies": {
-    "@socioprophet/hellgraph": "file:vendor/socioprophet-hellgraph-0.4.2.tgz"
+    "@socioprophet/hellgraph": "file:vendor/socioprophet-hellgraph-0.4.3.tgz"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"
+  },
+  "optionalDependencies": {
+    "autobase": "7.28.1",
+    "corestore": "7.11.0",
+    "hyperswarm": "4.17.0"
   }
 }
