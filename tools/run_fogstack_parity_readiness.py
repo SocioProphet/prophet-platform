@@ -39,32 +39,16 @@ def run_parity(output_dir: Path, clean: bool) -> dict[str, Any]:
         "tools/update_fogstack_local_demo_apply_plan.py",
         "--summary-json", str(local_summary),
     ])
-    run([
-        sys.executable,
-        "tools/update_fogstack_local_demo_approval_intent.py",
-        "--summary-json", str(local_summary),
-    ])
     full_record = load_json(full_summary)
     local_record = load_json(local_summary)
-    artifacts = local_record.get("artifacts", {}) if isinstance(local_record.get("artifacts"), dict) else {}
-    grafts = {
-        "live_apply_plan_record": artifacts.get("deploy_live_apply_plan_record"),
-        "approval_intent_record": artifacts.get("deploy_approval_intent_record"),
-    }
-    full_artifacts = full_record.setdefault("artifacts", {})
-    checks = full_record.setdefault("checks", [])
-    for key, ref in grafts.items():
-        if isinstance(ref, str):
-            full_artifacts[key] = ref
-    for check in [
-        "live_apply_plan_record_indexed",
-        "live_apply_plan_summary_appended",
-        "approval_intent_record_indexed",
-        "approval_intent_summary_appended",
-    ]:
-        if check not in checks:
-            checks.append(check)
-    full_summary.write_text(json.dumps(full_record, indent=2) + "\n", encoding="utf-8")
+    apply_ref = local_record.get("artifacts", {}).get("deploy_live_apply_plan_record")
+    if isinstance(apply_ref, str):
+        full_record.setdefault("artifacts", {})["live_apply_plan_record"] = apply_ref
+        checks = full_record.setdefault("checks", [])
+        for check in ["live_apply_plan_record_indexed", "live_apply_plan_summary_appended"]:
+            if check not in checks:
+                checks.append(check)
+        full_summary.write_text(json.dumps(full_record, indent=2) + "\n", encoding="utf-8")
     run([
         sys.executable,
         "tools/check_fogstack_parity_readiness.py",
