@@ -1,0 +1,73 @@
+# Edge → cloud-twin sync (diagram-4). Every 30m the edge rclones the HellGraph
+# RocksDB store to the S3-compatible twin. The twin holds canonical; the edge is
+# authoritative for the live per-person graph. Only non-private projections are
+# meant to cross — private nodes stay on-device (the ProviderProjection membrane
+# governs what may ever be exported).
+#
+# The job co-locates on the node holding the HellGraph pod (TopoLVM volumes are
+# node-local) and mounts its store PVC read-only. For strict point-in-time
+# consistency, interpose a VolumeSnapshot (topolvm-snapshots class is provided) —
+# see README. rclone remote + bucket come from the edge-twin-sync secret.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hellgraph-edge-twin-sync
+  namespace: socioprophet
+  labels:
+    bundle: edge-twin-sync
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: hellgraph-edge-twin-sync
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile: { type: RuntimeDefault }
+          affinity:
+            # Land on the node that holds the HellGraph pod (its TopoLVM volume is
+            # local to that node).
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels: { app: hellgraph }
+                  topologyKey: kubernetes.io/hostname
+          containers:
+            - name: push-to-twin
+              image: rclone/rclone:1.68
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+                  # Timestamped prefix per run → the twin keeps point-in-time copies.
+                  rclone sync /store "twin:${TWIN_BUCKET}/hellgraph/${NODE_NAME}/${STAMP}" \
+                    --config /config/rclone.conf --transfers 4 --checksum
+              env:
+                - name: NODE_NAME
+                  valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+                - name: TWIN_BUCKET
+                  valueFrom: { secretKeyRef: { name: edge-twin-sync, key: bucket } }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              volumeMounts:
+                - { name: store, mountPath: /store, readOnly: true }
+                - { name: rclone-config, mountPath: /config, readOnly: true }
+          volumes:
+            - name: store
+              persistentVolumeClaim:
+                claimName: hellgraph-store-hellgraph-0   # the StatefulSet's PVC (PR #675)
+                readOnly: true
+            - name: rclone-config
+              secret:
+                secretName: edge-twin-sync
+                items:
+                  - { key: rclone.conf, path: rclone.conf }

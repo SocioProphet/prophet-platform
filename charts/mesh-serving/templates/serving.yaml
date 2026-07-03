@@ -1,0 +1,73 @@
+{{- $ns := .Values.namespace | default "serving" -}}
+{{- $iron := .Values.iron -}}
+{{- $img := .Values.image -}}
+{{- $def := .Values.defaults -}}
+{{- $profile := .Values.profile -}}
+{{- range .Values.models }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-{{ .name }}
+  namespace: {{ $ns }}
+  labels:
+    app: mesh-{{ .name }}
+    app.kubernetes.io/part-of: mesh
+    mesh.socioprophet.ai/profile: {{ $profile }}
+    mesh.socioprophet.ai/purpose: {{ .name }}
+    {{- with .family }}
+    mesh.socioprophet.ai/family: {{ . }}
+    {{- end }}
+    lifecycle: ephemeral
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mesh-{{ .name }} }
+  template:
+    metadata:
+      labels: { app: mesh-{{ .name }}, mesh.socioprophet.ai/purpose: {{ .name }} }
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-accelerator: {{ $iron.accelerator }}
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      containers:
+        - name: vllm
+          image: {{ $img }}
+          args:
+            - "--model={{ required "each model needs .model (RESOLVE_* until the resolver fills it)" .model }}"
+            - "--port=8000"
+            - "--tensor-parallel-size={{ .tensorParallel | default .gpus }}"
+            - "--max-model-len={{ .maxModelLen | default $def.maxModelLen }}"
+            - "--gpu-memory-utilization={{ $def.gpuMemoryUtilization }}"
+            {{- if .quantization }}
+            - "--quantization={{ .quantization }}"
+            {{- end }}
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: {{ .gpus | quote }}
+          volumeMounts:
+            - { name: hf-cache, mountPath: /root/.cache/huggingface }
+            - { name: shm, mountPath: /dev/shm }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: {{ .readyDelaySeconds | default 60 }}
+            periodSeconds: 15
+            failureThreshold: {{ .readyFailureThreshold | default 40 }}
+      volumes:
+        - { name: hf-cache, emptyDir: {} }
+        - { name: shm, emptyDir: { medium: Memory, sizeLimit: 16Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mesh-{{ .name }}
+  namespace: {{ $ns }}
+  labels: { app: mesh-{{ .name }}, mesh.socioprophet.ai/purpose: {{ .name }} }
+spec:
+  selector: { app: mesh-{{ .name }} }
+  ports:
+    - { name: http, port: 8000, targetPort: 8000 }
+{{- end }}

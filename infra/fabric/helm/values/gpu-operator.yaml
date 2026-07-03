@@ -1,0 +1,8 @@
+# NVIDIA GPU Operator values (optional).
+# WARNING: This installs components like drivers/toolkit/device plugin unless disabled.
+# On clusters with pre-installed drivers/toolkit, set driver.enabled/toolkit.enabled accordingly.
+
+driver:
+  enabled: true
+toolkit:
+  enabled: true

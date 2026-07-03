@@ -1,0 +1,52 @@
+{
+  "candidate_id": "mesanet-fla",
+  "name": "MesaNet via Flash Linear Attention",
+  "status": "benchmark_candidate",
+  "family": "fixed_memory_test_time_optimization",
+  "summary": "MesaNet is evaluated as a bounded-context sequence layer that uses chunked conjugate-gradient local optimization. It is not a durable memory, search, ontology, or policy-store replacement.",
+  "implementation": {
+    "source_repo": "fla-org/flash-linear-attention",
+    "source_ref": "101240f396a6b53e452defb371e3d6e98211535a",
+    "license": "MIT",
+    "package": "flash-linear-attention",
+    "runtime_dependencies": ["PyTorch", "Triton", "einops", "transformers"],
+    "source_paths": [
+      "fla/layers/mesa_net.py",
+      "fla/ops/mesa_net/chunk.py",
+      "fla/ops/mesa_net/chunk_cg_solver_fwd.py",
+      "fla/models/mesa_net/modeling_mesa_net.py",
+      "fla/models/mesa_net/configuration_mesa_net.py"
+    ]
+  },
+  "workload_families": [
+    "retrieval_trace_replay",
+    "agent_memory_replay",
+    "operational_stream_modeling",
+    "academy_learning_trace_modeling"
+  ],
+  "primary_metrics": [
+    "md_answer_correctness",
+    "md_citation_grounding_precision",
+    "md_entity_retention_accuracy",
+    "md_prefill_latency_ms",
+    "md_decode_latency_ms",
+    "md_peak_memory_mb",
+    "md_cg_iteration_sensitivity"
+  ],
+  "risk_controls": [
+    "no_runtime_dependency_until_eval_evidence",
+    "pin_upstream_commit_and_artifact_hashes",
+    "probe_sparse_long_range_recall_failure",
+    "preserve_policy_boundary_retention_tests",
+    "require_no_network_fetch_at_runtime"
+  ],
+  "adoption_gates": [
+    "material_value_on_two_platform_workloads",
+    "no_grounding_or_policy_regression",
+    "measured_latency_or_memory_advantage",
+    "bounded_cg_iteration_variance",
+    "hybrid_attention_remediation_for_long_range_failures",
+    "accepted_supply_chain_review"
+  ],
+  "tracking_issue": "SocioProphet/prophet-platform#154"
+}

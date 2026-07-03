@@ -1,0 +1,29 @@
+# Defaults. A profile values file (deploy/serving/profiles/<tier>.yaml) overrides
+# `iron` + `models`. The base model is NEVER hardcoded here — profiles carry
+# RESOLVE_* placeholders that resolve-current-sota fills at run time with the top
+# open model that fits the profile's iron envelope (gpus × accelerator VRAM).
+
+profile: edge
+namespace: serving
+image: vllm/vllm-openai:v0.6.3
+
+defaults:
+  maxModelLen: 8192
+  gpuMemoryUtilization: 0.92
+
+# Iron for this profile (the GKE accelerator label all this profile's models run on).
+iron:
+  accelerator: nvidia-tesla-a100   # nvidia-l4 | nvidia-tesla-a100 | nvidia-h100-80gb
+
+# One served endpoint per purpose, each sized (gpus/tensorParallel) to the iron.
+# On big iron a single giant model can serve every purpose; on small iron you
+# field per-purpose specialists. Service name = mesh-<name>; the mesh router
+# targets mesh-<purpose>.<ns>.svc:8000/v1.
+models:
+  - name: general
+    model: RESOLVE_top_open_that_fits   # resolver fills with current #1 open model fitting the envelope
+    gpus: 1
+    tensorParallel: 1
+    # quantization: fp8          # optional, per model
+    readyDelaySeconds: 60
+    readyFailureThreshold: 40

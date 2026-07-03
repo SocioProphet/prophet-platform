@@ -1,0 +1,6 @@
+apiVersion: v2
+name: socioprofit-worker
+description: SocioProfit app atom: socioprofit-worker (runs on Prophet platform services)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

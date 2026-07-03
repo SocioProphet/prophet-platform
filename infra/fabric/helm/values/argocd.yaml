@@ -1,0 +1,8 @@
+# Minimal Argo CD install.
+# For production:
+# - integrate with SSO
+# - set repo credentials via external-secrets
+# - lock down admin access
+configs:
+  cm:
+    exec.enabled: "false"

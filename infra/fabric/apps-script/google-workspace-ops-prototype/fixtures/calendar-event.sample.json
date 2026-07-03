@@ -1,0 +1,9 @@
+{
+  "calendarId": "TODO_SP_CLOUD_VENDOR_STRATEGY_CALENDAR_ID",
+  "calendarName": "SP - Cloud Vendor Strategy",
+  "eventId": "fixture-calendar-event-001",
+  "summary": "Cloud Vendor Strategy Launch Council",
+  "start": "2026-06-12T15:00:00Z",
+  "end": "2026-06-12T16:00:00Z",
+  "description": "Weekly launch council.\n\nsocioprophet:\n  workstream: cloud-vendor-strategy\n  meeting_type: launch_council\n  canonical_issue: SocioProphet/socioprophet-standards-storage#91\n  decision_record: EDR-CVSP-2026-06-05-002\n  dashboard_key: cloud_vendor_strategy\n  owner_group: sp-launch-council\n  attendee_groups:\n    - sp-product\n    - sp-engineering\n    - sp-partner-gtm\n  required_artifacts:\n    - docs/standards/cloud-vendor-strategy/canonical/planspec.v1.yaml\n    - docs/standards/cloud-vendor-strategy/schemas/marketplace.event.v1.schema.json\n  expected_outputs:\n    - decisions\n    - action_items\n    - readiness_gate_updates\n  migration_target: GovernanceSession\n"
+}
