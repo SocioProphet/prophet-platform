@@ -15,6 +15,11 @@ metadata:
   namespace: socioprophet
   labels:
     bundle: edge-twin-sync
+  annotations:
+    # Declares what this job may egress to the cloud twin. Every listed intent MUST be
+    # egress-allowed (mount_intent.may_egress); tools/validate_mount_intent_egress.py fails
+    # the build otherwise. The HellGraph store is canonical_data (the source of truth).
+    mount-intent.socioprophet.io/egress: canonical_data
 spec:
   schedule: "*/30 * * * *"
   concurrencyPolicy: Forbid
