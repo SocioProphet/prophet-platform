@@ -56,3 +56,23 @@ module "wi_cicd" {
 
 output "wi_sa_emails" { value = module.wi_cicd.sa_emails }
 output "wi_k8s_annotations" { value = module.wi_cicd.k8s_annotation }
+
+# GitHub Actions OIDC federation for GCP drift detection.
+# Outputs become GitHub Actions *variables* (not secrets):
+#   GCP_WIF_PROVIDER  → module.github_ci_gcp.wif_provider
+#   GCP_TOFU_SA       → module.github_ci_gcp.sa_email
+module "github_ci_gcp" {
+  source            = "../../modules/github-oidc-gcp"
+  project_id        = local.project_ids["platform"]
+  github_repo       = "SocioProphet/prophet-platform"
+  state_bucket_name = "prophet-tofu-state-prod"
+}
+
+output "github_ci_wif_provider" {
+  value       = module.github_ci_gcp.wif_provider
+  description = "Set as GitHub Actions variable GCP_WIF_PROVIDER (not a secret)."
+}
+output "github_ci_sa_email" {
+  value       = module.github_ci_gcp.sa_email
+  description = "Set as GitHub Actions variable GCP_TOFU_SA (not a secret)."
+}

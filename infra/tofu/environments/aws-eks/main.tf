@@ -18,6 +18,7 @@ module "vpc" {
 
   enable_nat_gateway = true
   single_nat_gateway = true
+  tags               = local.prophet_tags
 }
 
 module "eks" {
@@ -28,6 +29,9 @@ module "eks" {
   cluster_version                          = "1.30"
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true
+  # Enable OIDC provider so IRSA can federate pod identity (no static AWS keys).
+  enable_irsa = true
+  tags        = local.prophet_tags
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -56,10 +60,77 @@ module "eks" {
   }
 }
 
+locals {
+  prophet_tags = {
+    "prophet.ai/managed-by" = "opentofu"
+    "prophet.ai/env"        = var.cluster_name
+    "org"                   = "socioprophet"
+    "source-of-truth"       = "git"
+  }
+}
+
+# IRSA — no static AWS credentials in pods (mirrors GCP Workload Identity)
+module "irsa" {
+  source          = "../../modules/irsa"
+  cluster_name    = var.cluster_name
+  oidc_issuer_url = module.eks.cluster_oidc_issuer_url
+  tags            = local.prophet_tags
+
+  bindings = {
+    argocd-deployer = {
+      k8s_namespace = "argocd"
+      k8s_sa_name   = "argocd-server"
+      policy_arns   = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
+    }
+    tekton-builder = {
+      k8s_namespace = "tekton-pipelines"
+      k8s_sa_name   = "tekton-builder"
+      policy_arns = [
+        "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser",
+        "arn:aws:iam::aws:policy/SecretsManagerReadWrite",
+      ]
+    }
+  }
+}
+
+# GitHub Actions OIDC — CI gets a federated IAM role, no static credentials
+module "github_ci" {
+  source            = "../../modules/github-oidc-aws"
+  github_repo       = "SocioProphet/prophet-platform"
+  state_bucket_name = "prophet-terraform-state"
+  lock_table_name   = "prophet-terraform-locks"
+  tags              = local.prophet_tags
+}
+
+# Budget alert — hard cap at $5k/month; alerts at 80% + 100% forecasted spend.
+resource "aws_budgets_budget" "prophet_platform" {
+  name              = "prophet-platform-monthly"
+  budget_type       = "COST"
+  limit_amount      = "5000"
+  limit_unit        = "USD"
+  time_unit         = "MONTHLY"
+
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 80
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["ops@socioprophet.ai"]
+  }
+  notification {
+    comparison_operator        = "GREATER_THAN"
+    threshold                  = 100
+    threshold_type             = "PERCENTAGE"
+    notification_type          = "FORECASTED"
+    subscriber_email_addresses = ["ops@socioprophet.ai"]
+  }
+}
+
 # Container registry (the ECR equivalent of GAR).
 resource "aws_ecr_repository" "images" {
   name         = "socioprophet"
   force_delete = true
+  tags         = local.prophet_tags
   image_scanning_configuration {
     scan_on_push = true
   }

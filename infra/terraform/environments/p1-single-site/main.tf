@@ -4,12 +4,14 @@
 
 terraform {
   backend "s3" {
-    # Fill in bucket/region or switch to a local backend for first run
-    bucket = "prophet-terraform-state"
-    key    = "p1-single-site/terraform.tfstate"
-    region = "us-east-1"
+    # Bucket provisioned by infra/terraform/bootstrap — versioning + AES256 enabled there.
+    bucket         = "prophet-terraform-state"
+    key            = "p1-single-site/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "prophet-terraform-locks"
+    encrypt        = true
     # For Hetzner Object Storage (S3-compatible):
-    # endpoint = "https://fsn1.your-objectstorage.com"
+    # endpoint         = "https://fsn1.your-objectstorage.com"
     # force_path_style = true
   }
 }
@@ -80,6 +82,10 @@ resource "hcloud_ssh_key" "prophet" {
 resource "hcloud_network" "main" {
   name     = "prophet-p1-net"
   ip_range = "10.10.0.0/16"
+  labels = {
+    "prophet.ai/env"        = "p1-single-site"
+    "prophet.ai/managed-by" = "terraform"
+  }
 }
 
 resource "hcloud_network_subnet" "nodes" {
@@ -91,6 +97,10 @@ resource "hcloud_network_subnet" "nodes" {
 
 resource "hcloud_firewall" "nodes" {
   name = "prophet-p1-nodes"
+  labels = {
+    "prophet.ai/env"        = "p1-single-site"
+    "prophet.ai/managed-by" = "terraform"
+  }
 
   rule {
     description = "SSH"

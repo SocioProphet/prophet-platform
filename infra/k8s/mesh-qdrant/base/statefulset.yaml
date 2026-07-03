@@ -50,6 +50,8 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: qdrant-storage
+        annotations:
+          argocd.argoproj.io/sync-options: Prune=false
       spec:
         accessModes:
           - ReadWriteOnce

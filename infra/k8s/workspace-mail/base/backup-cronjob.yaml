@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mail-backup
+spec:
+  schedule: "0 3 * * *"   # daily 03:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: mail-backup
+              image: ghcr.io/socioprophet/prophet-platform/workspace-backup:dev
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+                  tar czf /backup/mail-${STAMP}.tar.gz /maildata
+                  echo "Mail backup complete: mail-${STAMP}.tar.gz"
+              volumeMounts:
+                - name: mail-data
+                  mountPath: /maildata
+                  readOnly: true
+                - name: backup-target
+                  mountPath: /backup
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 250m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: mail-data
+              persistentVolumeClaim:
+                claimName: workspace-mail-data
+            - name: backup-target
+              persistentVolumeClaim:
+                claimName: workspace-mail-backup
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workspace-mail-backup
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi

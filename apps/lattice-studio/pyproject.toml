@@ -6,7 +6,13 @@ requires-python = ">=3.11"
 
 [project.scripts]
 lattice-studio = "lattice_studio.cli:main"
+lattice-model-zoo = "lattice_studio.model_zoo_cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
