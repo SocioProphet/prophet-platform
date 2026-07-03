@@ -1,0 +1,52 @@
+{
+  "manifest_version": "v1",
+  "manifest_kind": "osm-layer-manifest-candidate",
+  "layer_id": "gaia-osm-bounded-road-layer-v1",
+  "layer_type": "vector",
+  "title": "GAIA OSM Bounded Road Layer (Ingest Candidate)",
+  "production_tile_serving": false,
+  "tile_serving_note": "Fixture-backed placeholder. Not production tile serving. MVT URL is non-functional.",
+  "sources": [
+    {
+      "source_id": "osm-bounded-ingest-demo",
+      "source_type": "OpenStreetMap bounded extract",
+      "ingest_runner": "gaia-world-model/geospatial/osm_ingest.py",
+      "ingest_version": "v1"
+    }
+  ],
+  "tiles": {
+    "url_template": "https://tiles.example.invalid/{z}/{x}/{y}.mvt",
+    "format": "mvt",
+    "min_zoom": 10,
+    "max_zoom": 16,
+    "note": "Placeholder MVT template. Not production tile serving."
+  },
+  "spatial": {
+    "bbox": [-74.012, 40.705, -73.998, 40.718],
+    "crs": "EPSG:4326",
+    "h3_cells": ["8928308280fffff", "8928308281fffff"]
+  },
+  "attribution": {
+    "attribution_text": "© OpenStreetMap contributors",
+    "license_refs": ["ODbL-1.0"],
+    "source_urls": ["https://www.openstreetmap.org"],
+    "attribution_required": true
+  },
+  "provenance": {
+    "source_refs": ["osm-feature-bindings.v1.json", "osm-source-receipt.v1.json"],
+    "source_receipt_ref": "osm-source-receipt.v1.json",
+    "feature_binding_ref": "osm-feature-bindings.v1.json",
+    "ingest_runner_ref": "gaia-world-model#17",
+    "fixture_input_digest": "sha256:placeholder-bounded-ingest-input-digest-v1"
+  },
+  "classification": {
+    "data_class": "public",
+    "handling_tags": ["demo", "osm", "bounded-ingest", "fixture-backed"],
+    "advisory_classification": "OSM-derived data is advisory. Not validated for safety-critical use."
+  },
+  "status": {
+    "freshness": "fresh",
+    "generated_at": "2026-01-01T00:00:00Z",
+    "stale_after": "2026-12-31T23:59:59Z"
+  }
+}
