@@ -1,0 +1,274 @@
+helmDefaults:
+  wait: true
+  timeout: 1200
+  createNamespace: true
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  - name: questdb
+    url: https://helm.questdb.io
+  - name: altinity
+    url: https://helm.altinity.com
+  - name: istio
+    url: https://istio-release.storage.googleapis.com/charts
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: external-secrets
+    url: https://charts.external-secrets.io
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: argo
+    url: https://argoproj.github.io/argo-helm
+  - name: cnpg
+    url: https://cloudnative-pg.github.io/charts
+  - name: chaos-mesh
+    url: https://charts.chaos-mesh.org
+  - name: kuberay
+    url: https://ray-project.github.io/kuberay-helm/
+
+releases:
+  # --- SECURITY / IDENTITY ---
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    values:
+      - values/cert-manager.yaml
+
+  - name: external-secrets
+    namespace: external-secrets
+    chart: external-secrets/external-secrets
+    values:
+      - values/external-secrets.yaml
+    needs:
+      - cert-manager/cert-manager
+
+  # --- SERVICE MESH (STANDARD FABRIC) ---
+  - name: istio-base
+    namespace: istio-system
+    chart: istio/base
+    values:
+      - values/istio-base.yaml
+
+  - name: istiod
+    namespace: istio-system
+    chart: istio/istiod
+    values:
+      - values/istiod.yaml
+    needs:
+      - istio-system/istio-base
+
+  - name: istio-ingress
+    namespace: istio-ingress
+    chart: istio/gateway
+    values:
+      - values/istio-ingress.yaml
+    needs:
+      - istio-system/istiod
+
+  # --- OBSERVABILITY ---
+  - name: kube-prometheus-stack
+    namespace: observability
+    chart: prometheus-community/kube-prometheus-stack
+    values:
+      - values/kube-prometheus-stack.yaml
+
+  - name: loki
+    namespace: observability
+    chart: grafana/loki
+    values:
+      - values/loki.yaml
+
+  # --- CHAOS (OPTIONAL BUT STRONGLY RECOMMENDED FOR HA/DR CLAIMS) ---
+
+  # --- GITOPS ---
+  - name: argocd
+    namespace: argocd
+    chart: argo/argo-cd
+    values:
+      - values/argocd.yaml
+
+  - name: chaos-mesh
+    namespace: chaos-mesh
+    chart: chaos-mesh/chaos-mesh
+    values:
+      - values/chaos-mesh.yaml
+
+  # --- RAY (TRAIN + SERVE) ---
+  - name: kuberay-operator
+    namespace: kuberay-system
+    chart: kuberay/kuberay-operator
+    values:
+      - values/kuberay-operator.yaml
+
+  - name: prophet-ray-serve
+    namespace: prophet-ml
+    chart: ../charts/prophet-ray-serve
+    values:
+      - values/prophet-ray-serve.yaml
+    needs:
+      - kuberay-system/kuberay-operator
+
+  - name: prophet-ray-train
+    namespace: prophet-ml
+    chart: ../charts/prophet-ray-train
+    values:
+      - values/prophet-ray-train.yaml
+    needs:
+      - kuberay-system/kuberay-operator
+
+  # --- DATA PLANE: OBJECT STORE + LOG/Lake PRIMITIVES (DEV DEFAULT) ---
+  - name: minio
+    namespace: data
+    chart: bitnami/minio
+    values:
+      - values/minio.yaml
+
+  - name: kafka
+    namespace: data
+    chart: bitnami/kafka
+    values:
+      - values/kafka.yaml
+
+  # --- DATA PLANE: DATABASES / CACHES / GRAPHS ---
+  - name: cnpg
+    namespace: cnpg-system
+    chart: cnpg/cloudnative-pg
+    values:
+      - values/cnpg-operator.yaml
+
+  - name: postgres
+    namespace: data
+    chart: cnpg/cluster
+    values:
+      - values/cnpg-cluster.yaml
+    needs:
+      - cnpg-system/cnpg
+
+  - name: redis
+    namespace: data
+    chart: bitnami/redis
+    values:
+      - values/redis.yaml
+
+  - name: memcached
+    namespace: data
+    chart: bitnami/memcached
+    values:
+      - values/memcached.yaml
+
+  - name: blazegraph
+    namespace: data
+    chart: ../charts/blazegraph
+    values:
+      - values/blazegraph.yaml
+
+  # --- TIME SERIES / ANALYTICS LAYER ---
+  - name: questdb
+    namespace: data
+    chart: questdb/questdb
+    values:
+      - values/questdb.yaml
+
+  - name: clickhouse-operator
+    namespace: clickhouse-operator
+    chart: altinity/altinity-clickhouse-operator
+    values:
+      - values/clickhouse-operator.yaml
+
+  - name: clickhouse
+    namespace: data
+    chart: ../charts/clickhouse-chi
+    needs:
+      - clickhouse-operator/clickhouse-operator
+    values:
+      - values/clickhouse-chi.yaml
+
+  # ArcticDB is embedded; we wrap it in a gateway for K8 standardization.
+  - name: arcticdb-gateway
+    namespace: data
+    chart: ../charts/arcticdb-gateway
+    needs:
+      - data/minio
+    values:
+      - values/arcticdb-gateway.yaml
+
+    # --- SOCIOPROFIT PLATFORM (1st-party atoms) ---
+  - name: prophet-control-plane
+    namespace: prophet-system
+    chart: ../charts/prophet-control-plane
+    values:
+      - values/prophet-control-plane.yaml
+
+  - name: prophet-ingest-gateway
+    namespace: prophet-system
+    chart: ../charts/prophet-ingest-gateway
+    values:
+      - values/prophet-ingest-gateway.yaml
+
+  - name: prophet-lake-writer
+    namespace: prophet-system
+    chart: ../charts/prophet-lake-writer
+    values:
+      - values/prophet-lake-writer.yaml
+
+  - name: prophet-materializer-questdb
+    namespace: prophet-system
+    chart: ../charts/prophet-materializer-questdb
+    values:
+      - values/prophet-materializer-questdb.yaml
+    needs:
+      - data/questdb
+
+  - name: prophet-materializer-clickhouse
+    namespace: prophet-system
+    chart: ../charts/prophet-materializer-clickhouse
+    values:
+      - values/prophet-materializer-clickhouse.yaml
+    needs:
+      - data/clickhouse
+
+  - name: prophet-query-gateway
+    namespace: prophet-system
+    chart: ../charts/prophet-query-gateway
+    values:
+      - values/prophet-query-gateway.yaml
+
+  - name: prophet-reasoner
+    namespace: prophet-system
+    chart: ../charts/prophet-reasoner
+    values:
+      - values/prophet-reasoner.yaml
+
+  - name: prophet-agent
+    namespace: prophet-system
+    chart: ../charts/prophet-agent
+    values:
+      - values/prophet-agent.yaml
+
+# --- SOCIOPROFIT APP (runs over Prophet platform services) ---
+- name: socioprofit-api
+  namespace: socioprofit
+  chart: ../charts/socioprofit-api
+  values:
+    - values/socioprofit-api.yaml
+  needs:
+    - prophet-system/prophet-control-plane
+
+- name: socioprofit-web
+  namespace: socioprofit
+  chart: ../charts/socioprofit-web
+  values:
+    - values/socioprofit-web.yaml
+  needs:
+    - socioprofit/socioprofit-api
+
+- name: socioprofit-worker
+  namespace: socioprofit
+  chart: ../charts/socioprofit-worker
+  values:
+    - values/socioprofit-worker.yaml
+  needs:
+    - prophet-system/prophet-control-plane

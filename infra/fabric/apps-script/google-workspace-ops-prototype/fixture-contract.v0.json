@@ -1,0 +1,68 @@
+{
+  "version": "v0",
+  "implementation_issue": "SocioProphet/prophet-platform-fabric-mlops-ts-suite#49",
+  "standards_issue": "SocioProphet/socioprophet-standards-storage#92",
+  "root": "apps-script/google-workspace-ops-prototype",
+  "required_files": [
+    "README.md",
+    "DEPLOYMENT.md",
+    "INSTALL_CHECKLIST.md",
+    "config.example.json",
+    "setup.gs",
+    "sync-calendar-events-to-meetings.gs",
+    "parser-test.gs",
+    "seed-dashboard-rows.gs",
+    "seed-workspace-rows.gs",
+    "fixture-contract.v0.json",
+    "fixtures/calendar-event.sample.json",
+    "fixtures/dashboard-seed-rows.v0.csv",
+    "fixtures/workspace-seed-rows.v0.json"
+  ],
+  "apps_script_functions": [
+    "setupOperationsLedger",
+    "syncCalendarEventsToMeetings",
+    "runMetadataParserFixtureTest",
+    "runMetadataParserNegativeTest",
+    "seedDashboardRows",
+    "seedWorkspaceRows"
+  ],
+  "required_sheet_tabs": [
+    "Workstreams",
+    "Calendars",
+    "Groups",
+    "Meetings",
+    "Decisions",
+    "Requests",
+    "Responses",
+    "ActionItems",
+    "Risks",
+    "Artifacts",
+    "Automations",
+    "Dashboards",
+    "CloudVendorReadiness",
+    "MigrationReadiness"
+  ],
+  "required_config_keys": [
+    "spreadsheetId",
+    "syncWindowDaysBack",
+    "syncWindowDaysForward",
+    "dryRun",
+    "calendars",
+    "requiredMetadataFields",
+    "tabs"
+  ],
+  "required_calendar_metadata_fields": [
+    "workstream",
+    "meeting_type",
+    "canonical_issue",
+    "dashboard_key",
+    "expected_outputs"
+  ],
+  "safety_rules": [
+    "dryRun defaults to true",
+    "missing metadata is quarantined",
+    "every automation run logs to Automations when possible",
+    "Google Workspace is not canonical system of record",
+    "no secrets in calendar descriptions or ledger rows"
+  ]
+}

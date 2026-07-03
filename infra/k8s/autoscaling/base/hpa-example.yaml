@@ -1,0 +1,26 @@
+# HPA reference for stateless services (CPU-based). Adoption example — copy into a
+# service overlay and set the target Deployment. Requires metrics-server (bundled
+# with kube-prometheus-stack's kube-state-metrics is separate; ensure
+# metrics-server is present on the cluster).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: socioprophet-api
+  namespace: socioprophet
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: socioprophet-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300

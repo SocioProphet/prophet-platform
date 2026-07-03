@@ -1,0 +1,6 @@
+apiVersion: v2
+name: clickhouse-chi
+description: Deploy a ClickHouseInstallation (CHI) for the Altinity ClickHouse Operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

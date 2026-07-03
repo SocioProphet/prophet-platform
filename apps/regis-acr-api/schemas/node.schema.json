@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/schemas/regis/node.schema.json",
+  "title": "Regis Graph Node",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "node_id",
+    "kind",
+    "valid_time",
+    "system_time",
+    "attrs",
+    "provenance"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "PERSON",
+        "PSEUDONYM",
+        "RECORD",
+        "FEATURE_ATOM",
+        "EVENT",
+        "DEVICE",
+        "APP",
+        "SCOPE",
+        "SESSION",
+        "ENTITY_CLUSTER",
+        "ORG",
+        "ROLE",
+        "SERVICE_WORKLOAD",
+        "CREDENTIAL",
+        "PROOF_ARTIFACT",
+        "PROOF_INGRESS_RECORD",
+        "POLICY_WITNESS",
+        "CONSENT_WITNESS",
+        "SOURCE_GRAPH_VIEW",
+        "SOURCE_AUDIT_RECORD"
+      ]
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "prime_support": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "scope_tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Z0-9_]*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "REVOKED",
+        "EXPIRED"
+      ],
+      "default": "ACTIVE"
+    },
+    "valid_time": {
+      "$ref": "#/$defs/TimeRange"
+    },
+    "system_time": {
+      "$ref": "#/$defs/SystemTimeRange"
+    },
+    "attrs": {
+      "type": "object"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    }
+  },
+  "$defs": {
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "TimeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"$ref": "#/$defs/Timestamp"},
+        "to": {
+          "anyOf": [
+            {"$ref": "#/$defs/Timestamp"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "SystemTimeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_version", "to_version"],
+      "properties": {
+        "from_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "to_version": {
+          "anyOf": [
+            {"type": "integer", "minimum": 0},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_event_ids", "artifact_ids"],
+      "properties": {
+        "source_event_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        },
+        "witness_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        },
+        "delta_ids": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true,
+          "default": []
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "_reject_reason": "non_claims is missing — all CallEventEnvelopes must carry explicit non-claims",
+  "kind": "CallEventEnvelope",
+  "schema_version": "telephony-ingress.call-event.v0.1",
+  "event_id": "call-event://telephony/reject-001",
+  "call_ref": "call://pbx/session-reject-001",
+  "call_state": "active",
+  "ingress_channel": "pstn://+15550000001",
+  "caller_ref": "caller://pstn/+15550000001",
+  "routing_outcome": "routed_to_agent",
+  "event_class": "call.answered",
+  "occurred_at": "2026-06-11T10:00:00Z"
+}

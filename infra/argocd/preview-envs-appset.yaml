@@ -1,0 +1,41 @@
+# Ephemeral per-PR preview environments — the "spin up / spin down" for changes.
+# The PullRequest generator creates one Application (namespace pr-<N>) per open PR
+# and DELETES it when the PR closes (the generated list shrinks). Each preview
+# tears down automatically — no manual cleanup, no lingering cost.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: preview-envs
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - pullRequest:
+        github:
+          owner: SocioProphet
+          repo: prophet-platform
+          # Only PRs labelled `preview` get an environment (opt-in, cost-bounded).
+          labels:
+            - preview
+        requeueAfterSeconds: 120
+  template:
+    metadata:
+      name: 'preview-{{.number}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'pr-{{.number}}'
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform.git
+        targetRevision: '{{.head_sha}}'
+        path: infra/k8s/observability/base   # minimal preview stack; extend per need
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+  # When a PR closes it drops out of the generator → its Application (and namespace)
+  # is pruned. TTL bounds orphans if a PR lingers.
+  syncPolicy:
+    preserveResourcesOnDeletion: false

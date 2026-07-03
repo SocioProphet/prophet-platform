@@ -1,0 +1,20 @@
+{
+  "kind": "CallEventEnvelope",
+  "schema_version": "telephony-ingress.call-event.v0.1",
+  "event_id": "call-event://telephony/fallback-002",
+  "call_ref": "call://pbx/session-20260611-002",
+  "call_state": "transferring",
+  "ingress_channel": "sip://ivr.sociosphere.internal",
+  "caller_ref": "caller://pstn/+15559876543",
+  "callee_ref": "queue://support/human-handoff",
+  "routing_outcome": "human_handoff",
+  "event_class": "call.fallback_triggered",
+  "fallback_reason": "agent_capacity_exceeded",
+  "policy_decision_ref": "policy-fabric://decision/call-fallback-002",
+  "occurred_at": "2026-06-11T10:05:00Z",
+  "non_claims": [
+    "This envelope does not embed audio or transcript content.",
+    "Fallback routing does not constitute a policy override.",
+    "Policy authority remains Policy Fabric."
+  ]
+}

@@ -2,10 +2,10 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# git is needed to install the @socioprophet/hellgraph git dependency
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
-
 COPY package.json ./
+# @socioprophet/hellgraph is vendored as a prebuilt tarball (vendor/) — no git, no ssh, no
+# network, no rebuild. Deterministic; re-vendor with `npm pack` in ~/dev/hellgraph on version bump.
+COPY vendor ./vendor
 RUN npm install --no-audit --no-fund
 
 COPY tsconfig.json ./

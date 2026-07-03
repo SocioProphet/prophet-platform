@@ -1,0 +1,92 @@
+{
+  "counts": {
+    "blocked": 1,
+    "dead-letter": 0,
+    "pending": 2,
+    "waiting-approval": 1
+  },
+  "created_at": "2026-06-12T03:13:02Z",
+  "delivery_mode": "exactly_once_by_idempotency_key",
+  "non_mutating": true,
+  "queue": {
+    "blocked": [
+      {
+        "capability_id": "capability:block-raw-camera-export",
+        "event_id": "event:agent:request-raw-camera-export",
+        "idempotency_key": "idem:event:agent:request-raw-camera-export:capability:block-raw-camera-export:node:front-door-camera-01:policy-epoch-0",
+        "policy_outcome": "denied",
+        "receipt_refs": [
+          "receipt:policy:deny-raw-camera-export"
+        ],
+        "record_id": "record:block-raw-camera-export"
+      }
+    ],
+    "dead-letter": [],
+    "pending": [
+      {
+        "capability_id": "capability:cool-room-with-fan",
+        "event_id": "event:sensor:living-room-temp-high",
+        "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+        "policy_outcome": "allowed",
+        "receipt_refs": [
+          "receipt:event:living-room-temp-high",
+          "receipt:policy:allow-cool-living-room"
+        ],
+        "record_id": "record:cool-room-with-fan"
+      },
+      {
+        "capability_id": "capability:observe-camera-semantic-event",
+        "event_id": "event:camera:package-delivered",
+        "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+        "policy_outcome": "redacted",
+        "receipt_refs": [
+          "receipt:event:package-delivered"
+        ],
+        "record_id": "record:observe-package-delivery"
+      }
+    ],
+    "waiting-approval": [
+      {
+        "capability_id": "capability:arm-security-system",
+        "event_id": "event:agent:propose-arm-security",
+        "idempotency_key": "idem:event:agent:propose-arm-security:capability:arm-security-system:node:security-system-01:policy-epoch-0",
+        "policy_outcome": "requires_approval",
+        "receipt_refs": [
+          "receipt:agent:propose-arm-security",
+          "receipt:policy:requires-approval-arm-security"
+        ],
+        "record_id": "record:security-arm-needs-approval"
+      }
+    ]
+  },
+  "replay": {
+    "count": 2,
+    "non_mutating": true,
+    "records": [
+      {
+        "capability_id": "capability:cool-room-with-fan",
+        "event_id": "event:sensor:living-room-temp-high",
+        "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+        "policy_outcome": "allowed",
+        "receipt_refs": [
+          "receipt:event:living-room-temp-high",
+          "receipt:policy:allow-cool-living-room"
+        ],
+        "record_id": "record:cool-room-with-fan"
+      },
+      {
+        "capability_id": "capability:observe-camera-semantic-event",
+        "event_id": "event:camera:package-delivered",
+        "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+        "policy_outcome": "redacted",
+        "receipt_refs": [
+          "receipt:event:package-delivered"
+        ],
+        "record_id": "record:observe-package-delivery"
+      }
+    ],
+    "schema": "sourceos.orchestration.replay.v0.1",
+    "source_state": "pending"
+  },
+  "schema": "sourceos.orchestration.event-queue.v0.1"
+}

@@ -4,131 +4,172 @@ metadata:
   name: socioprophet
   namespace: argocd
 spec:
+  # Deployment order is enforced with Argo sync-waves (argocd.argoproj.io/sync-wave):
+  # lower waves sync (and become Healthy) before higher ones. Waves follow the
+  # dependency tiers already documented below — storage/vector-store first, product
+  # front-ends last — so e.g. HellGraph (wave 8) is up before its consumers.
   generators:
     - list:
         elements:
           - name: socioprophet-api
             path: apps/api/kustomize/overlays/dev
+            wave: "11"
           - name: socioprophet-gateway
             path: apps/gateway/kustomize/overlays/dev
+            wave: "12"
           - name: socioprophet-web
             path: apps/socioprophet-web/kustomize/overlays/dev
+            wave: "13"
           - name: search-orchestrator-academy-bridge
             path: infra/k8s/search-orchestrator/overlays/policy
             bundle: fogstack.knowledge
+            wave: "8"
           - name: workspace-mail
             path: infra/k8s/workspace-mail/overlays/p0-lab
             bundle: workspace.mail
+            wave: "2"
           - name: workspace-caldav
             path: infra/k8s/workspace-caldav/overlays/p0-lab
             bundle: workspace.caldav
+            wave: "2"
           - name: workspace-minio
             path: infra/k8s/workspace-minio/overlays/p0-lab
             bundle: workspace.storage
+            wave: "0"
           # ── Prophet Mesh — deployment order follows dependency tiers ─────────
           # Tier 0 — Vector store
           - name: mesh-qdrant
             path: infra/k8s/mesh-qdrant/overlays/p0-lab
             bundle: mesh.vector-store
+            wave: "0"
           # Tier 1 — Governance ledger (stateless)
           - name: mesh-governance-ledger
             path: infra/k8s/model-governance-ledger/overlays/p0-lab
             bundle: mesh.governance
+            wave: "1"
           # Tier 2 — Core services
           - name: mesh-memoryd
             path: infra/k8s/memoryd/overlays/p0-lab
             bundle: mesh.memory
+            wave: "2"
           - name: mesh-policy-fabric
             path: infra/k8s/policy-fabric/overlays/p0-lab
             bundle: mesh.policy
+            wave: "2"
           # Tier 3 — Routing + Registry
           - name: mesh-model-router
             path: infra/k8s/model-router/overlays/p0-lab
             bundle: mesh.routing
+            wave: "3"
           - name: mesh-agent-registry
             path: infra/k8s/agent-registry/overlays/p0-lab
             bundle: mesh.registry
+            wave: "3"
           # Tier 4 — Execution plane
           - name: mesh-superconscious
             path: infra/k8s/superconscious/overlays/p0-lab
             bundle: mesh.cognition
+            wave: "4"
           - name: mesh-agentplane
             path: infra/k8s/agentplane/overlays/p0-lab
             bundle: mesh.execution
+            wave: "4"
           # Tier 5 — ML substrate
           - name: mesh-tritfabric
             path: infra/k8s/tritfabric/overlays/p0-lab
             bundle: mesh.ml
+            wave: "5"
           # Tier 6 — Mesh conductor
           - name: mesh-conductor
             path: infra/k8s/prophet-mesh/overlays/p0-lab
             bundle: mesh.conductor
+            wave: "6"
           # ── SocioSphere extended tiers ────────────────────────────────────
           # Tier 7 — Platform shell + workspace controller
           - name: cloudshell-fog
             path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
             bundle: platform.shell
+            wave: "7"
           - name: sociosphere
             path: infra/k8s/sociosphere/overlays/p0-lab
             bundle: platform.controller
+            wave: "7"
           # Tier 8 — Graph kernel + entity graph + search
           - name: hellgraph
             path: infra/k8s/hellgraph/overlays/p0-lab
             bundle: graph.kernel
+            wave: "8"
           - name: regis-entity-graph
             path: infra/k8s/regis-entity-graph/overlays/p0-lab
             bundle: graph.entity
+            wave: "8"
           - name: sherlock-search
             path: infra/k8s/sherlock-search/overlays/p0-lab
             bundle: search.evidence
+            wave: "8"
           # Tier 9 — Catalog + query + intelligence + runtime forge
           - name: prophet-core-catalog
             path: infra/k8s/prophet-core-catalog/overlays/p0-lab
             bundle: data.catalog
+            wave: "9"
           - name: prophet-core-query
             path: infra/k8s/prophet-core-query/overlays/p0-lab
             bundle: data.query
+            wave: "9"
           - name: global-devsecops-intelligence
             path: infra/k8s/global-devsecops-intelligence/overlays/p0-lab
             bundle: intelligence.devsecops
+            wave: "9"
           - name: lattice-forge
             path: infra/k8s/lattice-forge/overlays/p0-lab
             bundle: runtime.forge
+            wave: "9"
           # Tier 10 — Enrichment plane + MCP zero-trust
           - name: synapseiq-control-plane
             path: infra/k8s/synapseiq-control-plane/overlays/p0-lab
             bundle: enrichment.control
+            wave: "10"
           - name: synapseiq-enrichment-api
             path: infra/k8s/synapseiq-enrichment-api/overlays/p0-lab
             bundle: enrichment.api
+            wave: "10"
           - name: synapseiq-enrichment-collector
             path: infra/k8s/synapseiq-enrichment-collector/overlays/p0-lab
             bundle: enrichment.collector
+            wave: "10"
           - name: synapseiq-reasoning-api
             path: infra/k8s/synapseiq-reasoning-api/overlays/p0-lab
             bundle: enrichment.reasoning
+            wave: "10"
           - name: synapseiq-tabular-alpha
             path: infra/k8s/synapseiq-tabular-alpha/overlays/p0-lab
             bundle: enrichment.tabular
+            wave: "10"
           - name: mcp-a2a-zero-trust
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
+            wave: "10"
           # ── Holmes / CairnPath / ContractForge ───────────────────────────
           # Tier 4.5 — Execution trace mesh
           - name: cairnpath-mesh
             path: infra/k8s/cairnpath-mesh/overlays/p0-lab
             bundle: execution.trace
+            wave: "4"
           # Tier 8 — Language intelligence
           - name: holmes
             path: infra/k8s/holmes/overlays/p0-lab
             bundle: intelligence.language
+            wave: "8"
           # Tier 9 — Contract lifecycle
           - name: contractforge
             path: infra/k8s/contractforge/overlays/p0-lab
             bundle: contracts.forge
+            wave: "9"
   template:
     metadata:
       name: '{{name}}'
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{wave}}'
     spec:
       project: default
       destination:

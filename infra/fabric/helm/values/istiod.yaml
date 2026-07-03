@@ -1,0 +1,2 @@
+# Standard sidecar mode by default.
+# For ambient mode, set profile=ambient and also install istio/cni + istio/ztunnel.

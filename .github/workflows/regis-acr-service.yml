@@ -29,9 +29,11 @@ jobs:
       - name: Install Regis ACR API dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r apps/regis-acr-api/requirements.txt
+          pip install -r apps/regis-acr-api/requirements-test.txt
           pip install PyYAML==6.0.2
       - name: Validate Regis ACR integration
         run: python tools/validate_regis_acr_integration.py
       - name: Smoke Regis ACR service
         run: python tools/smoke_regis_acr_service.py
+      - name: Unit tests (ER spine, entitlement gate, schema conformance)
+        run: cd apps/regis-acr-api && PYTHONPATH=src python -m pytest -q

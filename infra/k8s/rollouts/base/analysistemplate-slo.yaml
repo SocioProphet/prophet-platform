@@ -1,0 +1,35 @@
+# The canary gate. Argo Rollouts runs this analysis at each canary step and aborts
+# the rollout if the SLOs breach — reading the exact recording rules shipped in
+# Wave 1 (infra/k8s/observability). This is what makes promotion metric-gated
+# rather than time-based.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: slo-gate
+  namespace: socioprophet
+spec:
+  args:
+    - name: service        # the Rollout passes its job/service label in
+  metrics:
+    - name: error-ratio
+      interval: 1m
+      count: 5
+      # Fail the canary if the 5xx ratio exceeds 5% (matches HighErrorRatio SLO).
+      failureCondition: result[0] >= 0.05
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+          query: |
+            job:request_error_ratio:rate5m{job="{{args.service}}"}
+    - name: latency-p99
+      interval: 1m
+      count: 5
+      # Fail if p99 latency exceeds 1.5s.
+      failureCondition: result[0] >= 1.5
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+          query: |
+            job:request_latency_p99:5m{job="{{args.service}}"}

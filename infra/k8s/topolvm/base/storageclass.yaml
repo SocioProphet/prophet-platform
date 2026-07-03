@@ -1,0 +1,27 @@
+# TopoLVM StorageClass — local NVMe/flash-disk PVs for edge (k3s) nodes.
+#
+# The edge instance persists its HellGraph RocksDB store on local flash via
+# TopoLVM (dynamic LVM logical volumes) instead of a network/cloud disk, so the
+# per-person graph lives on-device. WaitForFirstConsumer so the volume is carved
+# on the node the pod actually lands on (topology-aware). allowVolumeExpansion so
+# the store can grow with the graph.
+#
+# PREREQ (operator, not in this manifest): the TopoLVM controller + lvmd DaemonSet
+# must be installed on the edge cluster with a volume group on the flash device.
+# See README.md. This StorageClass is inert until that provisioner is present —
+# safe to apply anywhere; only edge overlays reference it.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: topolvm-provisioner
+  labels:
+    bundle: storage.edge
+provisioner: topolvm.cybozu.com
+parameters:
+  "csi.storage.k8s.io/fstype": "ext4"
+  # Device-class selects which lvmd volume group to carve from (configured in the
+  # lvmd DaemonSet). "ssd" = the flash-disk VG on edge nodes.
+  "topolvm.cybozu.com/device-class": "ssd"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
