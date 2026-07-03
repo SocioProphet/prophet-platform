@@ -47,6 +47,7 @@ jobs:
           - { image: workspace-caldav,      context: services/workspace-caldav, dockerfile: Dockerfile }
           - { image: workspace-smtp,        context: services/workspace-smtp,   dockerfile: Dockerfile }
           - { image: search-orchestrator,   context: .,                         dockerfile: services/search-orchestrator/Dockerfile }
+          - { image: regis-acr-api,         context: apps/regis-acr-api,        dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
