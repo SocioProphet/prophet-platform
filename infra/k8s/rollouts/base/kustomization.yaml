@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# The AnalysisTemplate deploys (shared canary gate). The Rollout is an adoption
+# example only (would supersede the live Deployment) — not included here.
+resources:
+  - analysistemplate-slo.yaml
