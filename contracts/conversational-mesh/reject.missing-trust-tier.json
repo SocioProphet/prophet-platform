@@ -1,0 +1,16 @@
+{
+  "_reject_reason": "trust_tier is missing — all envelopes must carry an explicit trust tier",
+  "kind": "ConversationEnvelope",
+  "schema_version": "conversational-mesh.envelope.v0.1",
+  "envelope_id": "envelope://mesh/reject-001",
+  "source_channel": "slack://external-org/C99999",
+  "source_channel_type": "external_adapter",
+  "room_ref": "matrix://sociosphere.internal/!bridge-room-reject",
+  "room_kind": "bridge",
+  "sender_ref": "external://slack/user-unknown",
+  "fragility_tier": "standard",
+  "content_ref": "content://mesh/text/reject-001",
+  "content_kind": "text",
+  "received_at": "2026-06-11T10:00:00Z",
+  "non_claims": ["placeholder"]
+}

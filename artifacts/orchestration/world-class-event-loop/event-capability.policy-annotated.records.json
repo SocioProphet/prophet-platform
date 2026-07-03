@@ -1,0 +1,339 @@
+[
+  {
+    "capability": {
+      "allowed_event_types": [
+        "sensor.threshold_crossed"
+      ],
+      "approval_mode": "notify",
+      "capability_id": "capability:cool-room-with-fan",
+      "degraded_behavior": "do_not_actuate_emit_degraded_receipt",
+      "display_name": "Cool room with fan when hot",
+      "effect_class": "low_risk_actuation",
+      "owner": "guardrail-fabric",
+      "postconditions": [
+        "fan.speed == medium",
+        "evidence_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "temperature_f > 76",
+        "occupancy == present",
+        "target.trust_state == trusted"
+      ],
+      "rate_limit": {
+        "max_events": 3,
+        "window_seconds": 300
+      },
+      "required_policy_outcome": "allowed",
+      "target_node_types": [
+        "appliance"
+      ],
+      "timeout_ms": 1500
+    },
+    "event": {
+      "actor_id": "node:living-room-temp-01",
+      "causality": {
+        "idempotency_key": "idem:event:sensor:living-room-temp-high:capability:cool-room-with-fan:node:living-room-fan-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:sensor:living-room-temp-high",
+      "event_type": "sensor.threshold_crossed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "metric": "temperature_f",
+        "occupancy": "present",
+        "operator": ">",
+        "threshold": 76,
+        "value": 78.4
+      },
+      "target_node_id": "node:living-room-fan-01"
+    },
+    "evidence_refs": [
+      "receipt:event:living-room-temp-high",
+      "receipt:policy:allow-cool-living-room"
+    ],
+    "mode": "event-capability-evidence-v0",
+    "policy_decision": {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "low_risk_actuation",
+      "decision_id": "decision:event-capability:cool-room-with-fan",
+      "evaluated_at": "2026-06-12T03:13:02Z",
+      "event_id": "event:sensor:living-room-temp-high",
+      "outcome": "allowed",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Low-risk actuation is allowed when preconditions and trust state are valid."
+      ],
+      "subject_node_id": "node:living-room-fan-01"
+    },
+    "reaction": {
+      "capability_id": "capability:cool-room-with-fan",
+      "dead_letter_on_failure": true,
+      "event_id": "event:sensor:living-room-temp-high",
+      "policy_outcome": "allowed",
+      "reaction_id": "reaction:cool-room-with-fan",
+      "receipt_refs": [
+        "receipt:event:living-room-temp-high",
+        "receipt:policy:allow-cool-living-room"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "scheduled"
+    },
+    "record_id": "record:cool-room-with-fan",
+    "search_text": "sensor.threshold_crossed Cool room with fan when hot low_risk_actuation allowed {\"metric\": \"temperature_f\", \"occupancy\": \"present\", \"operator\": \">\", \"threshold\": 76, \"value\": 78.4}"
+  },
+  {
+    "capability": {
+      "allowed_event_types": [
+        "camera.semantic_event"
+      ],
+      "approval_mode": "none",
+      "capability_id": "capability:observe-camera-semantic-event",
+      "degraded_behavior": "metadata_only_receipt",
+      "display_name": "Observe camera semantic event",
+      "effect_class": "observe",
+      "owner": "sourceos-syncd",
+      "postconditions": [
+        "evidence_receipt.emitted == true",
+        "raw_video_retained == false"
+      ],
+      "preconditions": [
+        "adapter.health == healthy",
+        "privacy.redaction_class != raw_video"
+      ],
+      "rate_limit": {
+        "max_events": 120,
+        "window_seconds": 60
+      },
+      "required_policy_outcome": "redacted",
+      "target_node_types": [
+        "camera"
+      ],
+      "timeout_ms": 500
+    },
+    "event": {
+      "actor_id": "node:front-door-camera-01",
+      "causality": {
+        "idempotency_key": "idem:event:camera:package-delivered:capability:observe-camera-semantic-event:node:front-door-camera-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:camera:package-delivered",
+      "event_type": "camera.semantic_event",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "raw_video_retained": false,
+        "redaction_class": "metadata_only",
+        "summary": "package delivered"
+      },
+      "target_node_id": "node:front-door-camera-01"
+    },
+    "evidence_refs": [
+      "receipt:event:package-delivered"
+    ],
+    "mode": "event-capability-evidence-v0",
+    "policy_decision": {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "observe",
+      "decision_id": "decision:event-capability:observe-package-delivery",
+      "evaluated_at": "2026-06-12T03:13:02Z",
+      "event_id": "event:camera:package-delivered",
+      "outcome": "redacted",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Camera semantic observation is allowed only as redacted metadata in the bootstrap lane."
+      ],
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    "reaction": {
+      "capability_id": "capability:observe-camera-semantic-event",
+      "dead_letter_on_failure": true,
+      "event_id": "event:camera:package-delivered",
+      "policy_outcome": "redacted",
+      "reaction_id": "reaction:observe-package-delivery",
+      "receipt_refs": [
+        "receipt:event:package-delivered"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "scheduled"
+    },
+    "record_id": "record:observe-package-delivery",
+    "search_text": "camera.semantic_event Observe camera semantic event observe redacted {\"raw_video_retained\": false, \"redaction_class\": \"metadata_only\", \"summary\": \"package delivered\"}"
+  },
+  {
+    "capability": {
+      "allowed_event_types": [
+        "agent.plan_proposed"
+      ],
+      "approval_mode": "explicit_user_approval",
+      "capability_id": "capability:arm-security-system",
+      "degraded_behavior": "do_not_actuate_emit_degraded_receipt",
+      "display_name": "Arm household security system",
+      "effect_class": "high_risk_actuation",
+      "owner": "agentplane",
+      "postconditions": [
+        "security_system.state == armed",
+        "evidence_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "target.policy_labels contains security",
+        "approval.token.present == true"
+      ],
+      "rate_limit": {
+        "max_events": 2,
+        "window_seconds": 3600
+      },
+      "required_policy_outcome": "requires_approval",
+      "target_node_types": [
+        "service"
+      ],
+      "timeout_ms": 2000
+    },
+    "event": {
+      "actor_id": "node:agent-household-orchestrator",
+      "causality": {
+        "idempotency_key": "idem:event:agent:propose-arm-security:capability:arm-security-system:node:security-system-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:agent:propose-arm-security",
+      "event_type": "agent.plan_proposed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "approval_token_present": false,
+        "capability_class": "high_risk_actuation",
+        "requested_action": "arm_alarm"
+      },
+      "target_node_id": "node:security-system-01"
+    },
+    "evidence_refs": [
+      "receipt:agent:propose-arm-security",
+      "receipt:policy:requires-approval-arm-security"
+    ],
+    "mode": "event-capability-evidence-v0",
+    "policy_decision": {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "high_risk_actuation",
+      "decision_id": "decision:event-capability:security-arm-needs-approval",
+      "evaluated_at": "2026-06-12T03:13:02Z",
+      "event_id": "event:agent:propose-arm-security",
+      "outcome": "requires_approval",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "High-risk event capability requires explicit approval before execution."
+      ],
+      "subject_node_id": "node:security-system-01"
+    },
+    "reaction": {
+      "capability_id": "capability:arm-security-system",
+      "dead_letter_on_failure": true,
+      "event_id": "event:agent:propose-arm-security",
+      "policy_outcome": "requires_approval",
+      "reaction_id": "reaction:security-arm-needs-approval",
+      "receipt_refs": [
+        "receipt:agent:propose-arm-security",
+        "receipt:policy:requires-approval-arm-security"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "blocked_or_waiting"
+    },
+    "record_id": "record:security-arm-needs-approval",
+    "search_text": "agent.plan_proposed Arm household security system high_risk_actuation requires_approval {\"approval_token_present\": false, \"capability_class\": \"high_risk_actuation\", \"requested_action\": \"arm_alarm\"}"
+  },
+  {
+    "capability": {
+      "allowed_event_types": [
+        "agent.plan_proposed"
+      ],
+      "approval_mode": "not_overridable_in_first_slice",
+      "capability_id": "capability:block-raw-camera-export",
+      "degraded_behavior": "deny_closed",
+      "display_name": "Block raw camera export",
+      "effect_class": "high_risk_actuation",
+      "owner": "guardrail-fabric",
+      "postconditions": [
+        "raw_video_exported == false",
+        "denial_receipt.emitted == true"
+      ],
+      "preconditions": [
+        "requested_action == export_raw_video"
+      ],
+      "rate_limit": {
+        "max_events": 1000,
+        "window_seconds": 3600
+      },
+      "required_policy_outcome": "denied",
+      "target_node_types": [
+        "camera"
+      ],
+      "timeout_ms": 300
+    },
+    "event": {
+      "actor_id": "node:agent-household-orchestrator",
+      "causality": {
+        "idempotency_key": "idem:event:agent:request-raw-camera-export:capability:block-raw-camera-export:node:front-door-camera-01:policy-epoch-0",
+        "parent_event_ids": [],
+        "policy_epoch": "policy-epoch-0",
+        "trace_id": "trace:event-capability:fixture"
+      },
+      "event_id": "event:agent:request-raw-camera-export",
+      "event_type": "agent.plan_proposed",
+      "occurred_at": "2026-05-06T12:00:00Z",
+      "payload": {
+        "capability_class": "high_risk_actuation",
+        "requested_action": "export_raw_video"
+      },
+      "target_node_id": "node:front-door-camera-01"
+    },
+    "evidence_refs": [
+      "receipt:policy:deny-raw-camera-export"
+    ],
+    "mode": "event-capability-evidence-v0",
+    "policy_decision": {
+      "actor_id": "adapter:guardrail-fabric-fixture",
+      "capability_class": "high_risk_actuation",
+      "decision_id": "decision:event-capability:block-raw-camera-export",
+      "evaluated_at": "2026-06-12T03:13:02Z",
+      "event_id": "event:agent:request-raw-camera-export",
+      "outcome": "denied",
+      "policy_package": "guardrail-fabric/device-orchestration@0.1",
+      "reasons": [
+        "Camera media release is denied by default in the first orchestration slice."
+      ],
+      "subject_node_id": "node:front-door-camera-01"
+    },
+    "reaction": {
+      "capability_id": "capability:block-raw-camera-export",
+      "dead_letter_on_failure": true,
+      "event_id": "event:agent:request-raw-camera-export",
+      "policy_outcome": "denied",
+      "reaction_id": "reaction:block-raw-camera-export",
+      "receipt_refs": [
+        "receipt:policy:deny-raw-camera-export"
+      ],
+      "retry": {
+        "backoff_ms": 0,
+        "max_attempts": 1
+      },
+      "scheduled_at": "2026-05-06T12:00:01Z",
+      "status": "blocked_or_waiting"
+    },
+    "record_id": "record:block-raw-camera-export",
+    "search_text": "agent.plan_proposed Block raw camera export high_risk_actuation denied {\"capability_class\": \"high_risk_actuation\", \"requested_action\": \"export_raw_video\"}"
+  }
+]
