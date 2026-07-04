@@ -25,3 +25,8 @@ build/
 
 # Never commit runtime-generated private keys
 artifacts/runtime/**/private.pem
+
+# Local secrets — real .env files never get committed; .env.example templates do
+.env
+*.env
+!.env.example

@@ -92,3 +92,6 @@ tolerations: []
 affinity: {}
 podAnnotations: {}
 podLabels: {}
+
+# Legacy docker-link service env vars (<SVC>_PORT=tcp://…) — disable per-service to avoid collisions.
+enableServiceLinks: true

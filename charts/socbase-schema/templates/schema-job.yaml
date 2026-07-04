@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: socbase-schema
+data:
+  socbase-schema.sql: |-
+{{ .Files.Get "files/socbase-schema.sql" | indent 4 }}
+---
+# Runs the app schema AFTER GoTrue has created auth.users on its own first
+# boot — GoTrue owns the "auth" schema entirely and our tables FK into it.
+# Polls with a timeout instead of assuming Helm hook ordering vs. a running
+# Deployment (there's no Job-vs-Job ordering to lean on here, unlike two Jobs).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: socbase-schema
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: postgres:16-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "waiting for GoTrue's auth.users to exist on {{ .Values.postgres.host }}/{{ .Values.postgres.db }}..."
+              for i in $(seq 1 60); do
+                if psql "host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER" -tAc \
+                  "select to_regclass('auth.users') is not null" 2>/dev/null | grep -q t; then
+                  echo "auth.users found."
+                  break
+                fi
+                echo "  not ready yet (attempt $i/60), sleeping 5s"
+                sleep 5
+              done
+              echo "applying socbase schema..."
+              psql "host=$PGHOST port=$PGPORT dbname=$PGDATABASE user=$PGUSER" \
+                -v ON_ERROR_STOP=1 -v authpw="$AUTHENTICATOR_PASSWORD" \
+                -f /sql/socbase-schema.sql
+              echo "done."
+          env:
+            {{- include "socbase.pgAdminEnv" . | nindent 12 }}
+            - name: AUTHENTICATOR_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.authenticator.existingSecret }}, key: password } }
+          volumeMounts:
+            - { name: sql, mountPath: /sql }
+      volumes:
+        - name: sql
+          configMap: { name: socbase-schema }
