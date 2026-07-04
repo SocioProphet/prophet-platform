@@ -1,0 +1,12 @@
+{
+  "kind": "ProphetOperationsActionDecision",
+  "schema_version": "v1",
+  "decision_id": "op-deploy-001",
+  "decided_at": "2026-07-03T00:00:00Z",
+  "recommendation_ref": "urn:srcos:recommendation:deploy-001",
+  "subject": {"id": "urn:srcos:agent:ops-runner", "type": "service"},
+  "proposed_action": {"type": "deployment.apply", "intent": "roll out fogstack v0.1"},
+  "decision": {"outcome": "allow", "risk_level": "high"},
+  "basis": {"policy_refs": ["urn:srcos:policy:ops-default"]},
+  "controls": {"requires_human_approval": true}
+}

@@ -510,3 +510,12 @@ validate-semantic-governance:
 
 validate-orggov-runtime-demo:
 	python3 tools/validate_orggov_runtime_demo.py
+
+validate-capability-membrane:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip pytest cryptography >/dev/null && pytest -q tools/tests/test_capability_membrane.py tools/tests/test_membrane_identity.py tools/tests/test_membrane_adversarial.py tools/tests/test_gapi_edge_policy.py tools/tests/test_ghost_audit.py tools/tests/test_proof_of_emptiness.py
+	mkdir -p build/capability-membrane
+	# CLI exits 3 on a non-allow (here REQUIRE_SIGNATURE→ask); the gate asserts a
+	# sealed receipt was still emitted for the deferred decision.
+	python3 -m tools.capability_membrane --operation fixtures/capability-membrane/operation-deploy-apply.decision.json --surface deployment --access destructive --tension policy,identity,provenance,evidence,replay,revocation,audit,post_authority_ref --autonomy-level L4 --evidence conductor_response_envelope --out build/capability-membrane/deploy-apply.sealed.json || true
+	test -s build/capability-membrane/deploy-apply.sealed.json
