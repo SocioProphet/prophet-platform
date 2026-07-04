@@ -1,5 +1,5 @@
 # socioprophet-gateway — HTTP edge gateway
-image: { repository: socioprophet-gateway }
+image: { repository: socioprophet-gateway, tag: latest }
 service: { port: 8080, portName: http }
 ingress:
   enabled: true

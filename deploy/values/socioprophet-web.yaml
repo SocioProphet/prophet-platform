@@ -1,5 +1,5 @@
 # socioprophet-web — web portal
-image: { repository: socioprophet-web }
+image: { repository: socioprophet-web, tag: latest }
 service: { port: 8080, portName: http }
 ingress:
   enabled: true
