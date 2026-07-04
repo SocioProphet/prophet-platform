@@ -34,6 +34,7 @@ class StateDelta:
     subject: str
     authorized_by: Optional[str] = None   # receipt id it claims authorized it
     at: str = ""
+    is_erasure: bool = False              # a deletion/redaction — needs a Proof-of-Emptiness
 
 
 @dataclass
@@ -94,13 +95,21 @@ def audit(
     count as authorizing (defends against a forged/absent receipt). `verify` is
     a callable (e.g. membrane_identity.verify_sealed) taking the sealed record.
     """
+    from tools.proof_of_emptiness import is_valid_poe
+
     # Index authorizing receipts: enforced ALLOW, optionally signature-verified.
+    # Proof-of-Emptiness receipts are indexed separately — an erasure is authorized
+    # by a *valid PoE*, never by an ordinary enforced-allow (that would be a silent sink).
     authorizing: Dict[str, str] = {}   # receipt_id -> failure reason ("" = ok)
+    poe_ok: Dict[str, bool] = {}       # receipt_id -> is this a valid Proof-of-Emptiness
     signed_ok: Dict[str, bool] = {}
     for entry in journal:
         rc = _receipt_of(entry)
         rid = rc.get("id")
         if not rid:
+            continue
+        if rc.get("type") == "ProofOfEmptiness":
+            poe_ok[rid] = is_valid_poe(entry)
             continue
         if require_signed:
             sig_ok = bool(verify and verify(entry) if isinstance(entry, dict) and "signature" in entry else False)
@@ -116,6 +125,23 @@ def audit(
     attested = 0
     for d in deltas:
         rid = d.authorized_by
+
+        # Erasures obey the stricter no-silent-sinks rule: a certified PoE, or ghost.
+        if d.is_erasure:
+            if not rid:
+                ghosts.append(Ghost(d.id, "uncertified_erase", "deletion with no Proof-of-Emptiness"))
+            elif rid in poe_ok:
+                if poe_ok[rid]:
+                    attested += 1
+                else:
+                    ghosts.append(Ghost(d.id, "uncertified_erase", f"PoE {rid} did not reach ∅ (H(X₀)≠H(∅))"))
+            elif rid in authorizing:
+                ghosts.append(Ghost(d.id, "not_a_proof_of_emptiness",
+                                    f"deletion authorized by ordinary receipt {rid} (silent sink)"))
+            else:
+                ghosts.append(Ghost(d.id, "receipt_missing", f"claims PoE {rid} absent from journal"))
+            continue
+
         if not rid:
             ghosts.append(Ghost(d.id, "no_receipt", "state change with no authorizing receipt"))
             continue
@@ -136,7 +162,8 @@ def audit(
 def _load_deltas(raw: Sequence[Dict[str, Any]]) -> List[StateDelta]:
     return [
         StateDelta(id=d["id"], action=d.get("action", ""), subject=d.get("subject", ""),
-                   authorized_by=d.get("authorized_by"), at=d.get("at", ""))
+                   authorized_by=d.get("authorized_by"), at=d.get("at", ""),
+                   is_erasure=bool(d.get("is_erasure", False)))
         for d in raw
     ]
 
