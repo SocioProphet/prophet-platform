@@ -1,7 +1,6 @@
 {{- if .Values.gitea.enabled }}
-# Gitea — sovereign git + developer workspace, integrated into Workspace/one. Single sovereign login via OIDC to the
-# broker (id.<domain>); Postgres-backed; served at git.<domain>. This is our Git product (GitHub/GitLab replacement),
-# part of the suite, not a bolt-on.
+# Gitea — sovereign git + developer workspace. Single sovereign login via the broker (id.<domain>) OIDC
+# auth-code flow; Postgres-backed; served at git.<domain>. This is our Git product (GitHub/GitLab replacement).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,11 +30,11 @@ spec:
               valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
             - name: GITEA__database__PASSWD
               valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
-            # NOTE (honest): the broker currently exposes a custom assertion flow (enroll/challenge/verify), NOT OIDC
-            # authorization-code (no authorization_endpoint/token_endpoint/userinfo yet). So sovereign SSO into Gitea
-            # is a TODO — until the broker grows the auth-code endpoints + a Gitea OAuth2 auth source is registered
-            # (via `gitea admin auth add-oauth`), Gitea uses LOCAL auth. Bootstrap an admin out-of-band.
             - { name: GITEA__service__DISABLE_REGISTRATION, value: "true" }
+            - { name: GITEA__security__INSTALL_LOCK, value: "true" }
+            {{- if and .Values.gitea.oidc.enabled .Values.gitea.oidc.brokerUrl }}
+            - { name: GITEA__oauth2__ENABLED, value: "true" }
+            {{- end }}
           volumeMounts:
             - { name: data, mountPath: /data }
           resources: {{- toYaml .Values.resources | nindent 12 }}
@@ -84,4 +83,61 @@ spec:
           - path: /
             pathType: Prefix
             backend: { service: { name: workspace-gitea, port: { number: 3000 } } }
+{{- end }}
+{{- if and .Values.gitea.enabled .Values.gitea.oidc.enabled .Values.gitea.oidc.brokerUrl }}
+---
+# One-shot Job that registers the sovereign broker as a Gitea OAuth2 authentication source.
+# Runs via Helm hook after install/upgrade; safe to re-run (skips if already configured).
+# Communicates directly with Postgres — no running Gitea process required.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: workspace-gitea-oidc-setup
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "5"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: setup
+          image: {{ .Values.gitea.image }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              echo "[gitea-oidc] Waiting for Gitea database..."
+              # `gitea admin auth list` exits 0 if DB is reachable, non-zero otherwise
+              until gitea admin auth list >/dev/null 2>&1; do sleep 5; done
+
+              EXISTING=$(gitea admin auth list 2>/dev/null | grep -c "Sovereign" || true)
+              if [ "${EXISTING}" -gt 0 ]; then
+                echo "[gitea-oidc] Sovereign OIDC source already registered — nothing to do"
+                exit 0
+              fi
+
+              echo "[gitea-oidc] Registering sovereign broker as OIDC source..."
+              gitea admin auth add-oauth \
+                --name "Sovereign" \
+                --provider openidConnect \
+                --key "{{ .Values.gitea.oidc.clientId }}" \
+                --secret "${OIDC_CLIENT_SECRET:-}" \
+                --auto-discover-url "{{ .Values.gitea.oidc.brokerUrl }}/.well-known/openid-configuration" \
+                --skip-local-two-fa
+              echo "[gitea-oidc] Done."
+          env:
+            - { name: GITEA__database__DB_TYPE, value: "postgres" }
+            - { name: GITEA__database__HOST, value: "{{ .Values.postgres.host }}:{{ .Values.postgres.port }}" }
+            - { name: GITEA__database__NAME, value: {{ .Values.gitea.db | quote }} }
+            - name: GITEA__database__USER
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: username } }
+            - name: GITEA__database__PASSWD
+              valueFrom: { secretKeyRef: { name: {{ .Values.postgres.existingSecret }}, key: password } }
+            {{- if .Values.gitea.oidc.clientSecretSecret }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .Values.gitea.oidc.clientSecretSecret }}, key: secret } }
+            {{- end }}
 {{- end }}

@@ -1,0 +1,91 @@
+{
+  "levels": [
+    {
+      "enforced_at": "noetica",
+      "evidence_required": "none",
+      "gate": "none",
+      "label": "manual",
+      "level": "L0",
+      "rank": 0,
+      "roles": []
+    },
+    {
+      "enforced_at": "noetica",
+      "evidence_required": "trail_log",
+      "gate": "surface_disclosure",
+      "label": "assisted",
+      "level": "L1",
+      "rank": 1,
+      "roles": [
+        "coding",
+        "writing"
+      ]
+    },
+    {
+      "enforced_at": "prophet-platform",
+      "evidence_required": "test_result_or_review_receipt",
+      "gate": "tests_or_review",
+      "label": "automated_unit",
+      "level": "L2",
+      "rank": 2,
+      "roles": [
+        "coding",
+        "analytics"
+      ]
+    },
+    {
+      "enforced_at": "prophet-platform",
+      "evidence_required": "evidence_dossier",
+      "gate": "evidence_grounded",
+      "label": "automated_design",
+      "level": "L3",
+      "rank": 3,
+      "roles": [
+        "planning",
+        "research",
+        "analytics"
+      ]
+    },
+    {
+      "enforced_at": "prophet-platform",
+      "evidence_required": "conductor_response_envelope",
+      "gate": "channel_governed",
+      "label": "automated_solution",
+      "level": "L4",
+      "rank": 4,
+      "roles": [
+        "conductor",
+        "planning",
+        "research",
+        "coding",
+        "writing",
+        "analytics",
+        "operations"
+      ]
+    },
+    {
+      "enforced_at": "tritfabric",
+      "evidence_required": "continuous_attestation_with_revocation",
+      "gate": "chartered_envelope",
+      "label": "autonomous_governed",
+      "level": "L5",
+      "rank": 5,
+      "roles": [
+        "conductor",
+        "operations",
+        "governance-sentinel"
+      ]
+    }
+  ],
+  "name": "prophet-mesh-ai-driven-development",
+  "source": "SocioProphet/prophet-mesh:specs/ai-driven-development.yaml",
+  "trust_kernel_gate_order": [
+    "identity",
+    "policy",
+    "evidence",
+    "attestation",
+    "revocation",
+    "audit"
+  ],
+  "version": "0.1.0"
+}

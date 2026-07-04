@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: socioprophet
+# The SnapshotClass + SA + CronJob deploy on edge (p-edge). The ExternalSecret is
+# an example (needs a real secret store) — not included here.
+resources:
+  - volumesnapshotclass.yaml
+  - serviceaccount.yaml
+  - sync-cronjob.yaml

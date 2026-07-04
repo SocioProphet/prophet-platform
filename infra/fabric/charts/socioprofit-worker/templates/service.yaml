@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: { include "socioprofit-worker.fullname" . }
+  labels:
+    app.kubernetes.io/name: socioprofit-worker
+    app.kubernetes.io/part-of: socioprofit
+    prophet.ai/atom: socioprofit-worker
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: socioprofit-worker
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http

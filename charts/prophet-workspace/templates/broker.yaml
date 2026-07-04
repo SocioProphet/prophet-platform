@@ -21,6 +21,13 @@ spec:
           env:
             - { name: BROKER_ISS, value: "https://{{ .Values.brokerHostname }}" }
             - { name: BROKER_TOKEN_TTL, value: {{ .Values.broker.tokenTtlSec | quote }} }
+            - { name: NODE_ENV, value: "production" }
+            {{- if .Values.broker.clients }}
+            - { name: BROKER_CLIENTS, value: {{ .Values.broker.clients | toJson | quote }} }
+            {{- end }}
+            {{- if .Values.broker.appName }}
+            - { name: BROKER_APP_NAME, value: {{ .Values.broker.appName | quote }} }
+            {{- end }}
             - name: PGHOST
               value: {{ .Values.postgres.host | quote }}
             - name: PGDATABASE

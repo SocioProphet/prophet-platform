@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: { include "prophet-ingest-gateway.fullname" . }-config
+  labels:
+    app.kubernetes.io/name: prophet-ingest-gateway
+    app.kubernetes.io/part-of: prophet-platform
+    socioprofit.com/atom: prophet-ingest-gateway
+data:
+  # Add non-secret config here
+  LOG_LEVEL: "info"

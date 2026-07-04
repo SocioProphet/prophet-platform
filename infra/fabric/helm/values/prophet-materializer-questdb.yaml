@@ -1,0 +1,13 @@
+      image:
+        repository: ghcr.io/socioprofit/prophet-materializer-questdb
+        tag: "0.1.0"
+        pullPolicy: IfNotPresent
+
+      service:
+        type: ClusterIP
+  port: 8083
+
+      env:
+TARGET: "questdb"
+
+      resources: {}

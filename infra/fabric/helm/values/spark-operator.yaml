@@ -1,0 +1,4 @@
+# Kubeflow Spark Operator values.
+# Defaults are usually okay; tune webhook/controller flags per your cluster.
+webhook:
+  enable: true

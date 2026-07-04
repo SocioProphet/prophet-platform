@@ -1,6 +1,9 @@
 # socioprophet-gateway — HTTP edge gateway
-image: { repository: socioprophet-gateway }
+image: { repository: socioprophet-gateway, tag: latest }
 service: { port: 8080, portName: http }
+config:
+  # DEV ONLY — provision a real TRITRPC_KEY_HEX secret for prod
+  TRITRPC_ALLOW_INSECURE_DEV_KEY: "1"
 ingress:
   enabled: true
   className: ""   # cluster default; set per-cloud (gce / azure-application-gateway / alb) via overlay

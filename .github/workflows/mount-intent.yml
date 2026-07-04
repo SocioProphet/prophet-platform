@@ -1,0 +1,32 @@
+name: mount-intent
+
+on:
+  push:
+    paths:
+      - 'libs/python/mount-intent/**'
+      - 'tools/validate_mount_intent_egress.py'
+      - 'infra/k8s/edge-twin-sync/**'
+      - '.github/workflows/mount-intent.yml'
+  pull_request:
+    paths:
+      - 'libs/python/mount-intent/**'
+      - 'tools/validate_mount_intent_egress.py'
+      - 'infra/k8s/edge-twin-sync/**'
+      - '.github/workflows/mount-intent.yml'
+
+jobs:
+  test-and-enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libs/python/mount-intent/requirements-test.txt -e libs/python/mount-intent
+      - name: Unit tests (intents, policy gates, lifecycle, validator)
+        run: cd libs/python/mount-intent && pytest -q
+      - name: Enforce mount-intent egress policy on edge→twin sync
+        run: python tools/validate_mount_intent_egress.py

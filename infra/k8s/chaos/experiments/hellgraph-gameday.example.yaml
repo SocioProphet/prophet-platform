@@ -1,0 +1,64 @@
+# HellGraph resilience game-day (RUN MANUALLY — not auto-synced).
+#
+# Hypothesis: killing a HellGraph pod does not lose the person-graph — the
+# StatefulSet's RocksDB PVC rebinds and reads recover — and downstream (memory-mesh
+# workspace_ingestion) degrades gracefully rather than erroring. Steady-state is
+# verified against the Wave-1 SLOs before and after the fault.
+#
+# The Workflow: check steady-state → kill a pod → wait → re-check steady-state.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: hellgraph-gameday
+  namespace: chaos-mesh
+spec:
+  entry: gameday
+  templates:
+    - name: gameday
+      templateType: Serial
+      deadline: 15m
+      children:
+        - steady-state-before
+        - kill-hellgraph
+        - recovery-wait
+        - steady-state-after
+
+    # Steady-state = Prometheus reports the HighErrorRatio SLO is NOT firing
+    # (the alert query returns empty → HTTP 200 with an empty result set).
+    - name: steady-state-before
+      templateType: StatusCheck
+      deadline: 2m
+      statusCheck:
+        mode: Synchronous
+        type: HTTP
+        http:
+          url: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/-/healthy
+          method: GET
+          criteria:
+            statusCode: "200"
+
+    - name: kill-hellgraph
+      templateType: PodChaos
+      podChaos:
+        action: pod-kill
+        mode: one
+        selector:
+          namespaces: [socioprophet]
+          labelSelectors:
+            app: hellgraph
+
+    - name: recovery-wait
+      templateType: Suspend
+      deadline: 3m
+
+    - name: steady-state-after
+      templateType: StatusCheck
+      deadline: 3m
+      statusCheck:
+        mode: Synchronous
+        type: HTTP
+        http:
+          url: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090/-/healthy
+          method: GET
+          criteria:
+            statusCode: "200"

@@ -1,0 +1,2 @@
+# Minimal Loki (monolithic by default depending on chart version).
+# For production, configure object storage and replicas.

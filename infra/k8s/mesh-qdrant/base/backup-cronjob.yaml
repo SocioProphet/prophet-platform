@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-snapshot
+spec:
+  schedule: "0 2 * * *"   # daily 02:00 UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: qdrant-snapshot
+              image: curlimages/curl:8.6.0
+              args:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  COLLECTIONS=$(curl -sf http://qdrant:6333/collections | jq -r '.result.collections[].name')
+                  for col in $COLLECTIONS; do
+                    echo "Snapshotting collection: $col"
+                    curl -sf -X POST "http://qdrant:6333/collections/${col}/snapshots"
+                  done
+                  echo "All snapshots created"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]

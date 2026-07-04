@@ -1,3 +1,4 @@
 # osm-map-api
-image: { repository: osm-map-api }
+image: { repository: osm-map-api, tag: latest }
 service: { port: 8080, portName: http }
+enableServiceLinks: false   # k8s injects OSM_MAP_API_PORT=tcp://<svc> otherwise → app int() crash

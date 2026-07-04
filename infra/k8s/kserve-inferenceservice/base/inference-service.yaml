@@ -1,0 +1,17 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: community-truth-demo-candidate
+  namespace: socioprophet
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  predictor:
+    model:
+      modelFormat:
+        name: sklearn
+      storageUri: s3://prophet-model-store/community-truth-demo-candidate/0.1.0
+      resources:
+        limits:
+          cpu: "1"
+          memory: "2Gi"

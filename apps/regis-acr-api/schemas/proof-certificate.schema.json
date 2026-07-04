@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/regis/proof/proof-certificate.schema.json",
+  "title": "ProofCertificate",
+  "type": "object",
+  "required": ["proof_certificate_id", "schema_version", "policy_version", "claim_type", "result", "certificate_hash", "evidence_refs"],
+  "properties": {
+    "proof_certificate_id": {"type": "string"},
+    "schema_version": {"type": "string"},
+    "policy_version": {"type": "string"},
+    "claim_type": {"type": "string", "enum": ["ProveLinkage", "ProveNoAdmissiblePath", "ProveScopePermission", "ProveTokenNonEscape", "ProveGoldenRecordAtTime", "VerifyCertificate"]},
+    "result": {"type": "string", "enum": ["VERIFIED", "REFUTED", "UNDECIDABLE", "STALE", "REQUIRES_REVIEW"]},
+    "reason_codes": {"type": "array", "items": {"type": "string"}, "default": []},
+    "evidence_refs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "ledger_pointers": {"type": "array", "items": {"type": "string"}, "default": []},
+    "graph_pointers": {"type": "array", "items": {"type": "string"}, "default": []},
+    "template_version": {"type": "string"},
+    "resolver_version": {"type": "string"},
+    "simulation_version": {"type": "string"},
+    "case_model_version": {"type": "string"},
+    "index_version": {"type": "string"},
+    "certificate_hash": {"type": "string", "pattern": "^sha256:.+"},
+    "canonical_mutation": {"type": "boolean", "default": false}
+  },
+  "additionalProperties": false
+}

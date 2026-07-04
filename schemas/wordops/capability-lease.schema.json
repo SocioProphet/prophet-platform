@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/wordops/capability-lease.schema.json",
+  "title": "CapabilityLease",
+  "type": "object",
+  "required": [
+    "lease_id",
+    "sub",
+    "aud",
+    "scope",
+    "risk_class",
+    "issued_at",
+    "not_before",
+    "expires_at"
+  ],
+  "properties": {
+    "lease_id": { "type": "string" },
+    "sub": { "type": "string" },
+    "act": { "type": ["string", "null"] },
+    "aud": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      ]
+    },
+    "scope": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "case_id": { "type": ["string", "null"] },
+    "task_id": { "type": ["string", "null"] },
+    "approval_id": { "type": ["string", "null"] },
+    "risk_class": {
+      "type": "string",
+      "enum": ["A0", "A1", "A2", "A3", "A4"]
+    },
+    "environment": { "type": ["string", "null"] },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "not_before": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "jti": { "type": ["string", "null"] },
+    "request_digest": { "type": ["string", "null"] },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
