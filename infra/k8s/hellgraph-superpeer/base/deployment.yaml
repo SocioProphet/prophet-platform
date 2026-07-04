@@ -19,6 +19,12 @@ spec:
       app: hellgraph-superpeer
   template:
     metadata:
+      annotations:
+        # /metrics is public (returns before the auth gate) and network-restricted to this
+        # namespace by the baseline NetworkPolicy — safe for in-cluster Prometheus scraping.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8850"
+        prometheus.io/path: /metrics
       labels:
         app: hellgraph-superpeer
         bundle: graph.twin
@@ -29,9 +35,10 @@ spec:
       containers:
         - name: superpeer
           # The mode-aware hellgraph-service image (apps/hellgraph-service, vendoring
-          # @socioprophet/hellgraph 0.4.3). HELLGRAPH_MODE=superpeer selects the federation
-          # replica role over the default local service — one image, two roles. No command
-          # override needed. (Image name is kept in step with the edge StatefulSet; the
+          # @socioprophet/hellgraph 0.4.4 — the hardened engine: bearer auth, public /livez +
+          # /metrics, and the epoch-1..3 parser/DoS hardening). HELLGRAPH_MODE=superpeer selects
+          # the federation replica role over the default local service — one image, two roles.
+          # No command override needed. (Image name is kept in step with the edge StatefulSet; the
           # ghcr↔GAR hellgraph-service naming reconciliation is a separate infra follow-up.)
           image: ghcr.io/socioprophet/hellgraph:latest
           ports:
@@ -50,12 +57,23 @@ spec:
                 configMapKeyRef:
                   name: hellgraph-federation
                   key: base-key
+            # Bearer secret that arms auth on the sensitive routes (/health /cut /query /admit).
+            # Unset → the engine warns and runs OPEN; set here so the twin is authenticated from
+            # day one. /livez + /metrics stay public (they return before the auth gate), so the
+            # probes and Prometheus below keep working.
+            - name: HELLGRAPH_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: hellgraph-superpeer-auth
+                  key: auth-secret
+          # Probes hit the PUBLIC /livez (not /health): with auth armed, /health requires the
+          # 'read' scope and would 401 the kubelet. /livez is unauthenticated by design.
           readinessProbe:
-            httpGet: { path: /health, port: 8850 }
+            httpGet: { path: /livez, port: 8850 }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: /health, port: 8850 }
+            httpGet: { path: /livez, port: 8850 }
             initialDelaySeconds: 20
             periodSeconds: 20
           resources:
