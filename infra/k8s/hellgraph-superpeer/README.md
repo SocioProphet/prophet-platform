@@ -30,16 +30,26 @@ absent from it. Storage intent is `derived_index` (rebuildable, never egressed).
 
 ## Wiring (prerequisites)
 
-1. **Image mode** — the `ghcr.io/socioprophet/hellgraph` image must include the super-peer
-   entrypoint (`bin/hellgraph-superpeer.mjs`, hellgraph PR #13) and be re-vendored/rebuilt. The
-   Deployment runs it via `command: ["node", "bin/hellgraph-superpeer.mjs"]`. The edge must also
-   run in federation mode (be the federation creator) so it has a base key to publish.
+1. **Image mode** — the `ghcr.io/socioprophet/hellgraph` image is the mode-aware
+   `apps/hellgraph-service` (now vendoring **@socioprophet/hellgraph 0.4.4** — the hardened engine).
+   `HELLGRAPH_MODE=superpeer` selects the federation-replica role over the default local service —
+   one image, two roles, no `command` override. The edge must also run in federation mode (be the
+   federation creator) so it has a base key to publish.
 2. **Base key** — the edge is the federation creator; publish its `baseKey()` once into the
    `hellgraph-federation` ConfigMap (`data.base-key`):
    `kubectl -n socioprophet get --raw /api/v1/.../hellgraph:8850/health` → `.baseKey`, or have the
    edge write it on startup. It is a **public join identity**, not a secret.
-3. Consumers query the twin at `hellgraph-superpeer:8850/query` (SPARQL/Gremlin) — the same
-   read surface as the edge, but served from the replicated view.
+3. **Auth secret (required to start)** — provision the `hellgraph-superpeer-auth` Secret (key
+   `auth-secret`) via ExternalSecret (see `hellgraph-superpeer-auth.externalsecret.example.yaml`).
+   `HELLGRAPH_AUTH_SECRET` arms bearer auth on `/health /cut /query /admit`; without it the engine
+   runs OPEN, so the Deployment requires the Secret and will not start until it exists (fail-closed
+   by design — the ExternalSecret is intentionally not in `kustomization.yaml`). Generate a token
+   with `openssl rand -hex 32`. Consumers must then send `Authorization: Bearer <token>`.
+4. **Probes & metrics** — liveness/readiness hit the PUBLIC `/livez` (unauthenticated by design);
+   `/health` is behind auth and would 401 the kubelet. Prometheus scrapes the PUBLIC `/metrics`
+   (pod annotations), network-restricted to this namespace by the baseline NetworkPolicy.
+5. Consumers query the twin at `hellgraph-superpeer:8850/query` (SPARQL/Gremlin/MeTTa/Cypher) — the
+   same read surface as the edge, but served from the replicated view, with a bearer token.
 
 ## Relationship to edge-twin-sync
 
