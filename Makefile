@@ -513,7 +513,7 @@ validate-orggov-runtime-demo:
 
 validate-capability-membrane:
 	test -d .venv-tools || python3 -m venv .venv-tools
-	. .venv-tools/bin/activate && python -m pip install --upgrade pip pytest >/dev/null && pytest -q tools/tests/test_capability_membrane.py
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip pytest cryptography >/dev/null && pytest -q tools/tests/test_capability_membrane.py tools/tests/test_membrane_identity.py tools/tests/test_membrane_adversarial.py tools/tests/test_gapi_edge_policy.py tools/tests/test_ghost_audit.py
 	mkdir -p build/capability-membrane
 	# CLI exits 3 on a non-allow (here REQUIRE_SIGNATURE→ask); the gate asserts a
 	# sealed receipt was still emitted for the deferred decision.

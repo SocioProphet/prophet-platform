@@ -117,6 +117,13 @@ CONNECTOR_RADIUS_FLOOR: Dict[str, str] = {
     "ci": "R4",
 }
 
+# Reserved / internal handler namespaces (gapi §8 "handler namespace collision":
+# only registered services are callable; reserved lifecycle handlers like
+# _g_connect / __cb must not be reachable by ordinary callers). Any action in a
+# reserved namespace floors to R5, so it is admissible only with an explicit
+# post_authority_ref tension member — a normal caller is denied fail-closed.
+RESERVED_ACTION_PREFIXES = ("_", "__", "internal.", "gapi._", "rpc._", "_g_")
+
 # --------------------------------------------------------------------------- #
 # 3. Membrane decision domain — slash-topics v0.2 (superset of platform v0.1)
 # --------------------------------------------------------------------------- #
@@ -214,6 +221,8 @@ class CapabilityRequest:
     machine_ref: str = "urn:srcos:agent-machine:local"
 
     def required_radius(self) -> str:
+        if any(self.action.startswith(p) for p in RESERVED_ACTION_PREFIXES):
+            return "R5"       # reserved/internal handler — top authority only
         floor = CONNECTOR_RADIUS_FLOOR.get(self.surface, "R0")
         base = ACCESS_TO_RADIUS.get(self.access_level, "R0")
         return floor if _rank(floor) >= _rank(base) else base
@@ -310,8 +319,15 @@ _EXECUTION_TO_VERDICT = {
 
 def resolve_capability(request: CapabilityRequest,
                        run_trace_hash: str = "",
-                       events_hash: str = "") -> CapabilityResolution:
-    """Compose the four kernels into one decision + one sealed receipt."""
+                       events_hash: str = "",
+                       signer: Any = None) -> CapabilityResolution:
+    """Compose the four kernels into one decision + one sealed receipt.
+
+    If `signer` (a membrane_identity.IdentityRoot) is supplied, the sealed
+    receipt is additionally signed (detached Ed25519 over the FOG preimage),
+    threading the sovereign DID through the receipt. Absent a signer the kernel
+    stays pure/stdlib-only and emits a valid unsigned receipt.
+    """
     reasons: List[str] = []
     obligations: List[Dict[str, str]] = []
 
@@ -406,6 +422,8 @@ def resolve_capability(request: CapabilityRequest,
     }
 
     sealed = seal_receipt(receipt, run_trace_hash=run_trace_hash, events_hash=events_hash)
+    if signer is not None:
+        sealed = signer.sign_sealed(sealed)
 
     return CapabilityResolution(
         request=request,

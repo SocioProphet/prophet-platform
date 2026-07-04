@@ -1,0 +1,79 @@
+{
+  "provenance": {
+    "derived_from": "gapi-stack-hypergraph.json (Google gapi.iframes/gadgets.rpc recon)",
+    "note": "Each gapi hyperedge annotated with the resolve_capability inputs it demands, turning the recon's descriptive guards into executable membrane policy. 'nominal' = guards satisfied; 'violated' = a guard fails, and the membrane must degrade/deny. The validator runs every case through the kernel with full R5 tension present, so the membrane_decision drives the outcome (radius/tension are proven separately in the board)."
+  },
+  "edges": [
+    {
+      "edge_id": "h1_push_chunk", "gapi_type": "LOAD_CONFIG_CHUNK", "layer": "L1",
+      "gapi_guards": ["parse_ok"],
+      "surface": "filesystem", "action": "config.load", "access_level": "readOnly",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"}
+    },
+    {
+      "edge_id": "h2_merge_cfg", "gapi_type": "MERGE_CONFIG", "layer": "L1",
+      "gapi_guards": ["merge_ok"],
+      "surface": "custom", "action": "config.merge", "access_level": "scopedWrite",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"},
+      "violated": {"why": "untrusted config chunk", "membrane_decision": "QUARANTINE", "expect_execution": "deny"}
+    },
+    {
+      "edge_id": "h3_resolve_session", "gapi_type": "RESOLVE_SESSION_CONTEXT", "layer": "L2",
+      "gapi_guards": ["heuristics_ok"],
+      "surface": "custom", "action": "session.resolve", "access_level": "readOnly",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"}
+    },
+    {
+      "edge_id": "h4_expand_template", "gapi_type": "EXPAND_TEMPLATE", "layer": "L1",
+      "gapi_guards": ["tokens_known"],
+      "surface": "httpApi", "action": "url.expand", "access_level": "draftOnly",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"},
+      "violated": {"why": "unsafe scheme/token → SANITIZE_URL", "membrane_decision": "REDACT", "expect_execution": "rewrite"}
+    },
+    {
+      "edge_id": "h5_oauth_initiate", "gapi_type": "OAUTH_INITIATE", "layer": "L3",
+      "gapi_guards": ["user_action"],
+      "surface": "browser", "action": "oauth.initiate", "access_level": "send",
+      "nominal": {"why": "capability minting requires explicit user consent", "membrane_decision": "REQUIRE_SIGNATURE", "expect_execution": "ask"}
+    },
+    {
+      "edge_id": "h6_oauth_return", "gapi_type": "OAUTH_RETURN_POSTMESSAGE", "layer": "L3",
+      "gapi_guards": ["origin_ok", "state_ok"],
+      "surface": "browser", "action": "oauth.return", "access_level": "scopedWrite",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"},
+      "violated": {"why": "origin/state mismatch (confused deputy)", "membrane_decision": "DENY", "expect_execution": "deny"}
+    },
+    {
+      "edge_id": "h7_issue", "gapi_type": "ISSUE", "layer": "L4",
+      "gapi_guards": ["service_allowed"],
+      "surface": "custom", "action": "rpc.issue", "access_level": "draftOnly",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"}
+    },
+    {
+      "edge_id": "h8_route_select", "gapi_type": "ROUTE_RESOLVE", "layer": "L4",
+      "gapi_guards": ["transport_allowed"],
+      "surface": "custom", "action": "transport.route", "access_level": "scopedWrite",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"}
+    },
+    {
+      "edge_id": "h9_send_deliver_verify", "gapi_type": "TRANSPORT_CHAIN", "layer": "L4",
+      "gapi_guards": ["origin_policy", "token_ok"],
+      "surface": "browser", "action": "rpc.dispatch", "access_level": "control",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"},
+      "violated": {"why": "token_ok fails — cap_token invalid/replayed", "membrane_decision": "DENY", "expect_execution": "deny"}
+    },
+    {
+      "edge_id": "h10_api_batch", "gapi_type": "API_BATCH_RPC", "layer": "L5",
+      "gapi_guards": ["token_present"],
+      "surface": "httpApi", "action": "rpc.batch", "access_level": "send",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"},
+      "violated": {"why": "no cap_token present on the batch", "membrane_decision": "REQUIRE_SIGNATURE", "expect_execution": "ask"}
+    },
+    {
+      "edge_id": "h11_telemetry", "gapi_type": "STORE_LOG", "layer": "L6",
+      "gapi_guards": ["sampled"],
+      "surface": "observability", "action": "telemetry.emit", "access_level": "readOnly",
+      "nominal": {"membrane_decision": "ALLOW", "expect_execution": "allow"}
+    }
+  ]
+}
