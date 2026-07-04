@@ -41,6 +41,7 @@ jobs:
           - { image: evidence-console,      context: apps/evidence-console,     dockerfile: Dockerfile }
           - { image: evidence-receipts,     context: apps/evidence-receipts,    dockerfile: Dockerfile }
           - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
+          - { image: agentic-os-api,        context: apps/agentic-os-api,       dockerfile: Dockerfile }
           - { image: hellgraph-service,     context: apps/hellgraph-service,    dockerfile: Dockerfile }
           - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
           - { image: workspace-mail,        context: services/workspace-mail,   dockerfile: Dockerfile }
