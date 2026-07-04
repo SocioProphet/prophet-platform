@@ -37,7 +37,7 @@ jobs:
           # services keep their own dir as context.
           - { image: socioprophet-api,      context: .,                         dockerfile: apps/api/Dockerfile }
           - { image: socioprophet-gateway,  context: .,                         dockerfile: apps/gateway/Dockerfile }
-          - { image: socioprophet-web,      context: apps/socioprophet-web,     dockerfile: Dockerfile }
+          - { image: socioprophet-web,      context: .,                         dockerfile: apps/socioprophet-web/Dockerfile }
           - { image: evidence-console,      context: apps/evidence-console,     dockerfile: Dockerfile }
           - { image: evidence-receipts,     context: apps/evidence-receipts,    dockerfile: Dockerfile }
           - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
