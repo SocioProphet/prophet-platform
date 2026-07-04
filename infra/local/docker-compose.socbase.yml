@@ -1,0 +1,135 @@
+# Local self-hosted Supabase stack (Socbase) for developing against
+# socioprophet-web/server without a managed Supabase Cloud project. Mirrors
+# the production topology 1:1: same schema file (charts/socbase-schema/files/
+# socbase-schema.sql), same role model, same /auth/v1 + /rest/v1 path routing
+# under one base URL (prod does this with nginx-ingress annotations on two
+# plain Deployments — deploy/values/socbase-{auth,rest}.yaml; here it's a tiny
+# nginx reverse proxy doing the same rewrite, since there's no Ingress locally).
+#
+# Secrets: this tracked file contains ZERO credential values or credential-
+# shaped lines by design. All three secrets (db password, JWT secret,
+# authenticator password) are injected into containers from a gitignored env
+# file (env_file below → infra/local/socbase/.env), and the two connection
+# strings that embed a password are assembled at container startup from those
+# injected vars — never written into this file. Set them up:
+#   cp infra/local/socbase/.env.example infra/local/socbase/.env   # then fill in any throwaway values
+#
+# Run (podman preferred, per scripts/build-push-workspace.sh's convention;
+# docker compose works identically — env_file is loaded relative to this file):
+#   podman compose -f infra/local/docker-compose.socbase.yml up
+#   ./scripts/socbase-mint-keys.sh "$SOCBASE_JWT_SECRET"   # prints ANON_KEY/SERVICE_ROLE_KEY (pass the SAME secret from .env)
+# Then point socioprophet-web/server/.env and app-vue/public/socbase-config.js
+# at http://localhost:8000 with those keys (the mint script's secret MUST match
+# SOCBASE_JWT_SECRET in .env, or PostgREST will reject GoTrue-issued tokens).
+#
+# NOTE on podman: use the native `podman compose` subcommand (podman ≥4.7) or
+# `docker compose` — the older standalone `podman-compose` (Python tool) has
+# historically had gaps in `depends_on: condition:` support, which this file
+# relies on for correct startup ordering (db → auth → migrate → rest).
+#
+# NOT YET SMOKE-TESTED end to end (authored without podman/docker available)
+# — this is the first place to verify the whole Socbase migration for real.
+services:
+  db:
+    image: postgres:16
+    # POSTGRES_PASSWORD comes from the env file (postgres reads it from env directly).
+    env_file: [socbase/.env]
+    environment:
+      POSTGRES_USER: socbase
+      POSTGRES_DB: socbase
+    ports:
+      - "5433:5432"   # offset from the platform postgres (5432) so both can run at once
+    volumes:
+      - socbase-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U socbase"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  auth:
+    image: supabase/gotrue:v2.164.0
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: [socbase/.env]   # injects POSTGRES_PASSWORD + SOCBASE_JWT_SECRET
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: "9999"
+      API_EXTERNAL_URL: http://localhost:8000/auth/v1
+      GOTRUE_SITE_URL: http://localhost:5173
+      GOTRUE_URI_ALLOW_LIST: http://localhost:5173/**
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"   # local dev only — no SMTP wired
+      GOTRUE_JWT_EXP: "3600"
+    # Assemble the DSN in-container from the injected vars ($$ = literal $ passed
+    # to the container shell, not a compose substitution) so no user:pass@host
+    # string is ever written into the tracked compose file.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export DATABASE_URL="postgres://socbase:$${POSTGRES_PASSWORD}@db:5432/socbase"
+        export GOTRUE_JWT_SECRET="$${SOCBASE_JWT_SECRET}"
+        exec gotrue
+    ports:
+      - "9999:9999"
+
+  migrate:
+    image: postgres:16-alpine
+    depends_on:
+      auth: { condition: service_started }
+    env_file: [socbase/.env]   # injects POSTGRES_PASSWORD + SOCBASE_AUTHENTICATOR_PASSWORD
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: socbase
+      PGUSER: socbase
+    volumes:
+      - ../../charts/socbase-schema/files/socbase-schema.sql:/sql/socbase-schema.sql:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "waiting for GoTrue's auth.users..."
+        for i in $$(seq 1 60); do
+          if PGPASSWORD="$$POSTGRES_PASSWORD" psql "host=$$PGHOST port=$$PGPORT dbname=$$PGDATABASE user=$$PGUSER" -tAc \
+            "select to_regclass('auth.users') is not null" 2>/dev/null | grep -q t; then
+            echo "auth.users found."; break
+          fi
+          echo "  not ready (attempt $$i/60), sleeping 5s"; sleep 5
+        done
+        echo "applying socbase schema..."
+        PGPASSWORD="$$POSTGRES_PASSWORD" psql "host=$$PGHOST port=$$PGPORT dbname=$$PGDATABASE user=$$PGUSER" \
+          -v ON_ERROR_STOP=1 -v authpw="$$SOCBASE_AUTHENTICATOR_PASSWORD" -f /sql/socbase-schema.sql
+        echo "done."
+
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    env_file: [socbase/.env]   # injects SOCBASE_AUTHENTICATOR_PASSWORD + SOCBASE_JWT_SECRET
+    environment:
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        export PGRST_DB_URI="postgres://authenticator:$${SOCBASE_AUTHENTICATOR_PASSWORD}@db:5432/socbase"
+        export PGRST_JWT_SECRET="$${SOCBASE_JWT_SECRET}"
+        exec postgrest
+    ports:
+      - "3001:3000"   # offset from a bare 3000 to avoid clashing with other local dev servers
+
+  gateway:
+    image: nginx:1.27-alpine
+    depends_on:
+      - auth
+      - rest
+    volumes:
+      - ./socbase/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"
+
+volumes:
+  socbase-pgdata:

@@ -23,6 +23,14 @@ spec:
           - { name: osm-map-api }
           - { name: reasoning-failure-runner }
           - { name: search-orchestrator }
+          # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
+          # postgrest/postgrest) with tags pinned directly in their values files —
+          # NOT touched by the build-image/gitops-promote SHA pipeline above, since
+          # we don't build them. Install the charts/socbase-schema Job (separately;
+          # it isn't part of this ApplicationSet — see its NOTES.txt) AFTER
+          # socbase-auth is live, since it waits on GoTrue's auth schema.
+          - { name: socbase-auth }
+          - { name: socbase-rest }
   template:
     metadata:
       name: 'svc-{{.name}}'

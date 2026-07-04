@@ -1,0 +1,32 @@
+socbase-schema Job scheduled. Before `helm install`/`upgrade`, these Secrets must exist in the target namespace:
+
+  kubectl create secret generic {{ .Values.authenticator.existingSecret }} \
+    --from-literal=password="$(openssl rand -base64 24)"
+
+  # {{ .Values.postgres.existingSecret }} (username/password) is assumed to already
+  # exist — same shared-Postgres secret prophet-workspace's broker/mail templates reuse.
+
+This Job polls for GoTrue's auth.users table before applying the app schema —
+install/upgrade socbase-auth (deploy/values/socbase-auth.yaml, generic chart)
+FIRST, or this Job will retry for up to 5 minutes then fail.
+
+Once this Job succeeds (kubectl get jobs -w socbase-schema), you also need the
+composed DSN secrets the generic-chart auth/rest releases read from:
+
+  kubectl create secret generic socbase-auth-db-url \
+    --from-literal=url="postgres://<admin>:<pw>@postgres:5432/prophet_platform"
+  kubectl create secret generic socbase-rest-db-url \
+    --from-literal=url="postgres://authenticator:<authenticator-pw-above>@postgres:5432/prophet_platform"
+
+  ./scripts/socbase-mint-keys.sh   # prints JWT_SECRET / ANON_KEY / SERVICE_ROLE_KEY
+  kubectl create secret generic socbase-jwt --from-literal=secret="$JWT_SECRET"
+
+Then wire, once socbase-auth + socbase-rest (deploy/values/*.yaml) are live:
+  - server/.env:                       SUPABASE_URL=https://socbase.socioprophet.ai
+                                        SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
+  - app-vue/public/socbase-config.js:  { url: "https://socbase.socioprophet.ai", anonKey: "<ANON_KEY>" }
+
+This has NOT been smoke-tested against a live cluster or `podman compose up`
+(no podman/docker/kubectl available in the environment that authored it) —
+run infra/local/docker-compose.socbase.yml end-to-end before trusting this in
+production.
