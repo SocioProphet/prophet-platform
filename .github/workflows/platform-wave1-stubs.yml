@@ -27,4 +27,5 @@ jobs:
         run: python tools/lint_eval_fabric_migrations.py
 
       - name: Run platform stub tests
-        run: pytest -q tests/platform_stubs
+        # Scoped to the stdlib-only stubs; the dashboard_bff stubs need httpx (not installed here).
+        run: pytest -q tests/platform_stubs/test_wave1_stubs.py tests/platform_stubs/test_eval_fabric_migration_lint.py
