@@ -19,6 +19,7 @@ spec:
           - { name: evidence-console }
           - { name: evidence-receipts }
           - { name: eval-fabric-api }
+          - { name: agentic-os-api }
           - { name: hellgraph-service }
           - { name: osm-map-api }
           - { name: reasoning-failure-runner }
