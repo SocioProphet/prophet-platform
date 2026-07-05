@@ -33,6 +33,46 @@ def test_granted_cannot_exceed_role_ceiling(tmp_path: Path):
     assert "role_ceiling" in proc.stderr
 
 
+def _v02_membrane(execution_decision: str = "allow") -> dict:
+    return {
+        "execution_decision": execution_decision,
+        "verdict": {"allow": "allowed", "deny": "denied"}.get(execution_decision, "deferred"),
+        "capability_radius": "R3",
+        "missing_tension": [] if execution_decision == "allow" else ["revocation"],
+        "membrane_decision": "ALLOW" if execution_decision == "allow" else "DENY",
+        "enforced": True,
+        "seal_hash": "sha256:" + "0" * 64,
+    }
+
+
+def test_v02_membrane_deny_with_admit_is_rejected(tmp_path: Path):
+    # Fail-closed invariant: a non-allow membrane must force decision=deny/L0.
+    receipt = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    receipt["version"] = "0.2"
+    receipt["membrane"] = _v02_membrane("deny")  # but decision stays "admit"
+    proc = _validate(receipt, tmp_path)
+    assert proc.returncode == 1
+    assert "fail-closed" in proc.stderr
+
+
+def test_v02_membrane_deny_with_deny_l0_validates(tmp_path: Path):
+    receipt = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    receipt["version"] = "0.2"
+    receipt["membrane"] = _v02_membrane("deny")
+    receipt["decision"] = "deny"
+    receipt["granted_level"] = "L0"
+    proc = _validate(receipt, tmp_path)
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_v02_requires_membrane_block(tmp_path: Path):
+    receipt = json.loads(EXAMPLE.read_text(encoding="utf-8"))
+    receipt["version"] = "0.2"  # no membrane block
+    proc = _validate(receipt, tmp_path)
+    assert proc.returncode == 1
+    assert "membrane" in proc.stderr
+
+
 def test_schema_rejects_malformed_gate_order():
     jsonschema = pytest.importorskip("jsonschema")
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))

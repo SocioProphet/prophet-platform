@@ -27,6 +27,11 @@ from typing import Any, Iterable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from validate_autonomy_admission_receipt import validate_receipt  # noqa: E402
 
+# The capability-membrane kernel governs the admission when an operation context
+# (surface/action) is supplied. Absent that, we stay the legacy autonomy-only
+# gate and emit a v0.1 receipt.
+from capability_membrane import CapabilityRequest, resolve_capability  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LADDER = ROOT / "contracts" / "prophet-mesh" / "ai-driven-development.ladder.json"
 DEFAULT_OUTPUT_DIR = ROOT / "build" / "autonomy-admission"
@@ -120,9 +125,10 @@ def build_receipt(
     evidence_refs: list[str],
     envelope_ref: str | None = None,
     policy_refs: list[str] | None = None,
+    membrane: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     receipt: dict[str, Any] = {
-        "version": "0.1",
+        "version": "0.2" if membrane else "0.1",
         "receipt_id": receipt_id,
         "created_at": created_at,
         "service_ref": "svc.platform.autonomy-admission",
@@ -142,6 +148,8 @@ def build_receipt(
         receipt["envelope_ref"] = envelope_ref
     if policy_refs:
         receipt["policy_refs"] = list(policy_refs)
+    if membrane:
+        receipt["membrane"] = membrane
     receipt["hash_algo"] = "sha256"
     receipt["hash"] = "sha256:" + hashlib.sha256(_canonical_bytes(receipt)).hexdigest()
     return receipt
@@ -155,7 +163,61 @@ def _from_channel_gate(path: Path) -> dict[str, Any]:
         "envelope_ref": gate.get("gate_id"),
         "evidence_refs": list(gate.get("evidence_refs", []) or []),
         "policy_refs": list(gate.get("policy_decision_refs", []) or []),
+        # Operation context for the capability membrane (all optional).
+        "surface": gate.get("surface"),
+        "action": gate.get("action"),
+        "access_level": gate.get("access_level"),
+        "tension_members": list(gate.get("tension_members", []) or []),
+        "membrane_decision": gate.get("membrane_decision"),
+        "scope": gate.get("scope"),
     }
+
+
+def _gate_capability(
+    *,
+    surface: str,
+    action: str,
+    access_level: str,
+    subject_ref: str,
+    scope: str,
+    owned: bool,
+    tension_members: list[str],
+    requested_level: str,
+    evidence: set[str],
+    membrane_decision: str,
+    policy_refs: list[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run the capability-membrane kernel over the operation this admission is for.
+
+    Returns (membrane_block, sealed_agent_machine_receipt). The membrane's
+    collapsed ExecutionDecision is the fail-closed outer gate: a non-allow value
+    denies the admission regardless of what the autonomy ladder alone would grant.
+    """
+    request = CapabilityRequest(
+        surface=surface,
+        action=action,
+        access_level=access_level,
+        subject_ref=subject_ref or "urn:srcos:subject:unspecified",
+        scope=scope,
+        owned=owned,
+        tension_members=tuple(tension_members),
+        requested_autonomy_level=requested_level,
+        autonomy_evidence=tuple(sorted(evidence)),
+        membrane_decision=membrane_decision,
+        policy_refs=tuple(policy_refs),
+    )
+    res = resolve_capability(request)
+    membrane_block = {
+        "execution_decision": res.execution_decision,
+        "verdict": res.verdict,
+        "capability_radius": res.radius,
+        "missing_tension": list(res.missing_tension),
+        "membrane_decision": res.membrane_decision,
+        "enforced": res.enforced,
+        "seal_hash": res.sealed["sealHash"],
+        "agent_machine_receipt_ref": res.sealed["id"],
+    }
+    return membrane_block, res.sealed
 
 
 def main(argv: list[str]) -> int:
@@ -169,6 +231,15 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--ladder", default=str(DEFAULT_LADDER))
     parser.add_argument("--receipt-id", default=None)
     parser.add_argument("--out", help="output path (default build/autonomy-admission/<receipt_id>.json)")
+    # Operation context — supplying a surface engages the capability-membrane
+    # kernel as the fail-closed outer gate and emits a v0.2 receipt.
+    parser.add_argument("--surface", help="operation surface (e.g. shell|computer|browser); engages the membrane")
+    parser.add_argument("--action", help="dotted action, e.g. shell.exec")
+    parser.add_argument("--access-level", default="scopedRead", help="ConnectorActionScope accessLevel")
+    parser.add_argument("--tension-members", default="", help="comma-separated present governance members")
+    parser.add_argument("--membrane-decision", default="ALLOW", help="upstream membrane verdict")
+    parser.add_argument("--scope", default="user_local", help="user_local | global_platform")
+    parser.add_argument("--unowned", action="store_true", help="surface we do not own → observe-only")
     args = parser.parse_args(argv[1:])
 
     ladder = Ladder.load(Path(args.ladder))
@@ -179,6 +250,7 @@ def main(argv: list[str]) -> int:
     subject_ref = args.subject_ref
     envelope_ref = None
     policy_refs: list[str] = []
+    ctx: dict[str, Any] = {}
     if args.channel_gate:
         ctx = _from_channel_gate(Path(args.channel_gate))
         subject_ref = subject_ref or ctx["subject_ref"]
@@ -191,6 +263,38 @@ def main(argv: list[str]) -> int:
         print("ERROR: subject_ref required (pass --subject-ref or --channel-gate)", file=sys.stderr)
         return 2
 
+    # If an operation surface is supplied (CLI or channel gate), the capability
+    # membrane governs the admission as a fail-closed outer gate.
+    membrane_block: dict[str, Any] | None = None
+    sealed: dict[str, Any] | None = None
+    surface = args.surface or ctx.get("surface")
+    if surface:
+        tension = [t.strip() for t in args.tension_members.split(",") if t.strip()] or list(ctx.get("tension_members") or [])
+        membrane_block, sealed = _gate_capability(
+            surface=surface,
+            action=args.action or ctx.get("action") or f"{surface}.invoke",
+            access_level=args.access_level or ctx.get("access_level") or "scopedRead",
+            subject_ref=subject_ref,
+            scope=args.scope or ctx.get("scope") or "user_local",
+            owned=not args.unowned,
+            tension_members=tension,
+            requested_level=decision["requested_level"],
+            evidence=evidence,
+            membrane_decision=args.membrane_decision or ctx.get("membrane_decision") or "ALLOW",
+            policy_refs=list(policy_refs),
+        )
+        # Fail-closed composition: a non-allow membrane denies the admission at L0,
+        # overriding whatever the autonomy ladder alone would have granted.
+        if membrane_block["execution_decision"] != "allow":
+            note = f"capability membrane {membrane_block['execution_decision']} (radius {membrane_block['capability_radius']}"
+            if membrane_block["missing_tension"]:
+                note += f", missing tension {membrane_block['missing_tension']}"
+            note += ")"
+            decision = dict(decision)
+            decision["granted_level"] = "L0"
+            decision["decision"] = "deny"
+            decision["reason"] = "; ".join(x for x in (decision.get("reason", ""), note) if x)
+
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     receipt_id = args.receipt_id or f"aar-{int(time.time())}"
     receipt = build_receipt(
@@ -201,6 +305,7 @@ def main(argv: list[str]) -> int:
         evidence_refs=evidence_refs,
         envelope_ref=envelope_ref,
         policy_refs=policy_refs,
+        membrane=membrane_block,
     )
 
     # Fail-closed: never emit a receipt that does not validate against the contract.
@@ -213,7 +318,24 @@ def main(argv: list[str]) -> int:
     out = Path(args.out) if args.out else DEFAULT_OUTPUT_DIR / f"{receipt_id}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(json.dumps({"ok": True, "out": str(out), "decision": decision["decision"], "granted_level": decision["granted_level"], "hash": receipt["hash"]}, sort_keys=True))
+    # Emit the sealed AgentMachineReceipt alongside so the membrane decision is
+    # independently verifiable (its sealHash is bound into the receipt above).
+    sealed_out = None
+    if sealed is not None:
+        sealed_out = out.parent / f"{out.stem}.agent-machine-receipt.json"
+        sealed_out.write_text(json.dumps(sealed, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    summary = {
+        "ok": True,
+        "out": str(out),
+        "decision": decision["decision"],
+        "granted_level": decision["granted_level"],
+        "hash": receipt["hash"],
+    }
+    if membrane_block is not None:
+        summary["membrane_execution_decision"] = membrane_block["execution_decision"]
+        summary["sealed_receipt"] = str(sealed_out)
+    print(json.dumps(summary, sort_keys=True))
     return 0
 
 
