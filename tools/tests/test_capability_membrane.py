@@ -11,14 +11,22 @@ from __future__ import annotations
 
 import re
 
+import json
+import subprocess
+import sys
+from pathlib import Path
+
 from tools.capability_membrane import (
     CapabilityRequest,
     TENSION_REQUIRED,
     evaluate_autonomy,
+    gate,
     request_from_operation_decision,
     resolve_capability,
     seal_receipt,
 )
+
+_MEMBRANE = Path(__file__).resolve().parents[1] / "capability_membrane.py"
 
 
 def operation(outcome, **over):
@@ -266,3 +274,56 @@ def test_operation_clean_allow_flows_through():
     r = resolve_capability(request)
     assert r.execution_decision == "allow"
     assert r.receipt["decision"]["riskLevel"] == "high"
+
+
+# --------------------------------------------------------------------------- #
+# The callable gate seam a runtime invokes before executing a tool call.
+# --------------------------------------------------------------------------- #
+
+_FULL = ["policy", "identity", "provenance", "evidence", "replay", "revocation", "audit", "post_authority_ref"]
+
+
+def test_gate_allows_and_returns_sealed_receipt():
+    d = gate({
+        "surface": "filesystem", "action": "filesystem.read", "access_level": "readOnly",
+        "subject_ref": "urn:srcos:agent:x", "tension_members": ["policy", "identity", "provenance"],
+    })
+    assert d["allowed"] is True
+    assert d["execution_decision"] == "allow"
+    assert d["sealed_receipt"]["sealHash"].startswith("sha256:")
+
+
+def test_gate_denies_fail_closed_on_missing_tension():
+    d = gate({
+        "surface": "shell", "action": "shell.exec", "access_level": "scopedWrite",
+        "subject_ref": "urn:srcos:agent:x", "tension_members": ["policy", "identity"],
+    })
+    assert d["allowed"] is False
+    assert d["execution_decision"] == "deny"
+    assert d["missing_tension"]  # non-empty
+
+
+def test_gate_rejects_unknown_fields():
+    import pytest
+    with pytest.raises(ValueError):
+        gate({"surface": "shell", "access_level": "readOnly", "not_a_field": 1})
+
+
+def _cli_request(payload: dict) -> int:
+    proc = subprocess.run(
+        [sys.executable, str(_MEMBRANE), "--request", "-"],
+        input=json.dumps(payload), capture_output=True, text=True,
+    )
+    return proc.returncode
+
+
+def test_cli_request_mode_is_fail_closed():
+    # allowed → exit 0; denied → exit 3 (a runtime gates on the exit code).
+    assert _cli_request({
+        "surface": "filesystem", "action": "filesystem.read", "access_level": "readOnly",
+        "subject_ref": "urn:srcos:agent:x", "tension_members": ["policy", "identity", "provenance"],
+    }) == 0
+    assert _cli_request({
+        "surface": "shell", "action": "shell.exec", "access_level": "scopedWrite",
+        "subject_ref": "urn:srcos:agent:x", "tension_members": ["policy", "identity"],
+    }) == 3

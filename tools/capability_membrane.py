@@ -509,13 +509,54 @@ def request_from_operation_decision(
     )
 
 
+# --------------------------------------------------------------------------- #
+# Callable gate seam
+#
+# The stable entrypoint a runtime (an agent-machine, a connector dispatcher, a
+# service) calls immediately BEFORE executing a tool/connector action. Describe
+# the call as a CapabilityRequest-shaped dict; if the returned decision is not
+# `allowed`, the caller MUST NOT execute the action (fail-closed). The sealed
+# AgentMachineReceipt travels back for the caller's evidence spine.
+# --------------------------------------------------------------------------- #
+
+_REQUEST_FIELDS = set(CapabilityRequest.__dataclass_fields__)
+
+
+def gate(request: Dict[str, Any]) -> Dict[str, Any]:
+    """Gate one tool/connector call. Fail-closed: execute only if ``allowed``.
+
+    >>> gate({"surface": "shell", "action": "shell.exec", "access_level": "scopedWrite",
+    ...       "subject_ref": "urn:srcos:agent:x",
+    ...       "tension_members": ["policy", "identity"]})["allowed"]
+    False
+    """
+    unknown = set(request) - _REQUEST_FIELDS
+    if unknown:
+        raise ValueError(f"unknown CapabilityRequest fields: {sorted(unknown)}")
+    resolution = resolve_capability(CapabilityRequest(**request))
+    return {
+        "allowed": resolution.allowed,
+        "execution_decision": resolution.execution_decision,
+        "verdict": resolution.verdict,
+        "enforced": resolution.enforced,
+        "radius": resolution.radius,
+        "missing_tension": list(resolution.missing_tension),
+        "obligations": resolution.obligations,
+        "reasons": resolution.reasons,
+        "sealed_receipt": resolution.sealed,
+    }
+
+
 def _cli(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     p = argparse.ArgumentParser(description="Resolve a capability call through the unified membrane.")
+    p.add_argument("--request", type=str,
+                   help="path (or - for stdin) to a full CapabilityRequest JSON; gates that call and "
+                        "prints the decision. Exit 0 iff allowed. The runtime seam.")
     p.add_argument("--operation", type=str, help="path to a ProphetOperationsActionDecision JSON")
-    p.add_argument("--surface", required=True, help="connectorKind, e.g. shell|computer|browser|deployment")
-    p.add_argument("--access", required=True, help="ConnectorActionScope accessLevel")
+    p.add_argument("--surface", help="connectorKind, e.g. shell|computer|browser|deployment")
+    p.add_argument("--access", help="ConnectorActionScope accessLevel")
     p.add_argument("--subject", default=None)
     p.add_argument("--scope", default="user_local", choices=list(MEMBRANE_SCOPES))
     p.add_argument("--foreign", action="store_true", help="surface is NOT ours → observe-only")
@@ -526,6 +567,22 @@ def _cli(argv: Optional[Sequence[str]] = None) -> int:
     p.add_argument("--evidence", default="", help="comma-separated autonomy evidence tokens")
     p.add_argument("--out", type=str, help="write sealed receipt JSON here (default stdout)")
     args = p.parse_args(argv)
+
+    # Runtime seam: gate a fully-described call and print the decision, fail-closed.
+    if args.request:
+        import sys as _sys
+        raw = _sys.stdin.read() if args.request == "-" else open(args.request, encoding="utf-8").read()
+        decision = gate(json.loads(raw))
+        out = json.dumps(decision, indent=2, sort_keys=True)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(out + "\n")
+        else:
+            print(out)
+        return 0 if decision["allowed"] else 3
+
+    if not (args.surface and args.access):
+        p.error("--surface and --access are required unless --request is given")
 
     tension = tuple(t for t in args.tension.split(",") if t)
     evidence = tuple(e for e in args.evidence.split(",") if e)
@@ -563,6 +620,7 @@ __all__ = [
     "AutonomyDecision",
     "evaluate_autonomy",
     "resolve_capability",
+    "gate",
     "request_from_operation_decision",
     "seal_receipt",
     "TENSION_REQUIRED",
