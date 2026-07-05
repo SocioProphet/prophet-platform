@@ -1,0 +1,31 @@
+# ArgoCD Application for the HellGraph super-peer (federation entrypoint).
+# Wires infra/k8s/hellgraph-superpeer/base into GitOps so the deploy is one
+# `argocd app sync hellgraph-superpeer` (after `gcloud auth` + cluster context) from live.
+#
+# Prereqs the sync depends on (out of band, per the go-live runbook):
+#   - Secret `hellgraph-superpeer-auth` (super-peer auth) in namespace `socioprophet`
+#   - Secret `hellgraph-federation` (edge federation base-key) in namespace `socioprophet`
+# The base ExternalSecret example (…auth.externalsecret.example.yaml) is intentionally NOT in
+# the kustomization; provision the secret before first sync or the pod will wait on it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hellgraph-superpeer
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: hellgraph-federation
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/hellgraph-superpeer/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
