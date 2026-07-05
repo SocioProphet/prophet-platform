@@ -1,0 +1,19 @@
+{
+  "industries": [
+    {
+      "id": "software",
+      "label": "Software & Platforms",
+      "industry": "GICS45_SoftwarePlatforms"
+    },
+    {
+      "id": "banks",
+      "label": "Banks & Financials",
+      "industry": "GICS40_BanksDiversifiedFinancials"
+    },
+    {
+      "id": "energy",
+      "label": "Energy",
+      "industry": "GICS10_Energy"
+    }
+  ]
+}
