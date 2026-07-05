@@ -68,6 +68,82 @@ def test_emit_binds_to_channel_gate(tmp_path: Path):
     assert "prophet-mesh:specs/ai-driven-development.yaml" in receipt["policy_refs"]
 
 
+R3_TENSION = "policy,identity,provenance,evidence,replay,revocation"
+
+
+def test_legacy_path_without_surface_is_v01(tmp_path: Path):
+    receipt = _emit(
+        tmp_path, "--role", "conductor", "--level", "L4",
+        "--evidence", "conductor_response_envelope",
+        "--evidence-refs", "evidence://env/1",
+        "--subject-ref", "agent://choir/conductor/run-x",
+    )
+    assert receipt["version"] == "0.1"
+    assert "membrane" not in receipt
+
+
+def test_membrane_deny_overrides_ladder_admit(tmp_path: Path):
+    # Ladder alone would admit conductor@L4; the membrane denies because the
+    # scopedWrite (R3) operation is missing its required tension members.
+    out = tmp_path / "receipt.json"
+    receipt = _emit(
+        tmp_path, "--role", "conductor", "--level", "L4",
+        "--evidence", "conductor_response_envelope",
+        "--evidence-refs", "evidence://env/1",
+        "--subject-ref", "agent://choir/conductor/run-1",
+        "--surface", "shell", "--action", "shell.exec", "--access-level", "scopedWrite",
+    )
+    assert receipt["version"] == "0.2"
+    assert receipt["decision"] == "deny"
+    assert receipt["granted_level"] == "L0"
+    assert receipt["membrane"]["execution_decision"] == "deny"
+    assert receipt["membrane"]["missing_tension"]  # non-empty
+    assert _validates(out)
+
+
+def test_membrane_allow_passes_through_and_seals(tmp_path: Path):
+    out = tmp_path / "receipt.json"
+    receipt = _emit(
+        tmp_path, "--role", "conductor", "--level", "L4",
+        "--evidence", "conductor_response_envelope",
+        "--evidence-refs", "evidence://env/1",
+        "--subject-ref", "agent://choir/conductor/run-1",
+        "--surface", "shell", "--action", "shell.exec", "--access-level", "scopedWrite",
+        "--tension-members", R3_TENSION,
+    )
+    assert receipt["version"] == "0.2"
+    assert receipt["decision"] == "admit"
+    assert receipt["granted_level"] == "L4"
+    m = receipt["membrane"]
+    assert m["execution_decision"] == "allow"
+    assert m["capability_radius"] == "R3"
+    assert m["missing_tension"] == []
+    assert m["seal_hash"].startswith("sha256:")
+    assert _validates(out)
+    # The sealed AgentMachineReceipt is emitted alongside and its sealHash is the
+    # one bound into the receipt.
+    sealed = tmp_path / "receipt.agent-machine-receipt.json"
+    assert sealed.exists()
+    assert json.loads(sealed.read_text())["sealHash"] == m["seal_hash"]
+
+
+def test_membrane_block_is_bound_into_the_hash(tmp_path: Path):
+    receipt = _emit(
+        tmp_path, "--role", "conductor", "--level", "L4",
+        "--evidence", "conductor_response_envelope",
+        "--evidence-refs", "evidence://env/1",
+        "--subject-ref", "agent://choir/conductor/run-1",
+        "--surface", "shell", "--action", "shell.exec", "--access-level", "scopedWrite",
+        "--tension-members", R3_TENSION,
+    )
+    import hashlib
+    body = {k: v for k, v in receipt.items() if k != "hash"}
+    recomputed = "sha256:" + hashlib.sha256(
+        json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    ).hexdigest()
+    assert recomputed == receipt["hash"]  # tampering with membrane changes the hash
+
+
 def test_hash_is_deterministic_over_content(tmp_path: Path):
     common = ["--role", "research", "--level", "L3", "--evidence", "evidence_dossier",
               "--evidence-refs", "evidence://dossier/x",

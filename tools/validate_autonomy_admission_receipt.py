@@ -35,7 +35,17 @@ REQUIRED = {
 DECISIONS = {"admit", "demote", "deny"}
 TRUST_KERNEL_GATE_ORDER = ["identity", "policy", "evidence", "attestation", "revocation", "audit"]
 LEVEL_RE = re.compile(r"^L[0-5]$")
+RADIUS_RE = re.compile(r"^R[0-5]$")
+SEAL_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 NO_EVIDENCE = {"none", ""}
+SUPPORTED_VERSIONS = {"0.1", "0.2"}
+EXECUTION_DECISIONS = {"allow", "deny", "ask", "defer", "rewrite"}
+VERDICTS = {"allowed", "denied", "deferred", "failed", "observed"}
+MEMBRANE_DECISIONS = {"ALLOW", "DENY", "QUARANTINE", "REDACT", "REQUIRE_SIGNATURE"}
+MEMBRANE_REQUIRED = {
+    "execution_decision", "verdict", "capability_radius",
+    "missing_tension", "membrane_decision", "enforced", "seal_hash",
+}
 
 
 class ValidationError(Exception):
@@ -62,8 +72,10 @@ def validate_receipt(record: dict[str, Any]) -> None:
     if missing:
         fail("missing required fields: " + ", ".join(missing))
 
-    if record["version"] != "0.1":
-        fail("version must be '0.1'")
+    if record["version"] not in SUPPORTED_VERSIONS:
+        fail(f"version must be one of {sorted(SUPPORTED_VERSIONS)}")
+    if record["version"] == "0.2" and "membrane" not in record:
+        fail("v0.2 receipt requires a 'membrane' block")
     for key in ("requested_level", "granted_level"):
         if not LEVEL_RE.match(str(record[key])):
             fail(f"{key} must match L0..L5")
@@ -98,17 +110,48 @@ def validate_receipt(record: dict[str, Any]) -> None:
         if not isinstance(refs, list) or not refs:
             fail("granted level above L0 requires non-empty evidence_refs")
 
+    # v0.2: the capability-membrane binding and the composition invariant.
+    if record["version"] == "0.2":
+        m = record.get("membrane")
+        if not isinstance(m, dict):
+            fail("membrane must be an object")
+        m_missing = sorted(MEMBRANE_REQUIRED - set(m))
+        if m_missing:
+            fail("membrane missing required fields: " + ", ".join(m_missing))
+        if m["execution_decision"] not in EXECUTION_DECISIONS:
+            fail(f"membrane.execution_decision must be one of {sorted(EXECUTION_DECISIONS)}")
+        if m["verdict"] not in VERDICTS:
+            fail(f"membrane.verdict must be one of {sorted(VERDICTS)}")
+        if m["membrane_decision"] not in MEMBRANE_DECISIONS:
+            fail(f"membrane.membrane_decision must be one of {sorted(MEMBRANE_DECISIONS)}")
+        if not RADIUS_RE.match(str(m["capability_radius"])):
+            fail("membrane.capability_radius must match R0..R5")
+        if not SEAL_RE.match(str(m["seal_hash"])):
+            fail("membrane.seal_hash must be a sha256:<64-hex> digest")
+        if not isinstance(m["missing_tension"], list):
+            fail("membrane.missing_tension must be an array")
+        if not isinstance(m["enforced"], bool):
+            fail("membrane.enforced must be a boolean")
+        # Composition invariant: a non-allow membrane decision is fail-closed —
+        # it must force a denied admission at L0.
+        if m["execution_decision"] != "allow" and not (decision == "deny" and granted == 0):
+            fail(
+                "membrane fail-closed invariant: execution_decision "
+                f"'{m['execution_decision']}' requires decision=deny and granted_level=L0"
+            )
+
 
 def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print("usage: validate_autonomy_admission_receipt.py <receipt.json>", file=sys.stderr)
         return 2
     try:
-        validate_receipt(load_json(Path(argv[1])))
+        record = load_json(Path(argv[1]))
+        validate_receipt(record)
     except (ValidationError, json.JSONDecodeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
-    print(f"OK: {argv[1]} validates as AutonomyAdmissionReceipt v0.1")
+    print(f"OK: {argv[1]} validates as AutonomyAdmissionReceipt v{record.get('version', '?')}")
     return 0
 
 
