@@ -64,6 +64,17 @@ def test_inline_constrained_column_is_a_column_not_a_constraint():
     assert lint.lint(files) == []
 
 
+def test_quoted_reserved_word_column_is_recognized():
+    # `window` is a Postgres reserved word → quoted everywhere; the linter normalizes quotes so
+    # a quoted CREATE column matches a quoted INSERT column.
+    lint = _lint()
+    files = [
+        ("001.sql", 'create table t (id text primary key, "window" text not null);'),
+        ("002.sql", 'insert into t (id, "window") values (\'a\', \'x\');'),
+    ]
+    assert lint.lint(files) == []
+
+
 def test_ignores_comments():
     lint = _lint()
     files = [
