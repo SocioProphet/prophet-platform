@@ -25,13 +25,15 @@ create table if not exists repro_ledger_entries (
   environment_hash text not null,
   methodology_snapshot_hash text not null,
   replay_artifact_id text,
-  notes text
+  notes text,
+  created_at timestamptz not null default now()  -- eval-fabric-api orders by created_at desc
 );
 
 create table if not exists causal_attributions (
   causal_attribution_id text primary key,
   subject_id text not null,
-  window text not null,
+  "window" text not null,  -- `window` is a Postgres reserved word; must be quoted everywhere
   attributions jsonb not null,
-  notes text
+  notes text,
+  created_at timestamptz not null default now()  -- eval-fabric-api orders by created_at desc
 );

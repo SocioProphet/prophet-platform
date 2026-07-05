@@ -71,7 +71,7 @@ insert into repro_ledger_entries (
 on conflict do nothing;
 
 insert into causal_attributions (
-  causal_attribution_id, subject_id, window, attributions, notes
+  causal_attribution_id, subject_id, "window", attributions, notes
 ) values (
   'causal_001',
   'model.semantic-stack.2026-04-05',

@@ -48,9 +48,9 @@ def get_run_provenance(run_id: str):
 def get_model_attribution(subject_id: str, window: str = "rolling_30d"):
     rows = pg_fetch(
         """
-        select causal_attribution_id, subject_id, window, attributions, notes
+        select causal_attribution_id, subject_id, "window", attributions, notes
         from causal_attributions
-        where subject_id = %s and window = %s
+        where subject_id = %s and "window" = %s
         order by created_at desc
         limit 1
         """,

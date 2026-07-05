@@ -30,7 +30,8 @@ PG_DIR = ROOT / "infra" / "datastores" / "postgres"
 # A part of a CREATE-TABLE body whose first token is one of these is a table-level constraint,
 # not a column (an inline-constrained column still starts with its own name, so it is kept).
 _CONSTRAINT_HEADS = {"primary", "foreign", "unique", "check", "constraint", "exclude"}
-_IDENT = re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")
+# A leading identifier, optionally double-quoted (reserved words like "window" are quoted).
+_IDENT = re.compile(r'"?([a-zA-Z_][a-zA-Z0-9_]*)"?')
 
 
 def _strip_comments(sql: str) -> str:
@@ -82,8 +83,8 @@ def _parse_create(stmt: str) -> tuple[str, set[str]] | None:
     cols: set[str] = set()
     for part in _split_top_level(body):
         tok = _IDENT.match(part.strip())
-        if tok and tok.group(0).lower() not in _CONSTRAINT_HEADS:
-            cols.add(tok.group(0))
+        if tok and tok.group(1).lower() not in _CONSTRAINT_HEADS:
+            cols.add(tok.group(1))  # group(1) = the bare identifier, quotes stripped
     return m.group(1), cols
 
 
@@ -94,7 +95,7 @@ def _parse_insert(stmt: str) -> tuple[str, list[str]] | None:
     body = _balanced(stmt, stmt.index("(", m.end() - 1))
     if body is None:
         return None
-    cols = [c.strip() for c in _split_top_level(body) if c.strip()]
+    cols = [c.strip().strip('"') for c in _split_top_level(body) if c.strip()]
     return m.group(1), cols
 
 
