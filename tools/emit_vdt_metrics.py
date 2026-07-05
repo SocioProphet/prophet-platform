@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""emit_vdt_metrics — serve the Value Driver Tree view the dashboard-bff exposes at /v1/vdt.
+"""emit_vdt_metrics — serve the Value Driver Tree views the dashboard-bff exposes at /v1/vdt.
 
 DESIGN PRINCIPLE — the value math is NOT here. `SocioProphet/economic-prophet` is the canonical
-economic engine (open_ep_framework.vdt.run_vdt); this module only *serves* an artifact that engine
+economic engine (open_ep_framework.vdt.run_vdt); this module only *serves* artifacts that engine
 PRODUCED. We never recompute the EP/UVMC/VDT identities in the BFF (that would fork the value model),
-so `build()` reads the vendored engine output and returns it verbatim, provenance intact.
+so `build()` reads a vendored engine output and returns it verbatim, provenance intact.
 
-The vendored artifact (apps/dashboard-bff/data/vdt/*.metrics.json) carries the engine's input_hash and
-a regen command. To refresh after the engine changes:
+Multiple industries are vendored under apps/dashboard-bff/data/vdt/<id>.metrics.json, indexed by
+catalog.json. To refresh after the engine changes, regenerate each from the canonical CLI, e.g.:
 
     cd ~/dev/economic-prophet && \\
       python -m open_ep_framework.cli --mode vdt --example examples/vdt_software_platforms.json
 
-then re-vendor the {summary, profile} output (see the file's _provenance block).
+then re-vendor the {summary, profile} output (see each file's _provenance block).
 """
 from __future__ import annotations
 
@@ -21,21 +21,31 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VDT_DATA_DIR = ROOT / "apps" / "dashboard-bff" / "data" / "vdt"
-DEFAULT_ARTIFACT = VDT_DATA_DIR / "vdt_software_platforms.metrics.json"
+CATALOG_PATH = VDT_DATA_DIR / "catalog.json"
+DEFAULT_INDUSTRY = "software"
 
 
-def load_artifact(path: Path = DEFAULT_ARTIFACT) -> dict:
-    """Load one engine-produced VDT artifact ({_provenance, summary, profile})."""
-    return json.loads(path.read_text(encoding="utf-8"))
+def catalog() -> list[dict]:
+    """The industries the BFF can serve: [{id, label, industry}, ...]."""
+    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))["industries"]
 
 
-def build(path: Path = DEFAULT_ARTIFACT) -> dict:
-    """Shape the engine artifact into the /v1/vdt payload.
+def _artifact_path(industry: str) -> Path:
+    """Resolve an industry id to its engine-produced artifact, defaulting to software
+    when the id is unknown (so the endpoint never 404s on a bad query param)."""
+    known = {c["id"] for c in catalog()}
+    chosen = industry if industry in known else DEFAULT_INDUSTRY
+    return VDT_DATA_DIR / f"{chosen}.metrics.json"
 
-    Pulls the tensor (weights/drivers/domains/kpis) from the engine's profile and the computed
-    uplifts from the engine's summary. Nothing is recomputed — the numbers are the engine's.
-    """
-    doc = load_artifact(path)
+
+def load_artifact(industry: str = DEFAULT_INDUSTRY) -> dict:
+    return json.loads(_artifact_path(industry).read_text(encoding="utf-8"))
+
+
+def build(industry: str = DEFAULT_INDUSTRY) -> dict:
+    """Shape one industry's engine artifact into the /v1/vdt payload. Nothing is recomputed —
+    the tensor + uplifts are the engine's; we only reshape and pass provenance through."""
+    doc = load_artifact(industry)
     summary = doc["summary"]
     profile = doc["profile"]
 
@@ -61,4 +71,4 @@ def build(path: Path = DEFAULT_ARTIFACT) -> dict:
 
 
 if __name__ == "__main__":
-    print(json.dumps(build(), indent=2, sort_keys=True))
+    print(json.dumps({"catalog": catalog(), "default": build()}, indent=2, sort_keys=True))

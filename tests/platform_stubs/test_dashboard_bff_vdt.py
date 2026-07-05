@@ -37,6 +37,28 @@ def test_route_returns_200_with_tensor_and_uplift():
     assert data['computed_total_value_uplift'] > 0
 
 
+def test_catalog_lists_the_selectable_industries():
+    data = _client().get('/v1/vdt/catalog').json()
+    ids = {i['id'] for i in data['industries']}
+    assert {'software', 'banks', 'energy'} <= ids
+    for i in data['industries']:
+        assert i['label'] and i['industry']
+
+
+def test_industry_param_selects_a_different_tensor():
+    software = _client().get('/v1/vdt?industry=software').json()
+    banks = _client().get('/v1/vdt?industry=banks').json()
+    assert banks['industry'] == 'GICS40_BanksDiversifiedFinancials'
+    # a real, different attribution — the banks tensor is not the software one
+    assert banks['industry'] != software['industry']
+    assert abs(sum(c['weight'] for c in banks['weights']) - 1.0) < 1e-6
+
+
+def test_unknown_industry_falls_back_to_software():
+    data = _client().get('/v1/vdt?industry=not-a-real-industry').json()
+    assert data['industry'] == 'GICS45_SoftwarePlatforms'
+
+
 def test_tensor_is_a_complete_attribution_distribution():
     data = _client().get('/v1/vdt').json()
     assert abs(sum(c['weight'] for c in data['weights']) - 1.0) < 1e-6

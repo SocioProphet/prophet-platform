@@ -65,6 +65,19 @@ class VdtKpiContribution(BaseModel):
     value_contribution: float
 
 
+class VdtIndustry(BaseModel):
+    """One selectable industry the VDT endpoint can serve."""
+    id: str
+    label: str
+    industry: str
+
+
+class VdtCatalogResponse(BaseModel):
+    """The industries available at /v1/vdt — drives the surface's industry selector."""
+    service: str
+    industries: list[VdtIndustry]
+
+
 class VdtResponse(BaseModel):
     """The Value Driver Tree view, served from the canonical economic-prophet engine's OUTPUT (never
     recomputed here — the value math lives in economic-prophet). The surface renders the driver×domain

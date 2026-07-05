@@ -116,15 +116,25 @@ def intelligence_superiority() -> object:
     )
 
 
+@app.get('/v1/vdt/catalog', response_model=_contracts.VdtCatalogResponse)
+def value_driver_tree_catalog() -> object:
+    """The industries the VDT endpoint can serve, so the surface can offer an industry selector
+    without hard-coding the list."""
+    return _contracts.VdtCatalogResponse(
+        service='dashboard-bff',
+        industries=[_contracts.VdtIndustry(**c) for c in _vdt_producer.catalog()],
+    )
+
+
 @app.get('/v1/vdt', response_model=_contracts.VdtResponse)
-def value_driver_tree() -> object:
-    """Serve the Value Driver Tree view from the canonical economic-prophet engine's OUTPUT. The value
-    math (EP/UVMC/VDT identities) lives in economic-prophet and is NOT recomputed here — this endpoint
-    reshapes the engine-produced artifact (tensor + computed uplifts, provenance intact) for the cockpit
-    surface, which previously computed from a hand-mirrored TS fixture. epistemic_status travels with the
-    payload so the UI presents the figure as a synthetic, machine-checked illustration, not a measured
-    business result."""
-    v = _vdt_producer.build()
+def value_driver_tree(industry: str = 'software') -> object:
+    """Serve one industry's Value Driver Tree view from the canonical economic-prophet engine's OUTPUT.
+    The value math (EP/UVMC/VDT identities) lives in economic-prophet and is NOT recomputed here — this
+    endpoint reshapes the engine-produced artifact (tensor + computed uplifts, provenance intact) for the
+    cockpit surface, which previously computed from a hand-mirrored TS fixture. `industry` selects the
+    tensor (software / banks / energy); an unknown id falls back to software. epistemic_status travels
+    with the payload so the UI presents the figure as a synthetic, machine-checked illustration."""
+    v = _vdt_producer.build(industry)
     uplift = v['computed_total_value_uplift']
     frac = v['computed_value_uplift_fraction']
     ev = v['enterprise_value_baseline']
