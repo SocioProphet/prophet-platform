@@ -31,6 +31,7 @@ def _load_module(path: Path, name: str):
 _contracts = _load_module(Path(__file__).with_name('contracts.py'), 'dashboard_bff_contracts')
 OverviewResponse = _contracts.OverviewResponse
 _producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics.py', 'emit_metrics')
+_vdt_producer = _load_module(ROOT / 'tools' / 'emit_vdt_metrics.py', 'emit_vdt_metrics')
 
 app = FastAPI(title='dashboard-bff')
 
@@ -49,7 +50,7 @@ def health() -> dict:
 def overview() -> object:
     return OverviewResponse(
         service='dashboard-bff',
-        views=['overview', 'deepdive', 'cases', 'intelligence-superiority'],
+        views=['overview', 'deepdive', 'cases', 'intelligence-superiority', 'value-drivers'],
         trace_required=True,
         evidence_required=True,
     )
@@ -111,5 +112,41 @@ def intelligence_superiority() -> object:
             'Facts labeled internal_reproduced were measured by us; official_provider facts are cited '
             'vendor/leaderboard numbers we did NOT independently verify. Our metrics and cited metrics are '
             'disjoint by design — no cross-provider superiority is asserted on any single benchmark.'
+        ),
+    )
+
+
+@app.get('/v1/vdt', response_model=_contracts.VdtResponse)
+def value_driver_tree() -> object:
+    """Serve the Value Driver Tree view from the canonical economic-prophet engine's OUTPUT. The value
+    math (EP/UVMC/VDT identities) lives in economic-prophet and is NOT recomputed here — this endpoint
+    reshapes the engine-produced artifact (tensor + computed uplifts, provenance intact) for the cockpit
+    surface, which previously computed from a hand-mirrored TS fixture. epistemic_status travels with the
+    payload so the UI presents the figure as a synthetic, machine-checked illustration, not a measured
+    business result."""
+    v = _vdt_producer.build()
+    uplift = v['computed_total_value_uplift']
+    frac = v['computed_value_uplift_fraction']
+    ev = v['enterprise_value_baseline']
+    return _contracts.VdtResponse(
+        service='dashboard-bff',
+        industry=v['industry'],
+        scenario=v['scenario'],
+        enterprise_value_baseline=ev,
+        drivers=v['drivers'],
+        domains=v['domains'],
+        weights=[_contracts.VdtCell(**c) for c in v['weights']],
+        per_kpi_contribution=[_contracts.VdtKpiContribution(**k) for k in v['per_kpi_contribution']],
+        per_driver_uplift=v['per_driver_uplift'],
+        per_domain_uplift=v['per_domain_uplift'],
+        computed_total_value_uplift=uplift,
+        computed_value_uplift_fraction=frac,
+        projected_enterprise_value=v['projected_enterprise_value'],
+        epistemic_status=v['epistemic_status'],
+        provenance=v['provenance'],
+        headline=(
+            f"{v['industry']}: the modeled KPI levers project +${uplift / 1e6:.2f}M "
+            f"({frac * 100:.2f}%) enterprise-value uplift on a synthetic ${ev / 1e9:.0f}B baseline — "
+            f"machine-checked measurement from the economic-prophet engine, not a business outcome."
         ),
     )

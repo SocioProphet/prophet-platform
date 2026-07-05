@@ -44,3 +44,46 @@ class IntelligenceSuperiorityResponse(BaseModel):
     reproduced_fact_count: int
     cited_fact_count: int
     disclaimer: str
+
+
+class VdtCell(BaseModel):
+    """One (value-driver × capability-domain) cell of the attribution tensor: the fraction of
+    enterprise value carried by that intersection. The cells sum to ~1.0 for the industry."""
+    driver: str
+    domain: str
+    weight: float
+
+
+class VdtKpiContribution(BaseModel):
+    """A KPI lever and the enterprise-value uplift it produces = improvement × cell weight × EV.
+    polarity is carried so the UI can show that a falling lower_better metric is a positive move."""
+    kpi: str
+    driver: str
+    domain: str
+    delta_pct: float
+    polarity: str
+    value_contribution: float
+
+
+class VdtResponse(BaseModel):
+    """The Value Driver Tree view, served from the canonical economic-prophet engine's OUTPUT (never
+    recomputed here — the value math lives in economic-prophet). The surface renders the driver×domain
+    attribution heatmap (weights), per-driver/-domain uplift bars, and the KPI-lever cards; headline is
+    the engine's computed total. epistemic_status + provenance keep the number honest about being a
+    synthetic, machine-checked illustration rather than a measured business outcome."""
+    service: str
+    industry: str
+    scenario: str
+    enterprise_value_baseline: float
+    drivers: list[str]
+    domains: list[str]
+    weights: list[VdtCell]
+    per_kpi_contribution: list[VdtKpiContribution]
+    per_driver_uplift: dict[str, float]
+    per_domain_uplift: dict[str, float]
+    computed_total_value_uplift: float
+    computed_value_uplift_fraction: float
+    projected_enterprise_value: float
+    epistemic_status: dict
+    provenance: dict
+    headline: str
