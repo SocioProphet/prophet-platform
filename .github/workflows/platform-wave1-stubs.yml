@@ -23,5 +23,8 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install --upgrade pip fastapi==0.115.0 uvicorn==0.30.6 pytest
 
-      - name: Run Wave 1 stub smoke tests
-        run: pytest -q tests/platform_stubs/test_wave1_stubs.py
+      - name: Lint eval-fabric SQL migrations (no DB — static consistency)
+        run: python tools/lint_eval_fabric_migrations.py
+
+      - name: Run platform stub tests
+        run: pytest -q tests/platform_stubs
