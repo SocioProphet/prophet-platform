@@ -40,9 +40,19 @@ def test_route_returns_200_with_tensor_and_uplift():
 def test_catalog_lists_the_selectable_industries():
     data = _client().get('/v1/vdt/catalog').json()
     ids = {i['id'] for i in data['industries']}
-    assert {'software', 'banks', 'energy'} <= ids
+    assert {'software', 'banks', 'energy', 'realestate', 'materials', 'consumerstaples'} <= ids
     for i in data['industries']:
         assert i['label'] and i['industry']
+
+
+def test_new_industries_serve_complete_self_consistent_tensors():
+    for vid, gics in (('realestate', 'GICS60_RealEstate'), ('materials', 'GICS15_Materials'),
+                      ('consumerstaples', 'GICS30_ConsumerStaples')):
+        v = _client().get(f'/v1/vdt?industry={vid}').json()
+        assert v['industry'] == gics
+        assert len(v['weights']) == 36
+        assert abs(sum(c['weight'] for c in v['weights']) - 1.0) < 1e-6
+        assert v['computed_total_value_uplift'] > 0
 
 
 def test_industry_param_selects_a_different_tensor():

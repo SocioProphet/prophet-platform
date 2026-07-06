@@ -14,6 +14,21 @@
       "id": "energy",
       "label": "Energy",
       "industry": "GICS10_Energy"
+    },
+    {
+      "id": "realestate",
+      "label": "Real Estate",
+      "industry": "GICS60_RealEstate"
+    },
+    {
+      "id": "materials",
+      "label": "Materials",
+      "industry": "GICS15_Materials"
+    },
+    {
+      "id": "consumerstaples",
+      "label": "Consumer Staples",
+      "industry": "GICS30_ConsumerStaples"
     }
   ]
 }
