@@ -61,6 +61,11 @@ tmpDir:
   enabled: true
   sizeLimit: 256Mi
 
+# Extra writable emptyDir mounts for services that need to write outside /tmp under a
+# read-only root filesystem (e.g. nginx needs /var/cache/nginx + /var/run). Per-service
+# override in deploy/values/<name>.yaml. Empty by default.
+writableDirs: []
+
 probes:
   enabled: true
   path: /healthz

@@ -79,16 +79,28 @@ spec:
           {{- end }}
           {{- end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
-          {{- if .Values.tmpDir.enabled }}
+          {{- if or .Values.tmpDir.enabled .Values.writableDirs }}
           volumeMounts:
+            {{- if .Values.tmpDir.enabled }}
             - name: tmp
               mountPath: /tmp
+            {{- end }}
+            {{- range $i, $p := .Values.writableDirs }}
+            - name: writable-{{ $i }}
+              mountPath: {{ $p }}
+            {{- end }}
           {{- end }}
-      {{- if .Values.tmpDir.enabled }}
+      {{- if or .Values.tmpDir.enabled .Values.writableDirs }}
       volumes:
+        {{- if .Values.tmpDir.enabled }}
         - name: tmp
           emptyDir:
             sizeLimit: {{ .Values.tmpDir.sizeLimit }}
+        {{- end }}
+        {{- range $i, $p := .Values.writableDirs }}
+        - name: writable-{{ $i }}
+          emptyDir: {}
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
