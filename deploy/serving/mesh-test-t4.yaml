@@ -1,0 +1,93 @@
+# mesh-test-t4 — the SHORTEST real cloud-mesh test (1 concurrent user, T4 quota only).
+#
+# One vLLM seat (AWQ 7B, fits a 16GB T4) behind the prophet-mesh conductor, so Noetica's
+# "Prophet Cloud Mesh" toggle can talk to model=prophet-mesh end-to-end. No A100/H100 needed.
+#
+# Spend discipline: the T4 bills only while the vLLM pod is Ready. Deploy for a test, delete after.
+# Access without external TLS: `kubectl -n serving port-forward svc/prophet-mesh 8780:8780`,
+# then point the Noetica toggle at http://127.0.0.1:8780/v1 (the https-guard allows localhost).
+---
+apiVersion: v1
+kind: Namespace
+metadata: { name: serving }
+---
+# ── The seat: one vLLM on a T4, serving an AWQ-quantized 7B coder ──────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-vllm
+  namespace: serving
+  labels: { app: mesh-vllm }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: mesh-vllm } }
+  template:
+    metadata: { labels: { app: mesh-vllm } }
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4   # T4 quota = 4 (A100/H100 = 0)
+      tolerations:
+        - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.6.3
+          args:
+            - "--model=Qwen/Qwen2.5-Coder-7B-Instruct-AWQ"
+            - "--quantization=awq"
+            - "--port=8000"
+            - "--max-model-len=8192"
+            - "--gpu-memory-utilization=0.92"
+            - "--enable-auto-tool-choice"        # so Noetica's agentic tool loop works over the mesh
+            - "--tool-call-parser=hermes"
+          ports: [{ containerPort: 8000 }]
+          resources:
+            limits: { nvidia.com/gpu: 1, cpu: "4", memory: 16Gi }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            failureThreshold: 60
+---
+apiVersion: v1
+kind: Service
+metadata: { name: mesh-vllm, namespace: serving }
+spec:
+  selector: { app: mesh-vllm }
+  ports: [{ port: 8000, targetPort: 8000 }]
+---
+# ── The conductor: OpenAI-compatible gateway; maps model=prophet-mesh → the seat ─
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prophet-mesh
+  namespace: serving
+  labels: { app: prophet-mesh }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: prophet-mesh } }
+  template:
+    metadata: { labels: { app: prophet-mesh } }
+    spec:
+      containers:
+        - name: conductor
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/prophet-mesh:latest
+          ports: [{ containerPort: 8780 }]
+          env:
+            - name: SEAT_BACKENDS
+              value: '{"default":{"url":"http://mesh-vllm.serving.svc:8000/v1","model":"Qwen/Qwen2.5-Coder-7B-Instruct-AWQ"}}'
+            # - name: MESH_AUTH_TOKEN            # uncomment + set a secret to require a bearer token
+            #   valueFrom: { secretKeyRef: { name: prophet-mesh-auth, key: token } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8780 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "250m", memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: prophet-mesh, namespace: serving }
+spec:
+  selector: { app: prophet-mesh }
+  ports: [{ port: 8780, targetPort: 8780 }]
