@@ -1,0 +1,5 @@
+# Local tofu state (durable — back up terraform.tfstate out-of-band, e.g. to the backups bucket)
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*

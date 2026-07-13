@@ -9,3 +9,5 @@ ingress:
   className: ""   # cluster default; set per-cloud (gce / azure-application-gateway / alb) via overlay
   hosts: [{ host: api.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+# nginx needs these writable under the chart's readOnlyRootFilesystem (Autopilot).
+writableDirs: [/var/cache/nginx, /var/run]
