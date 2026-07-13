@@ -1,0 +1,37 @@
+# Public https exposure for the conductor so remote users (Gus) reach the mesh.
+# Requires: a DNS A-record mesh.socioprophet.ai → the Ingress IP (printed after apply),
+# and the conductor running with MESH_AUTH_TOKEN (secret prophet-mesh-auth). The Google-
+# managed cert provisions automatically ~15-60 min after DNS resolves to the Ingress IP.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata: { name: mesh-cert, namespace: serving }
+spec:
+  domains: [ mesh.socioprophet.ai ]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prophet-mesh-lb
+  namespace: serving
+  annotations: { cloud.google.com/neg: '{"ingress": true}' }
+spec:
+  type: NodePort
+  selector: { app: prophet-mesh }
+  ports: [{ port: 8780, targetPort: 8780 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mesh-ingress
+  namespace: serving
+  annotations:
+    networking.gke.io/managed-certificates: mesh-cert
+    kubernetes.io/ingress.class: gce
+spec:
+  rules:
+    - host: mesh.socioprophet.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: prophet-mesh-lb, port: { number: 8780 } } }
