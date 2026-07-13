@@ -1,0 +1,82 @@
+# Self-hosted Postgres for the estate (socbase auth/rest, workspace, eval-fabric).
+# Bound to the PERSISTENT `postgres-data` disk via a static PV, so the database
+# survives every ephemeral cluster teardown and re-binds on the next spin-up.
+# Sovereign — not managed Cloud SQL.
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-data-pv
+  labels: { app: postgres }
+spec:
+  capacity: { storage: 50Gi }
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain          # never delete the retained disk on PVC removal
+  storageClassName: ""                            # static binding — no dynamic provisioner
+  claimRef: { namespace: socioprophet, name: postgres-data-pvc }
+  csi:
+    driver: pd.csi.storage.gke.io
+    volumeHandle: projects/socioprophet-platform/zones/us-central1-a/disks/postgres-data
+    fsType: ext4
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - { key: topology.gke.io/zone, operator: In, values: [us-central1-a] }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-pvc
+  namespace: socioprophet
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: postgres-data-pv
+  resources: { requests: { storage: 50Gi } }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: socioprophet
+  labels: { app: postgres }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app: postgres } }
+  template:
+    metadata: { labels: { app: postgres } }
+    spec:
+      securityContext: { fsGroup: 999 }          # postgres uid/gid in the official image
+      containers:
+        - name: postgres
+          image: postgres:16
+          ports: [{ containerPort: 5432, name: postgres }]
+          env:
+            - { name: POSTGRES_DB, value: prophet_platform }
+            - { name: POSTGRES_USER, value: postgres }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-admin, key: password } }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          volumeMounts: [{ name: data, mountPath: /var/lib/postgresql/data }]
+          readinessProbe:
+            exec: { command: ["pg_isready", "-U", "postgres", "-d", "prophet_platform"] }
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests: { cpu: "500m", memory: 1Gi }
+            limits: { cpu: "1", memory: 2Gi }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: postgres-data-pvc }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: socioprophet
+  labels: { app: postgres }
+spec:
+  selector: { app: postgres }
+  ports: [{ port: 5432, targetPort: 5432, name: postgres }]
