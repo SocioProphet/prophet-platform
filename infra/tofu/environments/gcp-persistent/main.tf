@@ -77,6 +77,30 @@ resource "google_compute_disk" "hellgraph_estate" {
   lifecycle { prevent_destroy = true }
 }
 
+# ─── GKE node identity — long-lived, reused by every ephemeral cluster ──────────
+# MUST be persistent: a service account deleted on cluster teardown can't be
+# re-created with the same account_id for 30 days (GCP soft-deletion), which would
+# break the next spin-up. The project's default compute SA was deleted (hardening),
+# so Autopilot needs this explicit node identity to provision nodes at all.
+resource "google_service_account" "gke_nodes" {
+  account_id   = "gke-prophet-nodes"
+  display_name = "GKE prophet-platform node identity"
+  depends_on   = [google_project_service.svc]
+}
+
+resource "google_project_iam_member" "gke_nodes" {
+  for_each = toset([
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/stackdriver.resourceMetadata.writer",
+    "roles/artifactregistry.reader", # pull images from GAR
+  ])
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.gke_nodes.email}"
+}
+
 resource "google_compute_disk" "postgres_data" {
   name       = "postgres-data"
   type       = "pd-balanced"

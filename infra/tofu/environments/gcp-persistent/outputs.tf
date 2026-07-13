@@ -34,3 +34,8 @@ output "postgres_disk_name" {
 output "zone" {
   value = var.zone
 }
+
+output "gke_node_sa" {
+  description = "Email of the long-lived GKE node identity (consumed by the ephemeral cluster stack)."
+  value       = google_service_account.gke_nodes.email
+}
