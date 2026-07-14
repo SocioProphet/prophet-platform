@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import GygCausalValuationCard from './components/GygCausalValuationCard.vue'
+import GygLocationsMapCard from './components/GygLocationsMapCard.vue'
 import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
 import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
 import HealthAIDemoReadinessCard from './components/HealthAIDemoReadinessCard.vue'
@@ -44,6 +46,8 @@ onMounted(check)
       </div>
     </section>
 
+    <GygCausalValuationCard />
+    <GygLocationsMapCard />
     <HealthAIDemoReadinessCard />
     <ProphetMeshRuntimeReadinessCard />
     <ChronosEvidenceLoopCard />

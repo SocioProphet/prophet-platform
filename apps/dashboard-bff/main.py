@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import importlib.util
@@ -32,13 +32,15 @@ _contracts = _load_module(Path(__file__).with_name('contracts.py'), 'dashboard_b
 OverviewResponse = _contracts.OverviewResponse
 _producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics.py', 'emit_metrics')
 _vdt_producer = _load_module(ROOT / 'tools' / 'emit_vdt_metrics.py', 'emit_vdt_metrics')
+_gyg_causal_producer = _load_module(ROOT / 'tools' / 'emit_gyg_causal.py', 'emit_gyg_causal')
+_gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py', 'emit_gyg_locations')
 
 app = FastAPI(title='dashboard-bff')
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
-    allow_methods=['GET'],
+    allow_methods=['GET', 'POST'],
     allow_headers=['*'],
 )
 
@@ -160,3 +162,38 @@ def value_driver_tree(industry: str = 'software') -> object:
             f"machine-checked measurement from the economic-prophet engine, not a business outcome."
         ),
     )
+
+
+@app.get('/v1/valuation/causal')
+def valuation_causal(company: str = 'gyg') -> dict:
+    """Serve the causal-graph valuation walk for a company (GYG use case, portfolio-manager persona).
+
+    Joins the hellgraph supply-chain causal graph (supply-chain node -> causal edge -> value-driver KPI)
+    with the economic-prophet VDT valuation (KPI -> driver -> enterprise-value uplift). Neither the graph
+    topology nor the value math is computed here — both are read verbatim from their canonical artifacts
+    with provenance intact (see tools/emit_gyg_causal.py). The GYG inputs are public-sourced; the payload
+    carries epistemic_status, assumptions, limitations and evidence_refs so the surface presents an
+    advisory measurement, never investment advice."""
+    return _gyg_causal_producer.build(company)
+
+
+@app.post('/v1/valuation/causal/recompute')
+def valuation_causal_recompute(company: str = 'gyg', overrides: dict = Body(default={})) -> dict:
+    """What-if recompute: apply the portfolio-manager's assumption overrides and RE-RUN the canonical
+    economic-prophet engine (open_ep_framework.vdt.summarize_vdt), returning the same causal-walk payload
+    with refreshed valuation and graph numbers. The value math is NOT re-implemented here — the engine is
+    invoked live — so exploring assumptions cannot fork the value model.
+
+    Body: {"ev_baseline": <number?>, "kpi_overrides": {"<kpi_name>": <delta_pct>}}"""
+    return _gyg_causal_producer.recompute(overrides, company)
+
+
+@app.get('/v1/locations')
+def locations(company: str = 'gyg', q: str = '', state: str = '') -> dict:
+    """GYG restaurant locations for the map + org digital-twin surface, with a MODELED per-site
+    demographics/foot-traffic estimate. Locations are a public-sourced representative sample; the
+    per-site sales estimate is anchored to GYG's DISCLOSED format AUV (drive-thru A$6.7m / strip A$5.0m)
+    adjusted by a metro-density tier, and footfall is derived via average ticket — every record carries
+    `basis` and the payload carries network_totals so the surface labels model vs measured. `q` filters
+    by suburb/state/format; `state` filters by state code."""
+    return _gyg_locations_producer.build(company, q, state)

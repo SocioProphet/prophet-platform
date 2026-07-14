@@ -1,0 +1,403 @@
+{
+  "_provenance": {
+    "engine": "open_ep_framework.vdt.run_vdt",
+    "framework_version": "0.1.0",
+    "generated_at": "2026-07-14T15:34:12.238730+00:00",
+    "industry": "GICS_ConsumerDiscretionary_Restaurants",
+    "input_hash": "hash://public-sourced/input-vdt-gyg-qsr-001",
+    "note": "Engine-produced OUTPUT vendored for the dashboard-bff to serve. Not hand-edited. GYG (ASX:GYG) inputs are public-sourced; see profile.evidence_refs.",
+    "profile_example": "examples/vdt_gyg_qsr.json",
+    "regen": "cd ~/dev/economic-prophet && python -m open_ep_framework.cli --mode vdt --example examples/vdt_gyg_qsr.json",
+    "source_repo": "SocioProphet/economic-prophet",
+    "subject": "Guzman y Gomez (ASX:GYG)",
+    "data_provenance": "public_sourced_scenario"
+  },
+  "profile": {
+    "as_of": "2026-07-14T00:00:00Z",
+    "assumptions": [
+      "All monetary values are in AUD.",
+      "Enterprise-value baseline A$2.08bn is GYG's public enterprise value (market cap ~A$1.95bn + net debt), per market data as of mid-2026.",
+      "FY25 actuals grounding the scenario (year to 30 Jun 2025): global network sales A$1.18bn (+23%), revenue A$436m (+27.4%) = corporate restaurant sales A$359.7m + franchise/other A$78.7m; corporate restaurant margin 17.9%; pro-forma EBITDA A$65m; NPAT A$14.5m; 256 restaurants (39 opened in FY25); franchise AUV A$6.7m drive-thru / A$5.0m strip; median franchisee ROI 50%.",
+      "Cell weights are an analyst attribution of enterprise value across the value-driver x capability-domain tensor (sums to 1.0); they are not disclosed by GYG. Value concentrates in demand/comparable sales (RevenueGrowth x CustomerInterface), network rollout and COGS (SupplyDelivery), restaurant labour (OperationsSupport), and guest experience (Experience x CustomerInterface).",
+      "KPI deltas are a forward operating SCENARIO aligned to GYG's stated medium-term guidance (Australian comparable sales averaging ~4%, continued network rollout), not a forecast, target price, or recommendation.",
+      "A KPI lever moves the value carried by its (driver, domain) cell by the improvement fraction; lower_better KPIs improve as they fall.",
+      "US operations are excluded: GYG announced exit of US operations effective May 2026, refocusing on the core Australian business.",
+      "Multi-period: horizon 5y, discount 9% (illustrative equity rate). compounding levers (comparable sales, rollout, drive-thru AUV) recur and compound; step levers (COGS, labour, supply resilience) are one-time improvements held flat."
+    ],
+    "discount_rate": 0.09,
+    "domains": [
+      "CustomerInterface",
+      "ProductServiceDev",
+      "SupplyDelivery",
+      "OperationsSupport",
+      "RiskSecurity",
+      "GovernanceKnowledge"
+    ],
+    "drivers": [
+      "RevenueGrowth",
+      "CostEfficiency",
+      "Experience",
+      "KnowledgeProductivity",
+      "TrustComplianceResilience",
+      "Innovation"
+    ],
+    "enterprise_value_baseline": 2080000000.0,
+    "epistemic_status": {
+      "confidence": 0.7,
+      "level": "public_sourced_scenario",
+      "review_status": "source_cited"
+    },
+    "evidence_refs": [
+      "https://www.guzmanygomez.com.au/wp-content/uploads/2025/09/2025-GYG-Full-Year-Results-Presentation.pdf",
+      "https://www.guzmanygomez.com.au/wp-content/uploads/2025/08/Guzman-y-Gomez-2025-Annual-Report.pdf",
+      "https://www.proactiveinvestors.com.au/companies/news/1077157/guzman-y-gomez-delivers-record-fy25-results-surpasses-1-billion-milestone-1077157.html",
+      "https://stockanalysis.com/quote/asx/GYG/statistics/",
+      "schemas/vdt_profile.schema.json"
+    ],
+    "framework_version": "0.1.0",
+    "horizon_years": 5,
+    "industry": "GICS_ConsumerDiscretionary_Restaurants",
+    "input_hash": "hash://public-sourced/input-vdt-gyg-qsr-001",
+    "kpis": [
+      {
+        "accumulation": "compounding",
+        "delta_pct": 4.0,
+        "domain": "CustomerInterface",
+        "driver": "RevenueGrowth",
+        "kpi": "australian_comparable_sales_pct",
+        "polarity": "higher_better"
+      },
+      {
+        "accumulation": "compounding",
+        "delta_pct": 15.0,
+        "domain": "SupplyDelivery",
+        "driver": "RevenueGrowth",
+        "kpi": "net_new_restaurant_rollout_pct",
+        "polarity": "higher_better"
+      },
+      {
+        "accumulation": "step",
+        "delta_pct": -1.5,
+        "domain": "SupplyDelivery",
+        "driver": "CostEfficiency",
+        "kpi": "cogs_pct_of_sales",
+        "polarity": "lower_better"
+      },
+      {
+        "accumulation": "step",
+        "delta_pct": -1.0,
+        "domain": "OperationsSupport",
+        "driver": "CostEfficiency",
+        "kpi": "restaurant_labour_pct_of_sales",
+        "polarity": "lower_better"
+      },
+      {
+        "accumulation": "compounding",
+        "delta_pct": 3.0,
+        "domain": "CustomerInterface",
+        "driver": "Experience",
+        "kpi": "drive_thru_average_unit_volume_pct",
+        "polarity": "higher_better"
+      },
+      {
+        "accumulation": "step",
+        "delta_pct": -5.0,
+        "domain": "SupplyDelivery",
+        "driver": "TrustComplianceResilience",
+        "kpi": "supply_disruption_rate",
+        "polarity": "lower_better"
+      }
+    ],
+    "limitations": [
+      "This is a measurement of a scenario's projected enterprise-value uplift under a value-driver tree; it asserts no securities, investment, or valuation-opinion conclusion.",
+      "The weight tensor is an analyst attribution, not company-disclosed segment economics.",
+      "Not calibrated to GYG internal management accounts; grounded only in public disclosures cited in evidence_refs.",
+      "Currency and period mixing (FY25 actuals vs mid-2026 market EV) is deliberate for illustration and not reconciled to a single valuation date."
+    ],
+    "measurement_boundary": {
+      "mode": "doctrine_measurement_simulation_audit_only",
+      "non_goals": [
+        "live_money_movement",
+        "securities_issuance",
+        "investment_advice",
+        "deposit_taking",
+        "external_token_issuance",
+        "payment_processing"
+      ]
+    },
+    "output_hash": "hash://public-sourced/output-vdt-gyg-qsr-001",
+    "replay_plan_ref": "replay://vdt/vdt-gyg-qsr-001",
+    "reported_total_value_uplift": 55848000.0,
+    "reported_value_uplift_fraction": 0.02685,
+    "run_id": "vdt-gyg-qsr-001",
+    "scenario": "gyg-qsr-value-driver-tree",
+    "weights": [
+      {
+        "domain": "CustomerInterface",
+        "driver": "RevenueGrowth",
+        "weight": 0.12
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "RevenueGrowth",
+        "weight": 0.03
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "RevenueGrowth",
+        "weight": 0.1
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "RevenueGrowth",
+        "weight": 0.04
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "RevenueGrowth",
+        "weight": 0.01
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "RevenueGrowth",
+        "weight": 0.03
+      },
+      {
+        "domain": "CustomerInterface",
+        "driver": "CostEfficiency",
+        "weight": 0.02
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "CostEfficiency",
+        "weight": 0.02
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "CostEfficiency",
+        "weight": 0.09
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "CostEfficiency",
+        "weight": 0.07
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "CostEfficiency",
+        "weight": 0.01
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "CostEfficiency",
+        "weight": 0.01
+      },
+      {
+        "domain": "CustomerInterface",
+        "driver": "Experience",
+        "weight": 0.1
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "Experience",
+        "weight": 0.03
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "Experience",
+        "weight": 0.01
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "Experience",
+        "weight": 0.01
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "Experience",
+        "weight": 0.005
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "Experience",
+        "weight": 0.005
+      },
+      {
+        "domain": "CustomerInterface",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.02
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.02
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.02
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.02
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.005
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "KnowledgeProductivity",
+        "weight": 0.015
+      },
+      {
+        "domain": "CustomerInterface",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.01
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.01
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.04
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.01
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.025
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "TrustComplianceResilience",
+        "weight": 0.005
+      },
+      {
+        "domain": "CustomerInterface",
+        "driver": "Innovation",
+        "weight": 0.02
+      },
+      {
+        "domain": "ProductServiceDev",
+        "driver": "Innovation",
+        "weight": 0.04
+      },
+      {
+        "domain": "SupplyDelivery",
+        "driver": "Innovation",
+        "weight": 0.01
+      },
+      {
+        "domain": "OperationsSupport",
+        "driver": "Innovation",
+        "weight": 0.005
+      },
+      {
+        "domain": "RiskSecurity",
+        "driver": "Innovation",
+        "weight": 0.005
+      },
+      {
+        "domain": "GovernanceKnowledge",
+        "driver": "Innovation",
+        "weight": 0.01
+      }
+    ]
+  },
+  "summary": {
+    "computed_total_value_uplift": 55848000.0,
+    "computed_value_uplift_fraction": 0.02685,
+    "domain_count": 6,
+    "driver_count": 6,
+    "enterprise_value_baseline": 2080000000.0,
+    "industry": "GICS_ConsumerDiscretionary_Restaurants",
+    "kpi_count": 6,
+    "measurement_boundary_mode": "doctrine_measurement_simulation_audit_only",
+    "missing_required_non_goals": [],
+    "per_domain_uplift": {
+      "CustomerInterface": 16224000.0,
+      "OperationsSupport": 1456000.0000000002,
+      "SupplyDelivery": 38168000.0
+    },
+    "per_driver_uplift": {
+      "CostEfficiency": 4264000.0,
+      "Experience": 6240000.0,
+      "RevenueGrowth": 41184000.0,
+      "TrustComplianceResilience": 4160000.0
+    },
+    "per_kpi_contribution": [
+      {
+        "delta_pct": 4.0,
+        "domain": "CustomerInterface",
+        "driver": "RevenueGrowth",
+        "kpi": "australian_comparable_sales_pct",
+        "polarity": "higher_better",
+        "value_contribution": 9984000.0
+      },
+      {
+        "delta_pct": 15.0,
+        "domain": "SupplyDelivery",
+        "driver": "RevenueGrowth",
+        "kpi": "net_new_restaurant_rollout_pct",
+        "polarity": "higher_better",
+        "value_contribution": 31200000.0
+      },
+      {
+        "delta_pct": -1.5,
+        "domain": "SupplyDelivery",
+        "driver": "CostEfficiency",
+        "kpi": "cogs_pct_of_sales",
+        "polarity": "lower_better",
+        "value_contribution": 2807999.9999999995
+      },
+      {
+        "delta_pct": -1.0,
+        "domain": "OperationsSupport",
+        "driver": "CostEfficiency",
+        "kpi": "restaurant_labour_pct_of_sales",
+        "polarity": "lower_better",
+        "value_contribution": 1456000.0000000002
+      },
+      {
+        "delta_pct": 3.0,
+        "domain": "CustomerInterface",
+        "driver": "Experience",
+        "kpi": "drive_thru_average_unit_volume_pct",
+        "polarity": "higher_better",
+        "value_contribution": 6240000.0
+      },
+      {
+        "delta_pct": -5.0,
+        "domain": "SupplyDelivery",
+        "driver": "TrustComplianceResilience",
+        "kpi": "supply_disruption_rate",
+        "polarity": "lower_better",
+        "value_contribution": 4160000.0
+      }
+    ],
+    "projected_enterprise_value": 2135848000.0,
+    "reported_total_value_uplift": 55848000.0,
+    "reported_value_uplift_fraction": 0.02685,
+    "required_non_goals_present": [
+      "deposit_taking",
+      "external_token_issuance",
+      "investment_advice",
+      "live_money_movement",
+      "securities_issuance"
+    ],
+    "run_id": "vdt-gyg-qsr-001",
+    "scenario": "gyg-qsr-value-driver-tree",
+    "weight_cell_count": 36,
+    "weight_sum": 1.0
+  }
+}

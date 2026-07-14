@@ -1,0 +1,38 @@
+{
+  "_provenance": {
+    "subject": "Guzman y Gomez (ASX:GYG)",
+    "note": "Representative sample of real GYG Australian restaurant suburbs with approximate coordinates and format. NOT the full network; a demo subset for the location/map/twin surface. Formats and ownership are illustrative per-site labels consistent with the disclosed network mix.",
+    "network_totals": {
+      "as_of": "2025-10",
+      "total_au_restaurants": 231,
+      "drive_thru": 117,
+      "strip": 68,
+      "other": 39,
+      "source": "https://www.guzmanygomez.com.au/locations/"
+    },
+    "data_provenance": "public_sourced_sample"
+  },
+  "company": "gyg",
+  "locations": [
+    {"id": "gyg-qld-queenst", "suburb": "Brisbane CBD (Queen St)", "state": "QLD", "lat": -27.4700, "lng": 153.0240, "format": "strip", "ownership": "corporate"},
+    {"id": "gyg-qld-fortitude", "suburb": "Fortitude Valley", "state": "QLD", "lat": -27.4570, "lng": 153.0340, "format": "strip", "ownership": "franchise"},
+    {"id": "gyg-qld-chermside", "suburb": "Chermside", "state": "QLD", "lat": -27.3850, "lng": 153.0310, "format": "shopping_centre", "ownership": "franchise"},
+    {"id": "gyg-qld-carindale", "suburb": "Carindale", "state": "QLD", "lat": -27.5100, "lng": 153.1000, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-qld-indooroopilly", "suburb": "Indooroopilly", "state": "QLD", "lat": -27.5000, "lng": 152.9730, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-qld-southport", "suburb": "Southport (Gold Coast)", "state": "QLD", "lat": -27.9670, "lng": 153.4100, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-qld-maroochydore", "suburb": "Maroochydore (Sunshine Coast)", "state": "QLD", "lat": -26.6600, "lng": 153.0900, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-nsw-sydcbd", "suburb": "Sydney CBD", "state": "NSW", "lat": -33.8700, "lng": 151.2100, "format": "strip", "ownership": "corporate"},
+    {"id": "gyg-nsw-parramatta", "suburb": "Parramatta", "state": "NSW", "lat": -33.8100, "lng": 151.0000, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-nsw-bondijunction", "suburb": "Bondi Junction", "state": "NSW", "lat": -33.8900, "lng": 151.2500, "format": "strip", "ownership": "franchise"},
+    {"id": "gyg-nsw-liverpool", "suburb": "Liverpool", "state": "NSW", "lat": -33.9200, "lng": 150.9200, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-nsw-newcastle", "suburb": "Newcastle", "state": "NSW", "lat": -32.9300, "lng": 151.7800, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-vic-swanston", "suburb": "Melbourne CBD (Swanston St)", "state": "VIC", "lat": -37.8100, "lng": 144.9670, "format": "strip", "ownership": "corporate"},
+    {"id": "gyg-vic-chadstone", "suburb": "Chadstone", "state": "VIC", "lat": -37.8900, "lng": 145.0830, "format": "shopping_centre", "ownership": "franchise"},
+    {"id": "gyg-vic-geelong", "suburb": "Geelong", "state": "VIC", "lat": -38.1500, "lng": 144.3600, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-vic-craigieburn", "suburb": "Craigieburn", "state": "VIC", "lat": -37.6000, "lng": 144.9400, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-wa-perthcbd", "suburb": "Perth CBD", "state": "WA", "lat": -31.9500, "lng": 115.8600, "format": "strip", "ownership": "franchise"},
+    {"id": "gyg-wa-haynes", "suburb": "Haynes (Armadale)", "state": "WA", "lat": -32.1600, "lng": 115.9900, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-act-canberra", "suburb": "Canberra City", "state": "ACT", "lat": -35.2800, "lng": 149.1300, "format": "drive_thru", "ownership": "franchise"},
+    {"id": "gyg-sa-adelaide", "suburb": "Adelaide CBD", "state": "SA", "lat": -34.9300, "lng": 138.6000, "format": "strip", "ownership": "franchise"}
+  ]
+}

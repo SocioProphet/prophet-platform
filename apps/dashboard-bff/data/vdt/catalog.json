@@ -29,6 +29,11 @@
       "id": "consumerstaples",
       "label": "Consumer Staples",
       "industry": "GICS30_ConsumerStaples"
+    },
+    {
+      "id": "gyg",
+      "label": "Guzman y Gomez (ASX:GYG)",
+      "industry": "GICS_ConsumerDiscretionary_Restaurants"
     }
   ]
 }
