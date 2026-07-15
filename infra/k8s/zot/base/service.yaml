@@ -1,6 +1,6 @@
-# GCE ingress needs a 200 from the LB health check, but zot's /v2/ is 401 under the login-wall.
-# zot exposes an UNAUTHENTICATED readiness endpoint (/v2/_zot/ready) — point the health check there.
-# VERIFY this path against the pinned zot version at deploy time (it's the one GKE-specific wrinkle).
+# GCE ingress needs a 200 from the LB health check, but zot's /v2/ is 401 under the login-wall
+# and v2.1.2 exposes no /v2/_zot/* health path (all 404). The UI root "/" returns 200 unauthenticated
+# (ui extension enabled), so use it as the LB health path. Verified by port-forward probe at deploy.
 apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
@@ -9,7 +9,7 @@ metadata:
 spec:
   healthCheck:
     type: HTTP
-    requestPath: /v2/_zot/ready
+    requestPath: /
     port: 5000
 ---
 apiVersion: v1
