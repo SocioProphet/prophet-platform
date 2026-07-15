@@ -36,7 +36,8 @@ data:
           "repositories": {
             "**": {
               "policies": [
-                { "users": ["admin", "ci", "github-ci"], "actions": ["read", "create", "update", "delete"] }
+                { "users": ["admin", "ci", "github-ci"], "actions": ["read", "create", "update", "delete"] },
+                { "users": ["k8s-pull"], "actions": ["read"] }
               ],
               "defaultPolicy": [],
               "anonymousPolicy": []
