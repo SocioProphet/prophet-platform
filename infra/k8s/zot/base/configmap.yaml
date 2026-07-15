@@ -48,6 +48,7 @@ data:
       "extensions": {
         "sync": {
           "enable": true,
+          "downloadDir": "/var/lib/zot/sync",
           "registries": [
             { "urls": ["https://registry-1.docker.io"], "onDemand": true, "tlsVerify": true },
             { "urls": ["https://ghcr.io"], "onDemand": true, "tlsVerify": true },
