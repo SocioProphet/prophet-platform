@@ -1,0 +1,39 @@
+# The gate that was missing on 2026-07-15, when ~9 pods crashlooped for two days
+# behind a 100% green pipeline. Everything CI checked passed; nothing checked that
+# what we DEPLOY matches what we BUILD.
+#
+# Runs on PRs (unlike images.yml, which is push/dispatch-only) because the whole
+# point is to reject the mismatch before it reaches the cluster.
+name: preflight-deploy-contract
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - 'infra/k8s/**'
+      - '.github/workflows/images.yml'
+      - '.github/workflows/preflight-deploy-contract.yml'
+      - 'tools/preflight_deploy_contract.py'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/**'
+      - 'infra/k8s/**'
+      - '.github/workflows/images.yml'
+      - 'tools/preflight_deploy_contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet pyyaml
+      - name: Every deployed service must reference something that exists
+        run: python3 tools/preflight_deploy_contract.py

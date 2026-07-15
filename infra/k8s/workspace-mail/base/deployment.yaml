@@ -12,9 +12,11 @@ spec:
       labels:
         app: workspace-mail
     spec:
+      imagePullSecrets:
+        - name: zot-pull
       containers:
         - name: dovecot
-          image: ghcr.io/socioprophet/prophet-platform/workspace-mail:dev
+          image: registry.socioprophet.ai/workspace-mail:sha-8f1bb2f5d6d4d9577113887bbfb79ce8305782b3
           ports:
             - name: imap
               containerPort: 143

@@ -12,9 +12,11 @@ spec:
       labels:
         app: workspace-caldav
     spec:
+      imagePullSecrets:
+        - name: zot-pull
       containers:
         - name: radicale
-          image: ghcr.io/socioprophet/prophet-platform/workspace-caldav:dev
+          image: registry.socioprophet.ai/workspace-caldav:sha-8f1bb2f5d6d4d9577113887bbfb79ce8305782b3
           ports:
             - name: caldav
               containerPort: 5232
