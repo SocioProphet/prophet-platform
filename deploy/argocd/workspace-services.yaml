@@ -1,6 +1,19 @@
-# Argo CD ApplicationSet — prophet-workspace services (mail / calendar / smtp).
-# prophet-workspace owns the product semantics + contracts; the deployment
-# topology lives here in prophet-platform (per the prophet-workspace README).
+# Argo CD ApplicationSet — prophet-workspace services (Dovecot mail + SMTP + CalDAV, on MinIO storage).
+#
+# prophet-workspace owns the product semantics + capability contracts; the runtime deployment topology
+# lives here in prophet-platform (per the prophet-workspace README / office-plane.md).
+#
+# These are STATEFUL, multi-manifest components — Dovecot IMAP with SQL passdb/userdb auth, a co-located
+# SMTP submission service (workspace-mail/base/deployment-smtp.yaml), and a MinIO object store with its own
+# PVC + backup CronJob + NetworkPolicy. They therefore deploy via KUSTOMIZE (infra/k8s/workspace-*/overlays),
+# the house convention for stateful/infra components — NOT the reusable stateless-service Helm chart
+# (charts/socioprophet-service) that platform-services.yaml uses for build-pipeline-imaged API/gateway/web.
+# Service source + full manifests live at services/workspace-*/ and infra/k8s/workspace-*/, and this set is
+# the source of truth validated by tools/validate_workspace_services.py.
+#
+# Sync-waves mirror infra/k8s/argo-cd/appsets/socioprophet-appset.yaml: storage (wave 0) becomes Healthy
+# before the mail + calendar surfaces (wave 2) that depend on it. SMTP ships inside the workspace-mail
+# overlay, so there is no separate workspace-smtp element.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -12,30 +25,25 @@ spec:
   generators:
     - list:
         elements:
-          - { name: workspace-caldav }
-          - { name: workspace-mail }
-          - { name: workspace-smtp }
+          - { name: workspace-minio,  path: infra/k8s/workspace-minio/overlays/p0-lab,  wave: "0" }
+          - { name: workspace-mail,   path: infra/k8s/workspace-mail/overlays/p0-lab,   wave: "2" }
+          - { name: workspace-caldav, path: infra/k8s/workspace-caldav/overlays/p0-lab, wave: "2" }
   template:
     metadata:
       name: 'ws-{{.name}}'
       labels:
         app.kubernetes.io/part-of: prophet-workspace
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{.wave}}'
     spec:
       project: default
-      sources:
-        - repoURL: https://github.com/SocioProphet/prophet-platform
-          targetRevision: main
-          ref: values
-        - repoURL: https://github.com/SocioProphet/prophet-platform
-          targetRevision: main
-          path: charts/socioprophet-service
-          helm:
-            releaseName: '{{.name}}'
-            valueFiles:
-              - '$values/deploy/values/{{.name}}.yaml'
       destination:
         server: https://kubernetes.default.svc
-        namespace: workspace
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions:
