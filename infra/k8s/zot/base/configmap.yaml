@@ -1,0 +1,62 @@
+# zot registry config. Blobs live in MinIO (S3 driver → the running workspace-minio); a small local
+# PVC holds zot's boltdb metadata cache. Login-walled: only authenticated users in accessControl may
+# read/write, no anonymous access. `sync` provides on-demand pull-through of upstream registries so the
+# cluster pulls docker.io/ghcr/gcr/k8s images THROUGH zot (the de-Google lever). S3 credentials are NOT
+# in this file — they come from env (AWS_ACCESS_KEY_ID/SECRET) sourced from the minio-credentials secret.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-config
+  namespace: socioprophet
+  labels: { app: zot }
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.0",
+      "storage": {
+        "rootDirectory": "/var/lib/zot",
+        "dedupe": true,
+        "gc": true,
+        "storageDriver": {
+          "name": "s3",
+          "rootdirectory": "/zot",
+          "region": "us-east-1",
+          "regionendpoint": "workspace-minio.socioprophet.svc.cluster.local:9000",
+          "bucket": "zot",
+          "secure": false,
+          "skipverify": true
+        }
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000",
+        "realm": "zot-sovereign",
+        "auth": { "htpasswd": { "path": "/etc/zot/htpasswd" } },
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "policies": [
+                { "users": ["admin", "ci"], "actions": ["read", "create", "update", "delete"] }
+              ],
+              "defaultPolicy": [],
+              "anonymousPolicy": []
+            }
+          }
+        }
+      },
+      "log": { "level": "info" },
+      "extensions": {
+        "sync": {
+          "enable": true,
+          "registries": [
+            { "urls": ["https://registry-1.docker.io"], "onDemand": true, "tlsVerify": true },
+            { "urls": ["https://ghcr.io"], "onDemand": true, "tlsVerify": true },
+            { "urls": ["https://gcr.io"], "onDemand": true, "tlsVerify": true },
+            { "urls": ["https://registry.k8s.io"], "onDemand": true, "tlsVerify": true }
+          ]
+        },
+        "search": { "enable": true },
+        "ui": { "enable": true },
+        "mgmt": { "enable": true }
+      }
+    }

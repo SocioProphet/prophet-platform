@@ -1,0 +1,30 @@
+# Login-walled sovereign registry at registry.socioprophet.ai — same GCE ingress + ManagedCertificate
+# pattern as gitea-sovereign (code.socioprophet.ai). After deploy: point the registry.socioprophet.ai
+# A-record at the printed Ingress IP; the cert goes Active ~15–60 min after DNS resolves.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: registry-cert
+  namespace: socioprophet
+spec:
+  domains: [registry.socioprophet.ai]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zot-ingress
+  namespace: socioprophet
+  annotations:
+    networking.gke.io/managed-certificates: registry-cert
+    kubernetes.io/ingress.class: gce
+spec:
+  rules:
+    - host: registry.socioprophet.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: zot
+                port: { number: 5000 }

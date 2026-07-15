@@ -1,0 +1,13 @@
+# Local metadata/cache only (boltdb) — image blobs live in MinIO/S3, so this stays small.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-cache
+  namespace: socioprophet
+  labels: { app: zot }
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: standard-rwo
+  resources:
+    requests:
+      storage: 5Gi
