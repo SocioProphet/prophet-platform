@@ -36,7 +36,7 @@ data:
           "repositories": {
             "**": {
               "policies": [
-                { "users": ["admin", "ci"], "actions": ["read", "create", "update", "delete"] }
+                { "users": ["admin", "ci", "github-ci"], "actions": ["read", "create", "update", "delete"] }
               ],
               "defaultPolicy": [],
               "anonymousPolicy": []
