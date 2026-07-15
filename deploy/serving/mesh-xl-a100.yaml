@@ -1,7 +1,8 @@
 # Prophet Mesh — "XL" seat: Qwen3-32B-AWQ on a single A100 40GB (Spot), scale-to-zero.
 #
-# Kept WARM (replicas: 1) for interactive SLA — no cold start, TTFT ~200-400ms. For a 2-user
-# base that's ~$1.30/hr Spot (~$23-31/day, ~$950/mo if left 24/7 — inside the $1,500 budget).
+# OFF by default (replicas: 0) = $0 idle. Warm on demand for interactive use:
+#   kubectl -n serving scale deploy/mesh-vllm-xl --replicas=1   (weights PVC-cached → ~2-3 min)
+# Warm Spot cost ~$1.30/hr (~$23-31/day, ~$950/mo if left 24/7 — inside the $1,500 budget).
 # Cost guardrails (why this can't run away):
 #   - exactly 1 GPU per pod, 1 replica → hard cap of ONE A100. Cannot scale out.
 #   - Spot (cloud.google.com/gke-spot) → ~$1.30/hr vs ~$3.80 on-demand.
@@ -28,7 +29,7 @@ metadata:
   namespace: serving
   labels: { app: mesh-vllm-xl }
 spec:
-  replicas: 1
+  replicas: 0
   # RWO PVC + single GPU: tear the old pod down before starting the new one,
   # otherwise a rolling update deadlocks on the ReadWriteOnce volume.
   strategy:
