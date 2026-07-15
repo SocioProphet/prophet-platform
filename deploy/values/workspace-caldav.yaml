@@ -1,4 +1,0 @@
-# workspace-caldav — calendar/contacts (CalDAV/CardDAV)
-image: { repository: workspace-caldav, tag: latest }
-service: { port: 8080, portName: http }
-config: { WORKSPACE_SURFACE: caldav }
