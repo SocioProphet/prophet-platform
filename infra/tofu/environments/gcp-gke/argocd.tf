@@ -28,6 +28,20 @@ resource "helm_release" "argocd" {
     name  = "crds.keep"
     value = "true"
   }
+
+  # ArgoCD 2.13.1's bundled OpenAPI schema predates Kubernetes 1.35's
+  # Deployment.status.terminatingReplicas field, so its structured-merge (server-side-apply)
+  # diff fails to build a typed value from live Deployments — "field not declared in schema" —
+  # and silently stops syncing every app with a Deployment. Ignoring the (non-desired-state)
+  # .status field on all resources sidesteps it cluster-wide. Proper long-term fix: upgrade
+  # ArgoCD to a build whose schema knows this field (tracked separately).
+  values = [yamlencode({
+    configs = {
+      cm = {
+        "resource.compareoptions" = "ignoreResourceStatusField: all\n"
+      }
+    }
+  })]
 }
 
 # Root app-of-apps: Argo watches deploy/argocd and applies the ApplicationSets
