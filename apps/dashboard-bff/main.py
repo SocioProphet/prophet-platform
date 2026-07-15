@@ -36,6 +36,7 @@ _gyg_causal_producer = _load_module(ROOT / 'tools' / 'emit_gyg_causal.py', 'emit
 _gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py', 'emit_gyg_locations')
 _company_financials = _load_module(ROOT / 'tools' / 'emit_company_financials.py', 'emit_company_financials')
 _studio = _load_module(ROOT / 'tools' / 'emit_studio_valuation.py', 'emit_studio_valuation')
+_governance_test = _load_module(ROOT / 'tools' / 'emit_governance_test.py', 'emit_governance_test')
 
 app = FastAPI(title='dashboard-bff')
 
@@ -239,3 +240,16 @@ def studio_recompute(overrides: dict = Body(default={})) -> dict:
         horizon_years=int(overrides.get('horizon_years', 5)),
         discount_rate=float(overrides.get('discount_rate', 0.09)),
         kpi_overrides=overrides.get('kpi_overrides'))
+
+
+@app.get('/v1/governance/test')
+def governance_test(dataset: str = 'gyg-causal-valuation', action_class: str = 'measurement_render',
+                    role: str = 'analyst', requested_level: str = 'L3', evidence: str = '') -> dict:
+    """ST012 — ONE reusable governance test, re-runnable against ANY client dataset. Runs the
+    deterministic trust-kernel gate (identity → policy → evidence → attestation → revocation → audit)
+    and returns a hash-sealed AutonomyAdmissionReceipt (admit/demote/deny) + the step-by-step gate
+    trace. Same inputs → same sealed receipt: a repeatable, demonstrable proof of governance, not a
+    slide. `evidence` is a comma-separated list of evidence refs."""
+    refs = [e.strip() for e in evidence.split(',') if e.strip()]
+    return _governance_test.run(dataset=dataset, action_class=action_class, role=role,
+                                requested_level=requested_level, evidence_refs=refs)
