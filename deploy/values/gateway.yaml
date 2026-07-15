@@ -1,6 +1,16 @@
 # socioprophet-gateway — HTTP edge gateway
 image: { repository: socioprophet-gateway, tag: latest }
 service: { port: 8080, portName: http }
+# The binary reads GATEWAY_PORT (cmd/tritrpc-gateway/main.go:30) and binds ":"+port.
+# A Service named `gateway` makes Kubernetes inject GATEWAY_PORT=tcp://<clusterIP>:8080
+# as a service link, so the app bound ":tcp://34.118.237.248:8080" and died with
+# "too many colons in address" — 590 restarts over 2 days. Same class as the
+# osm-map-api note. Disabling service links removes the collision.
+enableServiceLinks: false
+# The binary registers mux.HandleFunc("/health") (main.go:43), NOT the chart's
+# default /healthz — so probes 404'd regardless of the bind fix above.
+probes:
+  path: /health
 config:
   # DEV ONLY — provision a real TRITRPC_KEY_HEX secret for prod
   TRITRPC_ALLOW_INSECURE_DEV_KEY: "1"
