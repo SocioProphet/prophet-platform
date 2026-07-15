@@ -12,6 +12,14 @@ enableServiceLinks: false
 probes:
   path: /health
 config:
+  # The image bakes ENV TRITRPC_TARGET_ADDR=tcp://socioprophet-api:9000
+  # (apps/gateway/Dockerfile:17), but that Service does not exist: the chart
+  # deploys the tritRPC core as `api` (deploy/values/api.yaml — socioprophet-api
+  # is only the image repository name). So every /health ping died with
+  # "lookup socioprophet-api: no such host" -> 502 -> liveness kill: 620 restarts
+  # over 2 days. Point it at the Service that actually exists (api:9000, verified
+  # reachable from the gateway pod).
+  TRITRPC_TARGET_ADDR: "tcp://api:9000"
   # DEV ONLY — provision a real TRITRPC_KEY_HEX secret for prod
   TRITRPC_ALLOW_INSECURE_DEV_KEY: "1"
 ingress:
