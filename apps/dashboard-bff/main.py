@@ -35,6 +35,7 @@ _vdt_producer = _load_module(ROOT / 'tools' / 'emit_vdt_metrics.py', 'emit_vdt_m
 _gyg_causal_producer = _load_module(ROOT / 'tools' / 'emit_gyg_causal.py', 'emit_gyg_causal')
 _gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py', 'emit_gyg_locations')
 _company_financials = _load_module(ROOT / 'tools' / 'emit_company_financials.py', 'emit_company_financials')
+_studio = _load_module(ROOT / 'tools' / 'emit_studio_valuation.py', 'emit_studio_valuation')
 
 app = FastAPI(title='dashboard-bff')
 
@@ -207,3 +208,34 @@ def company_financials(ticker: str = 'GYG.AX') -> dict:
     global coverage incl. ASX. Returns available=false on failure so the Studio falls back to
     manual entry. Provenance is stamped 'public_market_data'; figures are best-effort, not audited."""
     return _company_financials.fetch(ticker)
+
+
+@app.get('/v1/valuation/studio/templates')
+def studio_templates() -> dict:
+    """The industry value-driver-surface templates the Studio offers (reused VDT tensors)."""
+    return {'templates': _studio.templates()}
+
+
+@app.get('/v1/valuation/studio')
+def studio_valuation(ticker: str = '', template: str = 'software', ev_baseline: float = 0.0,
+                     name: str = '', horizon_years: int = 5, discount_rate: float = 0.09) -> dict:
+    """Value Driver Studio — a causal valuation for ANY company. Pass `ticker` (auto-pull free
+    public financials for the EV baseline) or `ev_baseline`+`name` (private company), plus an
+    industry `template`. Runs the canonical economic-prophet engine; same payload shape as the
+    GYG causal walk. Advisory only — not investment advice."""
+    return _studio.build_valuation(ticker=ticker or None, template=template,
+                                   ev_baseline=ev_baseline or None, name=name or None,
+                                   horizon_years=horizon_years, discount_rate=discount_rate)
+
+
+@app.post('/v1/valuation/studio/recompute')
+def studio_recompute(overrides: dict = Body(default={})) -> dict:
+    """What-if recompute for the Studio: re-runs the engine with assumption/horizon/discount
+    overrides. Body: {ticker?, template, ev_baseline?, name?, horizon_years?, discount_rate?,
+    kpi_overrides?}."""
+    return _studio.build_valuation(
+        ticker=overrides.get('ticker') or None, template=overrides.get('template', 'software'),
+        ev_baseline=overrides.get('ev_baseline'), name=overrides.get('name'),
+        horizon_years=int(overrides.get('horizon_years', 5)),
+        discount_rate=float(overrides.get('discount_rate', 0.09)),
+        kpi_overrides=overrides.get('kpi_overrides'))
