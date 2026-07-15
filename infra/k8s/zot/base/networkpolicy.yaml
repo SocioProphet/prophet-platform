@@ -1,0 +1,29 @@
+# v1 scoped policy. Ingress: registry pulls from anywhere in-cluster + the GCE LB health-check ranges
+# (35.191.0.0/16, 130.211.0.0/22). Egress: DNS, the MinIO S3 backend, and 443 for upstream sync
+# (docker.io/ghcr/gcr/k8s). Tighten per-namespace later during hardening.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: zot
+  namespace: socioprophet
+  labels: { app: zot }
+spec:
+  podSelector:
+    matchLabels: { app: zot }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: 35.191.0.0/16 }
+        - ipBlock: { cidr: 130.211.0.0/22 }
+        - namespaceSelector: {}
+      ports:
+        - { protocol: TCP, port: 5000 }
+  egress:
+    # DNS
+    - ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    # MinIO S3 backend (in-namespace) + upstream sync over HTTPS
+    - ports:
+        - { protocol: TCP, port: 9000 }
+        - { protocol: TCP, port: 443 }

@@ -1,0 +1,43 @@
+# Argo CD ApplicationSet — sovereign artifact registry (zot).
+#
+# zot is a stateful, multi-manifest component (S3-backed store, cache PVC, ingress + ManagedCertificate,
+# NetworkPolicy), so it deploys via KUSTOMIZE (infra/k8s/zot/overlays) — same house convention as the
+# workspace stack, NOT the stateless-service Helm chart. It replaces BOTH GHCR + Google Artifact Registry:
+# hosts first-party images and pull-through-caches upstream (docker.io/ghcr/gcr/k8s) via the sync extension.
+#
+# Prereqs (created out of band, NOT in git): the `minio-credentials` secret (reused for the S3 backend)
+# and the `zot-htpasswd` secret (bootstrap admin/ci users) — see infra/k8s/zot/README.md. Sync-wave 1 so it
+# comes up after MinIO storage (wave 0) is Healthy.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: registry-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: zot, path: infra/k8s/zot/overlays/p0-lab, wave: "1" }
+  template:
+    metadata:
+      name: 'registry-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: sovereign-registry
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{.wave}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
