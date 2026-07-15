@@ -15,8 +15,10 @@ import copy
 import json
 from pathlib import Path
 
-from open_ep_framework.vdt import summarize_vdt
-from open_ep_framework.vdt_multiperiod import summarize_vdt_multiperiod
+# NOTE: the economic-prophet engine (open_ep_framework) is imported LAZILY inside the
+# functions that recompute — so importing this module (and the dashboard-bff app) never
+# requires economic-prophet to be installed. The default GET path degrades gracefully to a
+# single-period view if the engine isn't present; recompute requires it and errors clearly.
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED_PATH = ROOT / "apps" / "hellgraph-service" / "seeds" / "gyg-supply-chain-causal.json"
@@ -66,7 +68,15 @@ def _refresh_graph(seed: dict, summary: dict) -> dict:
 
 
 def _timeseries(profile: dict) -> dict:
-    """Multi-period projection of the same profile via the canonical multi-period engine."""
+    """Multi-period projection of the same profile via the canonical multi-period engine.
+    Degrades to an empty projection if economic-prophet isn't installed (e.g. lightweight CI)."""
+    try:
+        from open_ep_framework.vdt_multiperiod import summarize_vdt_multiperiod
+    except ImportError:
+        return {"horizon_years": 1, "discount_rate": 0.0, "periods": [],
+                "terminal_projected_enterprise_value": profile.get("enterprise_value_baseline", 0.0),
+                "terminal_total_value_uplift": 0.0, "present_value_of_uplift": 0.0,
+                "engine_unavailable": True}
     mp = summarize_vdt_multiperiod(profile)
     return {
         "horizon_years": mp["horizon_years"],
@@ -166,7 +176,8 @@ def recompute(overrides: dict, company: str = "gyg") -> dict:
         if kpi["kpi"] in kover and kover[kpi["kpi"]] is not None:
             kpi["delta_pct"] = float(kover[kpi["kpi"]])
 
-    summary = summarize_vdt(profile)  # canonical engine, not re-implemented here
+    from open_ep_framework.vdt import summarize_vdt  # canonical engine, imported lazily
+    summary = summarize_vdt(profile)  # not re-implemented here
     return _compose(summary, profile, seed, vdt, recomputed=True)
 
 
