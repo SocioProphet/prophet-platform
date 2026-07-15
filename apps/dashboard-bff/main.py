@@ -34,6 +34,7 @@ _producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics
 _vdt_producer = _load_module(ROOT / 'tools' / 'emit_vdt_metrics.py', 'emit_vdt_metrics')
 _gyg_causal_producer = _load_module(ROOT / 'tools' / 'emit_gyg_causal.py', 'emit_gyg_causal')
 _gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py', 'emit_gyg_locations')
+_company_financials = _load_module(ROOT / 'tools' / 'emit_company_financials.py', 'emit_company_financials')
 
 app = FastAPI(title='dashboard-bff')
 
@@ -197,3 +198,12 @@ def locations(company: str = 'gyg', q: str = '', state: str = '') -> dict:
     `basis` and the payload carries network_totals so the surface labels model vs measured. `q` filters
     by suburb/state/format; `state` filters by state code."""
     return _gyg_locations_producer.build(company, q, state)
+
+
+@app.get('/v1/company/financials')
+def company_financials(ticker: str = 'GYG.AX') -> dict:
+    """Free, no-key public fundamentals for any exchange:ticker (Value Driver Studio auto-pull).
+    Sourced from Yahoo Finance's public quoteSummary via a server-side cookie+crumb handshake —
+    global coverage incl. ASX. Returns available=false on failure so the Studio falls back to
+    manual entry. Provenance is stamped 'public_market_data'; figures are best-effort, not audited."""
+    return _company_financials.fetch(ticker)
