@@ -1,9 +1,15 @@
 # Build every service image through the estate's reusable build-image workflow:
-# push to Artifact Registry with the immutable commit-SHA tag (what the Argo
-# ApplicationSets in deploy/argocd promote) + cosign-sign the digest.
+# push with the immutable commit-SHA tag (what the Argo ApplicationSets in
+# deploy/argocd promote) + cosign-sign the digest.
 #
 # Supersedes the per-service GHCR one-offs (socioprophet-api-image.yml etc.):
-# one matrix, one registry (GAR), one signing path.
+# one matrix, one signing path.
+#
+# REGISTRY CUTOVER (in progress): images default to Artifact Registry and move to
+# the sovereign zot registry one at a time, per entry, by setting `registry` +
+# `registry_auth: basic` in the matrix. socioprophet-web goes first — it is the
+# proof of the cutover. The end state is every entry on zot and the GAR terraform
+# (infra/tofu/modules/artifact-registry) retired; until then the two coexist.
 #
 # DEPENDS ON: SocioProphet/.github (the reusable workflow) + the GAR repo. Until
 # those exist this is intentionally not wired to PRs (push/dispatch only), so it
@@ -37,7 +43,10 @@ jobs:
           # services keep their own dir as context.
           - { image: socioprophet-api,      context: .,                         dockerfile: apps/api/Dockerfile }
           - { image: socioprophet-gateway,  context: .,                         dockerfile: apps/gateway/Dockerfile }
-          - { image: socioprophet-web,      context: .,                         dockerfile: apps/socioprophet-web/Dockerfile }
+          # First image on the sovereign registry. Chosen to go first because it is
+          # already broken in-cluster (see the nginx contract fix), so the cutover
+          # can only improve it — no working service is put at risk to prove zot.
+          - { image: socioprophet-web,      context: .,                         dockerfile: apps/socioprophet-web/Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: evidence-console,      context: apps/evidence-console,     dockerfile: Dockerfile }
           - { image: evidence-receipts,     context: apps/evidence-receipts,    dockerfile: Dockerfile }
           - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
@@ -54,6 +63,15 @@ jobs:
       image: ${{ matrix.image }}
       context: ${{ matrix.context }}
       dockerfile: ${{ matrix.dockerfile }}
+      # Per-entry overrides; entries that set neither keep the Artifact Registry
+      # default, so this cutover moves one image at a time rather than all at once.
+      registry:      ${{ matrix.registry || 'us-central1-docker.pkg.dev/socioprophet-platform/socioprophet' }}
+      registry_auth: ${{ matrix.registry_auth || 'gar' }}
+    # All four are optional in the reusable workflow, which asserts that the ones
+    # its chosen auth path needs are actually present. GAR entries ignore the zot
+    # credentials and vice versa.
     secrets:
       gcp_wif_provider:    ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
       gcp_service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      registry_username:   ${{ secrets.ZOT_CI_USERNAME }}
+      registry_password:   ${{ secrets.ZOT_CI_PASSWORD }}
