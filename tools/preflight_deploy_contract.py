@@ -107,7 +107,15 @@ def check_kustomize_images(name: str, built: set[str]) -> list[str]:
         return []
     problems: list[str] = []
     for manifest in sorted(base.rglob("*.yaml")):
-        for ref in re.findall(r"^\s*image:\s*(\S+)", manifest.read_text(encoding="utf-8"), re.M):
+        text = manifest.read_text(encoding="utf-8")
+        # `image: <ref>` in a manifest, AND `value: <ref>` inside a kustomize JSON
+        # patch that replaces .../containers/N/image. The patch form is what bit us:
+        # the base was repointed to zot while overlays/p0-lab silently patched the
+        # image back to GHCR, so the deployed pod never moved and the first version
+        # of this gate — which only looked for `image:` — passed anyway.
+        refs = re.findall(r"^\s*image:\s*(\S+)", text, re.M)
+        refs += re.findall(r"path:\s*\S*/image\s*\n\s*value:\s*(\S+)", text)
+        for ref in refs:
             ref = ref.strip("\"'")
             if FOREIGN_REGISTRY_RE.match(ref) and not ref.startswith("ghcr.io/socioprophet"):
                 continue  # genuine third-party upstream image
