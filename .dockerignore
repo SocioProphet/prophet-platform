@@ -1,0 +1,24 @@
+# Several images build with the repo root as context (see .github/workflows/images.yml),
+# so anything not excluded here is shipped to the builder for every one of them.
+#
+# node_modules must be excluded: each Dockerfile installs its own dependencies, and a
+# local install carries host-native binaries (e.g. @rollup/rollup-darwin-arm64) that
+# silently poison a linux/amd64 build. CI only avoided this by building from a clean
+# checkout — the build was never hermetic.
+**/node_modules
+
+# Build output — every image builds from source in a build stage.
+**/dist
+**/.vitepress/publish
+
+# VCS, local state, and editor noise.
+.git
+.github
+**/.DS_Store
+**/*.log
+
+# Local infra state that must never enter an image layer.
+**/tfplan
+**/.terraform
+**/*.tfstate
+**/*.tfstate.backup
