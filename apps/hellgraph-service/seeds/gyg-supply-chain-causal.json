@@ -1,0 +1,437 @@
+{
+  "_provenance": {
+    "subject": "Guzman y Gomez (ASX:GYG)",
+    "note": "GYG supply-chain -> causal -> value-driver -> valuation graph. Topology authored; all value numbers sourced from economic-prophet engine output (gyg.metrics.json), never recomputed here.",
+    "value_source": "apps/dashboard-bff/data/vdt/gyg.metrics.json",
+    "engine": "open_ep_framework.vdt.run_vdt",
+    "data_provenance": "public_sourced_scenario",
+    "node_schema": "{ id, labels[], properties } \u2014 matches hellgraph-service POST /api/graph/node",
+    "edge_schema": "{ label, from, to, properties } \u2014 matches hellgraph-service POST /api/graph/edge"
+  },
+  "subject": "gyg",
+  "valuation": {
+    "currency": "AUD",
+    "ev_baseline": 2080000000.0,
+    "projected_ev": 2135848000.0,
+    "value_uplift": 55848000.0,
+    "uplift_fraction": 0.02685
+  },
+  "nodes": [
+    {
+      "id": "gyg:company",
+      "labels": [
+        "Company"
+      ],
+      "properties": {
+        "name": "Guzman y Gomez",
+        "ticker": "ASX:GYG",
+        "sector": "Consumer Discretionary \u2014 Restaurants (QSR)"
+      }
+    },
+    {
+      "id": "gyg:valuation:ev",
+      "labels": [
+        "Valuation"
+      ],
+      "properties": {
+        "name": "GYG Enterprise Value",
+        "currency": "AUD",
+        "ev_baseline": 2080000000.0,
+        "projected_ev": 2135848000.0,
+        "value_uplift": 55848000.0,
+        "uplift_fraction": 0.02685
+      }
+    },
+    {
+      "id": "gyg:sc:suppliers",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Fresh produce & protein suppliers",
+        "tier": "upstream",
+        "basis": "Australian sourcing"
+      }
+    },
+    {
+      "id": "gyg:sc:commissary",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Central commissaries / production kitchens",
+        "tier": "production"
+      }
+    },
+    {
+      "id": "gyg:sc:coldchain",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Cold-chain distribution & 3PL",
+        "tier": "distribution"
+      }
+    },
+    {
+      "id": "gyg:sc:corporate_stores",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Corporate restaurants",
+        "tier": "retail",
+        "note": "FY25 corporate sales A$359.7m, margin 17.9%"
+      }
+    },
+    {
+      "id": "gyg:sc:franchise_stores",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Franchise restaurants (drive-thru + strip)",
+        "tier": "retail",
+        "note": "AUV A$6.7m drive-thru / A$5.0m strip; median franchisee ROI 50%"
+      }
+    },
+    {
+      "id": "gyg:sc:drivethru",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Drive-thru format & digital ordering",
+        "tier": "channel"
+      }
+    },
+    {
+      "id": "gyg:sc:labour",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Restaurant labour model & kitchen ops",
+        "tier": "operations"
+      }
+    },
+    {
+      "id": "gyg:sc:digital",
+      "labels": [
+        "SupplyChainNode"
+      ],
+      "properties": {
+        "name": "Digital app & delivery aggregators",
+        "tier": "channel"
+      }
+    },
+    {
+      "id": "gyg:kpi:comparable_sales",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "Australian comparable sales",
+        "kpi": "australian_comparable_sales_pct",
+        "driver": "RevenueGrowth",
+        "value_contribution": 9984000.0
+      }
+    },
+    {
+      "id": "gyg:kpi:rollout",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "Net new restaurant rollout",
+        "kpi": "net_new_restaurant_rollout_pct",
+        "driver": "RevenueGrowth",
+        "value_contribution": 31200000.0
+      }
+    },
+    {
+      "id": "gyg:kpi:cogs",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "COGS % of sales",
+        "kpi": "cogs_pct_of_sales",
+        "driver": "CostEfficiency",
+        "value_contribution": 2807999.9999999995
+      }
+    },
+    {
+      "id": "gyg:kpi:labour",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "Restaurant labour % of sales",
+        "kpi": "restaurant_labour_pct_of_sales",
+        "driver": "CostEfficiency",
+        "value_contribution": 1456000.0000000002
+      }
+    },
+    {
+      "id": "gyg:kpi:drivethru_auv",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "Drive-thru average unit volume",
+        "kpi": "drive_thru_average_unit_volume_pct",
+        "driver": "Experience",
+        "value_contribution": 6240000.0
+      }
+    },
+    {
+      "id": "gyg:kpi:supply_disruption",
+      "labels": [
+        "ValueDriverKPI"
+      ],
+      "properties": {
+        "name": "Supply disruption rate",
+        "kpi": "supply_disruption_rate",
+        "driver": "TrustComplianceResilience",
+        "value_contribution": 4160000.0
+      }
+    },
+    {
+      "id": "gyg:driver:CostEfficiency",
+      "labels": [
+        "ValueDriver"
+      ],
+      "properties": {
+        "name": "CostEfficiency",
+        "value_uplift": 4264000.0
+      }
+    },
+    {
+      "id": "gyg:driver:Experience",
+      "labels": [
+        "ValueDriver"
+      ],
+      "properties": {
+        "name": "Experience",
+        "value_uplift": 6240000.0
+      }
+    },
+    {
+      "id": "gyg:driver:RevenueGrowth",
+      "labels": [
+        "ValueDriver"
+      ],
+      "properties": {
+        "name": "RevenueGrowth",
+        "value_uplift": 41184000.0
+      }
+    },
+    {
+      "id": "gyg:driver:TrustComplianceResilience",
+      "labels": [
+        "ValueDriver"
+      ],
+      "properties": {
+        "name": "TrustComplianceResilience",
+        "value_uplift": 4160000.0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "label": "SUPPLIES",
+      "from": "gyg:sc:suppliers",
+      "to": "gyg:sc:commissary",
+      "properties": {}
+    },
+    {
+      "label": "DISTRIBUTES_TO",
+      "from": "gyg:sc:commissary",
+      "to": "gyg:sc:coldchain",
+      "properties": {}
+    },
+    {
+      "label": "DISTRIBUTES_TO",
+      "from": "gyg:sc:coldchain",
+      "to": "gyg:sc:corporate_stores",
+      "properties": {}
+    },
+    {
+      "label": "DISTRIBUTES_TO",
+      "from": "gyg:sc:coldchain",
+      "to": "gyg:sc:franchise_stores",
+      "properties": {}
+    },
+    {
+      "label": "FORMAT_OF",
+      "from": "gyg:sc:drivethru",
+      "to": "gyg:sc:franchise_stores",
+      "properties": {}
+    },
+    {
+      "label": "STAFFS",
+      "from": "gyg:sc:labour",
+      "to": "gyg:sc:corporate_stores",
+      "properties": {}
+    },
+    {
+      "label": "CHANNEL_FOR",
+      "from": "gyg:sc:digital",
+      "to": "gyg:sc:corporate_stores",
+      "properties": {}
+    },
+    {
+      "label": "CONSTRAINS",
+      "from": "gyg:sc:commissary",
+      "to": "gyg:kpi:rollout",
+      "properties": {
+        "mechanism": "Commissary + distribution capacity gates the pace of new-restaurant rollout"
+      }
+    },
+    {
+      "label": "CAUSES",
+      "from": "gyg:sc:coldchain",
+      "to": "gyg:kpi:rollout",
+      "properties": {
+        "mechanism": "Cold-chain reach determines how far the network can expand from each hub"
+      }
+    },
+    {
+      "label": "REDUCES",
+      "from": "gyg:sc:coldchain",
+      "to": "gyg:kpi:supply_disruption",
+      "properties": {
+        "mechanism": "Cold-chain resilience & dual-sourcing lower supply disruption"
+      }
+    },
+    {
+      "label": "REDUCES",
+      "from": "gyg:sc:suppliers",
+      "to": "gyg:kpi:cogs",
+      "properties": {
+        "mechanism": "Procurement scale & Australian sourcing lower COGS %"
+      }
+    },
+    {
+      "label": "REDUCES",
+      "from": "gyg:sc:commissary",
+      "to": "gyg:kpi:cogs",
+      "properties": {
+        "mechanism": "Central production scale lowers per-unit food cost"
+      }
+    },
+    {
+      "label": "REDUCES",
+      "from": "gyg:sc:labour",
+      "to": "gyg:kpi:labour",
+      "properties": {
+        "mechanism": "Labour model & kitchen design lower restaurant labour %"
+      }
+    },
+    {
+      "label": "CAUSES",
+      "from": "gyg:sc:drivethru",
+      "to": "gyg:kpi:drivethru_auv",
+      "properties": {
+        "mechanism": "Drive-thru format lifts average unit volume (A$6.7m vs A$5.0m strip)"
+      }
+    },
+    {
+      "label": "CAUSES",
+      "from": "gyg:sc:drivethru",
+      "to": "gyg:kpi:comparable_sales",
+      "properties": {
+        "mechanism": "Drive-thru convenience lifts comparable sales"
+      }
+    },
+    {
+      "label": "CAUSES",
+      "from": "gyg:sc:digital",
+      "to": "gyg:kpi:comparable_sales",
+      "properties": {
+        "mechanism": "Digital app & delivery channel lift comparable sales"
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:comparable_sales",
+      "to": "gyg:driver:RevenueGrowth",
+      "properties": {
+        "value_contribution": 9984000.0
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:rollout",
+      "to": "gyg:driver:RevenueGrowth",
+      "properties": {
+        "value_contribution": 31200000.0
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:cogs",
+      "to": "gyg:driver:CostEfficiency",
+      "properties": {
+        "value_contribution": 2807999.9999999995
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:labour",
+      "to": "gyg:driver:CostEfficiency",
+      "properties": {
+        "value_contribution": 1456000.0000000002
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:drivethru_auv",
+      "to": "gyg:driver:Experience",
+      "properties": {
+        "value_contribution": 6240000.0
+      }
+    },
+    {
+      "label": "CONTRIBUTES_TO",
+      "from": "gyg:kpi:supply_disruption",
+      "to": "gyg:driver:TrustComplianceResilience",
+      "properties": {
+        "value_contribution": 4160000.0
+      }
+    },
+    {
+      "label": "UPLIFTS",
+      "from": "gyg:driver:CostEfficiency",
+      "to": "gyg:valuation:ev",
+      "properties": {
+        "value_uplift": 4264000.0
+      }
+    },
+    {
+      "label": "UPLIFTS",
+      "from": "gyg:driver:Experience",
+      "to": "gyg:valuation:ev",
+      "properties": {
+        "value_uplift": 6240000.0
+      }
+    },
+    {
+      "label": "UPLIFTS",
+      "from": "gyg:driver:RevenueGrowth",
+      "to": "gyg:valuation:ev",
+      "properties": {
+        "value_uplift": 41184000.0
+      }
+    },
+    {
+      "label": "UPLIFTS",
+      "from": "gyg:driver:TrustComplianceResilience",
+      "to": "gyg:valuation:ev",
+      "properties": {
+        "value_uplift": 4160000.0
+      }
+    }
+  ]
+}
