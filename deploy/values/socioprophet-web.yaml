@@ -1,5 +1,13 @@
 # socioprophet-web — web portal
-image: { repository: socioprophet-web, tag: latest }
+# Pin the immutable commit-SHA tag, per the chart's own contract ("Immutable tag =
+# the commit SHA the GitOps promotion writes"). `latest` is a MOVING tag and the
+# chart sets imagePullPolicy: IfNotPresent — so once a node has cached `latest`,
+# kubelet never pulls a newer one, and even `rollout restart` re-runs the stale
+# image. That is how a broken build survived 574 restarts over 2 days: the fix was
+# published to `latest` in GAR and the nodes kept serving the cached digest.
+# sha-2ff20cbd... = merge of #726 (nginx port/healthz contract fix),
+# digest sha256:50ef50bf14fb64f0eca84ac393bf0124c72840499ed1a0e5daa82182c45d71bf.
+image: { repository: socioprophet-web, tag: sha-2ff20cbd5d4d2571f00e7abb1952835fa22f59bd }
 service: { port: 8080, portName: http }
 ingress:
   enabled: true
