@@ -12,6 +12,8 @@ before(async () => {
   process.env['COMMONS_PUBLISH_TOKEN'] = TOKEN
   process.env['COMMONS_RATE_PER_MIN'] = '60'
   process.env['COMMONS_RATE_BURST'] = '3'
+  process.env['COMMONS_SEARCH_RATE_PER_MIN'] = '60'
+  process.env['COMMONS_SEARCH_BURST'] = '3'
   server = makeServer(new InMemoryStore())
   await new Promise<void>((r) => server.listen(0, r))
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -75,4 +77,19 @@ test('per-author publish rate cap returns 429 past the burst', async () => {
     if (r.status === 429) { got429 = true; break }
   }
   assert.ok(got429, 'rate limit never triggered')
+})
+
+test('search is rate-limited (CPU-DoS brake on the public endpoint)', async () => {
+  let got429 = false
+  for (let i = 0; i < 12; i++) {
+    const r = await fetch(`${base}/api/open-chats/search?q=anything`, { headers: { 'x-forwarded-for': '9.9.9.9' } })
+    if (r.status === 429) { got429 = true; break }
+  }
+  assert.ok(got429, 'search rate limit never triggered')
+})
+
+test('a wrong token of the SAME length is still rejected (constant-time compare works)', async () => {
+  const sameLen = 'x'.repeat(TOKEN.length)
+  const r = await publish({ sessionId: 's', title: 't', redacted: 'hi' }, { authorization: `Bearer ${sameLen}` })
+  assert.equal(r.status, 401)
 })

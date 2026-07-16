@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: commons-search
+  namespace: socioprophet
+  labels:
+    app: commons-search
+    app.kubernetes.io/part-of: sovereign-search
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: commons-search }
+  template:
+    metadata:
+      labels: { app: commons-search }
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000          # the `node` user in node:20-slim (Dockerfile: USER node)
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: commons-search
+          # First-party image built by .github/workflows/images.yml, pinned by the immutable sha- tag the build
+          # published (the no-moving-tag standard: sha- tag + IfNotPresent is safe because the tag never moves).
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/commons-search:sha-bbf2abc6e230dca0f86de9fa47818833a49a1f46
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            # Store: memory for this internal-only go-live (per-pod, ephemeral). The corpus is populated only once
+            # publishers exist; switching to a shared/persistent backend (socbase/minio/hellgraph) is an env change.
+            - name: COMMONS_STORE
+              value: "memory"
+            # Publishing is FAIL-CLOSED without this token, so even internally nothing can write anonymously. The
+            # Secret is provisioned out of band (NOT in git), same posture as searxng-secret.
+            - name: COMMONS_PUBLISH_TOKEN
+              valueFrom:
+                secretKeyRef: { name: commons-search-secret, key: publish-token }
+            # tsx/npx + node need a writable HOME (.npm cache) and /tmp under readOnlyRootFilesystem — provide them
+            # explicitly (the searxng "No usable temporary directory" lesson: the manifest must be explicit).
+            - name: HOME
+              value: /home/node
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - { name: home, mountPath: /home/node }
+            - { name: tmp,  mountPath: /tmp }
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: commons-search
+  namespace: socioprophet
+  labels: { app: commons-search }
+spec:
+  type: ClusterIP          # internal only — SearXNG reaches it in-cluster; there is NO external ingress (Phase 1c
+  selector: { app: commons-search }   # is internal-only by design; an authenticated /publish ingress is a
+  ports:                              # separate, deliberate decision, not created here).
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: commons-search
+  namespace: socioprophet
+  labels: { app: commons-search }
+spec:
+  # Ingress ONLY from inside the namespace (SearXNG, and any in-cluster publisher). Nothing outside the cluster can
+  # reach /publish or /search. This is the enforcement of "internal-only" — the commons is not internet-facing.
+  podSelector: { matchLabels: { app: commons-search } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: socioprophet }
+      ports:
+        - { protocol: TCP, port: 8080 }

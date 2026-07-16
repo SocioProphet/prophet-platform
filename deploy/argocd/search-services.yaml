@@ -20,6 +20,11 @@ spec:
     - list:
         elements:
           - { name: searxng, path: infra/k8s/searxng/base }
+          # The open-chat commons aggregator — instances publish REDACTED open chats here (floor-gated on
+          # ingest), and SearXNG's json_engine (see the searxng ConfigMap) searches the corpus. ClusterIP +
+          # NetworkPolicy = internal-only; an authenticated external /publish ingress is a separate, deliberate
+          # decision. Prereq (out of band, NOT in git): the `commons-search-secret` Secret (key: publish-token).
+          - { name: commons-search, path: infra/k8s/commons-search/base }
   template:
     metadata:
       name: 'search-{{.name}}'

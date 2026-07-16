@@ -39,6 +39,9 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 export function makeServer(store: CommonsStore): http.Server {
   // Constructed per-server (not at module load) so config env set by callers/tests is honoured.
   const limiter = new RateLimiter(Number(process.env['COMMONS_RATE_PER_MIN'] ?? 30), Number(process.env['COMMONS_RATE_BURST'] ?? 10))
+  // Search is unauthenticated (a commons is meant to be searchable) and lexicalSearch is O(corpus) per query, so
+  // an un-throttled flood is a CPU-DoS. Cap per client IP — generous, just a brake on abuse.
+  const searchLimiter = new RateLimiter(Number(process.env['COMMONS_SEARCH_RATE_PER_MIN'] ?? 120), Number(process.env['COMMONS_SEARCH_BURST'] ?? 40))
   return http.createServer((req, res) => {
     void (async () => {
       const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
@@ -77,6 +80,8 @@ export function makeServer(store: CommonsStore): http.Server {
 
         // ── search (public, json_engine shape) ──
         if (req.method === 'GET' && url.pathname === '/api/open-chats/search') {
+          const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim()) || req.socket.remoteAddress || 'unknown'
+          if (!searchLimiter.allow(ip)) return json(res, 429, { query: '', number_of_results: 0, results: [], error: 'search rate exceeded' })
           const q = url.searchParams.get('q') ?? ''
           const hits = await store.search(q, 6)
           const results = hits.map((h) => ({

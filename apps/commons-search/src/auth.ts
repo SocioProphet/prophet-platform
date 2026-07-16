@@ -11,8 +11,18 @@
  * by the pseudonym on the token, so no caller can revoke another author's chat.
  */
 import type { IncomingMessage } from 'node:http'
+import { timingSafeEqual } from 'node:crypto'
 
 export interface Principal { author: string }
+
+/** Constant-time token comparison — a plain `!==` short-circuits and leaks the token byte-by-byte via timing,
+ *  which matters once /publish is reachable off-cluster. Length is compared first (timingSafeEqual throws on a
+ *  length mismatch); that only reveals the token LENGTH, not its bytes. */
+function tokenEquals(got: string, need: string): boolean {
+  const a = Buffer.from(got)
+  const b = Buffer.from(need)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
 
 export interface AuthResult { ok: boolean; principal?: Principal; error?: string }
 
@@ -27,7 +37,7 @@ export function authenticatePublish(req: IncomingMessage): AuthResult {
   if (!need) return { ok: false, error: 'commons publishing is not configured (COMMONS_PUBLISH_TOKEN unset)' }
   const auth = req.headers['authorization']
   const got = (Array.isArray(auth) ? auth[0] : auth ?? '').replace(/^Bearer\s+/i, '')
-  if (got !== need) return { ok: false, error: 'invalid or missing publish token' }
+  if (!tokenEquals(got, need)) return { ok: false, error: 'invalid or missing publish token' }
   const sid = req.headers['x-sovereign-id']
   const author = cleanPseudonym(Array.isArray(sid) ? sid[0] ?? '' : sid ?? '')
   if (!author) return { ok: false, error: 'X-Sovereign-Id (author pseudonym) required' }
