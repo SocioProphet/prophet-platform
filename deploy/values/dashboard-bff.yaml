@@ -9,7 +9,11 @@
 # (GET /v1/valuation/studio?ticker=) — the code imports the engine lazily and falls
 # back to a stub, exactly as documented in tools/emit_gyg_causal.py. Bundling the
 # engine is a deliberate follow-up, not a blocker for the demo surface.
-image: { repository: dashboard-bff }
+# Pin the immutable sha- tag the build published (the chart's appVersion default is
+# 26.11, which this image does not carry — that mismatch is what left it in
+# ImagePullBackOff). This is the very standard tools/preflight_deploy_contract.py now
+# enforces: "Immutable tag = the commit SHA the GitOps promotion writes."
+image: { repository: dashboard-bff, tag: sha-a7a59844953b09b2622adc30d88a0be71456fc1d }
 service: { port: 8080, portName: http }
 # main.py serves @app.get('/health'), NOT the chart default /healthz. Asserted by the
 # probe-contract gate.
