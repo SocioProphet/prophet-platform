@@ -1,0 +1,31 @@
+# Public HTTPS ingress for search-gateway (READ-ONLY: /search + /healthz only; no write routes) so the
+# socioprophet.ai search surface can reach it from the browser. Mirrors the working socbase/zot/gitea pattern:
+# GCE ingress class + a GKE ManagedCertificate. Held separate from the chart so the chart keeps managing the
+# Deployment/Service; this only adds the public edge.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: search-gateway-cert
+  namespace: socioprophet
+spec:
+  domains: [search-api.socioprophet.ai]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: search-gateway-public
+  namespace: socioprophet
+  annotations:
+    # `gce` (built-in), NOT nginx — the only controller that exists in this cluster (socbase lesson).
+    kubernetes.io/ingress.class: gce
+    networking.gke.io/managed-certificates: search-gateway-cert
+  labels: { app: search-gateway, app.kubernetes.io/part-of: sovereign-search }
+spec:
+  rules:
+    - host: search-api.socioprophet.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: search-gateway, port: { number: 8080 } }

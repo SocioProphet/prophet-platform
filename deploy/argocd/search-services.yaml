@@ -25,6 +25,8 @@ spec:
           # NetworkPolicy = internal-only; an authenticated external /publish ingress is a separate, deliberate
           # decision. Prereq (out of band, NOT in git): the `commons-search-secret` Secret (key: publish-token).
           - { name: commons-search, path: infra/k8s/commons-search/base }
+            # public HTTPS edge for search-gateway (read-only) → socioprophet.ai search surface
+          - { name: search-gateway-ingress, path: infra/k8s/search-gateway-ingress/base }
   template:
     metadata:
       name: 'search-{{.name}}'

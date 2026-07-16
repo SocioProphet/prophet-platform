@@ -61,6 +61,7 @@ NON_CHART_SERVICES = {
     "workspace-smtp",
     "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
     "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
+    "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere
