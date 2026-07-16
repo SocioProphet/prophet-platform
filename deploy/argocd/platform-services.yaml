@@ -26,6 +26,7 @@ spec:
           - { name: reasoning-failure-runner }
           - { name: search-orchestrator }
           - { name: search-gateway }
+          - { name: lattice-studio }
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —
           # NOT touched by the build-image/gitops-promote SHA pipeline above, since
