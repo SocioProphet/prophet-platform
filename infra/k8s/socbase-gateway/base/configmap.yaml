@@ -59,13 +59,18 @@ data:
 
         # supabase-js -> GoTrue. Strip /auth/v1 before GoTrue sees it.
         location /auth/v1/ {
-          rewrite ^/auth/v1/(.*)$ /$1 break;
-          # $var forces resolution at REQUEST time, not startup. With a literal
-          # hostname nginx resolves proxy_pass upstreams while loading config and
-          # REFUSES TO BOOT if one does not resolve ("host not found in upstream")
-          # — so a momentarily-absent socbase-auth would take the whole gateway
-          # down with it. Caught by running nginx -t against this very file.
+          # ORDER MATTERS: `set` MUST precede `rewrite ... break`, because break
+          # halts the rewrite phase — and `set` is a rewrite-phase directive. With
+          # set after it, the variable is never assigned and nginx proxies to
+          # "http://:9999" ("no host in upstream"). It fails at REQUEST time, so
+          # the pod looks healthy while every call 500s.
+          #
+          # The $variable itself is deliberate: it defers DNS to request time. A
+          # literal hostname is resolved while loading config, and nginx REFUSES TO
+          # BOOT if it does not resolve — so a momentarily-absent socbase-auth
+          # would take the whole gateway down with it.
           set $upstream_auth socbase-auth;
+          rewrite ^/auth/v1/(.*)$ /$1 break;
           proxy_pass http://$upstream_auth:9999;
           proxy_set_header Host              $host;
           proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -74,8 +79,8 @@ data:
 
         # supabase-js -> PostgREST. Strip /rest/v1.
         location /rest/v1/ {
-          rewrite ^/rest/v1/(.*)$ /$1 break;
           set $upstream_rest socbase-rest;
+          rewrite ^/rest/v1/(.*)$ /$1 break;
           proxy_pass http://$upstream_rest:3000;
           proxy_set_header Host              $host;
           proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
