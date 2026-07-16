@@ -1,0 +1,14 @@
+{
+  "name": "@socioprophet/search-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public read-only search fan-out for socioprophet.ai — blends SearXNG (web) + commons-search (sovereign commons) into one cited result set.",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "devDependencies": { "@types/node": "^20.0.0", "tsx": "^4.0.0", "typescript": "^5.5.0" }
+}
