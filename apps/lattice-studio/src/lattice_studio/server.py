@@ -170,7 +170,16 @@ async def studio(project: str = "default") -> dict[str, Any]:
 # "entity X, observed, from source S, in project P, by extractor E". Neo4j stores the node; we store the node with
 # its epistemic status and provenance, in one governed project scope.
 
-_STOP = {"The", "This", "That", "These", "Those", "There", "Then", "When", "Where", "What", "Which", "While", "And", "But", "For", "With", "From", "Into"}
+# KE-1.1: stop-words (pronouns, determiners, conjunctions, common sentence-openers) that a capitalized-phrase
+# extractor otherwise mistakes for entities. LEADING determiners are also stripped from phrases ("The Lattice
+# Studio" → "Lattice Studio") so the entity is the noun, not the article.
+_STOP = {
+    "The", "This", "That", "These", "Those", "There", "Then", "When", "Where", "What", "Which", "While",
+    "And", "But", "For", "With", "From", "Into", "It", "He", "She", "They", "We", "You", "I", "A", "An",
+    "As", "At", "By", "Of", "On", "Or", "So", "To", "Its", "Our", "Their", "His", "Her", "Your", "My",
+    "If", "In", "Is", "Are", "Was", "Were", "Be", "Has", "Have", "Had", "Not", "No", "Yes", "Also", "However",
+}
+_LEADING_DET = re.compile(r"^(The|This|That|These|Those|A|An|Its|Our|Their|His|Her|Your|My)\s+")
 _PROPER = re.compile(r"\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\b")
 _ACRONYM = re.compile(r"\b([A-Z]{2,}[A-Za-z0-9]*)\b")
 
@@ -189,8 +198,8 @@ def extract_facts(text: str, limit: int = 60) -> tuple[list[str], list[tuple[str
     for sent in sentences:
         local: list[str] = []
         for m in (*_PROPER.finditer(sent), *_ACRONYM.finditer(sent)):
-            name = m.group(1).strip()
-            if name in _STOP or len(name) < 2:
+            name = _LEADING_DET.sub("", m.group(1).strip()).strip()  # strip leading determiner
+            if not name or name in _STOP or len(name) < 2:
                 continue
             key = _norm(name)
             if key not in seen and len(entities) < limit:
@@ -248,4 +257,38 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
         "provenance": prov,
         "sample": entities[:10],
         "errors": errors[:5] or None,
+    }
+
+
+@app.get("/api/studio/graph")
+async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
+    """KE-2: the project sub-graph with PROVENANCE PER NODE — the differentiator, read back from the live kernel.
+
+    Queries hellgraph-service for atoms carrying the project's collection label and returns each with its
+    epistemic_mode + source + extractor. This is what a Neo4j/Bloom explorer can't show natively: not just the
+    node, but its epistemic status and provenance, in one governed project scope.
+    """
+    coll = proj_collection(project)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/query?label={coll}")
+    raw = (res.get("nodes", res) if isinstance(res, dict) else res) if res else []
+    nodes: list[dict[str, Any]] = []
+    for n in (raw if isinstance(raw, list) else [])[:limit]:
+        props = n.get("properties", n) if isinstance(n, dict) else {}
+        nodes.append({
+            "id": n.get("id", "") if isinstance(n, dict) else str(n),
+            "name": props.get("name", n.get("id", "") if isinstance(n, dict) else str(n)),
+            "epistemic_mode": props.get("epistemic_mode", "unknown"),
+            "source": props.get("source"),
+            "extractor": props.get("extractor"),
+            "labels": n.get("labels", []) if isinstance(n, dict) else [],
+        })
+    # epistemic-mode distribution — the governance readout no incumbent surfaces
+    dist: dict[str, int] = {}
+    for x in nodes:
+        dist[x["epistemic_mode"]] = dist.get(x["epistemic_mode"], 0) + 1
+    return {
+        "project": project, "projectCollection": coll,
+        "nodes": nodes, "count": len(nodes), "epistemic_distribution": dist,
+        "degraded": (err if err else None),
     }
