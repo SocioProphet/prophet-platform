@@ -69,7 +69,13 @@ data:
           # literal hostname is resolved while loading config, and nginx REFUSES TO
           # BOOT if it does not resolve — so a momentarily-absent socbase-auth
           # would take the whole gateway down with it.
-          set $upstream_auth socbase-auth;
+          #
+          # FQDN, not "socbase-auth": once you give nginx an explicit `resolver` it
+          # queries the name VERBATIM and does NOT apply the pod's resolv.conf search
+          # list. The short name resolved against GCE's search domains
+          # (socbase-auth.<zone>.c.<project>.internal) and NXDOMAIN'd, so every call
+          # 502'd with "socbase-auth could not be resolved".
+          set $upstream_auth socbase-auth.socioprophet.svc.cluster.local;
           rewrite ^/auth/v1/(.*)$ /$1 break;
           proxy_pass http://$upstream_auth:9999;
           proxy_set_header Host              $host;
@@ -79,7 +85,7 @@ data:
 
         # supabase-js -> PostgREST. Strip /rest/v1.
         location /rest/v1/ {
-          set $upstream_rest socbase-rest;
+          set $upstream_rest socbase-rest.socioprophet.svc.cluster.local;
           rewrite ^/rest/v1/(.*)$ /$1 break;
           proxy_pass http://$upstream_rest:3000;
           proxy_set_header Host              $host;
