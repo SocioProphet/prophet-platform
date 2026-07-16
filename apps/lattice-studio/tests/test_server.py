@@ -54,3 +54,21 @@ def test_extract_endpoint_writes_proof_carrying_facts():
     assert b["provenance"]["epistemic_mode"] == "observed"
     assert b["provenance"]["project"] == "proj-teamx"
     assert b["provenance"]["extractor"].startswith("lattice-studio/")
+
+
+def test_extract_filters_pronouns_and_strips_articles():
+    from lattice_studio.server import extract_facts
+    ents, _ = extract_facts("It powers The Lattice Studio. They compete with Neo4j.")
+    names = {e.lower() for e in ents}
+    assert "it" not in names and "they" not in names          # pronouns filtered
+    assert "the lattice studio" not in names                   # leading article stripped
+    assert "lattice studio" in names and "neo4j" in names      # real entities kept
+
+
+def test_graph_endpoint_returns_provenance_shape():
+    # hellgraph unreachable in test → graceful empty, but the KE-2 shape (provenance + epistemic distribution) holds
+    r = client.get("/api/studio/graph?project=team-x")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["projectCollection"] == "proj-teamx"
+    assert "nodes" in b and "count" in b and "epistemic_distribution" in b
