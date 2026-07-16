@@ -1,0 +1,44 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: socbase-cert
+  namespace: socioprophet
+spec:
+  domains: [socbase.socioprophet.ai]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: socbase-gateway
+  namespace: socioprophet
+  annotations:
+    networking.gke.io/managed-certificates: socbase-cert
+    # `gce`, NOT `nginx`. The old socbase-auth/socbase-rest Ingresses asked for
+    # ingressClassName: nginx — a controller that has never existed in this
+    # cluster — so they sat at ADDRESS <none> forever and socbase was unreachable
+    # from outside despite both services being healthy. Every ingress that works
+    # here (zot, gitea, socioprophet-web) uses the built-in GCE controller.
+    #
+    # The nginx-only rewrite those Ingresses needed now lives in the
+    # socbase-gateway pod instead, so we get the Supabase path shape without
+    # installing an ingress controller AND cert-manager.
+    kubernetes.io/ingress.class: gce
+  labels:
+    app: socbase-gateway
+    app.kubernetes.io/part-of: socbase
+spec:
+  rules:
+    - host: socbase.socioprophet.ai
+      http:
+        paths:
+          # One host, one backend. The gateway pod does the /auth/v1 + /rest/v1
+          # split internally — which is exactly what @supabase/supabase-js expects:
+          # ONE base URL. GCE ingress cannot do regex paths or rewrite-target, and
+          # it does not need to.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: socbase-gateway
+                port:
+                  number: 80

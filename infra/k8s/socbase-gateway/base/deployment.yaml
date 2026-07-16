@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: socbase-gateway
+  namespace: socioprophet
+  labels:
+    app: socbase-gateway
+    app.kubernetes.io/part-of: socbase
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: socbase-gateway }
+  template:
+    metadata:
+      labels: { app: socbase-gateway }
+    spec:
+      # Nothing here reads Kubernetes service-link env vars, and leaving them on is
+      # how the tritrpc-gateway bound ":tcp://<its own clusterIP>:8080" and died 620
+      # times. Off by default.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: nginx
+          # Pulled through zot (which proxies docker.io on demand) so the sovereign
+          # auth surface does not depend on Docker Hub being reachable or friendly.
+          image: registry.socioprophet.ai/library/nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities: { drop: ["ALL"] }
+          ports:
+            - name: http
+              containerPort: 8080
+          # Both probes hit /healthz, which returns 200 from nginx itself and does
+          # NOT touch GoTrue or PostgREST. A dependency check belongs on readiness
+          # at most — never liveness, or one upstream hiccup restarts the gateway.
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits:   { cpu: 200m, memory: 128Mi }
+          volumeMounts:
+            - { name: config, mountPath: /etc/nginx/nginx.conf, subPath: nginx.conf, readOnly: true }
+            # nginx must write its pid and temp files; the rootfs is read-only.
+            - { name: run,   mountPath: /var/run }
+            - { name: cache, mountPath: /var/cache/nginx }
+      volumes:
+        - name: config
+          configMap: { name: socbase-gateway }
+        - name: run
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+      imagePullSecrets:
+        - name: zot-pull
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: socbase-gateway
+  namespace: socioprophet
+  labels:
+    app: socbase-gateway
+  annotations:
+    # NEG so the GCE ingress load-balances straight to pods (same as zot/gitea).
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  selector: { app: socbase-gateway }
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

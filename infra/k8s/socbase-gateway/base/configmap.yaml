@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: socbase-gateway
+  namespace: socioprophet
+  labels:
+    app: socbase-gateway
+    app.kubernetes.io/part-of: socbase
+data:
+  # This is the Kong replacement, and it is deliberately ~20 lines.
+  #
+  # @supabase/supabase-js needs ONE base URL serving BOTH /auth/v1 (GoTrue) and
+  # /rest/v1 (PostgREST), with the prefix stripped before the upstream sees it.
+  # Real Supabase runs Kong for this. Kong is a whole API gateway; we need a
+  # prefix strip. This mirrors infra/local/socbase/nginx.conf so local and cluster
+  # route identically — same contract, one config, no drift.
+  #
+  # Why not an nginx-ingress controller: the socbase-auth/socbase-rest Ingresses
+  # declared `ingressClassName: nginx` with rewrite-target/use-regex annotations,
+  # but NO nginx controller has ever existed in this cluster — so they sat with
+  # ADDRESS <none> forever and socbase.socioprophet.ai was unreachable. Installing
+  # ingress-nginx would also drag in cert-manager for TLS. Instead this reuses the
+  # GCE ingress + ManagedCertificate pattern already proven by zot, gitea and
+  # socioprophet-web: zero new controllers, one small pod.
+  nginx.conf: |
+    worker_processes auto;
+    pid /var/run/nginx.pid;
+    events { worker_connections 1024; }
+    http {
+      access_log /dev/stdout;
+      error_log  /dev/stderr warn;
+      # Every temp path must sit under the writable emptyDir mounts below —
+      # the container runs read-only (lesson from the socioprophet-web nginx fix).
+      client_body_temp_path /var/cache/nginx/client_temp;
+      proxy_temp_path       /var/cache/nginx/proxy_temp;
+      fastcgi_temp_path     /var/cache/nginx/fastcgi_temp;
+      uwsgi_temp_path       /var/cache/nginx/uwsgi_temp;
+      scgi_temp_path        /var/cache/nginx/scgi_temp;
+
+      # Required for the $var proxy_pass above. kube-dns is the in-cluster
+      # resolver; valid=10s keeps us honest about Service IP changes.
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      resolver_timeout 5s;
+
+      server {
+        # 8080, not 80: the pod runs as uid 10001 and cannot bind a privileged port.
+        listen 8080;
+        server_name _;
+
+        # Probe endpoint that does NOT depend on either upstream being healthy.
+        # GoTrue's /health pings its DB and 502s when the DB is down; wiring that
+        # to liveness is how the gateway pod got killed for someone else's outage
+        # (see the tritrpc-gateway fix). Liveness answers "is nginx alive".
+        location = /healthz {
+          access_log off;
+          add_header Content-Type text/plain;
+          return 200 "ok\n";
+        }
+
+        # supabase-js -> GoTrue. Strip /auth/v1 before GoTrue sees it.
+        location /auth/v1/ {
+          rewrite ^/auth/v1/(.*)$ /$1 break;
+          # $var forces resolution at REQUEST time, not startup. With a literal
+          # hostname nginx resolves proxy_pass upstreams while loading config and
+          # REFUSES TO BOOT if one does not resolve ("host not found in upstream")
+          # — so a momentarily-absent socbase-auth would take the whole gateway
+          # down with it. Caught by running nginx -t against this very file.
+          set $upstream_auth socbase-auth;
+          proxy_pass http://$upstream_auth:9999;
+          proxy_set_header Host              $host;
+          proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # supabase-js -> PostgREST. Strip /rest/v1.
+        location /rest/v1/ {
+          rewrite ^/rest/v1/(.*)$ /$1 break;
+          set $upstream_rest socbase-rest;
+          proxy_pass http://$upstream_rest:3000;
+          proxy_set_header Host              $host;
+          proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Anything else is not part of the Supabase surface. Say so plainly rather
+        # than proxying it somewhere surprising.
+        location / { return 404; }
+      }
+    }
