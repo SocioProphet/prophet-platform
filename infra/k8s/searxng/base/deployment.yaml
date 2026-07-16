@@ -64,12 +64,18 @@ spec:
             # readOnlyRootFilesystem: searxng writes a small runtime cache + its pid.
             - { name: cache, mountPath: /var/cache/searxng }
             - { name: run,   mountPath: /var/run }
+            # readOnlyRootFilesystem: searxng (granian/python) needs a writable /tmp for
+            # tempfile — without it the worker dies "No usable temporary directory found".
+            # podman's --tmpfs /tmp masked this locally; the manifest must be explicit.
+            - { name: tmp,   mountPath: /tmp }
       volumes:
         - name: settings
           configMap: { name: searxng-settings }
         - name: cache
           emptyDir: {}
         - name: run
+          emptyDir: {}
+        - name: tmp
           emptyDir: {}
       imagePullSecrets:
         - name: zot-pull
