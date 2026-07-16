@@ -53,6 +53,7 @@ jobs:
           - { image: agentic-os-api,        context: apps/agentic-os-api,       dockerfile: Dockerfile }
           - { image: hellgraph-service,     context: apps/hellgraph-service,    dockerfile: Dockerfile }
           - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
+          - { image: dashboard-bff,         context: .,                         dockerfile: apps/dashboard-bff/Dockerfile }
           - { image: workspace-mail,        context: services/workspace-mail,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: workspace-caldav,      context: services/workspace-caldav, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: workspace-smtp,        context: services/workspace-smtp,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }

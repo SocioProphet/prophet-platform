@@ -22,6 +22,7 @@ spec:
           - { name: agentic-os-api }
           - { name: hellgraph-service }
           - { name: osm-map-api }
+          - { name: dashboard-bff }
           - { name: reasoning-failure-runner }
           - { name: search-orchestrator }
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
