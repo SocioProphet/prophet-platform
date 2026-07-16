@@ -227,7 +227,11 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
     src = req.source or ("text:" + hashlib.sha256(req.text.encode()).hexdigest()[:16])
     entities, relations = extract_facts(req.text)
     ent_id = lambda name: f"{coll}:ent:{_norm(name).replace(' ', '_')}"  # noqa: E731
-    prov = {"epistemic_mode": "observed", "source": src, "extractor": "lattice-studio/deterministic-v0", "project": coll}
+    # KKO (KBpedia Knowledge Ontology) is the estate's UPPER ONTOLOGY. Extracted named entities are Peircean
+    # Particulars (Secondness). epistemic_mode="observed" is itself Peircean (KKO formalizes the inference
+    # trichotomy induced/deduced/abduced as kko:Methodeutic) — so the provenance is standards-grounded, not ad-hoc.
+    prov = {"epistemic_mode": "observed", "source": src, "extractor": "lattice-studio/deterministic-v0",
+            "project": coll, "kko_type": "Particulars"}
 
     written_nodes = written_edges = 0
     errors: list[str] = []
@@ -260,21 +264,41 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
     }
 
 
-async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], str | None]:
-    """Read the project's atoms (by collection label) from the live HellGraph, each with its provenance."""
+def _map_node(n: Any) -> dict[str, Any]:
+    props = n.get("properties", n) if isinstance(n, dict) else {}
+    nid = n.get("id", "") if isinstance(n, dict) else str(n)
+    return {
+        "id": nid, "name": props.get("name", nid),
+        "epistemic_mode": props.get("epistemic_mode", "unknown"),
+        "source": props.get("source"), "extractor": props.get("extractor"),
+        "kko_type": props.get("kko_type", "Particulars"),  # KKO upper-ontology type
+        "labels": n.get("labels", []) if isinstance(n, dict) else [],
+    }
+
+
+async def _fetch_subgraph(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    """Read the project's INDUCED SUBGRAPH (nodes + internal edges) from the live HellGraph kernel.
+
+    The kernel returns an induced subgraph (edges only where both endpoints are in the node set), so the
+    explorer draws real topology — not a chip-cloud — and every node still carries its provenance.
+    """
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/query?label={coll}")
-    raw = (res.get("nodes", res) if isinstance(res, dict) else res) if res else []
-    nodes: list[dict[str, Any]] = []
-    for n in (raw if isinstance(raw, list) else [])[:limit]:
-        props = n.get("properties", n) if isinstance(n, dict) else {}
-        nid = n.get("id", "") if isinstance(n, dict) else str(n)
-        nodes.append({
-            "id": nid, "name": props.get("name", nid),
-            "epistemic_mode": props.get("epistemic_mode", "unknown"),
-            "source": props.get("source"), "extractor": props.get("extractor"),
-            "labels": n.get("labels", []) if isinstance(n, dict) else [],
-        })
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit={limit}")
+    raw_nodes = res.get("nodes", []) if isinstance(res, dict) else []
+    raw_edges = res.get("edgeList", []) if isinstance(res, dict) else []
+    nodes = [_map_node(n) for n in (raw_nodes if isinstance(raw_nodes, list) else [])[:limit]]
+    edges = [
+        {"id": e.get("id", ""), "source": e.get("from", ""), "target": e.get("to", ""),
+         "label": e.get("label", ""), "weight": (e.get("properties") or {}).get("n", 1)}
+        for e in (raw_edges if isinstance(raw_edges, list) else [])
+        if isinstance(e, dict) and e.get("from") and e.get("to")
+    ]
+    return nodes, edges, err
+
+
+async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], str | None]:
+    """Node-only read (RDF export path) — delegates to the subgraph fetch and drops edges."""
+    nodes, _edges, err = await _fetch_subgraph(coll, limit)
     return nodes, err
 
 
@@ -286,11 +310,12 @@ async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
     Neo4j/Bloom explorer can't show natively.
     """
     coll = proj_collection(project)
-    nodes, err = await _fetch_nodes(coll, limit)
+    nodes, edges, err = await _fetch_subgraph(coll, limit)
     dist: dict[str, int] = {}
     for x in nodes:
         dist[x["epistemic_mode"]] = dist.get(x["epistemic_mode"], 0) + 1
-    return {"project": project, "projectCollection": coll, "nodes": nodes, "count": len(nodes),
+    return {"project": project, "projectCollection": coll, "nodes": nodes, "edges": edges,
+            "count": len(nodes), "edge_count": len(edges),
             "epistemic_distribution": dist, "degraded": (err if err else None)}
 
 
@@ -308,13 +333,18 @@ async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
     coll = proj_collection(project)
     nodes, _ = await _fetch_nodes(coll, limit)
     g = RDFGraph()
+    # KKO (KBpedia Knowledge Ontology) is the estate's upper ontology — the export types INTO it, so the graph
+    # is grounded in a formal, open (CC-BY-4.0), Peircean upper ontology that Protégé/GraphDB/Anzo/Stardog already
+    # understand. Meet them on standards (KKO/RDF/PROV) AND carry the provenance moat they drop on export.
+    KKO = Namespace("http://kbpedia.org/ontologies/kko#")
     SP = Namespace("https://socioprophet.ai/kg#")
     PROJ = Namespace(f"https://socioprophet.ai/kg/{coll}/")
-    g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
+    g.bind("kko", KKO); g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
     for n in nodes:
         u = PROJ[(n["id"].split(":")[-1] or "node")]
-        g.add((u, RDF.type, SP.Entity))
+        g.add((u, RDF.type, KKO[n.get("kko_type", "Particulars")]))  # KKO upper-ontology type (Peircean)
         g.add((u, RDFS.label, Literal(n["name"])))
+        # epistemic_mode is a Peircean inference status (KKO kko:Methodeutic) — provenance grounded in the standard.
         g.add((u, SP.epistemicMode, Literal(n["epistemic_mode"])))
         if n.get("source"): g.add((u, DCTERMS.source, Literal(n["source"])))
         if n.get("extractor"): g.add((u, PROV.wasGeneratedBy, Literal(n["extractor"])))

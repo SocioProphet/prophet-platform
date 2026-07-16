@@ -10,6 +10,7 @@
  *   POST /api/graph/node           { id, labels[], properties? } → upsert node
  *   POST /api/graph/edge           { label, from, to, properties? } → add edge
  *   GET  /api/graph/query?label=X  nodes carrying a label
+ *   GET  /api/graph/subgraph?label=X  induced subgraph (nodes + internal edges) for an explorer
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  */
 import * as http from 'node:http'
@@ -79,6 +80,19 @@ const server = http.createServer((req, res) => {
     const label = url.searchParams.get('label') ?? ''
     const nodes = g.allNodes().filter((n) => !label || n.labels.includes(label))
     return json(res, 200, { count: nodes.length, nodes: nodes.slice(0, 200) })
+  }
+
+  // Subgraph read: the topology a real graph explorer draws (nodes + the edges internal to them).
+  // Node facade exposes reads but not a label-scoped induced subgraph — this composes nodesByLabel
+  // with an endpoint-membership filter so an explorer gets exactly one project's proof-carrying graph.
+  if (req.method === 'GET' && url.pathname === '/api/graph/subgraph') {
+    const label = url.searchParams.get('label') ?? ''
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? 400), 2000)
+    const nodes = (label ? g.allNodes().filter((n) => n.labels.includes(label)) : g.allNodes()).slice(0, limit)
+    const ids = new Set(nodes.map((n) => n.id))
+    // induced subgraph: keep an edge only when both endpoints are in the node set (no dangling)
+    const edges = g.allEdges().filter((e) => ids.has(e.from) && ids.has(e.to))
+    return json(res, 200, { count: nodes.length, edges: edges.length, nodes, edgeList: edges })
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/reason') {

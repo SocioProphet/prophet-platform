@@ -84,3 +84,32 @@ Two-track. Don't rebuild reasoners and query engines that already exist — brid
 ## 6. Honest bottom line
 
 Today we are **behind** Neo4j/Protégé/Anzo on query maturity, reasoners, algorithms, visualization, and scale — and pretending otherwise is a paper tiger. But we are **architecturally ahead of all of them on the one axis that matters for trustworthy, agent-operated knowledge**: proof-carrying provenance, deterministic replay, agent-nativeness, and sovereignty. The plan is to *interoperate* with their standards (RDF/SPARQL/OWL/SHACL) so we lose nothing, and *spend our build budget* making the proof/provenance/agent moat real and visible. That is how our knowledge graph becomes not "another Neo4j" but the first knowledge graph you can **prove and hand to an agent team**.
+
+---
+
+## 7. Strategic doctrine (corrected 2026-07-16) — KKO upper ontology + meet-or-beat, THEN the moat
+
+Two corrections that supersede the more concessive framing above:
+
+**A. KKO / KBpedia is the estate's UPPER ONTOLOGY — the stack standard.** Not a bolt-on alignment; the top typology
+everything types into. KKO (KBpedia Knowledge Ontology v1.60, CC-BY-4.0, ~58k reference concepts, Peirce's universal
+categories) maps Noetica 1:1 (`~/dev/Noetica/agent-machine/canon/kko-alignment.json`, `lib/kko-bridge.ts`).
+Crucially, **KKO formalizes our epistemic moat**: induced/deduced/abduced = Peirce's induction/deduction/abduction,
+and the discovery process is `kko:Methodeutic`. So our provenance/epistemic-mode is **standards-grounded in a
+formal open upper ontology, not proprietary**. Extraction types entities as `kko:Particulars` (Secondness);
+ontogenesis + FIBO/gist sit *under* KKO. Every KG surface (extract, graph, RDF export, retrieval) types into KKO.
+
+**B. MEET OR BEAT them on their turf, THEN overlay the moat.** The goal is not "behind but differentiated." It is
+**parity + moat**: reach Cypher/GDS/reasoner/SPARQL/viz parity, *then* tag it with proof/provenance/agent-native/
+sovereign. Per capability:
+
+| Their capability | Our PARITY move | + Our MOAT overlay |
+|---|---|---|
+| Neo4j Cypher / GDS / Bloom | a graph query surface (Cypher/GQL facade) + PLN/graph algorithms + a force-directed explorer | provenance + epistemic-mode per node/edge |
+| Protégé OWL + reasoners | ontogenesis OWL/SHACL under **KKO** upper ontology + a reasoner | proof-carrying, replayable derivations |
+| Anzo / Stardog SPARQL + virtualization | HellGraph RDF/SPARQL bridge + federation | epistemic-mode triples survive export (KKO-grounded) |
+| KBpedia | we ARE KKO-typed (parity by adoption) | + live extraction, agent-native, sovereign |
+
+**Shipped toward this:** the RDF/Turtle export now types nodes into `kko:Particulars` and carries `sp:epistemicMode`
++ `prov:wasGeneratedBy` + `dct:source` — KKO-grounded interop that keeps the provenance every incumbent drops on
+export. Next parity moves: graph query surface (Cypher/SPARQL), force-directed explorer, a reasoner over KKO.
