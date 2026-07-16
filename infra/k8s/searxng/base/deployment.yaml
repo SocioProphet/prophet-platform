@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: searxng
+  namespace: socioprophet
+  labels:
+    app: searxng
+    app.kubernetes.io/part-of: sovereign-search
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: searxng }
+  template:
+    metadata:
+      labels: { app: searxng }
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 977          # searxng's own uid in the upstream image
+        fsGroup: 977
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: searxng
+          # Pulled through zot (proxies docker.io on demand) so the sovereign search
+          # backend does not depend on Docker Hub being reachable. Pinned by DIGEST —
+          # the most immutable ref there is, and it honours the no-moving-tag standard
+          # (searxng publishes no stable semver tag we can pin, only `latest`, so we
+          # pin the digest `latest` currently resolves to; re-resolve to bump).
+          image: registry.socioprophet.ai/searxng/searxng@sha256:969e3d79c400b26b7b83c023ef48300d9e122e0828ef7160daac990b1ac27d7c
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SEARXNG_SECRET
+              valueFrom:
+                secretKeyRef: { name: searxng-secret, key: secret }
+            - name: SEARXNG_SETTINGS_PATH
+              value: /etc/searxng/settings.yml
+            # Instance base URL — used by SearXNG for absolute links only.
+            - name: SEARXNG_BASE_URL
+              value: http://searxng.socioprophet.svc.cluster.local:8080/
+          # /healthz is SearXNG's own liveness route and does NOT run a search, so a
+          # slow upstream engine never restarts the pod (the liveness-must-not-check-
+          # dependencies lesson).
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+          volumeMounts:
+            - { name: settings, mountPath: /etc/searxng/settings.yml, subPath: settings.yml, readOnly: true }
+            # readOnlyRootFilesystem: searxng writes a small runtime cache + its pid.
+            - { name: cache, mountPath: /var/cache/searxng }
+            - { name: run,   mountPath: /var/run }
+      volumes:
+        - name: settings
+          configMap: { name: searxng-settings }
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
+      imagePullSecrets:
+        - name: zot-pull
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: searxng
+  namespace: socioprophet
+  labels: { app: searxng }
+spec:
+  type: ClusterIP        # internal only — Noetica reaches it at SEARXNG_URL in-cluster
+  selector: { app: searxng }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: searxng
+  namespace: socioprophet
+  labels: { app: searxng }
+spec:
+  # limiter:false is only safe because the instance is not publicly reachable. This
+  # is the enforcement of that: ingress to searxng is allowed only from inside the
+  # namespace (the Noetica agent), never from outside the cluster.
+  podSelector: { matchLabels: { app: searxng } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: socioprophet }
+      ports:
+        - { protocol: TCP, port: 8080 }
