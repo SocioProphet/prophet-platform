@@ -1,16 +1,22 @@
-"""server.py — the Lattice Studio BFF. Wraps the existing product_spine (pure functions) into a real HTTP service
-and AGGREGATES LIVE data from the running fabric services, project-scoped to Noetica proj- collections.
+"""server.py — the Lattice Studio BFF.
 
-This is the "make it live" service — not a stub. It calls, over HTTP:
-  - hellgraph-service :8090  /api/graph/stats     → the Graph section (live)
-  - tritfabric        :8750  /v1/registry         → the Model catalog (live)
-  - search-orchestrator :8088 /healthz            → the Extraction/Sherlock liveness (live)
-and reads lattice-studio's product_spine for the workbench object model (notebooks/data/experiments). Graceful:
-a down service degrades that section, never the whole response. GET /api/studio?project=<id> → the Studio bundle
-the app-vue surface renders; GET /healthz for k8s probes.
+Wraps lattice-studio's existing ``product_spine`` (pure functions) into a real HTTP service and AGGREGATES LIVE
+data from the running fabric, project-scoped to Noetica ``proj-`` collections. This is the "make it live" service.
+
+Design (production-grade):
+  * CONCURRENT fan-out — all upstream calls run under a single ``asyncio.gather`` (not sequential awaits), so
+    ``/api/studio`` latency is max(upstream) not sum(upstream).
+  * GRACEFUL — every upstream is wrapped; a down/slow service degrades only its own section, never the response.
+  * HONEST — the ``live`` map reports exactly which upstreams answered; ``degraded`` carries the reason.
+
+Upstreams (real, in-cluster):
+  * hellgraph-service  GET  /api/graph/stats          → Graph section (live stats)
+  * search-orchestrator POST /v0/search/query          → Extraction/Sherlock (live federated results)
+  * tritfabric         GET  /v1/registry              → Model catalog (live) — degrades until tritfabric is deployed
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 from typing import Any
@@ -20,10 +26,10 @@ from fastapi import FastAPI
 
 from lattice_studio import product_spine
 
-SERVICE_VERSION = "0.1.0"
+SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
 TRITFABRIC_URL = os.getenv("TRITFABRIC_URL", "http://tritfabric:8750")
-SEARCH_ORCH_URL = os.getenv("SEARCH_ORCH_URL", "http://search-orchestrator:8088")
+SEARCH_ORCH_URL = os.getenv("SEARCH_ORCH_URL", "http://search-orchestrator:8080")
 TIMEOUT = float(os.getenv("STUDIO_TIMEOUT", "5"))
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
@@ -36,19 +42,32 @@ def proj_collection(project: str) -> str:
 
 def _first(d: dict[str, Any], *keys: str, default: str = "—") -> Any:
     for k in keys:
-        v = d.get(k)
-        if v:
-            return v
+        if d.get(k):
+            return d[k]
     return default
 
 
-async def _get(url: str) -> tuple[Any, str | None]:
+async def _req(client: httpx.AsyncClient, method: str, url: str, json: Any | None = None) -> tuple[Any, str | None]:
+    """One resilient upstream call. Returns (json_or_None, error_or_None). Never raises."""
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as c:
-            r = await c.get(url)
-            return (r.json() if r.status_code == 200 else None), (None if r.status_code == 200 else f"HTTP {r.status_code}")
+        r = await client.request(method, url, json=json)
+        if r.status_code == 200:
+            return r.json(), None
+        return None, f"HTTP {r.status_code}"
     except Exception as exc:  # noqa: BLE001
         return None, str(exc)
+
+
+def _sherlock_request(project: str) -> dict[str, Any]:
+    """A schema-valid sherlock_search_request (see schemas/search/sherlock_search_request.schema.json)."""
+    return {
+        "query_id": f"studio-{proj_collection(project)}",
+        "actor_id": "lattice-studio-bff",
+        "text": project,
+        "mode": "HYBRID",
+        "scope": {"local_desktop": False, "cloud_workspace": True, "memory": True},
+        "limit": 10,
+    }
 
 
 @app.get("/healthz")
@@ -60,16 +79,17 @@ def healthz() -> dict[str, Any]:
 async def studio(project: str = "default") -> dict[str, Any]:
     coll = proj_collection(project)
     spine = product_spine.demo_product_spine()  # the real integration object model
-    degraded: dict[str, str] = {}
 
-    # ── LIVE calls to the running fabric services ──
-    gstats, gerr = await _get(f"{HELLGRAPH_URL}/api/graph/stats")
-    reg, rerr = await _get(f"{TRITFABRIC_URL}/v1/registry")
-    orch, oerr = await _get(f"{SEARCH_ORCH_URL}/healthz")
-    if gerr: degraded["graph"] = gerr
-    if rerr: degraded["models"] = rerr
+    # ── CONCURRENT live fan-out to the running fabric ──
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        (gstats, gerr), (reg, rerr), (sher, serr) = await asyncio.gather(
+            _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/stats"),
+            _req(client, "GET", f"{TRITFABRIC_URL}/v1/registry"),
+            _req(client, "POST", f"{SEARCH_ORCH_URL}/v0/search/query", json=_sherlock_request(project)),
+        )
+    degraded = {k: v for k, v in {"graph": gerr, "models": rerr, "extraction": serr}.items() if v}
 
-    # ── Workbench: from the product_spine object model, bound to the Noetica project ──
+    # ── Workbench: product_spine object model, bound to the Noetica project ──
     session = dict(spine.get("notebookSession", {}))
     session["projectId"] = project
     notebooks = [{
@@ -85,7 +105,6 @@ async def studio(project: str = "default") -> dict[str, Any]:
          "lineage": [_first(d, "reproduceCommand", "reproduce_command", default="lineage")]}
         for d in (spine.get("catalogAsset", {}), spine.get("dataProduct", {})) if d
     ]
-    # models: LIVE from tritfabric registry, fallback to the spine factsheet/promotion candidate
     models: list[dict[str, Any]] = []
     if reg:
         arts = reg.get("artifacts", reg) if isinstance(reg, dict) else reg
@@ -112,10 +131,13 @@ async def studio(project: str = "default") -> dict[str, Any]:
                 graph.append({"id": f"g-{k}", "label": k, "value": v})
     graph.append({"id": "g-engine", "label": "Engine", "value": "HellGraph", "hint": f"live · {HELLGRAPH_URL}"})
 
-    # ── Knowledge engineering: the wired engines with honest live/lib status ──
+    # ── Knowledge engineering — LIVE where a service exists, honest lib/spec status otherwise ──
+    sher_hits = len(sher.get("results", sher) if isinstance(sher, dict) else (sher or [])) if sher else 0
     extraction = [
-        {"id": "x-holmes", "name": "Holmes — entities & relations", "engine": "holmes", "kind": "claim reasoning (Propose→Explain→Verify)", "status": "idle", "target": coll},
-        {"id": "x-sherlock", "name": "Sherlock — federated search", "engine": "sherlock", "kind": "federated retrieval", "status": ("done" if orch else "idle"), "target": coll},
+        {"id": "x-holmes", "name": "Holmes — entities & relations", "engine": "holmes",
+         "kind": "claim reasoning (Propose→Explain→Verify)", "status": "idle", "target": coll},
+        {"id": "x-sherlock", "name": "Sherlock — federated search", "engine": "sherlock", "kind": "federated retrieval",
+         "status": ("done" if sher is not None else "idle"), "extracted": sher_hits, "target": coll},
     ]
     ontology = [
         {"id": "o-1", "name": "Ontogenesis modules (RDF/OWL + SHACL)", "kind": "class", "engine": "ontogenesis", "aligned": True},
@@ -135,6 +157,6 @@ async def studio(project: str = "default") -> dict[str, Any]:
         "project": project, "projectCollection": coll,
         "notebooks": notebooks, "data": data, "models": models, "tuning": [], "experiments": experiments,
         "extraction": extraction, "ontology": ontology, "graph": graph, "retrieval": retrieval, "generation": generation,
-        "live": {"hellgraph": gstats is not None, "tritfabric": reg is not None, "search_orchestrator": orch is not None},
+        "live": {"hellgraph": gstats is not None, "tritfabric": reg is not None, "search_orchestrator": sher is not None},
         "degraded": (degraded or None),
     }
