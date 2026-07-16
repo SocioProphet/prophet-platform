@@ -1,0 +1,54 @@
+# Ask the image whether it honours the contract the values file promises.
+#
+# The chart says the container listens on .Values.service.port and answers
+# .Values.probes.path. That was true on paper and false in four services at once,
+# while CI stayed green — because the truth lives in the image, not the YAML, and
+# nothing ever started the image and asked.
+#
+# Runs on PRs that touch an app, a service, or a values file: the two places the
+# contract can drift apart.
+name: probe-contract
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'services/**'
+      - 'deploy/values/**'
+      - 'charts/socioprophet-service/**'
+      - 'tools/verify_probe_contract.py'
+      - '.github/workflows/probe-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only services whose image can answer a probe unaided. Anything needing a
+        # live DB or backend is listed in NEEDS_DEPENDENCIES in the script and is
+        # skipped there too — a red build that teaches nothing is worse than no build.
+        include:
+          - { service: socioprophet-web, context: ., dockerfile: apps/socioprophet-web/Dockerfile }
+          - { service: osm-map-api,      context: ., dockerfile: apps/osm-map-api/Dockerfile }
+          - { service: agentic-os-api,   context: apps/agentic-os-api, dockerfile: Dockerfile }
+          - { service: evidence-console, context: apps/evidence-console, dockerfile: Dockerfile }
+          - { service: evidence-receipts, context: apps/evidence-receipts, dockerfile: Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install --quiet pyyaml
+      - name: Build ${{ matrix.service }}
+        run: |
+          docker build -f "${{ matrix.context }}/${{ matrix.dockerfile }}" \
+            -t "probe-contract/${{ matrix.service }}:pr" "${{ matrix.context }}"
+      - name: Does it honour deploy/values/${{ matrix.service }}.yaml?
+        run: |
+          python3 tools/verify_probe_contract.py \
+            --service "${{ matrix.service }}" \
+            --image "probe-contract/${{ matrix.service }}:pr"
