@@ -17,12 +17,14 @@ Upstreams (real, in-cluster):
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import re
 from typing import Any
 
 import httpx
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from lattice_studio import product_spine
 
@@ -159,4 +161,91 @@ async def studio(project: str = "default") -> dict[str, Any]:
         "extraction": extraction, "ontology": ontology, "graph": graph, "retrieval": retrieval, "generation": generation,
         "live": {"hellgraph": gstats is not None, "tritfabric": reg is not None, "search_orchestrator": sher is not None},
         "degraded": (degraded or None),
+    }
+
+
+# ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
+# Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
+# epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
+# "entity X, observed, from source S, in project P, by extractor E". Neo4j stores the node; we store the node with
+# its epistemic status and provenance, in one governed project scope.
+
+_STOP = {"The", "This", "That", "These", "Those", "There", "Then", "When", "Where", "What", "Which", "While", "And", "But", "For", "With", "From", "Into"}
+_PROPER = re.compile(r"\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)*)\b")
+_ACRONYM = re.compile(r"\b([A-Z]{2,}[A-Za-z0-9]*)\b")
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s.strip().lower())
+
+
+def extract_facts(text: str, limit: int = 60) -> tuple[list[str], list[tuple[str, str]]]:
+    """Deterministic entities (proper-noun phrases + acronyms) + co-occurrence relations (same sentence)."""
+    entities: list[str] = []
+    seen: set[str] = set()
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    relations: list[tuple[str, str]] = []
+    rel_seen: set[tuple[str, str]] = set()
+    for sent in sentences:
+        local: list[str] = []
+        for m in (*_PROPER.finditer(sent), *_ACRONYM.finditer(sent)):
+            name = m.group(1).strip()
+            if name in _STOP or len(name) < 2:
+                continue
+            key = _norm(name)
+            if key not in seen and len(entities) < limit:
+                seen.add(key); entities.append(name)
+            if key not in {_norm(x) for x in local}:
+                local.append(name)
+        # co-occurrence edges within a sentence (undirected, deduped)
+        for i in range(len(local)):
+            for j in range(i + 1, len(local)):
+                a, b = sorted((_norm(local[i]), _norm(local[j])))
+                if (a, b) not in rel_seen:
+                    rel_seen.add((a, b)); relations.append((local[i], local[j]))
+    return entities, relations[: limit * 2]
+
+
+class ExtractRequest(BaseModel):
+    project: str = "default"
+    text: str
+    source: str | None = None
+
+
+@app.post("/api/studio/extract")
+async def extract(req: ExtractRequest) -> dict[str, Any]:
+    coll = proj_collection(req.project)
+    src = req.source or ("text:" + hashlib.sha256(req.text.encode()).hexdigest()[:16])
+    entities, relations = extract_facts(req.text)
+    ent_id = lambda name: f"{coll}:ent:{_norm(name).replace(' ', '_')}"  # noqa: E731
+    prov = {"epistemic_mode": "observed", "source": src, "extractor": "lattice-studio/deterministic-v0", "project": coll}
+
+    written_nodes = written_edges = 0
+    errors: list[str] = []
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        # nodes first (concurrently), then edges (concurrently)
+        node_calls = [
+            _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                 json={"id": ent_id(n), "labels": [coll, "Entity"], "properties": {"name": n, **prov}})
+            for n in entities
+        ]
+        for _, err in await asyncio.gather(*node_calls):
+            if err: errors.append(err)
+            else: written_nodes += 1
+        edge_calls = [
+            _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                 json={"label": "co_occurs", "from": ent_id(a), "to": ent_id(b), "properties": prov})
+            for a, b in relations
+        ]
+        for _, err in await asyncio.gather(*edge_calls):
+            if err: errors.append(err)
+            else: written_edges += 1
+
+    return {
+        "project": req.project, "projectCollection": coll, "source": src,
+        "extracted": {"entities": len(entities), "relations": len(relations)},
+        "written": {"nodes": written_nodes, "edges": written_edges},
+        "provenance": prov,
+        "sample": entities[:10],
+        "errors": errors[:5] or None,
     }

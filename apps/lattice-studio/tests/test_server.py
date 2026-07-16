@@ -32,3 +32,25 @@ def test_studio_bundle_project_scoped_and_complete():
     # retrieval names the real engines
     engines = {r["engine"] for r in b["retrieval"]}
     assert {"fibered-retrieval", "hellgraph", "slash-topics"} <= engines
+
+
+def test_extract_facts_deterministic():
+    from lattice_studio.server import extract_facts
+    ents, rels = extract_facts("HellGraph powers SocioProphet. Neo4j and Anzo compete with SocioProphet.")
+    names = {e.lower() for e in ents}
+    assert "hellgraph" in names and "socioprophet" in names and "neo4j" in names and "anzo" in names
+    # co-occurrence within a sentence produces a relation (Neo4j ↔ Anzo, Neo4j ↔ SocioProphet)
+    assert len(rels) >= 1
+
+
+def test_extract_endpoint_writes_proof_carrying_facts():
+    # hellgraph unreachable in test → written=0 but extraction + provenance still returned (graceful)
+    r = client.post("/api/studio/extract", json={"project": "team-x", "text": "HellGraph beats Neo4j on provenance."})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["projectCollection"] == "proj-teamx"
+    assert b["extracted"]["entities"] >= 2
+    # the moat: every fact carries epistemic_mode + source + project
+    assert b["provenance"]["epistemic_mode"] == "observed"
+    assert b["provenance"]["project"] == "proj-teamx"
+    assert b["provenance"]["extractor"].startswith("lattice-studio/")
