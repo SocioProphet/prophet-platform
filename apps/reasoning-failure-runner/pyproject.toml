@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reasoning-failure-runner"
+version = "0.2.0"
+description = "Chaos & Resilience Fabric orchestrator — fault injection across the agent fleet, metered on the evidence fabric."
+requires-python = ">=3.11"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
