@@ -79,16 +79,12 @@ OUR_REGISTRIES = ("us-central1-docker.pkg.dev/socioprophet-platform/", "registry
 # Entries must carry a reason. The list only ever shrinks: if an entry starts passing,
 # the gate FAILS and demands its removal, so it cannot rot into a permanent excuse.
 KNOWN_BROKEN = {
-    "reasoning-failure-runner:not-built": (
-        "apps/reasoning-failure-runner has src/ and examples/ but NO Dockerfile, so no "
-        "image can exist — yet platform-services.yaml deploys it, giving a permanent "
-        "ImagePullBackOff. It looks like a library that was added to the ApplicationSet "
-        "as if it were a service. Fix = add a Dockerfile + images.yml entry, or drop it "
-        "from the ApplicationSet. Needs an owner decision, not a config tweak."
-    ),
+    # reasoning-failure-runner:not-built is RESOLVED — it now has a Dockerfile + images.yml entry and is a real
+    # FastAPI service (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md).
     "reasoning-failure-runner:moving-tag": (
-        "Same root cause as reasoning-failure-runner:not-built — the image does not "
-        "exist at all, so its tag is moot until someone decides to build it or drop it."
+        "The image now BUILDS (Dockerfile + images.yml added). Pinning `tag: latest` → the sha- tag the build "
+        "publishes is now a mechanical follow-up after the first CI build (same as dashboard-bff #743); it "
+        "could not be done in the same PR because no sha existed yet. Ratcheted, not moot."
     ),
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`

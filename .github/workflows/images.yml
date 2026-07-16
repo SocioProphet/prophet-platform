@@ -60,6 +60,7 @@ jobs:
           - { image: search-orchestrator,   context: .,                         dockerfile: services/search-orchestrator/Dockerfile }
           - { image: regis-acr-api,         context: apps/regis-acr-api,        dockerfile: Dockerfile }
           - { image: commons-search,        context: apps/commons-search,       dockerfile: Dockerfile }
+          - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
