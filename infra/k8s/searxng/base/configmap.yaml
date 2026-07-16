@@ -43,3 +43,20 @@ data:
         disabled: false
       - name: bing
         disabled: false
+      # The open-chat community commons — a sovereign search corpus no rented search API can have, built from
+      # consenting, REDACTED human conversation (commons-search aggregator, internal-only). A declarative
+      # json_engine (no custom Python image needed) queries the internal endpoint, so ONE SearXNG query returns
+      # web results + open-community-chat matches, unified — which is the whole point. The corpus is redacted at
+      # ingest and each snippet is injection-stripped there; results still flow through Noetica's web_search
+      # EXTERNAL marking on the way back.
+      - name: noetica commons
+        engine: json_engine
+        search_url: http://commons-search.socioprophet.svc.cluster.local:8080/api/open-chats/search?q={query}
+        results_query: results
+        url_query: url
+        title_query: title
+        content_query: content
+        categories: [general]
+        shortcut: nc
+        timeout: 4.0
+        disabled: false

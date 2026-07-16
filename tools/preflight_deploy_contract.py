@@ -60,6 +60,7 @@ NON_CHART_SERVICES = {
     "workspace-caldav",
     "workspace-smtp",
     "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
+    "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere
