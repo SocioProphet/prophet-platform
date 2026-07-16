@@ -1,0 +1,13 @@
+# lattice-studio — the Studio BFF (apps/lattice-studio server.py). Makes the app-vue Studio surface live: wraps
+# product_spine + aggregates live data from hellgraph-service / tritfabric / search-orchestrator, project-scoped
+# to Noetica proj- collections. Pinned to the sha- tag the #753 build published.
+image: { repository: lattice-studio, tag: sha-08e330a6cc9ce6e1912ee9ac41bf0301aa14cf1d }
+service: { port: 8080, portName: http }
+# server serves /healthz (chart default) — no probes.path override.
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  TRITFABRIC_URL: "http://tritfabric:8750"
+  SEARCH_ORCH_URL: "http://search-orchestrator:8088"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# Internal for now (ClusterIP); the app-vue surface reaches it via the same public-gateway pattern as search — a
+# public ingress + DNS is the go-live step, held (ManagedCert clock starts at DNS).
