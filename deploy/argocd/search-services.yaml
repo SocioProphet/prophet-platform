@@ -1,0 +1,41 @@
+# Argo CD ApplicationSet — sovereign search (SearXNG).
+#
+# SearXNG is the keyless, self-hosted meta-search backend behind Noetica's web_search
+# tool. It replaces a rented Google-search API (Serper) and the HTML scrapers that
+# search engines block from datacenter IPs — the real "web search came back empty"
+# bug. Same house convention as zot/socbase: kustomize, GCE-free ClusterIP (internal
+# only, NetworkPolicy-restricted), image pulled through zot.
+#
+# Prereqs (out of band, NOT in git): the `searxng-secret` Secret (key: secret) and the
+# `zot-pull` Secret. Noetica points SEARXNG_URL at http://searxng:8080 in-cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: search-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: searxng, path: infra/k8s/searxng/base }
+  template:
+    metadata:
+      name: 'search-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: sovereign-search
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

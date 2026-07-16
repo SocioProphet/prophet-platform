@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: searxng-settings
+  namespace: socioprophet
+  labels:
+    app: searxng
+    app.kubernetes.io/part-of: sovereign-search
+data:
+  # SearXNG = the sovereign, keyless meta-search backend for Noetica's web_search tool.
+  # It replaces a rented Google-search API (Serper) and the HTML scrapers that engines
+  # actively block from datacenter IPs — DuckDuckGo returns a 202 challenge with zero
+  # results server-side, which was the real "web search came back empty" bug. Pattern:
+  # zot : registries :: gitea : GitHub :: socbase : Firebase :: SearXNG : Google-search.
+  #
+  # Two settings matter and both were found the hard way (a stock instance 403s the
+  # JSON API):
+  #   formats: [html, json] — the JSON API is DISABLED by default; the agent needs it.
+  #   limiter: false        — the bot-limiter blocks server-side json callers. Safe to
+  #                           disable because this instance is NOT public — a NetworkPolicy
+  #                           restricts it to in-cluster callers (see networkpolicy.yaml).
+  settings.yml: |
+    use_default_settings: true
+    server:
+      # secret_key is injected from the searxng-secret Secret via env at runtime,
+      # not committed here.
+      limiter: false
+      public_instance: false
+      image_proxy: false
+    search:
+      formats:
+        - html
+        - json
+      safe_search: 0
+    engines:
+      # A lean, reliable default set. SearXNG aggregates these; if one is down the
+      # others still answer — the robustness a single scraper never had.
+      - name: wikipedia
+        disabled: false
+      - name: duckduckgo
+        disabled: false
+      - name: brave
+        disabled: false
+      - name: bing
+        disabled: false
