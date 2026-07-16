@@ -13,7 +13,14 @@ postgres:
   host: postgres
   db: prophet_platform
   port: 5432
-  existingSecret: postgres-credentials     # keys: username, password (admin)
+  # A username is not a secret. The cluster's admin secret (postgres-admin) carries
+  # only `password`, so requiring a `username` key forced a second secret to exist
+  # purely to restate "postgres" — and copying an admin password into a new secret
+  # to satisfy a chart's shape is a bad trade. Set username here; the secret keeps
+  # the part that is actually sensitive. Falls back to the secret's username key if
+  # this is left empty.
+  username: postgres
+  existingSecret: postgres-admin           # key: password
 
 # authenticator is the login role PostgREST connects as (SET ROLE anon /
 # authenticated / service_role per JWT) — this Job creates/repassword's it.
