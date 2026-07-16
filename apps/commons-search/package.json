@@ -1,0 +1,21 @@
+{
+  "name": "@socioprophet/commons-search",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The open-chat community-commons aggregator: instances publish REDACTED open chats here (floor-gated on ingest), and SearXNG's json_engine searches the corpus. Polyglot store (memory/socbase/minio/hellgraph) behind one CommonsStore interface.",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  },
+  "optionalDependencies": {
+    "minio": "^8.0.0"
+  }
+}

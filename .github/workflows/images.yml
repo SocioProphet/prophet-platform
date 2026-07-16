@@ -59,6 +59,7 @@ jobs:
           - { image: workspace-smtp,        context: services/workspace-smtp,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: search-orchestrator,   context: .,                         dockerfile: services/search-orchestrator/Dockerfile }
           - { image: regis-acr-api,         context: apps/regis-acr-api,        dockerfile: Dockerfile }
+          - { image: commons-search,        context: apps/commons-search,       dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
