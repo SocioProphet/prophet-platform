@@ -52,6 +52,11 @@ data:
       - name: noetica commons
         engine: json_engine
         search_url: http://commons-search.socioprophet.svc.cluster.local:8080/api/open-chats/search?q={query}
+        # SearXNG blocks plain-http:// engine URLs by default ("HTTP protocol is disabled" → httpx.UnsupportedProtocol).
+        # commons-search is an in-cluster ClusterIP with no TLS, so HTTP must be allowed explicitly for THIS engine
+        # (the internal NetworkPolicy is what keeps it safe, not transport TLS). Verified: without this the engine
+        # loaded but every query 0-result'd; with it the nc engine returns the commons corpus.
+        enable_http: true
         results_query: results
         url_query: url
         title_query: title
