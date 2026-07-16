@@ -1,0 +1,25 @@
+# search-gateway — the public read-only search fan-out for socioprophet.ai (apps/search-gateway).
+# Blends SearXNG (web) + commons-search (the sovereign commons) into one cited result set. READ-ONLY: no write
+# routes, so exposing it publicly keeps the commons /publish path gated.
+#
+# Pin the immutable sha- tag the build published (the no-moving-tag standard). This is the merge-commit sha of
+# PR #751 (the service+build); bump it as the service is rebuilt.
+image: { repository: search-gateway, tag: sha-6c83cf260d2fa00d5969212aa293d8ec347af4e7 }
+service: { port: 8080, portName: http }
+# The server serves /healthz (the chart default) — no probes.path override needed.
+config:
+  # In-cluster engine URLs (ClusterIP, same namespace).
+  SEARXNG_URL: "http://searxng.socioprophet.svc.cluster.local:8080"
+  COMMONS_SEARCH_URL: "http://commons-search.socioprophet.svc.cluster.local:8080"
+  # CORS allowlist — only the .ai surfaces + the Firebase dev/prod app sites may call it from a browser.
+  SEARCH_CORS_ORIGINS: "https://socioprophet.ai,https://www.socioprophet.ai,https://app.socioprophet.com,https://socioprophet-builder.web.app,https://socioprophet-builder-dev.web.app"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }
+# PUBLIC INGRESS — held OFF until DNS for the search host resolves. A GKE ManagedCertificate's provisioning clock
+# starts at DNS visibility; creating the ingress/cert BEFORE the A record exists poisons it into FailedNotVisible
+# backoff (the socbase-cert lesson). GO-LIVE: (1) Michael adds an A record for search-api.socioprophet.ai → the
+# ingress IP, (2) flip enabled:true + add the managed-certificates annotation + a ManagedCertificate resource.
+# Until then the gateway is deployed + healthy (ClusterIP) and reachable in-cluster for verification.
+ingress:
+  enabled: false
+  # hosts: [{ host: search-api.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
+  # annotations: { networking.gke.io/managed-certificates: search-gateway-cert }
