@@ -264,22 +264,41 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
     }
 
 
-async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], str | None]:
-    """Read the project's atoms (by collection label) from the live HellGraph, each with its provenance."""
+def _map_node(n: Any) -> dict[str, Any]:
+    props = n.get("properties", n) if isinstance(n, dict) else {}
+    nid = n.get("id", "") if isinstance(n, dict) else str(n)
+    return {
+        "id": nid, "name": props.get("name", nid),
+        "epistemic_mode": props.get("epistemic_mode", "unknown"),
+        "source": props.get("source"), "extractor": props.get("extractor"),
+        "kko_type": props.get("kko_type", "Particulars"),  # KKO upper-ontology type
+        "labels": n.get("labels", []) if isinstance(n, dict) else [],
+    }
+
+
+async def _fetch_subgraph(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    """Read the project's INDUCED SUBGRAPH (nodes + internal edges) from the live HellGraph kernel.
+
+    The kernel returns an induced subgraph (edges only where both endpoints are in the node set), so the
+    explorer draws real topology — not a chip-cloud — and every node still carries its provenance.
+    """
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/query?label={coll}")
-    raw = (res.get("nodes", res) if isinstance(res, dict) else res) if res else []
-    nodes: list[dict[str, Any]] = []
-    for n in (raw if isinstance(raw, list) else [])[:limit]:
-        props = n.get("properties", n) if isinstance(n, dict) else {}
-        nid = n.get("id", "") if isinstance(n, dict) else str(n)
-        nodes.append({
-            "id": nid, "name": props.get("name", nid),
-            "epistemic_mode": props.get("epistemic_mode", "unknown"),
-            "source": props.get("source"), "extractor": props.get("extractor"),
-            "kko_type": props.get("kko_type", "Particulars"),  # KKO upper-ontology type
-            "labels": n.get("labels", []) if isinstance(n, dict) else [],
-        })
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit={limit}")
+    raw_nodes = res.get("nodes", []) if isinstance(res, dict) else []
+    raw_edges = res.get("edgeList", []) if isinstance(res, dict) else []
+    nodes = [_map_node(n) for n in (raw_nodes if isinstance(raw_nodes, list) else [])[:limit]]
+    edges = [
+        {"id": e.get("id", ""), "source": e.get("from", ""), "target": e.get("to", ""),
+         "label": e.get("label", ""), "weight": (e.get("properties") or {}).get("n", 1)}
+        for e in (raw_edges if isinstance(raw_edges, list) else [])
+        if isinstance(e, dict) and e.get("from") and e.get("to")
+    ]
+    return nodes, edges, err
+
+
+async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], str | None]:
+    """Node-only read (RDF export path) — delegates to the subgraph fetch and drops edges."""
+    nodes, _edges, err = await _fetch_subgraph(coll, limit)
     return nodes, err
 
 
@@ -291,11 +310,12 @@ async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
     Neo4j/Bloom explorer can't show natively.
     """
     coll = proj_collection(project)
-    nodes, err = await _fetch_nodes(coll, limit)
+    nodes, edges, err = await _fetch_subgraph(coll, limit)
     dist: dict[str, int] = {}
     for x in nodes:
         dist[x["epistemic_mode"]] = dist.get(x["epistemic_mode"], 0) + 1
-    return {"project": project, "projectCollection": coll, "nodes": nodes, "count": len(nodes),
+    return {"project": project, "projectCollection": coll, "nodes": nodes, "edges": edges,
+            "count": len(nodes), "edge_count": len(edges),
             "epistemic_distribution": dist, "degraded": (err if err else None)}
 
 

@@ -71,7 +71,39 @@ def test_graph_endpoint_returns_provenance_shape():
     assert r.status_code == 200
     b = r.json()
     assert b["projectCollection"] == "proj-teamx"
+    # nodes AND edges (topology for the force-directed explorer) + provenance distribution
     assert "nodes" in b and "count" in b and "epistemic_distribution" in b
+    assert "edges" in b and "edge_count" in b and isinstance(b["edges"], list)
+
+
+def test_subgraph_maps_induced_edges(monkeypatch):
+    # the BFF must map the kernel's induced-subgraph edgeList (from/to) → explorer edges (source/target)
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({
+                "nodes": [
+                    {"id": "proj-teamx:ent:a", "labels": ["proj-teamx", "Entity"],
+                     "properties": {"name": "A", "epistemic_mode": "observed", "kko_type": "Particulars"}},
+                    {"id": "proj-teamx:ent:b", "labels": ["proj-teamx", "Entity"],
+                     "properties": {"name": "B", "epistemic_mode": "observed"}},
+                ],
+                "edgeList": [
+                    {"id": "h:1", "label": "CO_OCCURS", "from": "proj-teamx:ent:a",
+                     "to": "proj-teamx:ent:b", "properties": {"n": 3}},
+                ],
+            }, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.get("/api/studio/graph?project=team-x")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["count"] == 2 and b["edge_count"] == 1
+    e = b["edges"][0]
+    assert e["source"] == "proj-teamx:ent:a" and e["target"] == "proj-teamx:ent:b"
+    assert e["label"] == "CO_OCCURS" and e["weight"] == 3
 
 
 def test_rdf_export_carries_provenance(monkeypatch):
