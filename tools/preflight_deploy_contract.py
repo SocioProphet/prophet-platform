@@ -104,13 +104,6 @@ KNOWN_BROKEN = {
         "evidence-receipts", "gateway", "hellgraph-service", "osm-map-api",
         "search-orchestrator",
     ]},
-    # The only current empty-tag offender. PR #743 pins it to a sha- tag; once #743
-    # merges this entry starts passing and the ratchet DEMANDS its removal ("only
-    # shrinks"), which is the intended self-cleaning. Delete this line with #743.
-    "dashboard-bff:empty-tag": (
-        "Pre-existing empty image.tag, being pinned by PR #743. Remove this entry when "
-        "#743 merges — the ratchet will fail until you do."
-    ),
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is
