@@ -227,7 +227,11 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
     src = req.source or ("text:" + hashlib.sha256(req.text.encode()).hexdigest()[:16])
     entities, relations = extract_facts(req.text)
     ent_id = lambda name: f"{coll}:ent:{_norm(name).replace(' ', '_')}"  # noqa: E731
-    prov = {"epistemic_mode": "observed", "source": src, "extractor": "lattice-studio/deterministic-v0", "project": coll}
+    # KKO (KBpedia Knowledge Ontology) is the estate's UPPER ONTOLOGY. Extracted named entities are Peircean
+    # Particulars (Secondness). epistemic_mode="observed" is itself Peircean (KKO formalizes the inference
+    # trichotomy induced/deduced/abduced as kko:Methodeutic) — so the provenance is standards-grounded, not ad-hoc.
+    prov = {"epistemic_mode": "observed", "source": src, "extractor": "lattice-studio/deterministic-v0",
+            "project": coll, "kko_type": "Particulars"}
 
     written_nodes = written_edges = 0
     errors: list[str] = []
@@ -273,6 +277,7 @@ async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]
             "id": nid, "name": props.get("name", nid),
             "epistemic_mode": props.get("epistemic_mode", "unknown"),
             "source": props.get("source"), "extractor": props.get("extractor"),
+            "kko_type": props.get("kko_type", "Particulars"),  # KKO upper-ontology type
             "labels": n.get("labels", []) if isinstance(n, dict) else [],
         })
     return nodes, err
@@ -308,13 +313,18 @@ async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
     coll = proj_collection(project)
     nodes, _ = await _fetch_nodes(coll, limit)
     g = RDFGraph()
+    # KKO (KBpedia Knowledge Ontology) is the estate's upper ontology — the export types INTO it, so the graph
+    # is grounded in a formal, open (CC-BY-4.0), Peircean upper ontology that Protégé/GraphDB/Anzo/Stardog already
+    # understand. Meet them on standards (KKO/RDF/PROV) AND carry the provenance moat they drop on export.
+    KKO = Namespace("http://kbpedia.org/ontologies/kko#")
     SP = Namespace("https://socioprophet.ai/kg#")
     PROJ = Namespace(f"https://socioprophet.ai/kg/{coll}/")
-    g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
+    g.bind("kko", KKO); g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
     for n in nodes:
         u = PROJ[(n["id"].split(":")[-1] or "node")]
-        g.add((u, RDF.type, SP.Entity))
+        g.add((u, RDF.type, KKO[n.get("kko_type", "Particulars")]))  # KKO upper-ontology type (Peircean)
         g.add((u, RDFS.label, Literal(n["name"])))
+        # epistemic_mode is a Peircean inference status (KKO kko:Methodeutic) — provenance grounded in the standard.
         g.add((u, SP.epistemicMode, Literal(n["epistemic_mode"])))
         if n.get("source"): g.add((u, DCTERMS.source, Literal(n["source"])))
         if n.get("extractor"): g.add((u, PROV.wasGeneratedBy, Literal(n["extractor"])))

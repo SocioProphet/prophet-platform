@@ -80,14 +80,18 @@ def test_rdf_export_carries_provenance(monkeypatch):
 
     async def fake_nodes(coll, limit=200):
         return [{"id": f"{coll}:ent:hellgraph", "name": "HellGraph", "epistemic_mode": "observed",
-                 "source": "doc:kg", "extractor": "lattice-studio/deterministic-v0", "labels": [coll, "Entity"]}], None
+                 "source": "doc:kg", "extractor": "lattice-studio/deterministic-v0",
+                 "kko_type": "Particulars", "labels": [coll, "Entity"]}], None
     monkeypatch.setattr(srv, "_fetch_nodes", fake_nodes)
 
     r = client.get("/api/studio/graph.ttl?project=team-x")
     assert r.status_code == 200
     assert "text/turtle" in r.headers["content-type"]
     ttl = r.text
-    # provenance survives export: epistemic mode + source + generator ride the RDF
+    # KKO upper ontology: the node types INTO KKO (Peircean Particulars) — standards-grounded, not ad-hoc
+    assert "kko:" in ttl and "kko:Particulars" in ttl
+    assert "http://kbpedia.org/ontologies/kko#" in ttl
+    # provenance survives export: epistemic mode + source + generator ride the RDF (the moat, on export)
     assert "sp:epistemicMode" in ttl and '"observed"' in ttl
     assert "dct:source" in ttl and "prov:wasGeneratedBy" in ttl
     assert 'rdfs:label "HellGraph"' in ttl
