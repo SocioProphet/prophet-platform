@@ -55,6 +55,7 @@ NON_CHART_SERVICES = {
     "workspace-mail",
     "workspace-caldav",
     "workspace-smtp",
+    "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere
