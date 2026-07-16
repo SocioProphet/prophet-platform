@@ -5,7 +5,7 @@ CI builds images. Nothing checked that the things we DEPLOY line up with the
 things we BUILD — so on 2026-07-15 the cluster had ~9 pods crashlooping for two
 days behind a 100% green pipeline. Every one of those failures passed CI.
 
-Three checks, all static (no registry credentials, runs anywhere):
+Four checks, all static (no registry credentials, runs anywhere):
 
   1. Every service in a deploy/argocd ApplicationSet has a deploy/values/<name>.yaml.
   2. Every FIRST-PARTY service is actually built by .github/workflows/images.yml.
@@ -15,6 +15,10 @@ Three checks, all static (no registry credentials, runs anywhere):
      reuses the node cache forever: a fixed image never rolls out, and `rollout
      restart` does not re-pull. That is how a broken socioprophet-web build survived
      574 restarts while `latest` in the registry was already fixed.
+  4. Every FIRST-PARTY service PINS a tag. An omitted image.tag is not `latest` — it
+     inherits the chart's appVersion default, which the build never publishes, so the
+     pod ImagePullBackOffs on a tag that does not exist. This slipped past check 3
+     ("" is not a moving tag) and cost dashboard-bff 108 minutes (#743).
 
 First-party vs third-party is decided by image.registry: third-party values pin a
 foreign registry explicitly (socbase-auth -> docker.io/supabase/gotrue), while
@@ -100,6 +104,13 @@ KNOWN_BROKEN = {
         "evidence-receipts", "gateway", "hellgraph-service", "osm-map-api",
         "search-orchestrator",
     ]},
+    # The only current empty-tag offender. PR #743 pins it to a sha- tag; once #743
+    # merges this entry starts passing and the ratchet DEMANDS its removal ("only
+    # shrinks"), which is the intended self-cleaning. Delete this line with #743.
+    "dashboard-bff:empty-tag": (
+        "Pre-existing empty image.tag, being pinned by PR #743. Remove this entry when "
+        "#743 merges — the ratchet will fail until you do."
+    ),
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is
@@ -123,6 +134,32 @@ def check_moving_tag(name: str, image: dict) -> str | None:
             f"imagePullPolicy: IfNotPresent, so once a node caches '{tag}' kubelet "
             f"never pulls a newer one and `rollout restart` re-runs the stale image. "
             f"Pin the immutable sha- tag the build publishes "
+            f"(charts/socioprophet-service/values.yaml: 'Immutable tag = the commit SHA')."
+        )
+    return None
+
+
+def check_empty_tag(name: str, image: dict) -> str | None:
+    """First-party services must PIN a tag; an omitted one is a silent ImagePullBackOff.
+
+    A missing image.tag does not mean `latest` — it falls through to the chart's
+    appVersion default (charts/socioprophet-service Chart.yaml, currently 26.11). But
+    a first-party build publishes sha-<commit> and latest, never the appVersion, so
+    the deploy asks for a tag that was never pushed and the pod ImagePullBackOffs. This
+    cost dashboard-bff 108 minutes (#743). The moving-tag check above catches `latest`;
+    an empty tag slipped through it because "" is not in MOVING_TAGS.
+
+    Third-party services are exempt: they pin an upstream version (v2.164.0) and are
+    handled by the caller's foreign-registry skip before this runs.
+    """
+    tag = str(image.get("tag") or "").strip()
+    if not tag:
+        return (
+            f"{name}: image.tag is empty/unset — a first-party service must PIN a tag. "
+            f"An omitted tag does not mean 'latest'; it inherits the chart's appVersion "
+            f"default (26.11), which the build never publishes, so the pod "
+            f"ImagePullBackOffs on a tag that does not exist (this is the #743 bug). Set "
+            f"the sha- tag the build produces "
             f"(charts/socioprophet-service/values.yaml: 'Immutable tag = the commit SHA')."
         )
     return None
@@ -221,6 +258,10 @@ def main() -> int:
             continue  # third-party, we don't build it — legitimately out of scope
 
         checked += 1
+        # First-party only (past the foreign skip): an omitted tag is an ImagePullBackOff.
+        empty = check_empty_tag(name, image)
+        if empty:
+            problems.append((f"{name}:empty-tag", empty))
         if repository not in built:
             problems.append((f"{name}:not-built",
                 f"{name}: first-party image '{repository}' has NO entry in images.yml — "
