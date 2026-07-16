@@ -1,7 +1,13 @@
 apiVersion: networking.gke.io/v1
+# -v2: the original socbase-cert was created 2026-07-16 01:13 UTC, ~10h BEFORE the
+# socbase DNS A-record existed, so Google's CA spent 10 hours seeing NXDOMAIN and its
+# retry backoff stalled at FailedNotVisible even after DNS went live. A ManagedCertificate
+# cannot be nudged; a NEW name forces a fresh certificate object and a clean validation
+# cycle. If this ever stalls again, confirm DNS is globally visible FIRST (dig @8.8.8.8),
+# then bump the suffix — do not just wait, the clock is already poisoned.
 kind: ManagedCertificate
 metadata:
-  name: socbase-cert
+  name: socbase-cert-v2
   namespace: socioprophet
 spec:
   domains: [socbase.socioprophet.ai]
@@ -12,7 +18,7 @@ metadata:
   name: socbase-gateway
   namespace: socioprophet
   annotations:
-    networking.gke.io/managed-certificates: socbase-cert
+    networking.gke.io/managed-certificates: socbase-cert-v2
     # `gce`, NOT `nginx`. The old socbase-auth/socbase-rest Ingresses asked for
     # ingressClassName: nginx — a controller that has never existed in this
     # cluster — so they sat at ADDRESS <none> forever and socbase was unreachable
