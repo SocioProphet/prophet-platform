@@ -62,3 +62,23 @@ test('subgraph respects limit', async () => {
   assert.equal(r.status, 200)
   assert.ok(r.json.nodes.length <= 1)
 })
+
+test('SPARQL parity: query returns bindings over the proof-carrying kernel', async () => {
+  const L = `sparql-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${L}:hg`, labels: [L], properties: { name: 'HellGraph' } })
+  const r = await req('POST', '/api/graph/sparql', { query: 'SELECT ?s ?o WHERE { ?s ?p ?o } LIMIT 5' })
+  assert.equal(r.status, 200)
+  assert.ok(Array.isArray(r.json.variables) && Array.isArray(r.json.bindings))
+  assert.ok(r.json.bindings.length >= 1)
+})
+
+test('Gremlin parity: g.V() returns vertices', async () => {
+  const r = await req('POST', '/api/graph/gremlin', { query: 'g.V().limit(2)' })
+  assert.equal(r.status, 200)
+  assert.ok(Array.isArray(r.json.values) && typeof r.json.count === 'number')
+})
+
+test('query endpoints 400 on missing query', async () => {
+  const r = await req('POST', '/api/graph/sparql', {})
+  assert.equal(r.status, 400)
+})

@@ -12,6 +12,9 @@
  *   GET  /api/graph/query?label=X  nodes carrying a label
  *   GET  /api/graph/subgraph?label=X  induced subgraph (nodes + internal edges) for an explorer
  *   POST /api/graph/reason         run PLN forward-chaining → counts
+ *   POST /api/graph/sparql         { query }  → SPARQL bindings (parity: Stardog/Anzo/GraphDB)
+ *   POST /api/graph/gremlin        { query }  → Gremlin results (parity: Neptune/JanusGraph)
+ *   POST /api/graph/shacl          { shapes } → SHACL validation report (parity: TopBraid/Stardog)
  */
 import * as http from 'node:http'
 import * as os from 'node:os'
@@ -23,7 +26,7 @@ import * as path from 'node:path'
 process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
 
 import * as engine from '@socioprophet/hellgraph'
-import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, startSuperPeerFromEnv } from '@socioprophet/hellgraph'
+import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, shaclValidate } from '@socioprophet/hellgraph'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -100,6 +103,40 @@ const server = http.createServer((req, res) => {
     return json(res, 200, { ok: true, result })
   }
 
+  // ── Query parity: meet Stardog/Anzo/GraphDB (SPARQL), Neptune/JanusGraph (Gremlin), and SHACL
+  // validators on their own turf — but over a proof-carrying, replayable kernel. The query languages
+  // are standard so tools interop; the store underneath is the moat.
+  if (req.method === 'POST' && url.pathname === '/api/graph/sparql') {
+    return void readBody(req).then((b) => {
+      try {
+        const { query } = JSON.parse(b || '{}') as { query?: string }
+        if (!query) throw new Error('query required')
+        json(res, 200, { ok: true, ...runSparql(g, query) })
+      } catch (e) { json(res, 400, { error: String(e) }) }
+    })
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/graph/gremlin') {
+    return void readBody(req).then((b) => {
+      try {
+        const { query } = JSON.parse(b || '{}') as { query?: string }
+        if (!query) throw new Error('query required')
+        json(res, 200, { ok: true, ...runGremlin(g, query) })
+      } catch (e) { json(res, 400, { error: String(e) }) }
+    })
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/graph/shacl') {
+    return void readBody(req).then(async (b) => {
+      try {
+        const { shapes } = JSON.parse(b || '{}') as { shapes?: string }
+        if (!shapes) throw new Error('shapes (Turtle SHACL) required')
+        const report = await shaclValidate(shapes)
+        json(res, 200, { ok: true, report })
+      } catch (e) { json(res, 400, { error: String(e) }) }
+    })
+  }
+
   json(res, 404, { error: 'not_found' })
 })
 
@@ -120,16 +157,14 @@ function startLocalService(): void {
   })
 }
 
-// Mode selection. HELLGRAPH_MODE=superpeer runs the cloud-twin federation replica (a bootstrapped
-// SuperPeer serving the causally-merged view over /health /cut /query /admit) instead of the local
-// AtomSpace service — one image, two roles. Anything else runs the local HTTP service (default).
+// Mode selection. HELLGRAPH_MODE=superpeer once ran a cloud-twin federation replica, but the current
+// @socioprophet/hellgraph engine build no longer exports a super-peer entrypoint — federation lives in
+// a separate build. Fail fast and loud if an operator asks for a mode this image can't serve, rather
+// than silently degrading to local. Anything else runs the local AtomSpace HTTP service (default).
 if (process.env['HELLGRAPH_MODE'] === 'superpeer') {
-  void startSuperPeerFromEnv()
-    .then((sp) => console.log(`[hellgraph-service] super-peer mode — base=${sp.baseKey} listening :${sp.port}`))
-    .catch((e) => {
-      console.error('[hellgraph-service] super-peer failed to start:', e)
-      process.exit(1)
-    })
+  console.error('[hellgraph-service] HELLGRAPH_MODE=superpeer is not supported by this engine build ' +
+    '(no super-peer entrypoint is exported). Run the dedicated federation image instead.')
+  process.exit(1)
 } else {
   startLocalService()
 }
