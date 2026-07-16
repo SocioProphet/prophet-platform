@@ -1,0 +1,24 @@
+# dashboard-bff — the /v1/* data plane behind the SocioProphet SPA. Serves the
+# governance test (ST012), provenance/valuation reads (ST013/ST006), VDT, and the
+# intelligence-superiority metrics. Hosting this is what makes those MERGED features
+# actually demoable from app.socioprophet.com — the deployed site cannot serve /v1/*
+# until this runs.
+#
+# Read/display surface only. Two interactive routes degrade by design without the
+# economic-prophet engine (POST /v1/valuation/causal/recompute) or live network
+# (GET /v1/valuation/studio?ticker=) — the code imports the engine lazily and falls
+# back to a stub, exactly as documented in tools/emit_gyg_causal.py. Bundling the
+# engine is a deliberate follow-up, not a blocker for the demo surface.
+image: { repository: dashboard-bff }
+service: { port: 8080, portName: http }
+# main.py serves @app.get('/health'), NOT the chart default /healthz. Asserted by the
+# probe-contract gate.
+probes:
+  path: /health
+config:
+  DASHBOARD_BFF_CORS_ORIGINS: "https://app.socioprophet.com"
+ingress:
+  enabled: true
+  className: ""
+  hosts: [{ host: bff.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 4 }
