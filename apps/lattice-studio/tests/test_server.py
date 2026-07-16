@@ -72,3 +72,25 @@ def test_graph_endpoint_returns_provenance_shape():
     b = r.json()
     assert b["projectCollection"] == "proj-teamx"
     assert "nodes" in b and "count" in b and "epistemic_distribution" in b
+
+
+def test_rdf_export_carries_provenance(monkeypatch):
+    # KE-3: the RDF/Turtle export must carry epistemic_mode + provenance as standard triples (PROV-O / DCT).
+    import lattice_studio.server as srv
+
+    async def fake_nodes(coll, limit=200):
+        return [{"id": f"{coll}:ent:hellgraph", "name": "HellGraph", "epistemic_mode": "observed",
+                 "source": "doc:kg", "extractor": "lattice-studio/deterministic-v0", "labels": [coll, "Entity"]}], None
+    monkeypatch.setattr(srv, "_fetch_nodes", fake_nodes)
+
+    r = client.get("/api/studio/graph.ttl?project=team-x")
+    assert r.status_code == 200
+    assert "text/turtle" in r.headers["content-type"]
+    ttl = r.text
+    # provenance survives export: epistemic mode + source + generator ride the RDF
+    assert "sp:epistemicMode" in ttl and '"observed"' in ttl
+    assert "dct:source" in ttl and "prov:wasGeneratedBy" in ttl
+    assert 'rdfs:label "HellGraph"' in ttl
+    # and it's valid Turtle a semantic-web tool can parse
+    from rdflib import Graph as RDFGraph
+    assert len(RDFGraph().parse(data=ttl, format="turtle")) >= 4

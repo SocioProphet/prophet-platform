@@ -23,7 +23,7 @@ import re
 from typing import Any
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
 from lattice_studio import product_spine
@@ -260,35 +260,62 @@ async def extract(req: ExtractRequest) -> dict[str, Any]:
     }
 
 
-@app.get("/api/studio/graph")
-async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
-    """KE-2: the project sub-graph with PROVENANCE PER NODE — the differentiator, read back from the live kernel.
-
-    Queries hellgraph-service for atoms carrying the project's collection label and returns each with its
-    epistemic_mode + source + extractor. This is what a Neo4j/Bloom explorer can't show natively: not just the
-    node, but its epistemic status and provenance, in one governed project scope.
-    """
-    coll = proj_collection(project)
+async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]], str | None]:
+    """Read the project's atoms (by collection label) from the live HellGraph, each with its provenance."""
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/query?label={coll}")
     raw = (res.get("nodes", res) if isinstance(res, dict) else res) if res else []
     nodes: list[dict[str, Any]] = []
     for n in (raw if isinstance(raw, list) else [])[:limit]:
         props = n.get("properties", n) if isinstance(n, dict) else {}
+        nid = n.get("id", "") if isinstance(n, dict) else str(n)
         nodes.append({
-            "id": n.get("id", "") if isinstance(n, dict) else str(n),
-            "name": props.get("name", n.get("id", "") if isinstance(n, dict) else str(n)),
+            "id": nid, "name": props.get("name", nid),
             "epistemic_mode": props.get("epistemic_mode", "unknown"),
-            "source": props.get("source"),
-            "extractor": props.get("extractor"),
+            "source": props.get("source"), "extractor": props.get("extractor"),
             "labels": n.get("labels", []) if isinstance(n, dict) else [],
         })
-    # epistemic-mode distribution — the governance readout no incumbent surfaces
+    return nodes, err
+
+
+@app.get("/api/studio/graph")
+async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
+    """KE-2: the project sub-graph with PROVENANCE PER NODE — the differentiator, read from the live kernel.
+
+    Not just the node, but its epistemic status + source + extractor, in one governed project scope — what a
+    Neo4j/Bloom explorer can't show natively.
+    """
+    coll = proj_collection(project)
+    nodes, err = await _fetch_nodes(coll, limit)
     dist: dict[str, int] = {}
     for x in nodes:
         dist[x["epistemic_mode"]] = dist.get(x["epistemic_mode"], 0) + 1
-    return {
-        "project": project, "projectCollection": coll,
-        "nodes": nodes, "count": len(nodes), "epistemic_distribution": dist,
-        "degraded": (err if err else None),
-    }
+    return {"project": project, "projectCollection": coll, "nodes": nodes, "count": len(nodes),
+            "epistemic_distribution": dist, "degraded": (err if err else None)}
+
+
+@app.get("/api/studio/graph.ttl")
+async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
+    """KE-3: RDF/Turtle export — standards interop (Protégé / GraphDB / Anzo / Stardog) that CARRIES provenance.
+
+    Every node exports as a PROV-O-annotated resource: rdf:type sp:Entity, rdfs:label, sp:epistemicMode,
+    dct:source, prov:wasGeneratedBy. Their RDF exports drop provenance; ours doesn't — epistemic status + origin
+    ride the standard triples, so a proof-carrying graph stays proof-carrying when it leaves us.
+    """
+    from rdflib import Graph as RDFGraph, Literal, Namespace
+    from rdflib.namespace import DCTERMS, PROV, RDF, RDFS
+
+    coll = proj_collection(project)
+    nodes, _ = await _fetch_nodes(coll, limit)
+    g = RDFGraph()
+    SP = Namespace("https://socioprophet.ai/kg#")
+    PROJ = Namespace(f"https://socioprophet.ai/kg/{coll}/")
+    g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
+    for n in nodes:
+        u = PROJ[(n["id"].split(":")[-1] or "node")]
+        g.add((u, RDF.type, SP.Entity))
+        g.add((u, RDFS.label, Literal(n["name"])))
+        g.add((u, SP.epistemicMode, Literal(n["epistemic_mode"])))
+        if n.get("source"): g.add((u, DCTERMS.source, Literal(n["source"])))
+        if n.get("extractor"): g.add((u, PROV.wasGeneratedBy, Literal(n["extractor"])))
+    return Response(content=g.serialize(format="turtle"), media_type="text/turtle")
