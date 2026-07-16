@@ -1,0 +1,60 @@
+# Argo CD ApplicationSet — socbase gateway (the sovereign auth/data surface).
+#
+# socbase is the Firebase replacement: GoTrue (auth) + PostgREST (data over
+# Postgres). Those two deploy via the stateless Helm chart from
+# deploy/values/socbase-{auth,rest}.yaml and are covered by platform-services.
+#
+# This ApplicationSet carries the GATEWAY, which is multi-manifest (ConfigMap +
+# Deployment + Service + Ingress + ManagedCertificate) and therefore kustomize —
+# same house convention as zot and the workspace stack, not the stateless chart.
+#
+# WHY A GATEWAY EXISTS AT ALL: @supabase/supabase-js needs ONE base URL serving
+# both /auth/v1 (GoTrue) and /rest/v1 (PostgREST), prefix stripped. Real Supabase
+# runs Kong for that; we run ~20 lines of nginx. See infra/local/socbase/nginx.conf
+# — local dev has always done exactly this, and its comment says "no Kong in either
+# place". This is the production half of that intent.
+#
+# WHY NOT AN nginx INGRESS: the original socbase-auth/socbase-rest Ingresses asked
+# for `ingressClassName: nginx` with rewrite-target/use-regex, but no nginx
+# controller has ever existed in this cluster, so they sat at ADDRESS <none>
+# forever and socbase was unreachable despite both services being healthy. This
+# uses the GCE ingress + ManagedCertificate pattern already proven by zot, gitea
+# and socioprophet-web — zero new controllers, no cert-manager.
+#
+# Prereqs (created out of band, NOT in git — same convention as zot):
+#   * `zot-pull` secret — the gateway image is pulled through zot
+#   * socbase-auth / socbase-rest running (platform-services)
+# Sync-wave 2 so the gateway lands after the services it fronts.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: socbase-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: gateway, path: infra/k8s/socbase-gateway/base, wave: "2" }
+  template:
+    metadata:
+      name: 'socbase-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: socbase
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{.wave}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
