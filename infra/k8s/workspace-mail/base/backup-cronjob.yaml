@@ -49,7 +49,9 @@ spec:
           volumes:
             - name: mail-data
               persistentVolumeClaim:
-                claimName: workspace-mail-data
+                # The mail data PVC is named workspace-mail-pvc (see pvc.yaml + the deployment's mailstore
+                # volume). 'workspace-mail-data' never existed → the backup pod was unschedulable for 33h.
+                claimName: workspace-mail-pvc
             - name: backup-target
               persistentVolumeClaim:
                 claimName: workspace-mail-backup
