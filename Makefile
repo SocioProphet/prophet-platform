@@ -50,6 +50,10 @@ node-commander-smoke:
 	cd apps/node-commander && test -d .venv || python3 -m venv .venv
 	cd apps/node-commander && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && python -m pytest -q
 
+liberty-stack-readout-smoke:
+	cd apps/liberty-stack-readout && test -d .venv || python3 -m venv .venv
+	cd apps/liberty-stack-readout && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && python -m pytest -q
+
 tritfabric-consumption-api-smoke:
 	cd apps/tritfabric-consumption-api && test -d .venv || python3 -m venv .venv
 	cd apps/tritfabric-consumption-api && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && pytest -q tests

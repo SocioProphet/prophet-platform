@@ -95,6 +95,10 @@ KNOWN_BROKEN = {
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),
+    "liberty-stack-readout:moving-tag": (
+        "New service — liberty-stack-readout vendored into prophet-platform CI this PR. Pin tag:latest -> the "
+        "sha- tag after the first build; none exists until merge."
+    ),
     "node-commander:moving-tag": (
         "New service — node-commander (node runtime control API) vendored into prophet-platform CI this PR. "
         "Pin tag:latest -> the sha- tag after the first build; none exists until merge."
