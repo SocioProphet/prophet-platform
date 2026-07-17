@@ -3,5 +3,5 @@
 # imagePullPolicy: IfNotPresent, so a moving tag means a node that cached `latest` never pulls a newer
 # image and `rollout restart` re-runs the stale one. sha-92f471… = the last green images.yml build's
 # full-matrix publish of this image. Bump to a newer sha- tag on each release.
-image: { repository: reasoning-failure-runner, tag: sha-92f471015ea5fd8c4f7831f6e4be72c05e4011e4 }
+image: { repository: reasoning-failure-runner, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
 service: { port: 8080, portName: http }
