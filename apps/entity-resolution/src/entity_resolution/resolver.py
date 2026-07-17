@@ -16,8 +16,9 @@ from itertools import combinations
 from typing import Any
 
 # Decision thresholds on the blended similarity score.
-MERGE = 0.90        # ≥ → auto-merge (MERGE_VERIFIED)
+MERGE = 0.90        # ≥ → auto-merge candidate (MERGE_VERIFIED, subject to margin + prime-topic admissibility)
 REVIEW = 0.75       # ≥ → human review queue (REQUIRES_REVIEW)
+MIN_MARGIN = 0.08   # Δ = best − second-best must exceed this to promote (else the match is ambiguous → review)
 NAME_W, ATTR_W = 0.7, 0.3
 
 
@@ -26,6 +27,11 @@ class Record:
     id: str
     name: str
     attributes: dict[str, str] = field(default_factory=dict)
+    # Identity-is-prime: a record belongs to a SCOPE and carries PRIME TOPICS (irreducible roles/contexts,
+    # e.g. patient/parent/citizen/founder). Merges that would multiply disjoint primes across different
+    # scopes are FORBIDDEN even on high evidence (identity-is-prime-reference §Merge admissibility).
+    scope: str = ""
+    primes: frozenset[str] = field(default_factory=frozenset)
 
 
 def _norm(s: str) -> str:
@@ -79,15 +85,15 @@ def jaro_winkler(a: str, b: str, p: float = 0.1) -> float:
     return j + pref * p * (1 - j)
 
 
-def jaccard(a: dict[str, str], b: dict[str, str]) -> float:
-    """Token-Jaccard over the attribute key=value tokens (0 if neither has attributes)."""
-    ta = {f"{k}={_norm(v)}" for k, v in a.items()}
-    tb = {f"{k}={_norm(v)}" for k, v in b.items()}
-    if not ta and not tb:
+def attr_agreement(a: dict[str, str], b: dict[str, str]) -> float:
+    """Agreement over SHARED attribute keys: of the keys BOTH records carry, the fraction whose values match.
+    Extra attributes on one side are neutral, not penalties (a richer record must not score *worse* against a
+    sparse one) — that's the ER-correct signal, unlike raw Jaccard which punishes extra keys. 0 if no shared key."""
+    shared = a.keys() & b.keys()
+    if not shared:
         return 0.0
-    inter = len(ta & tb)
-    union = len(ta | tb)
-    return inter / union if union else 0.0
+    agree = sum(1 for k in shared if _norm(a[k]) == _norm(b[k]) and a[k])
+    return agree / len(shared)
 
 
 def _conflict(a: Record, b: Record) -> str | None:
@@ -96,6 +102,16 @@ def _conflict(a: Record, b: Record) -> str | None:
         va, vb = _norm(a.attributes.get(key, "")), _norm(b.attributes.get(key, ""))
         if va and vb and va != vb:
             return key
+    return None
+
+
+def _prime_veto(a: Record, b: Record) -> str | None:
+    """Identity-is-prime merge admissibility (the doctrine classical ER lacks): some merges are FORBIDDEN
+    even on high evidence. Merging two records with DISJOINT prime topics across DIFFERENT scopes would
+    multiply irreducible roles across contexts (e.g. collapsing a 'patient'-scope record into a 'founder'-
+    scope one just because names match) — cross-context leakage. Vetoed → MERGE_BLOCKED, not merged."""
+    if a.primes and b.primes and not (a.primes & b.primes) and a.scope != b.scope:
+        return "identity_prime_veto"
     return None
 
 
@@ -120,14 +136,16 @@ class PairDecision:
 
 def score_pair(a: Record, b: Record) -> PairDecision:
     name_sim = jaro_winkler(_norm(a.name), _norm(b.name))
-    attr_sim = jaccard(a.attributes, b.attributes)
+    attr_sim = attr_agreement(a.attributes, b.attributes)
     # No attribute signal on either side → the name carries the score (don't dilute it with a 0 attr term).
     has_attrs = bool(a.attributes) or bool(b.attributes)
     score = round(name_sim if not has_attrs else NAME_W * name_sim + ATTR_W * attr_sim, 4)
     matched = sorted({k for k in a.attributes if _norm(a.attributes.get(k, "")) == _norm(b.attributes.get(k, "")) and a.attributes.get(k)})
     exact_name = _norm(a.name) == _norm(b.name)
     conflict = _conflict(a, b)
-    if conflict is not None:
+    veto = _prime_veto(a, b)
+    block_reason = conflict or veto
+    if block_reason is not None:
         decision = "MERGE_BLOCKED"
     # Auto-merge requires CORROBORATION — a strong name match alone (fuzzy) is only a review candidate,
     # because two different people can share a near-identical name. Exact name OR a matched attribute merges.
@@ -140,7 +158,8 @@ def score_pair(a: Record, b: Record) -> PairDecision:
     return PairDecision(
         a=a.id, b=b.id, decision=decision, score=score,
         name_sim=round(name_sim, 4), attr_sim=round(attr_sim, 4),
-        evidence={"blocking_key": blocking_key(a), "conflict_field": conflict, "matched_attributes": matched},
+        evidence={"blocking_key": blocking_key(a), "conflict_field": conflict,
+                  "prime_veto": veto, "matched_attributes": matched},
     )
 
 
@@ -160,37 +179,89 @@ class _UF:
 
 
 def resolve(records: list[Record]) -> dict[str, Any]:
-    """Full ER pass: block → score candidate pairs → union-find MERGE_VERIFIED → emit entities + ledger."""
+    """Full ER pass, identity-is-prime-conformant: block → score → MARGIN-gated + prime-admissible merge →
+    union-find clusters → survivorship → proof-carrying epistemic-edge records."""
     blocks: dict[str, list[Record]] = {}
     for r in records:
         blocks.setdefault(blocking_key(r), []).append(r)
 
-    ledger: list[PairDecision] = []
-    uf = _UF()
-    for r in records:
-        uf.find(r.id)  # every record is at least its own entity
+    pairs: list[PairDecision] = []
     for block in blocks.values():
         for a, b in combinations(block, 2):
             d = score_pair(a, b)
-            if d.decision == "NO_MATCH":
-                continue
-            ledger.append(d)
-            if d.decision == "MERGE_VERIFIED":
-                uf.union(a.id, b.id)
+            if d.decision != "NO_MATCH":
+                pairs.append(d)
 
-    # entities = union-find clusters; each carries its member record ids.
+    # Per-record candidate scores → margin. The spec wants promotion by the score MARGIN Δ = best − second,
+    # not an absolute cutoff: an auto-merge must be DECISIVELY the best match, not one of several near-ties.
+    cand: dict[str, list[tuple[float, str]]] = {}
+    for d in pairs:
+        cand.setdefault(d.a, []).append((d.score, d.b))
+        cand.setdefault(d.b, []).append((d.score, d.a))
+    for lst in cand.values():
+        lst.sort(reverse=True)
+
+    def margin(rid: str, other: str) -> float:
+        lst = cand.get(rid, [])
+        if not lst or lst[0][1] != other:
+            return -1.0  # `other` is not rid's top candidate → not a decisive match from rid's side
+        second = lst[1][0] if len(lst) > 1 else 0.0
+        return lst[0][0] - second
+
+    uf = _UF()
+    for r in records:
+        uf.find(r.id)  # every record is at least its own entity
+    for d in pairs:
+        if d.decision != "MERGE_VERIFIED":
+            continue
+        # Attribute-corroborated merges are safe to auto-apply even amid ties (the matched attribute IS the
+        # disambiguator). But a NAME-ONLY merge amid near-ties is dangerous — many distinct people share a
+        # name — so it must be the MUTUAL decisive best (Δ ≥ MIN_MARGIN both sides) or it goes to review.
+        if d.evidence.get("matched_attributes"):
+            uf.union(d.a, d.b)
+            continue
+        ma, mb = margin(d.a, d.b), margin(d.b, d.a)
+        if ma >= MIN_MARGIN and mb >= MIN_MARGIN:
+            uf.union(d.a, d.b)
+        else:
+            d.decision = "REQUIRES_REVIEW"  # ambiguous name-only match — human review
+            d.evidence["ambiguous_margin"] = round(max(ma, mb), 4)
+
+    # Clusters + SURVIVORSHIP: the surviving record (most attributes, then widest scope, then id) is canonical;
+    # its values win attribute conflicts, other members' attributes fill gaps.
+    by_id = {r.id: r for r in records}
     clusters: dict[str, list[str]] = {}
     for r in records:
         clusters.setdefault(uf.find(r.id), []).append(r.id)
-    entities = [
-        {"entity_id": f"ent:{root}", "members": sorted(members), "size": len(members)}
-        for root, members in clusters.items()
+    entities: list[dict[str, Any]] = []
+    for root, members in clusters.items():
+        recs = [by_id[m] for m in members]
+        survivor = max(recs, key=lambda r: (len(r.attributes), r.scope, r.id))
+        attrs: dict[str, str] = {}
+        for r in recs:
+            for k, v in r.attributes.items():
+                attrs.setdefault(k, v)   # first-seen fills gaps
+        attrs.update(survivor.attributes)  # survivor wins conflicts
+        entities.append({
+            "entity_id": f"ent:{root}", "members": sorted(members), "size": len(members),
+            "canonical": {"survivor": survivor.id, "name": survivor.name, "attributes": attrs},
+        })
+
+    # Proof-carrying epistemic-edge records for each merge (regis epistemic-edge typing): a same_as edge
+    # with its epistemic class + confidence, so a merge is an auditable derived relation, not a black box.
+    edges = [
+        {"subject": d.a, "predicate": "same_as", "object": d.b,
+         "epistemic_class": "derived_relation", "confidence_type": "similarity",
+         "confidence_level": d.score, "evidence": d.evidence}
+        for d in pairs if d.decision == "MERGE_VERIFIED"
     ]
+
     return {
         "records": len(records),
         "entities": entities,
         "merged": sum(1 for e in entities if e["size"] > 1),
-        "decision_ledger": [d.__dict__ for d in ledger],
-        "review_queue": [d.__dict__ for d in ledger if d.decision == "REQUIRES_REVIEW"],
-        "blocked": [d.__dict__ for d in ledger if d.decision == "MERGE_BLOCKED"],
+        "decision_ledger": [d.__dict__ for d in pairs],
+        "epistemic_edges": edges,
+        "review_queue": [d.__dict__ for d in pairs if d.decision == "REQUIRES_REVIEW"],
+        "blocked": [d.__dict__ for d in pairs if d.decision == "MERGE_BLOCKED"],
     }
