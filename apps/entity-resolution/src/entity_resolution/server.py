@@ -20,6 +20,8 @@ class RecordIn(BaseModel):
     id: str
     name: str
     attributes: dict[str, str] = {}
+    scope: str = ""
+    primes: list[str] = []
 
 
 class ResolveRequest(BaseModel):
@@ -33,5 +35,5 @@ def healthz() -> dict[str, Any]:
 
 @app.post("/resolve")
 def resolve_endpoint(req: ResolveRequest) -> dict[str, Any]:
-    recs = [Record(id=r.id, name=r.name, attributes=r.attributes) for r in req.records]
+    recs = [Record(id=r.id, name=r.name, attributes=r.attributes, scope=r.scope, primes=frozenset(r.primes)) for r in req.records]
     return resolve(recs)
