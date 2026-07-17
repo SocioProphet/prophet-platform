@@ -123,3 +123,33 @@ test('resource: 400 without uri, 404 for unknown uri', async () => {
   assert.equal((await req('GET', '/api/graph/resource')).status, 400)
   assert.equal((await req('GET', '/api/graph/resource?uri=urn:nope:missing')).status, 404)
 })
+
+test('graphrag: /ground retrieves seeds + 1-hop facts as provenance-carrying citations', async () => {
+  const S = `rag-${process.pid}`
+  const acme = `${S}:acme`, nyc = `${S}:nyc`, jane = `${S}:jane`
+  await req('POST', '/api/graph/node', { id: acme, labels: ['Org'], properties: { name: 'Acme Aerospace' } })
+  await req('POST', '/api/graph/node', { id: nyc, labels: ['City'], properties: { name: 'New York' } })
+  await req('POST', '/api/graph/node', { id: jane, labels: ['Person'], properties: { name: 'Jane' } })
+  await req('POST', '/api/graph/edge', { label: 'basedIn', from: acme, to: nyc })
+  await req('POST', '/api/graph/edge', { label: 'worksAt', from: jane, to: acme })
+
+  const r = await req('GET', `/api/graph/ground?q=${encodeURIComponent('what is Acme Aerospace')}`)
+  assert.equal(r.status, 200)
+  assert.ok(r.json.seeds.includes(acme))                                   // seeded by the query term
+  assert.ok(r.json.groundedNodes.includes(nyc))                           // 1-hop neighbour pulled in
+  assert.ok(r.json.citations.length >= 1)
+  const c = r.json.citations[0]
+  assert.ok('assertedAt' in c && 'fact' in c && 'n' in c)                 // provenance-carrying, numbered
+  assert.ok(r.json.citations.some((x: any) => x.predicate === 'basedIn' && x.object === nyc))
+})
+
+test('graphrag: /ask degrades to facts-only when no sovereign LLM is configured (fail-open, grounded)', async () => {
+  const S = `ask-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${S}:widget`, labels: ['Product'], properties: { name: 'Widget9000' } })
+  const r = await req('POST', '/api/graph/ask', { question: 'tell me about Widget9000' })
+  assert.equal(r.status, 200)
+  assert.equal(r.json.synthesized, false)      // no GRAPHRAG_LLM_URL in CI → extractive
+  assert.equal(r.json.grounded, true)          // but it DID ground in the graph
+  assert.ok(r.json.citations.length >= 1)
+  assert.equal((await req('POST', '/api/graph/ask', {})).status, 400)     // question required
+})

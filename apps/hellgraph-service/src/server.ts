@@ -12,6 +12,8 @@
  *   GET  /api/graph/query?label=X  nodes carrying a label
  *   GET  /api/graph/subgraph?label=X  induced subgraph (nodes + internal edges) for an explorer
  *   GET  /api/graph/resource?uri=X    dereferenceable resource CBD, content-negotiated (Turtle/JSON-LD/HTML/JSON)
+ *   GET  /api/graph/ground?q=X        GraphRAG retrieval: seeds + 1-hop facts as provenance-carrying citations
+ *   POST /api/graph/ask            { question } → GraphRAG cited answer grounded in the graph (sovereign LLM, opt-in)
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  *   POST /api/graph/sparql         { query }  → SPARQL bindings (parity: Stardog/Anzo/GraphDB)
  *   POST /api/graph/gremlin        { query }  → Gremlin results (parity: Neptune/JanusGraph)
@@ -29,6 +31,7 @@ process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-servi
 import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
+import { askGraph, retrieveGrounding, synthesisEnabled } from './graphrag.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -113,6 +116,24 @@ const server = http.createServer((req, res) => {
     if (fmt === 'jsonld') { res.writeHead(code, { 'content-type': 'application/ld+json; charset=utf-8' }); return void res.end(JSON.stringify(toJsonLd(d))) }
     if (fmt === 'html')   { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8' }); return void res.end(toHtml(d)) }
     return json(res, code, d)
+  }
+
+  // GraphRAG-for-LLMs, provenance-cited: ask a question, get an answer grounded in the graph with every
+  // claim traceable to a node/edge + its assertion time. GET returns the grounding (retrieval only);
+  // POST /ask synthesizes a cited answer via the sovereign LLM (opt-in, fail-open → facts-only otherwise).
+  if (req.method === 'GET' && url.pathname === '/api/graph/ground') {
+    const q = url.searchParams.get('q') ?? ''
+    if (!q) return json(res, 400, { error: 'q (question) required' })
+    return json(res, 200, { question: q, ...retrieveGrounding(g, q) })
+  }
+  if (req.method === 'POST' && url.pathname === '/api/graph/ask') {
+    return void readBody(req).then(async (b) => {
+      try {
+        const { question } = JSON.parse(b || '{}') as { question?: string }
+        if (!question) throw new Error('question required')
+        json(res, 200, { synthesisEnabled: synthesisEnabled(), ...(await askGraph(g, question)) })
+      } catch (e) { json(res, 400, { error: String(e) }) }
+    })
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/reason') {
