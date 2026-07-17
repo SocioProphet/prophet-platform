@@ -1461,3 +1461,58 @@ def test_execute_spark_degrades_to_ledger_when_runner_absent(monkeypatch):
                     json={"project": "team-x", "kind": "query", "backend": "spark", "code": "select 1"},
                     headers={"Authorization": "Bearer T"}).json()
     assert r["status"] == "dispatched" and r["rows"] is None            # honest degrade to the governed ledger
+
+
+# ── WS#52: HDT — the human twin (closes the triangle) ──
+def test_hdt_observation_seeded_and_epistemic_maps(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url: writes.append(json); return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    h = client.post("/api/studio/hdt/observation",
+                    json={"project": "team-x", "subject": "proj-teamx:person:kim", "code": "8867-4",
+                          "value": "72", "m_cbd": 0.8, "actor_kind": "human"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert h["omega_state"] == "SEEDED" and h["epistemic_mode"] == "observed"
+    node = next(w for w in writes if "labels" in w)
+    assert "HdtObservation" in node["labels"] and node["properties"]["hdt:hasOmegaState"] == "SEEDED"
+
+
+def test_hdt_model_cannot_deliver_to_canonical(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/hdt/promote",
+                    json={"project": "team-x", "observation": "o1", "to_state": "DELIVERED", "actor_kind": "model"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 403 and "DELIVER" in r.json()["detail"]["message"]
+
+
+def test_hdt_promote_to_delivered_is_attested(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:hdtobs:1": {"id": "proj-teamx:hdtobs:1", "labels": ["proj-teamx", "HdtObservation"],
+                                "properties": {"omega_state": "TRUSTED", "actor_kind": "human", "subject": "p"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/hdt/promote",
+                    json={"project": "team-x", "observation": "proj-teamx:hdtobs:1", "to_state": "DELIVERED", "actor_kind": "clinician"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["to_state"] == "DELIVERED" and r["epistemic_mode"] == "attested" and r["canonical"]
+    obs = state["nodes"]["proj-teamx:hdtobs:1"]["properties"]
+    assert obs["omega_state"] == "DELIVERED" and obs["epistemic_mode"] == "attested"
+    ev = next(w for w in state["nodes"].values() if "EvaluationEvent" in (w.get("labels") or []))
+    assert ev["properties"]["hdt:promotedToState"] == "DELIVERED"
+
+
+def test_hdt_ontology_closes_the_three_twin_triangle():
+    b = client.get("/api/studio/hdt/ontology").json()
+    assert b["omega_states"] == ["ABSENT", "SEEDED", "NORMALIZED", "LINKED", "TRUSTED", "ACTIONABLE", "DELIVERED"]
+    deliv = next(s for s in b["omega_epistemic_lattice"] if s["state"] == "DELIVERED")
+    assert deliv["epistemic_human"] == "attested" and deliv["canonical"]
+    assert set(b["three_twins_closed"]) >= {"knowledge", "human", "earth"}
+    assert set(b["kfs_triad"]) == {"CBD", "CGT", "NHY"}

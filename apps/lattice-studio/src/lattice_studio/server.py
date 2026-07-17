@@ -32,7 +32,7 @@ import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from lattice_studio import gaia, ontology, product_spine, shacl
+from lattice_studio import gaia, hdt, ontology, product_spine, shacl
 
 SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
@@ -1947,6 +1947,147 @@ async def gaia_ontology(_auth: dict[str, Any] | None = Depends(require_read)) ->
             "human": "HDT Observation → OmegaState ABSENT→DELIVERED",
             "earth": "GAIA WorldSignal → PromotionState EvidenceOnly→Promoted",
             "note": "one governed-evidence discipline; the promotion membrane and the epistemic ladder are the same mechanism",
+        },
+    }
+
+
+# ── WS#52: HDT — the Human Digital Twin, the THIRD twin (closes the triangle). An hdt:Observation carries an
+# hdt:OmegaState (ABSENT→SEEDED→NORMALIZED→LINKED→TRUSTED→ACTIONABLE→DELIVERED) — the human twin's promotion
+# lattice, which IS its epistemic status. Same discipline, same invariant: a model may seed/normalize but only a
+# human/clinician/policy actor may DELIVER an observation to canonical, human-actionable truth. ─────────────────
+class HdtObservationRequest(BaseModel):
+    project: str = "default"
+    subject: str                              # the person/twin the observation is about
+    code: str                                 # the observation code (e.g. a FHIR/LOINC code)
+    value: Any = None
+    m_cbd: float | None = None                # KFS membership — Cognition
+    m_cgt: float | None = None                # Values
+    m_nhy: float | None = None                # Action
+    actor: str | None = None
+    actor_kind: str = "human"
+
+
+@app.post("/api/studio/hdt/observation")
+async def hdt_observation(req: HdtObservationRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Record a governed HDT observation about a person. It enters at OmegaState=SEEDED (not canonical); its
+    epistemic status is derived from the OmegaState, and it carries the KFS membership triad. Proof-carrying,
+    fail-closed."""
+    _require_write_token(authorization)
+    code = req.code.strip()
+    if not code:
+        raise HTTPException(status_code=422, detail="code required")
+    coll = proj_collection(req.project)
+    state = "SEEDED"
+    epi = hdt.epistemic_for_omega(state, req.actor_kind)
+    oid = f"{coll}:hdtobs:{hashlib.sha256((req.subject + code + _now_iso()).encode()).hexdigest()[:12]}"
+    prov = _workbench_prov(coll, epi, req.actor or "hdt/observation")
+    prov["extractor"] = "lattice-studio/hdt-observation-v0"
+    props = {"subject": req.subject, "code": code, "value": req.value if req.value is not None else "",
+             "omega_state": state, "hdt:hasOmegaState": state,
+             "m_cbd": req.m_cbd if req.m_cbd is not None else "", "m_cgt": req.m_cgt if req.m_cgt is not None else "",
+             "m_nhy": req.m_nhy if req.m_nhy is not None else "", "actor_kind": req.actor_kind,
+             "recorded_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": oid, "labels": [coll, "HdtObservation", "Observation"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "about_subject", "from": oid, "to": req.subject, "properties": prov})
+    return {"observation_id": oid, "subject": req.subject, "omega_state": state, "epistemic_mode": epi,
+            "proof_carrying": True,
+            "note": "an observation is SEEDED, not canonical — its OmegaState IS its epistemic status; only a human/policy DELIVERS it"}
+
+
+class HdtPromoteRequest(BaseModel):
+    project: str = "default"
+    observation: str
+    to_state: str                             # a later OmegaState (NORMALIZED … DELIVERED)
+    actor: str | None = None
+    actor_kind: str = "human"
+
+
+@app.post("/api/studio/hdt/promote")
+async def hdt_promote(req: HdtPromoteRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """An HDT EvaluationEvent — advance an observation along the OmegaState lattice, recording a replayable
+    promotion event. Enforces the invariant: only a human/clinician/policy actor may DELIVER to canonical."""
+    _require_write_token(authorization)
+    if req.to_state not in hdt.OMEGA_STATES:
+        raise HTTPException(status_code=422, detail=f"to_state must be one of {hdt.OMEGA_STATES}")
+    if not hdt.can_promote_omega(req.actor_kind, req.to_state):
+        raise HTTPException(status_code=403, detail={
+            "message": "HDT invariant — a model may advance an observation but only a human/clinician/policy actor may DELIVER to canonical truth",
+            "actor_kind": req.actor_kind, "to_state": req.to_state})
+    coll = proj_collection(req.project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    node = next((n for n in raw if n.get("id") == req.observation), None)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"observation not found: {req.observation}")
+    p = dict(node.get("properties") or {})
+    prev = p.get("omega_state", "ABSENT")
+    new_epi = hdt.epistemic_for_omega(req.to_state, p.get("actor_kind", "human"))
+    p["omega_state"] = req.to_state
+    p["hdt:hasOmegaState"] = req.to_state
+    p["epistemic_mode"] = new_epi
+    p["promoted_at"] = _now_iso()
+    ehash = hashlib.sha256((req.observation + req.to_state + _now_iso()).encode()).hexdigest()
+    correlation = f"eval-{ehash[:12]}"
+    ev_id = f"{coll}:evaluation:{ehash[:12]}"
+    prov = _workbench_prov(coll, "attested" if hdt.is_human(req.actor_kind) else "derived", req.actor or "hdt/evaluation")
+    prov["extractor"] = "lattice-studio/hdt-evaluation-v0"
+    receipt = {"correlation_id": correlation, "service": "lattice-studio", "kind": "hdt-evaluation",
+               "replayable": True, "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.observation, "labels": node.get("labels") or [coll, "HdtObservation"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"promotion writeback failed: {werr}")
+        ev_props = {"hdt:promotedFromState": prev, "hdt:promotedToState": req.to_state, "observation": req.observation,
+                    "correlation_id": correlation, "receipt_bundle": receipt["bundle_ref"], "at": _now_iso(), **prov}
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": ev_id, "labels": [coll, "EvaluationEvent", "Run"], "properties": ev_props})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "evaluates", "from": ev_id, "to": req.observation, "properties": prov})
+    return {"evaluation_id": ev_id, "observation": req.observation, "from_state": prev, "to_state": req.to_state,
+            "epistemic_mode": new_epi, "receipt": receipt, "proof_carrying": True,
+            "canonical": req.to_state == "DELIVERED"}
+
+
+@app.get("/api/studio/hdt")
+async def hdt_observations(project: str = "default", subject: str = "",
+                           _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The HDT observations (optionally for one subject) with their OmegaState + epistemic status + KFS membership."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "HdtObservation" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if subject and p.get("subject") != subject:
+            continue
+        out.append({"observation_id": n.get("id"), "subject": p.get("subject"), "code": p.get("code"),
+                    "omega_state": p.get("omega_state", "ABSENT"), "epistemic_mode": p.get("epistemic_mode"),
+                    "canonical": p.get("omega_state") == "DELIVERED", "recorded_at": p.get("recorded_at")})
+    out.sort(key=lambda x: x.get("recorded_at") or "", reverse=True)
+    return {"project": project, "observations": out, "count": len(out), "degraded": err}
+
+
+@app.get("/api/studio/hdt/ontology")
+async def hdt_ontology(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The HDT OmegaState lattice — and, with the other two, the CLOSURE: three digital twins, one discipline."""
+    lattice = [{"state": s, "epistemic_human": hdt.epistemic_for_omega(s, "human"),
+                "epistemic_model": hdt.epistemic_for_omega(s, "model"), "canonical": s == "DELIVERED"}
+               for s in hdt.OMEGA_STATES]
+    return {
+        "ontology": "HDT — Human Digital Twin", "namespace": hdt.HDT_NS,
+        "omega_states": hdt.OMEGA_STATES, "omega_epistemic_lattice": lattice, "kfs_triad": hdt.TRIAD_ROLES,
+        "invariant": "a model may advance an observation but only a human/clinician/policy actor may DELIVER to canonical human-actionable truth",
+        "three_twins_closed": {
+            "knowledge": "HellGraph fact · observed→attested",
+            "human": "HDT Observation · OmegaState ABSENT→DELIVERED",
+            "earth": "GAIA WorldSignal · PromotionState EvidenceOnly→Promoted",
+            "note": "all three twins now run one governed-evidence discipline in the same substrate — the promotion membrane IS the epistemic ladder, everywhere",
         },
     }
 
