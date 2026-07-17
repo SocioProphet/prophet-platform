@@ -1,0 +1,42 @@
+{
+  "schema_version": "0.1",
+  "kind": "PlatformServiceManifest",
+  "service_id": "svc.compute.spark-runner",
+  "display_name": "spark-runner — Sovereign Apache Spark Execution Backend",
+  "description": "The distributed-compute backend for the Studio execution plane. Runs a submitted Spark SQL/dataframe job on a Spark session (local[*] by default; SPARK_MASTER points at a standalone/k8s Spark cluster in the paid mesh) and emits a governed, replayable receipt (input/output row counts, duration, payload hash). lattice-studio's execution plane, with backend='spark' and a compute entitlement, dispatches here. This is the answer to 'they run Spark at scale, we don't' — a real, sovereign, receipted Spark engine.",
+  "scaffold_baseline": {
+    "repo": "SocioProphet/prophet-platform",
+    "path": "apps/spark-runner",
+    "status": "PR-A scaffold — FastAPI over pyspark; builds the image, not yet deployed"
+  },
+  "runtime_posture": "cluster_internal",
+  "deployment_topology": {
+    "spark_runner_svc": {
+      "description": "FastAPI service (apps/spark-runner) — /healthz, POST /v1/submit. Renders charts/socioprophet-service via deploy/values/spark-runner.yaml (pinned to the sha- tag) + a { name: spark-runner } entry in platform-services. Image carries a JRE + pyspark.",
+      "binding": "org.compute.spark-runner"
+    },
+    "spark_cluster": {
+      "description": "SPARK_MASTER selects the engine: local[*] (single-pod) or spark://… / k8s:// for a standalone/k8s Spark cluster provisioned in the paid mesh — the horizontal-scale path.",
+      "binding": "org.compute.spark-cluster"
+    }
+  },
+  "consumers": {
+    "lattice_studio_execution_plane": "POST /api/studio/execute (backend='spark') dispatches a job here once the project holds a compute entitlement (STUDIO_COMPUTE_ENTITLEMENTS). The execution stays entitlement-gated; the receipt chains studio→spark-runner."
+  },
+  "policy_dependencies": ["policy://compute/submit-token-v0.1"],
+  "evidence_receipts": ["receipt://compute/spark-job-receipt-v0.1"],
+  "pr_a_status": {
+    "is_pr_a": true,
+    "note": "Build stage — image + estate contract. Not deployment-ready. First CI build publishes a sha- tag; a follow-up pins deploy/values/spark-runner.yaml + registers the ApplicationSet element + creates the spark-runner-token Secret (fail-closed until then).",
+    "deployment_ready": false
+  },
+  "runtime_prerequisites": [
+    {"id": "prereq_submit_token", "description": "spark-runner-token Secret must exist in ns socioprophet before /v1/submit accepts jobs (fail-closed until then).", "status": "pending"},
+    {"id": "prereq_image_pin", "description": "deploy/values/spark-runner.yaml image.tag pinned to the CI-published sha- tag (not moving :latest).", "status": "pending"},
+    {"id": "prereq_master", "description": "SPARK_MASTER set to local[*] (single-pod) or a mesh Spark cluster URL for horizontal scale.", "status": "pending"}
+  ],
+  "authority_boundary": {
+    "owner": "prophet-platform",
+    "note": "prophet-platform owns runtime deployment + API contract; the execution plane (lattice-studio) is the governed caller."
+  }
+}
