@@ -217,6 +217,22 @@ def extract_facts(text: str, limit: int = 60) -> tuple[list[str], list[tuple[str
     return entities, relations[: limit * 2]
 
 
+def _require_write_token(authorization: str) -> None:
+    """Shared WRITE gate for every endpoint that mutates the shared HellGraph (extract + the node/edge
+    workbench). Fail-CLOSED: if STUDIO_WRITE_TOKEN is unset, writes are refused (reads stay open), so a
+    public ingress can never accept anonymous graph writes. Token provisioned out-of-band (Secret)."""
+    if not STUDIO_WRITE_TOKEN:
+        raise HTTPException(status_code=503, detail="studio writes disabled: STUDIO_WRITE_TOKEN unset (fail-closed)")
+    if authorization.removeprefix("Bearer ").strip() != STUDIO_WRITE_TOKEN:
+        raise HTTPException(status_code=401, detail="invalid write token")
+
+
+def _ent_id(coll: str, name: str) -> str:
+    """Project-scoped entity id — must match /extract's scheme so a hand-authored node and an extracted one
+    with the same name are the SAME node (the workbench edits the same graph, not a parallel one)."""
+    return f"{coll}:ent:{_norm(name).replace(' ', '_')}"
+
+
 class ExtractRequest(BaseModel):
     project: str = "default"
     text: str
@@ -225,17 +241,11 @@ class ExtractRequest(BaseModel):
 
 @app.post("/api/studio/extract")
 async def extract(req: ExtractRequest, authorization: str = Header(default="")) -> dict[str, Any]:
-    # WRITE gate: /extract mutates the shared HellGraph, so it must be authenticated before Studio is
-    # publicly exposed. Fail-CLOSED — if STUDIO_WRITE_TOKEN is unset, writes are refused (reads stay open),
-    # so a public ingress can never accept anonymous graph writes. Token provisioned out-of-band (Secret).
-    if not STUDIO_WRITE_TOKEN:
-        raise HTTPException(status_code=503, detail="studio writes disabled: STUDIO_WRITE_TOKEN unset (fail-closed)")
-    if authorization.removeprefix("Bearer ").strip() != STUDIO_WRITE_TOKEN:
-        raise HTTPException(status_code=401, detail="invalid write token")
+    _require_write_token(authorization)
     coll = proj_collection(req.project)
     src = req.source or ("text:" + hashlib.sha256(req.text.encode()).hexdigest()[:16])
     entities, relations = extract_facts(req.text)
-    ent_id = lambda name: f"{coll}:ent:{_norm(name).replace(' ', '_')}"  # noqa: E731
+    ent_id = lambda name: _ent_id(coll, name)  # noqa: E731
     # KKO (KBpedia Knowledge Ontology) is the estate's UPPER ONTOLOGY. Extracted named entities are Peircean
     # Particulars (Secondness). epistemic_mode="observed" is itself Peircean (KKO formalizes the inference
     # trichotomy induced/deduced/abduced as kko:Methodeutic) — so the provenance is standards-grounded, not ad-hoc.
@@ -271,6 +281,79 @@ async def extract(req: ExtractRequest, authorization: str = Header(default="")) 
         "sample": entities[:10],
         "errors": errors[:5] or None,
     }
+
+
+class NodeRequest(BaseModel):
+    project: str = "default"
+    name: str
+    labels: list[str] | None = None
+    epistemic_mode: str = "observed"
+    source: str | None = None
+
+
+class EdgeRequest(BaseModel):
+    project: str = "default"
+    from_name: str
+    to_name: str
+    label: str = "relates_to"
+    epistemic_mode: str = "observed"
+    source: str | None = None
+
+
+def _workbench_prov(coll: str, mode: str, source: str | None) -> dict[str, Any]:
+    """Provenance for a HAND-AUTHORED fact — same shape /extract stamps, so a manual node is as proof-carrying
+    as an extracted one. extractor marks it as workbench-authored; epistemic_mode is the user's assertion."""
+    return {"epistemic_mode": mode, "source": source or "workbench",
+            "extractor": "lattice-studio/workbench-v0", "project": coll, "kko_type": "Particulars"}
+
+
+@app.post("/api/studio/node")
+async def add_node(req: NodeRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """WRITE workbench: add ONE node to the project graph by hand. Same fail-closed token, project scope, and
+    provenance as /extract — a hand-authored entity lands in the same graph, carrying its epistemic status."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    coll = proj_collection(req.project)
+    nid = _ent_id(coll, name)
+    prov = _workbench_prov(coll, req.epistemic_mode, req.source)
+    # keep the project + Entity labels canonical; append any extra user labels (deduped)
+    labels = [coll, "Entity"] + [l for l in (req.labels or []) if l not in (coll, "Entity")]
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, err = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                            json={"id": nid, "labels": labels, "properties": {"name": name, **prov}})
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph write failed: {err}")
+    return {"id": nid, "name": name, "project": req.project, "projectCollection": coll,
+            "labels": labels, "provenance": prov, "written": True}
+
+
+@app.post("/api/studio/edge")
+async def add_edge(req: EdgeRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """WRITE workbench: add ONE edge to the project graph by hand. Upserts both endpoints first (idempotent),
+    so an edge between new names just works; then writes the relation. Same token/scope/provenance as /extract."""
+    _require_write_token(authorization)
+    a, b = req.from_name.strip(), req.to_name.strip()
+    if not a or not b:
+        raise HTTPException(status_code=422, detail="from_name and to_name required")
+    coll = proj_collection(req.project)
+    fid, tid = _ent_id(coll, a), _ent_id(coll, b)
+    label = _norm(req.label).replace(" ", "_") or "relates_to"
+    prov = _workbench_prov(coll, req.epistemic_mode, req.source)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        # endpoints first (idempotent upsert), then the edge — mirrors /extract's nodes-before-edges order.
+        for nm, nid in ((a, fid), (b, tid)):
+            _, err = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                                json={"id": nid, "labels": [coll, "Entity"], "properties": {"name": nm, **prov}})
+            if err:
+                raise HTTPException(status_code=502, detail=f"graph write failed (node {nm}): {err}")
+        _, err = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                            json={"label": label, "from": fid, "to": tid, "properties": prov})
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph write failed (edge): {err}")
+    return {"from": fid, "to": tid, "label": label, "project": req.project,
+            "projectCollection": coll, "provenance": prov, "written": True}
 
 
 def _map_node(n: Any) -> dict[str, Any]:

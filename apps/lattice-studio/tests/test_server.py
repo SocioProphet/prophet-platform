@@ -149,3 +149,86 @@ def test_rdf_export_carries_provenance_AND_edges(monkeypatch):
     rels = [(s, o) for s, p, o in rg if p == SP["co_occurs"]]
     assert len(rels) == 1, "the co_occurs edge must be exported as an RDF relation"
     assert "hellgraph" in str(rels[0][0]) and "atomspace" in str(rels[0][1])
+
+
+# ── WRITE workbench: manual add-node / add-edge (same fail-closed gate as /extract) ──
+
+def test_workbench_write_gate():
+    # fail-closed: no token → node + edge writes both refused (503)
+    assert client.post("/api/studio/node", json={"project": "team-x", "name": "HellGraph"}).status_code == 503
+    assert client.post("/api/studio/edge", json={"project": "team-x", "from_name": "A", "to_name": "B"}).status_code == 503
+
+
+def test_workbench_wrong_token_401(monkeypatch):
+    monkeypatch.setattr("lattice_studio.server.STUDIO_WRITE_TOKEN", "secret")
+    r = client.post("/api/studio/node", json={"project": "team-x", "name": "HellGraph"},
+                    headers={"authorization": "Bearer nope"})
+    assert r.status_code == 401
+
+
+def test_add_node_writes_proof_carrying(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "secret")
+    captured = {}
+
+    async def fake_req(client, method, url, json=None):
+        captured["url"] = url; captured["json"] = json
+        return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/node",
+                    json={"project": "team-x", "name": "Custom Fact", "epistemic_mode": "attested", "labels": ["Claim"]},
+                    headers={"authorization": "Bearer secret"})
+    assert r.status_code == 200
+    b = r.json()
+    # project-scoped id matches /extract's scheme; provenance carries the user's epistemic mode + workbench origin
+    assert b["id"] == "proj-teamx:ent:custom_fact" and b["written"] is True
+    assert b["provenance"]["epistemic_mode"] == "attested"
+    assert b["provenance"]["extractor"] == "lattice-studio/workbench-v0"
+    assert "Claim" in b["labels"] and "proj-teamx" in b["labels"] and "Entity" in b["labels"]
+    # it actually POSTed to the hellgraph node endpoint with the mapped id
+    assert captured["url"].endswith("/api/graph/node") and captured["json"]["id"] == "proj-teamx:ent:custom_fact"
+
+
+def test_add_node_requires_name(monkeypatch):
+    monkeypatch.setattr("lattice_studio.server.STUDIO_WRITE_TOKEN", "secret")
+    r = client.post("/api/studio/node", json={"project": "team-x", "name": "   "},
+                    headers={"authorization": "Bearer secret"})
+    assert r.status_code == 422
+
+
+def test_add_edge_upserts_endpoints_then_relation(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "secret")
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_req(client, method, url, json=None):
+        calls.append((url, json))
+        return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/edge",
+                    json={"project": "team-x", "from_name": "HellGraph", "to_name": "Neo4j", "label": "beats"},
+                    headers={"authorization": "Bearer secret"})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["from"] == "proj-teamx:ent:hellgraph" and b["to"] == "proj-teamx:ent:neo4j"
+    assert b["label"] == "beats" and b["written"] is True
+    # both endpoint nodes upserted FIRST, then the edge (3 calls, edge last)
+    assert len(calls) == 3
+    assert all(u.endswith("/api/graph/node") for u, _ in calls[:2])
+    assert calls[2][0].endswith("/api/graph/edge")
+    assert calls[2][1]["from"] == "proj-teamx:ent:hellgraph" and calls[2][1]["to"] == "proj-teamx:ent:neo4j"
+
+
+def test_add_edge_graph_failure_is_502(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "secret")
+
+    async def fake_req(client, method, url, json=None):
+        return (None, "connection refused")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/edge", json={"project": "team-x", "from_name": "A", "to_name": "B"},
+                    headers={"authorization": "Bearer secret"})
+    assert r.status_code == 502
