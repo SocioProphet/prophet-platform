@@ -73,6 +73,7 @@ jobs:
           - { image: liberty-stack-readout, context: apps/liberty-stack-readout, dockerfile: Dockerfile }
           - { image: tritfabric-consumption-api, context: ., dockerfile: apps/tritfabric-consumption-api/Dockerfile }
           - { image: agora,                 context: apps/agora,                 dockerfile: Dockerfile }
+          - { image: spark-runner,          context: apps/spark-runner,          dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}

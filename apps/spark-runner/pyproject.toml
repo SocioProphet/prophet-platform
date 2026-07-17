@@ -1,0 +1,10 @@
+[project]
+name = "prophet-spark-runner"
+version = "0.1.0"
+description = "spark-runner — sovereign Apache Spark execution backend for the Studio execution plane (governed, receipted)."
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115.0", "uvicorn>=0.30.0", "pyspark>=3.5.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
