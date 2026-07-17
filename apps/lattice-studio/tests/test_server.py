@@ -353,3 +353,52 @@ def test_receipts_aggregate_across_the_evidence_fabric(monkeypatch):
     assert b["receipts"][0]["correlation_id"] == "owl-1" and b["receipts"][0]["verdict"] == "sound"
     assert b["receipts"][0]["bundle_ref"] == "/v1/receipts/owl-reasoner/owl-1"
     assert b["receipts"][1]["correlation_id"] == "hg-1" and b["receipts"][1]["verdict"] == "ok"
+
+
+# ── WS#30: proof-carrying query IDE (SPARQL/Cypher/Gremlin) ──
+
+def test_query_validates_lang_and_query():
+    assert client.post("/api/studio/query", json={"lang": "gql", "query": "x"}).status_code == 422
+    assert client.post("/api/studio/query", json={"lang": "sparql", "query": "  "}).status_code == 422
+
+
+def test_query_bad_syntax_surfaces_400(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if url.endswith("/api/graph/sparql"):
+            return (None, "HTTP 400")   # kernel rejects bad syntax
+        return ({"nodes": []}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/query", json={"project": "team-x", "lang": "sparql", "query": "SELEKT *"})
+    assert r.status_code == 400
+
+
+def test_query_is_proof_carrying_and_epistemically_enriched(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if url.endswith("/api/graph/sparql"):
+            return ({
+                "ok": True, "queryHash": "qh-abc", "evaluatedAtSeq": 42,
+                "head": {"vars": ["s", "name"]},
+                "results": {"bindings": [
+                    {"s": {"value": "proj-teamx:ent:hellgraph"}, "name": {"value": "HellGraph"}},
+                ]},
+            }, None)
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:ent:hellgraph", "labels": ["proj-teamx", "Entity"],
+                 "properties": {"name": "HellGraph", "epistemic_mode": "verified"}},
+            ], "edgeList": []}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.post("/api/studio/query", json={"project": "team-x", "lang": "sparql", "query": "SELECT ?s ?name WHERE {}"}).json()
+    # rows/columns normalised from SPARQL JSON
+    assert b["columns"] == ["s", "name"] and b["row_count"] == 1
+    assert b["rows"][0]["s"] == "proj-teamx:ent:hellgraph" and b["rows"][0]["name"] == "HellGraph"
+    # THE BEAT #1: the result is REPLAYABLE — carries the kernel's proof
+    assert b["proof"]["query_hash"] == "qh-abc" and b["proof"]["evaluated_at_seq"] == 42 and b["proof"]["replayable"] is True
+    # THE BEAT #2: the referenced fact carries its epistemic status
+    assert b["epistemic"] == {"proj-teamx:ent:hellgraph": "verified"}
