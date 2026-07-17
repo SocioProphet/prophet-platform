@@ -1018,3 +1018,46 @@ def test_connect_gated_and_registers_governed_connection(monkeypatch):
     lst = client.get("/api/studio/connections?project=team-x").json()
     assert lst["count"] == 1 and lst["connections"][0]["provider"] == "github"
     assert lst["backbone"]["url"].endswith("open-connector")
+
+
+def test_communities_label_propagation_finds_two_clusters(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            def n(i, mode="observed"):
+                return {"id": i, "labels": ["proj-teamx", "Entity"], "properties": {"name": i, "epistemic_mode": mode}}
+            def e(a, b):
+                return {"from": a, "to": b, "label": "co_occurs", "properties": {"weight": 2}}
+            return ({"nodes": [n("a1", "attested"), n("a2"), n("a3"), n("b1"), n("b2"), n("b3")],
+                     "edgeList": [e("a1", "a2"), e("a2", "a3"), e("a3", "a1"),   # cluster A triangle
+                                  e("b1", "b2"), e("b2", "b3"), e("b3", "b1"),   # cluster B triangle
+                                  e("a1", "b1")]}, None)                          # one bridge
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/communities?project=team-x").json()
+    assert b["count"] == 2 and b["nodes"] == 6
+    assert b["inter_community_edges"] == 1                       # only the bridge crosses communities
+    # each community has 3 members and the two clusters are separated
+    sizes = sorted(c["size"] for c in b["communities"])
+    assert sizes == [3, 3]
+    # epistemic profile rides on the community (a1 is attested)
+    assert any("attested" in c["epistemic_distribution"] for c in b["communities"])
+    assert b["algorithm"].startswith("label-propagation")
+
+
+def test_communities_deterministic(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [{"id": x, "labels": ["proj-teamx", "Entity"], "properties": {"name": x}} for x in ["a1", "a2", "b1", "b2"]],
+                     "edgeList": [{"from": "a1", "to": "a2", "label": "co_occurs"},
+                                  {"from": "b1", "to": "b2", "label": "co_occurs"}]}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    a = client.get("/api/studio/communities?project=team-x").json()
+    b = client.get("/api/studio/communities?project=team-x").json()
+    assert [c["seed"] for c in a["communities"]] == [c["seed"] for c in b["communities"]]   # stable output
