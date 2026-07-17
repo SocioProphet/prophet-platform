@@ -1265,3 +1265,69 @@ def test_action_invoke_shacl_rejects_nonconformant_writeback(monkeypatch):
     assert "SHACL" in detail["message"] and detail["class"] == "sp:Surface" and len(detail["violations"]) >= 1
     # fail-closed: the target was NOT mutated
     assert state["nodes"]["proj-teamx:surface:1"]["properties"] == {}
+
+
+# ── WS#50: GAIA stewardship writeback + the epistemic invariant ──
+def test_steward_human_decision_is_attested(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:entity:1": {"id": "proj-teamx:entity:1", "labels": ["proj-teamx", "LIVING_ENTITY"],
+                                "properties": {}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/steward",
+                    json={"project": "team-x", "target": "proj-teamx:entity:1", "keeper": "kim",
+                          "phase": "maturity", "resolve_signals": ["stale_evidence"], "actor_kind": "human"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["proof_carrying"] and r["reversible"]
+    assert r["epistemic_mode"] == "attested" and r["invariant_applied"] is None      # human → canonical
+    assert r["state"]["keeper"] == "kim" and r["state"]["phase_override"] == "maturity"
+    tgt = state["nodes"]["proj-teamx:entity:1"]["properties"]
+    assert tgt["gaia_keeper"] == "kim" and tgt["gaia_phase_override"] == "maturity"
+    assert tgt["gaia_phase_epistemic"] == "attested" and tgt["gaia_resolved_signals"] == "stale_evidence"
+
+
+def test_steward_model_phase_is_derived_not_canonical(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:entity:2": {"id": "proj-teamx:entity:2", "labels": ["proj-teamx", "LIVING_ENTITY"], "properties": {}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/steward",
+                    json={"project": "team-x", "target": "proj-teamx:entity:2", "phase": "decline", "actor_kind": "model"},
+                    headers={"Authorization": "Bearer T"}).json()
+    # GAIA invariant #2: a model may OBSERVE the phase but not PROMOTE it to canonical truth → derived
+    assert r["epistemic_mode"] == "derived"
+    assert r["invariant_applied"] and "GAIA-2" in r["invariant_applied"]
+    assert state["nodes"]["proj-teamx:entity:2"]["properties"]["gaia_phase_epistemic"] == "derived"
+
+
+def test_steward_validates_phase_and_signals(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    assert client.post("/api/studio/steward", json={"project": "team-x", "target": "x", "phase": "bogus"},
+                       headers={"Authorization": "Bearer T"}).status_code == 422
+    assert client.post("/api/studio/steward", json={"project": "team-x", "target": "x", "resolve_signals": ["nope"]},
+                       headers={"Authorization": "Bearer T"}).status_code == 422
+
+
+def test_steward_state_reads_back_and_derives_orphan(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:entity:3", "labels": ["proj-teamx", "LIVING_ENTITY"],
+                 "properties": {"gaia_keeper": "sam", "gaia_phase_override": "growth", "gaia_phase_epistemic": "attested"}},
+            ], "edgeList": []}, None)   # no edges → orphaned
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/steward?project=team-x&target=proj-teamx:entity:3").json()
+    assert b["stewardship"]["keeper"] == "sam" and b["stewardship"]["phase_override"] == "growth"
+    assert b["derived_signals"] == ["orphaned_artifact"] and b["degree"] == 0
+    assert "maturity" in b["phases"]
