@@ -232,3 +232,51 @@ def test_add_edge_graph_failure_is_502(monkeypatch):
     r = client.post("/api/studio/edge", json={"project": "team-x", "from_name": "A", "to_name": "B"},
                     headers={"authorization": "Bearer secret"})
     assert r.status_code == 502
+
+
+# ── KE-5 "How derived?": proof-carrying provenance/lineage for one fact ──
+
+def test_provenance_requires_id():
+    assert client.get("/api/studio/provenance?project=team-x").status_code == 422
+
+
+def test_provenance_not_found_is_graceful(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        return ({"nodes": [], "edgeList": []}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+    b = client.get("/api/studio/provenance?project=team-x&id=proj-teamx:ent:ghost").json()
+    assert b["found"] is False and b["id"] == "proj-teamx:ent:ghost"
+
+
+def test_provenance_returns_derivation_and_summary(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({
+                "nodes": [
+                    {"id": "proj-teamx:ent:hellgraph", "labels": ["proj-teamx", "Entity"],
+                     "properties": {"name": "HellGraph", "epistemic_mode": "verified", "source": "doc:spec",
+                                    "extractor": "lattice-studio/workbench-v0", "kko_type": "Particulars"}},
+                    {"id": "proj-teamx:ent:neo4j", "labels": ["proj-teamx", "Entity"],
+                     "properties": {"name": "Neo4j", "epistemic_mode": "observed"}},
+                ],
+                "edgeList": [
+                    {"id": "h:1", "label": "beats", "from": "proj-teamx:ent:hellgraph",
+                     "to": "proj-teamx:ent:neo4j", "properties": {"n": 4}},
+                ],
+            }, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/provenance?project=team-x&id=proj-teamx:ent:hellgraph").json()
+    assert b["found"] is True and b["name"] == "HellGraph"
+    assert b["epistemic_mode"] == "verified" and b["extractor"] == "lattice-studio/workbench-v0"
+    assert b["kko_type"] == "Particulars" and b["source"] == "doc:spec"
+    assert b["derivation_count"] == 1
+    d = b["derivations"][0]
+    assert d["relation"] == "beats" and d["direction"] == "out" and d["weight"] == 4
+    assert d["with"]["name"] == "Neo4j" and d["with"]["epistemic_mode"] == "observed"
+    assert "verified" in b["summary"] and "HellGraph" in b["summary"]
