@@ -91,6 +91,10 @@ KNOWN_BROKEN = {
         "New service — Dockerfile + images.yml entry added this PR, so it BUILDS. Pin `tag: latest` → the sha- "
         "tag after the first CI build (same chicken-and-egg as grlplus-service #766): no sha exists until merge."
     ),
+    "owl-reasoner:moving-tag": (
+        "New service — Dockerfile + images.yml entry added this PR, so it BUILDS. Pin tag:latest -> sha- "
+        "after the first CI build (same chicken-and-egg as grlplus-service/grl-mesh)."
+    ),
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`
     # + IfNotPresent means nodes may be running an older cached digest than `latest`
