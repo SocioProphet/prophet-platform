@@ -67,3 +67,33 @@ def test_ontology_graph_endpoint():
     ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<http://ex/A> a owl:Class ."
     r = client.post("/ontology/graph", json={"turtle": ttl})
     assert r.status_code == 200 and r.json()["counts"]["classes"] == 1
+
+
+DOC_TTL = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix ex: <http://ex/> .
+ex: a owl:Ontology ; dct:title "Example Ontology" ; owl:versionInfo "1.0" ; rdfs:comment "A tiny ontology." .
+ex:Animal a owl:Class ; rdfs:label "Animal" ; rdfs:comment "A living creature." .
+ex:Dog a owl:Class ; rdfs:label "Dog" ; rdfs:subClassOf ex:Animal .
+ex:owns a owl:ObjectProperty ; rdfs:label "owns" ; rdfs:domain ex:Person ; rdfs:range ex:Dog ."""
+
+
+def test_extract_ontology_model():
+    from owl_reasoner.ontology_doc import extract_ontology
+    m = extract_ontology(DOC_TTL)
+    assert m["header"]["title"] == "Example Ontology" and m["header"]["version"] == "1.0"
+    dog = next(c for c in m["classes"] if c["label"] == "Dog")
+    assert dog["superClasses"] == ["http://ex/Animal"]
+    owns = next(p for p in m["properties"] if p["label"] == "owns")
+    assert owns["kind"] == "object" and owns["range"] == ["http://ex/Dog"]
+
+
+def test_ontology_doc_endpoint_html_and_json():
+    r = client.post("/ontology/doc", json={"turtle": DOC_TTL})
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"]
+    body = r.text
+    assert "Example Ontology" in body and "Animal" in body and "owns" in body
+    assert "<h1>" in body and 'class="badge"' in body      # rendered doc page
+    j = client.post("/ontology/doc", json={"turtle": DOC_TTL, "format": "json"})
+    assert j.status_code == 200 and j.json()["counts"]["classes"] == 2

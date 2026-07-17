@@ -14,9 +14,10 @@ import os
 from typing import Any
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 
+from .ontology_doc import extract_ontology, ontology_doc
 from .ontology_graph import tbox_graph
 from .reasoner import reason
 
@@ -66,3 +67,17 @@ class OntologyGraphRequest(BaseModel):
 def ontology_graph_endpoint(req: OntologyGraphRequest) -> dict[str, Any]:
     """TBox → renderable graph (classes + subClassOf + object-property edges) — WebVOWL-style ontology viz."""
     return tbox_graph(req.turtle, req.limit)
+
+
+class OntologyDocRequest(BaseModel):
+    turtle: str
+    format: str = "html"  # "html" → browsable page; "json" → structured model
+
+
+@app.post("/ontology/doc")
+def ontology_doc_endpoint(req: OntologyDocRequest) -> Any:
+    """Ontology → browsable HTML documentation (pyLODE/Widoco-class) or the structured model as JSON.
+    Turns the 202-ontology estate into a readable, sellable asset instead of a folder of .ttl."""
+    if req.format == "json":
+        return extract_ontology(req.turtle)
+    return Response(content=ontology_doc(req.turtle), media_type="text/html")
