@@ -979,3 +979,42 @@ def test_model_register_rejects_bad_stage(monkeypatch):
     r = client.post("/api/studio/model", json={"project": "team-x", "name": "m", "stage": "prod"},
                     headers={"Authorization": "Bearer T"})
     assert r.status_code == 422
+
+
+def test_connectors_registry_names_open_connector_backbone():
+    b = client.get("/api/studio/connectors").json()
+    assert b["backbone"]["project"] == "oomol-lab/open-connector"
+    assert b["backbone"]["license"] == "Apache-2.0" and "mcp" in b["backbone"]["interfaces"]
+
+
+def test_connect_gated_and_registers_governed_connection(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    assert client.post("/api/studio/connect", json={"project": "team-x", "provider": "github"}).status_code == 503
+
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url:
+            writes.append(json); return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:connection:github:prod", "labels": ["proj-teamx", "Connection"],
+                 "properties": {"provider": "github", "name": "prod", "status": "declared",
+                                "owner": "mdheller", "backbone": "open-connector", "created_at": "t1"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/connect",
+                    json={"project": "team-x", "provider": "GitHub", "name": "prod", "owner": "mdheller"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["connection_id"] == "proj-teamx:connection:github:prod" and r["provider"] == "github"
+    assert r["status"] == "declared" and r["backbone"] == "oomol-lab/open-connector" and r["proof_carrying"]
+    node = writes[0]
+    assert "Connection" in node["labels"] and node["properties"]["epistemic_mode"] == "attested"
+
+    lst = client.get("/api/studio/connections?project=team-x").json()
+    assert lst["count"] == 1 and lst["connections"][0]["provider"] == "github"
+    assert lst["backbone"]["url"].endswith("open-connector")
