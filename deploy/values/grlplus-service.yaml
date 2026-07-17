@@ -1,0 +1,12 @@
+# grlplus-service — the GRLPlus policy evaluator (apps/grlplus-service). Makes GRLPlus a LIVE service:
+# evaluates semantic-worklist closure/escalation rules against the proof-carrying HellGraph (via the
+# SPARQL surface on hellgraph-service), so GRLPlus actually DECIDES close/keep-open/escalate instead of
+# the standards repo's export shim. This is the symbolic shield over the same graph the Graph-RL loop
+# learns on. tag:latest is temporary — pinned to the sha- tag after the first CI build (see preflight).
+image: { repository: grlplus-service, tag: latest }
+service: { port: 8080, portName: http }
+# server serves /healthz (chart default) — no probes.path override.
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# Internal (ClusterIP) — evaluated by agents/the worklist producer in-cluster; no public ingress.

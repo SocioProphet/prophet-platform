@@ -63,6 +63,7 @@ jobs:
           - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
           - { image: search-gateway,        context: apps/search-gateway,        dockerfile: Dockerfile }
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }
+          - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
