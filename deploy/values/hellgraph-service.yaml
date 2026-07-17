@@ -12,5 +12,5 @@ config:
   # nomic-embed-text's 768-dim vectors as-is), so no fixed vector-size var is needed here — unlike
   # memoryd's MEMORYMESH_VECTOR_SIZE. The fogstack (federal/standard) tiers override EMBEDDINGS_URL
   # to "" in the appset so a sovereign tier never reaches this socioprophet-namespace service.
-  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:11434/v1/embeddings"
+  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
