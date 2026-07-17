@@ -13,15 +13,23 @@ config:
   HELLGRAPH_URL: "http://hellgraph-service:8090"
   TRITFABRIC_URL: "http://tritfabric:8750"
   SEARCH_ORCH_URL: "http://search-orchestrator:8080"
-  # The sovereign Spark backend. lattice-studio dispatches backend='spark' jobs here; until the shared token is
-  # set (secretEnv follow-up, after the spark-runner-token secret exists) it 401s and degrades to the governed
-  # run-ledger — safe. Full end-to-end loop = add SPARK_RUNNER_TOKEN secretEnv here + on spark-runner.
+  # The sovereign Spark backend. lattice-studio dispatches backend='spark' jobs to spark-runner (auth'd with the
+  # shared SPARK_RUNNER_TOKEN secretEnv below). The loop is now closed end-to-end.
   SPARK_RUNNER_URL: "http://spark-runner:8080"
+  # The compute PAY-GATE. Comma-sep entitlement tokens: "*" (all), "<project>", "<project>:<backend>". Empty →
+  # every /execute returns 402. Currently entitles the demo/default projects for verification; a paid tenant gets
+  # its own entry here. THIS is the monetization knob — like Databricks/Foundry, compute is provisioned only when
+  # entitled, but sovereign + multi-backend.
+  STUDIO_COMPUTE_ENTITLEMENTS: "demo,default"
 # Activates the WRITE workbench (/api/studio/extract + /node + /edge). Fail-closed: without this, writes
-# return 503 and reads stay open. Secret provisioned out-of-band: `kubectl -n socioprophet create secret
-# generic studio-write-token --from-literal=token=...`.
+# return 503 and reads stay open. Secrets provisioned out-of-band (the credential VALUES can't live in git — the
+# CI/GitOps pattern is: create the Secret with kubectl, reference it here via secretEnv):
+#   kubectl -n socioprophet create secret generic studio-write-token --from-literal=token=...
+#   kubectl -n socioprophet create secret generic spark-runner-token --from-literal=token=...
 secretEnv:
   STUDIO_WRITE_TOKEN: { secretName: studio-write-token, key: token }
+  # Shared with spark-runner — lattice-studio sends this as the bearer when dispatching a Spark job.
+  SPARK_RUNNER_TOKEN: { secretName: spark-runner-token, key: token }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
 # Internal for now (ClusterIP); the app-vue surface reaches it via the same public-gateway pattern as search — a
 # public ingress + DNS is the go-live step, held (ManagedCert clock starts at DNS).
