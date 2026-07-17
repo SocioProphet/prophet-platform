@@ -2,8 +2,8 @@
 # evaluates semantic-worklist closure/escalation rules against the proof-carrying HellGraph (via the
 # SPARQL surface on hellgraph-service), so GRLPlus actually DECIDES close/keep-open/escalate instead of
 # the standards repo's export shim. This is the symbolic shield over the same graph the Graph-RL loop
-# learns on. tag:latest is temporary — pinned to the sha- tag after the first CI build (see preflight).
-image: { repository: grlplus-service, tag: latest }
+# learns on. Pinned to the immutable sha- tag the first CI build published.
+image: { repository: grlplus-service, tag: sha-9f3e3bad5566cba6b76f6ad641d96e3c1e82d5f9 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:
