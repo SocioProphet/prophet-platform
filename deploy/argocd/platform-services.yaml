@@ -32,6 +32,8 @@ spec:
           - { name: owl-reasoner }
           - { name: entity-resolution }
           - { name: memoryd }
+          - { name: regis-acr-api }
+          - { name: node-commander }
           - { name: tritfabric-consumption-api }
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —

@@ -1,0 +1,5 @@
+# node-commander — node runtime control API (status/heartbeat over the node runtime), vendored into CI this PR.
+# apps/node-commander. Real FastAPI service (was built + tested but never shipped). tag:latest → sha-pin next build.
+image: { repository: node-commander, tag: latest }
+service: { port: 8080, portName: http }
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

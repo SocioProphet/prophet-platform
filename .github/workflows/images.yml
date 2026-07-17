@@ -68,6 +68,7 @@ jobs:
           - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }
           - { image: entity-resolution,     context: apps/entity-resolution,     dockerfile: Dockerfile }
           - { image: memoryd,               context: apps/memoryd,               dockerfile: Dockerfile }
+          - { image: node-commander,        context: apps/node-commander,        dockerfile: Dockerfile }
           - { image: tritfabric-consumption-api, context: ., dockerfile: apps/tritfabric-consumption-api/Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:

@@ -95,6 +95,14 @@ KNOWN_BROKEN = {
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),
+    "node-commander:moving-tag": (
+        "New service — node-commander (node runtime control API) vendored into prophet-platform CI this PR. "
+        "Pin tag:latest -> the sha- tag after the first build; none exists until merge."
+    ),
+    "regis-acr-api:moving-tag": (
+        "Build-orphan fixed — regis-acr-api already BUILT in CI but was never in the ApplicationSet; this PR "
+        "adds the deploy. Pin tag:latest -> the sha- tag after the next build; none exists for the deploy yet."
+    ),
     "memoryd:moving-tag": (
         "New service — memory-mesh's memoryd vendored into prophet-platform CI this PR, so it BUILDS with the "
         "estate WIF. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
