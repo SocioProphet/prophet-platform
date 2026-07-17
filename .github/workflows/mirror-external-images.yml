@@ -1,0 +1,43 @@
+name: mirror-external-images
+
+# Mirror third-party images INTO the sovereign registry (zot) via CI — so the cluster never depends
+# on docker.io pull-through at runtime. zot's on-demand sync is anonymous and hits docker.io's
+# anonymous rate limit on large images (ollama couldn't mirror that way). CI pulls once and pushes
+# with the same ZOT_CI creds images.yml uses. Add an entry to the matrix + run this, then reference
+# registry.socioprophet.ai/<path> in your deploy manifests (pulled with the existing zot-pull secret).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/mirror-external-images.yml
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # upstream ref → registry.socioprophet.ai/<same repo path>. linux/amd64 only (cluster nodes are amd64).
+        image:
+          - docker.io/ollama/ollama:0.9.0
+    steps:
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+      - name: Mirror ${{ matrix.image }} → sovereign registry (amd64)
+        env:
+          ZOT_USER: ${{ secrets.ZOT_CI_USERNAME }}
+          ZOT_PASS: ${{ secrets.ZOT_CI_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SRC='${{ matrix.image }}'
+          DEST="registry.socioprophet.ai/${SRC#*/}"   # strip the "docker.io/" host prefix
+          echo "mirroring $SRC -> $DEST (linux/amd64)"
+          skopeo copy --override-os linux --override-arch amd64 \
+            --dest-creds "$ZOT_USER:$ZOT_PASS" \
+            "docker://$SRC" "docker://$DEST"
+          echo "verifying $DEST is present in the sovereign registry…"
+          skopeo inspect --creds "$ZOT_USER:$ZOT_PASS" "docker://$DEST" >/dev/null
+          echo "✓ mirrored $DEST"
