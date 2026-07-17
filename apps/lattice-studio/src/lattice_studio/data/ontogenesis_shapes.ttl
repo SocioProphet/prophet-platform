@@ -1,0 +1,2941 @@
+@prefix : <https://socioprophet.github.io/ontogenesis/shapes/parsing-gates#> .
+@prefix action: <https://socioprophet.github.io/ontogenesis/middle/action#> .
+@prefix apt: <https://socioprophet.github.io/ontogenesis/domains/agentic-purple-team#> .
+@prefix banking: <https://socioprophet.github.io/ontogenesis/domains/banking#> .
+@prefix biz: <https://socioprophet.github.io/ontogenesis/domains/business#> .
+@prefix bizd: <https://socioprophet.github.io/ontogenesis/domains/business/drivers#> .
+@prefix bizm: <https://socioprophet.github.io/ontogenesis/domains/business/metrics#> .
+@prefix c2: <https://socioprophet.github.io/ontogenesis/domains/defense-c2#> .
+@prefix capd: <https://socioprophet.github.io/ontogenesis/prophet#capd#> .
+@prefix ces: <https://socioprophet.github.io/ontogenesis/platform/corpus-event#> .
+@prefix core: <https://socioprophet.github.io/ontogenesis/Platform/Parsing/core#> .
+@prefix cs: <https://socioprophet.github.io/ontogenesis/domains/cybernetic-self#> .
+@prefix cstack: <https://socioprophet.github.io/ontogenesis/civic-stack#> .
+@prefix cti: <https://socioprophet.github.io/ontogenesis/domains/threat-intel#> .
+@prefix dct: <http://purl.org/dc/terms/> .
+@prefix epi: <https://socioprophet.github.io/ontogenesis/epi#> .
+@prefix fin: <https://socioprophet.github.io/ontogenesis/domains/finance#> .
+@prefix fraud: <https://socioprophet.github.io/ontogenesis/domains/fraud#> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
+@prefix gi: <https://socioprophet.github.io/ontogenesis/platform/governed-intelligence#> .
+@prefix hdt: <https://socioprophet.dev/ont/ontogenesis#> .
+@prefix hp: <https://socioprophet.github.io/ontogenesis/Platform/Parsing/hypergraph-promotion#> .
+@prefix inv: <https://socioprophet.github.io/ontogenesis/domains/investigation#> .
+@prefix iw: <https://socioprophet.github.io/ontogenesis/domains/institutional-work#> .
+@prefix kc: <https://socioprophet.github.io/ontogenesis/platform/knowledge-context#> .
+@prefix kcc: <https://socioprophet.github.io/ontogenesis/domains/knowledge-commons-canon#> .
+@prefix kgl: <https://socioprophet.github.io/ontogenesis/middle/kg-lifecycle#> .
+@prefix legal: <https://socioprophet.github.io/ontogenesis/domains/legal#> .
+@prefix math: <https://socioprophet.github.io/ontogenesis/domains/math#> .
+@prefix ms: <https://socioprophet.org/ont/michael#> .
+@prefix ngov: <https://socioprophet.github.io/ontogenesis/middle/named-graph-governance#> .
+@prefix nl: <https://socioprophet.github.io/ontogenesis/noether#> .
+@prefix oq: <https://socioprophet.github.io/ontogenesis/platform/oq#> .
+@prefix org: <http://www.w3.org/ns/org#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix party: <https://socioprophet.github.io/ontogenesis/domains/party#> .
+@prefix pb: <https://socioprophet.github.io/ontogenesis/platform/path-b#> .
+@prefix prop: <https://socioprophet.github.io/ontogenesis/prophet#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix ps: <https://socioprophet.github.io/ontogenesis/domains/product-service#> .
+@prefix rcg: <https://socioprophet.github.io/ontogenesis/middle/reciprocal-channel-governance#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rfail: <https://socioprophet.github.io/ontogenesis/platform/reasoning-failure#> .
+@prefix sc: <https://socioprophet.github.io/ontogenesis/domains/supply-chain#> .
+@prefix scen: <https://socioprophet.github.io/ontogenesis/domains/adversarial-scenario#> .
+@prefix sdo: <https://socioprophet.github.io/ontogenesis/platform/sdo#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix shp: <https://socioprophet.github.io/ontogenesis/domains/smart-home-privacy#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix smap: <https://socioprophet.github.io/ontogenesis/middle/semantic-mapping#> .
+@prefix sp: <https://socioprophet.com/ontology/v0#> .
+@prefix st: <https://socioprophet.github.io/ontogenesis/domains/security-tools#> .
+@prefix systema: <https://socioprophet.github.io/ontogenesis/systema#> .
+@prefix tf: <https://socioprophet.github.io/ontogenesis/domains/tritfabric#> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix twin: <https://socioprophet.org/ont/twin#> .
+@prefix upper: <https://socioprophet.github.io/ontogenesis/upper#> .
+@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
+@prefix vfg: <https://socioprophet.dev/ont/valueflows-governed#> .
+@prefix view: <https://socioprophet.github.io/ontogenesis/platform/view#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+sp:EventIRShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path sp:hasScope ],
+        [ sh:minCount 1 ;
+            sh:path sp:hasFeatureAtom ],
+        [ sh:minCount 1 ;
+            sh:path sp:hasEvidence ] ;
+    sh:targetClass sp:EventIR .
+
+sp:LinkShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:subjectEntity ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:objectEntity ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:hasLinkState ] ;
+    sh:targetClass sp:Link .
+
+sp:ProofArtifactShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:decisionResult ],
+        [ sh:minCount 1 ;
+            sh:path sp:inputHash ],
+        [ sh:minCount 1 ;
+            sh:path sp:replayHook ],
+        [ sh:minCount 1 ;
+            sh:path sp:signatureText ] ;
+    sh:targetClass sp:ProofArtifact .
+
+sp:SurfaceShape a sh:NodeShape ;
+    sh:or ( [ sh:property [ sh:minCount 1 ;
+                        sh:path sp:landingRoute ] ] [ sh:property [ sh:minCount 1 ;
+                        sh:path sp:docsRoute ] ] ) ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:hasCategory ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:hasStatus ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:homepageVisible ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sp:nextActionText ] ;
+    sh:targetClass sp:Surface .
+
+hdt:FHIRResourceShape a sh:NodeShape ;
+    sh:property [ sh:in ( hdt:ABSENT hdt:SEEDED hdt:NORMALIZED hdt:LINKED hdt:TRUSTED hdt:ACTIONABLE hdt:DELIVERED ) ;
+            sh:minCount 1 ;
+            sh:path hdt:hasOmegaState ],
+        [ sh:datatype xsd:integer ;
+            sh:minInclusive 0 ;
+            sh:path hdt:stepsToTruth ],
+        [ sh:class hdt:MembershipVector ;
+            sh:minCount 1 ;
+            sh:path hdt:hasMembership ] ;
+    sh:targetClass hdt:FHIRResource .
+
+hdt:MembershipVectorShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:maxInclusive 1 ;
+            sh:minInclusive 0 ;
+            sh:path hdt:mCBD ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxInclusive 1 ;
+            sh:minInclusive 0 ;
+            sh:path hdt:mCGT ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxInclusive 1 ;
+            sh:minInclusive 0 ;
+            sh:path hdt:mNHY ] ;
+    sh:targetClass hdt:MembershipVector .
+
+vfg:CairnCheckpointShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:processRunId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path vfg:stateProjectionName ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path vfg:materializedStateHash ] ;
+    sh:targetClass vfg:CairnCheckpoint .
+
+vfg:CapabilityGrantShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:delegationId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:granteeActorId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:groupId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:processRunId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path vfg:capability ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "active" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path vfg:status ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:revokedAt ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:revokedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path vfg:revocationReason ] ;
+    sh:sparql [ sh:message "Revoked capability grants must provide revokedAt and revokedBy." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "revoked" .
+        FILTER ( NOT EXISTS { $this vfg:revokedAt ?t . } || NOT EXISTS { $this vfg:revokedBy ?a . } )
+      }
+    """ ] ;
+    sh:targetClass vfg:CapabilityGrant .
+
+vfg:CommitmentShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:taskId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:debtorActorId ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "accepted" "in_progress" "fulfilled" "released" "reassigned" "canceled" ) ;
+            sh:minCount 1 ;
+            sh:path vfg:status ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:path vfg:progressPercent ] ;
+    sh:targetClass vfg:Commitment .
+
+vfg:DelegationShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:grantorActorId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:granteeActorId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:groupId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:processRunId ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "active" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path vfg:status ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path vfg:validFrom ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:revokedAt ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:revokedBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path vfg:revocationReason ] ;
+    sh:sparql [ sh:message "Revoked delegations must provide revokedAt and revokedBy." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "revoked" .
+        FILTER ( NOT EXISTS { $this vfg:revokedAt ?t . } || NOT EXISTS { $this vfg:revokedBy ?a . } )
+      }
+    """ ] ;
+    sh:targetClass vfg:Delegation .
+
+vfg:ProcessRunShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:groupId ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:canceledBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path vfg:cancellationReason ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:createdBy ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "active" "completed" "canceled" ) ;
+            sh:minCount 1 ;
+            sh:path vfg:status ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path vfg:startedAt ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:completedAt ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:canceledAt ] ;
+    sh:sparql [ sh:message "Completed process runs must provide completedAt." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "completed" .
+        FILTER NOT EXISTS { $this vfg:completedAt ?completedAt . }
+      }
+    """ ],
+        [ sh:message "Canceled process runs must provide canceledAt and canceledBy." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "canceled" .
+        FILTER ( NOT EXISTS { $this vfg:canceledAt ?t . } || NOT EXISTS { $this vfg:canceledBy ?a . } )
+      }
+    """ ] ;
+    sh:targetClass vfg:ProcessRun .
+
+vfg:TaskShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:groupId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:processRunId ],
+        [ sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:offeredBy ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "offered" "accepted" "in_progress" "completed" "canceled" ) ;
+            sh:minCount 1 ;
+            sh:path vfg:status ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path vfg:dueAt ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:completedAt ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:path vfg:canceledAt ],
+        [ sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:path vfg:canceledBy ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:path vfg:cancellationReason ] ;
+    sh:sparql [ sh:message "Completed tasks must provide completedAt." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "completed" .
+        FILTER NOT EXISTS { $this vfg:completedAt ?completedAt . }
+      }
+    """ ],
+        [ sh:message "Canceled tasks must provide canceledAt and canceledBy." ;
+            sh:select """
+      SELECT $this WHERE {
+        $this vfg:status "canceled" .
+        FILTER ( NOT EXISTS { $this vfg:canceledAt ?t . } || NOT EXISTS { $this vfg:canceledBy ?a . } )
+      }
+    """ ] ;
+    sh:targetClass vfg:Task .
+
+cstack:AttestationEventShape a sh:NodeShape ;
+    sh:message "An attestation event must carry either a signature or an evidence reference." ;
+    sh:or ( [ sh:property [ sh:datatype xsd:string ;
+                        sh:minCount 1 ;
+                        sh:path cstack:signature ] ] [ sh:property [ sh:datatype xsd:string ;
+                        sh:minCount 1 ;
+                        sh:path cstack:hasEvidenceRef ] ] ) ;
+    sh:property [ sh:message "An attestation event must identify the attested target." ;
+            sh:minCount 1 ;
+            sh:path cstack:attestsTarget ],
+        [ sh:datatype xsd:dateTime ;
+            sh:message "An attestation event must carry a generation time." ;
+            sh:minCount 1 ;
+            sh:path prov:generatedAtTime ] ;
+    sh:targetClass cstack:AttestationEvent .
+
+cstack:CivicChangeEventShape a sh:NodeShape ;
+    sh:property [ sh:message "A civic-stack change event must carry a TIME timestamp." ;
+            sh:minCount 1 ;
+            sh:path time:inXSDDateTime ],
+        [ sh:message "A civic-stack change event must identify an associated agent." ;
+            sh:minCount 1 ;
+            sh:path prov:wasAssociatedWith ] ;
+    sh:targetClass cstack:ChangeEvent .
+
+cstack:MembershipShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:message "A civic membership must identify exactly one member." ;
+            sh:minCount 1 ;
+            sh:path org:member ],
+        [ sh:maxCount 1 ;
+            sh:message "A civic membership must identify exactly one organization." ;
+            sh:minCount 1 ;
+            sh:path org:organization ],
+        [ sh:message "A civic membership must identify at least one role." ;
+            sh:minCount 1 ;
+            sh:path org:role ] ;
+    sh:targetClass org:Membership .
+
+cstack:OrgChangeEventShape a sh:NodeShape ;
+    sh:property [ sh:message "An ORG change event must carry a TIME timestamp." ;
+            sh:minCount 1 ;
+            sh:path time:inXSDDateTime ],
+        [ sh:message "An ORG change event must identify an associated agent." ;
+            sh:minCount 1 ;
+            sh:path prov:wasAssociatedWith ] ;
+    sh:targetClass org:ChangeEvent .
+
+cstack:RegulatedDatasetShape a sh:NodeShape ;
+    sh:property [ sh:message "A regulated dataset must identify its generating activity or service." ;
+            sh:minCount 1 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:message "A regulated dataset must cite at least one access basis." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasAccessBasis ],
+        [ sh:datatype xsd:string ;
+            sh:message "A regulated dataset must carry a provenance reference." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasProvenanceRef ] ;
+    sh:targetClass cstack:RegulatedDataset .
+
+cstack:RegulatedServiceShape a sh:NodeShape ;
+    sh:property [ sh:message "A regulated civic service must cite at least one legal basis." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasLegalBasis ],
+        [ sh:message "A regulated civic service must identify a responsible post." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasResponsiblePost ] ;
+    sh:targetClass cstack:RegulatedService .
+
+cstack:ServiceEventShape a sh:NodeShape ;
+    sh:property [ sh:message "A civic service event must identify the generating service or activity." ;
+            sh:minCount 1 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:message "A civic service event must cite legal basis." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasLegalBasis ],
+        [ sh:datatype xsd:string ;
+            sh:message "A civic service event must carry an evidence reference." ;
+            sh:minCount 1 ;
+            sh:path cstack:hasEvidenceRef ] ;
+    sh:targetClass cstack:ServiceEvent .
+
+cstack:SiteAddressOrGeometryShape a sh:NodeShape ;
+    sh:message "A civic site must carry GeoSPARQL geometry or a vCard address." ;
+    sh:or ( [ sh:property [ sh:minCount 1 ;
+                        sh:path geo:hasGeometry ] ] [ sh:property [ sh:minCount 1 ;
+                        sh:path vcard:hasAddress ] ] ) ;
+    sh:targetClass org:Site .
+
+scen:AdversarialScenarioShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "AdversarialScenario must have a stable adversarial-scenario:* ID." ;
+            sh:minCount 1 ;
+            sh:path scen:scenarioId ;
+            sh:pattern "^adversarial-scenario:[a-z0-9][a-z0-9._:-]*$" ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "AdversarialScenario examples must not authorize engagement." ;
+            sh:minCount 1 ;
+            sh:path scen:engagementAuthorizationAuthority ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "AdversarialScenario examples must not activate downstream delivery." ;
+            sh:minCount 1 ;
+            sh:path scen:activationAllowed ],
+        [ sh:datatype xsd:string ;
+            sh:message "AdversarialScenario must declare a scenario class." ;
+            sh:minCount 1 ;
+            sh:path scen:scenarioClass ],
+        [ sh:class scen:ScenarioObjective ;
+            sh:message "AdversarialScenario must reference a ScenarioObjective." ;
+            sh:minCount 1 ;
+            sh:path scen:hasObjective ],
+        [ sh:class scen:ChannelSubstrate ;
+            sh:message "AdversarialScenario must reference at least one ChannelSubstrate." ;
+            sh:minCount 1 ;
+            sh:path scen:usesChannelSubstrate ],
+        [ sh:class apt:EvidenceEnvelope ;
+            sh:message "AdversarialScenario must reference at least one EvidenceEnvelope." ;
+            sh:minCount 1 ;
+            sh:path scen:hasEvidenceEnvelope ],
+        [ sh:class apt:RunReceipt ;
+            sh:message "AdversarialScenario must reference a runtime decision receipt before scenario export can be treated as governed." ;
+            sh:minCount 1 ;
+            sh:path scen:hasRuntimeDecisionReceipt ],
+        [ sh:class scen:ScenarioNonClaim ;
+            sh:message "AdversarialScenario must carry explicit non-claims." ;
+            sh:minCount 3 ;
+            sh:path scen:hasScenarioNonClaim ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "AdversarialScenario examples must not claim runtime authority." ;
+            sh:minCount 1 ;
+            sh:path scen:runtimeAuthority ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "AdversarialScenario examples must not claim procedure execution authority." ;
+            sh:minCount 1 ;
+            sh:path scen:procedureExecutionAuthority ] ;
+    sh:targetClass scen:AdversarialScenario .
+
+scen:ClaimPromotionStateShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "raw" "hypothesis" "triaged" "blocked" ) ;
+            sh:message "ClaimPromotionState examples must remain raw, hypothesis, triaged, or blocked." ;
+            sh:minCount 1 ;
+            sh:path scen:promotionState ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "ClaimPromotionState must not allow finding promotion in examples." ;
+            sh:minCount 1 ;
+            sh:path scen:findingAllowed ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "ClaimPromotionState must not allow memory update in examples." ;
+            sh:minCount 1 ;
+            sh:path scen:memoryUpdateAllowed ] ;
+    sh:targetClass scen:ClaimPromotionState .
+
+scen:MemoryEffectShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "MemoryEffect must not authorize durable writeback." ;
+            sh:minCount 1 ;
+            sh:path scen:writebackAllowed ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue true ;
+            sh:message "MemoryEffect must require proposal routing." ;
+            sh:minCount 1 ;
+            sh:path scen:proposalRequired ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "pending_review" "blocked" ) ;
+            sh:message "MemoryEffect review state must remain pending_review or blocked." ;
+            sh:minCount 1 ;
+            sh:path scen:reviewState ] ;
+    sh:targetClass scen:MemoryEffect .
+
+scen:TechniqueAnnotationBoundaryShape a sh:NodeShape ;
+    sh:property [ sh:class apt:Technique ;
+            sh:message "Technique mappings are annotations only; authority/evidence/promotion must be represented separately." ;
+            sh:path scen:mapsToTechniqueAnnotation ],
+        [ sh:class scen:AbstentionRule ;
+            sh:message "Technique-annotated scenarios require at least one abstention rule." ;
+            sh:minCount 1 ;
+            sh:path scen:requiresAbstentionRule ] ;
+    sh:targetClass scen:AdversarialScenario .
+
+apt:AgenticPurpleTeamActionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "read_only" "synthetic_only" "dry_run" "write_with_gate" "blocked" ) ;
+            sh:message "Agentic purple-team actions must declare a safety mode." ;
+            sh:minCount 1 ;
+            sh:path apt:safetyMode ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "read" "synthetic_event" "dry_run" "network_call" "write" "deployment" "destructive_action" "credential_access" "memory_write" ) ;
+            sh:message "Agentic purple-team actions must declare a governed action class." ;
+            sh:minCount 1 ;
+            sh:path apt:actionClass ] ;
+    sh:targetClass apt:AgenticPurpleTeamAction .
+
+apt:AtomicTestCaseShape a sh:NodeShape ;
+    sh:property [ sh:class apt:Technique ;
+            sh:message "AtomicTestCase must map to at least one attack technique or local equivalent." ;
+            sh:minCount 1 ;
+            sh:path apt:mapsToTechnique ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "synthetic_only" "dry_run" "read_only" ) ;
+            sh:message "AtomicTestCase examples must remain synthetic/read-only/dry-run in Ontogenesis." ;
+            sh:minCount 1 ;
+            sh:path apt:safetyMode ] ;
+    sh:targetClass apt:AtomicTestCase .
+
+apt:ControlLoopRunShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "ControlLoopRun must have a scope-d run ID." ;
+            sh:minCount 1 ;
+            sh:path apt:runId ;
+            sh:pattern "^scope-d-[A-Za-z0-9._:-]+$" ],
+        [ sh:class apt:SafetyBoundary ;
+            sh:message "ControlLoopRun must reference a SafetyBoundary." ;
+            sh:minCount 1 ;
+            sh:path apt:hasSafetyBoundary ],
+        [ sh:class apt:RunReceipt ;
+            sh:message "ControlLoopRun must reference a RunReceipt." ;
+            sh:minCount 1 ;
+            sh:path apt:hasReceipt ] ;
+    sh:targetClass apt:ControlLoopRun .
+
+apt:TechniqueShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "Technique must have a technique ID." ;
+            sh:minCount 1 ;
+            sh:path apt:techniqueId ] ;
+    sh:targetClass apt:Technique .
+
+banking:FilingPackShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path banking:publicationStatus ] ;
+    sh:targetClass banking:FilingPack .
+
+banking:LegalEntityShape a sh:NodeShape ;
+    sh:property [ sh:minCount 0 ;
+            sh:path banking:hasPortfolio ] ;
+    sh:targetClass banking:LegalEntity .
+
+cs:CyberneticSelfShape a sh:NodeShape ;
+    sh:property [ sh:class cs:IdentityAnchor ;
+            sh:minCount 1 ;
+            sh:path cs:anchoredBy ],
+        [ sh:class cs:ObjectiveFunction ;
+            sh:minCount 1 ;
+            sh:path cs:hasObjectiveFunction ],
+        [ sh:class cs:FederatedEmbodiment ;
+            sh:minCount 1 ;
+            sh:path cs:hasEmbodiment ],
+        [ sh:class cs:Chamber ;
+            sh:minCount 1 ;
+            sh:path cs:hasChamber ],
+        [ sh:class cs:GovernanceCompact ;
+            sh:minCount 1 ;
+            sh:path cs:governedByCompact ],
+        [ sh:class cs:IdentityAnchor ;
+            sh:minCount 1 ;
+            sh:path cs:anchoredBy ],
+        [ sh:class cs:ObjectiveFunction ;
+            sh:minCount 1 ;
+            sh:path cs:hasObjectiveFunction ],
+        [ sh:class cs:FederatedEmbodiment ;
+            sh:minCount 1 ;
+            sh:path cs:hasEmbodiment ],
+        [ sh:class cs:Chamber ;
+            sh:minCount 1 ;
+            sh:path cs:hasChamber ],
+        [ sh:class cs:GovernanceCompact ;
+            sh:minCount 1 ;
+            sh:path cs:governedByCompact ] ;
+    sh:targetClass cs:CyberneticSelf .
+
+c2:MissionShape a sh:NodeShape ;
+    sh:property [ sh:message "A mission must declare a mission identifier." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path c2:missionIdentifier ],
+        [ sh:class c2:CourseOfAction ;
+            sh:message "A mission must declare at least one course of action." ;
+            sh:minCount 1 ;
+            sh:path c2:hasCourseOfAction ],
+        [ sh:class c2:RuleOfEngagement ;
+            sh:message "A mission must declare applicable rules of engagement or operating constraints." ;
+            sh:minCount 1 ;
+            sh:path c2:governedByROE ] ;
+    sh:targetClass c2:Mission .
+
+c2:ReadinessAssessmentShape a sh:NodeShape ;
+    sh:property [ sh:message "A readiness assessment must declare a readiness level." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path c2:readinessLevel ] ;
+    sh:targetClass c2:ReadinessAssessment .
+
+fin:FinancialTransactionShape a sh:NodeShape ;
+    sh:property [ sh:message "A financial transaction must declare a sender." ;
+            sh:minCount 1 ;
+            sh:path fin:hasSender ],
+        [ sh:message "A financial transaction must declare a recipient." ;
+            sh:minCount 1 ;
+            sh:path fin:hasRecipient ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:message "A financial transaction must declare one decimal amount." ;
+            sh:minCount 1 ;
+            sh:path fin:amount ],
+        [ sh:maxCount 1 ;
+            sh:message "A financial transaction must declare a currency." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path fin:currency ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:message "A financial transaction must declare a transaction timestamp." ;
+            sh:minCount 1 ;
+            sh:path fin:transactedAt ] ;
+    sh:targetClass fin:FinancialTransaction .
+
+fin:RiskScoreShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:maxInclusive 1.0 ;
+            sh:message "A risk score must declare a normalized decimal risk value." ;
+            sh:minCount 1 ;
+            sh:minInclusive 0.0 ;
+            sh:path fin:riskValue ],
+        [ sh:message "A risk score must declare the model or policy that produced it." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path fin:riskModel ] ;
+    sh:targetClass fin:RiskScore .
+
+fraud:ConfirmedFraudRequiresLabelProvenanceShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A FraudOutcome with label value confirmed_fraud must have fraud:hasLabelProvenance." ;
+            sh:select """
+      PREFIX fraud: <https://socioprophet.github.io/ontogenesis/domains/fraud#>
+      SELECT $this WHERE {
+        $this fraud:labelValue "confirmed_fraud" .
+        FILTER NOT EXISTS { $this fraud:hasLabelProvenance ?provenance . }
+      }
+    """ ] ;
+    sh:targetClass fraud:FraudOutcome .
+
+fraud:FraudControlActionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:actionKind ],
+        [ sh:datatype xsd:boolean ;
+            sh:minCount 1 ;
+            sh:path fraud:isHumanImpacting ] ;
+    sh:targetClass fraud:FraudControlAction .
+
+fraud:FraudDecisionReceiptShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:decisionId ],
+        [ sh:class fraud:FraudEvent ;
+            sh:minCount 1 ;
+            sh:path fraud:evaluatesEvent ],
+        [ sh:class fraud:FraudEvidenceBundle ;
+            sh:minCount 1 ;
+            sh:path fraud:hasEvidenceBundle ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:claimBoundary ] ;
+    sh:targetClass fraud:FraudDecisionReceipt .
+
+fraud:FraudEvidenceBundleShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:claimBoundary ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:maxInclusive 1.0 ;
+            sh:minInclusive 0.0 ;
+            sh:path fraud:modelScore ] ;
+    sh:targetClass fraud:FraudEvidenceBundle .
+
+fraud:FraudFeatureHealthShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:featureName ],
+        [ sh:datatype xsd:decimal ;
+            sh:path fraud:missingnessDelta ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:operationalAvailability ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:recommendedHandling ] ;
+    sh:targetClass fraud:FraudFeatureHealth .
+
+fraud:FraudLabelProvenanceShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:labelValue ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:labelSource ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxInclusive 1.0 ;
+            sh:minCount 1 ;
+            sh:minInclusive 0.0 ;
+            sh:path fraud:labelConfidence ] ;
+    sh:targetClass fraud:FraudLabelProvenance .
+
+fraud:FraudScenarioCandidateShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:scenarioStatus ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path fraud:claimBoundary ] ;
+    sh:targetClass fraud:FraudScenarioCandidate .
+
+fraud:HumanImpactingAuthorizedActionShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A FraudDecisionReceipt that authorizes a human-impacting FraudControlAction must include fraud:authorizedByPolicyRef." ;
+            sh:select """
+      PREFIX fraud: <https://socioprophet.github.io/ontogenesis/domains/fraud#>
+      SELECT $this WHERE {
+        $this fraud:authorizesAction ?action .
+        ?action fraud:isHumanImpacting true .
+        FILTER NOT EXISTS { $this fraud:authorizedByPolicyRef ?policyRef . }
+      }
+    """ ] ;
+    sh:targetClass fraud:FraudDecisionReceipt .
+
+fraud:NoBenchmarkAsProductionValidationShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A FraudEvidenceBundle with fraud:benchmarkMetric must not assert production validation directly; benchmark metrics alone do not prove production readiness." ;
+            sh:select """
+      PREFIX fraud: <https://socioprophet.github.io/ontogenesis/domains/fraud#>
+      SELECT $this WHERE {
+        $this fraud:benchmarkMetric ?metric .
+        $this fraud:assertsProductionValidationClaim ?claim .
+      }
+    """ ] ;
+    sh:targetClass fraud:FraudEvidenceBundle .
+
+fraud:NoModelScoreAsFraudProofShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A FraudEvidenceBundle with fraud:modelScore must not assert fraud:FraudProofClaim directly; model score is a risk signal, not proof." ;
+            sh:select """
+      PREFIX fraud: <https://socioprophet.github.io/ontogenesis/domains/fraud#>
+      SELECT $this WHERE {
+        $this fraud:modelScore ?score .
+        $this fraud:assertsProofClaim ?claim .
+      }
+    """ ] ;
+    sh:targetClass fraud:FraudEvidenceBundle .
+
+iw:GovernedActionShape a sh:NodeShape ;
+    sh:property [ sh:class iw:Asset ;
+            sh:minCount 1 ;
+            sh:path iw:targetsAsset ],
+        [ sh:class iw:PolicyDecision ;
+            sh:minCount 1 ;
+            sh:path iw:hasPolicyDecision ],
+        [ sh:minCount 1 ;
+            sh:path iw:emitsEvidence ] ;
+    sh:targetClass action:Action .
+
+iw:OutcomeShape a sh:NodeShape ;
+    sh:property [ sh:class iw:WorkOrder ;
+            sh:minCount 1 ;
+            sh:path iw:outcomeForWorkOrder ],
+        [ sh:class iw:Score ;
+            sh:minCount 1 ;
+            sh:path iw:hasScore ] ;
+    sh:targetClass iw:Outcome .
+
+iw:PolicyDecisionShape a sh:NodeShape ;
+    sh:property [ sh:class iw:Actor ;
+            sh:minCount 1 ;
+            sh:path iw:decisionForActor ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "allow" "deny" "escalate" "allow_with_constraints" "revoke" "blocked_expected" ) ;
+            sh:minCount 1 ;
+            sh:path iw:decisionState ] ;
+    sh:targetClass iw:PolicyDecision .
+
+iw:ReviewShape a sh:NodeShape ;
+    sh:property [ sh:class iw:Actor ;
+            sh:minCount 1 ;
+            sh:path iw:reviewedBy ],
+        [ sh:minCount 1 ;
+            sh:path iw:reviewsSubject ],
+        [ sh:class iw:Outcome ;
+            sh:minCount 1 ;
+            sh:path iw:producesOutcome ] ;
+    sh:targetClass iw:Review .
+
+iw:RoleBindingShape a sh:NodeShape ;
+    sh:property [ sh:class iw:Actor ;
+            sh:minCount 1 ;
+            sh:path iw:bindsActor ],
+        [ sh:class iw:Role ;
+            sh:minCount 1 ;
+            sh:path iw:bindsRole ],
+        [ sh:minCount 1 ;
+            sh:path iw:bindingScope ] ;
+    sh:targetClass iw:RoleBinding .
+
+iw:ScoreShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path iw:scoreDimension ],
+        [ sh:datatype xsd:decimal ;
+            sh:minCount 1 ;
+            sh:path iw:scoreValue ] ;
+    sh:targetClass iw:Score .
+
+iw:WorkOrderShape a sh:NodeShape ;
+    sh:property [ sh:class iw:Objective ;
+            sh:minCount 1 ;
+            sh:path iw:worksOnObjective ],
+        [ sh:class iw:Workroom ;
+            sh:minCount 1 ;
+            sh:path iw:belongsToWorkroom ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path iw:status ] ;
+    sh:targetClass iw:WorkOrder .
+
+inv:ChainOfCustodyEventShape a sh:NodeShape ;
+    sh:property [ sh:message "A custody event must declare the party holding custody." ;
+            sh:minCount 1 ;
+            sh:path inv:custodyHeldBy ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:message "A custody event must declare a timestamp." ;
+            sh:minCount 1 ;
+            sh:path inv:custodyTimestamp ] ;
+    sh:targetClass inv:ChainOfCustodyEvent .
+
+inv:EvidenceItemShape a sh:NodeShape ;
+    sh:property [ sh:message "An evidence item must declare an evidence identifier." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path inv:evidenceIdentifier ],
+        [ sh:class inv:ChainOfCustodyEvent ;
+            sh:message "An evidence item must include at least one custody event." ;
+            sh:minCount 1 ;
+            sh:path inv:hasCustodyEvent ] ;
+    sh:targetClass inv:EvidenceItem .
+
+kcc:AlignmentEdgeShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:maxInclusive 1.0 ;
+            sh:message "An alignment edge must preserve a normalized cosine in [0,1]." ;
+            sh:minCount 1 ;
+            sh:minInclusive 0.0 ;
+            sh:path kcc:cosine ],
+        [ sh:class kcc:Topic ;
+            sh:message "An alignment edge must reference its canon topic." ;
+            sh:minCount 1 ;
+            sh:path kcc:alignsTopic ],
+        [ sh:class kcc:TestSubject ;
+            sh:message "An alignment edge must reference its test subject." ;
+            sh:minCount 1 ;
+            sh:path kcc:alignsSubject ] ;
+    sh:targetClass kcc:AlignmentEdge .
+
+kcc:DerivedAssertionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "induced" "deduced" "abduced" ) ;
+            sh:maxCount 1 ;
+            sh:message "A derived assertion must declare exactly one epistemic mode: induced | deduced | abduced." ;
+            sh:minCount 1 ;
+            sh:path kcc:epistemicMode ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "A derived assertion must declare exactly one relation." ;
+            sh:minCount 1 ;
+            sh:path kcc:inducedRelation ],
+        [ sh:datatype xsd:string ;
+            sh:message "A derived assertion must name its subject." ;
+            sh:minCount 1 ;
+            sh:path kcc:inducedSubjectLabel ],
+        [ sh:datatype xsd:string ;
+            sh:message "A derived assertion must name its object." ;
+            sh:minCount 1 ;
+            sh:path kcc:inducedObjectLabel ],
+        [ sh:message "A derived assertion must declare its provenance (dct:source)." ;
+            sh:minCount 1 ;
+            sh:path dct:source ] ;
+    sh:targetClass kcc:DerivedAssertion .
+
+kcc:FormulaShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "A canon formula must declare its statement (form)." ;
+            sh:minCount 1 ;
+            sh:path math:hasStatement ],
+        [ sh:class kcc:Topic ;
+            sh:message "A canon formula must be attached to a topic." ;
+            sh:minCount 1 ;
+            sh:path dct:subject ] ;
+    sh:targetClass kcc:Formula .
+
+kcc:GlossaryTermShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "A glossary term must declare a definition." ;
+            sh:minCount 1 ;
+            sh:path skos:definition ] ;
+    sh:targetClass kcc:GlossaryTerm .
+
+kcc:KnowledgeConceptShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "A canon concept must declare exactly one preferred label." ;
+            sh:minCount 1 ;
+            sh:path skos:prefLabel ],
+        [ sh:class kc:KnowledgeContext ;
+            sh:message "A canon concept must be bound to a governed Knowledge Context." ;
+            sh:minCount 1 ;
+            sh:path kcc:inKnowledgeContext ] ;
+    sh:targetClass kcc:KnowledgeConcept .
+
+kcc:TopicShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "A canon topic must declare exactly one level." ;
+            sh:minCount 1 ;
+            sh:path kcc:level ] ;
+    sh:targetClass kcc:Topic .
+
+legal:LegalEntityShape a sh:NodeShape ;
+    sh:property [ sh:class legal:Jurisdiction ;
+            sh:minCount 1 ;
+            sh:path legal:incorporatedIn ],
+        [ sh:class legal:Jurisdiction ;
+            sh:minCount 1 ;
+            sh:path legal:incorporatedIn ] ;
+    sh:targetClass legal:LegalEntity .
+
+legal:OwnershipRelationShape a sh:NodeShape ;
+    sh:property [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:ownedByEntity ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:ownsEntity ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:ownedByEntity ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:ownsEntity ] ;
+    sh:targetClass legal:OwnershipRelation .
+
+legal:RepositoryAllocationShape a sh:NodeShape ;
+    sh:property [ sh:class legal:RepositoryAsset ;
+            sh:minCount 1 ;
+            sh:path legal:allocatesRepository ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:allocatedToEntity ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path legal:allocationRuleText ],
+        [ sh:class legal:RepositoryAsset ;
+            sh:minCount 1 ;
+            sh:path legal:allocatesRepository ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path legal:allocatedToEntity ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path legal:allocationRuleText ] ;
+    sh:targetClass legal:RepositoryAllocation .
+
+party:PartyShape a sh:NodeShape ;
+    sh:property [ sh:class party:IdentityRecord ;
+            sh:minCount 1 ;
+            sh:path party:hasIdentityRecord ],
+        [ sh:class party:RoleAssignment ;
+            sh:minCount 1 ;
+            sh:path party:hasRoleAssignment ],
+        [ sh:class party:IdentityRecord ;
+            sh:minCount 1 ;
+            sh:path party:hasIdentityRecord ],
+        [ sh:class party:RoleAssignment ;
+            sh:minCount 1 ;
+            sh:path party:hasRoleAssignment ] ;
+    sh:targetClass party:Party .
+
+party:RoleAssignmentShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path party:roleName ],
+        [ sh:class party:Party ;
+            sh:minCount 1 ;
+            sh:path party:roleHeldBy ],
+        [ sh:class cs:CyberneticSelf ;
+            sh:minCount 1 ;
+            sh:path party:roleWithinSelf ],
+        [ sh:class party:Party ;
+            sh:minCount 1 ;
+            sh:path party:roleHeldBy ],
+        [ sh:class cs:CyberneticSelf ;
+            sh:minCount 1 ;
+            sh:path party:roleWithinSelf ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path party:roleName ] ;
+    sh:targetClass party:RoleAssignment .
+
+ps:CapabilityShape a sh:NodeShape ;
+    sh:property [ sh:class ps:Feature ;
+            sh:minCount 1 ;
+            sh:path ps:includesFeature ],
+        [ sh:class ps:Feature ;
+            sh:minCount 1 ;
+            sh:path ps:includesFeature ] ;
+    sh:targetClass ps:Capability .
+
+ps:OfferingShape a sh:NodeShape ;
+    sh:property [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:hasPlan ] ;
+    sh:targetClass biz:Offering .
+
+ps:PlanShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ps:planCode ],
+        [ sh:class ps:SKU ;
+            sh:minCount 1 ;
+            sh:path ps:soldAsSKU ],
+        [ sh:class ps:Capability ;
+            sh:minCount 1 ;
+            sh:path ps:includesCapability ],
+        [ sh:class party:Entitlement ;
+            sh:minCount 1 ;
+            sh:path ps:grantsEntitlement ],
+        [ sh:class ps:ServiceLevel ;
+            sh:minCount 1 ;
+            sh:path ps:defaultSLA ],
+        [ sh:class ps:PriceBook ;
+            sh:minCount 1 ;
+            sh:path ps:pricedInBook ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ps:planCode ],
+        [ sh:class ps:SKU ;
+            sh:minCount 1 ;
+            sh:path ps:soldAsSKU ],
+        [ sh:class ps:Capability ;
+            sh:minCount 1 ;
+            sh:path ps:includesCapability ],
+        [ sh:class party:Entitlement ;
+            sh:minCount 1 ;
+            sh:path ps:grantsEntitlement ],
+        [ sh:class ps:ServiceLevel ;
+            sh:minCount 1 ;
+            sh:path ps:defaultSLA ],
+        [ sh:class ps:PriceBook ;
+            sh:minCount 1 ;
+            sh:path ps:pricedInBook ] ;
+    sh:targetClass ps:Plan .
+
+ps:ProductOfferingShape a sh:NodeShape ;
+    sh:property [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:hasPlan ],
+        [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:hasPlan ] ;
+    sh:targetClass ps:ProductOffering .
+
+ps:ServiceInstanceShape a sh:NodeShape ;
+    sh:property [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:instantiatesPlan ],
+        [ sh:class party:Party ;
+            sh:minCount 1 ;
+            sh:path ps:provisionedFor ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path ps:governedByProvider ],
+        [ sh:class biz:Contract ;
+            sh:minCount 1 ;
+            sh:path ps:billedUnderContract ],
+        [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:instantiatesPlan ],
+        [ sh:class party:Party ;
+            sh:minCount 1 ;
+            sh:path ps:provisionedFor ],
+        [ sh:class legal:LegalEntity ;
+            sh:minCount 1 ;
+            sh:path ps:governedByProvider ],
+        [ sh:class biz:Contract ;
+            sh:minCount 1 ;
+            sh:path ps:billedUnderContract ] ;
+    sh:targetClass ps:ServiceInstance .
+
+ps:ServiceOfferingShape a sh:NodeShape ;
+    sh:property [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:hasPlan ],
+        [ sh:class ps:Plan ;
+            sh:minCount 1 ;
+            sh:path ps:hasPlan ] ;
+    sh:targetClass ps:ServiceOffering .
+
+st:PackageProvenanceShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "PackageProvenance must include a source reference." ;
+            sh:minCount 1 ;
+            sh:path st:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "PackageProvenance must include package path." ;
+            sh:minCount 1 ;
+            sh:path st:packagePath ],
+        [ sh:datatype xsd:dateTime ;
+            sh:maxCount 1 ;
+            sh:message "PackageProvenance must include observation time." ;
+            sh:minCount 1 ;
+            sh:path st:observedAt ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "extracted" "inferred" "reviewed" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:message "PackageProvenance claimLevel must be one of extracted, inferred, reviewed, or rejected." ;
+            sh:minCount 1 ;
+            sh:path st:claimLevel ] ;
+    sh:targetClass st:PackageProvenance .
+
+st:PhysicalDomainGateShape a sh:NodeShape ;
+    sh:sparql [ sh:message "Physical-domain tools must require physical_domain_authorization." ;
+            sh:select """
+      PREFIX st: <https://socioprophet.github.io/ontogenesis/domains/security-tools#>
+      SELECT $this WHERE {
+        $this st:hasRiskSignal ?risk .
+        ?risk st:physicalDomain true .
+        FILTER NOT EXISTS { $this st:requiresGate "physical_domain_authorization" }
+      }
+    """ ] ;
+    sh:targetClass st:SecurityTool .
+
+st:RestrictedCatalogOnlyShape a sh:NodeShape ;
+    sh:sparql [ sh:message "RestrictedCatalogOnly, BlockedRuntime, and UnknownReviewRequired tools cannot default to ReadOnly or SandboxedLab." ;
+            sh:select """
+      PREFIX st: <https://socioprophet.github.io/ontogenesis/domains/security-tools#>
+      SELECT $this WHERE {
+        $this st:hasSafetyClass ?safety ;
+              st:defaultExecutionMode ?mode .
+        FILTER (?safety IN (st:RestrictedCatalogOnly, st:BlockedRuntime, st:UnknownReviewRequired))
+        FILTER (?mode IN (st:ReadOnly, st:SandboxedLab))
+      }
+    """ ] ;
+    sh:targetSubjectsOf st:hasSafetyClass .
+
+st:SecurityToolShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must have exactly one stable tool ID." ;
+            sh:minCount 1 ;
+            sh:path st:toolId ;
+            sh:pattern "^tool-[A-Za-z0-9._:-]+$" ],
+        [ sh:class st:PackageProvenance ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must retain package provenance." ;
+            sh:minCount 1 ;
+            sh:path st:hasPackageProvenance ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue true ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool imports must require a wrapper before any future execution path." ;
+            sh:minCount 1 ;
+            sh:path st:wrapperRequired ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool imports must not allow production execution." ;
+            sh:minCount 1 ;
+            sh:path st:productionAllowed ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must declare its source corpus." ;
+            sh:minCount 1 ;
+            sh:path st:sourceCorpus ],
+        [ sh:datatype xsd:string ;
+            sh:message "SecurityTool must retain at least one source category." ;
+            sh:minCount 1 ;
+            sh:path st:category ],
+        [ sh:class st:SecurityCapability ;
+            sh:message "SecurityTool must map to at least one normalized SecurityCapability." ;
+            sh:minCount 1 ;
+            sh:path st:hasCapability ],
+        [ sh:class st:SafetyClass ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must have exactly one SafetyClass." ;
+            sh:minCount 1 ;
+            sh:path st:hasSafetyClass ],
+        [ sh:class st:ExecutionMode ;
+            sh:message "SecurityTool must declare at least one permitted descriptive ExecutionMode." ;
+            sh:minCount 1 ;
+            sh:path st:hasExecutionMode ],
+        [ sh:class st:ExecutionMode ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must have exactly one default ExecutionMode." ;
+            sh:minCount 1 ;
+            sh:path st:defaultExecutionMode ],
+        [ sh:class st:ToolRiskSignal ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must have one ToolRiskSignal node." ;
+            sh:minCount 1 ;
+            sh:path st:hasRiskSignal ],
+        [ sh:class st:ToolEvidenceContract ;
+            sh:maxCount 1 ;
+            sh:message "SecurityTool must have one ToolEvidenceContract." ;
+            sh:minCount 1 ;
+            sh:path st:hasEvidenceContract ] ;
+    sh:targetClass st:SecurityTool .
+
+st:ToolEvidenceContractShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "ToolEvidenceContract must declare at least one expected evidence type." ;
+            sh:minCount 1 ;
+            sh:path st:evidenceType ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolEvidenceContract must declare whether redaction is required." ;
+            sh:minCount 1 ;
+            sh:path st:redactionRequired ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:maxCount 1 ;
+            sh:message "Imported catalog evidence contracts must not allow raw output by default." ;
+            sh:minCount 1 ;
+            sh:path st:rawOutputAllowed ] ;
+    sh:targetClass st:ToolEvidenceContract .
+
+st:ToolRiskSignalShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare requiresNetwork." ;
+            sh:minCount 1 ;
+            sh:path st:requiresNetwork ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare requiresRoot." ;
+            sh:minCount 1 ;
+            sh:path st:requiresRoot ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare requiresRawSocket." ;
+            sh:minCount 1 ;
+            sh:path st:requiresRawSocket ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare requiresCaptureDevice." ;
+            sh:minCount 1 ;
+            sh:path st:requiresCaptureDevice ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare mayMutateTarget." ;
+            sh:minCount 1 ;
+            sh:path st:mayMutateTarget ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare mayHandleSecrets." ;
+            sh:minCount 1 ;
+            sh:path st:mayHandleSecrets ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare mayContactExternalServices." ;
+            sh:minCount 1 ;
+            sh:path st:mayContactExternalServices ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "ToolRiskSignal must declare physicalDomain." ;
+            sh:minCount 1 ;
+            sh:path st:physicalDomain ] ;
+    sh:targetClass st:ToolRiskSignal .
+
+shp:CoverageFindingShape a sh:NodeShape ;
+    sh:property [ sh:message "Every coverage finding must identify the affected subject." ;
+            sh:minCount 1 ;
+            sh:path shp:findingSubject ],
+        [ sh:class shp:FindingTypeCode ;
+            sh:message "Every coverage finding must name a controlled finding type." ;
+            sh:minCount 1 ;
+            sh:path shp:findingType ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxInclusive 1.0 ;
+            sh:message "Coverage-finding confidence must be a decimal in [0,1]." ;
+            sh:minInclusive 0.0 ;
+            sh:path shp:confidenceScore ] ;
+    sh:targetClass shp:CoverageFinding .
+
+shp:EvidenceRecordShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:message "Evidence records should use xsd:dateTime observation timestamps." ;
+            sh:path shp:observedAt ] ;
+    sh:targetClass shp:EvidenceRecord .
+
+shp:PolicyDocumentShape a sh:NodeShape ;
+    sh:property [ sh:class shp:PrivacyClaim ;
+            sh:message "Every analyzed policy document must emit at least one privacy claim." ;
+            sh:minCount 1 ;
+            sh:path shp:assertsClaim ] ;
+    sh:targetClass shp:PolicyDocument .
+
+shp:PrivacyClaimShape a sh:NodeShape ;
+    sh:property [ sh:class shp:EvidenceRecord ;
+            sh:message "Every privacy claim must preserve evidence." ;
+            sh:minCount 1 ;
+            sh:path shp:evidenceForClaim ] ;
+    sh:targetClass shp:PrivacyClaim .
+
+shp:SmartHomeDeviceShape a sh:NodeShape ;
+    sh:property [ sh:class shp:SmartHomeVendor ;
+            sh:message "Every smart-home device must bind to a vendor." ;
+            sh:minCount 1 ;
+            sh:path shp:hasVendor ],
+        [ sh:class shp:DeviceType ;
+            sh:message "Every smart-home device must declare at least one device type." ;
+            sh:minCount 1 ;
+            sh:path shp:hasDeviceType ] ;
+    sh:targetClass shp:SmartHomeDevice .
+
+sc:ShipmentShape a sh:NodeShape ;
+    sh:property [ sh:class sc:Facility ;
+            sh:message "A shipment must declare its origin facility." ;
+            sh:minCount 1 ;
+            sh:path sc:shipsFrom ],
+        [ sh:class sc:Facility ;
+            sh:message "A shipment must declare its destination facility." ;
+            sh:minCount 1 ;
+            sh:path sc:shipsTo ],
+        [ sh:message "A shipment must declare at least one source or transport document." ;
+            sh:minCount 1 ;
+            sh:path sc:shipmentDocument ],
+        [ sh:message "A shipment must declare a status." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sc:shipmentStatus ] ;
+    sh:targetClass sc:Shipment .
+
+sc:SupplyRiskShape a sh:NodeShape ;
+    sh:property [ sh:message "A supply risk must declare what it affects." ;
+            sh:minCount 1 ;
+            sh:path sc:riskAffects ],
+        [ sh:message "A supply risk must declare a risk level." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path sc:riskLevel ] ;
+    sh:targetClass sc:SupplyRisk .
+
+cti:IndicatorShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:maxInclusive 1.0 ;
+            sh:message "A CTI indicator must declare confidence between 0.0 and 1.0." ;
+            sh:minCount 1 ;
+            sh:minInclusive 0.0 ;
+            sh:path cti:confidence ],
+        [ sh:class cti:Observable ;
+            sh:message "A CTI indicator must include at least one observable." ;
+            sh:minCount 1 ;
+            sh:path cti:hasObservable ],
+        [ sh:class cti:CTISource ;
+            sh:message "A CTI indicator must declare at least one source." ;
+            sh:minCount 1 ;
+            sh:path cti:reportedBy ] ;
+    sh:targetClass cti:Indicator .
+
+cti:ObservableShape a sh:NodeShape ;
+    sh:property [ sh:message "An observable must declare an observable type." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path cti:observableType ],
+        [ sh:message "An observable must declare an observable value." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path cti:observableValue ] ;
+    sh:targetClass cti:Observable .
+
+tf:CreditRecordShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:hasValue false ;
+            sh:message "Credit records must not create economic obligations." ;
+            sh:minCount 1 ;
+            sh:path tf:economicObligation ],
+        [ sh:datatype xsd:boolean ;
+            sh:hasValue true ;
+            sh:message "Credit records must be non-transferable." ;
+            sh:minCount 1 ;
+            sh:path tf:nonTransferable ] ;
+    sh:targetClass tf:CreditRecord .
+
+tf:FrameworkCatalogEntryShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "Framework catalog entries must declare adapterStatus." ;
+            sh:minCount 1 ;
+            sh:path tf:adapterStatus ],
+        [ sh:datatype xsd:string ;
+            sh:message "Framework catalog entries must declare adapterType." ;
+            sh:minCount 1 ;
+            sh:path tf:adapterType ],
+        [ sh:datatype xsd:string ;
+            sh:message "Framework catalog entries require claimBoundary." ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path tf:claimBoundary ] ;
+    sh:targetClass tf:FrameworkCatalogEntry .
+
+tf:HFEventShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:hasValue true ;
+            sh:message "HFEvent requires consent=true." ;
+            sh:minCount 1 ;
+            sh:path tf:consent ],
+        [ sh:datatype xsd:string ;
+            sh:message "HFEvent requires a license." ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path tf:license ],
+        [ sh:datatype xsd:string ;
+            sh:message "HFEvent requires lineage." ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path tf:lineage ],
+        [ sh:datatype xsd:string ;
+            sh:message "HFEvent requires rubric evidence." ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path tf:rubric ] ;
+    sh:targetClass tf:HFEvent .
+
+tf:ModelCardShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "TritFabric model cards must declare mathType." ;
+            sh:minCount 1 ;
+            sh:path tf:mathType ],
+        [ sh:datatype xsd:string ;
+            sh:message "TritFabric model cards must declare calcOps." ;
+            sh:minCount 1 ;
+            sh:path tf:calcOps ],
+        [ sh:datatype xsd:string ;
+            sh:message "TritFabric model cards must include a ledgerRef." ;
+            sh:minCount 1 ;
+            sh:path tf:ledgerRef ],
+        [ sh:datatype xsd:string ;
+            sh:message "TritFabric model cards must include an artifactRef." ;
+            sh:minCount 1 ;
+            sh:path tf:artifactRef ] ;
+    sh:targetClass tf:ModelCard .
+
+tf:ServeAutoscalerReadinessShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:decimal ;
+            sh:message "Serve autoscaler readiness must declare targetP95Ms." ;
+            sh:minCount 1 ;
+            sh:path tf:targetP95Ms ],
+        [ sh:datatype xsd:string ;
+            sh:message "Serve autoscaler readiness requires claimBoundary." ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path tf:claimBoundary ] ;
+    sh:targetClass tf:ServeAutoscalerReadiness .
+
+epi:QuantumHardwareOptInShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "When hardwareOptIn=true, usesProvider and tasks' usesBackend must be present." ;
+            sh:select """
+      PREFIX epi: <https://socioprophet.github.io/ontogenesis/epi#>
+      SELECT ?this WHERE {
+        ?this epi:hardwareOptIn true .
+        FILTER NOT EXISTS { ?this epi:usesProvider ?p . }
+      }
+    """ ],
+        [ a sh:SPARQLConstraint ;
+            sh:message "When hardwareOptIn=true, every QuantumTask must have usesBackend set." ;
+            sh:select """
+      PREFIX epi: <https://socioprophet.github.io/ontogenesis/epi#>
+      SELECT ?this WHERE {
+        ?this epi:hardwareOptIn true .
+        ?this epi:runsTask ?t .
+        FILTER NOT EXISTS { ?t epi:usesBackend ?b . }
+      }
+    """ ] ;
+    sh:targetClass epi:QuantumLane .
+
+epi:QuantumLaneShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:boolean ;
+            sh:minCount 1 ;
+            sh:path epi:hardwareOptIn ],
+        [ sh:datatype xsd:integer ;
+            sh:minCount 1 ;
+            sh:path epi:qubitBudget ] ;
+    sh:targetClass epi:QuantumLane .
+
+action:ActionShape a sh:NodeShape ;
+    sh:property [ sh:class upper:Agent ;
+            sh:minCount 1 ;
+            sh:path action:performedBy ],
+        [ sh:class action:ActionType ;
+            sh:minCount 1 ;
+            sh:path action:hasActionType ],
+        [ sh:class action:State ;
+            sh:minCount 1 ;
+            sh:path action:fromState ],
+        [ sh:class action:State ;
+            sh:minCount 1 ;
+            sh:path action:toState ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path action:timestamp ] ;
+    sh:targetClass action:Action .
+
+action:DoneTraceShape a sh:NodeShape ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A done trace must refer to an action." ;
+            sh:select """
+      PREFIX action: <https://socioprophet.github.io/ontogenesis/middle/action#>
+      SELECT ?this WHERE {
+        ?this action:traceKind ?kind .
+        FILTER(LCASE(STR(?kind)) = "done")
+        FILTER NOT EXISTS { ?this action:refersToAction ?a . }
+      }
+    """ ] ;
+    sh:targetClass action:Trace .
+
+action:PreferenceShape a sh:NodeShape ;
+    sh:property [ sh:class action:State ;
+            sh:minCount 1 ;
+            sh:path action:targetsGoalState ],
+        [ sh:datatype xsd:integer ;
+            sh:minCount 1 ;
+            sh:path action:priority ] ;
+    sh:targetClass action:Preference .
+
+action:StateShape a sh:NodeShape ;
+    sh:property [ sh:class action:ActionType ;
+            sh:minCount 1 ;
+            sh:path action:hasAffordance ] ;
+    sh:targetClass action:State .
+
+action:TraceShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path action:medium ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path action:traceKind ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path action:traceTimestamp ] ;
+    sh:targetClass action:Trace .
+
+kgl:GraphOutputShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:message "A graph output must declare its quality status." ;
+            sh:minCount 1 ;
+            sh:path kgl:qualityStatus ] ;
+    sh:targetClass kgl:GraphOutput .
+
+kgl:PipelineShape a sh:NodeShape ;
+    sh:property [ sh:class kgl:LifecyclePhase ;
+            sh:message "A knowledge graph pipeline must declare at least one lifecycle phase." ;
+            sh:minCount 1 ;
+            sh:path kgl:hasPhase ],
+        [ sh:datatype xsd:string ;
+            sh:message "A knowledge graph pipeline must declare at least one source system or source family." ;
+            sh:minCount 1 ;
+            sh:path kgl:sourceSystem ],
+        [ sh:class kgl:GraphOutput ;
+            sh:message "A knowledge graph pipeline must declare at least one governed graph output." ;
+            sh:minCount 1 ;
+            sh:path kgl:producesGraphOutput ] ;
+    sh:targetClass kgl:Pipeline .
+
+kgl:SPARQLEndpointShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:anyURI ;
+            sh:maxCount 1 ;
+            sh:message "A SPARQL endpoint must declare a query interface URL." ;
+            sh:minCount 1 ;
+            sh:path kgl:queryInterfaceUrl ] ;
+    sh:targetClass kgl:SPARQLEndpoint .
+
+ngov:GraphAccessPolicyShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ngov:accessClass ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ngov:retentionPolicy ] ;
+    sh:targetClass ngov:GraphAccessPolicy .
+
+ngov:GraphTrustProfileShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path ngov:trustLevel ] ;
+    sh:targetClass ngov:GraphTrustProfile .
+
+ngov:NamedGraphShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:anyURI ;
+            sh:maxCount 1 ;
+            sh:message "A named graph must declare its graph URI." ;
+            sh:minCount 1 ;
+            sh:path ngov:graphURI ],
+        [ sh:datatype xsd:string ;
+            sh:message "A named graph must declare its source system or source family." ;
+            sh:minCount 1 ;
+            sh:path ngov:sourceSystem ],
+        [ sh:class ngov:GraphAccessPolicy ;
+            sh:message "A named graph must declare a graph access policy." ;
+            sh:minCount 1 ;
+            sh:path ngov:hasAccessPolicy ],
+        [ sh:class ngov:GraphTrustProfile ;
+            sh:message "A named graph must declare a graph trust profile." ;
+            sh:minCount 1 ;
+            sh:path ngov:hasTrustProfile ] ;
+    sh:targetClass ngov:NamedGraph .
+
+rcg:ChannelAuthorityEnvelopeShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:allowedSink ],
+        [ sh:datatype xsd:string ;
+            sh:path rcg:disallowedSink ] ;
+    sh:targetClass rcg:ChannelAuthorityEnvelope .
+
+rcg:ChannelObservationShape a sh:NodeShape ;
+    sh:property [ sh:class rcg:PromotionState ;
+            sh:minCount 1 ;
+            sh:path rcg:hasPromotionState ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:provenanceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:confidenceType ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:confidenceLevel ],
+        [ sh:class rcg:Channel ;
+            sh:minCount 1 ;
+            sh:path rcg:usesChannel ],
+        [ sh:class rcg:Percept ;
+            sh:minCount 1 ;
+            sh:path rcg:hasPercept ],
+        [ sh:class rcg:ChannelAuthorityEnvelope ;
+            sh:minCount 1 ;
+            sh:path rcg:governedByEnvelope ] ;
+    sh:targetClass rcg:ChannelObservation .
+
+rcg:ChannelShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:channelId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:channelClass ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:substrate ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:captureMethod ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:trustBoundary ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:knownConfusabilityMode ] ;
+    sh:targetClass rcg:Channel .
+
+rcg:CollapseDecisionShape a sh:NodeShape ;
+    sh:property [ sh:class rcg:ChannelObservation ;
+            sh:minCount 1 ;
+            sh:path rcg:sourceObservation ],
+        [ sh:class rcg:InterpretantCandidate ;
+            sh:minCount 1 ;
+            sh:path rcg:selectedInterpretant ],
+        [ sh:class rcg:RepairEvent ;
+            sh:minCount 1 ;
+            sh:path rcg:hasRepairEvent ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:residualUncertainty ] ;
+    sh:targetClass rcg:CollapseDecision .
+
+rcg:InterpretantCandidateShape a sh:NodeShape ;
+    sh:property [ sh:class rcg:Confusable ;
+            sh:path rcg:confusableWith ] ;
+    sh:targetClass rcg:InterpretantCandidate .
+
+rcg:ProjectionProfileShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:lossProfile ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path rcg:allowedUse ],
+        [ sh:datatype xsd:string ;
+            sh:path rcg:disallowedUse ] ;
+    sh:targetClass rcg:ProjectionProfile .
+
+smap:ExternalOntologyShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:message "An external ontology must declare a standard name." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path smap:standardName ],
+        [ sh:maxCount 1 ;
+            sh:message "An external ontology must declare a standard URL." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path smap:standardUrl ] ;
+    sh:targetClass smap:ExternalOntology .
+
+smap:MappingAssertionShape a sh:NodeShape ;
+    sh:property [ sh:message "A mapping assertion must declare the Ontogenesis/source concept it maps from." ;
+            sh:minCount 1 ;
+            sh:path smap:mapsFrom ],
+        [ sh:message "A mapping assertion must declare the external/target concept it maps to." ;
+            sh:minCount 1 ;
+            sh:path smap:mapsTo ],
+        [ sh:class smap:MappingPredicate ;
+            sh:message "A mapping assertion must declare the mapping predicate classifying the semantic relationship." ;
+            sh:minCount 1 ;
+            sh:path smap:usesMappingPredicate ],
+        [ sh:datatype xsd:decimal ;
+            sh:maxCount 1 ;
+            sh:maxInclusive 1.0 ;
+            sh:message "A mapping assertion must declare a confidence value between 0.0 and 1.0." ;
+            sh:minCount 1 ;
+            sh:minInclusive 0.0 ;
+            sh:path smap:confidence ],
+        [ sh:maxCount 1 ;
+            sh:message "A mapping assertion must declare a lifecycle status such as draft, reviewed, approved, deprecated, or rejected." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:path smap:status ] ;
+    sh:targetClass smap:MappingAssertion .
+
+nl:LayerContractShape a sh:NodeShape ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path nl:invariantForm ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path nl:integrator ],
+        [ sh:minCount 1 ;
+            sh:path nl:hasCharge ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path nl:forLayer ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path nl:algebra ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path nl:group ] ;
+    sh:targetClass nl:LayerContract .
+
+nl:OctonionWitnessRule a sh:NodeShape ;
+    sh:rule [ a sh:SPARQLRule ;
+            sh:construct """
+      PREFIX nl: <https://socioprophet.github.io/ontogenesis/noether#>
+      PREFIX sh: <http://www.w3.org/ns/shacl#>
+      PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+      CONSTRUCT {
+        ?this sh:result [
+          a sh:ValidationResult ;
+          sh:resultSeverity sh:Violation ;
+          sh:resultMessage "Octonion contracts must record a coercion witness associator norm." ;
+          sh:focusNode ?this ;
+        ] .
+      }
+      WHERE {
+        ?this nl:algebra nl:O .
+        FILTER NOT EXISTS {
+          ?this (nl:coercionIn|nl:coercionOut) ?c .
+          ?c nl:hasWitness ?w .
+          ?w nl:associatorNorm ?n .
+        }
+      }
+    """ ] ;
+    sh:targetClass nl:LayerContract .
+
+ces:CausalRelationCandidateShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:causeText ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:effectText ],
+        [ sh:datatype xsd:decimal ;
+            sh:minCount 1 ;
+            sh:path ces:confidence ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:claimStatus ],
+        [ sh:class ces:SourceProvenance ;
+            sh:minCount 1 ;
+            sh:path ces:hasProvenance ] ;
+    sh:targetClass ces:CausalRelationCandidate .
+
+ces:ColumnOntologyLinkShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:columnName ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:ontologyTerm ],
+        [ sh:datatype xsd:decimal ;
+            sh:minCount 1 ;
+            sh:path ces:confidence ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:claimStatus ] ;
+    sh:targetClass ces:ColumnOntologyLink .
+
+ces:CorpusEvidenceBundleShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:evidenceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:sourceQuality ] ;
+    sh:targetClass ces:CorpusEvidenceBundle .
+
+ces:DiagnosticFindingShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:diagnosticCode ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:findingSeverity ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:claimStatus ],
+        [ sh:class ces:CorpusEvidenceBundle ;
+            sh:minCount 1 ;
+            sh:path ces:hasEvidence ],
+        [ sh:class ces:SourceProvenance ;
+            sh:minCount 1 ;
+            sh:path ces:hasProvenance ] ;
+    sh:targetClass ces:DiagnosticFinding .
+
+ces:EventInstanceShape a sh:NodeShape ;
+    sh:property [ sh:class ces:EventSchema ;
+            sh:minCount 1 ;
+            sh:path ces:usesEventSchema ],
+        [ sh:class ces:SourceProvenance ;
+            sh:minCount 1 ;
+            sh:path ces:hasProvenance ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:eventId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:eventType ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:claimStatus ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:sourceQuality ] ;
+    sh:targetClass ces:EventInstance .
+
+ces:EventSchemaShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:evidenceRef ] ;
+    sh:targetClass ces:EventSchema .
+
+ces:SemanticTableAnnotationTaskShape a sh:NodeShape ;
+    sh:property [ sh:class ces:ColumnOntologyLink ;
+            sh:minCount 1 ;
+            sh:path ces:hasColumnLink ],
+        [ sh:class ces:SourceProvenance ;
+            sh:minCount 1 ;
+            sh:path ces:hasProvenance ] ;
+    sh:targetClass ces:SemanticTableAnnotationTask .
+
+ces:SourceProvenanceShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:sourceQuality ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path ces:evidenceRef ] ;
+    sh:targetClass ces:SourceProvenance .
+
+gi:ActionProposalShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:actionType ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:scope ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:expectedEffect ],
+        [ sh:class gi:Evidence ;
+            sh:minCount 1 ;
+            sh:path gi:hasEvidence ] ;
+    sh:targetClass gi:ActionProposal .
+
+gi:AnchorShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:artifactRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:selector ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "text_span" "image_region" "geometry" "h3_cell" "code_range" "log_range" "table_cell" "audio_segment" "video_clip" "generic_selector" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path gi:selectorType ] ;
+    sh:targetClass gi:Anchor .
+
+gi:ClaimShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:subjectRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:predicateRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:objectRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:contextRef ],
+        [ sh:class gi:Evidence ;
+            sh:minCount 1 ;
+            sh:path gi:hasEvidence ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:Claim .
+
+gi:EvidenceShape a sh:NodeShape ;
+    sh:property [ sh:class gi:Anchor ;
+            sh:minCount 1 ;
+            sh:path gi:hasAnchor ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:Evidence .
+
+gi:LearningOperationShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:operationScope ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:LearningOperation .
+
+gi:LinkingOperationShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:operationScope ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:LinkingOperation .
+
+gi:NonLearningConstraintShape a sh:NodeShape ;
+    sh:property [ sh:class gi:LearningOperation ;
+            sh:minCount 1 ;
+            sh:path gi:constrainsLearning ],
+        [ sh:class gi:ProtectedSignal ;
+            sh:minCount 1 ;
+            sh:path gi:targetsProtectedSignal ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:privacyScope ] ;
+    sh:targetClass gi:NonLearningConstraint .
+
+gi:NonLinkabilityConstraintShape a sh:NodeShape ;
+    sh:property [ sh:class gi:LinkingOperation ;
+            sh:minCount 1 ;
+            sh:path gi:constrainsLinking ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:privacyScope ] ;
+    sh:targetClass gi:NonLinkabilityConstraint .
+
+gi:PolicyDecisionShape a sh:NodeShape ;
+    sh:property [ sh:in ( "allow" "deny" "require_review" "provisional" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path gi:decision ],
+        [ sh:minCount 1 ;
+            sh:path gi:targets ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ] ;
+    sh:targetClass gi:PolicyDecision .
+
+gi:PrivacyBoundaryShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:privacyScope ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:PrivacyBoundary .
+
+gi:PrivacyDecisionShape a sh:NodeShape ;
+    sh:property [ sh:in ( "allow" "deny" "require_review" "provisional" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path gi:decision ],
+        [ sh:minCount 1 ;
+            sh:path gi:targets ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:privacyBasis ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:PrivacyDecision .
+
+gi:PrivacyReceiptShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path gi:recordsPrivacyOperation ],
+        [ sh:class gi:PrivacyDecision ;
+            sh:minCount 1 ;
+            sh:path gi:hasPrivacyDecision ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:enforcementMode ],
+        [ sh:in ( "blocked" "admitted" "minimized" "redacted" "aggregated" "anonymized" "ephemeral_only" "expired" "require_review" ) ;
+            sh:minCount 1 ;
+            sh:path gi:privacyDisposition ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:inputHash ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:outputHash ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:logRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:PrivacyReceipt .
+
+gi:ProtectedSignalShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:privacyScope ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:ProtectedSignal .
+
+gi:RepresentationPromotionGateShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:promotionRule ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:RepresentationPromotionGate .
+
+gi:RepresentationPromotionShape a sh:NodeShape ;
+    sh:property [ sh:class gi:RepresentationStratum ;
+            sh:minCount 1 ;
+            sh:path gi:fromRepresentationStratum ],
+        [ sh:class gi:RepresentationStratum ;
+            sh:minCount 1 ;
+            sh:path gi:toRepresentationStratum ],
+        [ sh:minCount 1 ;
+            sh:path gi:promotesRepresentation ],
+        [ sh:class gi:RepresentationPromotionGate ;
+            sh:minCount 1 ;
+            sh:path gi:hasPromotionGate ],
+        [ sh:class gi:PolicyDecision ;
+            sh:minCount 1 ;
+            sh:path gi:requiresPolicyDecision ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:authorityLadderNote ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:RepresentationPromotion .
+
+gi:RepresentationStratumShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:stratumCode ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:sourceRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:RepresentationStratum .
+
+gi:RuntimeReceiptShape a sh:NodeShape ;
+    sh:or ( [ sh:minCount 1 ;
+                sh:path gi:recordsAction ] [ sh:minCount 1 ;
+                sh:path gi:recordsPrivacyOperation ] ) ;
+    sh:property [ sh:class gi:PolicyDecision ;
+            sh:minCount 1 ;
+            sh:path gi:hasPolicyDecision ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:inputHash ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:outputHash ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:logRef ],
+        [ sh:in ( "proposed" "provisional" "admitted" "denied" "require_review" "superseded" "revoked" "expired" ) ;
+            sh:minCount 1 ;
+            sh:path gi:lifecycleStatus ] ;
+    sh:targetClass gi:RuntimeReceipt .
+
+gi:VectorCandidateShape a sh:NodeShape ;
+    sh:property [ sh:hasValue "candidate_only" ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path gi:candidateStatus ],
+        [ sh:datatype xsd:decimal ;
+            sh:minCount 1 ;
+            sh:path gi:similarity ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path gi:matchedRoles ] ;
+    sh:targetClass gi:VectorCandidate .
+
+kc:EmbeddingRefShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:embeddingModel ],
+        [ sh:class kc:KnowledgeArtifact ;
+            sh:minCount 1 ;
+            sh:path kc:targetsNode ],
+        [ sh:class kc:VectorIndexRef ;
+            sh:minCount 1 ;
+            sh:path kc:usesVectorIndex ] ;
+    sh:targetClass kc:EmbeddingRef .
+
+kc:KnowledgeContextShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:schemaLabel ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:contextLabel ] ;
+    sh:targetClass kc:KnowledgeContext .
+
+kc:MentionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:surfaceForm ],
+        [ sh:class kc:Passage ;
+            sh:minCount 1 ;
+            sh:path kc:inPassage ],
+        [ sh:class kc:Entity ;
+            sh:minCount 1 ;
+            sh:path kc:mentionsEntity ] ;
+    sh:targetClass kc:Mention .
+
+kc:PassageShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:artifactId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:text ] ;
+    sh:targetClass kc:Passage .
+
+kc:VectorIndexRefShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:vectorBackend ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path kc:metric ] ;
+    sh:targetClass kc:VectorIndexRef .
+
+oq:ClassQueryShape a sh:NodeShape ;
+    sh:message "A ClassQuery must specify targetClass." ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path oq:targetClass ] ;
+    sh:targetClass oq:ClassQuery .
+
+oq:ConstraintQueryShape a sh:NodeShape ;
+    sh:message "A ConstraintQuery must specify catalogScope (inherited) and must not override isDryRun to absent." ;
+    sh:targetClass oq:ConstraintQuery .
+
+oq:DryRunFailResponseShape a sh:NodeShape ;
+    sh:message "A DryRunFailResponse must have resultStatus='dry-run-fail', at least one evidence record, and an errorMessage." ;
+    sh:property [ sh:hasValue "dry-run-fail" ;
+            sh:path oq:resultStatus ],
+        [ sh:minCount 1 ;
+            sh:path oq:hasEvidence ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:errorMessage ] ;
+    sh:targetClass oq:DryRunFailResponse .
+
+oq:DryRunPassResponseShape a sh:NodeShape ;
+    sh:message "A DryRunPassResponse must have resultStatus='dry-run-pass' and at least one evidence record." ;
+    sh:property [ sh:hasValue "dry-run-pass" ;
+            sh:path oq:resultStatus ],
+        [ sh:minCount 1 ;
+            sh:path oq:hasEvidence ] ;
+    sh:targetClass oq:DryRunPassResponse .
+
+oq:LatticeQueryPlaneBindingShape a sh:NodeShape ;
+    sh:message "A LatticeQueryPlaneBinding must declare latticeQueryLanguage='ontology-query', distinguishedFrom, and bindsQuery." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:hasValue "ontology-query" ;
+            sh:minCount 1 ;
+            sh:path oq:latticeQueryLanguage ],
+        [ sh:datatype xsd:string ;
+            sh:hasValue "sparql" ;
+            sh:minCount 1 ;
+            sh:path oq:distinguishedFrom ],
+        [ sh:minCount 1 ;
+            sh:path oq:bindsQuery ] ;
+    sh:targetClass oq:LatticeQueryPlaneBinding .
+
+oq:OntologyQueryResponseShape a sh:NodeShape ;
+    sh:message "Every OntologyQueryResponse must carry responseId, respondingTo, and resultStatus." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:responseId ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path oq:respondingTo ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "ok" "error" "dry-run-pass" "dry-run-fail" ) ;
+            sh:minCount 1 ;
+            sh:path oq:resultStatus ] ;
+    sh:targetClass oq:OntologyQueryResponse .
+
+oq:OntologyQueryShape a sh:NodeShape ;
+    sh:message "Every OntologyQuery must carry a queryId, queryVersion, catalogScope, requestingAgent, governedByPolicy, and isDryRun." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:minLength 1 ;
+            sh:path oq:queryId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:queryVersion ],
+        [ sh:minCount 1 ;
+            sh:path oq:catalogScope ],
+        [ sh:minCount 1 ;
+            sh:path oq:requestingAgent ],
+        [ sh:minCount 1 ;
+            sh:path oq:governedByPolicy ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path oq:isDryRun ] ;
+    sh:targetClass oq:OntologyQuery .
+
+oq:QueryEvidenceShape a sh:NodeShape ;
+    sh:message "Every QueryEvidence must carry evidenceKind, evidenceTimestamp, evidenceSource, and evidenceText." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "policy-check" "catalog-check" "reasoning-trace" "dry-run-check" ) ;
+            sh:minCount 1 ;
+            sh:path oq:evidenceKind ],
+        [ sh:datatype xsd:dateTime ;
+            sh:minCount 1 ;
+            sh:path oq:evidenceTimestamp ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:evidenceSource ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:evidenceText ] ;
+    sh:targetClass oq:QueryEvidence .
+
+oq:ReasoningResultQueryShape a sh:NodeShape ;
+    sh:message "A ReasoningResultQuery must declare a reasonerProfile." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path oq:reasonerProfile ] ;
+    sh:targetClass oq:ReasoningResultQuery .
+
+oq:SchemaAlignmentQueryShape a sh:NodeShape ;
+    sh:message "A SchemaAlignmentQuery must provide both sourceSchema and targetSchema." ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path oq:targetSchema ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path oq:sourceSchema ] ;
+    sh:targetClass oq:SchemaAlignmentQuery .
+
+oq:ShapeQueryShape a sh:NodeShape ;
+    sh:message "A ShapeQuery must specify at least one of targetShape or targetNode." ;
+    sh:sparql [ a sh:SPARQLConstraint ;
+            sh:message "A ShapeQuery must have at least targetShape or targetNode." ;
+            sh:select """
+      PREFIX oq: <https://socioprophet.github.io/ontogenesis/platform/oq#>
+      SELECT ?this WHERE {
+        ?this a oq:ShapeQuery .
+        FILTER NOT EXISTS { ?this oq:targetShape ?s . }
+        FILTER NOT EXISTS { ?this oq:targetNode  ?n . }
+      }
+    """ ] ;
+    sh:targetClass oq:ShapeQuery .
+
+pb:SynergeticPatternShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path pb:hasValidationBoundary ],
+        [ sh:minCount 1 ;
+            sh:path pb:mapsToRepo ] ;
+    sh:targetClass pb:SynergeticPattern .
+
+rfail:ReasoningFailureCaseShape a sh:NodeShape ;
+    sh:property [ sh:class rfail:ReasoningFailureMode ;
+            sh:message "Reasoning failure cases must cite at least one canonical failure mode." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasFailureMode ],
+        [ sh:datatype xsd:string ;
+            sh:message "Reasoning failure cases must declare a proposed runtime action." ;
+            sh:minCount 1 ;
+            sh:path rfail:riskAction ],
+        [ sh:class rfail:ReasoningTask ;
+            sh:message "Reasoning failure cases must cite the task being evaluated." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasTask ],
+        [ sh:class rfail:Invariant ;
+            sh:message "Reasoning failure cases must declare the invariant that should survive perturbation." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasInvariant ],
+        [ sh:class rfail:Verifier ;
+            sh:message "Reasoning failure cases must cite a verifier or verifier family." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasVerifier ],
+        [ sh:class rfail:EvidenceReceipt ;
+            sh:message "Reasoning failure cases must cite an evidence receipt rather than relying on rationale text." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasEvidenceReceipt ],
+        [ sh:class rfail:ResidualRisk ;
+            sh:message "Reasoning failure cases must carry residual risk." ;
+            sh:minCount 1 ;
+            sh:path rfail:hasResidualRisk ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "low" "medium" "high" "critical" ) ;
+            sh:message "Reasoning failure severity must be low, medium, high, or critical." ;
+            sh:minCount 1 ;
+            sh:path rfail:severity ] ;
+    sh:targetClass rfail:ReasoningFailureCase .
+
+rfail:RelationSemanticsShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "directed" "undirected" "bidirectional" "n-ary" ) ;
+            sh:message "Relation semantics must declare relation direction." ;
+            sh:minCount 1 ;
+            sh:path rfail:relationDirection ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "symmetric" "asymmetric" "antisymmetric" "unknown" ) ;
+            sh:message "Relation semantics must declare symmetry profile." ;
+            sh:minCount 1 ;
+            sh:path rfail:symmetryProfile ],
+        [ sh:datatype xsd:string ;
+            sh:in ( "transitive" "intransitive" "nontransitive" "unknown" ) ;
+            sh:message "Relation semantics must declare transitivity profile." ;
+            sh:minCount 1 ;
+            sh:path rfail:transitivityProfile ] ;
+    sh:targetClass rfail:RelationSemantics .
+
+rfail:VerifierShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "deterministic" "symbolic" "schema" "policy" "tool-backed" "human-review" "llm-judge-advisory" ) ;
+            sh:message "Verifier status must identify whether the verifier is deterministic, symbolic, schema, policy, tool-backed, human-review, or LLM-judge advisory." ;
+            sh:minCount 1 ;
+            sh:path rfail:status ] ;
+    sh:targetClass rfail:Verifier .
+
+sdo:AdapterStateShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:adapterId ] ;
+    sh:targetClass sdo:AdapterState .
+
+sdo:DeviceNodeShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:nodeId ],
+        [ sh:class sdo:AdapterState ;
+            sh:minCount 1 ;
+            sh:path sdo:sourceAdapter ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:trustState ] ;
+    sh:targetClass sdo:DeviceNode .
+
+sdo:EvidenceReceiptShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:receiptId ],
+        [ sh:class sdo:OrchestrationEvent ;
+            sh:minCount 1 ;
+            sh:path sdo:relatedEvent ],
+        [ sh:class sdo:DeviceNode ;
+            sh:minCount 1 ;
+            sh:path sdo:subjectNode ],
+        [ sh:class sdo:AdapterState ;
+            sh:minCount 1 ;
+            sh:path sdo:sourceAdapter ],
+        [ sh:in ( "allowed" "denied" "requires_approval" "requires_local_only" "redacted" "degraded" ) ;
+            sh:minCount 1 ;
+            sh:path sdo:policyOutcome ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:retentionClass ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:redactionClass ] ;
+    sh:targetClass sdo:EvidenceReceipt .
+
+sdo:PolicyDecisionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:capabilityClass ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:decisionId ],
+        [ sh:in ( "allowed" "denied" "requires_approval" "requires_local_only" "redacted" "degraded" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:policyOutcome ] ;
+    sh:targetClass sdo:PolicyDecision .
+
+sdo:RoutineShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path sdo:routineId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:capabilityClass ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path sdo:signature ] ;
+    sh:targetClass sdo:Routine .
+
+view:AgentAuthorityShape a sh:NodeShape ;
+    sh:message "AgentAuthority must carry at least one authorityRef to Agent Registry state." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:AgentAuthority .
+
+view:PolicyAuthorityShape a sh:NodeShape ;
+    sh:message "PolicyAuthority must carry at least one authorityRef to Policy Fabric decision or bundle state." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:PolicyAuthority .
+
+view:PrincipalAuthorityShape a sh:NodeShape ;
+    sh:message "PrincipalAuthority must carry at least one authorityRef to a platform, Regis, or identity proof object." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:PrincipalAuthority .
+
+view:RevocationEpochShape a sh:NodeShape ;
+    sh:message "RevocationEpoch must carry a non-negative integer revocationEpochValue." ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:minInclusive 0 ;
+            sh:path view:revocationEpochValue ] ;
+    sh:targetClass view:RevocationEpoch .
+
+view:RuntimeEvidenceAuthorityShape a sh:NodeShape ;
+    sh:message "RuntimeEvidenceAuthority must preserve at least one AgentPlane or policy-verdict authority ref." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:RuntimeEvidenceAuthority .
+
+view:TraversalEvidenceAuthorityShape a sh:NodeShape ;
+    sh:message "TraversalEvidenceAuthority must preserve at least one CairnPath authority ref." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:TraversalEvidenceAuthority .
+
+view:TypedAbsenceShape a sh:NodeShape ;
+    sh:message "TypedAbsence must declare an allowed absence reason." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:in ( "not_authorized" "not_materialized" "redacted_by_policy" "revoked" "unknown" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:absenceReason ] ;
+    sh:targetClass view:TypedAbsence .
+
+view:ViewContractShape a sh:NodeShape ;
+    sh:message "A ViewContract must bind principal, policy, workspace, disclosure, revocation epoch, and view signature authority roots." ;
+    sh:property [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasPrincipalAuthority ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasPolicyAuthority ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasWorkspaceAuthority ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasDisclosureMode ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasRevocationEpoch ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:hasViewSignature ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:contractHash ;
+            sh:pattern "^sha256:[A-Fa-f0-9]{64}$" ] ;
+    sh:targetClass view:ViewContract .
+
+view:ViewSignatureShape a sh:NodeShape ;
+    sh:message "ViewSignature must carry a sha256 viewSignatureHash." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path view:viewSignatureHash ;
+            sh:pattern "^sha256:[A-Fa-f0-9]{64}$" ] ;
+    sh:targetClass view:ViewSignature .
+
+view:WorkspaceAuthorityShape a sh:NodeShape ;
+    sh:message "WorkspaceAuthority must carry workspace/environment fingerprint authority refs." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path view:authorityRef ] ;
+    sh:targetClass view:WorkspaceAuthority .
+
+capd:CapabilityShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path prop:descriptorId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path prop:semver ],
+        [ sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path prop:declaresPlane ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path prop:declaresVerb ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path prop:rolloutStrategy ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path prop:gateName ] ;
+    sh:targetClass prop:CapabilityDescriptor .
+
+<https://socioprophet.github.io/ontogenesis/shapes/action-ontology.shacl.ttl> a sh:NodeShape ;
+    sh:message "Action Ontology SHACL bundle loaded." ;
+    sh:targetClass action:Action .
+
+<https://socioprophet.github.io/ontogenesis/shapes/banking-core.shacl.ttl> a sh:NodeShape ;
+    sh:message "Banking core SHACL bundle loaded." ;
+    sh:targetClass banking:LegalEntity .
+
+<https://socioprophet.github.io/ontogenesis/shapes/business_drivers.shacl.ttl> a sh:NodeShape ;
+    sh:message "Business driver edges must declare fromMetric, toMetric, sign, relationType, lagValue, lagUnit, and confidence." ;
+    sh:property [ sh:class bizm:MetricConcept ;
+            sh:minCount 1 ;
+            sh:path bizd:fromMetric ],
+        [ sh:class bizm:MetricConcept ;
+            sh:minCount 1 ;
+            sh:path bizd:toMetric ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizd:sign ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizd:relationType ],
+        [ sh:datatype xsd:decimal ;
+            sh:minCount 1 ;
+            sh:path bizd:lagValue ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizd:lagUnit ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizd:confidence ] ;
+    sh:targetClass bizd:DriverEdge .
+
+<https://socioprophet.github.io/ontogenesis/shapes/business_metrics.shacl.ttl> a sh:NodeShape ;
+    sh:message "Business metric concepts must declare unitFamily, grainFamily, timeBehavior, and scopeFamily." ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizm:unitFamily ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizm:grainFamily ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizm:timeBehavior ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path bizm:scopeFamily ] ;
+    sh:targetClass bizm:MetricConcept .
+
+<https://socioprophet.github.io/ontogenesis/shapes/civic-org-alignment.shacl.ttl> a sh:NodeShape ;
+    sh:message "Civic organization alignment SHACL bundle loaded." ;
+    sh:targetClass cstack:CivicStackObject .
+
+<https://socioprophet.github.io/ontogenesis/shapes/core.shacl.ttl> a sh:NodeShape ;
+    sh:message "Core SHACL bundle loaded." ;
+    sh:targetClass upper:InformationArtifact .
+
+<https://socioprophet.github.io/ontogenesis/shapes/corpus-event-semantics.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion-gate shapes for provenance-bearing corpus event, causal candidate, semantic table, and diagnostic finding records." ;
+    dct:title "Corpus Event Semantics SHACL Shapes" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/cybernetic-self.shacl.ttl> a sh:NodeShape ;
+    sh:message "Cybernetic self SHACL bundle loaded." ;
+    sh:targetClass cs:CyberneticSelf .
+
+<https://socioprophet.github.io/ontogenesis/shapes/fraud-decision-intelligence.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion-gate shapes for Fraud Decision Intelligence ontology terms. These gates enforce decision receipts, evidence bundles, label provenance, feature health, and claim-boundary distinctions. They intentionally do not authorize production scoring or enforcement." ;
+    dct:title "Fraud Decision Intelligence SHACL Shapes" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/institutional-work.shacl.ttl> a sh:NodeShape ;
+    sh:message "Institutional Work SHACL bundle loaded." ;
+    sh:targetClass iw:WorkOrder .
+
+<https://socioprophet.github.io/ontogenesis/shapes/kg_lifecycle.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion gates for knowledge graph lifecycle pipelines, outputs, validation, reasoning, and deployment surfaces." ;
+    dct:title "SHACL — Knowledge Graph Lifecycle" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/knowledge-commons-canon.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion-gate shapes for the Knowledge Commons Canon domain module." ;
+    dct:title "Knowledge Commons Canon SHACL Shapes" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/knowledge-context.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion-gate shapes for the Platform Knowledge Context ontology module." ;
+    dct:title "Knowledge Context SHACL Shapes" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/named_graph_governance.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion gates for named graph context, source, trust, access, ownership, lifecycle, and retention metadata." ;
+    dct:title "SHACL — Named Graph Governance" ;
+    owl:versionInfo "0.1.0" .
+
+:EntityCandidateShape a sh:NodeShape ;
+    sh:property [ sh:class core:Evidence ;
+            sh:message "Every entity candidate must be backed by at least one evidence object." ;
+            sh:minCount 1 ;
+            sh:path [ sh:inversePath core:supportsEntity ] ] ;
+    sh:targetClass core:EntityCandidate .
+
+:LinkShape a sh:NodeShape ;
+    sh:property [ sh:class core:Linkage ;
+            sh:maxCount 1 ;
+            sh:message "Every parsing link must belong to exactly one linkage." ;
+            sh:minCount 1 ;
+            sh:path core:fromLinkage ],
+        [ sh:class core:Token ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path core:leftToken ],
+        [ sh:class core:Token ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path core:rightToken ] ;
+    sh:targetClass core:Link .
+
+:PromotionDecisionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path core:promotionStatus ],
+        [ sh:datatype xsd:boolean ;
+            sh:maxCount 1 ;
+            sh:message "Every promotion decision must explicitly record whether parse backreferences were preserved." ;
+            sh:minCount 1 ;
+            sh:path hp:backReferencePreserved ] ;
+    sh:targetClass core:PromotionDecision .
+
+:RelationCandidateShape a sh:NodeShape ;
+    sh:property [ sh:class core:EntityCandidate ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path core:candidateSubject ],
+        [ sh:class core:EntityCandidate ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path core:candidateObject ],
+        [ sh:class core:Evidence ;
+            sh:minCount 1 ;
+            sh:path [ sh:inversePath core:supportsRelation ] ] ;
+    sh:targetClass core:RelationCandidate .
+
+<https://socioprophet.github.io/ontogenesis/shapes/product-service.shacl.ttl> a sh:NodeShape ;
+    sh:message "Product-service SHACL bundle loaded." ;
+    sh:targetClass ps:Plan .
+
+<https://socioprophet.github.io/ontogenesis/shapes/reasoning_failure.shacl.ttl> a sh:NodeShape ;
+    dct:description "Validation gates for first-class reasoning failure case records." ;
+    dct:title "Reasoning Failure SHACL Gate v0.1" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/reciprocal-channel-governance.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion-gate shapes for reciprocal channel governance semantic artifacts." ;
+    dct:title "Reciprocal Channel Governance SHACL Shapes" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/sector_modules.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion gates for finance, threat-intel, investigation, supply-chain, and defense/C2 sector modules." ;
+    dct:title "SHACL — Semantic Enterprise Sector Modules" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/semantic_mapping.shacl.ttl> a owl:Ontology ;
+    dct:description "Promotion gates for governed ontology alignment and mapping assertions." ;
+    dct:title "SHACL — Semantic Mapping" ;
+    owl:versionInfo "0.1.0" .
+
+<https://socioprophet.github.io/ontogenesis/shapes/smart-home-privacy.shacl.ttl> a sh:NodeShape ;
+    rdfs:label "Smart home privacy SHACL bundle" .
+
+systema:ConceptDefinitionShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:definitionText ],
+        [ sh:in ( "historical_source_claim" "operational_definition" "design_analogy" "formal_claim" "implementation_requirement" "conformance_rule" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:claimLevel ] ;
+    sh:targetClass systema:ConceptDefinition .
+
+systema:EvidenceRequirementShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:evidenceRequirementText ] ;
+    sh:targetClass systema:EvidenceRequirement .
+
+systema:ImplementationSurfaceShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:ownerRepo ],
+        [ sh:datatype xsd:string ;
+            sh:path systema:surfacePath ] ;
+    sh:targetClass systema:ImplementationSurface .
+
+systema:SourceAnchorShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:sourceRef ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:sourceKind ],
+        [ sh:in ( "A" "B" "C" "D" "E" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:extractionConfidence ],
+        [ sh:in ( "unreviewed" "candidate" "manually_reviewed" "independently_verified" "rejected" "contested" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:reviewState ],
+        [ sh:in ( "exact" "near_verbatim" "paraphrase" "operational_translation" "analogy" "unsupported" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:quoteBoundary ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:uncertaintyNote ] ;
+    sh:targetClass systema:SourceAnchor .
+
+systema:SystemaConceptEntryShape a sh:NodeShape ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:conceptId ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:allowedUse ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:forbiddenUse ],
+        [ sh:class systema:ImplementationSurface ;
+            sh:minCount 1 ;
+            sh:path systema:implementationSurface ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path skos:prefLabel ],
+        [ sh:class systema:EvidenceRequirement ;
+            sh:minCount 1 ;
+            sh:path systema:evidenceRequirement ],
+        [ sh:class systema:SourceAnchor ;
+            sh:minCount 1 ;
+            sh:path systema:sourceAnchor ],
+        [ sh:class systema:ConceptDefinition ;
+            sh:minCount 1 ;
+            sh:path systema:definition ],
+        [ sh:datatype xsd:string ;
+            sh:minCount 1 ;
+            sh:path systema:operationalDefinition ],
+        [ sh:in ( "observed_term" "extracted_candidate" "source_anchored" "reviewed_definition" "operational_definition" "implementation_linked" "tested_doctrine" "public_standard" "deprecated" "contested" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:path systema:promotionState ] ;
+    sh:targetClass systema:SystemaConceptEntry .
+
+ms:BeliefStateShape a sh:NodeShape ;
+    sh:message "Belief states must declare truth status, methodology snapshot, and observation provenance." ;
+    sh:property [ sh:minCount 1 ;
+            sh:path ms:truthStatus ],
+        [ sh:minCount 1 ;
+            sh:path ms:usesMethodologySnapshot ],
+        [ sh:minCount 1 ;
+            sh:path ms:derivedFromObservation ] ;
+    sh:targetClass ms:BeliefState .
+
+ms:EquationCandidateShape a sh:NodeShape ;
+    sh:message "Equation candidates must declare the proposed equation and methodology snapshot, with optional counterexamples and constraint witnesses." ;
+    sh:property [ sh:minCount 1 ;
+            sh:path ms:proposesEquation ],
+        [ sh:minCount 1 ;
+            sh:path ms:usesMethodologySnapshot ],
+        [ sh:minCount 0 ;
+            sh:path ms:hasCounterexample ],
+        [ sh:minCount 0 ;
+            sh:path ms:hasConstraintWitness ] ;
+    sh:targetClass ms:EquationCandidate .
+
+twin:HumanDigitalTwinShape a sh:NodeShape ;
+    sh:message "Human digital twins must be anchored to a subject and bounded by consent, projection, memory, and cognition subsystems." ;
+    sh:property [ sh:minCount 1 ;
+            sh:path twin:anchorsSubject ],
+        [ sh:minCount 1 ;
+            sh:path twin:hasConsentEnvelope ],
+        [ sh:minCount 1 ;
+            sh:path twin:hasProjectionBound ],
+        [ sh:minCount 1 ;
+            sh:path twin:hasMemorySubsystem ],
+        [ sh:minCount 1 ;
+            sh:path twin:hasCognitionSubsystem ] ;
+    sh:targetClass twin:HumanDigitalTwin .
+

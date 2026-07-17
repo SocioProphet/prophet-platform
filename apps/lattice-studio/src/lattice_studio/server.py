@@ -32,7 +32,7 @@ import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from lattice_studio import ontology, product_spine
+from lattice_studio import ontology, product_spine, shacl
 
 SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
@@ -1815,6 +1815,17 @@ async def invoke_action(req: InvokeRequest, authorization: str = Header(default=
             edge_effects.append({"label": e.get("label") or "relates_to", "to": _resolve(e, req.args)})
             applied.append(f"+edge {e.get('label')}")
     new_props.update(prov)
+
+    # GOVERNED writeback: validate the resulting node state against the real Ontogenesis SHACL shapes BEFORE it
+    # commits. Non-conformant → 422 with the violations (Foundry's "submission criteria", but schema-real + proof-
+    # carrying). No shape targeting the class → conforms. Degrades open if the validator is unavailable.
+    class_iri = (action_node.get("properties") or {}).get("class_iri") or ""
+    if class_iri:
+        conforms, violations = shacl.validate_writeback(class_iri, new_props)
+        if not conforms:
+            raise HTTPException(status_code=422, detail={
+                "message": "writeback rejected — does not conform to the ontology (SHACL)",
+                "class": class_iri, "violations": violations})
 
     inv_hash = hashlib.sha256((aid + req.target + json.dumps(req.args, sort_keys=True, default=str) + _now_iso()).encode()).hexdigest()
     correlation = f"act-{inv_hash[:12]}"
