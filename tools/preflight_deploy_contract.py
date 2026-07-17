@@ -88,10 +88,6 @@ KNOWN_BROKEN = {
         "publishes is now a mechanical follow-up after the first CI build (same as dashboard-bff #743); it "
         "could not be done in the same PR because no sha existed yet. Ratcheted, not moot."
     ),
-    "grl-mesh:moving-tag": (
-        "New service — Dockerfile + images.yml entry added this PR, so it BUILDS. Pin `tag: latest` → the sha- "
-        "tag after the first CI build (same chicken-and-egg as grlplus-service #766): no sha exists until merge."
-    ),
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`
     # + IfNotPresent means nodes may be running an older cached digest than `latest`
