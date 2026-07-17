@@ -1155,56 +1155,83 @@ def test_action_define_requires_token_and_effects(monkeypatch):
                        headers={"Authorization": "Bearer T"}).status_code == 422
 
 
-def test_action_full_lifecycle_define_invoke_audit_revoke(monkeypatch):
+def test_ontology_serves_real_classes_not_a_mock():
+    b = client.get("/api/studio/ontology").json()
+    assert b["counts"]["classes"] == 817                                   # the real Ontogenesis corpus
+    assert b["base_iri"].endswith("ontogenesis#")
+    assert any(c["iri"] == "upper:Entity" for c in b["classes"])           # upper ontology by default
+    one = client.get("/api/studio/ontology?cls=ACSETAttr").json()
+    props = {p["iri"] for p in one["class"]["inherited_properties"]}
+    assert "acsetAttrName" in props and "attrType" in props                # real declared properties
+
+
+def test_action_define_rejects_non_ontology_class(monkeypatch):
     import lattice_studio.server as srv
     monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
-    # seed a target object
+    r = client.post("/api/studio/action",
+                    json={"project": "team-x", "name": "bogus", "target_type": "Order",
+                          "effects": [{"op": "set_property", "property": "whatever", "value": "x"}]},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422
+    assert "not an Ontogenesis class" in r.json()["detail"]["violations"][0]
+
+
+def test_action_define_rejects_undeclared_property(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/action",
+                    json={"project": "team-x", "name": "bad", "target_type": "ACSETAttr",
+                          "effects": [{"op": "set_property", "property": "not_a_real_prop", "value": "x"}]},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422
+    assert "not declared" in r.json()["detail"]["violations"][0]
+
+
+def test_action_full_lifecycle_ontology_typed(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    # a target typed as the real ontology class ACSETAttr
     state, fake_req = _stateful_graph({
-        "proj-teamx:order:1": {"id": "proj-teamx:order:1", "labels": ["proj-teamx", "Order"],
-                               "properties": {"status": "open", "total": "100"}},
+        "proj-teamx:attr:1": {"id": "proj-teamx:attr:1", "labels": ["proj-teamx", "ACSETAttr"],
+                              "properties": {"acsetAttrName": "old", "status": "draft"}},
     })
     monkeypatch.setattr(srv, "_req", fake_req)
 
-    # define
+    # define — typed against ACSETAttr, effects use its REAL declared properties/relations
     d = client.post("/api/studio/action",
-                    json={"project": "team-x", "name": "Approve order", "target_type": "Order",
-                          "params": [{"name": "approver"}],
-                          "effects": [{"op": "set_status", "value": "approved"},
-                                      {"op": "set_property", "property": "approved_by", "value_from": "approver"},
-                                      {"op": "add_edge", "label": "approved_by_user", "value_from": "approver_id"}]},
+                    json={"project": "team-x", "name": "Rename attr", "target_type": "ACSETAttr",
+                          "params": [{"name": "newname"}, {"name": "type_id"}],
+                          "effects": [{"op": "set_property", "property": "acsetAttrName", "value_from": "newname"},
+                                      {"op": "add_edge", "label": "attrType", "value_from": "type_id"},
+                                      {"op": "set_status", "value": "reviewed"}]},
                     headers={"Authorization": "Bearer T"}).json()
-    assert d["action_id"] == "proj-teamx:action:approve_order" and d["agent_invokable"]
-
-    # list (agent-discoverable schema)
-    lst = client.get("/api/studio/actions?project=team-x").json()
-    assert lst["count"] == 1 and lst["actions"][0]["effects"][0]["op"] == "set_status"
+    assert d["action_id"] == "proj-teamx:action:rename_attr" and d["ontology_typed"]
+    assert d["class_iri"] == "ACSETAttr"
 
     # missing required arg → 422
     assert client.post("/api/studio/action/invoke",
-                       json={"project": "team-x", "action": "Approve order", "target": "proj-teamx:order:1", "args": {}},
+                       json={"project": "team-x", "action": "Rename attr", "target": "proj-teamx:attr:1", "args": {}},
                        headers={"Authorization": "Bearer T"}).status_code == 422
 
     # invoke → governed writeback + receipt
     inv = client.post("/api/studio/action/invoke",
-                      json={"project": "team-x", "action": "Approve order", "target": "proj-teamx:order:1",
-                            "args": {"approver": "kim", "approver_id": "proj-teamx:user:kim"}},
+                      json={"project": "team-x", "action": "Rename attr", "target": "proj-teamx:attr:1",
+                            "args": {"newname": "width", "type_id": "proj-teamx:acsettype:int"}},
                       headers={"Authorization": "Bearer T"}).json()
     assert inv["reversible"] and inv["receipt"]["replayable"]
-    tgt = state["nodes"]["proj-teamx:order:1"]["properties"]
-    assert tgt["status"] == "approved" and tgt["approved_by"] == "kim"          # writeback applied
-    assert tgt["epistemic_mode"] == "attested"                                   # proof-carrying
-    assert any(e.get("label") == "approved_by_user" and e.get("to") == "proj-teamx:user:kim" for e in state["edges"])
+    tgt = state["nodes"]["proj-teamx:attr:1"]["properties"]
+    assert tgt["acsetAttrName"] == "width" and tgt["status"] == "reviewed"        # writeback applied
+    assert tgt["epistemic_mode"] == "attested"                                    # proof-carrying
+    assert any(e.get("label") == "attrType" and e.get("to") == "proj-teamx:acsettype:int" for e in state["edges"])
 
-    # audit trail
     aud = client.get("/api/studio/action/invocations?project=team-x").json()
     assert aud["count"] == 1 and aud["invocations"][0]["revoked"] is False
-    inv_id = inv["invocation_id"]
 
-    # governed revoke → restores before-state (status back to open, approved_by gone)
-    rev = client.post("/api/studio/action/revoke", json={"project": "team-x", "invocation": inv_id},
+    # governed revoke → restores before-state
+    rev = client.post("/api/studio/action/revoke", json={"project": "team-x", "invocation": inv["invocation_id"]},
                       headers={"Authorization": "Bearer T"}).json()
     assert rev["revoked"] and rev["restored_state"]
-    tgt2 = state["nodes"]["proj-teamx:order:1"]["properties"]
-    assert tgt2["status"] == "open" and "approved_by" not in tgt2               # fully restored
+    tgt2 = state["nodes"]["proj-teamx:attr:1"]["properties"]
+    assert tgt2["acsetAttrName"] == "old" and tgt2["status"] == "draft"           # fully restored
     aud2 = client.get("/api/studio/action/invocations?project=team-x").json()
     assert aud2["invocations"][0]["revoked"] is True

@@ -32,7 +32,7 @@ import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from lattice_studio import product_spine
+from lattice_studio import ontology, product_spine
 
 SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
@@ -1686,11 +1686,17 @@ async def define_action(req: ActionRequest, authorization: str = Header(default=
     for e in req.effects:
         if e.op not in {"set_property", "set_status", "add_edge"}:
             raise HTTPException(status_code=422, detail=f"unsupported effect op: {e.op}")
+    # TYPE the action against the REAL Ontogenesis ontology: target_type must be a class, and every effect's
+    # property/relation must be declared on it (or inherited). This is what makes it an *ontology* action.
+    resolved, errors = ontology.validate_action(req.target_type, [e.model_dump() for e in req.effects])
+    if errors:
+        raise HTTPException(status_code=422, detail={"message": "action does not conform to the ontology",
+                                                     "target_type": req.target_type, "violations": errors})
     coll = proj_collection(req.project)
     aid = _action_id(coll, name)
     prov = _workbench_prov(coll, "attested", "studio/action")
     prov["extractor"] = "lattice-studio/action-v0"
-    props = {"name": name, "target_type": req.target_type,
+    props = {"name": name, "target_type": req.target_type, "class_iri": resolved["iri"] if resolved else "",
              "params": json.dumps([p.model_dump() for p in req.params]),
              "effects": json.dumps([e.model_dump() for e in req.effects]),
              "description": req.description or "", "updated_at": _now_iso(), **prov}
@@ -1700,7 +1706,35 @@ async def define_action(req: ActionRequest, authorization: str = Header(default=
         if werr:
             raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
     return {"action_id": aid, "name": name, "target_type": req.target_type,
-            "effects": len(req.effects), "proof_carrying": True, "agent_invokable": True}
+            "class_iri": resolved["iri"] if resolved else None,
+            "effects": len(req.effects), "proof_carrying": True, "agent_invokable": True, "ontology_typed": True}
+
+
+@app.get("/api/studio/ontology")
+async def ontology_classes(search: str = "", cls: str = "", limit: int = 40,
+                           _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The REAL Ontogenesis ontology (817 classes / 621 relations, parsed from the ~/dev/ontogenesis TTL corpus and
+    vendored) — replaces the old 2-item mock. `cls=<curie|label>` returns one class with its full (inherited)
+    property set; `search=` filters the class list; otherwise returns the upper classes + a sample. This is the
+    schema ontology actions are typed against."""
+    if cls:
+        c = ontology.resolve_class(cls)
+        if not c:
+            raise HTTPException(status_code=404, detail=f"class not found: {cls}")
+        props = ontology.class_properties(c["iri"])
+        return {"class": {**c, "inherited_properties": sorted(props.values(), key=lambda p: p["iri"])},
+                "base_iri": ontology.base_iri()}
+    all_classes = ontology.all_classes()
+    if search:
+        s = search.lower()
+        hits = [c for c in all_classes if s in c["iri"].lower() or s in str(c.get("label", "")).lower()]
+    else:
+        hits = [c for c in all_classes if c["iri"].startswith("upper:")]     # the upper ontology by default
+    slim = [{"iri": c["iri"], "label": c.get("label"), "subClassOf": c.get("subClassOf", []),
+             "property_count": len(c.get("properties", []))} for c in hits[:max(1, min(limit, 200))]]
+    return {"base_iri": ontology.base_iri(), "counts": ontology.counts(),
+            "classes": slim, "returned": len(slim), "total_matched": len(hits),
+            "note": "the real Ontogenesis OWL corpus; pass ?cls=<curie|label> for a class's properties, ?search= to filter"}
 
 
 def _action_view(n: dict[str, Any]) -> dict[str, Any]:
