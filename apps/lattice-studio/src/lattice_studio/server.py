@@ -1419,6 +1419,114 @@ async def promote_model(req: PromoteRequest, authorization: str = Header(default
             "stage": req.stage, "from_stage": prev, "proof_carrying": True}
 
 
+# ── WS#48 (Wave 4): GraphRAG community detection. MEET Microsoft GraphRAG's core move — partition the knowledge
+# graph into communities so global/local search can reason over community structure, not just isolated nodes. This
+# is the DETERMINISTIC graph half (label propagation — no LLM, reproducible), the foundation community summaries
+# attach to. BEAT: communities are detected over the PROOF-CARRYING graph, and each carries its epistemic profile
+# (a quality signal), so a summary can be weighted by grounding — and the eventual summary text is FRONTIER-authored
+# and attributed, never a local model. ─────────────────────────────────────────────────────────────────────────
+def _detect_communities(nodes: list[dict[str, Any]], edges: list[dict[str, Any]],
+                        max_iter: int = 50) -> dict[str, str]:
+    """Louvain-style modularity optimisation (single level) → {node_id: community_seed}. Deterministic: nodes are
+    swept in sorted order and ties broken by the smallest community id, so identical graphs yield identical
+    communities. Robust to the 'monster community' collapse that plain label propagation suffers on bridged graphs
+    — a node only joins a neighbour community when the modularity gain beats staying put."""
+    ids = sorted({n.get("id") for n in nodes if n.get("id")})
+    adj: dict[str, dict[str, float]] = {i: {} for i in ids}
+    m = 0.0
+    for e in edges:
+        f, t = e.get("from"), e.get("to")
+        if f not in adj or t not in adj or f == t:
+            continue
+        props = e.get("properties")
+        w = float(props.get("weight", 1) or 1) if isinstance(props, dict) else 1.0
+        adj[f][t] = adj[f].get(t, 0.0) + w
+        adj[t][f] = adj[t].get(f, 0.0) + w
+        m += w
+    if m == 0:
+        return {i: i for i in ids}
+    two_m = 2.0 * m
+    k = {i: sum(adj[i].values()) for i in ids}          # weighted degree
+    comm = {i: i for i in ids}
+    tot = {i: k[i] for i in ids}                        # Σ of degrees in each community
+    for _ in range(max_iter):
+        moved = False
+        for i in ids:
+            ci = comm[i]
+            tot[ci] -= k[i]                             # take i out of its community
+            neigh_w: dict[str, float] = {}
+            for nb, w in adj[i].items():
+                neigh_w[comm[nb]] = neigh_w.get(comm[nb], 0.0) + w
+            best_c = ci
+            best_gain = neigh_w.get(ci, 0.0) - k[i] * tot.get(ci, 0.0) / two_m
+            for c, w_in in sorted(neigh_w.items()):     # deterministic order
+                gain = w_in - k[i] * tot.get(c, 0.0) / two_m
+                if gain > best_gain + 1e-12 or (abs(gain - best_gain) <= 1e-12 and c < best_c):
+                    best_gain, best_c = gain, c
+            comm[i] = best_c
+            tot[best_c] = tot.get(best_c, 0.0) + k[i]
+            if best_c != ci:
+                moved = True
+        if not moved:
+            break
+    # canonicalise each community's label to the smallest member id (stable, readable)
+    canon: dict[str, str] = {}
+    for i in ids:
+        c = comm[i]
+        canon[c] = i if c not in canon else min(canon[c], i)
+    return {i: canon[comm[i]] for i in ids}
+
+
+@app.get("/api/studio/communities")
+async def communities(project: str = "default", min_size: int = 1,
+                      _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Detect communities in the project knowledge graph (deterministic label propagation) — the GraphRAG
+    foundation. Each community reports its size, top members by degree, and its epistemic distribution (quality),
+    plus the inter-community link count. Summaries attach next and are frontier-authored + attributed."""
+    coll = proj_collection(project)
+    nodes, edges, err = await _fetch_graph(coll, 3000)
+    by_id = {n.get("id"): n for n in nodes}
+    degree: dict[str, int] = {}
+    for e in edges:
+        f, t = e.get("from"), e.get("to")
+        if f in by_id:
+            degree[f] = degree.get(f, 0) + 1
+        if t in by_id:
+            degree[t] = degree.get(t, 0) + 1
+    label = _detect_communities(nodes, edges)
+    groups: dict[str, list[str]] = {}
+    for nid, lab in label.items():
+        groups.setdefault(lab, []).append(nid)
+    # inter-community edges (cross-links between communities) = the global-search backbone
+    inter = sum(1 for e in edges
+                if e.get("from") in label and e.get("to") in label
+                and label[e["from"]] != label[e["to"]])
+    out = []
+    for lab, members in groups.items():
+        if len(members) < max(1, min_size):
+            continue
+        epi: dict[str, int] = {}
+        for m in members:
+            mode = ((by_id.get(m) or {}).get("properties") or {}).get("epistemic_mode")
+            if mode:
+                epi[mode] = epi.get(mode, 0) + 1
+        top = sorted(members, key=lambda m: (-degree.get(m, 0), m))[:6]
+        top_named = [{"id": m, "label": ((by_id.get(m) or {}).get("properties") or {}).get("name") or m,
+                      "degree": degree.get(m, 0)} for m in top]
+        out.append({"community": f"{coll}:community:{hashlib.sha256(lab.encode()).hexdigest()[:10]}",
+                    "seed": lab, "size": len(members), "top_members": top_named,
+                    "epistemic_distribution": epi})
+    out.sort(key=lambda c: c["size"], reverse=True)
+    return {
+        "project": project, "collection": coll,
+        "communities": out, "count": len(out),
+        "nodes": len(nodes), "inter_community_edges": inter,
+        "algorithm": "label-propagation (deterministic)",
+        "beat": "communities are detected over the proof-carrying graph — each carries its epistemic profile (grounding), and summaries are frontier-authored + attributed, never a local model",
+        "degraded": err,
+    }
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
