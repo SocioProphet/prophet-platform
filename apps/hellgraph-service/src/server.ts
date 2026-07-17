@@ -17,6 +17,7 @@
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  *   POST /api/graph/sparql         { query }  → SPARQL bindings (parity: Stardog/Anzo/GraphDB)
  *   POST /api/graph/gremlin        { query }  → Gremlin results (parity: Neptune/JanusGraph)
+ *   POST /api/graph/cypher         { query, params? } → Cypher results + queryHash (parity: Neo4j)
  *   POST /api/graph/shacl          { shapes } → SHACL validation report (parity: TopBraid/Stardog)
  */
 import * as http from 'node:http'
@@ -29,7 +30,7 @@ import * as path from 'node:path'
 process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
 
 import * as engine from '@socioprophet/hellgraph'
-import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, shaclValidate } from '@socioprophet/hellgraph'
+import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, synthesisEnabled } from './graphrag.js'
 
@@ -160,6 +161,18 @@ const server = http.createServer((req, res) => {
         const { query } = JSON.parse(b || '{}') as { query?: string }
         if (!query) throw new Error('query required')
         json(res, 200, { ok: true, ...runGremlin(g, query) })
+      } catch (e) { json(res, 400, { error: String(e) }) }
+    })
+  }
+
+  // Cypher parity (Neo4j) — the engine ships runCypher; the result carries a queryHash + evaluatedAtSeq
+  // so a Cypher read is a replayable, proof-carrying result like every other query surface here.
+  if (req.method === 'POST' && url.pathname === '/api/graph/cypher') {
+    return void readBody(req).then((b) => {
+      try {
+        const { query, params } = JSON.parse(b || '{}') as { query?: string; params?: Record<string, string> }
+        if (!query) throw new Error('query required')
+        json(res, 200, { ok: true, ...runCypher(getAtomSpace(), query, params ?? {}) })
       } catch (e) { json(res, 400, { error: String(e) }) }
     })
   }
