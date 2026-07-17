@@ -29,15 +29,15 @@ spec:
               value: postgres
             - name: POSTGRES_DB
               value: prophet_platform
+            # postgres-credentials never existed → CreateContainerConfigError. Reference the real cluster
+            # secret (postgres-admin, key: password) and the literal superuser that the postgres StatefulSet
+            # itself uses (POSTGRES_USER=postgres). TODO: give mail a dedicated, least-privilege DB role.
             - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: username
+              value: postgres
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-credentials
+                  name: postgres-admin
                   key: password
           volumeMounts:
             - name: mailstore
