@@ -1,7 +1,10 @@
 """Entity Resolution engine — similarity, blocking, clustering, proof-carrying decisions."""
 from fastapi.testclient import TestClient
 
-from entity_resolution.resolver import Record, jaro_winkler, attr_agreement, score_pair, resolve
+from entity_resolution.resolver import (
+    Record, jaro_winkler, attr_agreement, score_pair, resolve, resolve_incremental,
+    RESOLVER_VERSION,
+)
 from entity_resolution.server import app
 
 client = TestClient(app)
@@ -103,3 +106,61 @@ def test_survivorship_and_epistemic_edges():
     assert ent["canonical"]["survivor"] == "b"                    # richer record survives
     assert ent["canonical"]["attributes"]["sector"] == "tech"     # merged attributes
     assert out["epistemic_edges"] and out["epistemic_edges"][0]["epistemic_class"] == "derived_relation"
+
+
+def test_replay_key_pinned_and_deterministic():
+    recs = [Record("a", "Acme Corp", {"city": "NYC"}), Record("b", "Acme Corp", {"city": "NYC"})]
+    out = resolve(recs, as_of="2026-07-16T00:00:00+00:00")
+    k = out["replay_key"]
+    assert k["as_of_time"] == "2026-07-16T00:00:00+00:00"
+    assert k["resolver_version"] == RESOLVER_VERSION and "policy_version" in k and "template_version" in k
+    # deterministic: same inputs + same as_of ⇒ identical entities/golden projection
+    out2 = resolve(recs, as_of="2026-07-16T00:00:00+00:00")
+    assert out2["golden_records"] == out["golden_records"] and out2["concordance"] == out["concordance"]
+
+
+def test_golden_records_and_concordance():
+    recs = [
+        Record("a", "Acme Corp", {"city": "NYC"}),
+        Record("b", "Acme Corp", {"city": "NYC", "sector": "tech"}),
+        Record("z", "Globex", {"city": "LA"}),
+    ]
+    out = resolve(recs)
+    # golden record for the merged entity carries the survivor's richer attributes + its members
+    ent = next(e for e in out["entities"] if e["size"] == 2)
+    gr = out["golden_records"][ent["entity_id"]]
+    assert gr["survivor"] == "b" and gr["attributes"]["sector"] == "tech"
+    assert set(gr["members"]) == {"a", "b"}
+    # concordance maps every source record to its canonical entity
+    cmap = {c["record_id"]: c["entity_id"] for c in out["concordance"]}
+    assert cmap["a"] == cmap["b"] and cmap["z"] != cmap["a"]
+    assert len(out["concordance"]) == 3
+
+
+def test_incremental_attaches_new_record_to_existing_entity():
+    base = resolve([Record("a", "Acme Corp", {"city": "NYC"}), Record("b", "Acme Corp", {"city": "NYC"})])
+    prior = list(base["golden_records"].values())
+    # a new record that matches the existing Acme entity → attaches, not a new entity, no full re-run
+    delta = resolve_incremental(prior, [Record("c", "Acme Corp", {"city": "NYC"})])
+    assert delta["attached_to_existing"] and delta["attached_to_existing"][0]["record_id"] == "c"
+    assert delta["new_entities"] == []
+    # a new record unrelated to any prior entity → forms a new entity
+    delta2 = resolve_incremental(prior, [Record("d", "Initech", {"city": "Austin"})])
+    assert delta2["attached_to_existing"] == []
+    assert delta2["new_entities"] and "d" in delta2["new_entities"][0]["members"]
+
+
+def test_incremental_endpoint():
+    base = client.post("/resolve", json={"records": [
+        {"id": "a", "name": "Acme Corp", "attributes": {"city": "NYC"}},
+        {"id": "b", "name": "Acme Corp", "attributes": {"city": "NYC"}},
+    ]}).json()
+    prior = list(base["golden_records"].values())
+    r = client.post("/resolve/incremental", json={
+        "prior_golden": prior,
+        "new_records": [{"id": "c", "name": "Acme Corp", "attributes": {"city": "NYC"}}],
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["attached_to_existing"][0]["record_id"] == "c"
+    assert "replay_key" in body
