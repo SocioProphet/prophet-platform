@@ -42,6 +42,10 @@ owl-reasoner-smoke:
 	cd apps/owl-reasoner && test -d .venv || python3 -m venv .venv
 	cd apps/owl-reasoner && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && PYTHONPATH=src pytest -q tests
 
+memoryd-smoke:
+	cd apps/memoryd && test -d .venv || python3 -m venv .venv
+	cd apps/memoryd && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && PYTHONPATH=src pytest -q tests
+
 grl-mesh-smoke:
 	cd apps/grl-mesh && test -d .venv || python3 -m venv .venv
 	cd apps/grl-mesh && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && PYTHONPATH=src pytest -q tests

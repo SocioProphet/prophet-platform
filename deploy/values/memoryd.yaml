@@ -1,0 +1,10 @@
+# memoryd — sovereign memory-mesh service (apps/memoryd), vendored from ~/dev/memory-mesh into prophet-platform
+# CI so it builds with the estate's WIF like every other service. Recall/write/retract over a pluggable store;
+# defaults to in-memory (MEMORYMESH_STORE_URI=memory://) so it boots with no database. Point at a Postgres DSN
+# to persist. tag:latest → sha-pinned after first build.
+image: { repository: memoryd, tag: latest }
+service: { port: 8787, portName: http }
+config:
+  MEMORYMESH_STORE_URI: "memory://"
+  MEMORYMESH_VECTOR_SIZE: "256"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
