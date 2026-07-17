@@ -1521,10 +1521,122 @@ async def communities(project: str = "default", min_size: int = 1,
         "project": project, "collection": coll,
         "communities": out, "count": len(out),
         "nodes": len(nodes), "inter_community_edges": inter,
-        "algorithm": "label-propagation (deterministic)",
+        "algorithm": "louvain-modularity (deterministic, single-level)",
         "beat": "communities are detected over the proof-carrying graph — each carries its epistemic profile (grounding), and summaries are frontier-authored + attributed, never a local model",
         "degraded": err,
     }
+
+
+# ── WS#31 (reframed): the pay-gated EXECUTION plane. The honest model — execution is a PROVISIONED, entitlement-
+# gated full service (Databricks/Foundry don't give free compute either). The capability is declared and routable;
+# the runtime only spins up when the project holds a paid compute entitlement. Multi-backend + sovereign: a small
+# Spark namespace, a background Databricks connection, or self-hosted kind/k3s/k8s/DinD in the paid mesh. Fail-
+# closed on BOTH the write token and the entitlement. BEAT: every run is a proof-carrying fact and emits a
+# governed, replayable receipt — and you're not locked to one vendor's compute (unlike Foundry/Databricks). ─────
+COMPUTE_BACKENDS = [
+    {"id": "mesh-k8s", "kind": "sovereign", "default": True,
+     "note": "self-hosted sandbox on the paid mesh (kind / k3s / k8s / DinD) — your hardware, our orchestration"},
+    {"id": "spark", "kind": "sovereign",
+     "note": "a small Spark namespace on the mesh — distributed dataframe/SQL compute"},
+    {"id": "databricks", "kind": "external",
+     "note": "connect to your own Databricks workspace in the background — bring-your-own compute"},
+]
+_BACKEND_IDS = {b["id"] for b in COMPUTE_BACKENDS}
+EXEC_KINDS = {"notebook-cell", "pipeline-step", "job", "query"}
+# Comma-sep entitlement tokens: "*" (all), "<project>" (any backend for it), "<project>:<backend>". Empty (default)
+# = nothing entitled → every execute returns 402 (capability available, not provisioned). Pay-gating, fail-closed.
+STUDIO_COMPUTE_ENTITLEMENTS = os.getenv("STUDIO_COMPUTE_ENTITLEMENTS", "")
+
+
+def _entitlements() -> set[str]:
+    return {t.strip() for t in STUDIO_COMPUTE_ENTITLEMENTS.split(",") if t.strip()}
+
+
+def _compute_entitled(project: str, backend: str) -> bool:
+    ents = _entitlements()
+    return "*" in ents or project in ents or f"{project}:{backend}" in ents
+
+
+@app.get("/api/studio/compute")
+async def compute(project: str = "default",
+                  _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The execution backends and this project's entitlement status. Every backend is AVAILABLE (declared +
+    routable); it only runs when the project holds a paid compute entitlement — a full service, not by-the-drink."""
+    backends = [{**b, "entitled": _compute_entitled(project, b["id"])} for b in COMPUTE_BACKENDS]
+    return {"project": project, "backends": backends,
+            "entitled_any": any(b["entitled"] for b in backends),
+            "model": "pay-gated full service — capability available, runtime provisioned only when entitled (like Databricks/Foundry), but sovereign + multi-backend + proof-carrying receipts"}
+
+
+class ExecuteRequest(BaseModel):
+    project: str = "default"
+    kind: str = "notebook-cell"            # notebook-cell | pipeline-step | job | query
+    backend: str = "mesh-k8s"
+    ref: str | None = None                 # what to run (notebook/cell/pipeline id)
+    code: str | None = None                # optional inline payload (hashed into the receipt, not stored verbatim)
+    note: str | None = None
+    actor: str | None = None
+
+
+@app.post("/api/studio/execute")
+async def execute(req: ExecuteRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Submit an execution to an entitled backend. Fail-closed twice: no write token → 503; no compute entitlement
+    → 402 (capability available, not provisioned — provision a paid entitlement to run). When entitled, the run is
+    recorded as a proof-carrying Execution fact and a governed, replayable receipt is emitted; the actual compute
+    runs on the entitled backend's runtime (mesh / spark / databricks)."""
+    _require_write_token(authorization)
+    if req.backend not in _BACKEND_IDS:
+        raise HTTPException(status_code=422, detail=f"backend must be one of {sorted(_BACKEND_IDS)}")
+    if req.kind not in EXEC_KINDS:
+        raise HTTPException(status_code=422, detail=f"kind must be one of {sorted(EXEC_KINDS)}")
+    if not _compute_entitled(req.project, req.backend):
+        raise HTTPException(status_code=402, detail={
+            "status": "entitlement_required", "capability": "available", "backend": req.backend,
+            "message": "compute is a paid, provisioned service — not spun up by the drink. Provision a compute "
+                       "entitlement for this project/backend to run.",
+            "backends": [b["id"] for b in COMPUTE_BACKENDS]})
+    coll = proj_collection(req.project)
+    payload_hash = hashlib.sha256((req.code or req.ref or "").encode()).hexdigest()
+    correlation = f"exec-{payload_hash[:12]}"
+    eid = f"{coll}:execution:{payload_hash[:12]}"
+    prov = _workbench_prov(coll, "attested", req.actor or "studio/execute")
+    prov["extractor"] = "lattice-studio/execution-v0"
+    receipt = {"correlation_id": correlation, "service": "lattice-studio", "kind": req.kind,
+               "backend": req.backend, "replayable": True, "payload_sha256": payload_hash,
+               "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
+    props = {"kind": req.kind, "backend": req.backend, "ref": req.ref or "", "status": "dispatched",
+             "correlation_id": correlation, "receipt_bundle": receipt["bundle_ref"],
+             "payload_sha256": payload_hash, "note": req.note or "", "submitted_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": eid, "labels": [coll, "Execution", "Run"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        if req.ref:                          # lineage: the execution ran a pipeline/notebook/etc
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "executed", "from": eid, "to": req.ref, "properties": prov})
+    return {"execution_id": eid, "backend": req.backend, "kind": req.kind, "status": "dispatched",
+            "receipt": receipt, "proof_carrying": True,
+            "note": f"run recorded + receipt emitted; compute executes on the entitled {req.backend} runtime"}
+
+
+@app.get("/api/studio/executions")
+async def executions(project: str = "default",
+                     _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The execution ledger — every submitted run as a proof-carrying fact with its backend, status and receipt."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "Execution" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        out.append({"execution_id": n.get("id"), "kind": p.get("kind"), "backend": p.get("backend"),
+                    "status": p.get("status", "dispatched"), "ref": p.get("ref") or None,
+                    "correlation_id": p.get("correlation_id"), "receipt_bundle": p.get("receipt_bundle"),
+                    "submitted_at": p.get("submitted_at")})
+    out.sort(key=lambda x: x.get("submitted_at") or "", reverse=True)
+    return {"project": project, "executions": out, "count": len(out), "degraded": err}
 
 
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────

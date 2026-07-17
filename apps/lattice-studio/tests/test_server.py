@@ -1044,7 +1044,7 @@ def test_communities_label_propagation_finds_two_clusters(monkeypatch):
     assert sizes == [3, 3]
     # epistemic profile rides on the community (a1 is attested)
     assert any("attested" in c["epistemic_distribution"] for c in b["communities"])
-    assert b["algorithm"].startswith("label-propagation")
+    assert b["algorithm"].startswith("louvain")
 
 
 def test_communities_deterministic(monkeypatch):
@@ -1061,3 +1061,67 @@ def test_communities_deterministic(monkeypatch):
     a = client.get("/api/studio/communities?project=team-x").json()
     b = client.get("/api/studio/communities?project=team-x").json()
     assert [c["seed"] for c in a["communities"]] == [c["seed"] for c in b["communities"]]   # stable output
+
+
+# ── WS#31 (reframed): pay-gated execution plane ──
+def test_compute_backends_available_but_ungated_by_default(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "")
+    b = client.get("/api/studio/compute?project=team-x").json()
+    ids = {x["id"] for x in b["backends"]}
+    assert {"mesh-k8s", "spark", "databricks"} <= ids
+    assert b["entitled_any"] is False and all(not x["entitled"] for x in b["backends"])   # available, not provisioned
+
+
+def test_execute_fail_closed_on_token_then_entitlement(monkeypatch):
+    import lattice_studio.server as srv
+    # no write token → 503
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    assert client.post("/api/studio/execute", json={"project": "team-x", "kind": "notebook-cell"}).status_code == 503
+    # token but no entitlement → 402 (capability available, pay-gated)
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "")
+    r = client.post("/api/studio/execute", json={"project": "team-x", "kind": "notebook-cell", "backend": "spark"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 402
+    d = r.json()["detail"]
+    assert d["status"] == "entitlement_required" and d["capability"] == "available" and d["backend"] == "spark"
+
+
+def test_execute_when_entitled_records_run_and_emits_receipt(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "team-x:mesh-k8s")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url:
+            writes.append(json); return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:execution:abc", "labels": ["proj-teamx", "Execution", "Run"],
+                 "properties": {"kind": "notebook-cell", "backend": "mesh-k8s", "status": "dispatched",
+                                "correlation_id": "exec-abc", "receipt_bundle": "/v1/receipts/lattice-studio/exec-abc",
+                                "submitted_at": "t1"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/execute",
+                    json={"project": "team-x", "kind": "notebook-cell", "backend": "mesh-k8s",
+                          "ref": "proj-teamx:notebook:1", "code": "df.show()"},
+                    headers={"Authorization": "Bearer T"})
+    b = r.json()
+    assert r.status_code == 200 and b["status"] == "dispatched" and b["proof_carrying"]
+    assert b["receipt"]["replayable"] and b["receipt"]["backend"] == "mesh-k8s"
+    assert b["receipt"]["bundle_ref"].startswith("/v1/receipts/lattice-studio/")
+    node = next(w for w in writes if "labels" in w)
+    assert "Execution" in node["labels"] and node["properties"]["epistemic_mode"] == "attested"
+    assert any(w.get("label") == "executed" and w.get("to") == "proj-teamx:notebook:1" for w in writes)
+
+    # wildcard entitlement also works
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "*")
+    assert client.get("/api/studio/compute?project=anything").json()["entitled_any"] is True
+
+    lst = client.get("/api/studio/executions?project=team-x").json()
+    assert lst["count"] == 1 and lst["executions"][0]["backend"] == "mesh-k8s"
