@@ -100,9 +100,9 @@ KNOWN_BROKEN = {
         "which digest actually runs, because the node cache may be older than `latest`."
     ) for svc in [
         "api", "agentic-os-api", "eval-fabric-api", "evidence-console",
-        "evidence-receipts", "gateway", "hellgraph-service", "osm-map-api",
+        "evidence-receipts", "gateway", "osm-map-api",
         "search-orchestrator",
-    ]},
+    ]},  # hellgraph-service pinned to an immutable sha- tag → removed from the ratchet
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is
