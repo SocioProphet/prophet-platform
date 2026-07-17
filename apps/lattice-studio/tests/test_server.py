@@ -767,3 +767,44 @@ def test_ingest_rejects_unwired_connector(monkeypatch):
                     json={"project": "team-x", "connector": "s3", "data": "s3://bucket/key"},
                     headers={"Authorization": "Bearer T"})
     assert r.status_code == 422 and "not yet wired" in r.json()["detail"]
+
+
+def test_perspective_requires_write_token(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    r = client.post("/api/studio/perspective", json={"project": "team-x", "name": "verified-people"})
+    assert r.status_code == 503   # fail-closed
+
+
+def test_save_perspective_then_list_roundtrips_epistemic_filter(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url:
+            writes.append(json)
+            return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:perspective:verified_people", "labels": ["proj-teamx", "Perspective", "Curation"],
+                 "properties": {"name": "verified people", "label": "Person",
+                                "epistemic": '["attested", "verified"]', "limit": 200, "layout": "radial",
+                                "saved_at": "t1"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/perspective",
+                    json={"project": "team-x", "name": "verified people", "label": "Person",
+                          "epistemic": ["attested", "verified"], "limit": 200, "layout": "radial"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 200 and r.json()["shared_to_team"]
+    node = writes[0]
+    assert "Perspective" in node["labels"] and node["properties"]["epistemic"] == '["attested", "verified"]'
+
+    b = client.get("/api/studio/perspectives?project=team-x").json()
+    assert b["count"] == 1
+    p = b["perspectives"][0]
+    assert p["name"] == "verified people" and p["epistemic"] == ["attested", "verified"]   # JSON round-trip
+    assert p["label"] == "Person" and p["layout"] == "radial"

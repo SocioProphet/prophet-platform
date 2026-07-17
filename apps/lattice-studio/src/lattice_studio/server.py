@@ -912,6 +912,65 @@ async def ingest(req: IngestRequest, authorization: str = Header(default="")) ->
             "errors": errors[:5] or None}
 
 
+# ── WS#34: explorer UX parity+ — saved perspectives. MEET the studios: named, reusable explorer views (a saved
+# label/epistemic filter + layout). BEAT: a perspective is a proof-carrying graph fact — it's shared to the agent
+# team the moment it's saved (lives in the project collection), governed (fail-closed write), and can filter the
+# explorer BY EPISTEMIC STATUS — the moat, made a first-class lens over the graph. ──────────────────────────────
+class PerspectiveRequest(BaseModel):
+    project: str = "default"
+    name: str
+    label: str | None = None            # graph label to focus (e.g. "Person")
+    epistemic: list[str] | None = None  # epistemic modes to include (the beat: filter by grounding)
+    limit: int = 300
+    layout: str = "force"               # force | radial | hierarchy (explorer layout)
+    note: str | None = None
+
+
+@app.post("/api/studio/perspective")
+async def save_perspective(req: PerspectiveRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Save a named explorer perspective (label + epistemic filter + layout) as a proof-carrying graph fact —
+    shared to the agent team on save, governed, and re-openable. Idempotent per (project, name)."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    coll = proj_collection(req.project)
+    pid = f"{coll}:perspective:{_norm(name).replace(' ', '_')}"
+    prov = _workbench_prov(coll, "attested", "studio/perspective")
+    prov["extractor"] = "lattice-studio/perspective-v0"
+    props = {"name": name, "label": req.label or "", "epistemic": json.dumps(req.epistemic or []),
+             "limit": req.limit, "layout": req.layout, "note": req.note or "", "saved_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": pid, "labels": [coll, "Perspective", "Curation"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+    return {"perspective_id": pid, "name": name, "shared_to_team": True, "proof_carrying": True}
+
+
+@app.get("/api/studio/perspectives")
+async def perspectives(project: str = "default",
+                       _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The saved explorer perspectives for a project — each a proof-carrying, team-shared view with its label +
+    epistemic filter + layout, ready to re-open in the graph explorer."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    out = []
+    for n in raw:
+        if "Perspective" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        try:
+            epi = json.loads(p.get("epistemic") or "[]")
+        except (ValueError, TypeError):
+            epi = []
+        out.append({"perspective_id": n.get("id"), "name": p.get("name"), "label": p.get("label") or None,
+                    "epistemic": epi, "limit": p.get("limit", 300), "layout": p.get("layout", "force"),
+                    "note": p.get("note") or None, "saved_at": p.get("saved_at")})
+    out.sort(key=lambda x: x.get("saved_at") or "", reverse=True)
+    return {"project": project, "perspectives": out, "count": len(out), "degraded": err}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
