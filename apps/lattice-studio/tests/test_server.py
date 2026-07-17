@@ -588,3 +588,46 @@ def test_versions_lists_the_chain_newest_first(monkeypatch):
     b = client.get("/api/studio/versions?project=team-x").json()
     assert b["count"] == 2 and b["versions"][0]["version"] == 2   # newest first
     assert b["versions"][0]["parent"] == "proj-teamx:snap:1" and b["versions"][1]["content_hash"] == "h1"
+
+
+def test_fair_full_record_scores_high_and_carries_provenance(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:cite", "labels": ["proj-teamx", "Citation"],
+                 "properties": {"target": "proj-teamx", "pid": "sp:proj-teamx/graph/abc123",
+                                "doi": "10.82044/proj-teamx.graph.abc12345", "title": "Team X graph",
+                                "resolve": "https://x/api/studio/resolve?pid=sp:proj-teamx/graph/abc123",
+                                "epistemic_mode": "verified"}},
+                {"id": "proj-teamx:snap:1", "labels": ["proj-teamx", "Snapshot"],
+                 "properties": {"target": "proj-teamx", "version": 1, "content_hash": "seal1"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/fair?project=team-x").json()
+    assert b["fair"]["findable"] and b["fair"]["accessible"] and b["fair"]["reusable"]
+    assert b["fair"]["score"] == 1.0
+    assert b["schema_org"]["@type"] == "Dataset" and b["schema_org"]["sha256"] == "seal1"
+    assert b["schema_org"]["identifier"] == "10.82044/proj-teamx.graph.abc12345"
+    assert b["schema_org"]["provenance"]["epistemic_status"] == "verified"   # FAIR+
+    assert b["fair_plus"]["provenance_chain"] and b["fair_plus"]["hash_sealed"]
+    assert b["hint"] is None
+
+
+def test_fair_without_citation_is_not_findable_and_hints(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [], "edgeList": []}, None)   # nothing minted yet
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/fair?project=team-x").json()
+    assert not b["fair"]["findable"] and not b["fair"]["accessible"]
+    assert b["fair"]["interoperable"]              # RDF/PROV-O always available
+    assert b["fair"]["score"] == 0.25
+    assert b["hint"] and "persistent identifier" in b["hint"]

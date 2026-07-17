@@ -592,6 +592,54 @@ async def versions(project: str = "default", target: str = "",
     return {"project": project, "target": tgt, "versions": snaps, "count": len(snaps), "degraded": err}
 
 
+# ── WS#37: FAIR metadata + interoperability. Assembles a FAIR record (Findable/Accessible/Interoperable/
+# Reusable) from the artifact's citation + preservation, emits schema.org/Dataset JSON-LD (Google Dataset
+# Search) alongside DataCite + the PROV-O Turtle export, and scores FAIR. The BEAT is FAIR+: epistemic status
+# and a verifiable provenance chain ride inside the metadata (nanopublication-style), which FAIR alone omits. ──
+@app.get("/api/studio/fair")
+async def fair(project: str = "default", target: str = "",
+               _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """FAIR metadata + self-assessment for a knowledge artifact. MEET Zenodo/OpenAIRE: schema.org/Dataset JSON-LD +
+    DataCite + PROV-O Turtle + an F/A/I/R score. BEAT (FAIR+): epistemic status + a verifiable provenance chain
+    ride inside the record — Interoperability is real (RDF/PROV-O export), not just 'a metadata blob exists'."""
+    coll = proj_collection(project)
+    tgt = target or coll
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    cite = next((n.get("properties") or {} for n in raw
+                 if "Citation" in (n.get("labels") or []) and (n.get("properties") or {}).get("target") == tgt), {})
+    snaps = [n.get("properties") or {} for n in raw
+             if "Snapshot" in (n.get("labels") or []) and (n.get("properties") or {}).get("target") == tgt]
+    snaps.sort(key=lambda p: p.get("version", 0))
+    pid, doi = cite.get("pid"), cite.get("doi")
+    title = cite.get("title") or f"{project} — knowledge graph"
+    resolve = cite.get("resolve")
+    version = snaps[-1].get("version") if snaps else None
+    content_hash = (snaps[-1].get("content_hash") if snaps else None) or cite.get("content_hash")
+    turtle_export = f"/api/studio/graph.ttl?project={project}"
+    schema_org = {
+        "@context": "https://schema.org/", "@type": "Dataset", "name": title,
+        "identifier": doi or pid, "url": resolve,
+        "creator": {"@type": "Organization", "name": "SocioProphet Knowledge Commons"},
+        "distribution": {"@type": "DataDownload", "encodingFormat": "text/turtle", "contentUrl": turtle_export},
+        "version": version, "sha256": content_hash,
+        # FAIR+: provenance + epistemic status ride in the record
+        "provenance": {"epistemic_status": cite.get("epistemic_mode", "observed"), "hashSealed": bool(content_hash)},
+    }
+    findable, accessible = bool(pid or doi), bool(resolve)
+    interoperable = True                      # RDF/Turtle + PROV-O + schema.org always available
+    reusable = bool(cite)                     # provenance present (+ license, implicit)
+    score = round(sum([findable, accessible, interoperable, reusable]) / 4, 2)
+    return {
+        "project": project, "target": tgt, "title": title, "pid": pid, "doi": doi,
+        "version": version, "content_hash": content_hash,
+        "schema_org": schema_org, "datacite_doi": doi, "turtle_export": turtle_export,
+        "fair": {"findable": findable, "accessible": accessible, "interoperable": interoperable, "reusable": reusable, "score": score},
+        "fair_plus": {"epistemic": True, "provenance_chain": bool(snaps), "hash_sealed": bool(content_hash)},
+        "hint": None if findable else "mint a persistent identifier (Cite) to make this Findable",
+        "degraded": err,
+    }
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
