@@ -18,8 +18,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import re
+import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -330,6 +333,87 @@ async def query(req: QueryRequest, _auth: dict[str, Any] | None = Depends(requir
         "epistemic": epistemic, "proof": proof,
         "raw": {k: v for k, v in res.items() if k not in ("queryHash", "evaluatedAtSeq", "ok")},
     }
+
+
+# ── WS#32: experiment tracking — runs persisted as FIRST-CLASS proof-carrying graph facts (not a side DB) ──────────
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _safe_json(s: Any) -> Any:
+    if isinstance(s, (dict, list)):
+        return s
+    try:
+        return json.loads(s) if s else {}
+    except (ValueError, TypeError):
+        return {}
+
+
+async def _fetch_raw_nodes(coll: str, limit: int = 500) -> tuple[list[dict[str, Any]], str | None]:
+    """Raw project nodes (properties preserved — unlike _map_node, which projects to a fixed field set)."""
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit={limit}")
+    raw = (res.get("nodes") if isinstance(res, dict) else None) or []
+    return (raw if isinstance(raw, list) else []), err
+
+
+class ExperimentRun(BaseModel):
+    project: str = "default"
+    name: str
+    params: dict[str, Any] = {}
+    metrics: dict[str, float] = {}
+    status: str = "finished"   # running | finished | failed
+    source: str | None = None
+
+
+@app.post("/api/studio/experiments")
+async def create_experiment(req: ExperimentRun, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Track an experiment RUN. MEET MLflow/W&B: params + metrics + status per run. BEAT: the run is persisted as
+    a node in the PROOF-CARRYING graph (labels Run+Experiment), so it isn't a row in a side database — it's a FACT
+    carrying epistemic status + provenance, queryable via the query IDE and linkable to the data/models it touched.
+    Token-gated (it writes the graph)."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    coll = proj_collection(req.project)
+    run_id = f"{coll}:run:{uuid.uuid4().hex[:12]}"
+    prov = _workbench_prov(coll, "observed", req.source or "studio/experiment")
+    prov["extractor"] = "studio/experiment-v0"
+    props = {
+        "name": name, "run_id": run_id, "status": req.status,
+        "params_json": json.dumps(req.params, default=str), "metrics_json": json.dumps(req.metrics, default=str),
+        "created_at": _now_iso(), **prov,
+    }
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, err = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                            json={"id": run_id, "labels": [coll, "Run", "Experiment"], "properties": props})
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph write failed: {err}")
+    return {"run_id": run_id, "project": req.project, "name": name, "status": req.status,
+            "params": req.params, "metrics": req.metrics, "provenance": prov, "written": True}
+
+
+@app.get("/api/studio/experiments")
+async def list_experiments(project: str = "default", limit: int = 200,
+                           _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """List the project's experiment runs — read back from the graph, params/metrics parsed, each run carrying its
+    epistemic status + provenance. These are graph facts you can also query in the IDE (SPARQL/Cypher over runs)."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, limit)
+    runs: list[dict[str, Any]] = []
+    for n in raw:
+        if "Run" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        runs.append({
+            "run_id": p.get("run_id") or n.get("id"), "name": p.get("name"), "status": p.get("status", "unknown"),
+            "params": _safe_json(p.get("params_json")), "metrics": _safe_json(p.get("metrics_json")),
+            "created_at": p.get("created_at"), "epistemic_mode": p.get("epistemic_mode", "observed"),
+            "source": p.get("source"), "extractor": p.get("extractor"),
+        })
+    runs.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+    return {"project": project, "projectCollection": coll, "runs": runs, "count": len(runs), "degraded": err}
 
 
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────

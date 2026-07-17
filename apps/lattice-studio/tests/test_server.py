@@ -402,3 +402,56 @@ def test_query_is_proof_carrying_and_epistemically_enriched(monkeypatch):
     assert b["proof"]["query_hash"] == "qh-abc" and b["proof"]["evaluated_at_seq"] == 42 and b["proof"]["replayable"] is True
     # THE BEAT #2: the referenced fact carries its epistemic status
     assert b["epistemic"] == {"proj-teamx:ent:hellgraph": "verified"}
+
+
+# ── WS#32: experiment tracking — runs as first-class proof-carrying graph facts ──
+
+def test_experiment_create_is_write_gated():
+    assert client.post("/api/studio/experiments", json={"project": "p", "name": "run-1"}).status_code == 503
+
+
+def test_experiment_persists_run_as_graph_fact(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")
+    captured = {}
+
+    async def fake_req(client, method, url, json=None):
+        captured["url"] = url; captured["json"] = json
+        return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/experiments",
+                    json={"project": "team-x", "name": "sweep-lr", "params": {"lr": 0.01}, "metrics": {"acc": 0.91}, "status": "finished"},
+                    headers={"authorization": "Bearer w"})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["run_id"].startswith("proj-teamx:run:") and b["written"] is True
+    # persisted to the GRAPH as a Run+Experiment fact carrying provenance
+    assert captured["url"].endswith("/api/graph/node")
+    node = captured["json"]
+    assert node["labels"] == ["proj-teamx", "Run", "Experiment"]
+    assert '"lr": 0.01' in node["properties"]["params_json"] and '"acc": 0.91' in node["properties"]["metrics_json"]
+    assert node["properties"]["extractor"] == "studio/experiment-v0" and node["properties"]["epistemic_mode"] == "observed"
+
+
+def test_experiments_list_reads_runs_with_epistemic(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:run:abc", "labels": ["proj-teamx", "Run", "Experiment"],
+                 "properties": {"name": "sweep-lr", "run_id": "proj-teamx:run:abc", "status": "finished",
+                                "params_json": "{\"lr\": 0.01}", "metrics_json": "{\"acc\": 0.91}",
+                                "created_at": "2026-07-17T12:00:00Z", "epistemic_mode": "observed", "extractor": "studio/experiment-v0"}},
+                {"id": "proj-teamx:ent:x", "labels": ["proj-teamx", "Entity"], "properties": {"name": "not-a-run"}},
+            ], "edgeList": []}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/experiments?project=team-x").json()
+    assert b["count"] == 1   # the Entity node is filtered out
+    run = b["runs"][0]
+    assert run["name"] == "sweep-lr" and run["status"] == "finished"
+    assert run["params"] == {"lr": 0.01} and run["metrics"] == {"acc": 0.91}
+    assert run["epistemic_mode"] == "observed" and run["run_id"] == "proj-teamx:run:abc"
