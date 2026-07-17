@@ -97,3 +97,36 @@ def test_ontology_doc_endpoint_html_and_json():
     assert "<h1>" in body and 'class="badge"' in body      # rendered doc page
     j = client.post("/ontology/doc", json={"turtle": DOC_TTL, "format": "json"})
     assert j.status_code == 200 and j.json()["counts"]["classes"] == 2
+
+
+def test_justification_traces_type_propagation():
+    # ex:acme a kko:Particulars + Particulars ⊑ Entity ⊢ ex:acme a Entity — with a WHY trace
+    out = reason(KKO_TTL, inference="rdfs", explain=True)
+    js = out["justifications"]
+    tp = next(j for j in js if "acme" in j["conclusion"] and "Entity" in j["conclusion"])
+    assert tp["rule"].startswith("rdfs9")
+    # premises ground the conclusion in stated facts
+    assert any("acme" in p and "Particulars" in p for p in tp["premises"])
+    assert any("Particulars" in p and "Entity" in p for p in tp["premises"])
+
+
+def test_owl2rl_profile_alias_and_label():
+    out = reason(KKO_TTL, inference="owl2rl")
+    assert out["inference"] == "owlrl"           # alias normalized
+    assert out["profile"] == "OWL 2 RL"          # human-readable profile label
+
+
+def test_subclass_transitivity_justification():
+    ttl = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://ex/> .
+ex:A rdfs:subClassOf ex:B . ex:B rdfs:subClassOf ex:C ."""
+    out = reason(ttl, inference="rdfs", explain=True)
+    j = next(j for j in out["justifications"] if j["conclusion"] == "A subClassOf C")
+    assert j["rule"].startswith("rdfs11")
+    assert set(j["premises"]) == {"A subClassOf B", "B subClassOf C"}
+
+
+def test_reason_endpoint_explain():
+    r = client.post("/reason", json={"turtle": KKO_TTL, "inference": "rdfs", "explain": True})
+    assert r.status_code == 200
+    assert isinstance(r.json()["justifications"], list) and len(r.json()["justifications"]) >= 1

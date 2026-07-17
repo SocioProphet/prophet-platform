@@ -30,7 +30,8 @@ app = FastAPI(title="owl-reasoner", version="0.1.0")
 class ReasonRequest(BaseModel):
     turtle: str
     shapes: str | None = None
-    inference: str = "rdfs"
+    inference: str = "rdfs"        # 'rdfs' | 'owlrl'/'owl2rl' | 'both' | 'none'
+    explain: bool = False          # emit per-entailment justifications (rule + premises)
 
 
 @app.get("/healthz")
@@ -40,7 +41,7 @@ def healthz() -> dict[str, Any]:
 
 @app.post("/reason")
 def reason_endpoint(req: ReasonRequest) -> dict[str, Any]:
-    return reason(req.turtle, req.shapes, req.inference)
+    return reason(req.turtle, req.shapes, req.inference, explain=req.explain)
 
 
 @app.post("/reason/project")
