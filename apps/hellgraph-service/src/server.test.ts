@@ -78,6 +78,16 @@ test('Gremlin parity: g.V() returns vertices', async () => {
   assert.ok(Array.isArray(r.json.values) && typeof r.json.count === 'number')
 })
 
+test('Cypher parity: MATCH returns columns/rows + a proof-carrying queryHash', async () => {
+  const L = `cy-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada' } })
+  const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (n:Person) RETURN n LIMIT 5' })
+  assert.equal(r.status, 200)
+  assert.ok(Array.isArray(r.json.columns) && Array.isArray(r.json.rows))
+  assert.match(r.json.queryHash, /^sha256:/)              // replayable, proof-carrying result
+  assert.equal((await req('POST', '/api/graph/cypher', {})).status, 400)   // query required
+})
+
 test('query endpoints 400 on missing query', async () => {
   const r = await req('POST', '/api/graph/sparql', {})
   assert.equal(r.status, 400)
