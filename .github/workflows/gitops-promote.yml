@@ -1,0 +1,85 @@
+# gitops-promote — the missing link that keeps deploy/values/*.yaml image pins in sync with main.
+#
+# Root cause it fixes: images.yml builds + publishes `sha-<commit>` on every merge, but nothing was bumping the
+# values pins — so a service's deployed image silently drifted from main (lattice-studio was stale by dozens of
+# merges). This closes the loop: after a green images build on main, it re-pins the CHANGED services to the fresh
+# sha and commits to main; ArgoCD then rolls them. A values-only commit does NOT re-trigger images.yml (its path
+# filter is apps/**, services/**, .github/workflows/images.yml), so there's no loop.
+name: gitops-promote
+
+on:
+  workflow_run:
+    workflows: ["images"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      all:
+        description: "Promote ALL sha-pinned values to origin/main HEAD (one-time catch-up), not just changed services"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gitops-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    # auto: only on a SUCCESSFUL images build on main. manual: always.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Re-pin values to the built sha
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SHA=$(git rev-parse HEAD)
+            ALL="${{ inputs.all }}"
+          else
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            ALL="false"
+          fi
+          echo "promoting to sha-$SHA (all=$ALL)"
+
+          if [ "$ALL" = "true" ]; then
+            # one-time catch-up: every values file that pins a sha- tag
+            FILES=$(grep -lE 'tag: sha-[0-9a-f]+' deploy/values/*.yaml 2>/dev/null || true)
+          else
+            # only the services whose source changed in this commit (image-name == dir-name convention)
+            CHANGED=$(git show --name-only --pretty="" "$SHA" | grep -oE '^(apps|services)/[^/]+/' \
+                      | sed -E 's#(apps|services)/([^/]+)/#\2#' | sort -u || true)
+            FILES=""
+            for name in $CHANGED; do
+              f="deploy/values/${name}.yaml"
+              [ -f "$f" ] && grep -qE 'tag: sha-[0-9a-f]+' "$f" && FILES="$FILES $f"
+            done
+          fi
+
+          bumped=""
+          for f in $FILES; do
+            if grep -qE "tag: sha-${SHA}\b" "$f"; then continue; fi     # already current
+            sed -i -E "s#tag: sha-[0-9a-f]+#tag: sha-${SHA}#" "$f"
+            bumped="$bumped $(basename "$f" .yaml)"
+          done
+
+          if [ -z "$(git status --porcelain deploy/values)" ]; then
+            echo "nothing to promote — all pins already current"; exit 0
+          fi
+          git config user.name "gitops-promote[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/values
+          git commit -m "gitops: promote${bumped} → sha-${SHA:0:12}"
+          # main may have advanced while the build ran — rebase then push (values-only, no image re-trigger)
+          git pull --rebase --autostash origin main
+          git push origin main
+          echo "promoted:${bumped}"
