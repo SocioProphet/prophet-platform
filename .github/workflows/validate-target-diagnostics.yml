@@ -137,6 +137,7 @@ jobs:
           - grlplus-service-smoke
           - grl-mesh-smoke
           - owl-reasoner-smoke
+          - entity-resolution-smoke
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
