@@ -13,7 +13,7 @@
  *   GET  /api/graph/query?label=X  nodes carrying a label
  *   GET  /api/graph/subgraph?label=X  induced subgraph (nodes + internal edges) for an explorer
  *   GET  /api/graph/resource?uri=X    dereferenceable resource CBD, content-negotiated (Turtle/JSON-LD/HTML/JSON)
- *   GET  /api/graph/ground?q=X        GraphRAG retrieval: seeds + 1-hop facts as provenance-carrying citations
+ *   GET  /api/graph/ground?q=X&hops=N  GraphRAG retrieval: semantic (embedding) or lexical seeds + N-hop facts as citations
  *   POST /api/graph/ask            { question } → GraphRAG cited answer grounded in the graph (sovereign LLM, opt-in)
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  *   POST /api/graph/sparql         { query }  → SPARQL 1.1 SELECT/CONSTRUCT subset (BGP, FILTER, OPTIONAL,
@@ -35,7 +35,7 @@ process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-servi
 import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
-import { askGraph, retrieveGrounding, synthesisEnabled } from './graphrag.js'
+import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
 import { pagerank, connectedComponents, analyticsBackend } from './analytics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
@@ -140,7 +140,9 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/graph/ground') {
     const q = url.searchParams.get('q') ?? ''
     if (!q) return json(res, 400, { error: 'q (question) required' })
-    return json(res, 200, { question: q, ...retrieveGrounding(g, q) })
+    const hops = Math.min(Math.max(Number(url.searchParams.get('hops') ?? 1), 1), 4)
+    return void retrieveGroundingAuto(g, q, hops).then((grounding) =>
+      json(res, 200, { question: q, semanticEnabled: semanticEnabled(), ...grounding }))
   }
   if (req.method === 'POST' && url.pathname === '/api/graph/ask') {
     return void readBody(req).then(async (b) => {
