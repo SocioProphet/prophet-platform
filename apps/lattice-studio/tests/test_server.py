@@ -118,27 +118,34 @@ def test_subgraph_maps_induced_edges(monkeypatch):
     assert e["label"] == "CO_OCCURS" and e["weight"] == 3
 
 
-def test_rdf_export_carries_provenance(monkeypatch):
-    # KE-3: the RDF/Turtle export must carry epistemic_mode + provenance as standard triples (PROV-O / DCT).
+def test_rdf_export_carries_provenance_AND_edges(monkeypatch):
+    # KE-3: the RDF/Turtle export must carry epistemic_mode + provenance AND the RELATIONS (edges) — without
+    # edges the exported graph is a bag of typed nodes a reasoner can't reason over (the compounding bug).
     import lattice_studio.server as srv
 
-    async def fake_nodes(coll, limit=200):
-        return [{"id": f"{coll}:ent:hellgraph", "name": "HellGraph", "epistemic_mode": "observed",
-                 "source": "doc:kg", "extractor": "lattice-studio/deterministic-v0",
-                 "kko_type": "Particulars", "labels": [coll, "Entity"]}], None
-    monkeypatch.setattr(srv, "_fetch_nodes", fake_nodes)
+    async def fake_subgraph(coll, limit=200):
+        nodes = [
+            {"id": f"{coll}:ent:hellgraph", "name": "HellGraph", "epistemic_mode": "observed",
+             "source": "doc:kg", "extractor": "lattice-studio/deterministic-v0", "kko_type": "Particulars"},
+            {"id": f"{coll}:ent:atomspace", "name": "AtomSpace", "epistemic_mode": "observed", "kko_type": "Particulars"},
+        ]
+        edges = [{"id": "e1", "source": f"{coll}:ent:hellgraph", "target": f"{coll}:ent:atomspace",
+                  "label": "co_occurs", "weight": 3}]
+        return nodes, edges, None
+    monkeypatch.setattr(srv, "_fetch_subgraph", fake_subgraph)
 
     r = client.get("/api/studio/graph.ttl?project=team-x")
-    assert r.status_code == 200
-    assert "text/turtle" in r.headers["content-type"]
+    assert r.status_code == 200 and "text/turtle" in r.headers["content-type"]
     ttl = r.text
-    # KKO upper ontology: the node types INTO KKO (Peircean Particulars) — standards-grounded, not ad-hoc
-    assert "kko:" in ttl and "kko:Particulars" in ttl
-    assert "http://kbpedia.org/ontologies/kko#" in ttl
-    # provenance survives export: epistemic mode + source + generator ride the RDF (the moat, on export)
+    assert "kko:Particulars" in ttl and "http://kbpedia.org/ontologies/kko#" in ttl
     assert "sp:epistemicMode" in ttl and '"observed"' in ttl
-    assert "dct:source" in ttl and "prov:wasGeneratedBy" in ttl
-    assert 'rdfs:label "HellGraph"' in ttl
-    # and it's valid Turtle a semantic-web tool can parse
-    from rdflib import Graph as RDFGraph
-    assert len(RDFGraph().parse(data=ttl, format="turtle")) >= 4
+    assert "dct:source" in ttl and "prov:wasGeneratedBy" in ttl and 'rdfs:label "HellGraph"' in ttl
+    # PROV-O correctness: wasGeneratedBy points at a prov:Activity RESOURCE, not a bare literal
+    assert "prov:Activity" in ttl
+    # THE FIX: the co_occurs RELATION is exported as a real predicate triple between the two entities
+    from rdflib import Graph as RDFGraph, Namespace
+    rg = RDFGraph().parse(data=ttl, format="turtle")
+    SP = Namespace("https://socioprophet.ai/kg#")
+    rels = [(s, o) for s, p, o in rg if p == SP["co_occurs"]]
+    assert len(rels) == 1, "the co_occurs edge must be exported as an RDF relation"
+    assert "hellgraph" in str(rels[0][0]) and "atomspace" in str(rels[0][1])
