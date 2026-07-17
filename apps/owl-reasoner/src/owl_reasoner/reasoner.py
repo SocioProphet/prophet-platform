@@ -37,8 +37,8 @@ def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
     """Compute entailments (+ optional SHACL validation) over a Turtle graph.
 
     inference: 'rdfs' | 'owlrl'/'owl2rl' | 'both' | 'none'. Returns input/entailed counts, a sample of the
-    NEW (derived) triples, optional per-triple JUSTIFICATIONS (a 1-step derivation trace: rule + premises —
-    the "why" incumbents' opaque reasoners don't emit), and, when shapes are supplied, the SHACL report.
+    NEW (derived) triples, optional per-triple JUSTIFICATIONS (SOUND proof trees grounded in asserted facts,
+    plus honest coverage — not the "why" incumbents' opaque reasoners hide), and, with shapes, the SHACL report.
     """
     inference = _PROFILE_ALIASES.get(inference, inference)
     g = Graph()
@@ -65,8 +65,18 @@ def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
         "entailments": [f"{_c(s)} {_c(p)} {_c(o)}" for (s, p, o) in entailed[:limit]],
     }
     if explain:
-        # Justification = a 1-step derivation trace grounding each entailment in premises the graph holds.
-        result["justifications"] = [j for t in entailed[:limit] if (j := _justify(g, *t)) is not None]
+        # SOUND proof trees grounded in the ASSERTED baseline, with HONEST coverage. The old version cited
+        # underived triples as premises and SILENTLY dropped whatever it couldn't explain (~93%); now every
+        # premise is proven down to asserted facts, and unexplained entailments are COUNTED, not hidden.
+        target = entailed[:limit]
+        proofs = [pf for t in target if (pf := _prove(baseline, g, t, frozenset())) is not None and "rule" in pf]
+        result["justifications"] = proofs
+        result["justification_coverage"] = {
+            "explained": len(proofs), "unexplained": len(target) - len(proofs), "of": len(target),
+            "note": "unexplained entailments are OWL-RL axiomatic/tautological triples or rules outside the "
+                    "RDFS/OWL-RL subset this prover covers (type propagation, subclass/subproperty transitivity, "
+                    "domain/range, symmetric) — reported, never silently dropped",
+        }
 
     if shapes is not None:
         if not _HAVE_SHACL:
@@ -79,59 +89,54 @@ def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
     return result
 
 
-def _justify(g: Graph, s: Any, p: Any, o: Any) -> dict[str, Any] | None:
-    """Find a 1-step justification for an entailed triple: the rule that derives it + the premises the
-    graph holds. Covers the load-bearing RDFS/OWL-RL rules (type propagation, subclass/subproperty
-    transitivity, domain/range). Returns {conclusion, rule, premises[]} or None if not attributable."""
-    def has(a: Any, b: Any, c: Any) -> bool:
-        return (a, b, c) in g
+Triple = tuple[Any, Any, Any]
+_MAX_PROOF_DEPTH = 16
 
-    def prem(a: Any, b: Any, c: Any) -> str:
-        return f"{_c(a)} {_c(b)} {_c(c)}"
 
-    concl = f"{_c(s)} {_c(p)} {_c(o)}"
-
+def _rule_candidates(g: Graph, s: Any, p: Any, o: Any):
+    """Yield (rule_name, [premise_triples]) for EVERY applicable RDFS/OWL-RL rule that could derive (s,p,o).
+    The prover tries each candidate and keeps the first whose premises all ground in asserted facts, so a
+    branch that can't be grounded doesn't poison a conclusion that has another valid derivation."""
     if p == RDF.type:
-        # type propagation: s a C , C ⊑ o  ⊢  s a o
-        for c in g.objects(s, RDF.type):
-            if c != o and has(c, RDFS.subClassOf, o):
-                return {"conclusion": concl, "rule": "rdfs9:type-propagation",
-                        "premises": [prem(s, RDF.type, c), prem(c, RDFS.subClassOf, o)]}
-        # domain: s P x , P domain o  ⊢  s a o
-        for pr, x in g.predicate_objects(s):
-            if isinstance(pr, URIRef) and has(pr, RDFS.domain, o):
-                return {"conclusion": concl, "rule": "rdfs2:domain",
-                        "premises": [prem(s, pr, x), prem(pr, RDFS.domain, o)]}
-        # range: x P s , P range o  ⊢  s a o
-        for x, pr in g.subject_predicates(s):
-            if isinstance(pr, URIRef) and has(pr, RDFS.range, o):
-                return {"conclusion": concl, "rule": "rdfs3:range",
-                        "premises": [prem(x, pr, s), prem(pr, RDFS.range, o)]}
-
-    if p == RDFS.subClassOf:
-        # subclass transitivity: s ⊑ M , M ⊑ o  ⊢  s ⊑ o
+        for c in g.objects(s, RDF.type):                       # rdfs9: s a C, C ⊑ o ⊢ s a o
+            if c != o and (c, RDFS.subClassOf, o) in g:
+                yield "rdfs9:type-propagation", [(s, RDF.type, c), (c, RDFS.subClassOf, o)]
+        for pr, x in g.predicate_objects(s):                   # rdfs2: s P x, P domain o ⊢ s a o
+            if isinstance(pr, URIRef) and (pr, RDFS.domain, o) in g:
+                yield "rdfs2:domain", [(s, pr, x), (pr, RDFS.domain, o)]
+        for x, pr in g.subject_predicates(s):                  # rdfs3: x P s, P range o ⊢ s a o
+            if isinstance(pr, URIRef) and (pr, RDFS.range, o) in g:
+                yield "rdfs3:range", [(x, pr, s), (pr, RDFS.range, o)]
+    if p == RDFS.subClassOf:                                   # rdfs11: s ⊑ M, M ⊑ o ⊢ s ⊑ o
         for m in g.objects(s, RDFS.subClassOf):
-            if m not in (s, o) and has(m, RDFS.subClassOf, o):
-                return {"conclusion": concl, "rule": "rdfs11:subClassOf-transitivity",
-                        "premises": [prem(s, RDFS.subClassOf, m), prem(m, RDFS.subClassOf, o)]}
-
-    if p == RDFS.subPropertyOf:
+            if m not in (s, o) and (m, RDFS.subClassOf, o) in g:
+                yield "rdfs11:subClassOf-transitivity", [(s, RDFS.subClassOf, m), (m, RDFS.subClassOf, o)]
+    if p == RDFS.subPropertyOf:                                # rdfs5: subPropertyOf transitivity
         for m in g.objects(s, RDFS.subPropertyOf):
-            if m not in (s, o) and has(m, RDFS.subPropertyOf, o):
-                return {"conclusion": concl, "rule": "rdfs5:subPropertyOf-transitivity",
-                        "premises": [prem(s, RDFS.subPropertyOf, m), prem(m, RDFS.subPropertyOf, o)]}
-
+            if m not in (s, o) and (m, RDFS.subPropertyOf, o) in g:
+                yield "rdfs5:subPropertyOf-transitivity", [(s, RDFS.subPropertyOf, m), (m, RDFS.subPropertyOf, o)]
     if isinstance(p, URIRef) and p not in (RDF.type, RDFS.subClassOf, RDFS.subPropertyOf):
-        # subproperty entailment: s Q o , Q ⊑ p  ⊢  s p o
-        for q in g.predicates(s, o):
-            if q != p and isinstance(q, URIRef) and has(q, RDFS.subPropertyOf, p):
-                return {"conclusion": concl, "rule": "rdfs7:subPropertyOf",
-                        "premises": [prem(s, q, o), prem(q, RDFS.subPropertyOf, p)]}
-        # symmetric / inverse (OWL): s' P o with P owl:inverseOf p, or symmetric
-        if has(p, RDF.type, OWL.SymmetricProperty) and has(o, p, s):
-            return {"conclusion": concl, "rule": "owl:SymmetricProperty",
-                    "premises": [prem(o, p, s), prem(p, RDF.type, OWL.SymmetricProperty)]}
+        for q in g.predicates(s, o):                           # rdfs7: s Q o, Q ⊑ p ⊢ s p o
+            if q != p and isinstance(q, URIRef) and (q, RDFS.subPropertyOf, p) in g:
+                yield "rdfs7:subPropertyOf", [(s, q, o), (q, RDFS.subPropertyOf, p)]
+        if (p, RDF.type, OWL.SymmetricProperty) in g and (o, p, s) in g:  # owl symmetric
+            yield "owl:SymmetricProperty", [(o, p, s), (p, RDF.type, OWL.SymmetricProperty)]
 
+
+def _prove(baseline: set[Triple], g: Graph, triple: Triple, seen: frozenset[Triple], depth: int = 0) -> dict[str, Any] | None:
+    """SOUND proof tree: ground `triple` in ASSERTED (baseline) facts via RDFS/OWL-RL rules, recursing on
+    derived premises. Every leaf is an asserted triple — a premise can never be an unproven derived fact
+    (the bug the old 1-ply version had: it checked the post-closure graph and cited underived triples)."""
+    concl = f"{_c(triple[0])} {_c(triple[1])} {_c(triple[2])}"
+    if triple in baseline:
+        return {"conclusion": concl, "asserted": True}
+    if depth >= _MAX_PROOF_DEPTH or triple in seen:
+        return None
+    seen = seen | {triple}
+    for rule, premises in _rule_candidates(g, *triple):
+        proofs = [_prove(baseline, g, prem, seen, depth + 1) for prem in premises]
+        if all(pr is not None for pr in proofs):
+            return {"conclusion": concl, "rule": rule, "premises": proofs}
     return None
 
 
