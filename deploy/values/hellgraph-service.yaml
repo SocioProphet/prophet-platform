@@ -1,3 +1,13 @@
 # hellgraph-service — the engine serves on :8090 (not 8080); align service + probes.
 image: { repository: hellgraph-service, tag: sha-a16830db1710748792dbe9c79dab5dddeb3d21ff }
 service: { port: 8090, portName: http }
+config:
+  # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
+  # (semantic.embedText, ≥0.4.23) speaks EMBEDDINGS_URL → the in-cluster Ollama pod's OpenAI-
+  # compatible /v1/embeddings. This flips GraphRAG + commons retrieval from substring/hashing to
+  # REAL semantic ("car" ≈ "automobile"). The vector store is dimension-adaptive (holds
+  # nomic-embed-text's 768-dim vectors as-is), so no fixed vector-size var is needed here — unlike
+  # memoryd's MEMORYMESH_VECTOR_SIZE. The fogstack (federal/standard) tiers override EMBEDDINGS_URL
+  # to "" in the appset so a sovereign tier never reaches this socioprophet-namespace service.
+  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:11434/v1/embeddings"
+  EMBEDDINGS_MODEL: "nomic-embed-text"
