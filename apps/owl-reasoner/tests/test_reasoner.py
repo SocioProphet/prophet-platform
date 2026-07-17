@@ -99,15 +99,41 @@ def test_ontology_doc_endpoint_html_and_json():
     assert j.status_code == 200 and j.json()["counts"]["classes"] == 2
 
 
+def _leaves(node):
+    """All asserted-leaf conclusions under a proof node."""
+    if node.get("asserted"):
+        return [node["conclusion"]]
+    out = []
+    for pr in node.get("premises", []):
+        out += _leaves(pr)
+    return out
+
+
 def test_justification_traces_type_propagation():
     # ex:acme a kko:Particulars + Particulars ⊑ Entity ⊢ ex:acme a Entity — with a WHY trace
     out = reason(KKO_TTL, inference="rdfs", explain=True)
     js = out["justifications"]
     tp = next(j for j in js if "acme" in j["conclusion"] and "Entity" in j["conclusion"])
     assert tp["rule"].startswith("rdfs9")
-    # premises ground the conclusion in stated facts
-    assert any("acme" in p and "Particulars" in p for p in tp["premises"])
-    assert any("Particulars" in p and "Entity" in p for p in tp["premises"])
+    # every leaf premise is an ASSERTED fact grounding the conclusion
+    leaves = _leaves(tp)
+    assert any("acme" in p and "Particulars" in p for p in leaves)
+    assert any("Particulars" in p and "Entity" in p for p in leaves)
+    assert "justification_coverage" in out and out["justification_coverage"]["explained"] >= 1
+
+
+def test_justification_is_SOUND_never_cites_underived_premise():
+    # A⊑B⊑C⊑D ⊢ A⊑D. The OLD 1-ply code cited the UNDERIVED 'B subClassOf D' as a premise (bug).
+    # A sound proof must ground ONLY in the three asserted subClassOf facts.
+    ttl = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ex: <http://ex/> .
+ex:A rdfs:subClassOf ex:B . ex:B rdfs:subClassOf ex:C . ex:C rdfs:subClassOf ex:D ."""
+    out = reason(ttl, inference="rdfs", explain=True)
+    j = next(j for j in out["justifications"] if j["conclusion"] == "A subClassOf D")
+    asserted = {"A subClassOf B", "B subClassOf C", "C subClassOf D"}
+    leaves = set(_leaves(j))
+    assert leaves <= asserted, f"proof leaves must be asserted facts only, got {leaves - asserted}"
+    assert leaves == asserted, "the full derivation must bottom out in all three stated facts"
 
 
 def test_owl2rl_profile_alias_and_label():
@@ -123,7 +149,7 @@ ex:A rdfs:subClassOf ex:B . ex:B rdfs:subClassOf ex:C ."""
     out = reason(ttl, inference="rdfs", explain=True)
     j = next(j for j in out["justifications"] if j["conclusion"] == "A subClassOf C")
     assert j["rule"].startswith("rdfs11")
-    assert set(j["premises"]) == {"A subClassOf B", "B subClassOf C"}
+    assert set(_leaves(j)) == {"A subClassOf B", "B subClassOf C"}
 
 
 def test_reason_endpoint_explain():
