@@ -130,3 +130,43 @@ def test_reason_endpoint_explain():
     r = client.post("/reason", json={"turtle": KKO_TTL, "inference": "rdfs", "explain": True})
     assert r.status_code == 200
     assert isinstance(r.json()["justifications"], list) and len(r.json()["justifications"]) >= 1
+
+
+def test_tabular_rdf_maps_rows_with_class_and_predicates():
+    from owl_reasoner.tabular_rdf import map_rows
+    rows = [
+        {"id": "1", "full_name": "Jane Doe", "employer": "acme"},
+        {"id": "2", "full_name": "John Roe", "employer": "acme"},
+        {"full_name": "No Id"},   # lacks subject key → skipped
+    ]
+    mapping = {
+        "base": "http://ex/",
+        "subject_template": "person/{id}",
+        "class": "Person",
+        "predicates": {"full_name": "foaf:name", "employer": "http://ex/employer"},
+        "object_iri": {"employer": "org/{employer}"},
+        "prefixes": {"foaf": "http://xmlns.com/foaf/0.1/"},
+    }
+    out = map_rows(rows, mapping)
+    assert out["mapped"] == 2 and out["skipped"] == 1
+    ttl = out["turtle"]
+    assert "person/1" in ttl and "Jane Doe" in ttl
+    assert "org/acme" in ttl                       # employer mapped as an IRI reference, not a literal
+    assert "foaf:name" in ttl or "name" in ttl     # CURIE-bound predicate
+
+
+def test_virtualize_endpoint_json_and_turtle():
+    body = {
+        "rows": [{"id": "1", "full_name": "Jane"}],
+        "mapping": {"base": "http://ex/", "subject_template": "p/{id}", "class": "Person",
+                    "predicates": {"full_name": "http://ex/name"}},
+    }
+    r = client.post("/virtualize", json=body)
+    assert r.status_code == 200 and r.json()["mapped"] == 1 and r.json()["triples"] >= 2
+    t = client.post("/virtualize", json={**body, "format": "turtle"})
+    assert t.status_code == 200 and "text/turtle" in t.headers["content-type"] and "Jane" in t.text
+
+
+def test_virtualize_400_without_subject_template():
+    r = client.post("/virtualize", json={"rows": [{"id": "1"}], "mapping": {"base": "http://ex/"}})
+    assert r.status_code == 400

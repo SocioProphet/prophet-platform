@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from .ontology_doc import extract_ontology, ontology_doc
 from .ontology_graph import tbox_graph
 from .reasoner import reason
+from .tabular_rdf import map_rows
 
 LATTICE_STUDIO_URL = os.getenv("LATTICE_STUDIO_URL", "http://lattice-studio:8080")
 TIMEOUT = float(os.getenv("OWL_TIMEOUT", "8"))
@@ -82,3 +83,22 @@ def ontology_doc_endpoint(req: OntologyDocRequest) -> Any:
     if req.format == "json":
         return extract_ontology(req.turtle)
     return Response(content=ontology_doc(req.turtle), media_type="text/html")
+
+
+class VirtualizeRequest(BaseModel):
+    rows: list[dict[str, Any]]
+    mapping: dict[str, Any]      # R2RML-style: subject_template, class?, predicates, object_iri?, prefixes?
+    format: str = "json"         # "json" → turtle+jsonld+counts; "turtle" → Turtle body
+
+
+@app.post("/virtualize")
+def virtualize_endpoint(req: VirtualizeRequest) -> Any:
+    """Tabular rows → RDF via an R2RML-style mapping — the 'turn my table into the graph' on-ramp.
+    Materializes (not live-DB OBDA), so mapped data is queryable + dereferenceable next to authored ontologies."""
+    try:
+        out = map_rows(req.rows, req.mapping)
+    except ValueError as e:
+        return Response(content=str(e), status_code=400, media_type="text/plain")
+    if req.format == "turtle":
+        return Response(content=out["turtle"], media_type="text/turtle")
+    return out
