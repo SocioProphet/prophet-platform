@@ -59,6 +59,7 @@ NON_CHART_SERVICES = {
     "workspace-mail",
     "workspace-caldav",
     "workspace-smtp",
+    "embeddings",  # sovereign Ollama /v1/embeddings backend, deploys from infra/k8s/embeddings (kustomize)
     "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
     "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
     "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
