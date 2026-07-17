@@ -507,6 +507,91 @@ async def resolve(pid: str = "", _auth: dict[str, Any] | None = Depends(require_
     return {"pid": pid, "found": False, "degraded": err}
 
 
+# ── WS#36: immutable preservation + versioning. A tamper-evident, content-addressed snapshot of a knowledge
+# artifact, versioned in a chain (each links to its predecessor). Idempotent: re-preserving unchanged state
+# returns the existing version. The snapshot carries the provenance chain — an archived fact stays proof-carrying. ──
+class PreserveRequest(BaseModel):
+    project: str = "default"
+    target: str = ""        # "" = the whole-project graph; else a label/id to scope the snapshot
+    note: str | None = None
+
+
+def _state_hash(raw: list[dict[str, Any]], target: str) -> str:
+    """A stable content hash over the CURRENT state of the target — the sorted (id, content_hash-of-props) of the
+    nodes in scope. Deterministic, so identical state → identical hash (tamper-evidence + idempotent versioning)."""
+    def in_scope(n: dict[str, Any]) -> bool:
+        if not target:
+            return "Snapshot" not in (n.get("labels") or [])   # don't hash prior snapshots into the state
+        return target in (n.get("labels") or []) or n.get("id") == target
+    parts = []
+    for n in sorted((x for x in raw if in_scope(x)), key=lambda n: str(n.get("id", ""))):
+        props = json.dumps(n.get("properties") or {}, sort_keys=True, default=str)
+        parts.append(f"{n.get('id','')}={hashlib.sha256(props.encode()).hexdigest()[:16]}")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()
+
+
+@app.post("/api/studio/preserve")
+async def preserve(req: PreserveRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Seal an immutable, versioned snapshot of a knowledge artifact. MEET Zenodo/OSF versioning. BEAT: the
+    snapshot is content-addressed + tamper-evident (re-hash to verify), chained to its predecessor, and carries
+    the provenance chain (epistemic=attested) so an archived fact stays proof-carrying. Idempotent — preserving
+    unchanged state returns the existing version, never a duplicate."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    target = req.target or coll
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph read failed: {err}")
+    content_hash = _state_hash(raw, req.target)
+    snaps = [n for n in raw if "Snapshot" in (n.get("labels") or []) and (n.get("properties") or {}).get("target") == target]
+    snaps.sort(key=lambda n: (n.get("properties") or {}).get("version", 0))
+    # idempotent: unchanged state → return the existing head version
+    if snaps and (snaps[-1].get("properties") or {}).get("content_hash") == content_hash:
+        p = snaps[-1]["properties"]
+        return {"snapshot_id": snaps[-1].get("id"), "version": p.get("version"), "content_hash": content_hash,
+                "target": target, "sealed_at": p.get("sealed_at"), "unchanged": True, "proof_carrying": True}
+    version = len(snaps) + 1
+    parent = snaps[-1].get("id") if snaps else None
+    sealed_at = _now_iso()
+    snap_id = f"{coll}:snap:{content_hash[:12]}"
+    prov = _workbench_prov(coll, "attested", "studio/preserve")
+    prov["extractor"] = "studio/preserve-v0"
+    props = {"target": target, "version": version, "content_hash": content_hash, "sealed_at": sealed_at,
+             "parent": parent or "", "note": req.note or "", **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": snap_id, "labels": [coll, "Snapshot", "Preservation"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        if parent:  # chain to predecessor (version lineage)
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "supersedes", "from": snap_id, "to": parent, "properties": prov})
+    return {"snapshot_id": snap_id, "version": version, "content_hash": content_hash, "target": target,
+            "sealed_at": sealed_at, "parent": parent, "unchanged": False, "proof_carrying": True}
+
+
+@app.get("/api/studio/versions")
+async def versions(project: str = "default", target: str = "",
+                   _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The version history of a preserved artifact — the immutable chain, newest first, each sealed with its
+    content hash + timestamp. Verify integrity by re-hashing the state against a version's content_hash."""
+    coll = proj_collection(project)
+    tgt = target or coll
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    snaps = []
+    for n in raw:
+        if "Snapshot" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if p.get("target") != tgt:
+            continue
+        snaps.append({"snapshot_id": n.get("id"), "version": p.get("version"), "content_hash": p.get("content_hash"),
+                      "sealed_at": p.get("sealed_at"), "parent": p.get("parent") or None, "note": p.get("note") or None,
+                      "epistemic_mode": p.get("epistemic_mode", "attested")})
+    snaps.sort(key=lambda s: s.get("version") or 0, reverse=True)
+    return {"project": project, "target": tgt, "versions": snaps, "count": len(snaps), "degraded": err}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but

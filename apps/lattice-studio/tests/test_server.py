@@ -521,3 +521,70 @@ def test_resolve_returns_proof_carrying_record(monkeypatch):
     # resolves to a VERIFIABLE record, not a landing page
     assert b["proof_carrying"] is True and b["content_hash"] == "abc123def456"
     assert b["provenance"]["epistemic_mode"] == "attested" and b["creators"] == ["M. Heller"]
+
+
+# ── WS#36: immutable preservation + versioning (content-addressed, chained, tamper-evident) ──
+
+def test_preserve_is_write_gated():
+    assert client.post("/api/studio/preserve", json={"project": "p"}).status_code == 503
+
+
+def test_preserve_seals_v1_snapshot(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")
+    posts = []
+    nodes = [
+        {"id": "proj-teamx:ent:a", "labels": ["proj-teamx", "Entity"], "properties": {"name": "A", "epistemic_mode": "observed"}},
+        {"id": "proj-teamx:ent:b", "labels": ["proj-teamx", "Entity"], "properties": {"name": "B", "epistemic_mode": "observed"}},
+    ]
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": nodes, "edgeList": []}, None)
+        posts.append((url, json)); return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.post("/api/studio/preserve", json={"project": "team-x", "note": "first seal"}, headers={"authorization": "Bearer w"}).json()
+    assert b["version"] == 1 and b["content_hash"] == srv._state_hash(nodes, "") and b["unchanged"] is False and b["parent"] is None
+    node_post = next(p for u, p in posts if u.endswith("/api/graph/node"))
+    assert node_post["labels"] == ["proj-teamx", "Snapshot", "Preservation"]
+    assert node_post["properties"]["version"] == 1 and node_post["properties"]["epistemic_mode"] == "attested"
+
+
+def test_preserve_is_idempotent_on_unchanged_state(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")
+    ents = [{"id": "proj-teamx:ent:a", "labels": ["proj-teamx", "Entity"], "properties": {"name": "A"}}]
+    h = srv._state_hash(ents, "")
+    snap = {"id": "proj-teamx:snap:x", "labels": ["proj-teamx", "Snapshot", "Preservation"],
+            "properties": {"target": "proj-teamx", "version": 1, "content_hash": h, "sealed_at": "t0"}}
+    created = []
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": ents + [snap], "edgeList": []}, None)
+        created.append(url); return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.post("/api/studio/preserve", json={"project": "team-x"}, headers={"authorization": "Bearer w"}).json()
+    assert b["unchanged"] is True and b["version"] == 1
+    assert not any(u.endswith("/api/graph/node") for u in created)   # no duplicate snapshot written
+
+
+def test_versions_lists_the_chain_newest_first(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:snap:1", "labels": ["proj-teamx", "Snapshot"],
+                 "properties": {"target": "proj-teamx", "version": 1, "content_hash": "h1", "sealed_at": "t1", "epistemic_mode": "attested"}},
+                {"id": "proj-teamx:snap:2", "labels": ["proj-teamx", "Snapshot"],
+                 "properties": {"target": "proj-teamx", "version": 2, "content_hash": "h2", "sealed_at": "t2", "parent": "proj-teamx:snap:1", "epistemic_mode": "attested"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/versions?project=team-x").json()
+    assert b["count"] == 2 and b["versions"][0]["version"] == 2   # newest first
+    assert b["versions"][0]["parent"] == "proj-teamx:snap:1" and b["versions"][1]["content_hash"] == "h1"
