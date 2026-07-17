@@ -1,0 +1,7 @@
+# entity-resolution — the ER resolver (apps/entity-resolution). Turns regis-entity-graph from a validator
+# into a real engine: blocking → Jaro-Winkler+Jaccard similarity → union-find clustering → proof-carrying
+# decisions (MERGE_VERIFIED/REQUIRES_REVIEW/MERGE_BLOCKED with field-level evidence). tag:latest → sha after first build.
+image: { repository: entity-resolution, tag: latest }
+service: { port: 8080, portName: http }
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+networkPolicy: { enabled: true, ports: [8080] }

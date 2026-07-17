@@ -66,6 +66,7 @@ jobs:
           - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
           - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }
+          - { image: entity-resolution,     context: apps/entity-resolution,     dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}
