@@ -93,6 +93,26 @@ test('query endpoints 400 on missing query', async () => {
   assert.equal(r.status, 400)
 })
 
+test('SPARQL 1.1: UNION + aggregation over the endpoint (vendored engine 0.4.5)', async () => {
+  const L = `s11-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada' } })
+  await req('POST', '/api/graph/node', { id: `${L}:2`, labels: ['Person', L], properties: { name: 'Alan' } })
+  // UNION
+  const u = await req('POST', '/api/graph/sparql', { query: `SELECT ?s WHERE { { ?s ?p "Ada" } UNION { ?s ?p "Alan" } }` })
+  assert.equal(u.status, 200)
+  assert.ok(u.json.bindings.length >= 2)
+  // aggregation + GROUP BY
+  const c = await req('POST', '/api/graph/sparql', { query: `SELECT ?t (COUNT(?s) AS ?c) WHERE { ?s a ?t } GROUP BY ?t` })
+  assert.equal(c.status, 200)
+  assert.ok(c.json.bindings.some((b: any) => Number(b.c) >= 2))
+})
+
+test('SPARQL: unsupported forms 400 (loud, not silently-wrong)', async () => {
+  const r = await req('POST', '/api/graph/sparql', { query: 'ASK { ?s ?p ?o }' })
+  assert.equal(r.status, 400)                       // throws → 400, never an empty 200
+  assert.match(r.json.error, /unsupported/i)
+})
+
 test('resource: dereferenceable CBD content-negotiates turtle / json-ld / html / json', async () => {
   const S = `res-${process.pid}`
   const subj = `${S}:acme`, obj = `${S}:nyc`
