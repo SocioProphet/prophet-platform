@@ -11,6 +11,7 @@
  *   POST /api/graph/edge           { label, from, to, properties? } → add edge
  *   GET  /api/graph/query?label=X  nodes carrying a label
  *   GET  /api/graph/subgraph?label=X  induced subgraph (nodes + internal edges) for an explorer
+ *   GET  /api/graph/resource?uri=X    dereferenceable resource CBD, content-negotiated (Turtle/JSON-LD/HTML/JSON)
  *   POST /api/graph/reason         run PLN forward-chaining → counts
  *   POST /api/graph/sparql         { query }  → SPARQL bindings (parity: Stardog/Anzo/GraphDB)
  *   POST /api/graph/gremlin        { query }  → Gremlin results (parity: Neptune/JanusGraph)
@@ -27,6 +28,7 @@ process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-servi
 
 import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, shaclValidate } from '@socioprophet/hellgraph'
+import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -96,6 +98,21 @@ const server = http.createServer((req, res) => {
     // induced subgraph: keep an edge only when both endpoints are in the node set (no dangling)
     const edges = g.allEdges().filter((e) => ids.has(e.from) && ids.has(e.to))
     return json(res, 200, { count: nodes.length, edges: edges.length, nodes, edgeList: edges })
+  }
+
+  // Dereferenceable resource description (Linked-Data publishing): GET the URI, get its Concise Bounded
+  // Description content-negotiated on Accept — Turtle / JSON-LD / browsable HTML / JSON. This is the
+  // gist/Prez/Pubby affordance the whole semantic-web field expects and we lacked. Read-only.
+  if (req.method === 'GET' && url.pathname === '/api/graph/resource') {
+    const uri = url.searchParams.get('uri') ?? url.searchParams.get('iri') ?? ''
+    if (!uri) return json(res, 400, { error: 'uri (or iri) query param required' })
+    const d = describeResource(g, uri)
+    const fmt = negotiate(req.headers['accept'])
+    const code = d.found ? 200 : 404
+    if (fmt === 'turtle') { res.writeHead(code, { 'content-type': 'text/turtle; charset=utf-8' }); return void res.end(toTurtle(d)) }
+    if (fmt === 'jsonld') { res.writeHead(code, { 'content-type': 'application/ld+json; charset=utf-8' }); return void res.end(JSON.stringify(toJsonLd(d))) }
+    if (fmt === 'html')   { res.writeHead(code, { 'content-type': 'text/html; charset=utf-8' }); return void res.end(toHtml(d)) }
+    return json(res, code, d)
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/reason') {
