@@ -840,3 +840,142 @@ def test_pidgraph_assembles_typed_research_graph(monkeypatch):
     assert ("orcid:0000-0002-1825-0097", "org:socioprophet", "affiliated") in labels
     assert b["stats"]["results"] == 1 and b["stats"]["persons"] == 2 and b["stats"]["identifiers"] == 2
     assert all(n["proof_carrying"] for n in b["nodes"])            # the beat
+
+
+# ── WS#45–47: Databricks/Foundry parity — pipelines, catalog+lineage, model registry ──────────────────────────
+def test_pipeline_write_gated_and_builds_dag(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    assert client.post("/api/studio/pipeline", json={"project": "team-x", "name": "etl"}).status_code == 503
+
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url:
+            writes.append(json); return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/pipeline",
+                    json={"project": "team-x", "name": "ETL train",
+                          "steps": [{"id": "load", "kind": "extract", "outputs": ["raw"]},
+                                    {"id": "clean", "kind": "transform", "inputs": ["raw"], "outputs": ["tidy"]},
+                                    {"id": "fit", "kind": "train", "inputs": ["tidy"]}]},
+                    headers={"Authorization": "Bearer T"})
+    b = r.json()
+    assert b["pipeline_id"] == "proj-teamx:pipeline:etl_train" and b["steps"] == 3 and b["proof_carrying"]
+    labels = {(w.get("label"), w.get("from"), w.get("to")) for w in writes if "label" in w}
+    assert ("feeds", "proj-teamx:pipeline:etl_train:step:load", "proj-teamx:pipeline:etl_train:step:clean") in labels
+    assert ("feeds", "proj-teamx:pipeline:etl_train:step:clean", "proj-teamx:pipeline:etl_train:step:fit") in labels
+    assert any(w.get("label") == "step_of" for w in writes)
+
+
+def test_pipeline_run_records_ledger(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url:
+            writes.append(json); return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.post("/api/studio/pipeline/run", json={"project": "team-x", "pipeline": "ETL train", "status": "finished"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert b["proof_carrying"] and b["status"] == "finished"
+    node = next(w for w in writes if "labels" in w)
+    assert "PipelineRun" in node["labels"] and "Run" in node["labels"]
+    assert any(w.get("label") == "run_of" and w.get("to") == "proj-teamx:pipeline:etl_train" for w in writes)
+
+
+def test_catalog_lists_governed_datasets(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:ingest:1", "labels": ["proj-teamx", "Person", "Ingested"],
+                 "properties": {"name": "row1", "id_col": "1", "age": "40", "connector": "csv",
+                                "epistemic_mode": "observed", "source": "connector:csv:abc", "extractor": "x"}},
+                {"id": "proj-teamx:ent:foo", "labels": ["proj-teamx", "Entity"], "properties": {"name": "foo"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/catalog?project=team-x").json()
+    assert b["count"] == 1                                    # only the Ingested node, not the plain Entity
+    ds = b["datasets"][0]
+    assert ds["connector"] == "csv" and ds["governed"] and ds["epistemic_mode"] == "observed"
+    assert set(ds["columns"]) == {"id_col", "age"}           # provenance keys filtered out
+
+
+def test_lineage_walks_the_flow_graph(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "ds", "labels": ["proj-teamx", "Dataset"], "properties": {"name": "tidy", "epistemic_mode": "observed"}},
+                {"id": "run", "labels": ["proj-teamx", "Run", "Experiment"], "properties": {"name": "fit"}},
+                {"id": "model", "labels": ["proj-teamx", "Model"], "properties": {"name": "clf", "epistemic_mode": "attested"}},
+                {"id": "unrelated", "labels": ["proj-teamx", "Entity"], "properties": {"name": "x"}},
+            ], "edgeList": [
+                {"from": "run", "to": "ds", "label": "feeds"},
+                {"from": "model", "to": "run", "label": "produced_by"},
+                {"from": "unrelated", "to": "ds", "label": "co_occurs"},   # not a lineage edge → excluded
+            ]}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/lineage?project=team-x&target=model").json()
+    ids = {n["id"] for n in b["nodes"]}
+    assert ids == {"model", "run", "ds"}                      # walked model→run→ds; unrelated excluded
+    labels = {(e["from"], e["to"], e["label"]) for e in b["edges"]}
+    assert ("model", "run", "produced_by") in labels and ("run", "ds", "feeds") in labels
+    assert next(n for n in b["nodes"] if n["id"] == "model")["type"] == "Model"
+
+
+def test_model_register_promote_and_list(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+    state = {"nodes": []}
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url:
+            writes.append(json)
+            state["nodes"] = [n for n in state["nodes"] if n["id"] != json["id"]] + [json]
+            return ({"ok": True}, None)
+        if "/api/graph/edge" in url:
+            writes.append(json); return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": state["nodes"], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    reg = client.post("/api/studio/model",
+                      json={"project": "team-x", "name": "classifier", "version": "2", "run": "proj-teamx:run:abc",
+                            "stage": "staging", "metrics": {"acc": 0.93}},
+                      headers={"Authorization": "Bearer T"}).json()
+    assert reg["model_id"] == "proj-teamx:model:classifier:2" and reg["stage"] == "staging"
+    assert any(w.get("label") == "produced_by" and w.get("to") == "proj-teamx:run:abc" for w in writes)
+
+    prom = client.post("/api/studio/model/promote",
+                       json={"project": "team-x", "name": "classifier", "version": "2", "stage": "production"},
+                       headers={"Authorization": "Bearer T"}).json()
+    assert prom["from_stage"] == "staging" and prom["stage"] == "production"
+
+    lst = client.get("/api/studio/models?project=team-x").json()
+    assert lst["count"] == 1
+    v = lst["models"][0]["versions"][0]
+    assert v["stage"] == "production" and v["metrics"] == {"acc": 0.93} and v["run"] == "proj-teamx:run:abc"
+
+
+def test_model_register_rejects_bad_stage(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/model", json={"project": "team-x", "name": "m", "stage": "prod"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422
