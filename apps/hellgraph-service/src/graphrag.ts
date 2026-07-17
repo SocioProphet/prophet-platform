@@ -71,14 +71,23 @@ export function retrieveGrounding(g: GraphSource, question: string, maxCitations
   const seeds = scored.map((s) => s.id)
   const seedSet = new Set(seeds)
 
-  // 2. expand to the 1-hop neighbourhood — the facts a human would cite come from around the seed.
-  const grounded = new Set(seeds)
-  for (const e of g.allEdges()) {
-    if (seedSet.has(e.from)) grounded.add(e.to)
-    if (seedSet.has(e.to)) grounded.add(e.from)
-  }
+  return groundingFromSeeds(g, seeds, 1, maxCitations)
+}
 
-  // 3. facts = triples whose SUBJECT is a grounded node → numbered, provenance-carrying citations.
+/** From seed node ids: expand `hops` neighbourhood, then emit the grounded facts as numbered citations. */
+function groundingFromSeeds(g: GraphSource, seeds: string[], hops: number, maxCitations: number): Grounding {
+  const grounded = new Set(seeds)
+  const edges = g.allEdges()
+  let frontier = new Set(seeds)
+  for (let h = 0; h < Math.max(1, hops); h++) {
+    const next = new Set<string>()
+    for (const e of edges) {
+      if (frontier.has(e.from) && !grounded.has(e.to)) { grounded.add(e.to); next.add(e.to) }
+      if (frontier.has(e.to) && !grounded.has(e.from)) { grounded.add(e.from); next.add(e.from) }
+    }
+    if (next.size === 0) break
+    frontier = next
+  }
   const facts = g.triples().filter((t) => grounded.has(t.subject))
   const citations: Citation[] = facts.slice(0, maxCitations).map((t, i) => ({
     n: i + 1,
@@ -87,6 +96,60 @@ export function retrieveGrounding(g: GraphSource, question: string, maxCitations
     assertedAt: t.assertedAt,
   }))
   return { seeds, groundedNodes: [...grounded], citations }
+}
+
+// ── Semantic retrieval over a sovereign embeddings endpoint (opt-in) ────────────────────────────────
+interface EmbedConfig { url: string; model: string; key: string }
+function embedConfig(): EmbedConfig | null {
+  const url = (process.env['EMBEDDINGS_URL'] ?? '').trim()
+  if (!url) return null
+  return { url, model: process.env['EMBEDDINGS_MODEL'] ?? 'nomic-embed-text', key: process.env['EMBEDDINGS_API_KEY'] ?? '' }
+}
+export function semanticEnabled(): boolean { return embedConfig() !== null }
+
+const embedCache = new Map<string, number[]>()
+async function embed(text: string, cfg: EmbedConfig, fetchImpl: typeof fetch): Promise<number[] | null> {
+  const cached = embedCache.get(text); if (cached) return cached
+  try {
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (cfg.key) headers['authorization'] = `Bearer ${cfg.key}`
+    const res = await fetchImpl(cfg.url, { method: 'POST', headers, body: JSON.stringify({ model: cfg.model, input: text }), signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) return null
+    const body = await res.json() as any
+    const v: number[] = body?.embedding ?? body?.embeddings?.[0] ?? body?.data?.[0]?.embedding ?? []
+    if (!Array.isArray(v) || v.length === 0) return null
+    if (embedCache.size < 50_000) embedCache.set(text, v)
+    return v
+  } catch { return null }
+}
+
+function cosine(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0
+  const n = Math.min(a.length, b.length)
+  for (let i = 0; i < n; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
+  return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0
+}
+
+/** Auto retrieval: SEMANTIC (embedding cosine) seeding when EMBEDDINGS_URL is configured + reachable, else the
+ * lexical substring path. `hops` configurable (default 1). Fixes the audit's "substring + fixed-1-hop" finding. */
+export async function retrieveGroundingAuto(g: GraphSource, question: string, hops = 1, maxCitations = MAX_CITATIONS, fetchImpl: typeof fetch = fetch): Promise<Grounding & { retrieval: string }> {
+  const cfg = embedConfig()
+  if (cfg) {
+    const qv = await embed(question, cfg, fetchImpl)
+    if (qv) {
+      const nodes = g.allNodes()
+      const scored: { id: string; score: number }[] = []
+      for (const nd of nodes) {
+        const nv = await embed(nodeText(nd), cfg, fetchImpl)
+        if (nv) scored.push({ id: nd.id, score: cosine(qv, nv) })
+      }
+      if (scored.length) {
+        const seeds = scored.sort((a, b) => b.score - a.score).slice(0, MAX_SEEDS).filter((s) => s.score > 0.2).map((s) => s.id)
+        return { ...groundingFromSeeds(g, seeds, hops, maxCitations), retrieval: `semantic (${cfg.model})` }
+      }
+    }
+  }
+  return { ...groundingFromSeeds(g, retrieveGrounding(g, question, maxCitations).seeds, hops, maxCitations), retrieval: 'lexical (substring)' }
 }
 
 interface LlmConfig { url: string; model: string; key: string }
@@ -100,7 +163,7 @@ export function synthesisEnabled(): boolean { return llmConfig() !== null }
 
 /** Ask a question over the graph: retrieve grounding, then synthesize a cited answer (opt-in, fail-open). */
 export async function askGraph(g: GraphSource, question: string, fetchImpl: typeof fetch = fetch): Promise<AskResult> {
-  const { citations } = retrieveGrounding(g, question)
+  const { citations } = await retrieveGroundingAuto(g, question, 1, MAX_CITATIONS, fetchImpl)
   const grounded = citations.length > 0
   const cfg = llmConfig()
   if (!cfg || !grounded) return { question, answer: '', citations, synthesized: false, grounded }

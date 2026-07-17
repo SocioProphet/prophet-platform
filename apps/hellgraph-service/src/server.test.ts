@@ -5,6 +5,7 @@
  */
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import { retrieveGroundingAuto } from './graphrag.js'
 
 process.env.PORT = String(19091) // free test port, read at module import
 process.env.HELLGRAPH_STORE_DIR = `${process.env.TMPDIR ?? '/tmp'}/hgsvc-test-${process.pid}`
@@ -213,4 +214,42 @@ test('graphrag: /ask degrades to facts-only when no sovereign LLM is configured 
   assert.equal(r.json.grounded, true)          // but it DID ground in the graph
   assert.ok(r.json.citations.length >= 1)
   assert.equal((await req('POST', '/api/graph/ask', {})).status, 400)     // question required
+})
+
+test('graphrag: SEMANTIC retrieval seeds by embedding cosine, not substring (fake sovereign endpoint)', async () => {
+  const nodes = [
+    { id: 'n:cat', labels: ['Topic'], properties: { name: 'feline pets' } },
+    { id: 'n:fin', labels: ['Topic'], properties: { name: 'stock market' } },
+  ]
+  const triples = [
+    { subject: 'n:cat', predicate: 'name', object: 'feline pets', isIri: false, assertedAt: 't' },
+    { subject: 'n:fin', predicate: 'name', object: 'stock market', isIri: false, assertedAt: 't' },
+  ]
+  const g = { allNodes: () => nodes, allEdges: () => [], triples: () => triples } as any
+  // fake embeddings: anything about cats → [1,0]; finance → [0,1]. The QUERY word "kitten" shares no
+  // substring with "feline pets" — only a semantic embedder can connect them.
+  const fakeFetch = (async (_u: any, opts: any) => {
+    const text = JSON.parse(opts.body).input as string
+    const vec = /kitten|feline|cat|pet/i.test(text) ? [1, 0] : [0, 1]
+    return { ok: true, json: async () => ({ data: [{ embedding: vec }] }) }
+  }) as any
+  process.env.EMBEDDINGS_URL = 'http://fake/embed'
+  try {
+    const gr = await retrieveGroundingAuto(g, 'tell me about a kitten', 1, 24, fakeFetch)
+    assert.match(gr.retrieval, /semantic/)
+    assert.ok(gr.seeds.includes('n:cat') && !gr.seeds.includes('n:fin'), 'semantic seed = cat, not finance')
+  } finally { delete process.env.EMBEDDINGS_URL }
+})
+
+test('graphrag: multi-hop grounding reaches beyond 1 hop (?hops=2)', async () => {
+  const S = `hop-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${S}:a`, labels: ['N'], properties: { name: 'Alpha' } })
+  await req('POST', '/api/graph/node', { id: `${S}:b`, labels: ['N'] })
+  await req('POST', '/api/graph/node', { id: `${S}:c`, labels: ['N'] })
+  await req('POST', '/api/graph/edge', { label: 'to', from: `${S}:a`, to: `${S}:b` })
+  await req('POST', '/api/graph/edge', { label: 'to', from: `${S}:b`, to: `${S}:c` })
+  const r1 = await req('GET', `/api/graph/ground?q=Alpha&hops=1`)
+  const r2 = await req('GET', `/api/graph/ground?q=Alpha&hops=2`)
+  assert.ok(r1.json.groundedNodes.includes(`${S}:b`) && !r1.json.groundedNodes.includes(`${S}:c`))
+  assert.ok(r2.json.groundedNodes.includes(`${S}:c`), '2-hop must reach c through b')
 })
