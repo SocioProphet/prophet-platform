@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1",
+  "kind": "PlatformServiceManifest",
+  "service_id": "svc.substrate.work-knowledge",
+  "display_name": "Agora — Work + Knowledge Plane",
+  "description": "The sovereign Jira/Confluence-killer of the estate, alongside zot (registry) and gitea-sovereign (source control). Work items, sprints and teams (the Jira side) and wiki pages (the Confluence side) are persisted as proof-carrying HellGraph facts in the project's proj- collection — the same collection Noetica and lattice-studio share — so every card and page is project/team-aligned, citable, preservable, curatable, and readable live by the agent team. Bridges Knowledge Engineering to the Knowledge Commons. Reuses Noetica's native work model (native = source of truth; Jira/Linear/GitHub Issues = optional external connectors only).",
+  "scaffold_baseline": {
+    "repo": "SocioProphet/prophet-platform",
+    "path": "apps/agora",
+    "status": "PR-A scaffold — BFF over hellgraph-service; does not imply deployment readiness"
+  },
+  "runtime_posture": "cluster_internal",
+  "deployment_topology": {
+    "agora_bff": {
+      "description": "FastAPI BFF (apps/agora) — /api/agora/{work,board,page,pages,team,''}. Stateless; will render charts/socioprophet-service via deploy/values/agora.yaml (pinned to the CI-published sha- tag) + a { name: agora } entry in deploy/argocd/platform-services.yaml. This PR builds the image only; the deploy wiring lands in a follow-up once the sha- tag exists (avoids the moving-:latest trap).",
+      "binding": "org.substrate.work-knowledge.agora-bff"
+    },
+    "hellgraph_substrate": {
+      "description": "hellgraph-service is the system of record — work items / pages / teams are graph nodes + edges, NOT a side database.",
+      "binding": "org.substrate.hellgraph"
+    }
+  },
+  "identity_bindings": {
+    "noetica_workspaces": "Consumes Noetica's WorkItem/Sprint/Project model (lib/types/work.ts), moving it off localStorage onto the graph; cowork/workroom agents map to assignee/member edges.",
+    "project_collection": "proj_collection(project) === Noetica projectCollectionId — proj-<12hex>. Agora facts co-locate with the project KB.",
+    "team_alignment": "Teams are first-class nodes; work items align via in_team edges; boards scope by team."
+  },
+  "commons_bridge": {
+    "citable": "Studio /api/studio/cite mints a sovereign PID + DataCite DOI over any work item or page.",
+    "preservable": "Studio /api/studio/preserve seals a tamper-evident version snapshot.",
+    "curatable": "Studio /api/studio/endorse + epistemic-weighted curation apply to work items and pages."
+  },
+  "policy_dependencies": [
+    "policy://work-knowledge/write-token-v0.1"
+  ],
+  "evidence_receipts": [
+    "receipt://work-knowledge/work-write-receipt-v0.1",
+    "receipt://work-knowledge/page-write-receipt-v0.1"
+  ],
+  "pr_a_status": {
+    "is_pr_a": true,
+    "note": "PR-A introduces the BFF + estate registration. Does NOT imply deployment readiness. First CI build publishes a sha- image tag; gitops-promote pins deploy/values/agora.yaml before it goes live.",
+    "deployment_ready": false
+  },
+  "runtime_prerequisites": [
+    {
+      "id": "prereq_write_token",
+      "description": "agora-write-token Secret must exist in namespace socioprophet before writes are accepted (fail-closed until then).",
+      "status": "pending"
+    },
+    {
+      "id": "prereq_image_pin",
+      "description": "deploy/values/agora.yaml image.tag must be pinned to the CI-published sha- tag (not a moving :latest) before rollout.",
+      "status": "pending"
+    }
+  ],
+  "authority_boundary": {
+    "owner": "prophet-platform",
+    "note": "prophet-platform owns the runtime deployment and API contract; Noetica owns the client-side work UX and is the upstream of the WorkItem/Sprint/Project model."
+  }
+}
