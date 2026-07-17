@@ -256,6 +256,82 @@ async def receipts(limit: int = 12, _auth: dict[str, Any] | None = Depends(requi
     }
 
 
+_QUERY_LANGS = {"sparql", "cypher", "gremlin"}
+
+
+class QueryRequest(BaseModel):
+    project: str = "default"
+    lang: str = "sparql"
+    query: str
+    params: dict[str, str] | None = None
+
+
+def _scan_ids(obj: Any, epi: dict[str, str], found: dict[str, str]) -> None:
+    """Recursively find any value in a query result that is a known project-entity id, so results can carry the
+    fact's epistemic status regardless of the (SPARQL/Cypher/Gremlin) result shape."""
+    if isinstance(obj, str):
+        if obj in epi:
+            found[obj] = epi[obj]
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            _scan_ids(v, epi, found)
+    elif isinstance(obj, list):
+        for v in obj:
+            _scan_ids(v, epi, found)
+
+
+def _rows_columns(res: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Best-effort normalise a kernel query result into rows + columns for a grid, defensively across shapes."""
+    results = res.get("results")
+    if isinstance(results, dict) and isinstance(results.get("bindings"), list):  # SPARQL 1.1 JSON
+        cols = list(res.get("head", {}).get("vars", []))
+        rows = [{c: (b.get(c, {}) or {}).get("value") for c in cols} for b in results["bindings"]]
+        return rows, cols
+    rws = res.get("rows")
+    if isinstance(rws, list):  # Cypher/Gremlin {columns, rows}
+        cols = res.get("columns") or (list(rws[0].keys()) if rws and isinstance(rws[0], dict) else [])
+        return rws, list(cols)
+    return [], []
+
+
+@app.post("/api/studio/query")
+async def query(req: QueryRequest, _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Proof-carrying query IDE (WS#30). Runs SPARQL / Cypher / Gremlin against the live kernel and returns the
+    result WITH its replay proof (query_hash + evaluated_at_seq) AND per-fact epistemic enrichment: every value
+    that is a known project entity is tagged with how well it's known. Stardog/Bloom return rows; we return rows
+    you can REPLAY and whose facts carry their epistemic status. Bad syntax is a 400, not a silently-empty result."""
+    lang = req.lang.lower()
+    if lang not in _QUERY_LANGS:
+        raise HTTPException(status_code=422, detail=f"lang must be one of {sorted(_QUERY_LANGS)}")
+    if not req.query.strip():
+        raise HTTPException(status_code=422, detail="query required")
+    coll = proj_collection(req.project)
+    body: dict[str, Any] = {"query": req.query}
+    if lang == "cypher" and req.params:
+        body["params"] = req.params
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        (res, err), (subg, _s) = await asyncio.gather(
+            _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/{lang}", json=body),
+            _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit=500"),
+        )
+    if not isinstance(res, dict):
+        raise HTTPException(status_code=400, detail=f"query failed: {err or 'no result from kernel'}")
+    epi = {n["id"]: n["epistemic_mode"] for n in [_map_node(x) for x in ((subg.get("nodes") if isinstance(subg, dict) else None) or [])]}
+    epistemic: dict[str, str] = {}
+    _scan_ids(res, epi, epistemic)
+    rows, columns = _rows_columns(res)
+    proof = {
+        "query_hash": res.get("queryHash") or res.get("query_hash"),
+        "evaluated_at_seq": res.get("evaluatedAtSeq") or res.get("evaluated_at_seq"),
+        "replayable": bool(res.get("queryHash") or res.get("query_hash")),
+    }
+    return {
+        "project": req.project, "lang": lang, "columns": columns, "rows": rows, "row_count": len(rows),
+        "epistemic": epistemic, "proof": proof,
+        "raw": {k: v for k, v in res.items() if k not in ("queryHash", "evaluatedAtSeq", "ok")},
+    }
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
