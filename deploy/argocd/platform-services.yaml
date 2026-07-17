@@ -32,6 +32,7 @@ spec:
           - { name: owl-reasoner }
           - { name: entity-resolution }
           - { name: memoryd }
+          - { name: embeddings }
           - { name: regis-acr-api }
           - { name: node-commander }
           - { name: liberty-stack-readout }
