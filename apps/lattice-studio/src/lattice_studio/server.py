@@ -40,6 +40,13 @@ STUDIO_WRITE_TOKEN = os.getenv("STUDIO_WRITE_TOKEN", "")
 # OPT-IN — unset → reads stay open (backward compatible); set → every read requires a valid socbase-issued
 # bearer token. Governance without a bolt-on: Studio reads are gated by the same identity that runs the estate.
 STUDIO_JWT_SECRET = os.getenv("STUDIO_JWT_SECRET", "")
+# Evidence fabric — verified-compute RECEIPTS. Studio surfaces the replayable proof-of-work behind its services:
+# not "the job ran" (a TEE attestation), but a sealed record of exactly WHAT ran and its verdict, per correlation.
+EVIDENCE_RECEIPTS_URL = os.getenv("EVIDENCE_RECEIPTS_URL", "http://evidence-receipts:8080")
+RECEIPT_SERVICES = [s.strip() for s in os.getenv(
+    "STUDIO_RECEIPT_SERVICES",
+    "hellgraph-service,lattice-studio,search-orchestrator,owl-reasoner,entity-resolution,eval-fabric-api",
+).split(",") if s.strip()]
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
 
@@ -106,12 +113,34 @@ async def studio(project: str = "default", _auth: dict[str, Any] | None = Depend
 
     # ── CONCURRENT live fan-out to the running fabric ──
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        (gstats, gerr), (reg, rerr), (sher, serr) = await asyncio.gather(
+        (gstats, gerr), (reg, rerr), (sher, serr), (subg, _suberr), (rec, _recerr) = await asyncio.gather(
             _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/stats"),
             _req(client, "GET", f"{TRITFABRIC_URL}/v1/registry"),
             _req(client, "POST", f"{SEARCH_ORCH_URL}/v0/search/query", json=_sherlock_request(project)),
+            _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit=300"),
+            _req(client, "GET", f"{EVIDENCE_RECEIPTS_URL}/v1/receipts/recent?service=hellgraph-service&limit=10"),
         )
     degraded = {k: v for k, v in {"graph": gerr, "models": rerr, "extraction": serr}.items() if v}
+
+    # ── The MOAT header, computed live on every load: epistemic distribution + provenance coverage across the
+    # project's facts, plus whether the verified-compute evidence fabric is answering. This governance readout
+    # rides ABOVE every section — the proof-carrying identity of the whole workspace, not just the graph panel.
+    epi_nodes = [_map_node(n) for n in ((subg.get("nodes") if isinstance(subg, dict) else None) or [])]
+    epi_dist: dict[str, int] = {}
+    prov_have = 0
+    for n in epi_nodes:
+        epi_dist[n["epistemic_mode"]] = epi_dist.get(n["epistemic_mode"], 0) + 1
+        if n.get("source"):
+            prov_have += 1
+    moat = {
+        "epistemic_distribution": epi_dist,
+        "fact_count": len(epi_nodes),
+        "provenance_coverage": round(prov_have / len(epi_nodes), 3) if epi_nodes else 0.0,
+        "verified_compute": rec is not None,
+        "receipts_recent": len((rec.get("items") if isinstance(rec, dict) else None) or []),
+        "governed_writes": bool(STUDIO_WRITE_TOKEN),
+        "read_auth": bool(STUDIO_JWT_SECRET),
+    }
 
     # ── Workbench: product_spine object model, bound to the Noetica project ──
     session = dict(spine.get("notebookSession", {}))
@@ -179,10 +208,51 @@ async def studio(project: str = "default", _auth: dict[str, Any] | None = Depend
 
     return {
         "project": project, "projectCollection": coll,
+        "moat": moat,
         "notebooks": notebooks, "data": data, "models": models, "tuning": [], "experiments": experiments,
         "extraction": extraction, "ontology": ontology, "graph": graph, "retrieval": retrieval, "generation": generation,
-        "live": {"hellgraph": gstats is not None, "tritfabric": reg is not None, "search_orchestrator": sher is not None},
+        "live": {"hellgraph": gstats is not None, "tritfabric": reg is not None,
+                 "search_orchestrator": sher is not None, "evidence": rec is not None},
         "degraded": (degraded or None),
+    }
+
+
+def _receipt_verdict(item: dict[str, Any]) -> Any:
+    rc = item.get("receipt") if isinstance(item.get("receipt"), dict) else {}
+    return item.get("verdict") or rc.get("verdict")
+
+
+@app.get("/api/studio/receipts")
+async def receipts(limit: int = 12, _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Verified-compute RECEIPTS from the evidence fabric — the replayable proof-of-work behind Studio's services,
+    aggregated across the estate. Each is a sealed record (fetch the full bundle at /v1/receipts/{service}/{cid}):
+    not a TEE's 'it ran privately', but 'here is exactly WHAT ran and its verdict'. No incumbent studio has this.
+    Graceful: a down evidence fabric or service degrades only its own slice."""
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        results = await asyncio.gather(*[
+            _req(client, "GET", f"{EVIDENCE_RECEIPTS_URL}/v1/receipts/recent?service={s}&limit={limit}")
+            for s in RECEIPT_SERVICES
+        ])
+    out: list[dict[str, Any]] = []
+    live: dict[str, bool] = {}
+    for svc, (res, err) in zip(RECEIPT_SERVICES, results):
+        live[svc] = err is None
+        items = (res.get("items") if isinstance(res, dict) else None) or []
+        for it in (items if isinstance(items, list) else [])[:limit]:
+            it = it if isinstance(it, dict) else {}
+            cid = str(it.get("correlation_id") or it.get("id") or "")
+            out.append({
+                "service": svc, "correlation_id": cid,
+                "received_at": it.get("received_at") or it.get("timestamp") or it.get("created_at"),
+                "verdict": _receipt_verdict(it),
+                "kind": it.get("kind") or it.get("type"),
+                "bundle_ref": f"/v1/receipts/{svc}/{cid}" if cid else None,
+            })
+    out.sort(key=lambda r: str(r.get("received_at") or ""), reverse=True)
+    return {
+        "receipts": out[: max(limit, 20)], "count": len(out),
+        "services": live, "services_reachable": sum(1 for v in live.values() if v),
+        "detail_endpoint": f"{EVIDENCE_RECEIPTS_URL}/v1/receipts/{{service}}/{{correlation_id}}",
     }
 
 

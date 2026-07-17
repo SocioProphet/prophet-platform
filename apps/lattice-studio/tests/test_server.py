@@ -28,7 +28,9 @@ def test_studio_bundle_project_scoped_and_complete():
     for s in ["notebooks", "data", "models", "experiments", "extraction", "ontology", "graph", "retrieval", "generation"]:
         assert s in b and isinstance(b[s], list)
     # graceful degrade: live flags exist; services unreachable in test → False, response still 200
-    assert set(b["live"]) == {"hellgraph", "tritfabric", "search_orchestrator"}
+    assert set(b["live"]) == {"hellgraph", "tritfabric", "search_orchestrator", "evidence"}
+    # the MOAT header rides above every section
+    assert "moat" in b and set(b["moat"]) >= {"epistemic_distribution", "provenance_coverage", "verified_compute", "governed_writes"}
     # retrieval names the real engines
     engines = {r["engine"] for r in b["retrieval"]}
     assert {"fibered-retrieval", "hellgraph", "slash-topics"} <= engines
@@ -304,3 +306,50 @@ def test_reads_accept_valid_socbase_jwt(monkeypatch):
     assert r.status_code == 200 and r.json()["project"] == "team-x"
     bad = jwt.encode({"sub": "x"}, "other-secret", algorithm="HS256")
     assert client.get("/api/studio?project=team-x", headers={"authorization": f"Bearer {bad}"}).status_code == 401
+
+
+# ── WS#29 surface-the-moat: verified-compute receipts + epistemic status on every load ──
+
+def test_moat_header_computes_epistemic_and_verified(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")  # governed_writes → True
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-x:ent:a", "labels": ["proj-x", "Entity"], "properties": {"name": "A", "epistemic_mode": "verified", "source": "doc:1"}},
+                {"id": "proj-x:ent:b", "labels": ["proj-x", "Entity"], "properties": {"name": "B", "epistemic_mode": "observed", "source": "doc:2"}},
+                {"id": "proj-x:ent:c", "labels": ["proj-x", "Entity"], "properties": {"name": "C", "epistemic_mode": "observed"}},
+            ], "edgeList": []}, None)
+        if "receipts/recent" in url:
+            return ({"items": [{"correlation_id": "c1"}, {"correlation_id": "c2"}]}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    m = client.get("/api/studio?project=x").json()["moat"]
+    assert m["fact_count"] == 3
+    assert m["epistemic_distribution"] == {"verified": 1, "observed": 2}
+    assert m["provenance_coverage"] == round(2 / 3, 3)   # 2 of 3 carry a source
+    assert m["verified_compute"] is True and m["receipts_recent"] == 2
+    assert m["governed_writes"] is True
+
+
+def test_receipts_aggregate_across_the_evidence_fabric(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "RECEIPT_SERVICES", ["hellgraph-service", "owl-reasoner", "down-svc"])
+
+    async def fake_req(client, method, url, json=None):
+        if "service=hellgraph-service" in url:
+            return ({"items": [{"correlation_id": "hg-1", "received_at": "2026-07-17T10:00:00Z", "verdict": "ok"}]}, None)
+        if "service=owl-reasoner" in url:
+            return ({"items": [{"correlation_id": "owl-1", "received_at": "2026-07-17T11:00:00Z", "receipt": {"verdict": "sound"}}]}, None)
+        return (None, "connection refused")   # down-svc degrades only itself
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/receipts").json()
+    assert b["count"] == 2 and b["services_reachable"] == 2
+    assert b["services"] == {"hellgraph-service": True, "owl-reasoner": True, "down-svc": False}
+    # newest first + nested verdict extracted + a replayable bundle ref
+    assert b["receipts"][0]["correlation_id"] == "owl-1" and b["receipts"][0]["verdict"] == "sound"
+    assert b["receipts"][0]["bundle_ref"] == "/v1/receipts/owl-reasoner/owl-1"
+    assert b["receipts"][1]["correlation_id"] == "hg-1" and b["receipts"][1]["verdict"] == "ok"
