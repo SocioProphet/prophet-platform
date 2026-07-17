@@ -93,6 +93,27 @@ test('query endpoints 400 on missing query', async () => {
   assert.equal(r.status, 400)
 })
 
+test('analytics: PageRank ranks a hub highest + reports the backend (Rust kernel or TS fallback)', async () => {
+  const L = `an-${process.pid}`
+  // star: a,b,c all point at hub h → h has the highest PageRank
+  for (const x of ['a', 'b', 'c', 'h']) await req('POST', '/api/graph/node', { id: `${L}:${x}`, labels: [L] })
+  for (const x of ['a', 'b', 'c']) await req('POST', '/api/graph/edge', { label: 'to', from: `${L}:${x}`, to: `${L}:h` })
+  const r = await req('GET', `/api/graph/analytics?metric=pagerank&limit=10`)
+  assert.equal(r.status, 200)
+  assert.ok(typeof r.json.backend === 'string' && r.json.backend.length > 0)   // honest backend report
+  assert.ok(r.json.nodes >= 4 && r.json.edges >= 3)
+  const hub = r.json.top.find((t: any) => t.id === `${L}:h`)
+  const leaf = r.json.top.find((t: any) => t.id === `${L}:a`)
+  assert.ok(hub && leaf && hub.score > leaf.score, 'the hub must outrank a leaf')
+})
+
+test('analytics: connected components counts + unknown metric 400', async () => {
+  const c = await req('GET', '/api/graph/analytics?metric=components')
+  assert.equal(c.status, 200)
+  assert.ok(typeof c.json.components === 'number' && typeof c.json.largest === 'number')
+  assert.equal((await req('GET', '/api/graph/analytics?metric=bogus')).status, 400)
+})
+
 test('SPARQL 1.1: UNION + aggregation over the endpoint (vendored engine 0.4.5)', async () => {
   const L = `s11-${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada' } })
