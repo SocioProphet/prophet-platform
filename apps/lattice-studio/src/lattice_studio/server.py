@@ -23,7 +23,8 @@ import re
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Header, HTTPException, Response
+import jwt
+from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
 from lattice_studio import product_spine
@@ -35,8 +36,27 @@ SEARCH_ORCH_URL = os.getenv("SEARCH_ORCH_URL", "http://search-orchestrator:8080"
 TIMEOUT = float(os.getenv("STUDIO_TIMEOUT", "5"))
 # Write gate for /api/studio/extract (mutates the graph). Fail-closed: unset → writes refused.
 STUDIO_WRITE_TOKEN = os.getenv("STUDIO_WRITE_TOKEN", "")
+# Read gate tied to the SOVEREIGN identity plane: the HS256 secret socbase (GoTrue) signs its JWTs with.
+# OPT-IN — unset → reads stay open (backward compatible); set → every read requires a valid socbase-issued
+# bearer token. Governance without a bolt-on: Studio reads are gated by the same identity that runs the estate.
+STUDIO_JWT_SECRET = os.getenv("STUDIO_JWT_SECRET", "")
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
+
+
+def require_read(authorization: str = Header(default="")) -> dict[str, Any] | None:
+    """FastAPI dependency for READ endpoints. If STUDIO_JWT_SECRET is unset, returns None (reads open). When set,
+    verifies the Bearer JWT (HS256) with that secret and returns its claims (the caller identity); a missing,
+    invalid, or expired token is a 401. Reads are thereby gated by sovereign identity, not an ad-hoc password."""
+    if not STUDIO_JWT_SECRET:
+        return None
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="read requires a bearer token (STUDIO_JWT_SECRET is set)")
+    try:
+        return jwt.decode(token, STUDIO_JWT_SECRET, algorithms=["HS256"], options={"verify_aud": False})
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail=f"invalid token: {exc}") from exc
 
 
 def proj_collection(project: str) -> str:
@@ -80,7 +100,7 @@ def healthz() -> dict[str, Any]:
 
 
 @app.get("/api/studio")
-async def studio(project: str = "default") -> dict[str, Any]:
+async def studio(project: str = "default", _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
     coll = proj_collection(project)
     spine = product_spine.demo_product_spine()  # the real integration object model
 
@@ -395,7 +415,7 @@ async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]
 
 
 @app.get("/api/studio/graph")
-async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
+async def graph(project: str = "default", limit: int = 100, _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
     """KE-2: the project sub-graph with PROVENANCE PER NODE — the differentiator, read from the live kernel.
 
     Not just the node, but its epistemic status + source + extractor, in one governed project scope — what a
@@ -424,7 +444,7 @@ def _derivation_summary(node: dict[str, Any], derivations: list[dict[str, Any]])
 
 
 @app.get("/api/studio/provenance")
-async def provenance(project: str = "default", id: str = "") -> dict[str, Any]:
+async def provenance(project: str = "default", id: str = "", _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
     """KE-5: 'How derived?' — the derivation of ONE fact. Its provenance (epistemic status + source + extractor +
     KKO upper-ontology type) plus the edges that connect it (what it was co-observed / reasoned with), read from
     the live project subgraph. This is the proof-carrying lineage a Neo4j Bloom / Stardog node inspector can't
@@ -462,7 +482,7 @@ async def provenance(project: str = "default", id: str = "") -> dict[str, Any]:
 
 
 @app.get("/api/studio/graph.ttl")
-async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
+async def graph_ttl(project: str = "default", limit: int = 500, _auth: dict[str, Any] | None = Depends(require_read)) -> Response:
     """KE-3: RDF/Turtle export — standards interop (Protégé / GraphDB / Anzo / Stardog) that CARRIES provenance.
 
     Every node exports as a PROV-O-annotated resource: rdf:type sp:Entity, rdfs:label, sp:epistemicMode,
