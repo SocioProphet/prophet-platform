@@ -1,0 +1,12 @@
+# Persists pulled models (nomic-embed-text ~275 MB) so a pod restart doesn't re-download.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: embeddings-models
+  namespace: socioprophet
+  labels: { app: embeddings }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
