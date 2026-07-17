@@ -82,3 +82,44 @@ test('query endpoints 400 on missing query', async () => {
   const r = await req('POST', '/api/graph/sparql', {})
   assert.equal(r.status, 400)
 })
+
+test('resource: dereferenceable CBD content-negotiates turtle / json-ld / html / json', async () => {
+  const S = `res-${process.pid}`
+  const subj = `${S}:acme`, obj = `${S}:nyc`
+  await req('POST', '/api/graph/node', { id: subj, labels: ['Org'], properties: { name: 'Acme' } })
+  await req('POST', '/api/graph/node', { id: obj, labels: ['City'], properties: { name: 'NYC' } })
+  await req('POST', '/api/graph/edge', { label: 'basedIn', from: subj, to: obj })
+  const u = `/api/graph/resource?uri=${encodeURIComponent(subj)}`
+
+  // JSON default — CBD carries the resource's own facts (rdf:type, name, basedIn edge)
+  const j = await fetch(BASE + u).then((r) => r.json()) as any
+  assert.equal(j.uri, subj)
+  assert.ok(j.outgoing.some((t: any) => t.predicate === 'rdf:type' && t.object === 'Org'))
+  assert.ok(j.outgoing.some((t: any) => t.predicate === 'basedIn' && t.isIri && t.object === obj))
+
+  // Turtle via Accept
+  const ttl = await fetch(BASE + u, { headers: { accept: 'text/turtle' } })
+  assert.equal(ttl.headers.get('content-type'), 'text/turtle; charset=utf-8')
+  const ttlBody = await ttl.text()
+  assert.match(ttlBody, /@prefix ph:/)
+  assert.match(ttlBody, /basedIn/)
+
+  // JSON-LD via Accept — @id + @type present
+  const ld = await fetch(BASE + u, { headers: { accept: 'application/ld+json' } }).then((r) => r.json()) as any
+  assert.equal(ld['@id'], subj)
+  assert.equal(ld['@type'], 'Org')
+
+  // HTML via Accept — browsable page
+  const html = await fetch(BASE + u, { headers: { accept: 'text/html' } })
+  assert.match(html.headers.get('content-type') ?? '', /text\/html/)
+  assert.match(await html.text(), /<h1>/)
+
+  // back-links: the object resource is "referenced by" the subject
+  const back = await fetch(BASE + `/api/graph/resource?uri=${encodeURIComponent(obj)}`).then((r) => r.json()) as any
+  assert.ok(back.incoming.some((t: any) => t.subject === subj && t.predicate === 'basedIn'))
+})
+
+test('resource: 400 without uri, 404 for unknown uri', async () => {
+  assert.equal((await req('GET', '/api/graph/resource')).status, 400)
+  assert.equal((await req('GET', '/api/graph/resource?uri=urn:nope:missing')).status, 404)
+})
