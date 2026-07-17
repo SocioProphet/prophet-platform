@@ -88,6 +88,16 @@ test('Cypher parity: MATCH returns columns/rows + a proof-carrying queryHash', a
   assert.equal((await req('POST', '/api/graph/cypher', {})).status, 400)   // query required
 })
 
+test('Cypher: unsupported node-property WHERE 400 loudly (was silently-wrong, engine 0.4.6)', async () => {
+  const L = `cyw-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada', age: '30' } })
+  await req('POST', '/api/graph/node', { id: `${L}:2`, labels: ['Person', L], properties: { name: 'Al' } })
+  await req('POST', '/api/graph/edge', { label: 'KNOWS', from: `${L}:1`, to: `${L}:2` })
+  const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (a)-[:KNOWS]->(b) WHERE a.age > 10 RETURN b LIMIT 5' })
+  assert.equal(r.status, 400)                             // was a silently-wrong empty 200
+  assert.match(r.json.error, /unsupported/i)
+})
+
 test('query endpoints 400 on missing query', async () => {
   const r = await req('POST', '/api/graph/sparql', {})
   assert.equal(r.status, 400)
