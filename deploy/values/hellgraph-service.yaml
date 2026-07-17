@@ -1,5 +1,8 @@
 # hellgraph-service — the engine serves on :8090 (not 8080); align service + probes.
-image: { repository: hellgraph-service, tag: sha-a16830db1710748792dbe9c79dab5dddeb3d21ff }
+# tag bumped to the b04eac8f build — the first image carrying engine 0.4.23 (which reads
+# EMBEDDINGS_URL). The prior sha-a16830db predated 0.4.22, so the EMBEDDINGS_URL config below was
+# inert on the cluster until this rolls out. hellgraph-service content is unchanged since b04eac8f.
+image: { repository: hellgraph-service, tag: sha-b04eac8f879e3c508b1061a2016aa400b23e0bae }
 service: { port: 8090, portName: http }
 config:
   # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
