@@ -411,6 +411,56 @@ async def graph(project: str = "default", limit: int = 100) -> dict[str, Any]:
             "epistemic_distribution": dist, "degraded": (err if err else None)}
 
 
+def _derivation_summary(node: dict[str, Any], derivations: list[dict[str, Any]]) -> str:
+    """One human sentence: how this fact came to be known — its epistemic status, who/what produced it, and how
+    many other facts it's connected to. The 'How derived?' answer a Bloom/Stardog node inspector can't give."""
+    mode = node.get("epistemic_mode", "unknown")
+    by = node.get("extractor") or "an unknown process"
+    src = node.get("source")
+    origin = f" from {src}" if src else ""
+    n = len(derivations)
+    rel = "no other facts yet" if n == 0 else f"{n} related fact{'s' if n != 1 else ''}"
+    return f"‘{node.get('name', node['id'])}’ is held as {mode}, produced by {by}{origin}, and connected to {rel}."
+
+
+@app.get("/api/studio/provenance")
+async def provenance(project: str = "default", id: str = "") -> dict[str, Any]:
+    """KE-5: 'How derived?' — the derivation of ONE fact. Its provenance (epistemic status + source + extractor +
+    KKO upper-ontology type) plus the edges that connect it (what it was co-observed / reasoned with), read from
+    the live project subgraph. This is the proof-carrying lineage a Neo4j Bloom / Stardog node inspector can't
+    show: not just properties, but where the fact came from and how well it's known."""
+    if not id:
+        raise HTTPException(status_code=422, detail="id required")
+    coll = proj_collection(project)
+    nodes, edges, err = await _fetch_subgraph(coll, 500)
+    node = next((n for n in nodes if n["id"] == id), None)
+    if node is None:
+        return {"id": id, "project": project, "projectCollection": coll, "found": False, "degraded": err}
+    by_id = {n["id"]: n for n in nodes}
+    derivations = []
+    for e in edges:
+        if e["source"] != id and e["target"] != id:
+            continue
+        out = e["source"] == id
+        other = by_id.get(e["target"] if out else e["source"], {})
+        derivations.append({
+            "relation": e["label"], "direction": "out" if out else "in",
+            "with": {"id": other.get("id", ""), "name": other.get("name", ""),
+                     "epistemic_mode": other.get("epistemic_mode", "unknown"), "source": other.get("source")},
+            "weight": e.get("weight", 1),
+        })
+    derivations.sort(key=lambda d: d["weight"], reverse=True)
+    return {
+        "id": id, "project": project, "projectCollection": coll, "found": True, "name": node["name"],
+        "epistemic_mode": node["epistemic_mode"], "source": node.get("source"),
+        "extractor": node.get("extractor"), "kko_type": node.get("kko_type", "Particulars"),
+        "labels": node.get("labels", []),
+        "derivations": derivations, "derivation_count": len(derivations),
+        "summary": _derivation_summary(node, derivations),
+        "degraded": err,
+    }
+
+
 @app.get("/api/studio/graph.ttl")
 async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
     """KE-3: RDF/Turtle export — standards interop (Protégé / GraphDB / Anzo / Stardog) that CARRIES provenance.
