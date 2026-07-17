@@ -18,7 +18,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import type { CommonsStore, RedactedOpenChat, OpenChatHit } from '../store.js'
-import { lexicalSearch } from '../store.js'
+import { rankSearch } from '../store.js'
 
 type Delta =
   | { op: 'UPSERT_OPEN_CHAT'; author: string; sessionId: string; entry: RedactedOpenChat; ts: string }
@@ -71,6 +71,6 @@ export class HellgraphStore implements CommonsStore {
     this.emit({ op: 'REVOKE_OPEN_CHAT', author, sessionId, ts: new Date().toISOString() })
     return { removed }
   }
-  async search(query: string, limit: number): Promise<OpenChatHit[]> { return lexicalSearch(this.view.values(), query, limit) }
+  async search(query: string, limit: number): Promise<OpenChatHit[]> { return rankSearch(this.view.values(), query, limit) }
   async count(): Promise<number> { return this.view.size }
 }

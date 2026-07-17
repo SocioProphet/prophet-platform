@@ -10,7 +10,7 @@
  *      COMMONS_SOCBASE_TOKEN (service-role JWT — write access to the table).
  */
 import type { CommonsStore, RedactedOpenChat, OpenChatHit } from '../store.js'
-import { lexicalSearch } from '../store.js'
+import { rankSearch } from '../store.js'
 
 interface Row { session_id: string; author: string; title: string; redacted: string; published_at: string; revoked: boolean }
 
@@ -58,7 +58,7 @@ export class SocbaseStore implements CommonsStore {
     if (!r.ok) throw new Error(`socbase search failed: HTTP ${r.status}`)
     const rows = (await r.json()) as Row[]
     const entries: RedactedOpenChat[] = rows.map((x) => ({ sessionId: x.session_id, author: x.author, title: x.title, redacted: x.redacted, publishedAt: x.published_at }))
-    return lexicalSearch(entries, query, limit)
+    return rankSearch(entries, query, limit)
   }
 
   async count(): Promise<number> {

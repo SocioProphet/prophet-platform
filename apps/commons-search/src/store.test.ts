@@ -56,3 +56,35 @@ test('proto-pollution author/sessionId cannot reach Object.prototype', async () 
   assert.equal(({} as Record<string, unknown>)['polluted'], undefined)
   assert.equal((Object.prototype as Record<string, unknown>)['constructor'] === Object, true)
 })
+
+// ── semantic ranking (sovereign embeddings) ────────────────────────────────────
+test('rankSearch: semantic ranking picks the nearest entry even with no shared words (fake endpoint)', async () => {
+  const { rankSearch } = await import('./store.js')
+  const entries = [
+    { sessionId: 'a', author: 'x', title: 'feline pets', redacted: 'cats and kittens', publishedAt: 't' },
+    { sessionId: 'b', author: 'x', title: 'stock market', redacted: 'equities and bonds', publishedAt: 't' },
+  ]
+  // fake embeddings: cat-ish text → [1,0]; finance → [0,1]. Query "automobile"? no — query "kitten" (semantic to cats)
+  const fakeFetch = (async (_u: any, opts: any) => {
+    const text = JSON.parse(opts.body).input as string
+    const vec = /kitten|feline|cat|pet/i.test(text) ? [1, 0] : [0, 1]
+    return { ok: true, json: async () => ({ data: [{ embedding: vec }] }) } as any
+  }) as any
+  process.env.EMBEDDINGS_URL = 'http://fake/embed'
+  try {
+    const hits = await rankSearch(entries, 'a small kitten', 5, fakeFetch)
+    assert.equal(hits[0].sessionId, 'a', 'semantic match = the feline entry, not finance')
+  } finally { delete process.env.EMBEDDINGS_URL }
+})
+
+test('rankSearch: falls back to lexical when no embeddings endpoint configured', async () => {
+  const { rankSearch } = await import('./store.js')
+  delete process.env.EMBEDDINGS_URL
+  const entries = [
+    { sessionId: 'a', author: 'x', title: 'quantum widgets', redacted: 'about quantum things', publishedAt: 't' },
+    { sessionId: 'b', author: 'x', title: 'gardening', redacted: 'about plants', publishedAt: 't' },
+  ]
+  const hits = await rankSearch(entries, 'quantum', 5)
+  assert.equal(hits.length, 1)
+  assert.equal(hits[0].sessionId, 'a')
+})
