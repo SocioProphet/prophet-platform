@@ -1,3 +1,7 @@
 # reasoning-failure-runner
-image: { repository: reasoning-failure-runner, tag: latest }
+# Pinned to an immutable sha- tag (never `:latest`): the socioprophet-service chart sets
+# imagePullPolicy: IfNotPresent, so a moving tag means a node that cached `latest` never pulls a newer
+# image and `rollout restart` re-runs the stale one. sha-92f471… = the last green images.yml build's
+# full-matrix publish of this image. Bump to a newer sha- tag on each release.
+image: { repository: reasoning-failure-runner, tag: sha-92f471015ea5fd8c4f7831f6e4be72c05e4011e4 }
 service: { port: 8080, portName: http }

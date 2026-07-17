@@ -81,13 +81,9 @@ OUR_REGISTRIES = ("us-central1-docker.pkg.dev/socioprophet-platform/", "registry
 # Entries must carry a reason. The list only ever shrinks: if an entry starts passing,
 # the gate FAILS and demands its removal, so it cannot rot into a permanent excuse.
 KNOWN_BROKEN = {
-    # reasoning-failure-runner:not-built is RESOLVED — it now has a Dockerfile + images.yml entry and is a real
-    # FastAPI service (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md).
-    "reasoning-failure-runner:moving-tag": (
-        "The image now BUILDS (Dockerfile + images.yml added). Pinning `tag: latest` → the sha- tag the build "
-        "publishes is now a mechanical follow-up after the first CI build (same as dashboard-bff #743); it "
-        "could not be done in the same PR because no sha existed yet. Ratcheted, not moot."
-    ),
+    # reasoning-failure-runner:moving-tag is RESOLVED — deploy/values/reasoning-failure-runner.yaml is now pinned
+    # to a sha- tag (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md). The ratchet only
+    # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
     "owl-reasoner:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR, so it BUILDS. Pin `tag: latest` → the sha- "
         "tag after the first CI build (same chicken-and-egg as grlplus-service/grl-mesh): no sha exists until merge."
