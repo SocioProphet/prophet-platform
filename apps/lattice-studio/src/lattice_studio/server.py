@@ -336,11 +336,11 @@ async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
     dct:source, prov:wasGeneratedBy. Their RDF exports drop provenance; ours doesn't — epistemic status + origin
     ride the standard triples, so a proof-carrying graph stays proof-carrying when it leaves us.
     """
-    from rdflib import Graph as RDFGraph, Literal, Namespace
+    from rdflib import Graph as RDFGraph, Literal, Namespace, URIRef
     from rdflib.namespace import DCTERMS, PROV, RDF, RDFS
 
     coll = proj_collection(project)
-    nodes, _ = await _fetch_nodes(coll, limit)
+    nodes, edges, _ = await _fetch_subgraph(coll, limit)   # nodes AND edges — the reasoner needs relations
     g = RDFGraph()
     # KKO (KBpedia Knowledge Ontology) is the estate's upper ontology — the export types INTO it, so the graph
     # is grounded in a formal, open (CC-BY-4.0), Peircean upper ontology that Protégé/GraphDB/Anzo/Stardog already
@@ -349,12 +349,28 @@ async def graph_ttl(project: str = "default", limit: int = 500) -> Response:
     SP = Namespace("https://socioprophet.ai/kg#")
     PROJ = Namespace(f"https://socioprophet.ai/kg/{coll}/")
     g.bind("kko", KKO); g.bind("sp", SP); g.bind("proj", PROJ); g.bind("prov", PROV); g.bind("dct", DCTERMS)
+
+    def _local(node_id: str) -> URIRef:
+        return PROJ[(node_id.split(":")[-1] or "node")]
+
     for n in nodes:
-        u = PROJ[(n["id"].split(":")[-1] or "node")]
+        u = _local(n["id"])
         g.add((u, RDF.type, KKO[n.get("kko_type", "Particulars")]))  # KKO upper-ontology type (Peircean)
         g.add((u, RDFS.label, Literal(n["name"])))
         # epistemic_mode is a Peircean inference status (KKO kko:Methodeutic) — provenance grounded in the standard.
         g.add((u, SP.epistemicMode, Literal(n["epistemic_mode"])))
         if n.get("source"): g.add((u, DCTERMS.source, Literal(n["source"])))
-        if n.get("extractor"): g.add((u, PROV.wasGeneratedBy, Literal(n["extractor"])))
+        # PROV-O: wasGeneratedBy must reference a prov:Activity RESOURCE, not a bare literal.
+        if n.get("extractor"):
+            act = SP[f"activity/{str(n['extractor']).replace(' ', '_')}"]
+            g.add((act, RDF.type, PROV.Activity))
+            g.add((u, PROV.wasGeneratedBy, act))
+    # Edges — WITHOUT these the exported graph is a bag of typed nodes with NO relations, and a reasoner
+    # pulling graph.ttl has nothing to reason over. Each edge becomes a real predicate triple; the label
+    # (e.g. co_occurs) is minted under the sp: vocabulary so it is a dereferenceable property.
+    for e in edges:
+        src, tgt, label = e.get("source"), e.get("target"), e.get("label") or "relatedTo"
+        if not src or not tgt:
+            continue
+        g.add((_local(src), SP[str(label)], _local(tgt)))
     return Response(content=g.serialize(format="turtle"), media_type="text/turtle")
