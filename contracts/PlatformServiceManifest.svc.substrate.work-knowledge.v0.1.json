@@ -39,19 +39,19 @@
   ],
   "pr_a_status": {
     "is_pr_a": true,
-    "note": "PR-A introduces the BFF + estate registration. Does NOT imply deployment readiness. First CI build publishes a sha- image tag; gitops-promote pins deploy/values/agora.yaml before it goes live.",
-    "deployment_ready": false
+    "note": "Build stage (image + estate contract) landed in PR-A. Deploy stage pins deploy/values/agora.yaml to the sha- tag + registers the platform-services ApplicationSet entry — deploying READ-ONLY (writes fail-closed until the Secret exists).",
+    "deployment_ready": true
   },
   "runtime_prerequisites": [
     {
       "id": "prereq_write_token",
-      "description": "agora-write-token Secret must exist in namespace socioprophet before writes are accepted (fail-closed until then).",
+      "description": "agora-write-token Secret must exist in namespace socioprophet before the WRITE surface (/api/agora/{work,page,team}) is enabled. Deployed read-only until then (writes fail-closed 503; reads work).",
       "status": "pending"
     },
     {
       "id": "prereq_image_pin",
-      "description": "deploy/values/agora.yaml image.tag must be pinned to the CI-published sha- tag (not a moving :latest) before rollout.",
-      "status": "pending"
+      "description": "deploy/values/agora.yaml image.tag pinned to sha-92f471015ea5fd8c4f7831f6e4be72c05e4011e4 (the apps/agora build's immutable tag) — not a moving :latest.",
+      "status": "satisfied"
     }
   ],
   "authority_boundary": {

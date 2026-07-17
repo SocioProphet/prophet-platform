@@ -1,0 +1,16 @@
+# agora — the sovereign work + knowledge plane (apps/agora server.py). The Jira/Confluence killer of the estate,
+# alongside zot (registry) and gitea-sovereign (SCM). Work items + wiki pages + teams are persisted as proof-
+# carrying HellGraph facts in the project's proj- collection — the same one Noetica and lattice-studio share — so
+# every card and page is citable / preservable / curatable via the Studio commons, and readable by the agent team.
+# Pinned to the immutable sha- tag the apps/agora build published (PR #821 merge commit) — never a moving :latest.
+image: { repository: agora, tag: sha-92f471015ea5fd8c4f7831f6e4be72c05e4011e4 }
+service: { port: 8080, portName: http }
+# server serves /healthz (chart default) — no probes.path override.
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# Deploys READ-ONLY: AGORA_WRITE_TOKEN is unset, so writes fail-closed (503) while reads (board/pages/bundle) work.
+# To enable the WRITE surface (/api/agora/{work,page,team}), create the Secret and add the secretEnv block:
+#   kubectl -n socioprophet create secret generic agora-write-token --from-literal=token=...
+#   secretEnv: { AGORA_WRITE_TOKEN: { secretName: agora-write-token, key: token } }
+# Internal (ClusterIP) for now; the surface reaches it via the same public-gateway pattern as the Studio BFF.
