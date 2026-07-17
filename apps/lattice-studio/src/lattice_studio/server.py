@@ -23,7 +23,7 @@ import re
 from typing import Any
 
 import httpx
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
 from lattice_studio import product_spine
@@ -33,6 +33,8 @@ HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
 TRITFABRIC_URL = os.getenv("TRITFABRIC_URL", "http://tritfabric:8750")
 SEARCH_ORCH_URL = os.getenv("SEARCH_ORCH_URL", "http://search-orchestrator:8080")
 TIMEOUT = float(os.getenv("STUDIO_TIMEOUT", "5"))
+# Write gate for /api/studio/extract (mutates the graph). Fail-closed: unset → writes refused.
+STUDIO_WRITE_TOKEN = os.getenv("STUDIO_WRITE_TOKEN", "")
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
 
@@ -222,7 +224,14 @@ class ExtractRequest(BaseModel):
 
 
 @app.post("/api/studio/extract")
-async def extract(req: ExtractRequest) -> dict[str, Any]:
+async def extract(req: ExtractRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    # WRITE gate: /extract mutates the shared HellGraph, so it must be authenticated before Studio is
+    # publicly exposed. Fail-CLOSED — if STUDIO_WRITE_TOKEN is unset, writes are refused (reads stay open),
+    # so a public ingress can never accept anonymous graph writes. Token provisioned out-of-band (Secret).
+    if not STUDIO_WRITE_TOKEN:
+        raise HTTPException(status_code=503, detail="studio writes disabled: STUDIO_WRITE_TOKEN unset (fail-closed)")
+    if authorization.removeprefix("Bearer ").strip() != STUDIO_WRITE_TOKEN:
+        raise HTTPException(status_code=401, detail="invalid write token")
     coll = proj_collection(req.project)
     src = req.source or ("text:" + hashlib.sha256(req.text.encode()).hexdigest()[:16])
     entities, relations = extract_facts(req.text)

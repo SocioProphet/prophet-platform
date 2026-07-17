@@ -62,6 +62,7 @@ NON_CHART_SERVICES = {
     "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
     "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
     "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
+    "studio-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for lattice-studio (Studio BFF)
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere

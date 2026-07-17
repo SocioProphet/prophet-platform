@@ -43,9 +43,21 @@ def test_extract_facts_deterministic():
     assert len(rels) >= 1
 
 
-def test_extract_endpoint_writes_proof_carrying_facts():
+def test_extract_write_gate(monkeypatch):
+    # fail-closed: no token configured → writes refused (503), never anonymous graph writes
+    r = client.post("/api/studio/extract", json={"project": "team-x", "text": "HellGraph beats Neo4j."})
+    assert r.status_code == 503
+    # token configured but wrong bearer → 401
+    monkeypatch.setattr("lattice_studio.server.STUDIO_WRITE_TOKEN", "secret")
+    r = client.post("/api/studio/extract", json={"project": "team-x", "text": "x"}, headers={"authorization": "Bearer nope"})
+    assert r.status_code == 401
+
+
+def test_extract_endpoint_writes_proof_carrying_facts(monkeypatch):
     # hellgraph unreachable in test → written=0 but extraction + provenance still returned (graceful)
-    r = client.post("/api/studio/extract", json={"project": "team-x", "text": "HellGraph beats Neo4j on provenance."})
+    monkeypatch.setattr("lattice_studio.server.STUDIO_WRITE_TOKEN", "secret")
+    r = client.post("/api/studio/extract", json={"project": "team-x", "text": "HellGraph beats Neo4j on provenance."},
+                    headers={"authorization": "Bearer secret"})
     assert r.status_code == 200
     b = r.json()
     assert b["projectCollection"] == "proj-teamx"
