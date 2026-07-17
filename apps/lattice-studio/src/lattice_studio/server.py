@@ -32,7 +32,7 @@ import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from lattice_studio import ontology, product_spine, shacl
+from lattice_studio import gaia, ontology, product_spine, shacl
 
 SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
@@ -1637,6 +1637,111 @@ async def executions(project: str = "default",
                     "submitted_at": p.get("submitted_at")})
     out.sort(key=lambda x: x.get("submitted_at") or "", reverse=True)
     return {"project": project, "executions": out, "count": len(out), "degraded": err}
+
+
+# ── WS#50: GAIA stewardship writeback — the estate's canonical living-knowledge governance, wired to the moat.
+# A steward's decision (keeper / successor / developmental phase / acknowledged abandonment signals) is persisted
+# as gaia_* properties (the applyStewardship pattern), proof-carrying + receipted + reversible. THE alignment:
+# GAIA invariant #2 ("model inference must not promote developmental state to canonical human-impacting truth")
+# is enforced THROUGH epistemic status — a phase from a human steward is `attested`, from a model/agent `derived`.
+# GAIA governance and the proof-carrying moat are the same mechanism. ────────────────────────────────────────────
+class StewardRequest(BaseModel):
+    project: str = "default"
+    target: str                            # the node being stewarded (a GAIA LIVING_ENTITY / any node)
+    keeper: str | None = None
+    successor: str | None = None
+    phase: str | None = None               # an OntogenesisState phase (seed…termination)
+    resolve_signals: list[str] = []        # abandonment signals acknowledged/handled
+    note: str | None = None
+    actor: str | None = None
+    actor_kind: str = "human"              # human | steward | keeper → attested; model | agent → derived
+
+
+@app.post("/api/studio/steward")
+async def steward(req: StewardRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Apply a GAIA steward decision to a node — governed, proof-carrying, receipted, reversible. Enforces the
+    GAIA invariants: a developmental phase asserted by a model/agent is recorded as `derived`, not `attested`
+    (invariant #2, via epistemic status). Fail-closed."""
+    _require_write_token(authorization)
+    if req.phase and req.phase not in gaia.ONTOGENESIS_PHASES:
+        raise HTTPException(status_code=422, detail=f"phase must be one of {gaia.ONTOGENESIS_PHASES}")
+    bad = [s for s in req.resolve_signals if s not in gaia.ABANDONMENT_SIGNALS]
+    if bad:
+        raise HTTPException(status_code=422, detail=f"unknown abandonment signals: {bad}")
+    coll = proj_collection(req.project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    target_node = next((n for n in raw if n.get("id") == req.target), None)
+    before = dict((target_node.get("properties") if target_node else {}) or {})
+    labels = (target_node.get("labels") if target_node else None) or [coll, "LIVING_ENTITY"]
+
+    # the writeback's epistemic status honors the invariant: a model steward-decision is derived, not canonical
+    phase_epi = gaia.phase_epistemic(req.actor_kind)
+    invariant = req.phase and phase_epi == "derived"
+    prov = _workbench_prov(coll, "attested" if gaia.phase_epistemic(req.actor_kind) == "attested" else "derived",
+                           req.actor or "studio/steward")
+    prov["extractor"] = "lattice-studio/gaia-steward-v0"
+
+    new_props = dict(before)
+    changed: list[str] = []
+    if req.keeper is not None:
+        new_props["gaia_keeper"] = req.keeper; changed.append("keeper")
+    if req.successor is not None:
+        new_props["gaia_successor"] = req.successor; changed.append("successor")
+    if req.phase:
+        new_props["gaia_phase_override"] = req.phase
+        new_props["gaia_phase_epistemic"] = phase_epi                 # invariant #2 in the data
+        changed.append(f"phase={req.phase} ({phase_epi})")
+    if req.resolve_signals:
+        merged = sorted({*[s for s in str(before.get("gaia_resolved_signals", "")).split(",") if s], *req.resolve_signals})
+        new_props["gaia_resolved_signals"] = ",".join(merged); changed.append("resolved_signals")
+    if req.note is not None:
+        new_props["gaia_steward_note"] = req.note
+    new_props["gaia_reviewed_at"] = _now_iso()
+    new_props.update(prov)
+
+    dhash = hashlib.sha256((req.target + _now_iso() + ",".join(changed)).encode()).hexdigest()
+    correlation = f"stw-{dhash[:12]}"
+    dec_id = f"{coll}:stewardship:{dhash[:12]}"
+    receipt = {"correlation_id": correlation, "service": "lattice-studio", "kind": "gaia-steward",
+               "replayable": True, "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.target, "labels": labels, "properties": new_props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"stewardship writeback failed: {werr}")
+        dec_props = {"target": req.target, "changed": ", ".join(changed), "actor_kind": req.actor_kind,
+                     "before_state": json.dumps(before, default=str), "correlation_id": correlation,
+                     "receipt_bundle": receipt["bundle_ref"], "revoked": False, "at": _now_iso(), **prov}
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": dec_id, "labels": [coll, "STEWARDSHIP_RECORD", "Run"], "properties": dec_props})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "STEWARD_OF", "from": dec_id, "to": req.target, "properties": prov})
+    return {"stewardship_id": dec_id, "target": req.target, "state": gaia.stewardship_of(new_props),
+            "changed": changed, "receipt": receipt, "reversible": True, "proof_carrying": True,
+            "epistemic_mode": prov["epistemic_mode"],
+            "invariant_applied": ("GAIA-2: model inference recorded as `derived`, not promoted to canonical truth"
+                                  if invariant else None),
+            "degraded": err}
+
+
+@app.get("/api/studio/steward")
+async def steward_state(project: str = "default", target: str = "",
+                        _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Read a node's persisted GAIA stewardship state — keeper, successor, developmental phase (+ its epistemic
+    status), acknowledged abandonment signals. Also surfaces a light derived signal (orphaned if it has no edges)."""
+    if not target:
+        raise HTTPException(status_code=422, detail="target node id required")
+    coll = proj_collection(project)
+    nodes, edges, err = await _fetch_graph(coll, 3000)
+    node = next((n for n in nodes if n.get("id") == target), None)
+    state = gaia.stewardship_of(node.get("properties") if node else {})
+    degree = sum(1 for e in edges if e.get("from") == target or e.get("to") == target)
+    derived_signals = ["orphaned_artifact"] if degree == 0 else []
+    derived_signals = [s for s in derived_signals if s not in state["resolved_signals"]]   # honor acknowledgements
+    return {"project": project, "target": target, "stewardship": state,
+            "derived_signals": derived_signals, "degree": degree,
+            "phases": gaia.ONTOGENESIS_PHASES, "abandonment_signals": gaia.ABANDONMENT_SIGNALS,
+            "invariants": gaia.GAIA_INVARIANTS, "degraded": err}
 
 
 # ── WS#49: ONTOLOGY ACTIONS + writeback — the Foundry crown jewel (Workshop apps are built on Actions). A typed
