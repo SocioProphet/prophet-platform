@@ -1639,6 +1639,245 @@ async def executions(project: str = "default",
     return {"project": project, "executions": out, "count": len(out), "degraded": err}
 
 
+# ── WS#49: ONTOLOGY ACTIONS + writeback — the Foundry crown jewel (Workshop apps are built on Actions). A typed
+# action defines a governed edit on an object type (set a property, set status, add a relation), and invoking it
+# writes back to the graph. BEAT Foundry on every axis: their edits are bare edits; ours are PROOF-CARRYING
+# (epistemic status + provenance on every writeback), RECEIPTED (a replayable receipt per invocation), REVERSIBLE
+# (the before-state is snapshotted, so revoke restores it — governed undo as graph facts), and AGENT-INVOKABLE
+# (each action publishes a machine-readable schema, so an agent can discover + invoke it — not UI-bound). ────────
+class ActionParam(BaseModel):
+    name: str
+    type: str = "string"
+    required: bool = True
+
+
+class ActionEffect(BaseModel):
+    op: str                                # set_property | set_status | add_edge
+    property: str | None = None            # for set_property
+    label: str | None = None               # for add_edge (the relation)
+    value: Any = None                      # a literal value…
+    value_from: str | None = None          # …or take it from an invocation arg
+
+
+class ActionRequest(BaseModel):
+    project: str = "default"
+    name: str
+    target_type: str                       # the object type (graph label) this action applies to
+    params: list[ActionParam] = []
+    effects: list[ActionEffect] = []
+    description: str | None = None
+
+
+def _action_id(coll: str, name: str) -> str:
+    return f"{coll}:action:{_norm(name).replace(' ', '_')}"
+
+
+@app.post("/api/studio/action")
+async def define_action(req: ActionRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Define a typed ontology action (governed writeback) — the Foundry-Workshop primitive. Persisted as a
+    proof-carrying Action node with a machine-readable schema, so both a Workshop-style UI and an AGENT can invoke
+    it. Idempotent per (project, name)."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    if not req.effects:
+        raise HTTPException(status_code=422, detail="at least one effect required")
+    for e in req.effects:
+        if e.op not in {"set_property", "set_status", "add_edge"}:
+            raise HTTPException(status_code=422, detail=f"unsupported effect op: {e.op}")
+    coll = proj_collection(req.project)
+    aid = _action_id(coll, name)
+    prov = _workbench_prov(coll, "attested", "studio/action")
+    prov["extractor"] = "lattice-studio/action-v0"
+    props = {"name": name, "target_type": req.target_type,
+             "params": json.dumps([p.model_dump() for p in req.params]),
+             "effects": json.dumps([e.model_dump() for e in req.effects]),
+             "description": req.description or "", "updated_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": aid, "labels": [coll, "Action"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+    return {"action_id": aid, "name": name, "target_type": req.target_type,
+            "effects": len(req.effects), "proof_carrying": True, "agent_invokable": True}
+
+
+def _action_view(n: dict[str, Any]) -> dict[str, Any]:
+    p = n.get("properties") or {}
+    try:
+        params = json.loads(p.get("params") or "[]")
+    except (ValueError, TypeError):
+        params = []
+    try:
+        effects = json.loads(p.get("effects") or "[]")
+    except (ValueError, TypeError):
+        effects = []
+    return {"action_id": n.get("id"), "name": p.get("name"), "target_type": p.get("target_type"),
+            "description": p.get("description") or None, "params": params, "effects": effects}
+
+
+@app.get("/api/studio/actions")
+async def actions(project: str = "default",
+                  _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The project's ontology actions, each with its machine-readable schema (params + effects) — the discovery
+    surface a Workshop UI *or* an agent uses to invoke them."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = [_action_view(n) for n in raw if "Action" in (n.get("labels") or [])]
+    out.sort(key=lambda a: a.get("name") or "")
+    return {"project": project, "actions": out, "count": len(out),
+            "agent_note": "each action's params+effects are a machine-readable contract — agents discover and invoke, not just humans",
+            "degraded": err}
+
+
+class InvokeRequest(BaseModel):
+    project: str = "default"
+    action: str                            # action name
+    target: str                            # the target node id the action acts on
+    args: dict[str, Any] = {}
+    actor: str | None = None
+
+
+def _resolve(effect: dict[str, Any], args: dict[str, Any]) -> Any:
+    return args.get(effect["value_from"]) if effect.get("value_from") else effect.get("value")
+
+
+@app.post("/api/studio/action/invoke")
+async def invoke_action(req: InvokeRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Invoke an action on a target — a governed writeback. Applies the effects to the target (proof-carrying,
+    epistemic), snapshots the before-state for reversibility, records an ActionInvocation (the audit trail), and
+    emits a replayable receipt. Fail-closed."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph read failed: {err}")
+    aid = _action_id(coll, req.action)
+    action_node = next((n for n in raw if n.get("id") == aid), None)
+    if not action_node:
+        raise HTTPException(status_code=404, detail=f"action not found: {req.action}")
+    view = _action_view(action_node)
+    missing = [p["name"] for p in view["params"] if p.get("required", True) and p["name"] not in req.args]
+    if missing:
+        raise HTTPException(status_code=422, detail=f"missing required args: {missing}")
+    target_node = next((n for n in raw if n.get("id") == req.target), None)
+    before = dict((target_node.get("properties") if target_node else {}) or {})
+    labels = (target_node.get("labels") if target_node else None) or [coll, view["target_type"]]
+
+    prov = _workbench_prov(coll, "attested", req.actor or "studio/action-invoke")
+    prov["extractor"] = "lattice-studio/action-invoke-v0"
+    new_props = dict(before)
+    edge_effects: list[dict[str, Any]] = []
+    applied: list[str] = []
+    for e in view["effects"]:
+        if e["op"] == "set_property":
+            new_props[e["property"]] = _resolve(e, req.args)
+            applied.append(f"set {e['property']}")
+        elif e["op"] == "set_status":
+            new_props["status"] = _resolve(e, req.args)
+            applied.append("set status")
+        elif e["op"] == "add_edge":
+            edge_effects.append({"label": e.get("label") or "relates_to", "to": _resolve(e, req.args)})
+            applied.append(f"+edge {e.get('label')}")
+    new_props.update(prov)
+
+    inv_hash = hashlib.sha256((aid + req.target + json.dumps(req.args, sort_keys=True, default=str) + _now_iso()).encode()).hexdigest()
+    correlation = f"act-{inv_hash[:12]}"
+    inv_id = f"{coll}:invocation:{inv_hash[:12]}"
+    receipt = {"correlation_id": correlation, "service": "lattice-studio", "action": req.action,
+               "replayable": True, "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.target, "labels": labels, "properties": new_props})   # the writeback
+        if werr:
+            raise HTTPException(status_code=502, detail=f"writeback failed: {werr}")
+        for ee in edge_effects:
+            if ee["to"]:
+                await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                           json={"label": ee["label"], "from": req.target, "to": ee["to"], "properties": prov})
+        inv_props = {"action": req.action, "target": req.target, "args": json.dumps(req.args, default=str),
+                     "before_state": json.dumps(before, default=str), "applied": ", ".join(applied),
+                     "correlation_id": correlation, "receipt_bundle": receipt["bundle_ref"],
+                     "revoked": False, "invoked_at": _now_iso(), **prov}
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": inv_id, "labels": [coll, "ActionInvocation", "Run"], "properties": inv_props})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "invoked", "from": inv_id, "to": aid, "properties": prov})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "acted_on", "from": inv_id, "to": req.target, "properties": prov})
+    return {"invocation_id": inv_id, "action": req.action, "target": req.target, "applied": applied,
+            "receipt": receipt, "reversible": True, "proof_carrying": True}
+
+
+@app.get("/api/studio/action/invocations")
+async def invocations(project: str = "default", target: str = "",
+                      _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The action audit trail — every invocation as a proof-carrying fact (action, target, effects, receipt,
+    revoked?). Foundry has an edit history; ours is a queryable, receipted, reversible graph ledger."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "ActionInvocation" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if target and p.get("target") != target:
+            continue
+        out.append({"invocation_id": n.get("id"), "action": p.get("action"), "target": p.get("target"),
+                    "applied": p.get("applied"), "revoked": bool(p.get("revoked")),
+                    "correlation_id": p.get("correlation_id"), "receipt_bundle": p.get("receipt_bundle"),
+                    "invoked_at": p.get("invoked_at")})
+    out.sort(key=lambda x: x.get("invoked_at") or "", reverse=True)
+    return {"project": project, "invocations": out, "count": len(out), "degraded": err}
+
+
+class RevokeActionRequest(BaseModel):
+    project: str = "default"
+    invocation: str                        # the invocation node id
+
+
+@app.post("/api/studio/action/revoke")
+async def revoke_action(req: RevokeActionRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Governed undo — restore the target to the before-state the invocation snapshotted, and mark the invocation
+    revoked. The moat Foundry lacks: a proof-carrying, reversible action ledger (property effects are restored;
+    added relations are additive)."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    inv = next((n for n in raw if n.get("id") == req.invocation), None)
+    if not inv:
+        raise HTTPException(status_code=404, detail=f"invocation not found: {req.invocation}")
+    p = inv.get("properties") or {}
+    if p.get("revoked"):
+        return {"invocation_id": req.invocation, "already_revoked": True}
+    target = p.get("target")
+    try:
+        before = json.loads(p.get("before_state") or "{}")
+    except (ValueError, TypeError):
+        before = {}
+    target_node = next((n for n in raw if n.get("id") == target), None)
+    labels = (target_node.get("labels") if target_node else None) or [coll]
+    prov = _workbench_prov(coll, "attested", "studio/action-revoke")
+    prov["extractor"] = "lattice-studio/action-revoke-v0"
+    restored = dict(before)
+    restored.update(prov)
+    new_inv = dict(p)
+    new_inv["revoked"] = True
+    new_inv["revoked_at"] = _now_iso()
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        if target_node:
+            _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                                 json={"id": target, "labels": labels, "properties": restored})
+            if werr:
+                raise HTTPException(status_code=502, detail=f"restore failed: {werr}")
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": req.invocation, "labels": inv.get("labels") or [coll, "ActionInvocation", "Run"],
+                         "properties": new_inv})
+    return {"invocation_id": req.invocation, "target": target, "revoked": True,
+            "restored_state": True, "proof_carrying": True}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but

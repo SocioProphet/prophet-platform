@@ -1125,3 +1125,86 @@ def test_execute_when_entitled_records_run_and_emits_receipt(monkeypatch):
 
     lst = client.get("/api/studio/executions?project=team-x").json()
     assert lst["count"] == 1 and lst["executions"][0]["backend"] == "mesh-k8s"
+
+
+# ── WS#49: ontology actions + writeback (the Foundry crown jewel, beaten) ──
+def _stateful_graph(seed=None):
+    state = {"nodes": dict(seed or {}), "edges": []}
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url:
+            state["nodes"][json["id"]] = json
+            return ({"ok": True}, None)
+        if "/api/graph/edge" in url:
+            state["edges"].append(json)
+            return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": list(state["nodes"].values()), "edgeList": state["edges"]}, None)
+        return (None, "x")
+    return state, fake_req
+
+
+def test_action_define_requires_token_and_effects(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    assert client.post("/api/studio/action", json={"project": "team-x", "name": "approve", "target_type": "Order",
+                                                    "effects": [{"op": "set_status", "value": "approved"}]}).status_code == 503
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    # no effects → 422
+    assert client.post("/api/studio/action", json={"project": "team-x", "name": "x", "target_type": "Order"},
+                       headers={"Authorization": "Bearer T"}).status_code == 422
+
+
+def test_action_full_lifecycle_define_invoke_audit_revoke(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    # seed a target object
+    state, fake_req = _stateful_graph({
+        "proj-teamx:order:1": {"id": "proj-teamx:order:1", "labels": ["proj-teamx", "Order"],
+                               "properties": {"status": "open", "total": "100"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    # define
+    d = client.post("/api/studio/action",
+                    json={"project": "team-x", "name": "Approve order", "target_type": "Order",
+                          "params": [{"name": "approver"}],
+                          "effects": [{"op": "set_status", "value": "approved"},
+                                      {"op": "set_property", "property": "approved_by", "value_from": "approver"},
+                                      {"op": "add_edge", "label": "approved_by_user", "value_from": "approver_id"}]},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert d["action_id"] == "proj-teamx:action:approve_order" and d["agent_invokable"]
+
+    # list (agent-discoverable schema)
+    lst = client.get("/api/studio/actions?project=team-x").json()
+    assert lst["count"] == 1 and lst["actions"][0]["effects"][0]["op"] == "set_status"
+
+    # missing required arg → 422
+    assert client.post("/api/studio/action/invoke",
+                       json={"project": "team-x", "action": "Approve order", "target": "proj-teamx:order:1", "args": {}},
+                       headers={"Authorization": "Bearer T"}).status_code == 422
+
+    # invoke → governed writeback + receipt
+    inv = client.post("/api/studio/action/invoke",
+                      json={"project": "team-x", "action": "Approve order", "target": "proj-teamx:order:1",
+                            "args": {"approver": "kim", "approver_id": "proj-teamx:user:kim"}},
+                      headers={"Authorization": "Bearer T"}).json()
+    assert inv["reversible"] and inv["receipt"]["replayable"]
+    tgt = state["nodes"]["proj-teamx:order:1"]["properties"]
+    assert tgt["status"] == "approved" and tgt["approved_by"] == "kim"          # writeback applied
+    assert tgt["epistemic_mode"] == "attested"                                   # proof-carrying
+    assert any(e.get("label") == "approved_by_user" and e.get("to") == "proj-teamx:user:kim" for e in state["edges"])
+
+    # audit trail
+    aud = client.get("/api/studio/action/invocations?project=team-x").json()
+    assert aud["count"] == 1 and aud["invocations"][0]["revoked"] is False
+    inv_id = inv["invocation_id"]
+
+    # governed revoke → restores before-state (status back to open, approved_by gone)
+    rev = client.post("/api/studio/action/revoke", json={"project": "team-x", "invocation": inv_id},
+                      headers={"Authorization": "Bearer T"}).json()
+    assert rev["revoked"] and rev["restored_state"]
+    tgt2 = state["nodes"]["proj-teamx:order:1"]["properties"]
+    assert tgt2["status"] == "open" and "approved_by" not in tgt2               # fully restored
+    aud2 = client.get("/api/studio/action/invocations?project=team-x").json()
+    assert aud2["invocations"][0]["revoked"] is True
