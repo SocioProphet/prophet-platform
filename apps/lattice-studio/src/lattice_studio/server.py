@@ -17,7 +17,9 @@ Upstreams (real, in-cluster):
 from __future__ import annotations
 
 import asyncio
+import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -818,6 +820,96 @@ async def curation(project: str = "default", target: str = "",
     return {"project": project, "target": target or None, "endorsements": endorsements,
             "count": len(endorsements), "curation_score": round(score, 3),
             "epistemic_weighted": True, "degraded": err}
+
+
+# ── WS#33: data connectors framework (governed ingest). MEET DS studios: connectors that pull structured data
+# into the workspace. BEAT: ingest is GOVERNED — fail-closed write gate, per-row provenance, epistemic status,
+# and a source connector id — so every ingested row lands as a proof-carrying fact, not an untracked blob. Inline
+# CSV/JSON is fully live here; fetch-based connectors (http/s3/postgres) are declared + gated, not yet wired. ──
+INGEST_ROW_CAP = 5000
+
+CONNECTORS = [
+    {"type": "csv", "status": "live", "governed": True, "note": "inline CSV → one proof-carrying node per row"},
+    {"type": "json", "status": "live", "governed": True, "note": "inline JSON array of objects → node per element"},
+    {"type": "http", "status": "declared", "governed": True, "note": "URL fetch — membrane-gated egress, not yet wired"},
+    {"type": "s3", "status": "declared", "governed": True, "note": "object store — sovereign creds required, not yet wired"},
+    {"type": "postgres", "status": "declared", "governed": True, "note": "SQL source — governed pull, not yet wired"},
+]
+
+
+@app.get("/api/studio/connectors")
+async def connectors(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The connector registry: supported source types and each one's governance posture. Every connector is
+    governed (fail-closed writes + per-row provenance); inline csv/json are live, fetch-based ones are declared."""
+    return {"connectors": CONNECTORS, "row_cap": INGEST_ROW_CAP,
+            "governance": "fail-closed write token + per-row provenance + epistemic status on every ingested fact"}
+
+
+class IngestRequest(BaseModel):
+    project: str = "default"
+    connector: str = "csv"          # csv | json (live); others rejected until wired
+    data: str = ""                  # inline CSV text, or a JSON array-of-objects string
+    key: str | None = None          # column/field to use as the node key (dedup); else row index
+    label: str = "Record"           # graph label for ingested rows
+    epistemic_mode: str = "observed"
+    source: str | None = None
+
+
+def _parse_rows(connector: str, data: str) -> list[dict[str, Any]]:
+    """Parse inline CSV or JSON-array-of-objects into a list of flat row dicts. Deterministic + real — no
+    external I/O. Raises HTTPException(422) on an unusable payload or an unsupported (declared-only) connector."""
+    if connector == "csv":
+        rows = list(csv.DictReader(io.StringIO(data)))
+        if not rows:
+            raise HTTPException(status_code=422, detail="csv payload has no data rows")
+        return [dict(r) for r in rows]
+    if connector == "json":
+        try:
+            parsed = json.loads(data)
+        except json.JSONDecodeError as e:
+            raise HTTPException(status_code=422, detail=f"invalid json: {e}") from e
+        if not isinstance(parsed, list) or not all(isinstance(x, dict) for x in parsed):
+            raise HTTPException(status_code=422, detail="json connector expects an array of objects")
+        if not parsed:
+            raise HTTPException(status_code=422, detail="json payload is empty")
+        return parsed
+    raise HTTPException(status_code=422, detail=f"connector '{connector}' is declared but not yet wired for ingest")
+
+
+@app.post("/api/studio/ingest")
+async def ingest(req: IngestRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Governed ingest of inline structured data (csv/json) into the project graph. Each row becomes a proof-
+    carrying node: per-row provenance (source connector + epistemic status), fail-closed write gate, row cap,
+    dedup by the key column. The BEAT over a plain DS connector: every ingested fact is governed + attributable."""
+    _require_write_token(authorization)
+    rows = _parse_rows(req.connector, req.data)
+    if len(rows) > INGEST_ROW_CAP:
+        raise HTTPException(status_code=413, detail=f"ingest exceeds row cap ({len(rows)} > {INGEST_ROW_CAP})")
+    coll = proj_collection(req.project)
+    src = req.source or f"connector:{req.connector}:{hashlib.sha256(req.data.encode()).hexdigest()[:12]}"
+    prov = _workbench_prov(coll, req.epistemic_mode, src)
+    prov["extractor"] = f"lattice-studio/connector-{req.connector}-v0"
+    prov["connector"] = req.connector
+
+    written = 0
+    errors: list[str] = []
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        calls = []
+        for i, row in enumerate(rows):
+            key_val = str(row.get(req.key)) if req.key and row.get(req.key) is not None else f"row{i}"
+            nid = f"{coll}:ingest:{_norm(key_val).replace(' ', '_')}"
+            props = {**{str(k): v for k, v in row.items()}, **prov, "ingest_key": key_val}
+            calls.append(_req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                              json={"id": nid, "labels": [coll, req.label, "Ingested"], "properties": props}))
+        for _, err in await asyncio.gather(*calls):
+            if err:
+                errors.append(err)
+            else:
+                written += 1
+    return {"project": req.project, "connector": req.connector, "source": src,
+            "rows": len(rows), "written": written, "label": req.label,
+            "provenance": {"epistemic_mode": req.epistemic_mode, "connector": req.connector, "source": src},
+            "errors": errors[:5] or None}
 
 
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
