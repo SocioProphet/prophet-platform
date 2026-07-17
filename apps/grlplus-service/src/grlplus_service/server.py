@@ -20,6 +20,7 @@ import httpx
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from .crosswalk import crosswalk
 from .evaluator import (
     CLOSURE_RULES, ESCALATION_RULES, DIVERGENCE_WARNING,
     GraphEvidence, decide,
@@ -123,3 +124,9 @@ async def evaluate(req: EvaluateRequest) -> dict[str, Any]:
         "graph_degraded": err,  # non-null → decisions were made without graph evidence (fail-safe = keep open)
         "results": results,
     }
+
+
+@app.get("/grlplus/crosswalk")
+def crosswalk_endpoint() -> dict[str, Any]:
+    """GRLPlus rules → NIST AI RMF / EU AI Act controls — makes the proof-carrying governance auditor-legible."""
+    return crosswalk()
