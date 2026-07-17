@@ -1,0 +1,121 @@
+# gitea-sovereign — self-hosted, login-walled SCM for the SocioProphet estate (ST018).
+# Moves the 122-repo estate off GitHub. Login-wall ON (REQUIRE_SIGNIN_VIEW, registration closed).
+# v1: SQLite + single replica + PVC (adequate for a small team; Postgres = later hardening).
+# DNS: after apply, point code.socioprophet.ai A-record at the Ingress IP (printed by kubectl).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scm
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitea-data
+  namespace: scm
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: standard-rwo
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea
+  namespace: scm
+  labels: { app: gitea }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }   # RWO PVC — one pod at a time
+  selector:
+    matchLabels: { app: gitea }
+  template:
+    metadata:
+      labels: { app: gitea }
+    spec:
+      securityContext: { fsGroup: 1000 }
+      containers:
+        - name: gitea
+          image: gitea/gitea:1
+          env:
+            - { name: USER_UID, value: "1000" }
+            - { name: USER_GID, value: "1000" }
+            - { name: GITEA__server__ROOT_URL, value: "https://code.socioprophet.ai/" }
+            - { name: GITEA__server__DOMAIN, value: "code.socioprophet.ai" }
+            - { name: GITEA__server__SSH_DOMAIN, value: "code.socioprophet.ai" }
+            - { name: GITEA__security__INSTALL_LOCK, value: "true" }
+            # --- login wall: nothing visible without sign-in; no open registration ---
+            - { name: GITEA__service__REQUIRE_SIGNIN_VIEW, value: "true" }
+            - { name: GITEA__service__DISABLE_REGISTRATION, value: "true" }
+            - { name: GITEA__service__DEFAULT_KEEP_EMAIL_PRIVATE, value: "true" }
+            - { name: GITEA__openid__ENABLE_OPENID_SIGNIN, value: "false" }
+            # SQLite (v1); switch to Postgres for hardening
+            - { name: GITEA__database__DB_TYPE, value: "sqlite3" }
+          ports:
+            - { name: http, containerPort: 3000 }
+            - { name: ssh, containerPort: 22 }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            httpGet: { path: /api/healthz, port: 3000 }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "500m", memory: 1Gi }
+            limits: { cpu: "2", memory: 2Gi }
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: gitea-data }
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: gitea-backendconfig
+  namespace: scm
+spec:
+  healthCheck:
+    requestPath: /api/healthz   # returns 200 without auth (login-wall redirects / to /user/login)
+    port: 3000
+    type: HTTP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea
+  namespace: scm
+  annotations:
+    cloud.google.com/backend-config: '{"default": "gitea-backendconfig"}'
+spec:
+  type: NodePort
+  selector: { app: gitea }
+  ports:
+    - { name: http, port: 3000, targetPort: 3000 }
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: code-cert
+  namespace: scm
+spec:
+  domains: [ code.socioprophet.ai ]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitea-ingress
+  namespace: scm
+  annotations:
+    networking.gke.io/managed-certificates: code-cert
+    kubernetes.io/ingress.class: gce
+spec:
+  rules:
+    - host: code.socioprophet.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gitea
+                port: { number: 3000 }

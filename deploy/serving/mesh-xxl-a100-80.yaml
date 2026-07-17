@@ -1,0 +1,100 @@
+# Prophet Mesh — "XXL" seat: a 70B-class model on a single A100-80GB (Spot), scale-to-zero.
+#
+# BLOCKED until quota granted: NVIDIA A100-80GB in us-central1 is a SEPARATE quota from the
+# 40GB A100 (a2-ultragpu vs a2-highgpu family). As of build, PREEMPTIBLE_NVIDIA_A100_80GB_GPUS = 0.
+# Request >=1 before applying, or the pod will sit Pending with "no nodes available".
+#
+# Sizing (measured basis: Qwen3-32B needed 18.2 GiB weights + 16.5 GiB KV on the 40GB box):
+#   Qwen2.5-72B-Instruct-AWQ weights ~= 40 GiB. On 80GB @ 0.92 util (~73.6 GiB usable):
+#   ~40 GiB weights + ~1.5 GiB CUDA graphs -> ~32 GiB KV cache -> comfortably 16k context.
+# Cost: A100-80 Spot ~$2/GPU-hr (~$480/mo at 8h/day, ~$1,460/mo 24-7). Scale to zero when idle.
+#   kubectl -n serving scale deploy/mesh-vllm-xxl --replicas=0
+# Model is swappable (Llama-3.3-70B-Instruct-AWQ, Qwen3-72B, etc.) — this is the value-tier default.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mesh-xxl-cache
+  namespace: serving
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: standard-rwo
+  resources:
+    requests:
+      storage: 200Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mesh-vllm-xxl
+  namespace: serving
+  labels: { app: mesh-vllm-xxl }
+spec:
+  replicas: 1
+  # RWO PVC + single GPU: recreate old pod before new one, else the rolling update
+  # deadlocks on the ReadWriteOnce volume (same trap the XL seat hit).
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: mesh-vllm-xxl }
+  template:
+    metadata:
+      labels: { app: mesh-vllm-xxl }
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-a100-80gb
+        cloud.google.com/gke-spot: "true"
+        cloud.google.com/gke-gpu-driver-version: latest
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - --model=Qwen/Qwen2.5-72B-Instruct-AWQ
+            - --quantization=awq_marlin
+            - --port=8000
+            - --max-model-len=16384
+            - --gpu-memory-utilization=0.92
+            - --enable-auto-tool-choice
+            - --tool-call-parser=hermes
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HF_HOME
+              value: /hf
+          volumeMounts:
+            - name: cache
+              mountPath: /hf
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 80
+          resources:
+            requests:
+              cpu: "12"
+              memory: 80Gi
+              nvidia.com/gpu: "1"
+              ephemeral-storage: 10Gi
+            limits:
+              cpu: "12"
+              memory: 80Gi
+              nvidia.com/gpu: "1"
+              ephemeral-storage: 10Gi
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: mesh-xxl-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mesh-vllm-xxl
+  namespace: serving
+spec:
+  selector: { app: mesh-vllm-xxl }
+  ports:
+    - port: 8000
+      targetPort: 8000

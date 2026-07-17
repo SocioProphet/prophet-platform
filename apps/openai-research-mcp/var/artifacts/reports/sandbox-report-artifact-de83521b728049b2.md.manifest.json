@@ -1,0 +1,12 @@
+{
+  "artifact_id": "sandbox-report-artifact-de83521b728049b2",
+  "local_path": "/Users/michaelheller/dev/prophet-platform/apps/openai-research-mcp/var/artifacts/reports/sandbox-report-artifact-de83521b728049b2.md",
+  "object_key": "sandbox-report-artifact-de83521b728049b2.md",
+  "sha256": "9a7445d9cd9c9ed623327a43789c85acd585909aec8b1b39bee38335505fd6ff",
+  "sources": [
+    {
+      "id": "doc-citations-001",
+      "url": "https://example.com/docs/canonical-urls"
+    }
+  ]
+}
