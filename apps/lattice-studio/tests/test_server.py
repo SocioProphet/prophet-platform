@@ -718,3 +718,52 @@ def test_endorse_writes_governed_fact_and_curation_is_epistemic_weighted(monkeyp
     assert c["endorsements"][0]["endorser"] == "kim"
     assert c["curation_score"] == 1.0               # endorsing an attested fact = full weight
     assert c["epistemic_weighted"]
+
+
+def test_connectors_registry_lists_live_and_declared(monkeypatch):
+    b = client.get("/api/studio/connectors").json()
+    by_type = {c["type"]: c for c in b["connectors"]}
+    assert by_type["csv"]["status"] == "live" and by_type["json"]["status"] == "live"
+    assert by_type["http"]["status"] == "declared"
+    assert all(c["governed"] for c in b["connectors"])   # every connector is governed
+
+
+def test_ingest_requires_write_token(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    r = client.post("/api/studio/ingest", json={"project": "team-x", "connector": "csv", "data": "a,b\n1,2"})
+    assert r.status_code == 503   # fail-closed
+
+
+def test_ingest_csv_writes_one_governed_node_per_row(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url:
+            writes.append(json)
+            return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/ingest",
+                    json={"project": "team-x", "connector": "csv", "key": "id",
+                          "data": "id,name\n1,Ann\n2,Bo", "label": "Person", "epistemic_mode": "observed"},
+                    headers={"Authorization": "Bearer T"})
+    b = r.json()
+    assert b["rows"] == 2 and b["written"] == 2
+    labels = writes[0]["labels"]
+    assert "Person" in labels and "Ingested" in labels
+    assert writes[0]["properties"]["epistemic_mode"] == "observed"      # per-row provenance
+    assert writes[0]["properties"]["connector"] == "csv"
+    assert writes[0]["id"].endswith(":ingest:1")                         # keyed by the id column
+
+
+def test_ingest_rejects_unwired_connector(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/ingest",
+                    json={"project": "team-x", "connector": "s3", "data": "s3://bucket/key"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422 and "not yet wired" in r.json()["detail"]
