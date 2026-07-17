@@ -1235,3 +1235,33 @@ def test_action_full_lifecycle_ontology_typed(monkeypatch):
     assert tgt2["acsetAttrName"] == "old" and tgt2["status"] == "draft"           # fully restored
     aud2 = client.get("/api/studio/action/invocations?project=team-x").json()
     assert aud2["invocations"][0]["revoked"] is True
+
+
+def test_action_invoke_shacl_rejects_nonconformant_writeback(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    # a target typed as sp:Surface — a class the real Ontogenesis shapes constrain (required props)
+    state, fake_req = _stateful_graph({
+        "proj-teamx:surface:1": {"id": "proj-teamx:surface:1", "labels": ["proj-teamx", "sp:Surface"],
+                                 "properties": {}},   # missing every required property
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    # define an action typed against sp:Surface (sp:homepageVisible is a real declared property)
+    d = client.post("/api/studio/action",
+                    json={"project": "team-x", "name": "Publish surface", "target_type": "sp:Surface",
+                          "params": [{"name": "vis"}],
+                          "effects": [{"op": "set_property", "property": "sp:homepageVisible", "value_from": "vis"}]},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert d["ontology_typed"] and d["class_iri"] == "sp:Surface"
+
+    # invoke → resulting node still misses required props → SHACL rejects the writeback (422), nothing committed
+    r = client.post("/api/studio/action/invoke",
+                    json={"project": "team-x", "action": "Publish surface", "target": "proj-teamx:surface:1",
+                          "args": {"vis": "true"}},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert "SHACL" in detail["message"] and detail["class"] == "sp:Surface" and len(detail["violations"]) >= 1
+    # fail-closed: the target was NOT mutated
+    assert state["nodes"]["proj-teamx:surface:1"]["properties"] == {}

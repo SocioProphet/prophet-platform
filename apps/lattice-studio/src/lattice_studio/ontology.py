@@ -76,6 +76,28 @@ def _resolve_property(props: dict[str, dict[str, Any]], name: str) -> dict[str, 
     return next((p for p in props.values() if str(p.get("label", "")).lower() == low), None)
 
 
+@lru_cache(maxsize=1)
+def prefixes() -> dict[str, str]:
+    return _index().get("prefixes", {})
+
+
+def expand(curie: str) -> str:
+    """Expand a curie (prefix:name) to a full IRI via the corpus prefix map; pass through full IRIs."""
+    if not curie or "://" in curie:
+        return curie
+    if ":" in curie:
+        p, _, name = curie.partition(":")
+        ns = prefixes().get(p)
+        if ns:
+            return ns + name
+    return curie
+
+
+def property_on_class(class_iri: str, name: str) -> dict[str, Any] | None:
+    """Resolve a property (by curie or label) among a class's declared/inherited properties."""
+    return _resolve_property(class_properties(class_iri), name)
+
+
 def validate_action(target_type: str, effects: list[dict[str, Any]]) -> tuple[dict[str, Any] | None, list[str]]:
     """Type-check an action against the ontology. Returns (resolved_class, errors). The class must exist; each
     set_property effect's property must be a declared (or inherited) property of the class; each add_edge label
