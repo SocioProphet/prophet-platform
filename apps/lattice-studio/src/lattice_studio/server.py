@@ -697,6 +697,129 @@ async def ecosystem(project: str = "default", target: str = "",
             "agent_manifest": agent_manifest, "degraded": err}
 
 
+# ── WS#39: commons at scale + community curation. MEET Zenodo/Wikidata: a commons overview (scale + community
+# stats) and community endorsement of records. BEAT (epistemic curation): endorsements are governed, proof-
+# carrying facts (identified endorser, revocable), and the curation score is EPISTEMIC-WEIGHTED — trust follows
+# the epistemic status of the underlying facts (attested > verified > observed …), not raw popularity. ──────────
+# epistemic ladder → curation weight (higher = more trustworthy grounding). Mirrors studioApi EPISTEMIC_ORDER.
+EPISTEMIC_WEIGHT = {"attested": 1.0, "verified": 0.85, "observed": 0.6,
+                    "derived": 0.45, "hypothesis": 0.25, "simulated": 0.1}
+
+
+@app.get("/api/studio/commons")
+async def commons(project: str = "default",
+                  _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Commons-at-scale overview for a project: node/edge counts, the epistemic-status distribution, and the
+    community signals (citations, preserved versions, endorsements, contributors). The scale + health story —
+    every count is grounded in the graph, and the epistemic distribution is the quality signal repos lack."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    epistemic: dict[str, int] = {}
+    citations = versions = endorsements = 0
+    contributors: set[str] = set()
+    facts = 0
+    for n in raw:
+        labels = n.get("labels") or []
+        p = n.get("properties") or {}
+        if "Citation" in labels:
+            citations += 1
+        elif "Snapshot" in labels:
+            versions += 1
+        elif "Endorsement" in labels:
+            endorsements += 1
+        else:
+            facts += 1
+            mode = p.get("epistemic_mode")
+            if mode:
+                epistemic[mode] = epistemic.get(mode, 0) + 1
+        if p.get("orcid"):
+            contributors.add(p["orcid"])
+    # a single epistemic-weighted quality index over the project's facts (0..1)
+    graded = sum(EPISTEMIC_WEIGHT.get(m, 0.3) * c for m, c in epistemic.items())
+    total_graded = sum(epistemic.values())
+    quality_index = round(graded / total_graded, 3) if total_graded else None
+    return {
+        "project": project, "collection": coll,
+        "scale": {"facts": facts, "citations": citations, "preserved_versions": versions,
+                  "endorsements": endorsements, "contributors": len(contributors)},
+        "epistemic_distribution": epistemic,
+        "epistemic_quality_index": quality_index,   # the beat: quality, not just volume
+        "degraded": err,
+    }
+
+
+class EndorseRequest(BaseModel):
+    project: str = "default"
+    target: str            # node id (or label) being endorsed
+    endorser: str          # identified endorser (orcid / sovereign id / handle) — no anonymous curation
+    note: str | None = None
+    revoke: bool = False    # governed: an endorsement can be withdrawn
+
+
+@app.post("/api/studio/endorse")
+async def endorse(req: EndorseRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Community curation: an identified endorser endorses (or revokes) a record. BEAT: the endorsement is a
+    governed, proof-carrying graph fact — identified endorser, timestamped, revocable — not an anonymous vote.
+    Idempotent per (target, endorser): re-endorsing updates; revoke marks it withdrawn."""
+    _require_write_token(authorization)
+    if not req.target.strip() or not req.endorser.strip():
+        raise HTTPException(status_code=422, detail="target and endorser required")
+    coll = proj_collection(req.project)
+    endorser_key = hashlib.sha256(req.endorser.encode()).hexdigest()[:12]
+    end_id = f"{coll}:endorse:{hashlib.sha256(req.target.encode()).hexdigest()[:8]}:{endorser_key}"
+    prov = _workbench_prov(coll, "attested", "studio/endorse")
+    prov["extractor"] = "lattice-studio/endorse-v0"
+    props = {"target": req.target, "endorser": req.endorser, "note": req.note or "",
+             "revoked": req.revoke, "at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": end_id, "labels": [coll, "Endorsement", "Curation"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        if not req.revoke:      # link the endorsement to what it endorses (revoked ones stay as tombstones)
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "endorses", "from": end_id, "to": req.target, "properties": prov})
+    return {"endorsement_id": end_id, "target": req.target, "endorser": req.endorser,
+            "revoked": req.revoke, "proof_carrying": True}
+
+
+@app.get("/api/studio/curation")
+async def curation(project: str = "default", target: str = "",
+                   _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The curation signals for a target: the identified, non-revoked endorsements and an epistemic-weighted
+    curation score. BEAT: the score weights each endorsement by the epistemic status of the endorsed fact —
+    an endorsement of an attested fact counts more than one of a hypothesis. Governance is read-enforced:
+    revoked endorsements never contribute."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    by_id = {n.get("id"): (n.get("properties") or {}) for n in raw}
+    fact_mode = {nid: p.get("epistemic_mode") for nid, p in by_id.items()}
+    endorsements = []
+    seen: set[str] = set()
+    for n in raw:
+        if "Endorsement" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if target and p.get("target") != target:
+            continue
+        if p.get("revoked"):        # governance: withdrawn curation never counts
+            continue
+        key = f"{p.get('target')}|{p.get('endorser')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        endorsements.append({"target": p.get("target"), "endorser": p.get("endorser"),
+                             "note": p.get("note") or None, "at": p.get("at")})
+    # epistemic-weighted curation score: each endorsement scaled by the grounding of the fact it endorses
+    score = 0.0
+    for e in endorsements:
+        mode = fact_mode.get(e["target"]) or "observed"
+        score += EPISTEMIC_WEIGHT.get(mode, 0.3)
+    return {"project": project, "target": target or None, "endorsements": endorsements,
+            "count": len(endorsements), "curation_score": round(score, 3),
+            "epistemic_weighted": True, "degraded": err}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
