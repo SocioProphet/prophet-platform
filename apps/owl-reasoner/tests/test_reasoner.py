@@ -1,0 +1,46 @@
+"""owl-reasoner — RDFS/OWL entailment + SHACL, over KKO-typed Turtle."""
+from fastapi.testclient import TestClient
+from owl_reasoner.server import app
+from owl_reasoner.reasoner import reason
+
+client = TestClient(app)
+
+KKO_TTL = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix kko: <http://kbpedia.org/ontologies/kko#> .
+@prefix ex: <http://ex/> .
+ex:acme a kko:Particulars . kko:Particulars rdfs:subClassOf kko:Entity ."""
+
+
+def test_healthz():
+    assert client.get("/healthz").json()["ok"] is True
+
+
+def test_rdfs_entailment_derives_superclass_membership():
+    # ex:acme a kko:Particulars + Particulars ⊑ Entity  ⊢  ex:acme a kko:Entity  (a DERIVATION, not stated)
+    out = reason(KKO_TTL, inference="rdfs")
+    assert out["entailed_triples"] >= 1
+    assert any("acme" in e and "Entity" in e for e in out["entailments"])
+
+
+def test_inference_none_derives_nothing():
+    assert reason(KKO_TTL, inference="none")["entailed_triples"] == 0
+
+
+def test_reason_endpoint():
+    r = client.post("/reason", json={"turtle": KKO_TTL, "inference": "rdfs"})
+    assert r.status_code == 200 and r.json()["entailed_triples"] >= 1
+
+
+def test_shacl_validation_report():
+    shapes = """@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix kko: <http://kbpedia.org/ontologies/kko#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+[] a sh:NodeShape ; sh:targetClass kko:Particulars ; sh:property [ sh:path rdfs:label ; sh:minCount 0 ] ."""
+    out = reason(KKO_TTL, shapes=shapes, inference="rdfs")
+    assert "shacl" in out and out["shacl"]["conforms"] is True
+
+
+def test_reason_project_degrades_when_studio_unreachable():
+    r = client.post("/reason/project", params={"project": "team-x"})
+    assert r.status_code == 200
+    assert r.json()["entailed_triples"] == 0  # graph pull fails in test → honest empty
