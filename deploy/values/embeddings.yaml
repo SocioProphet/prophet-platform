@@ -1,0 +1,18 @@
+# First-party sovereign embeddings service (apps/embeddings) — FastAPI serving nomic-embed-text over an
+# OpenAI-compatible /v1/embeddings. Flips memoryd from the lexical/hashing fallback to real semantic
+# vectors. The model is baked into the image (no runtime HuggingFace egress, no PVC). tag:latest is
+# sha-pinned by gitops-promote after the first CI build.
+nameOverride: embeddings
+image: { repository: embeddings, tag: latest }
+service: { port: 8080, portName: http }
+
+probes:
+  path: /healthz
+  # Loading nomic-embed-text into memory holds startup ~15–40s; uvicorn doesn't serve /healthz until
+  # then. Give readiness/liveness room so the pod isn't killed mid-load.
+  initialDelaySeconds: 40
+  periodSeconds: 15
+
+resources:
+  requests: { cpu: 250m, memory: 1Gi }
+  limits:   { cpu: "2", memory: 2Gi }

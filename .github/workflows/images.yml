@@ -60,6 +60,7 @@ jobs:
           - { image: search-orchestrator,   context: .,                         dockerfile: services/search-orchestrator/Dockerfile }
           - { image: regis-acr-api,         context: apps/regis-acr-api,        dockerfile: Dockerfile }
           - { image: commons-search,        context: apps/commons-search,       dockerfile: Dockerfile }
+          - { image: embeddings,           context: apps/embeddings,           dockerfile: Dockerfile }
           - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
           - { image: search-gateway,        context: apps/search-gateway,        dockerfile: Dockerfile }
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }

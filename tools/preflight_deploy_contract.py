@@ -59,7 +59,6 @@ NON_CHART_SERVICES = {
     "workspace-mail",
     "workspace-caldav",
     "workspace-smtp",
-    "embeddings",  # sovereign Ollama /v1/embeddings backend, deploys from infra/k8s/embeddings (kustomize)
     "searxng",   # sovereign meta-search, deploys from infra/k8s/searxng (kustomize)
     "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
     "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
@@ -115,6 +114,10 @@ KNOWN_BROKEN = {
     "tritfabric-consumption-api:moving-tag": (
         "New service — TritFabric consumption API containerized + wired to prophet-platform CI this PR (it had "
         "app code but no image build). Pin tag:latest -> the sha- tag after the first CI build; none exists yet."
+    ),
+    "embeddings:moving-tag": (
+        "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
+        "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`

@@ -12,6 +12,6 @@ config:
   MEMORYMESH_VECTOR_SIZE: "768"
   # Sovereign semantic embeddings (Ollama /v1/embeddings). If unreachable at startup, memoryd logs and
   # falls back to the hashing embedder — never mixes vector spaces. See infra/k8s/embeddings/base.
-  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:11434/v1/embeddings"
+  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
