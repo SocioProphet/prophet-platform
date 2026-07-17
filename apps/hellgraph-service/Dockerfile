@@ -1,5 +1,14 @@
-FROM node:20-slim
+# ── Stage 1: build the benchmarked hg_analytics Rust CSR kernel into an N-API addon ──
+# This is the SAME kernel hellgraph-bench measured (PreparedGraph + parallel PageRank/WCC). Compiling it here
+# means the shipping image actually RUNS the benchmarked code, not a separate TS re-implementation.
+FROM rust:1-slim AS native
+WORKDIR /native
+COPY native/ ./
+RUN cargo build --release -p hg_napi \
+    && cp target/release/libhg_napi.so /native/hg_napi.node
 
+# ── Stage 2: the Node service ──
+FROM node:20-slim
 WORKDIR /app
 
 # Native deps (rocksdb-native/sodium-native via autobase/corestore/hyperswarm, used by
@@ -16,6 +25,8 @@ RUN npm install --no-audit --no-fund
 
 COPY tsconfig.json ./
 COPY src ./src
+# the compiled benchmarked analytics kernel (native/hg_napi.node) — analytics.ts loads it, TS fallback if absent
+COPY --from=native /native/hg_napi.node ./native/hg_napi.node
 
 ENV PORT=8090
 # Isolated graph store (mount a volume at /data to persist). Never share

@@ -7,6 +7,7 @@
  * Routes:
  *   GET  /healthz                  liveness + engine export count
  *   GET  /api/graph/stats          node / edge counts
+ *   GET  /api/graph/analytics?metric=pagerank|components  the BENCHMARKED Rust CSR kernel (native, TS fallback)
  *   POST /api/graph/node           { id, labels[], properties? } → upsert node
  *   POST /api/graph/edge           { label, from, to, properties? } → add edge
  *   GET  /api/graph/query?label=X  nodes carrying a label
@@ -35,6 +36,7 @@ import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, synthesisEnabled } from './graphrag.js'
+import { pagerank, connectedComponents, analyticsBackend } from './analytics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -63,6 +65,17 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/graph/stats') {
     return json(res, 200, { nodes: g.allNodes().length, edges: g.allEdges().length })
+  }
+
+  // Graph analytics over the BENCHMARKED Rust CSR kernel (hg_analytics via N-API) — the same code
+  // hellgraph-bench measured, now actually running in the shipping service. `backend` reports whether the
+  // native kernel or the TS fallback served the result (no silent swap). metric = pagerank | components.
+  if (req.method === 'GET' && url.pathname === '/api/graph/analytics') {
+    const metric = url.searchParams.get('metric') ?? 'pagerank'
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? 20), 500)
+    if (metric === 'components') return json(res, 200, connectedComponents(g))
+    if (metric === 'pagerank') return json(res, 200, { metric, ...pagerank(g, limit) })
+    return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components)` })
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/node') {
