@@ -9,6 +9,7 @@
  */
 import * as http from 'node:http'
 import { blendedSearch } from './gateway.js'
+import { synthesize } from './synthesize.js'
 
 const PORT = Number(process.env['PORT'] ?? 8080)
 // Comma-separated allowlist. Defaults cover the .ai surface + its Firebase dev site; override per environment.
@@ -43,6 +44,14 @@ export function makeServer(): http.Server {
           const q = url.searchParams.get('q') ?? ''
           const blended = await blendedSearch(q)
           return json(res, 200, blended, cors)
+        }
+        // /answer — fan out, then synthesize a CITED answer grounded only in the fanned sources (sovereign
+        // LLM, opt-in). Perplexity parity + the moat: the answer can't hallucinate past what was retrieved.
+        if (req.method === 'GET' && url.pathname === '/answer') {
+          const q = url.searchParams.get('q') ?? ''
+          const blended = await blendedSearch(q)
+          const synth = await synthesize(q, blended.results)
+          return json(res, 200, { query: q, ...synth, results: blended.results, degraded: blended.degraded }, cors)
         }
         json(res, 404, { error: 'not found' }, cors)
       } catch (e) {
