@@ -17,6 +17,7 @@ import httpx
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from .ontology_graph import tbox_graph
 from .reasoner import reason
 
 LATTICE_STUDIO_URL = os.getenv("LATTICE_STUDIO_URL", "http://lattice-studio:8080")
@@ -54,3 +55,14 @@ async def reason_project(project: str = "default", inference: str = "rdfs") -> d
     out = reason(ttl, None, inference)
     out["project"] = project
     return out
+
+
+class OntologyGraphRequest(BaseModel):
+    turtle: str
+    limit: int = 1000
+
+
+@app.post("/ontology/graph")
+def ontology_graph_endpoint(req: OntologyGraphRequest) -> dict[str, Any]:
+    """TBox → renderable graph (classes + subClassOf + object-property edges) — WebVOWL-style ontology viz."""
+    return tbox_graph(req.turtle, req.limit)

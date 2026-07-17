@@ -44,3 +44,26 @@ def test_reason_project_degrades_when_studio_unreachable():
     r = client.post("/reason/project", params={"project": "team-x"})
     assert r.status_code == 200
     assert r.json()["entailed_triples"] == 0  # graph pull fails in test → honest empty
+
+
+def test_tbox_graph_extracts_classes_and_edges():
+    from owl_reasoner.ontology_graph import tbox_graph
+    ttl = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix ex: <http://ex/> .
+ex:Animal a owl:Class ; rdfs:label "Animal" .
+ex:Dog a owl:Class ; rdfs:subClassOf ex:Animal .
+ex:owns a owl:ObjectProperty ; rdfs:domain ex:Person ; rdfs:range ex:Dog ; rdfs:label "owns" ."""
+    g = tbox_graph(ttl)
+    ids = {n["id"] for n in g["nodes"]}
+    assert "http://ex/Animal" in ids and "http://ex/Dog" in ids
+    # subClassOf edge Dog→Animal
+    assert any(e["type"] == "subClassOf" and e["source"].endswith("Dog") and e["target"].endswith("Animal") for e in g["edges"])
+    # object-property edge Person→Dog labeled "owns"
+    assert any(e["type"] == "objectProperty" and e["label"] == "owns" for e in g["edges"])
+
+
+def test_ontology_graph_endpoint():
+    ttl = "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n<http://ex/A> a owl:Class ."
+    r = client.post("/ontology/graph", json={"turtle": ttl})
+    assert r.status_code == 200 and r.json()["counts"]["classes"] == 1
