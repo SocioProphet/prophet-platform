@@ -52,6 +52,11 @@ spec:
                 socioprophet.ai/compliance-tier: "{{.tier}}"
               config:
                 COMPLIANCE_TIER: "{{.tier}}"
+                # Sovereign isolation: a fogstack tier must NOT reach socioprophet's embeddings.
+                # Empty overrides the shared value → the engine uses its Ollama fallback (no
+                # cross-namespace embedding call). Give fogstack its own embeddings svc to enable
+                # semantic here.
+                EMBEDDINGS_URL: ""
       destination:
         server: https://kubernetes.default.svc
         namespace: 'fogstack-{{.tier}}'
