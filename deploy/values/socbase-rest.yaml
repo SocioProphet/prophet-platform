@@ -4,8 +4,14 @@
 # Job, so this release's DB secret must point at a role that already exists
 # (i.e. install socbase-auth + run the schema Job before this).
 #
+# The DB password is sourced from the SAME secret the schema Job sets the authenticator role's
+# password from (socbase-authenticator) — one source of truth, so PostgREST's creds can never drift
+# from the role's. The previous design baked the password into a SECOND secret (socbase-rest-db-url);
+# the two drifted and PostgREST crash-looped 642× ("password authentication failed for user
+# authenticator") until they were manually re-synced. socbase-rest-db-url is no longer used.
+#
 # Prereqs:
-#   kubectl create secret generic socbase-rest-db-url --from-literal=url="postgres://authenticator:<authenticator-pw>@postgres:5432/prophet_platform"
+#   kubectl create secret generic socbase-authenticator --from-literal=password="..."  # same one the schema Job uses
 #   kubectl create secret generic socbase-jwt --from-literal=secret="..."   # same secret socbase-auth uses
 nameOverride: socbase-rest
 
@@ -19,13 +25,20 @@ service:
   portName: http
 
 secretEnv:
-  PGRST_DB_URI: { secretName: socbase-rest-db-url, key: url }
+  SOCBASE_AUTHENTICATOR_PW: { secretName: socbase-authenticator, key: password }
   PGRST_JWT_SECRET: { secretName: socbase-jwt, key: secret }
 
 config:
   PGRST_DB_SCHEMAS: "public"
   PGRST_DB_ANON_ROLE: "anon"
   PGRST_DB_USE_LEGACY_GUCS: "false"
+
+# PGRST_DB_URI is built HERE (extraEnv is rendered AFTER secretEnv by the chart) so the k8s env-var
+# reference $(SOCBASE_AUTHENTICATOR_PW) resolves against the secretEnv var above. libpq keyword format
+# (not a URI) avoids percent-encoding pitfalls for base64 passwords containing +, /, =.
+extraEnv:
+  - name: PGRST_DB_URI
+    value: "host=postgres port=5432 dbname=prophet_platform user=authenticator password=$(SOCBASE_AUTHENTICATOR_PW)"
 
 probes:
   path: /
