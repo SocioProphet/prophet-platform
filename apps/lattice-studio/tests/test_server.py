@@ -631,3 +631,31 @@ def test_fair_without_citation_is_not_findable_and_hints(monkeypatch):
     assert b["fair"]["interoperable"]              # RDF/PROV-O always available
     assert b["fair"]["score"] == 0.25
     assert b["hint"] and "persistent identifier" in b["hint"]
+
+
+def test_ecosystem_links_scholarly_and_emits_agent_manifest(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:cite", "labels": ["proj-teamx", "Citation"],
+                 "properties": {"target": "proj-teamx", "pid": "sp:proj-teamx/graph/abc123",
+                                "doi": "10.82044/proj-teamx.graph.abc12345",
+                                "contributors": [{"name": "A. Author", "orcid": "0000-0002-1825-0097"}]}},
+                {"id": "proj-teamx:person:kim", "labels": ["proj-teamx", "Person"],
+                 "properties": {"name": "Kim", "orcid": "0000-0001-0000-0001"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/ecosystem?project=team-x").json()
+    assert b["scholarly"]["doi_url"] == "https://doi.org/10.82044/proj-teamx.graph.abc12345"
+    orcids = {c["orcid"] for c in b["scholarly"]["orcid_contributors"]}
+    assert orcids == {"0000-0002-1825-0097", "0000-0001-0000-0001"}   # graph node + citation, deduped
+    assert b["scholarly"]["openaire"]["harvestable"]
+    m = b["agent_manifest"]
+    assert m["proof_carrying"] and m["identifier"] == "sp:proj-teamx/graph/abc123"
+    verbs = {v["name"]: v for v in m["access"]}
+    assert verbs["resolve"]["endpoint"] and all(v["verifiable"] for v in m["access"])
+    assert "receipts" in verbs and "query" in verbs

@@ -640,6 +640,63 @@ async def fair(project: str = "default", target: str = "",
     }
 
 
+# ── WS#38: scholarly + agent ecosystem hooks. MEET Zenodo/OpenAIRE: ORCID contributor links, DOI resolution,
+# an OpenAIRE/DataCite-harvestable metadata pointer. BEAT (agent-native): a machine-readable capability manifest
+# so an AGENT — not just a human — can discover the proof-carrying record and consume it, each access verb flagged
+# verifiable. Scholarly repos expose discovery to people; we expose it to autonomous agents. ────────────────────
+@app.get("/api/studio/ecosystem")
+async def ecosystem(project: str = "default", target: str = "",
+                    _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Scholarly + agent ecosystem hooks for a knowledge artifact: ORCID contributors, DOI resolution, an
+    OpenAIRE-harvestable pointer, and an agent-native capability manifest of verifiable access verbs."""
+    coll = proj_collection(project)
+    tgt = target or coll
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    cite = next((n.get("properties") or {} for n in raw
+                 if "Citation" in (n.get("labels") or []) and (n.get("properties") or {}).get("target") == tgt), {})
+    contributors: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for n in raw:                                   # harvest ORCID from any graph node that carries one
+        p = n.get("properties") or {}
+        orcid = p.get("orcid")
+        if orcid and orcid not in seen:
+            seen.add(orcid)
+            contributors.append({"name": p.get("name") or p.get("label") or n.get("id"),
+                                 "orcid": orcid, "orcid_url": f"https://orcid.org/{orcid}"})
+    for c in (cite.get("contributors") or []):      # plus any the citation declared
+        oc = c.get("orcid") if isinstance(c, dict) else None
+        if oc and oc not in seen:
+            seen.add(oc)
+            contributors.append({"name": c.get("name"), "orcid": oc, "orcid_url": f"https://orcid.org/{oc}"})
+    doi, pid = cite.get("doi"), cite.get("pid")
+    scholarly = {
+        "doi": doi, "doi_url": f"https://doi.org/{doi}" if doi else None,
+        "orcid_contributors": contributors,
+        "openaire": {"harvestable": bool(doi), "datacite_doi": doi,
+                     "metadata": f"/api/studio/fair?project={project}&target={tgt}"},
+    }
+
+    def _verb(name: str, endpoint: str | None) -> dict[str, Any]:
+        return {"name": name, "endpoint": endpoint, "verifiable": True}
+
+    agent_manifest = {
+        "@type": "AgentCapabilityManifest", "commons": "SocioProphet Knowledge Commons",
+        "project": project, "identifier": pid or doi,
+        "proof_carrying": True, "epistemic_status": True, "sovereign": True,
+        "access": [
+            _verb("resolve", f"/api/studio/resolve?pid={pid}" if pid else None),
+            _verb("query", "/api/studio/query"),
+            _verb("provenance", "/api/studio/provenance"),
+            _verb("receipts", "/api/studio/receipts"),
+            _verb("rdf", f"/api/studio/graph.ttl?project={project}"),
+            _verb("fair", f"/api/studio/fair?project={project}&target={tgt}"),
+        ],
+        "consume_note": "every result carries a queryHash + epistemic status; verify via the receipts/provenance verbs",
+    }
+    return {"project": project, "target": tgt, "scholarly": scholarly,
+            "agent_manifest": agent_manifest, "degraded": err}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
