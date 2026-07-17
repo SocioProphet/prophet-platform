@@ -26,7 +26,7 @@
  * change. The floor and the tarball move together or the build goes red.
  */
 import { readFileSync, existsSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
@@ -54,7 +54,7 @@ else die(`engine dep must pin a concrete version — file:vendor/socioprophet-he
 if (tgzPath) {
   if (!existsSync(tgzPath)) die(`vendored engine tarball missing: ${tgzPath}`)
   let internalVersion
-  try { internalVersion = JSON.parse(execSync(`tar xzOf "${tgzPath}" package/package.json`, { encoding: 'utf8' })).version }
+  try { internalVersion = JSON.parse(execFileSync('tar', ['xzOf', tgzPath, 'package/package.json'], { encoding: 'utf8' })).version }
   catch { die(`cannot read package.json inside ${tgzPath}`) }
   if (internalVersion !== version)
     die(`tarball MISLABELED: ref/filename says ${version} but the package.json inside says ${internalVersion} (${tgzPath})`)
@@ -66,7 +66,7 @@ if (cmp(version, MIN_ENGINE) < 0)
 
 // 4) best-effort: is a newer engine release tagged than what we vendor?
 try {
-  const out = execSync(`git ls-remote --tags --refs "${ENGINE_REMOTE}"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 })
+  const out = execFileSync('git', ['ls-remote', '--tags', '--refs', ENGINE_REMOTE], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 })
   const latest = out.split('\n').map((l) => (l.match(/refs\/tags\/v?(\d+\.\d+\.\d+)$/) || [])[1]).filter(Boolean).sort(cmp).pop()
   if (latest && cmp(latest, version) > 0)
     console.warn(`⚠ engine repo has v${latest} tagged but we vendor ${version} — a re-vendor is overdue.`)
