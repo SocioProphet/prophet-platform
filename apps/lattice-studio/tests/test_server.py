@@ -455,3 +455,69 @@ def test_experiments_list_reads_runs_with_epistemic(monkeypatch):
     assert run["name"] == "sweep-lr" and run["status"] == "finished"
     assert run["params"] == {"lr": 0.01} and run["metrics"] == {"acc": 0.91}
     assert run["epistemic_mode"] == "observed" and run["run_id"] == "proj-teamx:run:abc"
+
+
+# ── WS#35: sovereign persistent IDs + citation (DataCite-compatible, resolves to a proof-carrying record) ──
+
+def test_cite_is_write_gated():
+    assert client.post("/api/studio/cite", json={"project": "p", "kind": "graph"}).status_code == 503
+
+
+def test_cite_mints_pid_doi_and_persists_as_graph_fact(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")
+    captured = {}
+
+    async def fake_req(client, method, url, json=None):
+        captured["url"] = url; captured["json"] = json
+        return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.post("/api/studio/cite",
+                    json={"project": "team-x", "kind": "dataset", "ref": "proj-teamx:ds:1", "title": "Apple 2024 corpus", "creators": ["M. Heller"]},
+                    headers={"authorization": "Bearer w"}).json()
+    # content-addressed, stable PID + DataCite DOI + a formatted citation + BibTeX + DataCite metadata
+    assert b["pid"].startswith("sp:proj-teamx/dataset/") and b["doi"].startswith("10.82044/proj-teamx.dataset.")
+    assert "Apple 2024 corpus" in b["citation"] and "M. Heller" in b["citation"] and b["pid"] in b["citation"]
+    assert "@misc{" in b["bibtex"] and b["datacite"]["attributes"]["doi"] == b["doi"]
+    # the BEAT: provenance rides in the DataCite metadata + the identifier is itself a proof-carrying graph fact
+    assert "epistemic_mode=attested" in b["datacite"]["attributes"]["descriptions"][0]["description"]
+    assert captured["url"].endswith("/api/graph/node")
+    assert captured["json"]["labels"] == ["proj-teamx", "Citation", "Identifier"]
+    assert captured["json"]["properties"]["epistemic_mode"] == "attested" and captured["json"]["properties"]["pid"] == b["pid"]
+
+
+def test_cite_is_idempotent_content_addressed(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "w")
+
+    async def fake_req(client, method, url, json=None):
+        return ({"ok": True}, None)
+    monkeypatch.setattr(srv, "_req", fake_req)
+    a = client.post("/api/studio/cite", json={"project": "team-x", "kind": "graph", "ref": "x"}, headers={"authorization": "Bearer w"}).json()
+    b = client.post("/api/studio/cite", json={"project": "team-x", "kind": "graph", "ref": "x"}, headers={"authorization": "Bearer w"}).json()
+    assert a["pid"] == b["pid"] and a["doi"] == b["doi"]   # citing the same thing twice = same identifier
+
+
+def test_resolve_returns_proof_carrying_record(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:cite:abc", "labels": ["proj-teamx", "Citation", "Identifier"],
+                 "properties": {"pid": "sp:proj-teamx/dataset/abc123", "doi": "10.82044/proj-teamx.dataset.abc",
+                                "kind": "dataset", "target": "proj-teamx:ds:1", "title": "Apple 2024 corpus",
+                                "creators_json": "[\"M. Heller\"]", "content_hash": "abc123def456",
+                                "created_at": "2026-07-17T12:00:00Z", "epistemic_mode": "attested", "extractor": "studio/cite-v0"}},
+            ], "edgeList": []}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    assert client.get("/api/studio/resolve").status_code == 422        # pid required
+    assert client.get("/api/studio/resolve?pid=nonsense").status_code == 422  # malformed
+    b = client.get("/api/studio/resolve?pid=sp:proj-teamx/dataset/abc123").json()
+    assert b["found"] is True and b["title"] == "Apple 2024 corpus" and b["doi"] == "10.82044/proj-teamx.dataset.abc"
+    # resolves to a VERIFIABLE record, not a landing page
+    assert b["proof_carrying"] is True and b["content_hash"] == "abc123def456"
+    assert b["provenance"]["epistemic_mode"] == "attested" and b["creators"] == ["M. Heller"]
