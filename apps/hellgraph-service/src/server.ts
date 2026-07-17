@@ -15,10 +15,12 @@
  *   GET  /api/graph/ground?q=X        GraphRAG retrieval: seeds + 1-hop facts as provenance-carrying citations
  *   POST /api/graph/ask            { question } → GraphRAG cited answer grounded in the graph (sovereign LLM, opt-in)
  *   POST /api/graph/reason         run PLN forward-chaining → counts
- *   POST /api/graph/sparql         { query }  → SPARQL bindings (parity: Stardog/Anzo/GraphDB)
- *   POST /api/graph/gremlin        { query }  → Gremlin results (parity: Neptune/JanusGraph)
- *   POST /api/graph/cypher         { query, params? } → Cypher results + queryHash (parity: Neo4j)
- *   POST /api/graph/shacl          { shapes } → SHACL validation report (parity: TopBraid/Stardog)
+ *   POST /api/graph/sparql         { query }  → SPARQL 1.1 SELECT/CONSTRUCT subset (BGP, FILTER, OPTIONAL,
+ *                                    UNION, MINUS, BIND, VALUES, aggregation+GROUP BY). Unsupported forms
+ *                                    (UPDATE, SERVICE, GRAPH, paths, ASK/DESCRIBE) throw — never silently-wrong.
+ *   POST /api/graph/gremlin        { query }  → Gremlin read-traversal subset (~14 read steps; no mutations)
+ *   POST /api/graph/cypher         { query, params? } → Cypher read subset + queryHash (MATCH/RETURN/paths; no writes)
+ *   POST /api/graph/shacl          { shapes } → SHACL validation (core constraints; complex shapes via pyshacl sidecar)
  */
 import * as http from 'node:http'
 import * as os from 'node:os'
@@ -142,9 +144,10 @@ const server = http.createServer((req, res) => {
     return json(res, 200, { ok: true, result })
   }
 
-  // ── Query parity: meet Stardog/Anzo/GraphDB (SPARQL), Neptune/JanusGraph (Gremlin), and SHACL
-  // validators on their own turf — but over a proof-carrying, replayable kernel. The query languages
-  // are standard so tools interop; the store underneath is the moat.
+  // ── Standards query surfaces over a proof-carrying, replayable kernel. These are honest SUBSETS of
+  // SPARQL 1.1 / Gremlin / Cypher / SHACL (not full parity with Stardog/Neptune/Neo4j/TopBraid) — the
+  // languages interop so tools connect, and the store underneath (append-only, queryHash per result) is
+  // the moat. Unsupported syntax throws rather than returning a silently-wrong empty result.
   if (req.method === 'POST' && url.pathname === '/api/graph/sparql') {
     return void readBody(req).then((b) => {
       try {
@@ -208,13 +211,13 @@ function startLocalService(): void {
   })
 }
 
-// Mode selection. HELLGRAPH_MODE=superpeer once ran a cloud-twin federation replica, but the current
-// @socioprophet/hellgraph engine build no longer exports a super-peer entrypoint — federation lives in
-// a separate build. Fail fast and loud if an operator asks for a mode this image can't serve, rather
-// than silently degrading to local. Anything else runs the local AtomSpace HTTP service (default).
+// Mode selection. The engine DOES export the super-peer entrypoint (startSuperPeerFromEnv/SuperPeer), but
+// this image intentionally does NOT run it: federation needs the Hyperswarm networking + signed-replication
+// deps and a governance/admit config this single-tenant HTTP service isn't provisioned for. Fail fast and
+// loud rather than silently degrading to local. Anything else runs the local AtomSpace HTTP service (default).
 if (process.env['HELLGRAPH_MODE'] === 'superpeer') {
-  console.error('[hellgraph-service] HELLGRAPH_MODE=superpeer is not supported by this engine build ' +
-    '(no super-peer entrypoint is exported). Run the dedicated federation image instead.')
+  console.error('[hellgraph-service] HELLGRAPH_MODE=superpeer is not served by this image ' +
+    '(federation networking/governance is not provisioned here). Run the dedicated federation image instead.')
   process.exit(1)
 } else {
   startLocalService()
