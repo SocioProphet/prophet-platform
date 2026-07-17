@@ -19,6 +19,9 @@ from rdflib.namespace import RDF, XSD
 from lattice_studio import ontology
 
 _SHAPES_PATH = os.path.join(os.path.dirname(__file__), "data", "ontogenesis_shapes.ttl")
+_GAIA_SHAPES_PATH = os.path.join(os.path.dirname(__file__), "data", "gaia_shapes.ttl")
+_GAIA_ONT_PATH = os.path.join(os.path.dirname(__file__), "data", "gaia_world_signals.ttl")
+_GAIA_NS = "https://schemas.socioprophet.org/gaia/"
 _NODE = URIRef("urn:studio:candidate")
 
 
@@ -99,3 +102,64 @@ def ontology_curie(iri: str) -> str:
         if iri.startswith(ns):
             return f"{p}:{iri[len(ns):]}"
     return iri
+
+
+# ── GAIA world-signals validation (the Earth-twin promotion membrane) ──────────────────────────────────────────
+_GAIA_OBJECT_PROPS = {"gaia:hasPromotionState", "gaia:promotesSignal",
+                      "gaia:mapsSourceRecordToEntity", "gaia:hasDecisionLedgerEntry"}
+
+
+@lru_cache(maxsize=1)
+def _gaia() -> tuple[rdflib.Graph, rdflib.Graph] | None:
+    """Parse the vendored GAIA shapes + world-signals ontology once (the ontology is the type graph so that
+    `sh:class gaia:PromotionState` on a value like gaia:EvidenceOnly resolves). None if unavailable."""
+    try:
+        shapes = rdflib.Graph(); shapes.parse(_GAIA_SHAPES_PATH, format="turtle")
+        ont = rdflib.Graph(); ont.parse(_GAIA_ONT_PATH, format="turtle")
+        return shapes, ont
+    except (OSError, ValueError):
+        return None
+
+
+def _gaia_expand(curie: str) -> str:
+    return _GAIA_NS + curie[5:] if curie.startswith("gaia:") else ontology.expand(curie)
+
+
+def validate_gaia(class_curie: str, props: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Validate a GAIA world-signal (typed class_curie, carrying gaia:* props) against the GAIA world-signals
+    SHACL shapes. Object props (hasPromotionState, …) become IRIs (a promotion state → gaia:<State>); datatype
+    props become literals. Degrades OPEN if the shapes/pyshacl are unavailable."""
+    g = _gaia()
+    if g is None:
+        return True, []
+    try:
+        import pyshacl
+    except ImportError:
+        return True, []
+    shapes, ont = g
+    data = rdflib.Graph()
+    data.add((_NODE, RDF.type, URIRef(_gaia_expand(class_curie))))
+    for key, val in props.items():
+        if val is None or not str(key).startswith("gaia:"):
+            continue
+        piri = URIRef(_gaia_expand(str(key)))
+        if key in _GAIA_OBJECT_PROPS:
+            ref = _gaia_expand(f"gaia:{val}") if key == "gaia:hasPromotionState" else str(val)
+            data.add((_NODE, piri, URIRef(ref)))
+        else:
+            data.add((_NODE, piri, Literal(str(val))))
+    try:
+        conforms, results_graph, _ = pyshacl.validate(
+            data, shacl_graph=shapes, ont_graph=ont, inference="rdfs", advanced=True, meta_shacl=False)
+    except Exception:  # noqa: BLE001
+        return True, []
+    if conforms:
+        return True, []
+    SH = rdflib.Namespace("http://www.w3.org/ns/shacl#")
+    out = []
+    for res in results_graph.subjects(RDF.type, SH.ValidationResult):
+        msg = results_graph.value(res, SH.resultMessage)
+        path = results_graph.value(res, SH.resultPath)
+        pc = str(path).replace(_GAIA_NS, "gaia:") if path else ""
+        out.append(f"{pc}: {msg}".strip(": ") or str(msg))
+    return False, out[:12]

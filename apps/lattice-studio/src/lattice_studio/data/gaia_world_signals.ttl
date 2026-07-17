@@ -1,0 +1,137 @@
+@prefix gaia: <https://schemas.socioprophet.org/gaia/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://schemas.socioprophet.org/gaia/world-signals/v0.1>
+    a owl:Ontology ;
+    dcterms:title "GAIA Decision-Grade World Signals Ontology Module v0.1" ;
+    dcterms:description "Ontology stubs for governed world signals, feature registry entries, foot-traffic/weather features, entity concordance, energy ledgers, proof artifacts, and promotion decisions." ;
+    owl:versionInfo "0.1.0" .
+
+gaia:WorldSignal a owl:Class ;
+    rdfs:label "World Signal" ;
+    rdfs:comment "A governed observation, derived feature, model output, or external signal that may inform the GAIA world model but is not canonical truth until promoted by policy." .
+
+gaia:FeatureRegistryEntry a owl:Class ;
+    rdfs:label "Feature Registry Entry" ;
+    rdfs:subClassOf gaia:WorldSignal ;
+    rdfs:comment "A contract-described provisionable signal feature with explicit semantics, temporal grain, spatial type, format, provenance, and validation expectations." .
+
+gaia:FootTrafficIndex a owl:Class ;
+    rdfs:label "Foot Traffic Index" ;
+    rdfs:subClassOf gaia:WorldSignal ;
+    rdfs:comment "A normalized observed-population mobility index computed from a POI-scoped observed population over a denominator population." .
+
+gaia:WeatherFeature a owl:Class ;
+    rdfs:label "Weather Feature" ;
+    rdfs:subClassOf gaia:FeatureRegistryEntry ;
+    rdfs:comment "A weather observation, forecast, nowcast, gridded layer, or derived weather index exposed as a governed feature." .
+
+gaia:CanonicalEntity a owl:Class ;
+    rdfs:label "Canonical Entity" ;
+    rdfs:comment "A governed entity identity selected through an explicit concordance, survivorship, and promotion process." .
+
+gaia:ConcordanceLink a owl:Class ;
+    rdfs:label "Concordance Link" ;
+    rdfs:comment "A first-class crosswalk from a source record to a canonical entity, backed by resolver run, policy, confidence, and decision ledger references." .
+
+gaia:EnergyLedgerEntry a owl:Class ;
+    rdfs:label "Energy Ledger Entry" ;
+    rdfs:comment "A ledger entry recording top candidate, runner-up candidate, score margin, perturbation stability, and promotion decision for ambiguous evidence or entity-resolution outputs." .
+
+gaia:DecisionLedgerEntry a owl:Class ;
+    rdfs:label "Decision Ledger Entry" ;
+    rdfs:comment "A replayable policy-governed decision record for match, merge, split, feature promotion, action admission, or policy block events." .
+
+gaia:ProofArtifact a owl:Class ;
+    rdfs:label "Proof Artifact" ;
+    rdfs:comment "A replayable evidence pack for claims used by policy, security, validation, or action admission." .
+
+gaia:PromotionDecision a owl:Class ;
+    rdfs:label "Promotion Decision" ;
+    rdfs:comment "A policy decision that determines whether a signal remains evidence-only, requires review, is rejected, or is promoted to canonical operational use." .
+
+gaia:PromotionState a owl:Class ;
+    rdfs:label "Promotion State" ;
+    rdfs:comment "The lifecycle state of a governed signal or evidence item at the promotion membrane." .
+
+gaia:EvidenceOnly a gaia:PromotionState ;
+    rdfs:label "Evidence Only" .
+
+gaia:ReviewRequired a gaia:PromotionState ;
+    rdfs:label "Review Required" .
+
+gaia:Rejected a gaia:PromotionState ;
+    rdfs:label "Rejected" .
+
+gaia:Promoted a gaia:PromotionState ;
+    rdfs:label "Promoted" .
+
+gaia:hasFeatureId a owl:DatatypeProperty ;
+    rdfs:domain gaia:FeatureRegistryEntry ;
+    rdfs:range xsd:string ;
+    rdfs:label "has feature id" .
+
+gaia:hasPolicyId a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "has policy id" .
+
+gaia:hasConfidence a owl:DatatypeProperty ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "has confidence" .
+
+gaia:hasMarginDelta a owl:DatatypeProperty ;
+    rdfs:domain gaia:EnergyLedgerEntry ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "has margin delta" .
+
+gaia:hasPerturbationFlipRate a owl:DatatypeProperty ;
+    rdfs:domain gaia:EnergyLedgerEntry ;
+    rdfs:range xsd:decimal ;
+    rdfs:label "has perturbation flip rate" .
+
+gaia:hasDecisionId a owl:DatatypeProperty ;
+    rdfs:domain gaia:DecisionLedgerEntry ;
+    rdfs:range xsd:string ;
+    rdfs:label "has decision id" .
+
+gaia:hasDecisionType a owl:DatatypeProperty ;
+    rdfs:domain gaia:DecisionLedgerEntry ;
+    rdfs:range xsd:string ;
+    rdfs:label "has decision type" .
+
+gaia:hasClaimName a owl:DatatypeProperty ;
+    rdfs:domain gaia:ProofArtifact ;
+    rdfs:range xsd:string ;
+    rdfs:label "has claim name" .
+
+gaia:hasResultStatus a owl:DatatypeProperty ;
+    rdfs:domain gaia:ProofArtifact ;
+    rdfs:range xsd:string ;
+    rdfs:label "has result status" .
+
+gaia:hasSourceRecordId a owl:DatatypeProperty ;
+    rdfs:domain gaia:ConcordanceLink ;
+    rdfs:range xsd:string ;
+    rdfs:label "has source record id" .
+
+gaia:hasPromotionState a owl:ObjectProperty ;
+    rdfs:range gaia:PromotionState ;
+    rdfs:label "has promotion state" .
+
+gaia:promotesSignal a owl:ObjectProperty ;
+    rdfs:domain gaia:PromotionDecision ;
+    rdfs:range gaia:WorldSignal ;
+    rdfs:label "promotes signal" .
+
+gaia:mapsSourceRecordToEntity a owl:ObjectProperty ;
+    rdfs:domain gaia:ConcordanceLink ;
+    rdfs:range gaia:CanonicalEntity ;
+    rdfs:label "maps source record to entity" .
+
+gaia:hasDecisionLedgerEntry a owl:ObjectProperty ;
+    rdfs:range gaia:DecisionLedgerEntry ;
+    rdfs:label "has decision ledger entry" .
