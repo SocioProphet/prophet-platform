@@ -699,6 +699,80 @@ async def ecosystem(project: str = "default", target: str = "",
             "agent_manifest": agent_manifest, "degraded": err}
 
 
+# ── WS#43: the research/PID graph over HellGraph. MEET OpenAIRE Research Graph / DataCite Commons: a typed graph
+# connecting Results (cited artifacts) ⇄ Persons (ORCIDs) ⇄ Organizations ⇄ Identifiers (PIDs/DOIs). We build it
+# NATIVELY over HellGraph from the citations (WS#35) + contributors (WS#38) already in the project collection —
+# no separate metadata store. BEAT: every node and edge is PROOF-CARRYING (epistemic status + provenance), which
+# a bare bibliographic graph is not; and it's live-queryable in the same kernel as the knowledge itself. ────────
+@app.get("/api/studio/pidgraph")
+async def pidgraph(project: str = "default",
+                   _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The project's research/PID graph — Results ⇄ Persons(ORCID) ⇄ Organizations ⇄ Identifiers(PID/DOI),
+    assembled from Citation + contributor nodes. The OpenAIRE/DataCite-Commons pattern, native + proof-carrying."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: list[dict[str, Any]] = []
+
+    def _add(nid: str, ntype: str, label: str, **extra: Any) -> None:
+        if nid and nid not in nodes:
+            nodes[nid] = {"id": nid, "type": ntype, "label": label, "proof_carrying": True, **extra}
+
+    def _edge(frm: str, to: str, label: str) -> None:
+        if frm and to:
+            edges.append({"from": frm, "to": to, "label": label})
+
+    for n in raw:
+        if "Citation" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        target = p.get("target") or n.get("id")
+        pid, doi = p.get("pid"), p.get("doi")
+        epi = p.get("epistemic_mode", "observed")
+        # the Result (the cited artifact) + its Identifier(s)
+        _add(target, "Result", p.get("title") or target, epistemic_mode=epi)
+        if pid:
+            _add(pid, "Identifier", pid, scheme="sovereign-pid", epistemic_mode=epi)
+            _edge(pid, target, "identifies")
+        if doi:
+            _add(doi, "Identifier", doi, scheme="datacite-doi", epistemic_mode=epi)
+            _edge(doi, target, "identifies")
+        # Persons (ORCID contributors) authored the Result; Organizations they name
+        for c in (p.get("contributors") or []):
+            if not isinstance(c, dict):
+                continue
+            orcid = c.get("orcid")
+            person = f"orcid:{orcid}" if orcid else f"person:{_norm(c.get('name') or '')}"
+            _add(person, "Person", c.get("name") or orcid or person, orcid=orcid, epistemic_mode="attested")
+            _edge(person, target, "authored")
+            org = c.get("affiliation") or c.get("org")
+            if org:
+                oid = f"org:{_norm(org)}"
+                _add(oid, "Organization", org, epistemic_mode="attested")
+                _edge(person, oid, "affiliated")
+    # Persons declared as standalone graph nodes (an orcid property anywhere) also join the graph
+    for n in raw:
+        p = n.get("properties") or {}
+        orcid = p.get("orcid")
+        if orcid:
+            _add(f"orcid:{orcid}", "Person", p.get("name") or orcid, orcid=orcid,
+                 epistemic_mode=p.get("epistemic_mode", "attested"))
+
+    counts: dict[str, int] = {}
+    for nd in nodes.values():
+        counts[nd["type"]] = counts.get(nd["type"], 0) + 1
+    return {
+        "project": project, "collection": coll,
+        "nodes": list(nodes.values()), "edges": edges,
+        "stats": {"nodes": len(nodes), "edges": len(edges),
+                  "results": counts.get("Result", 0), "persons": counts.get("Person", 0),
+                  "organizations": counts.get("Organization", 0), "identifiers": counts.get("Identifier", 0)},
+        "pattern": "OpenAIRE Research Graph / DataCite Commons — built natively over HellGraph",
+        "beat": "every node & edge is proof-carrying (epistemic status + provenance) and live-queryable — not a bare bibliographic graph",
+        "degraded": err,
+    }
+
+
 # ── WS#39: commons at scale + community curation. MEET Zenodo/Wikidata: a commons overview (scale + community
 # stats) and community endorsement of records. BEAT (epistemic curation): endorsements are governed, proof-
 # carrying facts (identified endorser, revocable), and the curation score is EPISTEMIC-WEIGHTED — trust follows

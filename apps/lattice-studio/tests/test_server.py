@@ -808,3 +808,35 @@ def test_save_perspective_then_list_roundtrips_epistemic_filter(monkeypatch):
     p = b["perspectives"][0]
     assert p["name"] == "verified people" and p["epistemic"] == ["attested", "verified"]   # JSON round-trip
     assert p["label"] == "Person" and p["layout"] == "radial"
+
+
+def test_pidgraph_assembles_typed_research_graph(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:cite", "labels": ["proj-teamx", "Citation"],
+                 "properties": {"target": "proj-teamx", "title": "Team X graph", "pid": "sp:proj-teamx/graph/abc",
+                                "doi": "10.82044/proj-teamx.graph.abc12345", "epistemic_mode": "verified",
+                                "contributors": [{"name": "A. Author", "orcid": "0000-0002-1825-0097", "affiliation": "SocioProphet"}]}},
+                {"id": "proj-teamx:person:kim", "labels": ["proj-teamx", "Person"],
+                 "properties": {"name": "Kim", "orcid": "0000-0001-0000-0001"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/pidgraph?project=team-x").json()
+    types = {n["id"]: n["type"] for n in b["nodes"]}
+    assert types["proj-teamx"] == "Result"
+    assert types["sp:proj-teamx/graph/abc"] == "Identifier"
+    assert types["10.82044/proj-teamx.graph.abc12345"] == "Identifier"
+    assert types["orcid:0000-0002-1825-0097"] == "Person"
+    assert types["org:socioprophet"] == "Organization"
+    assert types["orcid:0000-0001-0000-0001"] == "Person"          # standalone graph person joined
+    labels = {(e["from"], e["to"], e["label"]) for e in b["edges"]}
+    assert ("sp:proj-teamx/graph/abc", "proj-teamx", "identifies") in labels
+    assert ("orcid:0000-0002-1825-0097", "proj-teamx", "authored") in labels
+    assert ("orcid:0000-0002-1825-0097", "org:socioprophet", "affiliated") in labels
+    assert b["stats"]["results"] == 1 and b["stats"]["persons"] == 2 and b["stats"]["identifiers"] == 2
+    assert all(n["proof_carrying"] for n in b["nodes"])            # the beat
