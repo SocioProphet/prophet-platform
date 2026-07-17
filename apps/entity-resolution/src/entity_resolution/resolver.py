@@ -24,7 +24,7 @@ NAME_W, ATTR_W = 0.7, 0.3
 
 # REGIS replay pins — every response carries the (as_of, resolver, policy, template) tuple so a merge is
 # REPLAYABLE: same inputs + same key ⇒ same output. Bump these when the algorithm/policy/survivorship change.
-RESOLVER_VERSION = "1.1.0"   # scoring + margin + prime-veto engine
+RESOLVER_VERSION = "1.2.0"   # scoring + margin + prime-veto engine
 POLICY_VERSION = "1.0.0"     # thresholds (MERGE/REVIEW/MIN_MARGIN) + corroboration/prime-admissibility rules
 TEMPLATE_VERSION = "1.0.0"   # survivorship authority template (most-attrs → widest-scope → id)
 
@@ -113,12 +113,38 @@ def attr_agreement(a: dict[str, str], b: dict[str, str]) -> float:
     return agree / len(shared)
 
 
+# Exclusive/identifying keys: two records with DIFFERENT non-empty values for any of these are provably
+# distinct people and must NEVER share an entity — not even transitively (a~b, b~c ⇏ a,c together if a,c conflict).
+CONFLICT_KEYS = ("email", "dob", "ssn", "national_id", "id_number")
+
+# Identity-is-prime scope partial order (narrower/higher-trust ≺ wider). Survivorship prefers the higher-trust
+# (lower-rank) scope so a canonical record is anchored in the most-trusted context, not an arbitrary string sort.
+_SCOPE_ORDER = {"hsm": 0, "process": 1, "container": 2, "cloud": 3}
+
+
+def _scope_rank(scope: str) -> int:
+    return _SCOPE_ORDER.get(_norm(scope), 99)
+
+
 def _conflict(a: Record, b: Record) -> str | None:
     """A hard disqualifier: the same identifying key with DIFFERENT non-empty values (email/dob/ssn/id)."""
-    for key in ("email", "dob", "ssn", "national_id", "id_number"):
+    for key in CONFLICT_KEYS:
         va, vb = _norm(a.attributes.get(key, "")), _norm(b.attributes.get(key, ""))
         if va and vb and va != vb:
             return key
+    return None
+
+
+def _exclusive_values(r: Record) -> dict[str, str]:
+    """The record's non-empty exclusive-key values, normalized — the identity fingerprint a cluster must keep consistent."""
+    return {k: _norm(r.attributes[k]) for k in CONFLICT_KEYS if _norm(r.attributes.get(k, ""))}
+
+
+def _cluster_conflict(acc: dict[str, str], r: Record) -> str | None:
+    """Would adding r to a component holding exclusive values `acc` introduce a hard conflict? Returns the key if so."""
+    for k, v in _exclusive_values(r).items():
+        if k in acc and acc[k] != v:
+            return k
     return None
 
 
@@ -227,38 +253,54 @@ def resolve(records: list[Record], as_of: str | None = None) -> dict[str, Any]:
         return lst[0][0] - second
 
     uf = _UF()
+    by_id = {r.id: r for r in records}
+    # CONFLICT-AWARE union: track each component's accumulated exclusive-key values so a merge can NEVER put
+    # two provably-distinct records in one entity — not even transitively (a~b, b~c but a,c conflict on ssn).
+    excl_by_root: dict[str, dict[str, str]] = {}
     for r in records:
         uf.find(r.id)  # every record is at least its own entity
-    for d in pairs:
-        if d.decision != "MERGE_VERIFIED":
-            continue
-        # Attribute-corroborated merges are safe to auto-apply even amid ties (the matched attribute IS the
-        # disambiguator). But a NAME-ONLY merge amid near-ties is dangerous — many distinct people share a
-        # name — so it must be the MUTUAL decisive best (Δ ≥ MIN_MARGIN both sides) or it goes to review.
-        if d.evidence.get("matched_attributes"):
-            uf.union(d.a, d.b)
-            continue
-        ma, mb = margin(d.a, d.b), margin(d.b, d.a)
-        if ma >= MIN_MARGIN and mb >= MIN_MARGIN:
-            uf.union(d.a, d.b)
-        else:
-            d.decision = "REQUIRES_REVIEW"  # ambiguous name-only match — human review
-            d.evidence["ambiguous_margin"] = round(max(ma, mb), 4)
+        excl_by_root[r.id] = dict(_exclusive_values(r))
 
-    # Clusters + SURVIVORSHIP: the surviving record (most attributes, then widest scope, then id) is canonical;
-    # its values win attribute conflicts, other members' attributes fill gaps.
-    by_id = {r.id: r for r in records}
+    def try_union(a_id: str, b_id: str) -> bool:
+        ra, rb = uf.find(a_id), uf.find(b_id)
+        if ra == rb:
+            return True
+        ea, eb = excl_by_root.get(ra, {}), excl_by_root.get(rb, {})
+        if any(k in ea and ea[k] != v for k, v in eb.items()):
+            return False  # merging these components would collide on an exclusive key → refuse
+        uf.union(a_id, b_id)
+        excl_by_root[uf.find(a_id)] = {**ea, **eb}
+        return True
+
+    # Process highest-confidence merges first (stable order → deterministic, sequence-neutral outcome).
+    verified = sorted((d for d in pairs if d.decision == "MERGE_VERIFIED"), key=lambda d: (-d.score, d.a, d.b))
+    for d in verified:
+        # Attribute-corroborated merges are safe amid ties (the matched attr IS the disambiguator); a NAME-ONLY
+        # merge amid near-ties must be the MUTUAL decisive best (Δ ≥ MIN_MARGIN both sides) or it goes to review.
+        if not d.evidence.get("matched_attributes"):
+            ma, mb = margin(d.a, d.b), margin(d.b, d.a)
+            if not (ma >= MIN_MARGIN and mb >= MIN_MARGIN):
+                d.decision = "REQUIRES_REVIEW"
+                d.evidence["ambiguous_margin"] = round(max(ma, mb), 4)
+                continue
+        if not try_union(d.a, d.b):
+            # transitive-consistency guard: this merge would unite records with conflicting exclusive keys.
+            d.decision = "REQUIRES_REVIEW"
+            d.evidence["cluster_conflict"] = "merge_would_unite_conflicting_records"
+
+    # Clusters + SURVIVORSHIP: the canonical record is the richest (most attrs), then the HIGHEST-TRUST scope
+    # (HSM ≺ process ≺ container ≺ cloud), then id — a deterministic, order-independent authority template.
     clusters: dict[str, list[str]] = {}
     for r in records:
         clusters.setdefault(uf.find(r.id), []).append(r.id)
     entities: list[dict[str, Any]] = []
     for root, members in clusters.items():
-        recs = [by_id[m] for m in members]
-        survivor = max(recs, key=lambda r: (len(r.attributes), r.scope, r.id))
+        recs = sorted((by_id[m] for m in members), key=lambda r: (-len(r.attributes), _scope_rank(r.scope), r.id))
+        survivor = recs[0]
         attrs: dict[str, str] = {}
-        for r in recs:
+        for r in recs:            # deterministic gap-fill in authority order (survivor first)
             for k, v in r.attributes.items():
-                attrs.setdefault(k, v)   # first-seen fills gaps
+                attrs.setdefault(k, v)
         attrs.update(survivor.attributes)  # survivor wins conflicts
         entities.append({
             "entity_id": f"ent:{root}", "members": sorted(members), "size": len(members),
@@ -275,12 +317,16 @@ def resolve(records: list[Record], as_of: str | None = None) -> dict[str, Any]:
         for e in entities for m in e["members"]
     ]
 
-    # Proof-carrying epistemic-edge records for each merge (regis epistemic-edge typing): a same_as edge
-    # with its epistemic class + confidence, so a merge is an auditable derived relation, not a black box.
+    # Proof-carrying epistemic-edge summaries for each applied merge, using the regis
+    # epistemic-edge-record.schema.json VOCABULARY (valid enum values — a merge is an inferred_relation with
+    # statistical confidence). This is an edge SUMMARY, not a full 15-field EpistemicEdgeRecord; it carries the
+    # schema's classes/levels so it can be lifted into a conformant record without inventing forbidden enums.
     edges = [
         {"subject": d.a, "predicate": "same_as", "object": d.b,
-         "epistemic_class": "derived_relation", "confidence_type": "similarity",
-         "confidence_level": d.score, "evidence": d.evidence}
+         "epistemic_class": "inferred_relation",           # schema epistemicClass enum
+         "confidence_type": "statistical",                 # schema confidenceType enum
+         "confidence_level": "high" if d.score >= MERGE else "medium" if d.score >= REVIEW else "low",
+         "confidence_score": d.score, "evidence": d.evidence}
         for d in pairs if d.decision == "MERGE_VERIFIED"
     ]
 
@@ -322,9 +368,24 @@ def resolve_incremental(prior_golden: list[dict[str, Any]], new_records: list[Re
         blocks.setdefault(blocking_key(r), []).append(r)
 
     uf = _UF()
+    excl_by_root: dict[str, dict[str, str]] = {}
     for r in universe:
         uf.find(r.id)
+        excl_by_root[r.id] = dict(_exclusive_values(r))
+
+    def try_union(a_id: str, b_id: str) -> bool:
+        ra, rb = uf.find(a_id), uf.find(b_id)
+        if ra == rb:
+            return True
+        ea, eb = excl_by_root.get(ra, {}), excl_by_root.get(rb, {})
+        if any(k in ea and ea[k] != v for k, v in eb.items()):
+            return False
+        uf.union(a_id, b_id)
+        excl_by_root[uf.find(a_id)] = {**ea, **eb}
+        return True
+
     delta_pairs: list[PairDecision] = []
+    verified: list[PairDecision] = []
     for block in blocks.values():
         for a, b in combinations(block, 2):
             # Skip anchor↔anchor: the prior estate is already resolved — only NEW-involving pairs are work.
@@ -335,7 +396,12 @@ def resolve_incremental(prior_golden: list[dict[str, Any]], new_records: list[Re
                 continue
             delta_pairs.append(d)
             if d.decision == "MERGE_VERIFIED":
-                uf.union(a.id, b.id)
+                verified.append(d)
+    # Same conflict-aware, highest-confidence-first union as the full path (consistency + no self-contradiction).
+    for d in sorted(verified, key=lambda d: (-d.score, d.a, d.b)):
+        if not try_union(d.a, d.b):
+            d.decision = "REQUIRES_REVIEW"
+            d.evidence["cluster_conflict"] = "merge_would_unite_conflicting_records"
 
     # Classify each new record: attached to a prior entity (its cluster contains an anchor) or a new entity.
     by_id = {r.id: r for r in universe}
