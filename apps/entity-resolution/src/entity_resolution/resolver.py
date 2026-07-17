@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from itertools import combinations
 from typing import Any
 
@@ -20,6 +21,22 @@ MERGE = 0.90        # ≥ → auto-merge candidate (MERGE_VERIFIED, subject to m
 REVIEW = 0.75       # ≥ → human review queue (REQUIRES_REVIEW)
 MIN_MARGIN = 0.08   # Δ = best − second-best must exceed this to promote (else the match is ambiguous → review)
 NAME_W, ATTR_W = 0.7, 0.3
+
+# REGIS replay pins — every response carries the (as_of, resolver, policy, template) tuple so a merge is
+# REPLAYABLE: same inputs + same key ⇒ same output. Bump these when the algorithm/policy/survivorship change.
+RESOLVER_VERSION = "1.1.0"   # scoring + margin + prime-veto engine
+POLICY_VERSION = "1.0.0"     # thresholds (MERGE/REVIEW/MIN_MARGIN) + corroboration/prime-admissibility rules
+TEMPLATE_VERSION = "1.0.0"   # survivorship authority template (most-attrs → widest-scope → id)
+
+
+def replay_key(as_of: str | None = None) -> dict[str, str]:
+    """The deterministic replay key pinned on every response (REGIS framework requirement)."""
+    return {
+        "as_of_time": as_of or datetime.now(timezone.utc).isoformat(),
+        "resolver_version": RESOLVER_VERSION,
+        "policy_version": POLICY_VERSION,
+        "template_version": TEMPLATE_VERSION,
+    }
 
 
 @dataclass
@@ -178,9 +195,10 @@ class _UF:
         self.p[self.find(a)] = self.find(b)
 
 
-def resolve(records: list[Record]) -> dict[str, Any]:
+def resolve(records: list[Record], as_of: str | None = None) -> dict[str, Any]:
     """Full ER pass, identity-is-prime-conformant: block → score → MARGIN-gated + prime-admissible merge →
-    union-find clusters → survivorship → proof-carrying epistemic-edge records."""
+    union-find clusters → survivorship → proof-carrying epistemic-edge records. Pins a replay key, and
+    projects golden records + a concordance (source record → canonical entity) per the REGIS framework."""
     blocks: dict[str, list[Record]] = {}
     for r in records:
         blocks.setdefault(blocking_key(r), []).append(r)
@@ -244,8 +262,18 @@ def resolve(records: list[Record]) -> dict[str, Any]:
         attrs.update(survivor.attributes)  # survivor wins conflicts
         entities.append({
             "entity_id": f"ent:{root}", "members": sorted(members), "size": len(members),
-            "canonical": {"survivor": survivor.id, "name": survivor.name, "attributes": attrs},
+            "canonical": {"survivor": survivor.id, "name": survivor.name, "attributes": attrs,
+                          "scope": survivor.scope, "primes": sorted(survivor.primes)},
         })
+
+    # Golden records (canonical projection keyed by entity) + concordance/crosswalk (source id → entity).
+    golden_records = {
+        e["entity_id"]: {**e["canonical"], "members": e["members"]} for e in entities
+    }
+    concordance = [
+        {"record_id": m, "entity_id": e["entity_id"], "survivor": e["canonical"]["survivor"]}
+        for e in entities for m in e["members"]
+    ]
 
     # Proof-carrying epistemic-edge records for each merge (regis epistemic-edge typing): a same_as edge
     # with its epistemic class + confidence, so a merge is an auditable derived relation, not a black box.
@@ -257,11 +285,78 @@ def resolve(records: list[Record]) -> dict[str, Any]:
     ]
 
     return {
+        "replay_key": replay_key(as_of),
         "records": len(records),
         "entities": entities,
+        "golden_records": golden_records,
+        "concordance": concordance,
         "merged": sum(1 for e in entities if e["size"] > 1),
         "decision_ledger": [d.__dict__ for d in pairs],
         "epistemic_edges": edges,
         "review_queue": [d.__dict__ for d in pairs if d.decision == "REQUIRES_REVIEW"],
         "blocked": [d.__dict__ for d in pairs if d.decision == "MERGE_BLOCKED"],
+    }
+
+
+def _anchor_record(golden: dict[str, Any]) -> Record:
+    """Turn a prior golden record into an anchor Record so new inputs can be scored against it."""
+    return Record(
+        id=golden["entity_id"] if "entity_id" in golden else golden["survivor"],
+        name=golden["name"], attributes=dict(golden.get("attributes", {})),
+        scope=golden.get("scope", ""), primes=frozenset(golden.get("primes", [])),
+    )
+
+
+def resolve_incremental(prior_golden: list[dict[str, Any]], new_records: list[Record],
+                        as_of: str | None = None) -> dict[str, Any]:
+    """INCREMENTAL delta resolution: score only the NEW records (against each other + prior golden anchors),
+    never re-resolving the settled estate. Returns which new records attached to an existing entity vs formed
+    new ones — the O(new) update the REGIS framework asks for instead of an O(n²) full re-run."""
+    anchors = [_anchor_record(g) for g in prior_golden]
+    anchor_ids = {a.id for a in anchors}
+    universe = anchors + new_records
+    new_ids = {r.id for r in new_records}
+
+    blocks: dict[str, list[Record]] = {}
+    for r in universe:
+        blocks.setdefault(blocking_key(r), []).append(r)
+
+    uf = _UF()
+    for r in universe:
+        uf.find(r.id)
+    delta_pairs: list[PairDecision] = []
+    for block in blocks.values():
+        for a, b in combinations(block, 2):
+            # Skip anchor↔anchor: the prior estate is already resolved — only NEW-involving pairs are work.
+            if a.id in anchor_ids and b.id in anchor_ids:
+                continue
+            d = score_pair(a, b)
+            if d.decision == "NO_MATCH":
+                continue
+            delta_pairs.append(d)
+            if d.decision == "MERGE_VERIFIED":
+                uf.union(a.id, b.id)
+
+    # Classify each new record: attached to a prior entity (its cluster contains an anchor) or a new entity.
+    by_id = {r.id: r for r in universe}
+    attached: list[dict[str, Any]] = []
+    new_entities: dict[str, list[str]] = {}
+    for r in new_records:
+        root = uf.find(r.id)
+        members = [m for m in by_id if uf.find(m) == root]
+        prior_anchor = next((m for m in members if m in anchor_ids), None)
+        if prior_anchor is not None:
+            attached.append({"record_id": r.id, "entity_id": prior_anchor})
+        else:
+            new_entities.setdefault(root, [])
+            new_entities[root] = sorted(m for m in members if m in new_ids)
+
+    return {
+        "replay_key": replay_key(as_of),
+        "new_records": len(new_records),
+        "attached_to_existing": attached,
+        "new_entities": [{"entity_id": f"ent:{root}", "members": mem} for root, mem in new_entities.items()],
+        "delta_ledger": [d.__dict__ for d in delta_pairs],
+        "review_queue": [d.__dict__ for d in delta_pairs if d.decision == "REQUIRES_REVIEW"],
+        "blocked": [d.__dict__ for d in delta_pairs if d.decision == "MERGE_BLOCKED"],
     }
