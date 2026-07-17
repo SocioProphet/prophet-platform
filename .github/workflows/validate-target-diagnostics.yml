@@ -139,6 +139,8 @@ jobs:
           - owl-reasoner-smoke
           - entity-resolution-smoke
           - memoryd-smoke
+          - node-commander-smoke
+          - liberty-stack-readout-smoke
           - tritfabric-consumption-api-smoke
     steps:
       - uses: actions/checkout@v4
