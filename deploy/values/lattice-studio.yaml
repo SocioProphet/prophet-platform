@@ -1,13 +1,22 @@
 # lattice-studio — the Studio BFF (apps/lattice-studio server.py). Makes the app-vue Studio surface live: wraps
 # product_spine + aggregates live data from hellgraph-service / tritfabric / search-orchestrator, project-scoped
-# to Noetica proj- collections. Pinned to the sha- tag the #753 build published.
-image: { repository: lattice-studio, tag: sha-a16830db1710748792dbe9c79dab5dddeb3d21ff }
+# to Noetica proj- collections.
+# Bumped from the stale #753 pin (sha-a16830db) to origin/main HEAD (the HDT #836 merge) — brings the WHOLE
+# governance stack LIVE: pipelines/catalog/lineage/registry/connections (WS#33/41/45-47), community detection
+# (#48), the pay-gated execution plane (#31), ontology-typed + SHACL-validated actions (#49/#830/#831), GAIA
+# stewardship + world-signals (#50/#51), the HDT twin (#52). NB there is NO gitops-promote workflow, so this pin
+# was never auto-bumped after those merges — hence a stale deploy. A promote job is the real fix (flagged).
+image: { repository: lattice-studio, tag: sha-c1af42503a6a3d6d253280a9b8d42c4d8e52e4fe }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:
   HELLGRAPH_URL: "http://hellgraph-service:8090"
   TRITFABRIC_URL: "http://tritfabric:8750"
   SEARCH_ORCH_URL: "http://search-orchestrator:8080"
+  # The sovereign Spark backend. lattice-studio dispatches backend='spark' jobs here; until the shared token is
+  # set (secretEnv follow-up, after the spark-runner-token secret exists) it 401s and degrades to the governed
+  # run-ledger — safe. Full end-to-end loop = add SPARK_RUNNER_TOKEN secretEnv here + on spark-runner.
+  SPARK_RUNNER_URL: "http://spark-runner:8080"
 # Activates the WRITE workbench (/api/studio/extract + /node + /edge). Fail-closed: without this, writes
 # return 503 and reads stay open. Secret provisioned out-of-band: `kubectl -n socioprophet create secret
 # generic studio-write-token --from-literal=token=...`.
