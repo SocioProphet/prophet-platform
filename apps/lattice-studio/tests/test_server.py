@@ -280,3 +280,27 @@ def test_provenance_returns_derivation_and_summary(monkeypatch):
     assert d["relation"] == "beats" and d["direction"] == "out" and d["weight"] == 4
     assert d["with"]["name"] == "Neo4j" and d["with"]["epistemic_mode"] == "observed"
     assert "verified" in b["summary"] and "HellGraph" in b["summary"]
+
+
+# ── Read-auth: opt-in, tied to the sovereign identity plane (socbase HS256 JWT) ──
+
+def test_reads_open_when_jwt_secret_unset():
+    assert client.get("/api/studio?project=team-x").status_code == 200
+    assert client.get("/api/studio/graph?project=team-x").status_code == 200
+
+
+def test_reads_require_token_when_secret_set(monkeypatch):
+    monkeypatch.setattr("lattice_studio.server.STUDIO_JWT_SECRET", "sovereign-secret")
+    assert client.get("/api/studio?project=team-x").status_code == 401
+    assert client.get("/api/studio/graph?project=team-x").status_code == 401
+    assert client.get("/api/studio?project=team-x", headers={"authorization": "Bearer nope"}).status_code == 401
+
+
+def test_reads_accept_valid_socbase_jwt(monkeypatch):
+    import jwt
+    monkeypatch.setattr("lattice_studio.server.STUDIO_JWT_SECRET", "sovereign-secret")
+    token = jwt.encode({"sub": "user-1", "role": "authenticated"}, "sovereign-secret", algorithm="HS256")
+    r = client.get("/api/studio?project=team-x", headers={"authorization": f"Bearer {token}"})
+    assert r.status_code == 200 and r.json()["project"] == "team-x"
+    bad = jwt.encode({"sub": "x"}, "other-secret", algorithm="HS256")
+    assert client.get("/api/studio?project=team-x", headers={"authorization": f"Bearer {bad}"}).status_code == 401
