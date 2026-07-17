@@ -34,8 +34,11 @@ jobs:
           set -euo pipefail
           SRC='${{ matrix.image }}'
           DEST="registry.socioprophet.ai/${SRC#*/}"   # strip the "docker.io/" host prefix
-          echo "mirroring $SRC -> $DEST (linux/amd64)"
-          skopeo copy --override-os linux --override-arch amd64 \
+          echo "mirroring $SRC -> $DEST (single-arch = runner system, linux/amd64)"
+          # --multi-arch system copies ONLY the runner-matching image as a single manifest (not the
+          # multi-arch index). --override-arch tries to preserve the index and zot rejects it ("manifest
+          # invalid" / unsupported index conversion). --format v2s2 keeps it in the widely-accepted schema.
+          skopeo copy --multi-arch system --format v2s2 \
             --dest-creds "$ZOT_USER:$ZOT_PASS" \
             "docker://$SRC" "docker://$DEST"
           echo "verifying $DEST is present in the sovereign registry…"
