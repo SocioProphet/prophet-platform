@@ -1,0 +1,10 @@
+# grl-mesh — the sovereign, opt-in Graph-RL learning-signal mesh (apps/grl-mesh). Nodes opt in to
+# publish gate-redacted reward sufficient-statistics (mean+count per context bucket, sovereign-id
+# pseudonym, token-gated) and pull a community PRIOR to warm-start their local policy — so the
+# community learns together without raw data leaving a node. Same envelope as the open-chat commons.
+# Publish is FAIL-CLOSED until the GRL_MESH_TOKEN secret is provisioned out-of-band; reads (the prior)
+# stay open (aggregate, non-identifying). tag:latest → sha-pinned after the first CI build (preflight).
+image: { repository: grl-mesh, tag: latest }
+service: { port: 8080, portName: http }
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# Internal (ClusterIP) — nodes reach it in-cluster / via the sovereign edge; no public ingress yet.

@@ -1,0 +1,9 @@
+[project]
+name = "grl-mesh"
+version = "0.1.0"
+description = "Sovereign opt-in Graph-RL learning-signal mesh (federated reward aggregation)"
+requires-python = ">=3.11"
+dependencies = ["fastapi==0.115.0", "uvicorn==0.30.6", "httpx==0.27.2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

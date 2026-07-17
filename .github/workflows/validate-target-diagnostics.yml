@@ -135,6 +135,7 @@ jobs:
           - lattice-surface-ingestor-smoke
           - lattice-studio-smoke
           - grlplus-service-smoke
+          - grl-mesh-smoke
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python
