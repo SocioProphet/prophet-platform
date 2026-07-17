@@ -911,12 +911,77 @@ CONNECTORS = [
 ]
 
 
+# The fetch/SaaS-connector backbone: oomol-lab/open-connector (Apache-2.0, agent-native — SDK/CLI/MCP/HTTP/
+# OpenAPI, 1000+ providers, self-hostable). We consume it sovereignly behind our governance gate — connections
+# are registered as proof-carrying facts here; the byte-level auth + fetch executes in the open-connector service.
+OPEN_CONNECTOR = {"project": "oomol-lab/open-connector", "license": "Apache-2.0",
+                  "role": "fetch/SaaS backbone", "interfaces": ["sdk", "cli", "mcp", "http", "openapi"],
+                  "url": "https://github.com/oomol-lab/open-connector"}
+
+
 @app.get("/api/studio/connectors")
 async def connectors(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
-    """The connector registry: supported source types and each one's governance posture. Every connector is
-    governed (fail-closed writes + per-row provenance); inline csv/json are live, fetch-based ones are declared."""
-    return {"connectors": CONNECTORS, "row_cap": INGEST_ROW_CAP,
+    """The connector registry: supported source types and each one's governance posture. Inline csv/json are live;
+    fetch/SaaS connectors run on the open-connector backbone, registered here as governed, proof-carrying facts."""
+    return {"connectors": CONNECTORS, "row_cap": INGEST_ROW_CAP, "backbone": OPEN_CONNECTOR,
             "governance": "fail-closed write token + per-row provenance + epistemic status on every ingested fact"}
+
+
+# ── WS#41: governed connection registry (over the open-connector backbone). MEET Databricks/Foundry connection
+# management: register a source connection to a SaaS/DB/object-store provider. BEAT: a connection is a governed,
+# proof-carrying graph fact — provider + owner + status, revocable — and any ingest through it carries the
+# connection's provenance. Byte-level auth + fetch executes in the open-connector service (deploy-gated). ────────
+class ConnectRequest(BaseModel):
+    project: str = "default"
+    provider: str                          # e.g. github, gmail, bigquery, s3, postgres — the open-connector catalog
+    name: str | None = None                # a human label for this connection
+    note: str | None = None
+    owner: str | None = None               # who owns/authorised the connection (provenance)
+
+
+@app.post("/api/studio/connect")
+async def connect(req: ConnectRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Register a governed connection to a provider (on the open-connector backbone). Fail-closed; idempotent per
+    (project, provider, name). Status is 'declared' until the open-connector service completes the OAuth/token
+    handshake — the registry entry is a proof-carrying fact regardless, so ingest can carry its provenance."""
+    _require_write_token(authorization)
+    provider = req.provider.strip().lower()
+    if not provider:
+        raise HTTPException(status_code=422, detail="provider required")
+    coll = proj_collection(req.project)
+    label = (req.name or provider).strip()
+    cid = f"{coll}:connection:{_norm(provider)}:{_norm(label).replace(' ', '_')}"
+    prov = _workbench_prov(coll, "attested", req.owner or "studio/connect")
+    prov["extractor"] = "lattice-studio/connection-v0"
+    props = {"provider": provider, "name": label, "status": "declared", "backbone": "open-connector",
+             "owner": req.owner or "", "note": req.note or "", "created_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": cid, "labels": [coll, "Connection"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+    return {"connection_id": cid, "provider": provider, "name": label, "status": "declared",
+            "backbone": "oomol-lab/open-connector", "proof_carrying": True,
+            "note": "governed connection registered; OAuth/token handshake + fetch execute in the open-connector service"}
+
+
+@app.get("/api/studio/connections")
+async def connections(project: str = "default",
+                      _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The project's governed connections — provider, owner, status — each a proof-carrying, revocable graph fact."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "Connection" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        out.append({"connection_id": n.get("id"), "provider": p.get("provider"), "name": p.get("name"),
+                    "status": p.get("status", "declared"), "owner": p.get("owner") or None,
+                    "backbone": p.get("backbone", "open-connector"), "created_at": p.get("created_at")})
+    out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return {"project": project, "connections": out, "count": len(out),
+            "backbone": OPEN_CONNECTOR, "degraded": err}
 
 
 class IngestRequest(BaseModel):
