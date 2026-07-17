@@ -46,6 +46,10 @@ memoryd-smoke:
 	cd apps/memoryd && test -d .venv || python3 -m venv .venv
 	cd apps/memoryd && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && PYTHONPATH=src pytest -q tests
 
+tritfabric-consumption-api-smoke:
+	cd apps/tritfabric-consumption-api && test -d .venv || python3 -m venv .venv
+	cd apps/tritfabric-consumption-api && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && pytest -q tests
+
 grl-mesh-smoke:
 	cd apps/grl-mesh && test -d .venv || python3 -m venv .venv
 	cd apps/grl-mesh && . .venv/bin/activate && python -m pip install --upgrade pip pytest -r requirements.txt && PYTHONPATH=src pytest -q tests

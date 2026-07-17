@@ -139,6 +139,7 @@ jobs:
           - owl-reasoner-smoke
           - entity-resolution-smoke
           - memoryd-smoke
+          - tritfabric-consumption-api-smoke
     steps:
       - uses: actions/checkout@v4
       - name: Setup Python

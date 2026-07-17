@@ -1,0 +1,7 @@
+# tritfabric-consumption-api — prophet-platform consumption surface for TritFabric (apps/tritfabric-consumption-api).
+# Reports readiness for the four TritFabric surfaces (community-learning intake, framework catalog, promotion
+# evidence, serve readiness) from the integration contract — deliberately NON-mutating (mutation_authorized:false),
+# a pre-infrastructure readiness reporter, not the Serve runtime. tag:latest → sha-pinned after first build.
+image: { repository: tritfabric-consumption-api, tag: latest }
+service: { port: 8080, portName: http }
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
