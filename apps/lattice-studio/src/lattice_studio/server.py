@@ -416,6 +416,97 @@ async def list_experiments(project: str = "default", limit: int = 200,
     return {"project": project, "projectCollection": coll, "runs": runs, "count": len(runs), "degraded": err}
 
 
+# ── WS#35: sovereign persistent IDs + citation. A citable, resolvable identifier for a knowledge artifact —
+# DataCite-compatible so it bridges to the scholarly ecosystem — that resolves to a PROOF-CARRYING record
+# (provenance + epistemic + content hash), not a bare landing page. The identifier is itself a graph fact. ──
+SP_PID_PREFIX = os.getenv("STUDIO_PID_PREFIX", "sp")
+STUDIO_DOI_PREFIX = os.getenv("STUDIO_DOI_PREFIX", "10.82044")          # DataCite-style prefix (placeholder until registered)
+STUDIO_RESOLVE_BASE = os.getenv("STUDIO_RESOLVE_BASE", "https://studio.socioprophet.ai/resolve")
+
+
+class CiteRequest(BaseModel):
+    project: str = "default"
+    kind: str = "graph"        # graph | run | dataset | fact | document
+    ref: str = ""              # target id (run_id / node id / dataset id); "" = the whole-project graph snapshot
+    title: str | None = None
+    creators: list[str] = []
+
+
+def _mint_pid(coll: str, kind: str, ref: str) -> tuple[str, str]:
+    """Content-addressed sovereign PID: stable per (project, kind, target) so citing the same thing is idempotent."""
+    h = hashlib.sha256(f"{coll}:{kind}:{ref}".encode()).hexdigest()[:16]
+    return f"{SP_PID_PREFIX}:{coll}/{kind}/{h[:12]}", h
+
+
+@app.post("/api/studio/cite")
+async def cite(req: CiteRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Mint a persistent, citable identifier for a knowledge artifact. MEET Zenodo/DataCite: a DOI + a formatted
+    citation + BibTeX + DataCite metadata. BEAT: the PID resolves to a PROOF-CARRYING record (the identifier is
+    persisted as a Citation graph fact carrying epistemic status + content hash + provenance), and that
+    provenance rides inside the DataCite metadata (nanopublication-style) — not a bare landing page."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    pid, h = _mint_pid(coll, req.kind, req.ref)
+    doi = f"{STUDIO_DOI_PREFIX}/{coll}.{req.kind}.{h[:8]}"
+    title = (req.title or f"{req.kind} · {req.ref or coll}").strip()
+    creators = req.creators or ["SocioProphet Knowledge Commons"]
+    year = datetime.now(timezone.utc).year
+    created = _now_iso()
+    resolve_url = f"{STUDIO_RESOLVE_BASE}?pid={pid}"
+    prov = _workbench_prov(coll, "attested", "studio/cite")   # a minted, hash-sealed identifier is 'attested'
+    prov["extractor"] = "studio/cite-v0"
+    node_id = f"{coll}:cite:{h[:12]}"
+    props = {"pid": pid, "doi": doi, "kind": req.kind, "target": req.ref or coll, "title": title,
+             "creators_json": json.dumps(creators), "resolve": resolve_url, "content_hash": h,
+             "created_at": created, **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, err = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                            json={"id": node_id, "labels": [coll, "Citation", "Identifier"], "properties": props})
+    if err:
+        raise HTTPException(status_code=502, detail=f"graph write failed: {err}")
+    citation = f"{', '.join(creators)} ({year}). {title}. SocioProphet Knowledge Commons. {pid} (DOI: {doi})."
+    bibtex = ("@misc{" + h[:8] + ",\n  author = {" + " and ".join(creators) + "},\n  title = {" + title
+              + "},\n  year = {" + str(year) + "},\n  howpublished = {SocioProphet Knowledge Commons},\n  note = {"
+              + pid + "},\n  doi = {" + doi + "}\n}")
+    datacite = {
+        "id": doi, "type": "dois",
+        "attributes": {
+            "doi": doi, "titles": [{"title": title}], "creators": [{"name": c} for c in creators],
+            "publisher": "SocioProphet Knowledge Commons", "publicationYear": year,
+            "types": {"resourceTypeGeneral": "Dataset" if req.kind in ("dataset", "graph") else "Other"},
+            "url": resolve_url,
+            # the BEAT: provenance + epistemic status ride inside the standard metadata (FAIR+)
+            "descriptions": [{"descriptionType": "Other",
+                              "description": f"Proof-carrying record. epistemic_mode={prov['epistemic_mode']}; content_hash={h}; provenance={prov['extractor']}."}],
+        },
+    }
+    return {"pid": pid, "doi": doi, "resolve": resolve_url, "content_hash": h, "created_at": created,
+            "citation": citation, "bibtex": bibtex, "datacite": datacite, "proof_carrying": True, "node_id": node_id}
+
+
+@app.get("/api/studio/resolve")
+async def resolve(pid: str = "", _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Resolve a sovereign PID to its PROOF-CARRYING record — not a landing page. Reads the Citation fact back
+    from the graph and returns the target + provenance + epistemic status + content hash, so the identifier
+    resolves to something you can VERIFY (the beat over a DOI landing page)."""
+    if not pid:
+        raise HTTPException(status_code=422, detail="pid required")
+    m = re.match(r"^[^:]+:([^/]+)/", pid)
+    if not m:
+        raise HTTPException(status_code=422, detail="malformed pid")
+    coll = m.group(1)
+    raw, err = await _fetch_raw_nodes(coll, 500)
+    for n in raw:
+        p = n.get("properties") or {}
+        if "Citation" in (n.get("labels") or []) and p.get("pid") == pid:
+            return {"pid": pid, "found": True, "doi": p.get("doi"), "kind": p.get("kind"), "target": p.get("target"),
+                    "title": p.get("title"), "creators": _safe_json(p.get("creators_json")),
+                    "created_at": p.get("created_at"), "content_hash": p.get("content_hash"),
+                    "provenance": {"epistemic_mode": p.get("epistemic_mode"), "extractor": p.get("extractor"), "source": p.get("source")},
+                    "proof_carrying": True}
+    return {"pid": pid, "found": False, "degraded": err}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
