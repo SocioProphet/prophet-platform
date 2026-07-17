@@ -1744,6 +1744,180 @@ async def steward_state(project: str = "default", target: str = "",
             "invariants": gaia.GAIA_INVARIANTS, "degraded": err}
 
 
+# ── WS#51: GAIA World Model — the decision-grade world-signal + the PROMOTION MEMBRANE as epistemic status. This
+# is the three-twin unification made real: a gaia:WorldSignal (a governed Earth observation) is a proof-carrying
+# HellGraph fact whose promotion state (EvidenceOnly → ReviewRequired → Promoted) IS its epistemic status. It is
+# SHACL-validated against the real GAIA world-signals shapes on submit, and — invariant #2 — a model may propose
+# but only a human/policy actor may Promote to canonical. Same discipline as the knowledge & human twins. ────────
+class WorldSignalRequest(BaseModel):
+    project: str = "default"
+    feature_id: str
+    signal_type: str = "feature_registry"     # feature_registry | foot_traffic | weather | concordance | …
+    value: Any = None
+    confidence: float | None = None
+    geo_anchor: str | None = None             # a spatial-temporal anchor id/ref (GeoAnchor)
+    evidence_refs: list[str] = []             # SourceEvidence ids — required to ever be Promoted
+    actor: str | None = None
+    actor_kind: str = "human"
+
+
+def _ws_local(class_curie: str) -> str:
+    return class_curie.split(":", 1)[-1]
+
+
+@app.post("/api/studio/worldsignal")
+async def submit_worldsignal(req: WorldSignalRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Submit a governed GAIA world-signal. It enters at PromotionState=EvidenceOnly (NOT canonical) — the writeback
+    is SHACL-validated against the real GAIA shapes, and its epistemic status is derived from the promotion state
+    (evidence-only → observed/derived by actor). Fail-closed."""
+    _require_write_token(authorization)
+    if req.signal_type not in gaia.SIGNAL_TYPES:
+        raise HTTPException(status_code=422, detail=f"signal_type must be one of {sorted(gaia.SIGNAL_TYPES)}")
+    fid = req.feature_id.strip()
+    if not fid:
+        raise HTTPException(status_code=422, detail="feature_id required")
+    class_curie = gaia.SIGNAL_TYPES[req.signal_type]
+    coll = proj_collection(req.project)
+    state = "EvidenceOnly"                     # a fresh signal is always evidence-only, never born canonical
+    epi = gaia.epistemic_for_promotion(state, req.actor_kind)
+    sid = f"{coll}:worldsignal:{_norm(fid).replace(' ', '_')}"
+    prov = _workbench_prov(coll, epi, req.actor or "gaia/worldsignal")
+    prov["extractor"] = "lattice-studio/gaia-worldsignal-v0"
+    gaia_props = {"gaia:hasFeatureId": fid, "gaia:hasPromotionState": state}
+    if req.confidence is not None:
+        gaia_props["gaia:hasConfidence"] = req.confidence
+    conforms, violations = shacl.validate_gaia(class_curie, gaia_props)
+    if not conforms:
+        raise HTTPException(status_code=422, detail={"message": "world-signal rejected — not conformant to the GAIA shapes",
+                                                     "class": class_curie, "violations": violations})
+    props = {**gaia_props, "signal_type": req.signal_type, "gaia_class": class_curie,
+             "promotion_state": state, "feature_id": fid, "value": req.value if req.value is not None else "",
+             "confidence": req.confidence if req.confidence is not None else "",
+             "geo_anchor": req.geo_anchor or "", "evidence_refs": json.dumps(req.evidence_refs),
+             "actor_kind": req.actor_kind, "submitted_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": sid, "labels": [coll, "WorldSignal", _ws_local(class_curie)], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        for ev in req.evidence_refs:
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "has_evidence", "from": sid, "to": ev, "properties": prov})
+    return {"signal_id": sid, "class": class_curie, "promotion_state": state, "epistemic_mode": epi,
+            "admissible_for_promotion": bool(req.evidence_refs), "proof_carrying": True,
+            "note": "a world-signal is evidence-only until a policy decision Promotes it — its promotion state IS its epistemic status"}
+
+
+class PromoteSignalRequest(BaseModel):
+    project: str = "default"
+    signal: str                               # world-signal node id
+    to_state: str                             # ReviewRequired | Rejected | Promoted
+    policy_id: str | None = None
+    actor: str | None = None
+    actor_kind: str = "human"
+
+
+@app.post("/api/studio/worldsignal/promote")
+async def promote_worldsignal(req: PromoteSignalRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """A GAIA PromotionDecision — move a world-signal across the promotion membrane, recording a replayable
+    DecisionLedgerEntry. Enforces invariant #2 (a model/agent may NOT Promote to canonical) and admissibility (a
+    signal cannot be Promoted without source evidence). Promotion updates the signal's epistemic status."""
+    _require_write_token(authorization)
+    if req.to_state not in ("ReviewRequired", "Rejected", "Promoted"):
+        raise HTTPException(status_code=422, detail="to_state must be ReviewRequired | Rejected | Promoted")
+    if not gaia.can_promote_to(req.actor_kind, req.to_state):
+        raise HTTPException(status_code=403, detail={
+            "message": "GAIA invariant #2 — model inference may not promote to canonical truth; only a human/policy actor Promotes",
+            "actor_kind": req.actor_kind, "to_state": req.to_state})
+    coll = proj_collection(req.project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    node = next((n for n in raw if n.get("id") == req.signal), None)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"world-signal not found: {req.signal}")
+    p = dict(node.get("properties") or {})
+    try:
+        evidence = json.loads(p.get("evidence_refs") or "[]")
+    except (ValueError, TypeError):
+        evidence = []
+    if req.to_state == "Promoted" and not evidence:
+        raise HTTPException(status_code=422, detail="not admissible — a world-signal cannot be Promoted without source evidence")
+    prev = p.get("promotion_state", "EvidenceOnly")
+    new_epi = gaia.epistemic_for_promotion(req.to_state, p.get("actor_kind", "human"))
+    p["gaia:hasPromotionState"] = req.to_state
+    p["promotion_state"] = req.to_state
+    p["epistemic_mode"] = new_epi
+    p["promoted_at"] = _now_iso()
+    dhash = hashlib.sha256((req.signal + req.to_state + _now_iso()).encode()).hexdigest()
+    correlation = f"dec-{dhash[:12]}"
+    dec_id = f"{coll}:decision:{dhash[:12]}"
+    prov = _workbench_prov(coll, "attested" if gaia.is_human(req.actor_kind) else "derived", req.actor or "gaia/policy")
+    prov["extractor"] = "lattice-studio/gaia-promotion-v0"
+    receipt = {"correlation_id": correlation, "service": "lattice-studio", "kind": "gaia-promotion",
+               "replayable": True, "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.signal, "labels": node.get("labels") or [coll, "WorldSignal"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"promotion writeback failed: {werr}")
+        dec_props = {"gaia:hasDecisionId": correlation, "gaia:hasDecisionType": "feature_promotion",
+                     "gaia:hasPolicyId": req.policy_id or "policy/default",
+                     "from_state": prev, "to_state": req.to_state, "signal": req.signal,
+                     "correlation_id": correlation, "receipt_bundle": receipt["bundle_ref"], "at": _now_iso(), **prov}
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": dec_id, "labels": [coll, "DecisionLedgerEntry", "PromotionDecision", "Run"], "properties": dec_props})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "promotesSignal", "from": dec_id, "to": req.signal, "properties": prov})
+    return {"decision_id": dec_id, "signal": req.signal, "from_state": prev, "to_state": req.to_state,
+            "epistemic_mode": new_epi, "receipt": receipt, "proof_carrying": True,
+            "canonical": req.to_state == "Promoted"}
+
+
+@app.get("/api/studio/worldsignals")
+async def worldsignals(project: str = "default", state: str = "",
+                       _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The project's GAIA world-signals with their promotion state + epistemic status + evidence."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "WorldSignal" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if state and p.get("promotion_state") != state:
+            continue
+        try:
+            evidence = json.loads(p.get("evidence_refs") or "[]")
+        except (ValueError, TypeError):
+            evidence = []
+        out.append({"signal_id": n.get("id"), "feature_id": p.get("feature_id"), "signal_type": p.get("signal_type"),
+                    "promotion_state": p.get("promotion_state", "EvidenceOnly"), "epistemic_mode": p.get("epistemic_mode"),
+                    "canonical": p.get("promotion_state") == "Promoted", "evidence_count": len(evidence),
+                    "confidence": p.get("confidence") or None, "submitted_at": p.get("submitted_at")})
+    out.sort(key=lambda x: x.get("submitted_at") or "", reverse=True)
+    return {"project": project, "world_signals": out, "count": len(out), "degraded": err}
+
+
+@app.get("/api/studio/gaia/ontology")
+async def gaia_ontology(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The GAIA world-signals promotion membrane — and the mapping that unifies the estate: a promotion state IS
+    an epistemic status. The same governed-evidence discipline runs across all three digital twins."""
+    membrane = [{"state": s, "epistemic_human": gaia.epistemic_for_promotion(s, "human"),
+                 "epistemic_model": gaia.epistemic_for_promotion(s, "model"),
+                 "canonical": s == "Promoted"} for s in gaia.PROMOTION_STATES]
+    return {
+        "ontology": "GAIA World Model — decision-grade world-signals", "namespace": gaia.GAIA_NS,
+        "signal_types": gaia.SIGNAL_TYPES, "promotion_states": gaia.PROMOTION_STATES,
+        "promotion_epistemic_membrane": membrane,
+        "invariant": "GAIA-2: a model may propose (EvidenceOnly/ReviewRequired) but only a human/policy actor may Promote to canonical (attested)",
+        "three_twins": {
+            "knowledge": "HellGraph fact · epistemic status observed→attested",
+            "human": "HDT Observation → OmegaState ABSENT→DELIVERED",
+            "earth": "GAIA WorldSignal → PromotionState EvidenceOnly→Promoted",
+            "note": "one governed-evidence discipline; the promotion membrane and the epistemic ladder are the same mechanism",
+        },
+    }
+
+
 # ── WS#49: ONTOLOGY ACTIONS + writeback — the Foundry crown jewel (Workshop apps are built on Actions). A typed
 # action defines a governed edit on an object type (set a property, set status, add a relation), and invoking it
 # writes back to the graph. BEAT Foundry on every axis: their edits are bare edits; ours are PROOF-CARRYING

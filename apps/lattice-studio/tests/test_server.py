@@ -1331,3 +1331,93 @@ def test_steward_state_reads_back_and_derives_orphan(monkeypatch):
     assert b["stewardship"]["keeper"] == "sam" and b["stewardship"]["phase_override"] == "growth"
     assert b["derived_signals"] == ["orphaned_artifact"] and b["degree"] == 0
     assert "maturity" in b["phases"]
+
+
+# ── WS#51: GAIA World Model — world-signals + the promotion membrane as epistemic status ──
+def test_worldsignal_submit_is_evidence_only_and_epistemic_maps(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url:
+            writes.append(json); return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    # human submit → observed (not canonical)
+    h = client.post("/api/studio/worldsignal",
+                    json={"project": "team-x", "feature_id": "foot-traffic-poi-42", "signal_type": "feature_registry",
+                          "actor_kind": "human"}, headers={"Authorization": "Bearer T"}).json()
+    assert h["promotion_state"] == "EvidenceOnly" and h["epistemic_mode"] == "observed"
+    assert h["admissible_for_promotion"] is False                       # no evidence yet
+    node = next(w for w in writes if "labels" in w)
+    assert "WorldSignal" in node["labels"] and node["properties"]["gaia:hasPromotionState"] == "EvidenceOnly"
+
+    # model submit → derived (a model observes, doesn't canonize)
+    m = client.post("/api/studio/worldsignal",
+                    json={"project": "team-x", "feature_id": "weather-x", "signal_type": "weather", "actor_kind": "model"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert m["epistemic_mode"] == "derived"
+
+
+def test_worldsignal_shacl_rejects_incomplete_energy_ledger(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url: return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+    # energy_ledger requires gaia:hasMarginDelta + gaia:hasPerturbationFlipRate — we don't supply them → SHACL 422
+    r = client.post("/api/studio/worldsignal",
+                    json={"project": "team-x", "feature_id": "e1", "signal_type": "energy_ledger"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422 and "GAIA shapes" in r.json()["detail"]["message"]
+
+
+def test_worldsignal_model_cannot_promote_to_canonical(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/worldsignal/promote",
+                    json={"project": "team-x", "signal": "s1", "to_state": "Promoted", "actor_kind": "model"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 403 and "invariant #2" in r.json()["detail"]["message"]
+
+
+def test_worldsignal_promotion_admissibility_and_canonical(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+
+    # a signal with NO evidence → cannot be Promoted
+    state, fake_req = _stateful_graph({
+        "proj-teamx:worldsignal:noev": {"id": "proj-teamx:worldsignal:noev", "labels": ["proj-teamx", "WorldSignal"],
+                                        "properties": {"promotion_state": "EvidenceOnly", "evidence_refs": "[]", "actor_kind": "human"}},
+        "proj-teamx:worldsignal:ok": {"id": "proj-teamx:worldsignal:ok", "labels": ["proj-teamx", "WorldSignal"],
+                                     "properties": {"promotion_state": "EvidenceOnly",
+                                                    "evidence_refs": "[\"proj-teamx:evidence:1\"]", "actor_kind": "human"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/worldsignal/promote",
+                    json={"project": "team-x", "signal": "proj-teamx:worldsignal:noev", "to_state": "Promoted", "actor_kind": "human"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422 and "source evidence" in r.json()["detail"]
+
+    # a signal WITH evidence, promoted by a human → Promoted + attested + a DecisionLedgerEntry
+    ok = client.post("/api/studio/worldsignal/promote",
+                     json={"project": "team-x", "signal": "proj-teamx:worldsignal:ok", "to_state": "Promoted",
+                           "policy_id": "policy/geo-v1", "actor_kind": "human"},
+                     headers={"Authorization": "Bearer T"}).json()
+    assert ok["to_state"] == "Promoted" and ok["epistemic_mode"] == "attested" and ok["canonical"]
+    assert ok["receipt"]["replayable"]
+    signal = state["nodes"]["proj-teamx:worldsignal:ok"]["properties"]
+    assert signal["promotion_state"] == "Promoted" and signal["epistemic_mode"] == "attested"
+    dec = next(w for w in state["nodes"].values() if "DecisionLedgerEntry" in (w.get("labels") or []))
+    assert dec["properties"]["to_state"] == "Promoted"
+
+
+def test_gaia_ontology_serves_the_three_twin_membrane():
+    b = client.get("/api/studio/gaia/ontology").json()
+    assert b["promotion_states"] == ["EvidenceOnly", "ReviewRequired", "Rejected", "Promoted"]
+    prom = next(m for m in b["promotion_epistemic_membrane"] if m["state"] == "Promoted")
+    assert prom["epistemic_human"] == "attested" and prom["canonical"]
+    assert set(b["three_twins"]) >= {"knowledge", "human", "earth"}

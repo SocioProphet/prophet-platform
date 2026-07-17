@@ -1,0 +1,116 @@
+@prefix gaia: <https://schemas.socioprophet.org/gaia/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# Minimal SHACL stubs for decision-grade world signals.
+# These are intentionally small v0.1 constraints. They establish the promotion membrane
+# and give CI a concrete validation target before richer shapes are added.
+
+gaia:FeatureRegistryEntryShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:FeatureRegistryEntry ;
+    sh:property [
+        sh:path gaia:hasFeatureId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasPromotionState ;
+        sh:class gaia:PromotionState ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+gaia:EnergyLedgerEntryShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:EnergyLedgerEntry ;
+    sh:property [
+        sh:path gaia:hasMarginDelta ;
+        sh:datatype xsd:decimal ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasPerturbationFlipRate ;
+        sh:datatype xsd:decimal ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasPromotionState ;
+        sh:class gaia:PromotionState ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+gaia:ConcordanceLinkShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:ConcordanceLink ;
+    sh:property [
+        sh:path gaia:hasSourceRecordId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:mapsSourceRecordToEntity ;
+        sh:class gaia:CanonicalEntity ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasDecisionLedgerEntry ;
+        sh:class gaia:DecisionLedgerEntry ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+gaia:DecisionLedgerEntryShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:DecisionLedgerEntry ;
+    sh:property [
+        sh:path gaia:hasDecisionId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasDecisionType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+gaia:ProofArtifactShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:ProofArtifact ;
+    sh:property [
+        sh:path gaia:hasClaimName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:hasResultStatus ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] .
+
+gaia:PromotionDecisionShape
+    a sh:NodeShape ;
+    sh:targetClass gaia:PromotionDecision ;
+    sh:property [
+        sh:path gaia:hasPolicyId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+    ] ;
+    sh:property [
+        sh:path gaia:promotesSignal ;
+        sh:class gaia:WorldSignal ;
+        sh:minCount 1 ;
+    ] .
