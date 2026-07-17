@@ -95,6 +95,10 @@ KNOWN_BROKEN = {
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),
+    "memoryd:moving-tag": (
+        "New service — memory-mesh's memoryd vendored into prophet-platform CI this PR, so it BUILDS with the "
+        "estate WIF. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
+    ),
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`
     # + IfNotPresent means nodes may be running an older cached digest than `latest`
