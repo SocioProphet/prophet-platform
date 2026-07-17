@@ -6,5 +6,12 @@ image: { repository: memoryd, tag: latest }
 service: { port: 8787, portName: http }
 config:
   MEMORYMESH_STORE_URI: "memory://"
-  MEMORYMESH_VECTOR_SIZE: "256"
+  # 768 = nomic-embed-text's output dimension. RemoteEmbedder returns the raw model vector (it does NOT
+  # resize to this), so the store MUST match the embedder or inserts mismatch. HashingEmbedder honours it
+  # too, so this is safe whether the semantic endpoint is reachable at boot or not.
+  MEMORYMESH_VECTOR_SIZE: "768"
+  # Sovereign semantic embeddings (Ollama /v1/embeddings). If unreachable at startup, memoryd logs and
+  # falls back to the hashing embedder — never mixes vector spaces. See infra/k8s/embeddings/base.
+  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:11434/v1/embeddings"
+  EMBEDDINGS_MODEL: "nomic-embed-text"
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
