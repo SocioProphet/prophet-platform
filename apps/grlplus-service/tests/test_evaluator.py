@@ -55,3 +55,26 @@ def test_decide_keeps_open_and_escalates_when_ungrounded():
             "escalation_rule_code": "ER_MISSING_DIRECT_ARGUMENT_BLOCKS_CLOSURE"}
     d = decide(item, GraphEvidence())  # nothing in the graph
     assert d.decision == "keep_open" and d.grounded is False and d.escalate is True
+
+
+def test_crosswalk_maps_rules_to_frameworks():
+    from grlplus_service.crosswalk import crosswalk, CROSSWALK
+    from grlplus_service.evaluator import CLOSURE_RULES, ESCALATION_RULES
+    cw = crosswalk()
+    # every closure + escalation rule the evaluator implements has a compliance mapping
+    for rule in {**CLOSURE_RULES, **ESCALATION_RULES}:
+        assert rule in CROSSWALK, f"{rule} has no crosswalk"
+        assert cw["rules"][rule]["nist_ai_rmf"] and cw["rules"][rule]["eu_ai_act"]
+    # reverse index works (control → rules)
+    assert cw["by_nist_ai_rmf"] and cw["by_eu_ai_act"]
+    assert cw["coverage"]["rules_mapped"] == len(CROSSWALK)
+
+
+def test_crosswalk_endpoint():
+    from fastapi.testclient import TestClient
+    from grlplus_service.server import app
+    r = TestClient(app).get("/grlplus/crosswalk")
+    assert r.status_code == 200
+    b = r.json()
+    assert "MEASURE-2.9" in b["by_nist_ai_rmf"]  # evidence-link control maps back to rules
+    assert any("Art. 14" in a for a in b["by_eu_ai_act"])  # human-oversight article present
