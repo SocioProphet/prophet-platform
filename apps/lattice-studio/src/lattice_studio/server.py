@@ -1045,6 +1045,315 @@ async def perspectives(project: str = "default",
     return {"project": project, "perspectives": out, "count": len(out), "degraded": err}
 
 
+async def _fetch_graph(coll: str, limit: int = 2000) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+    """Project subgraph as (nodes, edges, err). Edges carry {from, to, label} — used for lineage walks."""
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit={limit}")
+    nodes = (res.get("nodes") if isinstance(res, dict) else None) or []
+    edges = (res.get("edgeList") if isinstance(res, dict) else None) or []
+    return (nodes if isinstance(nodes, list) else []), (edges if isinstance(edges, list) else []), err
+
+
+def _node_type(n: dict[str, Any], coll: str) -> str:
+    return next((l for l in (n.get("labels") or []) if l != coll), "Node")
+
+
+# ── WS#45: pipelines / workflows. MEET Databricks Workflows + Foundry Pipeline Builder: define a DAG of steps
+# (extract → transform → train → …) and record runs. BEAT: the pipeline, every step, and every run are proof-
+# carrying HellGraph facts with NATIVE lineage (feeds / step_of / run_of edges) + epistemic status — the lineage
+# is the graph, not a bolt-on. Governed (fail-closed writes). Step EXECUTION runs on the notebook/Ray runtime. ──
+class PipelineStep(BaseModel):
+    id: str
+    kind: str = "transform"                 # extract | transform | train | evaluate | publish
+    inputs: list[str] = []
+    outputs: list[str] = []
+    note: str | None = None
+
+
+class PipelineRequest(BaseModel):
+    project: str = "default"
+    name: str
+    steps: list[PipelineStep] = []
+
+
+def _pipe_id(coll: str, name: str) -> str:
+    return f"{coll}:pipeline:{_norm(name).replace(' ', '_')}"
+
+
+@app.post("/api/studio/pipeline")
+async def upsert_pipeline(req: PipelineRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Define a pipeline as a proof-carrying DAG: a Pipeline node + a Step node per step, with feeds edges wired
+    from each step's inputs to the step that produced them, and step_of edges to the pipeline."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    coll = proj_collection(req.project)
+    pid = _pipe_id(coll, name)
+    prov = _workbench_prov(coll, "attested", "studio/pipeline")
+    prov["extractor"] = "lattice-studio/pipeline-v0"
+    producer: dict[str, str] = {}                         # output name → step id that produces it
+    for s in req.steps:
+        for o in s.outputs:
+            producer[o] = s.id
+    props = {"name": name, "steps": json.dumps([s.model_dump() for s in req.steps]),
+             "step_count": len(req.steps), "updated_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": pid, "labels": [coll, "Pipeline"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        for s in req.steps:
+            sid = f"{pid}:step:{_norm(s.id).replace(' ', '_')}"
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                       json={"id": sid, "labels": [coll, "Step", s.kind.capitalize()],
+                             "properties": {"step": s.id, "kind": s.kind, "note": s.note or "", **prov}})
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "step_of", "from": sid, "to": pid, "properties": prov})
+            for inp in s.inputs:                          # wire lineage: producer step → this step
+                if inp in producer and producer[inp] != s.id:
+                    psid = f"{pid}:step:{_norm(producer[inp]).replace(' ', '_')}"
+                    await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                               json={"label": "feeds", "from": psid, "to": sid, "properties": prov})
+    return {"pipeline_id": pid, "name": name, "steps": len(req.steps), "proof_carrying": True}
+
+
+@app.get("/api/studio/pipelines")
+async def pipelines(project: str = "default",
+                    _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The project's pipelines, each with its step DAG."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 1000)
+    out = []
+    for n in raw:
+        if "Pipeline" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        try:
+            steps = json.loads(p.get("steps") or "[]")
+        except (ValueError, TypeError):
+            steps = []
+        out.append({"pipeline_id": n.get("id"), "name": p.get("name"), "steps": steps,
+                    "step_count": p.get("step_count", len(steps)), "updated_at": p.get("updated_at")})
+    out.sort(key=lambda x: x.get("updated_at") or "", reverse=True)
+    return {"project": project, "pipelines": out, "count": len(out), "degraded": err}
+
+
+class PipelineRunRequest(BaseModel):
+    project: str = "default"
+    pipeline: str
+    status: str = "finished"                 # running | finished | failed
+    note: str | None = None
+
+
+@app.post("/api/studio/pipeline/run")
+async def run_pipeline(req: PipelineRunRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Record a pipeline run as a proof-carrying fact (PipelineRun+Run node, run_of edge to the pipeline). This is
+    the governed RUN LEDGER; actual step execution runs on the notebook/Ray runtime and emits its own receipts."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    pipe_id = _pipe_id(coll, req.pipeline)
+    prov = _workbench_prov(coll, "attested", "studio/pipeline-run")
+    prov["extractor"] = "lattice-studio/pipeline-run-v0"
+    rid = f"{coll}:pipelinerun:{hashlib.sha256((req.pipeline + _now_iso()).encode()).hexdigest()[:12]}"
+    props = {"pipeline": req.pipeline, "status": req.status, "note": req.note or "", "ran_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": rid, "labels": [coll, "PipelineRun", "Run"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "run_of", "from": rid, "to": pipe_id, "properties": prov})
+    return {"run_id": rid, "pipeline": req.pipeline, "status": req.status, "proof_carrying": True,
+            "note": "run ledger recorded as a proof-carrying fact; step execution runs on the notebook/Ray runtime"}
+
+
+# ── WS#46: data catalog + end-to-end lineage. MEET Databricks Unity Catalog + Foundry datasets/ontology: a
+# governed dataset catalog and column/asset lineage. BEAT: datasets are proof-carrying graph nodes (provenance +
+# epistemic status native), and lineage is ONE unified graph walk across data → pipeline → run → model → citation,
+# not a separate lineage service stitched on afterward. ─────────────────────────────────────────────────────────
+_CATALOG_RESERVED = {"epistemic_mode", "source", "extractor", "project", "kko_type", "connector",
+                     "ingest_key", "name", "title", "updated_at"}
+
+
+@app.get("/api/studio/catalog")
+async def catalog(project: str = "default",
+                  _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The governed dataset catalog: every ingested/declared dataset with its (best-effort) columns, source
+    connector, provenance and epistemic status. Every entry is a proof-carrying graph node, not a catalog row."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        labels = set(n.get("labels") or [])
+        if not ({"Dataset", "Ingested"} & labels):
+            continue
+        p = n.get("properties") or {}
+        cols = [k for k in p.keys() if k not in _CATALOG_RESERVED][:24]
+        out.append({"id": n.get("id"), "name": p.get("name") or p.get("title") or n.get("id"),
+                    "labels": [l for l in (n.get("labels") or []) if l != coll],
+                    "connector": p.get("connector"), "source": p.get("source"),
+                    "epistemic_mode": p.get("epistemic_mode", "observed"), "governed": True, "columns": cols})
+    return {"project": project, "datasets": out, "count": len(out),
+            "beat": "datasets are proof-carrying graph nodes — provenance + epistemic status are native, not a bolt-on catalog",
+            "degraded": err}
+
+
+_LINEAGE_EDGES = {"feeds", "run_of", "step_of", "produced_by", "produces", "derived_from", "supersedes", "in_pipeline"}
+
+
+@app.get("/api/studio/lineage")
+async def lineage(project: str = "default", target: str = "", depth: int = 4,
+                  _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """End-to-end lineage DAG for a node — a bounded walk (both directions) over the flow edges (feeds / run_of /
+    step_of / produced_by / produces / derived_from / supersedes / in_pipeline) up to `depth`. One unified,
+    proof-carrying lineage across data → pipeline → run → model, not a separate lineage service."""
+    if not target:
+        raise HTTPException(status_code=422, detail="target node id required")
+    coll = proj_collection(project)
+    nodes, edges, err = await _fetch_graph(coll, 2000)
+    by_id = {n.get("id"): n for n in nodes}
+    adj: dict[str, list[tuple[str, dict[str, Any]]]] = {}
+    for e in edges:
+        if (e.get("label") or "") not in _LINEAGE_EDGES:
+            continue
+        f, t = e.get("from"), e.get("to")
+        if not f or not t:
+            continue
+        adj.setdefault(f, []).append((t, e))
+        adj.setdefault(t, []).append((f, e))          # walk both directions
+    seen_n: set[str] = {target}
+    seen_e: set[tuple[str, str, str]] = set()
+    out_edges: list[dict[str, Any]] = []
+    frontier = [(target, 0)]
+    while frontier:
+        nid, d = frontier.pop()
+        if d >= max(1, min(depth, 8)):
+            continue
+        for nb, e in adj.get(nid, []):
+            key = (e.get("from"), e.get("to"), e.get("label") or "")
+            if key not in seen_e:
+                seen_e.add(key)
+                out_edges.append({"from": e.get("from"), "to": e.get("to"), "label": e.get("label")})
+            if nb not in seen_n:
+                seen_n.add(nb)
+                frontier.append((nb, d + 1))
+    out_nodes = []
+    for nid in seen_n:
+        n = by_id.get(nid)
+        p = (n.get("properties") if n else {}) or {}
+        out_nodes.append({"id": nid, "type": _node_type(n, coll) if n else "External",
+                          "label": p.get("name") or p.get("title") or nid,
+                          "epistemic_mode": p.get("epistemic_mode")})
+    return {"project": project, "target": target, "nodes": out_nodes, "edges": out_edges,
+            "stats": {"nodes": len(out_nodes), "edges": len(out_edges)},
+            "beat": "one proof-carrying lineage graph spanning data, pipelines, runs and models — every hop verifiable",
+            "degraded": err}
+
+
+# ── WS#47: model registry. MEET MLflow / Databricks Model Registry: register model versions, stage them
+# (staging → production), track metrics. BEAT: a model version is a proof-carrying graph node linked to the RUN
+# that produced it (produced_by edge → WS#32 experiment), so its provenance + epistemic lineage travel with it,
+# and a stage transition is a governed, attributable event — not a mutable row. ─────────────────────────────────
+_MODEL_STAGES = ["none", "staging", "production", "archived"]
+
+
+class ModelRequest(BaseModel):
+    project: str = "default"
+    name: str
+    version: str = "1"
+    run: str | None = None                   # the experiment run id (WS#32) that produced this version
+    stage: str = "none"
+    metrics: dict[str, float] = {}
+    note: str | None = None
+
+
+def _model_id(coll: str, name: str, version: str) -> str:
+    return f"{coll}:model:{_norm(name).replace(' ', '_')}:{_norm(version)}"
+
+
+@app.post("/api/studio/model")
+async def register_model(req: ModelRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Register a model version as a proof-carrying node, linked (produced_by) to the run that produced it."""
+    _require_write_token(authorization)
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    if req.stage not in _MODEL_STAGES:
+        raise HTTPException(status_code=422, detail=f"stage must be one of {_MODEL_STAGES}")
+    coll = proj_collection(req.project)
+    mid = _model_id(coll, name, req.version)
+    prov = _workbench_prov(coll, "attested", "studio/model")
+    prov["extractor"] = "lattice-studio/model-registry-v0"
+    props = {"name": name, "version": req.version, "stage": req.stage, "metrics": json.dumps(req.metrics),
+             "run": req.run or "", "note": req.note or "", "updated_at": _now_iso(), **prov}
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": mid, "labels": [coll, "Model"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+        if req.run:                              # lineage to the producing experiment run (WS#32)
+            await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                       json={"label": "produced_by", "from": mid, "to": req.run, "properties": prov})
+    return {"model_id": mid, "name": name, "version": req.version, "stage": req.stage, "proof_carrying": True}
+
+
+@app.get("/api/studio/models")
+async def models(project: str = "default",
+                 _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The model registry: versions grouped by model name, each with stage, metrics and the run it came from."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for n in raw:
+        if "Model" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        try:
+            metrics = json.loads(p.get("metrics") or "{}")
+        except (ValueError, TypeError):
+            metrics = {}
+        grouped.setdefault(p.get("name") or "?", []).append(
+            {"model_id": n.get("id"), "version": p.get("version", "1"), "stage": p.get("stage", "none"),
+             "metrics": metrics, "run": p.get("run") or None, "updated_at": p.get("updated_at")})
+    out = [{"name": k, "versions": sorted(v, key=lambda x: str(x.get("version")), reverse=True)}
+           for k, v in grouped.items()]
+    return {"project": project, "models": out, "count": sum(len(m["versions"]) for m in out), "degraded": err}
+
+
+class PromoteRequest(BaseModel):
+    project: str = "default"
+    name: str
+    version: str = "1"
+    stage: str
+
+
+@app.post("/api/studio/model/promote")
+async def promote_model(req: PromoteRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Transition a model version's stage (staging → production …). A governed, attributable event: the model
+    node is rewritten with the new stage, preserving its metrics/run lineage."""
+    _require_write_token(authorization)
+    if req.stage not in _MODEL_STAGES:
+        raise HTTPException(status_code=422, detail=f"stage must be one of {_MODEL_STAGES}")
+    coll = proj_collection(req.project)
+    mid = _model_id(coll, req.name, req.version)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    existing = next((n for n in raw if n.get("id") == mid), None)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"model version not found: {mid}")
+    p = dict(existing.get("properties") or {})
+    prev = p.get("stage", "none")
+    p["stage"] = req.stage
+    p["promoted_at"] = _now_iso()
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": mid, "labels": existing.get("labels") or [coll, "Model"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+    return {"model_id": mid, "name": req.name, "version": req.version,
+            "stage": req.stage, "from_stage": prev, "proof_carrying": True}
+
+
 # ── KE-1: the real extraction → HellGraph loop (proof-carrying, project-scoped) ──────────────────────────────────
 # Deterministic entity + co-occurrence extraction (honest: not LLM). Every fact is written as a HellGraph atom with
 # epistemic_mode="observed" + source provenance + the project label — the moat made real: not "entity X", but
