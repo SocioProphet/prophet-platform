@@ -1,56 +1,72 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import GygCausalValuationCard from './components/GygCausalValuationCard.vue'
-import GygLocationsMapCard from './components/GygLocationsMapCard.vue'
-import ChronosEvidenceLoopCard from './components/ChronosEvidenceLoopCard.vue'
-import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
-import HealthAIDemoReadinessCard from './components/HealthAIDemoReadinessCard.vue'
-import ProphetMeshRuntimeReadinessCard from './components/ProphetMeshRuntimeReadinessCard.vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import './studio/studio.css'
+import Overview from './views/Overview.vue'
+import GraphExplorer from './views/GraphExplorer.vue'
+import QueryConsole from './views/QueryConsole.vue'
+import Analytics from './views/Analytics.vue'
+import GraphRAG from './views/GraphRAG.vue'
+import Reasoner from './views/Reasoner.vue'
+import EntityResolution from './views/EntityResolution.vue'
+import ResourceBrowser from './views/ResourceBrowser.vue'
+import Ontology from './views/Ontology.vue'
 
-const status = ref<'idle'|'ok'|'err'>('idle')
-const pong = ref('')
+const NAV = [
+  { group: 'Explore', items: [
+    { id: 'overview', label: 'Overview', ic: '◱', comp: Overview, sub: 'Platform health & program readouts' },
+    { id: 'explorer', label: 'Graph Explorer', ic: '⟡', comp: GraphExplorer, sub: 'Force-directed graph + provenance inspector' },
+    { id: 'resource', label: 'Resource Browser', ic: '◈', comp: ResourceBrowser, sub: 'Dereferenceable Linked Data' },
+  ]},
+  { group: 'Query & Analyze', items: [
+    { id: 'query', label: 'Query Console', ic: '⌘', comp: QueryConsole, sub: 'SPARQL · Cypher · Gremlin' },
+    { id: 'analytics', label: 'Analytics', ic: '📈', comp: Analytics, sub: 'PageRank / components on the Rust kernel' },
+    { id: 'graphrag', label: 'GraphRAG', ic: '✦', comp: GraphRAG, sub: 'Ask the graph, cited answers' },
+  ]},
+  { group: 'Reason & Resolve', items: [
+    { id: 'reasoner', label: 'Reasoner', ic: '⊢', comp: Reasoner, sub: 'RDFS/OWL entailment + proof trees' },
+    { id: 'er', label: 'Entity Resolution', ic: '⚭', comp: EntityResolution, sub: 'Proof-carrying record linkage' },
+    { id: 'ontology', label: 'Ontology', ic: '❖', comp: Ontology, sub: 'Docs + TBox graph' },
+  ]},
+]
+const flat = NAV.flatMap((g) => g.items)
+const current = ref('overview')
+const active = computed(() => flat.find((i) => i.id === current.value) ?? flat[0])
 
-async function check() {
-  try {
-    const res = await fetch('/api/health')
-    const j = await res.json()
-    status.value = j.ok ? 'ok' : 'err'
-    pong.value = j.pong || ''
-  } catch (e) {
-    status.value = 'err'
-    pong.value = ''
-  }
+function route() {
+  const id = location.hash.replace(/^#/, '').split(':')[0]
+  if (flat.some((i) => i.id === id)) current.value = id
 }
-onMounted(check)
+function go(id: string) { location.hash = id; current.value = id }
+onMounted(() => { route(); window.addEventListener('hashchange', route) })
+onBeforeUnmount(() => window.removeEventListener('hashchange', route))
 </script>
 
 <template>
-  <main style="font-family: ui-sans-serif, system-ui; padding: 2rem; max-width: 1100px; margin: 0 auto;">
-    <header style="display:flex; align-items:center; gap:0.75rem; margin-bottom: 1rem;">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.5"/>
-      </svg>
-      <h1 style="font-size: 1.5rem; font-weight: 700;">SocioProphet</h1>
-      <span v-if="status==='ok'" style="margin-left:auto; padding:0.2rem 0.5rem; border-radius:999px; border:1px solid #cbd5e1;">Connected</span>
-      <span v-else-if="status==='err'" style="margin-left:auto; padding:0.2rem 0.5rem; border-radius:999px; border:1px solid #cbd5e1;">Disconnected</span>
-      <span v-else style="margin-left:auto; padding:0.2rem 0.5rem; border-radius:999px; border:1px solid #cbd5e1;">Checking…</span>
-    </header>
-
-    <section style="border:1px solid #e2e8f0; border-radius: 12px; padding: 1rem;">
-      <h2 style="font-size:1.1rem; font-weight:600; margin:0 0 .5rem 0;">Health</h2>
-      <p style="margin:0 0 1rem 0;">Gateway → TritRPC/UDS check. Expect <code>PONG</code>.</p>
-      <div style="display:flex; gap:.5rem; align-items:center;">
-        <button @click="check" style="padding:.4rem .8rem; border:1px solid #cbd5e1; border-radius:8px; background:white;">Recheck</button>
-        <code>{{ pong.trim() }}</code>
+  <div class="studio">
+    <aside class="sidebar">
+      <div class="brand">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="var(--accent)" stroke-width="1.6"/><path d="M7 12h10M12 7v10" stroke="var(--accent)" stroke-width="1.6"/></svg>
+        <div><b>Prophet Studio</b><br><small>sovereign data + AI platform</small></div>
       </div>
-    </section>
+      <nav class="nav">
+        <template v-for="g in NAV" :key="g.group">
+          <div class="nav-group">{{ g.group }}</div>
+          <a v-for="i in g.items" :key="i.id" :class="{ active: current === i.id }" @click="go(i.id)">
+            <span class="ic">{{ i.ic }}</span>{{ i.label }}
+          </a>
+        </template>
+      </nav>
+      <div class="foot">Every panel is a live service — proof-carrying, sovereign.</div>
+    </aside>
 
-    <GygCausalValuationCard />
-    <GygLocationsMapCard />
-    <HealthAIDemoReadinessCard />
-    <ProphetMeshRuntimeReadinessCard />
-    <ChronosEvidenceLoopCard />
-    <DevSecOpsWorkroomReportCard />
-  </main>
+    <div class="main">
+      <div class="topbar">
+        <h1>{{ active.label }}</h1>
+        <span class="sub">{{ active.sub }}</span>
+        <span class="spacer"></span>
+        <span class="pill accent">prophet-platform</span>
+      </div>
+      <div class="view"><component :is="active.comp" :key="active.id" /></div>
+    </div>
+  </div>
 </template>
