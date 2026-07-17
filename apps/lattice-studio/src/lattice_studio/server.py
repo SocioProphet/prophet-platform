@@ -48,6 +48,10 @@ STUDIO_JWT_SECRET = os.getenv("STUDIO_JWT_SECRET", "")
 # Evidence fabric — verified-compute RECEIPTS. Studio surfaces the replayable proof-of-work behind its services:
 # not "the job ran" (a TEE attestation), but a sealed record of exactly WHAT ran and its verdict, per correlation.
 EVIDENCE_RECEIPTS_URL = os.getenv("EVIDENCE_RECEIPTS_URL", "http://evidence-receipts:8080")
+# The sovereign Spark execution backend (apps/spark-runner). When backend='spark' + entitled, execute dispatches
+# the job here and chains its receipt. Unset/unreachable → the run degrades to the governed ledger (dispatched).
+SPARK_RUNNER_URL = os.getenv("SPARK_RUNNER_URL", "")
+SPARK_RUNNER_TOKEN = os.getenv("SPARK_RUNNER_TOKEN", "")
 RECEIPT_SERVICES = [s.strip() for s in os.getenv(
     "STUDIO_RECEIPT_SERVICES",
     "hellgraph-service,lattice-studio,search-orchestrator,owl-reasoner,entity-resolution,eval-fabric-api",
@@ -1573,9 +1577,25 @@ class ExecuteRequest(BaseModel):
     kind: str = "notebook-cell"            # notebook-cell | pipeline-step | job | query
     backend: str = "mesh-k8s"
     ref: str | None = None                 # what to run (notebook/cell/pipeline id)
-    code: str | None = None                # optional inline payload (hashed into the receipt, not stored verbatim)
+    code: str | None = None                # inline payload — for backend='spark' this is the Spark SQL
+    data: list[dict[str, Any]] = []        # inline rows for the spark job (registered as table `t`)
     note: str | None = None
     actor: str | None = None
+
+
+async def _spark_submit(sql: str, data: list[dict[str, Any]], correlation: str) -> dict[str, Any] | None:
+    """Dispatch a job to the spark-runner service. Returns its {rows, receipt} on success, else None (unset URL,
+    unreachable, or a non-200 — the caller then degrades to the run-ledger). Isolated so execute() is testable."""
+    if not SPARK_RUNNER_URL:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=float(os.getenv("SPARK_TIMEOUT", "30"))) as sc:
+            r = await sc.post(f"{SPARK_RUNNER_URL}/v1/submit",
+                              json={"sql": sql, "data": data, "job_id": correlation},
+                              headers={"authorization": f"Bearer {SPARK_RUNNER_TOKEN}"})
+        return r.json() if r.status_code == 200 else None
+    except Exception:  # noqa: BLE001 — spark-runner health is not our contract; degrade to the ledger
+        return None
 
 
 @app.post("/api/studio/execute")
@@ -1604,7 +1624,19 @@ async def execute(req: ExecuteRequest, authorization: str = Header(default="")) 
     receipt = {"correlation_id": correlation, "service": "lattice-studio", "kind": req.kind,
                "backend": req.backend, "replayable": True, "payload_sha256": payload_hash,
                "bundle_ref": f"/v1/receipts/lattice-studio/{correlation}"}
-    props = {"kind": req.kind, "backend": req.backend, "ref": req.ref or "", "status": "dispatched",
+    # backend='spark' → actually RUN the job on the sovereign spark-runner and chain its receipt; otherwise (or if
+    # spark-runner is unreachable) the run is recorded in the governed ledger for the backend's runtime to pick up.
+    status = "dispatched"
+    rows = None
+    spark_receipt = None
+    if req.backend == "spark" and (req.code or "").strip():
+        out = await _spark_submit(req.code, req.data, correlation)
+        if out:
+            status = "completed"
+            rows = out.get("rows")
+            spark_receipt = out.get("receipt")
+            receipt["chained"] = spark_receipt.get("correlation_id") if isinstance(spark_receipt, dict) else None
+    props = {"kind": req.kind, "backend": req.backend, "ref": req.ref or "", "status": status,
              "correlation_id": correlation, "receipt_bundle": receipt["bundle_ref"],
              "payload_sha256": payload_hash, "note": req.note or "", "submitted_at": _now_iso(), **prov}
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
@@ -1615,9 +1647,10 @@ async def execute(req: ExecuteRequest, authorization: str = Header(default="")) 
         if req.ref:                          # lineage: the execution ran a pipeline/notebook/etc
             await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
                        json={"label": "executed", "from": eid, "to": req.ref, "properties": prov})
-    return {"execution_id": eid, "backend": req.backend, "kind": req.kind, "status": "dispatched",
-            "receipt": receipt, "proof_carrying": True,
-            "note": f"run recorded + receipt emitted; compute executes on the entitled {req.backend} runtime"}
+    return {"execution_id": eid, "backend": req.backend, "kind": req.kind, "status": status,
+            "receipt": receipt, "spark_receipt": spark_receipt, "rows": rows, "proof_carrying": True,
+            "note": (f"ran on the sovereign spark-runner; receipt chained" if status == "completed"
+                     else f"run recorded + receipt emitted; compute executes on the entitled {req.backend} runtime")}
 
 
 @app.get("/api/studio/executions")
