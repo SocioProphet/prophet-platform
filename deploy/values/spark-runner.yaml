@@ -1,0 +1,17 @@
+# spark-runner — the sovereign Apache Spark execution backend for the Studio execution plane (apps/spark-runner).
+# Pinned to the immutable sha- tag from the apps/spark-runner build (never a moving :latest).
+image: { repository: spark-runner, tag: sha-7eb70ba19a6966bd46a133444f6b6e761bb8a5d6 }
+service: { port: 8080, portName: http }
+# server serves /healthz (chart default).
+config:
+  SPARK_MASTER: "local[*]"          # single-pod Spark; set to spark://…/k8s:// for a mesh cluster (horizontal scale)
+# Spark needs a JVM heap — give the pod real memory.
+resources:
+  requests: { cpu: "250m", memory: "768Mi" }
+  limits: { cpu: "2", memory: "2Gi" }
+autoscaling: { enabled: false }     # a Spark local session is per-pod; scale via SPARK_MASTER → a cluster, not replicas
+# Deploys with /v1/submit FAIL-CLOSED: SPARK_RUNNER_TOKEN is unset, so submit returns 503 (only /healthz works)
+# until the Secret exists. To enable job submission, create the Secret and add the secretEnv block:
+#   kubectl -n socioprophet create secret generic spark-runner-token --from-literal=token=...
+#   secretEnv: { SPARK_RUNNER_TOKEN: { secretName: spark-runner-token, key: token } }
+# lattice-studio then dispatches here when the same token is set on it (SPARK_RUNNER_URL + SPARK_RUNNER_TOKEN).

@@ -1421,3 +1421,43 @@ def test_gaia_ontology_serves_the_three_twin_membrane():
     prom = next(m for m in b["promotion_epistemic_membrane"] if m["state"] == "Promoted")
     assert prom["epistemic_human"] == "attested" and prom["canonical"]
     assert set(b["three_twins"]) >= {"knowledge", "human", "earth"}
+
+
+def test_execute_spark_dispatches_to_runner_and_chains_receipt(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "team-x:spark")
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url: return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    async def fake_spark(sql, data, correlation):
+        assert "select" in sql.lower() and len(data) == 3
+        return {"rows": [{"n": 3}], "receipt": {"correlation_id": "spark-abc", "engine": "apache-spark"}}
+    monkeypatch.setattr(srv, "_spark_submit", fake_spark)
+
+    r = client.post("/api/studio/execute",
+                    json={"project": "team-x", "kind": "query", "backend": "spark",
+                          "code": "select count(*) n from t", "data": [{"x": 1}, {"x": 2}, {"x": 3}]},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["status"] == "completed" and r["rows"] == [{"n": 3}]        # it actually ran on Spark
+    assert r["spark_receipt"]["engine"] == "apache-spark"
+    assert r["receipt"]["chained"] == "spark-abc"                        # receipt chained studio→spark-runner
+
+
+def test_execute_spark_degrades_to_ledger_when_runner_absent(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    monkeypatch.setattr(srv, "STUDIO_COMPUTE_ENTITLEMENTS", "*")
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url: return ({"ok": True}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+    async def no_spark(sql, data, correlation): return None            # runner unreachable / no token
+    monkeypatch.setattr(srv, "_spark_submit", no_spark)
+
+    r = client.post("/api/studio/execute",
+                    json={"project": "team-x", "kind": "query", "backend": "spark", "code": "select 1"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["status"] == "dispatched" and r["rows"] is None            # honest degrade to the governed ledger
