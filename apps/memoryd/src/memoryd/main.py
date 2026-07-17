@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
-from .embedding import HashingEmbedder
+from .embedding import HashingEmbedder, build_embedder
 from .mem0_client import Mem0RestClient
 from .hellgraph_retract import HellGraphRetractClient, revocation_source_refs
 from .models import (
@@ -58,7 +58,7 @@ vector_index = QdrantMemoryIndex(
     enabled=QDRANT_ENABLED and bool(QDRANT_URL),
     timeout_seconds=float(os.getenv('QDRANT_TIMEOUT_SECONDS', '10')),
 )
-embedder = HashingEmbedder(dimension=VECTOR_SIZE, salt=EMBEDDING_SALT)
+embedder = build_embedder(dimension=VECTOR_SIZE, salt=EMBEDDING_SALT)
 
 # Revocation propagates into the graph materialization (graceful-degrade if HELLGRAPH_URL unset).
 hellgraph_retract = HellGraphRetractClient(
