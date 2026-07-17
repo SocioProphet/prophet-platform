@@ -659,3 +659,62 @@ def test_ecosystem_links_scholarly_and_emits_agent_manifest(monkeypatch):
     verbs = {v["name"]: v for v in m["access"]}
     assert verbs["resolve"]["endpoint"] and all(v["verifiable"] for v in m["access"])
     assert "receipts" in verbs and "query" in verbs
+
+
+def test_commons_overview_counts_scale_and_epistemic_quality(monkeypatch):
+    import lattice_studio.server as srv
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:a", "labels": ["proj-teamx", "Entity"], "properties": {"epistemic_mode": "attested", "orcid": "0000-0001-0000-0001"}},
+                {"id": "proj-teamx:b", "labels": ["proj-teamx", "Entity"], "properties": {"epistemic_mode": "hypothesis"}},
+                {"id": "proj-teamx:cite", "labels": ["proj-teamx", "Citation"], "properties": {"target": "proj-teamx"}},
+                {"id": "proj-teamx:snap:1", "labels": ["proj-teamx", "Snapshot"], "properties": {"target": "proj-teamx", "version": 1}},
+                {"id": "proj-teamx:endorse:x", "labels": ["proj-teamx", "Endorsement"], "properties": {"target": "proj-teamx:a", "endorser": "kim"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    b = client.get("/api/studio/commons?project=team-x").json()
+    assert b["scale"] == {"facts": 2, "citations": 1, "preserved_versions": 1, "endorsements": 1, "contributors": 1}
+    assert b["epistemic_distribution"] == {"attested": 1, "hypothesis": 1}
+    assert b["epistemic_quality_index"] == round((1.0 + 0.25) / 2, 3)   # attested + hypothesis
+
+
+def test_endorse_requires_write_token(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    r = client.post("/api/studio/endorse", json={"project": "team-x", "target": "proj-teamx:a", "endorser": "kim"})
+    assert r.status_code == 503   # fail-closed
+
+
+def test_endorse_writes_governed_fact_and_curation_is_epistemic_weighted(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    writes = []
+
+    async def fake_req(client, method, url, json=None):
+        if "/api/graph/node" in url or "/api/graph/edge" in url:
+            writes.append(json)
+            return ({"ok": True}, None)
+        if "subgraph" in url:
+            return ({"nodes": [
+                {"id": "proj-teamx:a", "labels": ["proj-teamx", "Entity"], "properties": {"epistemic_mode": "attested"}},
+                {"id": "e1", "labels": ["proj-teamx", "Endorsement"], "properties": {"target": "proj-teamx:a", "endorser": "kim", "revoked": False, "at": "t"}},
+                {"id": "e2", "labels": ["proj-teamx", "Endorsement"], "properties": {"target": "proj-teamx:a", "endorser": "sam", "revoked": True, "at": "t"}},
+            ], "edgeList": []}, None)
+        return (None, "x")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/endorse", json={"project": "team-x", "target": "proj-teamx:a", "endorser": "kim"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 200 and r.json()["proof_carrying"]
+    node = next(w for w in writes if "labels" in w)
+    assert "Endorsement" in node["labels"] and "Curation" in node["labels"]
+
+    c = client.get("/api/studio/curation?project=team-x&target=proj-teamx:a").json()
+    assert c["count"] == 1                          # revoked endorsement excluded
+    assert c["endorsements"][0]["endorser"] == "kim"
+    assert c["curation_score"] == 1.0               # endorsing an attested fact = full weight
+    assert c["epistemic_weighted"]
