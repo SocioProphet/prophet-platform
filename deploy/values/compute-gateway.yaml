@@ -6,7 +6,7 @@
 # graph. Control-plane only (executes no user code) → platform namespace.
 # tag:latest is a bootstrap; sha-pin after first build (gitops-promote only
 # MAINTAINS an existing sha- pin — a new latest service must be pinned once).
-image: { repository: compute-gateway, tag: sha-07aeabdc32a0150338206cbc041c0c4400a09ba1 }
+image: { repository: compute-gateway, tag: sha-bdd2b5585418d07eed413e4231249f64f62877e1 }
 service: { port: 8080, portName: http }
 config:
   FORGE_URL: "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870"
