@@ -16,6 +16,9 @@ export interface GraphSource { allNodes(): NodeLite[]; allEdges(): EdgeLite[] }
 interface NativeKernel {
   pagerank(n: number, from: number[], to: number[], damping: number, iters: number, tol: number): number[]
   connectedComponents(n: number, from: number[], to: number[]): number[]
+  bfs(n: number, from: number[], to: number[], src: number): number[]
+  sssp(n: number, from: number[], to: number[], weights: number[], src: number): number[]
+  cdlp(n: number, from: number[], to: number[], iters: number): number[]
   backend(): string
 }
 
@@ -38,7 +41,7 @@ export function analyticsBackend(): string {
 }
 
 /** Dense-index the graph: node id ↔ 0..n, edges as parallel from/to index arrays. */
-function indexGraph(g: GraphSource): { ids: string[]; from: number[]; to: number[] } {
+function indexGraph(g: GraphSource): { ids: string[]; idx: Map<string, number>; from: number[]; to: number[] } {
   const nodes = g.allNodes()
   const idx = new Map<string, number>()
   const ids: string[] = []
@@ -48,7 +51,14 @@ function indexGraph(g: GraphSource): { ids: string[]; from: number[]; to: number
     const a = idx.get(e.from), b = idx.get(e.to)
     if (a !== undefined && b !== undefined) { from.push(a); to.push(b) }
   }
-  return { ids, from, to }
+  return { ids, idx, from, to }
+}
+
+/** The fast traversal/community kernels are native-only — no silent TS fallback (that's the whole
+ *  point: the SHIPPING product runs the benchmarked Rust kernel, or it tells you it can't). */
+function requireNative(metric: string): NativeKernel {
+  if (!NATIVE) throw new Error(`analytics: metric '${metric}' needs the native hg_analytics kernel (native/hg_napi.node), which is not loaded — build the Rust addon (the Docker native stage does this).`)
+  return NATIVE
 }
 
 /** TS fallback PageRank (power iteration over the same directed CSR semantics as the Rust kernel). */
@@ -98,4 +108,46 @@ export function connectedComponents(g: GraphSource): ComponentsResult {
   for (const c of comp) sizes.set(c, (sizes.get(c) ?? 0) + 1)
   return { backend: analyticsBackend(), nodes: ids.length, edges: from.length,
     components: sizes.size, largest: sizes.size ? Math.max(...sizes.values()) : 0 }
+}
+
+const UNREACHED = 0xffffffff
+
+export interface TraversalResult { backend: string; nodes: number; edges: number; source: string; reached: number; maxDistance: number }
+
+/** BFS hop-distance from `source` — benchmarked parallel kernel (native-only). */
+export function bfs(g: GraphSource, source: string): TraversalResult {
+  const K = requireNative('bfs')
+  const { ids, idx, from, to } = indexGraph(g)
+  const s = idx.get(source)
+  if (s === undefined) throw new Error(`bfs: source node '${source}' is not in the graph`)
+  const dist = K.bfs(ids.length, from, to, s)
+  let reached = 0, maxD = 0
+  for (const d of dist) if (d !== UNREACHED) { reached++; if (d > maxD) maxD = d }
+  return { backend: analyticsBackend(), nodes: ids.length, edges: from.length, source, reached, maxDistance: maxD }
+}
+
+/** Single-source shortest paths from `source` (unit edge weights) — benchmarked parallel kernel (native-only). */
+export function sssp(g: GraphSource, source: string): TraversalResult {
+  const K = requireNative('sssp')
+  const { ids, idx, from, to } = indexGraph(g)
+  const s = idx.get(source)
+  if (s === undefined) throw new Error(`sssp: source node '${source}' is not in the graph`)
+  const weights = new Array<number>(from.length).fill(1) // unit weights; extend to edge-property weights later
+  const dist = K.sssp(ids.length, from, to, weights, s)
+  let reached = 0, maxD = 0
+  for (const d of dist) if (Number.isFinite(d)) { reached++; if (d > maxD) maxD = d }
+  return { backend: analyticsBackend(), nodes: ids.length, edges: from.length, source, reached, maxDistance: maxD }
+}
+
+export interface CommunitiesResult { backend: string; nodes: number; edges: number; communities: number; largest: number }
+
+/** CDLP community detection (LDBC in∪out label propagation) — benchmarked parallel kernel (native-only). */
+export function cdlp(g: GraphSource, iters = 10): CommunitiesResult {
+  const K = requireNative('cdlp')
+  const { ids, from, to } = indexGraph(g)
+  const label = K.cdlp(ids.length, from, to, iters)
+  const sizes = new Map<number, number>()
+  for (const l of label) sizes.set(l, (sizes.get(l) ?? 0) + 1)
+  return { backend: analyticsBackend(), nodes: ids.length, edges: from.length,
+    communities: sizes.size, largest: sizes.size ? Math.max(...sizes.values()) : 0 }
 }
