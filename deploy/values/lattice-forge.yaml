@@ -18,6 +18,8 @@ config:
   # JupyterLab broker target (the jupyterlab adapter) — the real Lab deployed in
   # this namespace (infra/k8s/sovereign-runtime/jupyterlab.yaml). The BFF proxies it.
   JUPYTERLAB_URL: "http://jupyterlab.sovereign-runtime.svc.cluster.local:8888"
+  # Browser-facing Lab edge (governed GCE ingress). Live once lab.socioprophet.ai DNS + cert resolve.
+  JUPYTERLAB_PUBLIC_URL: "https://lab.socioprophet.ai"
   FORGE_EXEC_TIMEOUT: "60"
   # readOnlyRootFilesystem is true (chart default) → keep kernel scratch on the tmpfs
   JUPYTER_RUNTIME_DIR: "/tmp/jupyter"
@@ -29,13 +31,18 @@ config:
 # Absent → the service is fail-closed (503 on protected routes).
 secretEnv:
   FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
+  # the Lab's token (same secret the JupyterLab pod uses) — the forge hands it to an
+  # already-authed user so "Open JupyterLab" lands them straight in.
+  JUPYTER_TOKEN: { secretName: jupyterlab-token, key: token }
 
 # executes user code → give it real but bounded headroom; tmpfs for kernels.
 resources:
   requests: { cpu: "150m", memory: "384Mi" }
   limits:   { cpu: "1500m", memory: "1536Mi" }
+# /tmp emptyDir (readOnlyRootFilesystem is true) — the only writable dir the
+# kernels need; HOME/JUPYTER_RUNTIME_DIR/IPYTHONDIR all live under it. (Do NOT
+# also list /tmp in writableDirs — the chart would mount it twice → invalid pod.)
 tmpDir: { enabled: true, sizeLimit: "512Mi" }
-writableDirs: ["/tmp"]
 
 probes:
   readiness: { path: /healthz, port: 8870 }
