@@ -167,6 +167,34 @@ def get_receipts(project: str, _: None = Depends(require_token)) -> dict:
     return {"project": project, "count": len(ch), "receipts": ch}
 
 
+@app.get("/v1/receipts/verify")
+def verify_receipts(project: str, _: None = Depends(require_token)) -> dict:
+    """Re-prove the project's receipt chain (tamper-evidence, programmatically).
+
+    Recomputes every receipt id from its body and re-walks every prev-link, so a
+    single mutated field or a broken link fails verification with `broken_at`
+    naming the earliest compromised receipt — the moat, made checkable.
+    """
+    return {"project": project, **receipts.verify(project)}
+
+
+@app.get("/v1/stats")
+def stats(project: str, _: None = Depends(require_token)) -> dict:
+    """Read-only forge introspection for the Operations surface.
+
+    Cheap and side-effect-free: live kernel count for the project, its sealed
+    receipt-chain length, the registered adapters, and whether a real execution
+    kernel is available. Nothing here mutates state or touches a kernel.
+    """
+    return {
+        "project": project,
+        "sessions": execn.live_kernels(project),
+        "receipts": len(receipts.chain(project)),
+        "adapters": list(adapters.ADAPTERS),
+        "kernel_ready": execn.kernel_available(),
+    }
+
+
 @app.post("/v1/schedule")
 def create_schedule(req: ScheduleReq, _: None = Depends(require_token)) -> dict:
     """Register a recurring governed job. The CronJob fires it via /v1/run-due."""

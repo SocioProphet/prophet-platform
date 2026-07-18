@@ -48,6 +48,32 @@ def chain(project: str) -> list[dict]:
     return list(_CHAINS.get(project, []))
 
 
+def verify(project: str) -> dict:
+    """Re-prove the chain: recompute every id from its body and re-walk every prev.
+
+    The moat made checkable. For each stored receipt we rebuild the exact body
+    `seal` hashed (everything the receipt carries EXCEPT its own `id` and
+    `project`), recompute `_sha(body)`, and confirm it equals the stored `id` —
+    catching any tampered field (code, outputs, status, actor, timestamp). We
+    also confirm each `prev` points at the previous receipt's `id` (the first is
+    None), catching reordered or excised links. Returns at the FIRST break so
+    `broken_at` names the earliest compromised receipt — something a mutable
+    audit log (Databricks) structurally cannot offer.
+    """
+    ch = _CHAINS.get(project, [])
+    prev_id: str | None = None
+    for r in ch:
+        body = {k: v for k, v in r.items() if k not in ("id", "project")}
+        if _sha(body) != r["id"]:
+            return {"valid": False, "count": len(ch), "broken_at": r["id"],
+                    "reason": "id does not match recomputed body hash (tampered receipt)"}
+        if r["prev"] != prev_id:
+            return {"valid": False, "count": len(ch), "broken_at": r["id"],
+                    "reason": "prev does not link to the previous receipt (broken chain)"}
+        prev_id = r["id"]
+    return {"valid": True, "count": len(ch), "broken_at": None, "reason": None}
+
+
 def _mirror(receipt: dict) -> None:
     """Best-effort mirror to the governance ledger; never blocks execution."""
     if not LEDGER_URL:

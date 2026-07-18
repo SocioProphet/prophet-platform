@@ -107,6 +107,18 @@ def run_cell(code: str, language: str = "python", timeout: int = 60, session_id:
     return _EXECUTOR(code, language, timeout, session_id)
 
 
+def live_kernels(project: str | None = None) -> int:
+    """Count live persistent kernels — all of them, or just one project's.
+
+    Cheap and side-effect-free (for /v1/stats). Project scoping matches on the
+    session_id convention used by the server (`<project>:default`,
+    `<project>:sched:<id>`), so ops can see a single project's kernel footprint.
+    """
+    if project is None:
+        return len(_KERNELS)
+    return sum(1 for sid in _KERNELS if sid == project or sid.startswith(project + ":"))
+
+
 def kernel_available() -> bool:
     """True when a real execution kernel is importable (for /healthz)."""
     if _EXECUTOR is not _live_run:
