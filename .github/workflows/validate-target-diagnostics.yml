@@ -81,6 +81,10 @@ jobs:
             working-directory: apps/semantic-bridge
             install: pip install -r requirements-test.txt
             test: PYTHONPATH=src pytest -q tests
+          - name: compute-gateway
+            working-directory: apps/compute-gateway
+            install: pip install -r requirements.txt pytest
+            test: PYTHONPATH=src pytest -q tests
           - name: tools-tests
             working-directory: .
             install: pip install pytest pyyaml jsonschema

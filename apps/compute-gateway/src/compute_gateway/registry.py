@@ -29,12 +29,15 @@ KINDS: dict[str, dict] = {
         "capabilities": ["counts", "analytics"],
         "epistemic": "observed", "executes_user_code": False, "status": "live",
     },
-    # declared, wired incrementally — the point is the contract already admits them
+    # sovereign Spark — the Databricks paradigm as ONE backend behind the uniform
+    # contract, entitlement-gated + receipt-sealed. Real spark-runner /v1/submit.
     "spark": {
         "backends": ["spark-runner"], "default": "spark-runner",
         "capabilities": ["sql", "dataframe"],
-        "epistemic": "derived", "executes_user_code": True, "status": "declared",
+        "epistemic": "derived", "executes_user_code": True, "status": "live",
     },
+    # adapter wired (embed | chat); status held at declared until the model-server
+    # endpoint contract is verified in-cluster — the adapter degrades honestly.
     "inference": {
         "backends": ["model-server"], "default": "model-server",
         "capabilities": ["chat", "embed"],

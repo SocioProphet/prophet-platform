@@ -38,6 +38,7 @@ jobs:
           - { service: agentic-os-api,   context: apps/agentic-os-api, dockerfile: Dockerfile }
           - { service: evidence-console, context: apps/evidence-console, dockerfile: Dockerfile }
           - { service: evidence-receipts, context: apps/evidence-receipts, dockerfile: Dockerfile }
+          - { service: compute-gateway,  context: apps/compute-gateway, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

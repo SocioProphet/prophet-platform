@@ -48,7 +48,8 @@ def test_registry_shows_entitlement():
     ks = {k["kind"]: k for k in client.get("/v1/registry", params={"project": "demo"}, headers=AUTH).json()["kinds"]}
     assert ks["notebook"]["entitled"] is True          # project 'demo' entitled
     assert ks["graph-query"]["entitled"] is True        # kind entitled globally
-    assert "spark" in ks and ks["spark"]["status"] == "declared"
+    assert ks["spark"]["status"] == "live"                  # spark now a live backend
+    assert ks["inference"]["status"] == "declared"          # adapter present, endpoint unverified
 
 
 def test_notebook_routes_to_forge_with_receipt_and_warrant():

@@ -17,6 +17,10 @@ from .contract import ComputeOutput, GraphDelta, GraphEdge, GraphNode
 FORGE_URL = os.getenv("FORGE_URL", "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870").rstrip("/")
 FORGE_TOKEN = os.getenv("FORGE_TOKEN", "")
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090").rstrip("/")
+SPARK_RUNNER_URL = os.getenv("SPARK_RUNNER_URL", "http://spark-runner:8080").rstrip("/")
+SPARK_RUNNER_TOKEN = os.getenv("SPARK_RUNNER_TOKEN", "")
+MODEL_SERVER_URL = os.getenv("MODEL_SERVER_URL", "http://embeddings:8080").rstrip("/")
+MODEL_SERVER_TOKEN = os.getenv("MODEL_SERVER_TOKEN", "")
 TIMEOUT = float(os.getenv("GATEWAY_TIMEOUT", "90"))
 
 # adapter result shape: dict(outputs=[ComputeOutput], runtime, status, error, degraded)
@@ -85,11 +89,60 @@ async def _hellgraph_stats(req_spec: dict, project: str) -> AdapterResult:
                 "error": None, "degraded": f"hellgraph unreachable: {e}"}
 
 
+async def _spark(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Sovereign Spark: submit SQL/DataFrame code to spark-runner (the same runtime
+    lattice-studio dispatches to). Databricks' one paradigm, here as one backend
+    among many behind the uniform contract — entitlement-gated, receipt-sealed."""
+    body = {"sql": req_spec.get("sql", ""), "data": req_spec.get("data", []),
+            "table": req_spec.get("table", "t"), "job_id": session}
+    headers = {"Authorization": f"Bearer {SPARK_RUNNER_TOKEN}"} if SPARK_RUNNER_TOKEN else {}
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
+            r = await c.post(f"{SPARK_RUNNER_URL}/v1/submit", json=body)
+            if r.status_code != 200:
+                return {"outputs": [], "runtime": "spark", "status": "error",
+                        "error": f"spark-runner HTTP {r.status_code}: {r.text[:200]}", "degraded": None}
+            d = r.json()
+            return {"outputs": [ComputeOutput(type="table", data={
+                        "rows": d.get("rows", []), "row_count": d.get("row_count"),
+                        "backend_receipt": d.get("receipt")})],
+                    "runtime": "spark", "status": "ok", "error": None, "degraded": None}
+    except Exception as e:  # noqa: BLE001
+        return {"outputs": [], "runtime": "spark", "status": "degraded",
+                "error": None, "degraded": f"spark-runner unreachable: {e}"}
+
+
+async def _inference(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Model inference (embed | chat) via the sovereign model server. Output warrant
+    is `derived` — a model produces it, it is not observed from the graph."""
+    task = req_spec.get("task", "embed")
+    if task == "embed":
+        payload = {"input": req_spec.get("input") or req_spec.get("texts") or []}
+        path = "/embed"
+    else:
+        payload = {"messages": req_spec.get("messages", []), "model": req_spec.get("model")}
+        path = "/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {MODEL_SERVER_TOKEN}"} if MODEL_SERVER_TOKEN else {}
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
+            r = await c.post(f"{MODEL_SERVER_URL}{path}", json=payload)
+            if r.status_code != 200:
+                return {"outputs": [], "runtime": "model-server", "status": "error",
+                        "error": f"model-server HTTP {r.status_code}", "degraded": None}
+            return {"outputs": [ComputeOutput(type="result", data=r.json())],
+                    "runtime": "model-server", "status": "ok", "error": None, "degraded": None}
+    except Exception as e:  # noqa: BLE001
+        return {"outputs": [], "runtime": "model-server", "status": "degraded",
+                "error": None, "degraded": f"model-server unreachable: {e}"}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
     "hellgraph:graph-query": lambda spec, project, session: _hellgraph_query(spec, project),
     "hellgraph:graph-stats": lambda spec, project, session: _hellgraph_stats(spec, project),
+    "spark-runner": lambda spec, project, session: _spark(spec, project, session),
+    "model-server": lambda spec, project, session: _inference(spec, project, session),
 }
 
 
@@ -123,14 +176,34 @@ async def write_provenance(delta: GraphDelta) -> bool:
         return False
 
 
-def build_delta(project: str, kind: str, backend: str, receipt_id: str, epistemic: str) -> GraphDelta:
-    run_id = f"proj-{project}:compute:{receipt_id.replace('sha256:', '')[:12]}"
-    rc_id = f"proj-{project}:receipt:{receipt_id.replace('sha256:', '')[:12]}"
-    return GraphDelta(
-        nodes=[
-            GraphNode(id=run_id, labels=[project, "ComputeRun", kind],
-                      properties={"kind": kind, "backend": backend, "epistemic_mode": epistemic}),
-            GraphNode(id=rc_id, labels=[project, "Receipt"], properties={"receipt": receipt_id}),
-        ],
-        edges=[GraphEdge.model_validate({"label": "HAS_RECEIPT", "from": run_id, "to": rc_id})],
-    )
+def build_delta(project: str, kind: str, backend: str, receipt_id: str, epistemic: str,
+                inputs_sha: str | None = None, outputs_sha: str | None = None) -> GraphDelta:
+    """The run's provenance subgraph, dual-labelled: OUR native labels (ComputeRun,
+    Receipt, …) AND W3C PROV-O terms so it federates with any PROV-aware store —
+    the run is a `prov:Activity`, the receipt/output/input are `prov:Entity`, and
+    the edges are `prov:wasGeneratedBy` / `prov:used` / `prov:wasDerivedFrom`.
+    """
+    short = receipt_id.replace("sha256:", "")[:12]
+    run_id = f"proj-{project}:compute:{short}"
+    rc_id = f"proj-{project}:receipt:{short}"
+    out_id = f"proj-{project}:output:{short}"
+    in_id = f"proj-{project}:input:{short}"
+    nodes = [
+        GraphNode(id=run_id, labels=[project, "ComputeRun", kind, "prov:Activity"],
+                  properties={"kind": kind, "backend": backend, "epistemic_mode": epistemic}),
+        GraphNode(id=rc_id, labels=[project, "Receipt", "prov:Entity"],
+                  properties={"receipt": receipt_id}),
+        GraphNode(id=out_id, labels=[project, "ComputeOutput", "prov:Entity"],
+                  properties={"outputs_sha": outputs_sha, "epistemic_mode": epistemic}),
+        GraphNode(id=in_id, labels=[project, "ComputeInput", "prov:Entity"],
+                  properties={"inputs_sha": inputs_sha}),
+    ]
+    edges = [
+        # native label kept AND its PROV-O counterpart, side by side
+        GraphEdge.model_validate({"label": "HAS_RECEIPT", "from": run_id, "to": rc_id}),
+        GraphEdge.model_validate({"label": "prov:wasGeneratedBy", "from": rc_id, "to": run_id}),
+        GraphEdge.model_validate({"label": "prov:wasGeneratedBy", "from": out_id, "to": run_id}),
+        GraphEdge.model_validate({"label": "prov:used", "from": run_id, "to": in_id}),
+        GraphEdge.model_validate({"label": "prov:wasDerivedFrom", "from": out_id, "to": in_id}),
+    ]
+    return GraphDelta(nodes=nodes, edges=edges)
