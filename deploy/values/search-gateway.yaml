@@ -4,7 +4,7 @@
 #
 # Pin the immutable sha- tag the build published (the no-moving-tag standard). This is the merge-commit sha of
 # PR #751 (the service+build); bump it as the service is rebuilt.
-image: { repository: search-gateway, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
+image: { repository: search-gateway, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
 # The server serves /healthz (the chart default) — no probes.path override needed.
 config:

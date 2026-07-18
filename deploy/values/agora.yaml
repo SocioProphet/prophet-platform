@@ -3,7 +3,7 @@
 # carrying HellGraph facts in the project's proj- collection — the same one Noetica and lattice-studio share — so
 # every card and page is citable / preservable / curatable via the Studio commons, and readable by the agent team.
 # Pinned to the immutable sha- tag the apps/agora build published (PR #821 merge commit) — never a moving :latest.
-image: { repository: agora, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
+image: { repository: agora, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:
