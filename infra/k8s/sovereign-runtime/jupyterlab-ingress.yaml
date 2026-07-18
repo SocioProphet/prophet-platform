@@ -1,0 +1,35 @@
+# Governed public edge for interactive JupyterLab — the full Lab in the browser.
+# Mirrors studio-ingress: GCE ingress class + a GKE ManagedCertificate (GCE L7
+# supports the WebSockets Jupyter kernels need). The Lab stays inside the
+# locked-down sovereign-runtime namespace; only this edge + the GKE LB reach it.
+# Access still requires the Lab token, which the forge hands to an already-authed
+# user (it never leaves the cluster except to a user who passed the BFF's auth).
+#
+# GO-LIVE: create the lab.socioprophet.ai DNS A-record → the ingress IP (the
+# ManagedCertificate clock starts at DNS), exactly like studio.socioprophet.ai.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: jupyterlab-cert
+  namespace: sovereign-runtime
+spec:
+  domains: [lab.socioprophet.ai]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jupyterlab-public
+  namespace: sovereign-runtime
+  annotations:
+    kubernetes.io/ingress.class: gce
+    networking.gke.io/managed-certificates: jupyterlab-cert
+  labels: { app: jupyterlab, app.kubernetes.io/part-of: socioprophet }
+spec:
+  rules:
+    - host: lab.socioprophet.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: jupyterlab, port: { number: 8888 } }

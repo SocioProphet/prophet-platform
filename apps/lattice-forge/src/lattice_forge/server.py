@@ -25,6 +25,11 @@ app = FastAPI(title="lattice-forge", version="0.1.0")
 
 FORGE_TOKEN = os.environ.get("FORGE_TOKEN", "")
 JUPYTERLAB_URL = os.environ.get("JUPYTERLAB_URL", "").rstrip("/")
+# Browser-facing Lab URL (governed GCE ingress, e.g. https://lab.socioprophet.ai). The forge lives in the
+# same namespace as the Lab, so it holds the Lab token and hands an authed user a ready-to-open URL — the
+# token only ever reaches a user who already passed the BFF's auth to reach this broker.
+JUPYTERLAB_PUBLIC_URL = os.environ.get("JUPYTERLAB_PUBLIC_URL", "").rstrip("/")
+JUPYTER_TOKEN = os.environ.get("JUPYTER_TOKEN", "")
 DEFAULT_TIMEOUT = int(os.environ.get("FORGE_EXEC_TIMEOUT", "60"))
 
 # in-memory session store (v1). project -> {id -> session}. Persistence = follow-up.
@@ -75,7 +80,14 @@ def create_session(req: SessionReq, _: None = Depends(require_token)) -> dict:
         raise HTTPException(status_code=422, detail=f"unknown adapter: {req.adapter}")
     sid = receipts.new_id()
     # a jupyterlab/zeppelin adapter is a brokered surface: point at the runtime URL.
-    url = f"{JUPYTERLAB_URL}/lab/tree/{req.project}" if (meta["mode"] == "session" and JUPYTERLAB_URL) else None
+    # brokered surfaces (jupyterlab/zeppelin) → a browser-openable URL. Prefer the public ingress; append the
+    # Lab token so an authed user lands straight in. Fall back to the in-cluster URL (BFF-proxy path) if no edge.
+    if meta["mode"] == "session" and JUPYTERLAB_PUBLIC_URL:
+        url = f"{JUPYTERLAB_PUBLIC_URL}/lab" + (f"?token={JUPYTER_TOKEN}" if JUPYTER_TOKEN else "")
+    elif meta["mode"] == "session" and JUPYTERLAB_URL:
+        url = f"{JUPYTERLAB_URL}/lab/tree/{req.project}"
+    else:
+        url = None
     session = {
         "id": sid, "project": req.project, "adapter": name, "role": meta["role"],
         "mode": meta["mode"], "kernel": meta["kernels"][0], "name": req.name or f"{name} session",

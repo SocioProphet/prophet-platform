@@ -84,3 +84,22 @@ spec:
       ports:
         - { protocol: TCP, port: 8870 }
         - { protocol: TCP, port: 8888 }
+---
+# GKE L7 load balancer (the JupyterLab GCE ingress): health checks + proxied
+# client traffic arrive from Google's LB ranges. Scoped to the Lab pod + 8888.
+# This is the ONLY internet-adjacent ingress into the namespace, and it still
+# lands on a token-protected Lab.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gke-lb-to-jupyterlab
+  namespace: sovereign-runtime
+spec:
+  podSelector: { matchLabels: { app: jupyterlab } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: 130.211.0.0/22 }
+        - ipBlock: { cidr: 35.191.0.0/16 }
+      ports:
+        - { protocol: TCP, port: 8888 }

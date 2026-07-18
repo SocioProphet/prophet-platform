@@ -7,3 +7,4 @@ resources:
   - networkpolicy.yaml
   - resourcequota.yaml
   - jupyterlab.yaml
+  - jupyterlab-ingress.yaml
