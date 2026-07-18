@@ -16,8 +16,9 @@ resources:
   requests: { cpu: "250m", memory: "768Mi" }
   limits: { cpu: "2", memory: "2Gi" }
 autoscaling: { enabled: false }     # a Spark local session is per-pod; scale via SPARK_MASTER → a cluster, not replicas
-# /v1/submit is token-gated. The spark-runner-token Secret is provisioned out-of-band (a credential VALUE can't
-# live in git — the pattern is: create the Secret with kubectl, reference it here). lattice-studio dispatches here
-# with the SAME token (its SPARK_RUNNER_TOKEN secretEnv reads the same Secret).
+# /v1/submit is token-gated. The spark-runner-token Secret is provisioned THROUGH CI — the value lives in a GitHub
+# Actions secret (SPARK_RUNNER_TOKEN) and the `provision-secrets` workflow materializes it here via the estate WIF
+# (into sovereign-runtime AND socioprophet). Run that workflow, then sync this app. lattice-studio dispatches here
+# with the SAME token (its SPARK_RUNNER_TOKEN secretEnv reads the same Secret in socioprophet).
 secretEnv:
   SPARK_RUNNER_TOKEN: { secretName: spark-runner-token, key: token }
