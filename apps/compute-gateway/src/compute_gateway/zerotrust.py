@@ -110,10 +110,19 @@ def grant_check(*, project: str, kind: str, backend: str, actor: str,
     gid = grant_id or f"grant-implicit-{project}-{kind}"
     valid = entitled
     reason = "entitled" if entitled else "no entitlement for project"
+    expired = revoked = False
 
-    if ZEROTRUST_ENFORCE and needs_grant and not grant_id:
-        valid = False
-        reason = "zero-trust: user-code compute requires an explicit capability grant"
+    if ZEROTRUST_ENFORCE:
+        if grant_id:
+            # a presented grant is AUTHORITATIVE — validate it against the grant
+            # store (issued? unexpired? unrevoked? operation matches?). Revoked or
+            # expired grants fail closed regardless of entitlement.
+            from . import grants  # local import avoids a module cycle
+            v = grants.validate(grant_id, operation=f"{kind}:{backend}")
+            valid, expired, revoked, reason = v["valid"], v["expired"], v["revoked"], v["reason"]
+        elif needs_grant:
+            valid = False
+            reason = "zero-trust: user-code compute requires an explicit capability grant"
 
     check = {
         "check_id": "check-" + uuid.uuid4().hex,
@@ -121,7 +130,7 @@ def grant_check(*, project: str, kind: str, backend: str, actor: str,
         "grant_id": gid,
         "checked_at": _now(),
         "actor": {"spiffe_id": _spiffe("compute-gateway", project, "actor", actor)},
-        "result": {"valid": valid, "expired": False, "revoked": False, "reason": reason},
+        "result": {"valid": valid, "expired": expired, "revoked": revoked, "reason": reason},
         "trust_boundary_id": TRUST_BOUNDARY_ID,
         "policy_hash": _policy_hash(),
     }
@@ -164,6 +173,21 @@ def _schema(name: str) -> dict[str, Any]:
     return json.loads((_SCHEMA_DIR / f"{name}.schema.json").read_text())
 
 
+@functools.lru_cache(maxsize=1)
+def _registry() -> Any:
+    """A referencing registry of every vendored schema (keyed by $id) so canonical
+    cross-refs — e.g. grant → quorum_proof.schema.json — resolve locally, sovereignly."""
+    from referencing import Registry, Resource  # noqa: PLC0415
+
+    resources = []
+    for p in _SCHEMA_DIR.glob("*.schema.json"):
+        s = json.loads(p.read_text())
+        res = Resource.from_contents(s)
+        if "$id" in s:
+            resources.append((s["$id"], res))
+    return Registry().with_resources(resources)
+
+
 def validate(payload: dict[str, Any], schema_name: str) -> None:
     """Validate against the vendored kernel schema. Raises jsonschema.ValidationError.
 
@@ -171,4 +195,4 @@ def validate(payload: dict[str, Any], schema_name: str) -> None:
     is a conformance guarantee, not a request-path dependency)."""
     import jsonschema  # noqa: PLC0415
 
-    jsonschema.validate(payload, _schema(schema_name))
+    jsonschema.Draft202012Validator(_schema(schema_name), registry=_registry()).validate(payload)
