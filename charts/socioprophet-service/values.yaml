@@ -17,6 +17,9 @@ image:
 imagePullSecrets: []
 
 replicaCount: 1
+# Deployment rollout strategy (empty = k8s default RollingUpdate). Set { type: Recreate }
+# for single-replica services on tight clusters to avoid a 2x-memory surge.
+strategy: {}
 
 # Container port the app listens on (also the Service targetPort).
 service:

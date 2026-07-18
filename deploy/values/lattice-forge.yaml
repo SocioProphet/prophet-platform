@@ -52,3 +52,6 @@ probes:
 # (Horizontal scale needs sticky sessions / a per-user JupyterHub spawner — next step.)
 replicaCount: 1
 autoscaling: { enabled: false }
+# Single replica on a memory-tight cluster: Recreate (kill-then-create) so a rollout does
+# NOT need 2x memory for a surge pod — which was leaving new pods Pending/Insufficient-memory.
+strategy: { type: Recreate }
