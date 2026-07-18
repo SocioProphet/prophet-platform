@@ -1,17 +1,24 @@
 # spark-runner — the sovereign Apache Spark execution backend for the Studio execution plane (apps/spark-runner).
 # Pinned to the immutable sha- tag from the apps/spark-runner build (never a moving :latest).
+# ISOLATION: deployed by the runtime-services ApplicationSet into the sovereign-runtime namespace (default-deny
+# NetworkPolicy, restricted PSA, no metadata egress) — it executes user Spark jobs = same trust boundary as notebooks.
 image: { repository: spark-runner, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default).
 config:
   SPARK_MASTER: "local[*]"          # single-pod Spark; set to spark://…/k8s:// for a mesh cluster (horizontal scale)
+  SPARK_LOCAL_DIRS: "/tmp"          # Spark scratch on the tmpfs (readOnlyRootFilesystem is on)
+# writable scratch for Spark (readOnlyRootFilesystem:true). tmpDir mounts /tmp — do NOT also list /tmp in
+# writableDirs (the chart would mount it twice → invalid pod).
+tmpDir: { enabled: true, sizeLimit: "1Gi" }
 # Spark needs a JVM heap — give the pod real memory.
 resources:
   requests: { cpu: "250m", memory: "768Mi" }
   limits: { cpu: "2", memory: "2Gi" }
 autoscaling: { enabled: false }     # a Spark local session is per-pod; scale via SPARK_MASTER → a cluster, not replicas
-# /v1/submit is token-gated. The spark-runner-token Secret is provisioned out-of-band (a credential VALUE can't
-# live in git — the pattern is: create the Secret with kubectl, reference it here). lattice-studio dispatches here
-# with the SAME token (its SPARK_RUNNER_TOKEN secretEnv reads the same Secret).
+# /v1/submit is token-gated. The spark-runner-token Secret is provisioned THROUGH CI — the value lives in a GitHub
+# Actions secret (SPARK_RUNNER_TOKEN) and the `provision-secrets` workflow materializes it here via the estate WIF
+# (into sovereign-runtime AND socioprophet). Run that workflow, then sync this app. lattice-studio dispatches here
+# with the SAME token (its SPARK_RUNNER_TOKEN secretEnv reads the same Secret in socioprophet).
 secretEnv:
   SPARK_RUNNER_TOKEN: { secretName: spark-runner-token, key: token }

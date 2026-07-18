@@ -15,6 +15,7 @@ spec:
     - list:
         elements:
           - { name: lattice-forge }
+          - { name: spark-runner }
   template:
     metadata:
       name: 'svc-{{.name}}'
