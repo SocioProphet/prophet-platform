@@ -60,6 +60,10 @@ RECEIPT_SERVICES = [s.strip() for s in os.getenv(
 FORGE_URL = os.getenv("FORGE_URL", "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870")
 FORGE_TOKEN = os.getenv("FORGE_TOKEN", "")
 FORGE_TIMEOUT = float(os.getenv("FORGE_TIMEOUT", "90"))
+# Universal Compute Plane gateway (any compute, one governed door).
+COMPUTE_GATEWAY_URL = os.getenv("COMPUTE_GATEWAY_URL", "http://compute-gateway:8080")
+GATEWAY_TOKEN = os.getenv("GATEWAY_TOKEN", "")
+GATEWAY_TIMEOUT = float(os.getenv("GATEWAY_TIMEOUT", "120"))
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
 
@@ -2788,4 +2792,52 @@ async def nb_execute(req: NotebookExec) -> dict[str, Any]:
 @app.get("/api/studio/notebook/receipts")
 async def nb_receipts(project: str = "default") -> dict[str, Any]:
     data, err = await _forge("GET", "/v1/receipts", params={"project": project})
+    return data or {"project": project, "receipts": [], "count": 0, "degraded": err}
+
+
+# ── Universal Compute Plane proxy → compute-gateway ──────────────────────────
+# Any kind of compute (notebook, graph, spark, inference) through ONE governed
+# door: gate → route → seal a signed receipt → type the warrant → write provenance.
+# The BFF is the only thing that talks to the gateway; the gateway routes to the
+# isolated backends. The compute plane's story, surfaced.
+def _gateway_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {GATEWAY_TOKEN}"} if GATEWAY_TOKEN else {}
+
+
+async def _gateway(method: str, path: str, *, json: Any | None = None, params: dict | None = None) -> tuple[Any, str | None]:
+    try:
+        async with httpx.AsyncClient(timeout=GATEWAY_TIMEOUT, headers=_gateway_headers()) as c:
+            r = await c.request(method, f"{COMPUTE_GATEWAY_URL}{path}", json=json, params=params)
+            if r.status_code == 200:
+                return r.json(), None
+            return None, f"gateway HTTP {r.status_code}"
+    except Exception as exc:  # noqa: BLE001
+        return None, str(exc)
+
+
+class ComputeRun(BaseModel):
+    kind: str
+    spec: dict[str, Any] = {}
+    project: str = "default"
+    backend: str | None = None
+    entitlement: str | None = None
+
+
+@app.get("/api/studio/compute/registry")
+async def compute_registry(project: str = "default") -> dict[str, Any]:
+    data, err = await _gateway("GET", "/v1/registry", params={"project": project})
+    return data or {"project": project, "kinds": [], "degraded": err}
+
+
+@app.post("/api/studio/compute/run")
+async def compute_run(req: ComputeRun) -> dict[str, Any]:
+    data, err = await _gateway("POST", "/v1/compute", json=req.model_dump())
+    if err:
+        return {"status": "degraded", "degraded": err, "outputs": [], "receipt": None}
+    return data
+
+
+@app.get("/api/studio/compute/receipts")
+async def compute_receipts(project: str = "default") -> dict[str, Any]:
+    data, err = await _gateway("GET", "/v1/receipts", params={"project": project})
     return data or {"project": project, "receipts": [], "count": 0, "degraded": err}
