@@ -95,6 +95,13 @@ def entitled(project: str, kind: str, backend: str, presented: str | None) -> bo
     return bool(presented and presented in ents)
 
 
+def kinds_providing(capability: str) -> list[str]:
+    """The kinds whose capability set includes `capability`, live kinds first —
+    the reverse index the planner treats as an action space over the registry."""
+    hits = [k for k, d in KINDS.items() if capability in d["capabilities"]]
+    return sorted(hits, key=lambda k: (KINDS[k]["status"] != "live", k))
+
+
 def catalog(project: str, presented: str | None) -> list[dict]:
     """The registry as the surface/planner sees it: kinds + backends + entitlement."""
     out = []

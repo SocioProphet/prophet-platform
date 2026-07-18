@@ -12,7 +12,9 @@ import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 
-from . import engine, receipts, registry, zerotrust
+from pydantic import BaseModel
+
+from . import engine, planner, receipts, registry, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -58,6 +60,23 @@ async def compute(req: ComputeRequest, _: None = Depends(require_token)) -> Comp
     except registry.UnknownBackend as e:
         raise HTTPException(status_code=422, detail=str(e))
     return await engine.execute(req)
+
+
+class PlanRequest(BaseModel):
+    capabilities: list[str] = []
+    project: str = "default"
+    intent: str | None = None
+    entitlement: str | None = None
+
+
+@app.post("/v1/plan")
+def plan_view(req: PlanRequest, _: None = Depends(require_token)) -> dict:
+    """Plan a governed workflow over the capability registry (layer 6 — the
+    registry as an agent action space). A PREVIEW: returns a runnable `workflow`
+    spec + per-step entitlement/warrant, but executes nothing. Planning is free;
+    hand `plan` to POST /v1/compute to run it under full governance."""
+    return planner.plan(capabilities=req.capabilities, project=req.project,
+                        intent=req.intent, entitlement=req.entitlement)
 
 
 @app.get("/v1/capability-registry")
