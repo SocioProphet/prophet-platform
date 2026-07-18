@@ -82,8 +82,9 @@ spec:
         - namespaceSelector:
             matchLabels: { kubernetes.io/metadata.name: socioprophet }
       ports:
-        - { protocol: TCP, port: 8870 }
-        - { protocol: TCP, port: 8888 }
+        - { protocol: TCP, port: 8870 }   # lattice-forge
+        - { protocol: TCP, port: 8888 }   # jupyterlab (BFF proxy path)
+        - { protocol: TCP, port: 8080 }   # spark-runner
 ---
 # GKE L7 load balancer (the JupyterLab GCE ingress): health checks + proxied
 # client traffic arrive from Google's LB ranges. Scoped to the Lab pod + 8888.

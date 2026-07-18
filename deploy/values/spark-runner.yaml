@@ -1,10 +1,16 @@
 # spark-runner — the sovereign Apache Spark execution backend for the Studio execution plane (apps/spark-runner).
 # Pinned to the immutable sha- tag from the apps/spark-runner build (never a moving :latest).
+# ISOLATION: deployed by the runtime-services ApplicationSet into the sovereign-runtime namespace (default-deny
+# NetworkPolicy, restricted PSA, no metadata egress) — it executes user Spark jobs = same trust boundary as notebooks.
 image: { repository: spark-runner, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default).
 config:
   SPARK_MASTER: "local[*]"          # single-pod Spark; set to spark://…/k8s:// for a mesh cluster (horizontal scale)
+  SPARK_LOCAL_DIRS: "/tmp"          # Spark scratch on the tmpfs (readOnlyRootFilesystem is on)
+# writable scratch for Spark (readOnlyRootFilesystem:true). tmpDir mounts /tmp — do NOT also list /tmp in
+# writableDirs (the chart would mount it twice → invalid pod).
+tmpDir: { enabled: true, sizeLimit: "1Gi" }
 # Spark needs a JVM heap — give the pod real memory.
 resources:
   requests: { cpu: "250m", memory: "768Mi" }

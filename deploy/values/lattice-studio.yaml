@@ -15,7 +15,7 @@ config:
   SEARCH_ORCH_URL: "http://search-orchestrator:8080"
   # The sovereign Spark backend. lattice-studio dispatches backend='spark' jobs to spark-runner (auth'd with the
   # shared SPARK_RUNNER_TOKEN secretEnv below). The loop is now closed end-to-end.
-  SPARK_RUNNER_URL: "http://spark-runner:8080"
+  SPARK_RUNNER_URL: "http://spark-runner.sovereign-runtime.svc.cluster.local:8080"
   # The compute PAY-GATE. Comma-sep entitlement tokens: "*" (all), "<project>", "<project>:<backend>". Empty →
   # every /execute returns 402. Currently entitles the demo/default projects for verification; a paid tenant gets
   # its own entry here. THIS is the monetization knob — like Databricks/Foundry, compute is provisioned only when
