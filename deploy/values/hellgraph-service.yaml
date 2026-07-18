@@ -1,8 +1,9 @@
 # hellgraph-service — the engine serves on :8090 (not 8080); align service + probes.
-# tag bumped to the b04eac8f build — the first image carrying engine 0.4.23 (which reads
-# EMBEDDINGS_URL). The prior sha-a16830db predated 0.4.22, so the EMBEDDINGS_URL config below was
-# inert on the cluster until this rolls out. hellgraph-service content is unchanged since b04eac8f.
-image: { repository: hellgraph-service, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
+# tag pinned to the 9bb04243 build — the first image with the full fast-kernel bridge (BFS/SSSP/CDLP
+# now exposed via N-API, not just PageRank/WCC). Pinned manually because gitops-promote skips MERGE
+# commits (git show --name-only is empty for a merge → the changed service is invisible), so #864's
+# hellgraph-service change never auto-promoted. See the gitops-promote merge-detection fix.
+image: { repository: hellgraph-service, tag: sha-9bb0424391979d8e72d51d81ebd312920780af3d }
 service: { port: 8090, portName: http }
 config:
   # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
