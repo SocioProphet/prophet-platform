@@ -51,10 +51,13 @@ jobs:
           fi
           echo "promoting to sha-$SHA (all=$ALL)"
 
-          # GUARD: a commit that changed no app/service source built NO images, so
-          # promoting to it creates dangling pins → estate-wide ImagePullBackOff.
-          # (This is the root cause of the 2026-07-18 incident.) Bail out cleanly.
-          if ! git show --name-only --pretty="" "$SHA" | grep -qE '^(apps|services)/'; then
+          # --first-parent is REQUIRED: a plain `git show --name-only` is EMPTY for a MERGE commit, so a
+          # service merged via a merge-commit (the default PR merge) was invisible here and NEVER promoted —
+          # its built image silently never deployed (hellgraph-service hit exactly this). --first-parent
+          # shows the merge's changes vs main.
+          # GUARD: a commit that changed no app/service source built NO images, so promoting to it creates
+          # dangling pins → estate-wide ImagePullBackOff. Bail out cleanly.
+          if ! git show --name-only --first-parent --pretty="" "$SHA" | grep -qE '^(apps|services)/'; then
             echo "sha-$SHA changed no service source → no images built → nothing to promote"; exit 0
           fi
 
@@ -63,7 +66,7 @@ jobs:
             FILES=$(grep -lE 'tag: (sha-[0-9a-f]+|latest)\b' deploy/values/*.yaml 2>/dev/null || true)
           else
             # only the services whose source changed in this commit (image-name == dir-name convention)
-            CHANGED=$(git show --name-only --pretty="" "$SHA" | grep -oE '^(apps|services)/[^/]+/' \
+            CHANGED=$(git show --name-only --first-parent --pretty="" "$SHA" | grep -oE '^(apps|services)/[^/]+/' \
                       | sed -E 's#(apps|services)/([^/]+)/#\2#' | sort -u || true)
             FILES=""
             for name in $CHANGED; do
