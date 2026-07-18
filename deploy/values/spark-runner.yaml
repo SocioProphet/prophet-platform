@@ -2,7 +2,7 @@
 # Pinned to the immutable sha- tag from the apps/spark-runner build (never a moving :latest).
 # ISOLATION: deployed by the runtime-services ApplicationSet into the sovereign-runtime namespace (default-deny
 # NetworkPolicy, restricted PSA, no metadata egress) — it executes user Spark jobs = same trust boundary as notebooks.
-image: { repository: spark-runner, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
+image: { repository: spark-runner, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default).
 config:

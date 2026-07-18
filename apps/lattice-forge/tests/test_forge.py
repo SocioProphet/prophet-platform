@@ -91,3 +91,57 @@ def test_degrades_when_kernel_unavailable():
     r = client.post("/v1/execute", json={"project": "p3", "code": "x"}, headers=AUTH).json()
     assert r["status"] == "degraded" and r["degraded"] == "no kernel"
     assert r["receipt"]["status"] == "degraded"      # still sealed — honest, not faked
+
+
+def test_verify_clean_chain_is_valid():
+    for code in ["a=1", "b=2", "c=3"]:
+        client.post("/v1/execute", json={"project": "vok", "code": code}, headers=AUTH)
+    v = client.get("/v1/receipts/verify", params={"project": "vok"}, headers=AUTH).json()
+    assert v["valid"] is True and v["count"] == 3
+    assert v["broken_at"] is None and v["reason"] is None
+
+
+def test_verify_detects_tampered_receipt():
+    # mutate a stored field → recomputed id no longer matches → tamper-evident.
+    for code in ["a=1", "b=2", "c=3"]:
+        client.post("/v1/execute", json={"project": "vtamper", "code": code}, headers=AUTH)
+    from lattice_forge import receipts
+    victim = receipts._CHAINS["vtamper"][1]
+    victim["code_sha"] = "sha256:deadbeef"           # forge the sealed code hash
+    v = client.get("/v1/receipts/verify", params={"project": "vtamper"}, headers=AUTH).json()
+    assert v["valid"] is False and v["broken_at"] == victim["id"]
+    assert "recomputed" in v["reason"]
+
+
+def test_verify_detects_broken_prev_link():
+    # excise the middle receipt: the survivors' ids still match their own bodies,
+    # but the last one's prev now points at a receipt that isn't its predecessor —
+    # the walk catches the severed link (not just field tampering).
+    for code in ["a=1", "b=2", "c=3"]:
+        client.post("/v1/execute", json={"project": "vlink", "code": code}, headers=AUTH)
+    from lattice_forge import receipts
+    ch = receipts._CHAINS["vlink"]
+    orphan_id = ch[2]["id"]
+    del ch[1]                                          # remove the middle link
+    v = client.get("/v1/receipts/verify", params={"project": "vlink"}, headers=AUTH).json()
+    assert v["valid"] is False and v["broken_at"] == orphan_id
+    assert "prev" in v["reason"]
+
+
+def test_verify_empty_chain_is_valid():
+    v = client.get("/v1/receipts/verify", params={"project": "vempty"}, headers=AUTH).json()
+    assert v["valid"] is True and v["count"] == 0
+
+
+def test_stats_introspection():
+    for code in ["a=1", "b=2"]:
+        client.post("/v1/execute", json={"project": "statp", "code": code}, headers=AUTH)
+    st = client.get("/v1/stats", params={"project": "statp"}, headers=AUTH).json()
+    assert st["receipts"] == 2
+    assert st["sessions"] == 0                        # injected executor → no live kernels
+    assert "jupyterlab" in st["adapters"] and isinstance(st["kernel_ready"], bool)
+
+
+def test_stats_token_gated():
+    assert client.get("/v1/stats", params={"project": "x"}).status_code == 401
+    assert client.get("/v1/receipts/verify", params={"project": "x"}).status_code == 401

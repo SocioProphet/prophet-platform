@@ -6,7 +6,7 @@
 # (#48), the pay-gated execution plane (#31), ontology-typed + SHACL-validated actions (#49/#830/#831), GAIA
 # stewardship + world-signals (#50/#51), the HDT twin (#52). NB there is NO gitops-promote workflow, so this pin
 # was never auto-bumped after those merges — hence a stale deploy. A promote job is the real fix (flagged).
-image: { repository: lattice-studio, tag: sha-a3832fb24a03a2fcd0d33fd5c2ccf5052d6d8116 }
+image: { repository: lattice-studio, tag: sha-e9cfb8515e36f7ed764c64c94453c1a1f18a21b2 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:
@@ -23,6 +23,8 @@ config:
   STUDIO_COMPUTE_ENTITLEMENTS: "demo,default"
   # notebook runtime (lattice-forge, isolated sovereign-runtime namespace)
   FORGE_URL: "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870"
+  # Universal Compute Plane gateway (any compute, one governed door).
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
 # Activates the WRITE workbench (/api/studio/extract + /node + /edge). Fail-closed: without this, writes
 # return 503 and reads stay open. Secrets provisioned out-of-band (the credential VALUES can't live in git — the
 # CI/GitOps pattern is: create the Secret with kubectl, reference it here via secretEnv):
@@ -35,6 +37,8 @@ secretEnv:
   SPARK_RUNNER_TOKEN: { secretName: spark-runner-token, key: token }
   # Shared with lattice-forge (same value in sovereign-runtime) — BFF auth to the notebook runtime.
   FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
+  # Shared with the compute-gateway — BFF auth to the universal compute plane.
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
 # Internal for now (ClusterIP); the app-vue surface reaches it via the same public-gateway pattern as search — a
 # public ingress + DNS is the go-live step, held (ManagedCert clock starts at DNS).

@@ -38,6 +38,7 @@ spec:
           - { name: liberty-stack-readout }
           - { name: tritfabric-consumption-api }
           - { name: agora }
+          - { name: compute-gateway }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —

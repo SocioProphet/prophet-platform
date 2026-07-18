@@ -1,0 +1,9 @@
+[project]
+name = "compute-gateway"
+version = "0.1.0"
+description = "The Universal Compute Contract gateway — any compute, one governed door, one receipt."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

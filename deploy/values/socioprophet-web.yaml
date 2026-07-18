@@ -7,7 +7,7 @@
 # published to `latest` in GAR and the nodes kept serving the cached digest.
 # sha-2ff20cbd... = merge of #726 (nginx port/healthz contract fix),
 # digest sha256:50ef50bf14fb64f0eca84ac393bf0124c72840499ed1a0e5daa82182c45d71bf.
-image: { repository: socioprophet-web, tag: sha-d42ff8afb1e6694a8e29066432a7260b31654e5e }
+image: { repository: socioprophet-web, tag: sha-04ee10e76cfef259b5611c73946d96f61a0bae2c }
 service: { port: 8080, portName: http }
 ingress:
   enabled: true

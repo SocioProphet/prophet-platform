@@ -1,0 +1,64 @@
+# schedule-tick — the governed scheduler for lattice-forge notebook jobs.
+#
+# Every minute this CronJob POSTs /v1/run-due on the forge; the forge runs every
+# due schedule NOW and seals a hash-chained receipt per run (see
+# apps/lattice-forge/src/lattice_forge/schedules.py). This is the ONLY trigger —
+# the forge holds the schedules, this tick just pulls them. Databricks-Jobs
+# parity, but proof-carrying: a scheduled run is as replayable as an interactive one.
+#
+# It stays inside the isolated sovereign-runtime namespace (default-deny +
+# intra-namespace allow), so `http://lattice-forge:8870` resolves without any new
+# egress (use the FQDN — a musl/curl pod does not resolve the bare single-label name via search domains). It carries the SAME lattice-forge-token secret the forge validates, so a
+# tick is authenticated exactly like a user call — no unauthenticated backdoor.
+#
+# PodSecurity: the namespace enforces `restricted`, so the pod is non-root, drops
+# all caps, forbids privilege escalation, and runs a read-only root filesystem.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: forge-schedule-tick
+  namespace: sovereign-runtime
+  labels: { app: lattice-forge, component: schedule-tick }
+spec:
+  schedule: "* * * * *"            # every minute; the forge decides what is actually due
+  concurrencyPolicy: Forbid        # never overlap ticks — one governed sweep at a time
+  startingDeadlineSeconds: 30
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0              # a missed tick is caught by the next minute; don't pile up retries
+      activeDeadlineSeconds: 50    # stay well under the 1-minute cadence
+      template:
+        metadata:
+          labels: { app: lattice-forge, component: schedule-tick }
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: tick
+              # third-party image — digest-pinned (immutable) since it is not on our sha- pipeline.
+              # Tag kept alongside for humans; the @sha256 is what actually gets pulled, so a
+              # re-pushed tag can never silently swap the tick binary (moving-tag/IfNotPresent trap).
+              image: curlimages/curl:8.11.1@sha256:c1fe1679c34d9784c1b0d1e5f62ac0a79fca01fb6377cdd33e90473c6f9f9a69
+              command: ["/bin/sh", "-c"]
+              args:
+                # fail loudly on a non-2xx so a broken tick shows up as a failed Job.
+                - >
+                  curl -sS --fail --max-time 40
+                  -X POST
+                  -H "Authorization: Bearer ${FORGE_TOKEN}"
+                  http://lattice-forge.sovereign-runtime.svc.cluster.local:8870/v1/run-due
+              env:
+                - name: FORGE_TOKEN
+                  valueFrom: { secretKeyRef: { name: lattice-forge-token, key: token } }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: ["ALL"] }
+              resources:
+                requests: { cpu: "10m", memory: "32Mi" }
+                limits:   { cpu: "100m", memory: "64Mi" }

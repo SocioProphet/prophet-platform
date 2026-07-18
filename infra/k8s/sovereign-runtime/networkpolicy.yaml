@@ -27,10 +27,11 @@ spec:
   podSelector: {}
   policyTypes: [Egress]
   egress:
-    - to:
-        - namespaceSelector:
-            matchLabels: { kubernetes.io/metadata.name: kube-system }
-      ports:
+    # DNS to ANY destination on port 53 — GKE NodeLocal DNSCache means pods resolve
+    # via the node-local link-local IP (169.254.20.10), NOT a kube-system pod, so a
+    # namespaceSelector rule silently blocks ALL DNS. Port-53-to-anywhere is the
+    # standard robust NetworkPolicy DNS allow; everything else stays default-denied.
+    - ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
 ---
