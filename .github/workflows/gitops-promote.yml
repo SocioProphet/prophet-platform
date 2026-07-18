@@ -53,7 +53,7 @@ jobs:
 
           if [ "$ALL" = "true" ]; then
             # one-time catch-up: every values file that pins a sha- tag
-            FILES=$(grep -lE 'tag: sha-[0-9a-f]+' deploy/values/*.yaml 2>/dev/null || true)
+            FILES=$(grep -lE 'tag: (sha-[0-9a-f]+|latest)\b' deploy/values/*.yaml 2>/dev/null || true)
           else
             # only the services whose source changed in this commit (image-name == dir-name convention)
             CHANGED=$(git show --name-only --pretty="" "$SHA" | grep -oE '^(apps|services)/[^/]+/' \
@@ -61,14 +61,14 @@ jobs:
             FILES=""
             for name in $CHANGED; do
               f="deploy/values/${name}.yaml"
-              [ -f "$f" ] && grep -qE 'tag: sha-[0-9a-f]+' "$f" && FILES="$FILES $f"
+              [ -f "$f" ] && grep -qE 'tag: (sha-[0-9a-f]+|latest)\b' "$f" && FILES="$FILES $f"
             done
           fi
 
           bumped=""
           for f in $FILES; do
             if grep -qE "tag: sha-${SHA}\b" "$f"; then continue; fi     # already current
-            sed -i -E "s#tag: sha-[0-9a-f]+#tag: sha-${SHA}#" "$f"
+            sed -i -E "s#tag: (sha-[0-9a-f]+|latest)\b#tag: sha-${SHA}#" "$f"
             bumped="$bumped $(basename "$f" .yaml)"
           done
 
