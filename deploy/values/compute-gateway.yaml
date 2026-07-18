@@ -1,0 +1,24 @@
+# compute-gateway — the Universal Compute Contract router (apps/compute-gateway).
+# One governed door for every kind of compute: routes notebook→lattice-forge and
+# graph→hellgraph-service through a single ComputeRequest→ComputeResult, applies
+# ONE uniform entitlement gate, seals ONE universal hash-chained receipt per run,
+# types the output's warrant, and writes the run's provenance subgraph back to the
+# graph. Control-plane only (executes no user code) → platform namespace.
+# tag:latest is a bootstrap; sha-pin after first build (gitops-promote only
+# MAINTAINS an existing sha- pin — a new latest service must be pinned once).
+image: { repository: compute-gateway, tag: latest }
+service: { port: 8080, portName: http }
+config:
+  FORGE_URL: "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870"
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  # THE uniform pay-gate across ALL compute kinds (generalizes STUDIO_COMPUTE_ENTITLEMENTS).
+  # Tokens: "*" | "<kind>" | "<kind>:<backend>" | "<project>" | "<project>:<kind>" | "<project>:<kind>:<backend>".
+  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats"
+  # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
+  GATEWAY_WRITE_PROVENANCE: "true"
+# GATEWAY_TOKEN provisioned out-of-band; FORGE_TOKEN is the SAME lattice-forge-token
+# already present in socioprophet (the gateway authenticates to the forge with it).
+secretEnv:
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+  FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
