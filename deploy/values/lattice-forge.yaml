@@ -8,7 +8,7 @@
 # ResourceQuota) because it executes untrusted user code. See
 # deploy/argocd/runtime-services.yaml + infra/k8s/sovereign-runtime/.
 # tag:latest → sha-pinned by gitops-promote after first build.
-image: { repository: lattice-forge, tag: latest }
+image: { repository: lattice-forge, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8870, portName: http }
 
 config:
