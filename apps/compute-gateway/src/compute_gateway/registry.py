@@ -66,6 +66,13 @@ KINDS: dict[str, dict] = {
         "capabilities": ["sec-edgar", "tolerance-check", "warrant-promotion", "divergence-flag"],
         "epistemic": "verified", "executes_user_code": False, "status": "live",
     },
+    # Load reconciled facts into the structured SQL layer (the doc→SQL sink), keyed by
+    # (entity, period, field) + warrant. Sovereign SQLite now; Postgres DSN = prod swap.
+    "load": {
+        "backends": ["sql"], "default": "sql",
+        "capabilities": ["upsert", "sqlite", "keyed-by-entity-period", "warrant-tagged"],
+        "epistemic": "derived", "executes_user_code": False, "status": "live",
+    },
 }
 
 
