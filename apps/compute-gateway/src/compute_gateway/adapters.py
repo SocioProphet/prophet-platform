@@ -21,6 +21,12 @@ SPARK_RUNNER_URL = os.getenv("SPARK_RUNNER_URL", "http://spark-runner:8080").rst
 SPARK_RUNNER_TOKEN = os.getenv("SPARK_RUNNER_TOKEN", "")
 MODEL_SERVER_URL = os.getenv("MODEL_SERVER_URL", "http://embeddings:8080").rstrip("/")
 MODEL_SERVER_TOKEN = os.getenv("MODEL_SERVER_TOKEN", "")
+# document extraction (Holmes/Sherlock via the Studio BFF) + the open-data reference source.
+EXTRACT_URL = os.getenv("EXTRACT_URL", "http://lattice-studio:8080").rstrip("/")
+EXTRACT_TOKEN = os.getenv("EXTRACT_TOKEN", "")
+# SEC EDGAR XBRL company-facts — public, keyless; the FactSet stand-in for reconciliation.
+SEC_EDGAR_URL = os.getenv("SEC_EDGAR_URL", "https://data.sec.gov").rstrip("/")
+SEC_EDGAR_UA = os.getenv("SEC_EDGAR_UA", "SocioProphet compute-gateway compliance@socioprophet.dev")
 TIMEOUT = float(os.getenv("GATEWAY_TIMEOUT", "90"))
 
 # adapter result shape: dict(outputs=[ComputeOutput], runtime, status, error, degraded)
@@ -136,6 +142,123 @@ async def _inference(req_spec: dict, project: str, session: str | None) -> Adapt
                 "error": None, "degraded": f"model-server unreachable: {e}"}
 
 
+# ── IFM: document → structured facts (extraction) + reconcile vs open data ──
+# Each extracted fact carries its lineage AND an epistemic warrant, so the desk can
+# gate what it trades on. observed = verbatim on the page; derived = computed.
+_WARRANT_ORDER = ["unknown", "hypothesis", "simulated", "observed", "derived", "verified", "attested"]
+
+
+def _norm_fact(f: dict) -> dict:
+    """Normalise an extracted fact into the ExtractedFact shape + default warrant."""
+    warrant = f.get("warrant")
+    if warrant not in _WARRANT_ORDER:
+        # verbatim-with-a-source-span is `observed`; anything computed is `derived`
+        warrant = "observed" if (f.get("verbatim") or f.get("source_span")) else "derived"
+    return {"field": f.get("field"), "value": f.get("value"), "unit": f.get("unit"),
+            "page": f.get("page"), "source_span": f.get("source_span"),
+            "confidence": f.get("confidence"), "warrant": warrant}
+
+
+async def _extraction(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Extract a document into typed rows against a target schema (Holmes/Sherlock via
+    the Studio extract path). Output warrant = the WEAKEST fact's warrant. If the spec
+    already carries `facts` (pre-parsed), extract is a no-op typing pass — useful for a
+    demo pack whose blocks were parsed upstream."""
+    schema = req_spec.get("target_schema", {})
+    facts = req_spec.get("facts")
+    if facts is None:
+        headers = {"Authorization": f"Bearer {EXTRACT_TOKEN}"} if EXTRACT_TOKEN else {}
+        body = {"project": project, "document": req_spec.get("document"),
+                "blocks": req_spec.get("blocks"), "target_schema": schema}
+        try:
+            async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
+                r = await c.post(f"{EXTRACT_URL}/api/studio/extract", json=body)
+                if r.status_code != 200:
+                    return {"outputs": [], "runtime": "holmes", "status": "error",
+                            "error": f"extract HTTP {r.status_code}", "degraded": None}
+                facts = r.json().get("facts", [])
+        except Exception as e:  # noqa: BLE001
+            return {"outputs": [], "runtime": "holmes", "status": "degraded", "error": None,
+                    "degraded": f"extractor unreachable: {e}"}
+    rows = [_norm_fact(f) for f in facts]
+    warrant = min((r["warrant"] for r in rows),
+                  key=lambda w: _WARRANT_ORDER.index(w)) if rows else "unknown"
+    return {"outputs": [ComputeOutput(type="table", data={
+                "table": schema.get("table"), "rows": rows,
+                "entity": req_spec.get("entity"), "period": req_spec.get("period")})],
+            "runtime": "holmes", "status": "ok", "error": None, "degraded": None,
+            "epistemic": warrant}
+
+
+# field → us-gaap XBRL concept (extend as the schema grows)
+_XBRL_CONCEPT = {
+    "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "revenues": "Revenues", "net_income": "NetIncomeLoss", "net_profit": "NetIncomeLoss",
+    "assets": "Assets", "liabilities": "Liabilities",
+}
+
+
+async def _sec_edgar_reference(entity: dict, field: str, period: str) -> float | None:
+    """Reference value from SEC EDGAR XBRL company-facts (public, keyless). `entity`
+    carries a zero-padded 10-digit `cik`. Returns the value whose fiscal period matches,
+    else None (unresolved → the fact simply can't reach `verified`)."""
+    cik = str(entity.get("cik", "")).zfill(10)
+    concept = _XBRL_CONCEPT.get(field.lower())
+    if not cik.strip("0") or concept is None:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, headers={"User-Agent": SEC_EDGAR_UA}) as c:
+            r = await c.get(f"{SEC_EDGAR_URL}/api/xbrl/companyconcept/CIK{cik}/us-gaap/{concept}.json")
+            if r.status_code != 200:
+                return None
+            for unit_rows in r.json().get("units", {}).values():
+                for row in unit_rows:
+                    if period and (row.get("fp") == period or row.get("frame", "").find(period) >= 0
+                                   or str(row.get("fy")) == period):
+                        return float(row["val"])
+    except Exception:  # noqa: BLE001
+        return None
+    return None
+
+
+# the reference resolver is injectable (tests supply a deterministic source; prod = SEC EDGAR)
+_REFERENCE = _sec_edgar_reference
+
+
+def set_reference_resolver(fn) -> None:
+    global _REFERENCE
+    _REFERENCE = fn
+
+
+async def _reconcile(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Reconcile extracted facts against a structured reference source (SEC EDGAR open
+    data now; FactSet on a key later — the logic is identical). Agreement within tolerance
+    PROMOTES a fact to `verified`; divergence is FLAGGED (the tradable edge). The step's
+    warrant is `verified` iff every fact reconciled, else `derived`."""
+    # `rows` is what the extraction step emits — accept it so a workflow can thread
+    # extraction → reconcile via `from` without a rename.
+    facts = req_spec.get("facts") or req_spec.get("rows") or []
+    entity = req_spec.get("entity", {})
+    period = req_spec.get("period", "")
+    tol = float(req_spec.get("tolerance", 0.01))   # 1% default
+    source = req_spec.get("source", "sec-edgar")
+    recs, all_ok = [], True
+    for f in facts:
+        field, val = f.get("field"), f.get("value")
+        ref = await _REFERENCE(entity, field, period)
+        within = ref is not None and val is not None and abs(float(val) - ref) <= abs(ref) * tol
+        delta = (float(val) - ref) if (ref is not None and val is not None) else None
+        warrant = "verified" if within else (f.get("warrant") or "derived")
+        all_ok = all_ok and within
+        recs.append({"field": field, "extracted": val, "reference": ref, "delta": delta,
+                     "within_tol": within, "warrant": warrant, "flagged": ref is not None and not within})
+    return {"outputs": [ComputeOutput(type="table", data={
+                "entity": entity, "period": period, "source": source,
+                "reconciliations": recs, "all_verified": all_ok and bool(recs)})],
+            "runtime": source, "status": "ok", "error": None, "degraded": None,
+            "epistemic": "verified" if (all_ok and recs) else "derived"}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
@@ -143,6 +266,8 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "hellgraph:graph-stats": lambda spec, project, session: _hellgraph_stats(spec, project),
     "spark-runner": lambda spec, project, session: _spark(spec, project, session),
     "model-server": lambda spec, project, session: _inference(spec, project, session),
+    "holmes": lambda spec, project, session: _extraction(spec, project, session),
+    "open-data": lambda spec, project, session: _reconcile(spec, project, session),
 }
 
 
