@@ -8,7 +8,7 @@
 #
 # It stays inside the isolated sovereign-runtime namespace (default-deny +
 # intra-namespace allow), so `http://lattice-forge:8870` resolves without any new
-# egress. It carries the SAME lattice-forge-token secret the forge validates, so a
+# egress (use the FQDN — a musl/curl pod does not resolve the bare single-label name via search domains). It carries the SAME lattice-forge-token secret the forge validates, so a
 # tick is authenticated exactly like a user call — no unauthenticated backdoor.
 #
 # PodSecurity: the namespace enforces `restricted`, so the pod is non-root, drops
@@ -49,7 +49,7 @@ spec:
                   curl -sS --fail --max-time 40
                   -X POST
                   -H "Authorization: Bearer ${FORGE_TOKEN}"
-                  http://lattice-forge:8870/v1/run-due
+                  http://lattice-forge.sovereign-runtime.svc.cluster.local:8870/v1/run-due
               env:
                 - name: FORGE_TOKEN
                   valueFrom: { secretKeyRef: { name: lattice-forge-token, key: token } }
