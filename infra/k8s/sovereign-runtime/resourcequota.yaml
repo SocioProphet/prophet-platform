@@ -1,0 +1,27 @@
+# Cap the blast radius: a runaway kernel or fat Spark job cannot starve the
+# platform — it is bounded inside the namespace's budget.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sovereign-runtime-quota
+  namespace: sovereign-runtime
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "12"
+    limits.memory: 24Gi
+    pods: "24"
+    count/services: "8"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sovereign-runtime-limits
+  namespace: sovereign-runtime
+spec:
+  limits:
+    - type: Container
+      default: { cpu: "1", memory: 1Gi }
+      defaultRequest: { cpu: "100m", memory: 256Mi }
+      max: { cpu: "3", memory: 4Gi }

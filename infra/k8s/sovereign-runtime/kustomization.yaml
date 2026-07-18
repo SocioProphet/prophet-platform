@@ -1,0 +1,9 @@
+# sovereign-runtime — the isolated namespace for services that execute user code
+# (lattice-forge notebooks, spark). Default-deny networking, quota, restricted PSA.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - networkpolicy.yaml
+  - resourcequota.yaml
+  - jupyterlab.yaml

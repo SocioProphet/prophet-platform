@@ -1,0 +1,43 @@
+# Argo CD ApplicationSet — runtime services that EXECUTE USER CODE, isolated in
+# the `sovereign-runtime` namespace (its guardrails come from the separate
+# sovereign-runtime-namespace Application). Same reusable chart + per-service
+# values as platform-services, but a different, locked-down destination namespace.
+# Spark runtime moves here too (Michael's steer) once vendored.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: runtime-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: lattice-forge }
+  template:
+    metadata:
+      name: 'svc-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: socioprophet
+        socioprophet.dev/trust-boundary: executes-user-code
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          ref: values
+        - repoURL: https://github.com/SocioProphet/prophet-platform
+          targetRevision: main
+          path: charts/socioprophet-service
+          helm:
+            releaseName: '{{.name}}'
+            valueFiles:
+              - '$values/deploy/values/{{.name}}.yaml'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: sovereign-runtime
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - ServerSideApply=true

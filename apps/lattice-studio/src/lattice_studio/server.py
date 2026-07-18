@@ -56,6 +56,10 @@ RECEIPT_SERVICES = [s.strip() for s in os.getenv(
     "STUDIO_RECEIPT_SERVICES",
     "hellgraph-service,lattice-studio,search-orchestrator,owl-reasoner,entity-resolution,eval-fabric-api",
 ).split(",") if s.strip()]
+# Notebook runtime (lattice-forge, in the isolated sovereign-runtime namespace).
+FORGE_URL = os.getenv("FORGE_URL", "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870")
+FORGE_TOKEN = os.getenv("FORGE_TOKEN", "")
+FORGE_TIMEOUT = float(os.getenv("FORGE_TIMEOUT", "90"))
 
 app = FastAPI(title="Lattice Studio BFF", version=SERVICE_VERSION)
 
@@ -2717,3 +2721,71 @@ async def graph_ttl(project: str = "default", limit: int = 500, _auth: dict[str,
             continue
         g.add((_local(src), SP[str(label)], _local(tgt)))
     return Response(content=g.serialize(format="turtle"), media_type="text/turtle")
+
+
+# ── Notebook runtime proxy → lattice-forge (isolated sovereign-runtime) ──────
+# The BFF is the ONLY thing that talks to the forge; forge/JupyterLab are never
+# exposed directly. Governance (receipts) lives in the forge; we relay + surface.
+def _forge_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {FORGE_TOKEN}"} if FORGE_TOKEN else {}
+
+
+async def _forge(method: str, path: str, *, json: Any | None = None, params: dict | None = None) -> tuple[Any, str | None]:
+    try:
+        async with httpx.AsyncClient(timeout=FORGE_TIMEOUT, headers=_forge_headers()) as c:
+            r = await c.request(method, f"{FORGE_URL}{path}", json=json, params=params)
+            if r.status_code == 200:
+                return r.json(), None
+            return None, f"forge HTTP {r.status_code}"
+    except Exception as exc:  # noqa: BLE001
+        return None, str(exc)
+
+
+class NotebookSession(BaseModel):
+    project: str = "default"
+    adapter: str | None = None
+    name: str | None = None
+
+
+class NotebookExec(BaseModel):
+    project: str = "default"
+    code: str
+    language: str = "python"
+    adapter: str | None = None
+    session_id: str | None = None
+
+
+@app.get("/api/studio/notebook/adapters")
+async def nb_adapters() -> dict[str, Any]:
+    data, err = await _forge("GET", "/v1/adapters")
+    return data or {"degraded": err, "default": "jupyterlab", "adapters": {}}
+
+
+@app.post("/api/studio/notebook/session")
+async def nb_create_session(req: NotebookSession) -> dict[str, Any]:
+    data, err = await _forge("POST", "/v1/session",
+                             json={"project": req.project, "adapter": req.adapter, "name": req.name})
+    if err:
+        return {"degraded": err}
+    return data
+
+
+@app.get("/api/studio/notebook/sessions")
+async def nb_sessions(project: str = "default") -> dict[str, Any]:
+    data, err = await _forge("GET", "/v1/sessions", params={"project": project})
+    return data or {"project": project, "sessions": [], "degraded": err}
+
+
+@app.post("/api/studio/notebook/execute")
+async def nb_execute(req: NotebookExec) -> dict[str, Any]:
+    data, err = await _forge("POST", "/v1/execute", json=req.model_dump())
+    if err:
+        # honest degradation — the surface shows "runtime unavailable", never a fake result
+        return {"status": "degraded", "degraded": err, "outputs": [], "receipt": None}
+    return data
+
+
+@app.get("/api/studio/notebook/receipts")
+async def nb_receipts(project: str = "default") -> dict[str, Any]:
+    data, err = await _forge("GET", "/v1/receipts", params={"project": project})
+    return data or {"project": project, "receipts": [], "count": 0, "degraded": err}

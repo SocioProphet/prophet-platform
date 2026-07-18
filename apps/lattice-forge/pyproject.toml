@@ -1,0 +1,9 @@
+[project]
+name = "lattice-forge"
+version = "0.1.0"
+description = "Governed, adapter-based notebook runtime (headless exec + JupyterLab broker) with hash-chained receipts."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
