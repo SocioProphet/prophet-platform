@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import engine, planner, receipts, registry, zerotrust
+from . import engine, planner, receipts, registry, rocrate, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -101,6 +101,19 @@ def attestation_view(project: str = "default", receipt_id: str | None = None,
         return {"project": project, "attestation": zerotrust.attestation_bundle(match)}
     return {"project": project, "count": len(ch),
             "attestations": [zerotrust.attestation_bundle(r) for r in ch]}
+
+
+@app.get("/v1/receipts/{receipt_id}/ro-crate")
+def ro_crate_view(receipt_id: str, project: str = "default",
+                  _: None = Depends(require_token)) -> dict:
+    """Export a sealed run as an RO-Crate 1.1 research object (JSON-LD) — the
+    portable, citable, self-verifying packaging the science ecosystem speaks
+    (Galaxy/WorkflowHub/Nextflow). Carries content-addressed I/O, PROV-O, and the
+    embedded in-toto/Ed25519 attestation."""
+    match = next((r for r in receipts.chain(project) if r.id == receipt_id), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"no receipt {receipt_id} in project {project}")
+    return rocrate.build(match)
 
 
 @app.get("/v1/receipts")
