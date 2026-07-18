@@ -1,5 +1,5 @@
 # liberty-stack-readout — Liberty Stack subject/combined readout API (apps/liberty-stack-readout). Real FastAPI
 # service (built + 9 tests but never shipped). Vendored into CI this PR. tag:latest → sha-pin next build.
-image: { repository: liberty-stack-readout, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
+image: { repository: liberty-stack-readout, tag: latest }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

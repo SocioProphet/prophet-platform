@@ -1,4 +1,4 @@
 # osm-map-api
-image: { repository: osm-map-api, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
+image: { repository: osm-map-api, tag: latest }
 service: { port: 8088, portName: http }  # app binds 8088 (uvicorn); chart uses this for containerPort + probes
 enableServiceLinks: false   # k8s injects OSM_MAP_API_PORT=tcp://<svc> otherwise → app int() crash

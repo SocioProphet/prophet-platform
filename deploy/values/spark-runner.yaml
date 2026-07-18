@@ -1,6 +1,6 @@
 # spark-runner — the sovereign Apache Spark execution backend for the Studio execution plane (apps/spark-runner).
 # Pinned to the immutable sha- tag from the apps/spark-runner build (never a moving :latest).
-image: { repository: spark-runner, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
+image: { repository: spark-runner, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default).
 config:

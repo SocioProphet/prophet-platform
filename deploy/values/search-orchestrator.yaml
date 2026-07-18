@@ -1,4 +1,4 @@
 # search-orchestrator — search/index daemon
-image: { repository: search-orchestrator, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
+image: { repository: search-orchestrator, tag: latest }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 4 }
