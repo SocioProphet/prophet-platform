@@ -9,7 +9,7 @@ os.environ["GATEWAY_WRITE_PROVENANCE"] = "false"          # no network in tests
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from compute_gateway import adapters, receipts, server  # noqa: E402
+from compute_gateway import adapters, engine, receipts, server  # noqa: E402
 from compute_gateway.contract import ComputeOutput  # noqa: E402
 
 importlib.reload(server)
@@ -18,7 +18,9 @@ AUTH = {"Authorization": "Bearer t"}
 
 
 def setup_function():
+    os.environ["COMPUTE_ENTITLEMENTS"] = "demo,graph-query,graph-stats"   # pin: sibling modules mutate the shared env
     receipts._CHAINS.clear()
+    engine._MEMO.clear()                                                  # memo persists across modules → clear it
     # deterministic fakes for both backends
     async def fake_forge(spec, project, session):
         return {"outputs": [ComputeOutput(type="result", text=f"ran:{spec.get('code')}")],

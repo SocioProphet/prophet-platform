@@ -28,6 +28,7 @@ AUTH = {"Authorization": "Bearer t"}
 
 
 def setup_function():
+    os.environ["COMPUTE_ENTITLEMENTS"] = "demo,graph-query,graph-stats,spark"   # pin: shared env
     receipts._CHAINS.clear()
     engine._MEMO.clear()
     zerotrust.ZEROTRUST_ENFORCE = False

@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import engine, planner, receipts, registry, rocrate, zerotrust
+from . import artifacts, engine, planner, receipts, registry, rocrate, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -101,6 +101,33 @@ def attestation_view(project: str = "default", receipt_id: str | None = None,
         return {"project": project, "attestation": zerotrust.attestation_bundle(match)}
     return {"project": project, "count": len(ch),
             "attestations": [zerotrust.attestation_bundle(r) for r in ch]}
+
+
+@app.get("/v1/artifacts/stats")
+def artifacts_stats(_: None = Depends(require_token)) -> dict:
+    """Content-addressed store stats — unique blobs vs total puts (dedup at work)."""
+    return artifacts.stats()
+
+
+@app.get("/v1/artifacts/{digest}")
+def artifact_get(digest: str, _: None = Depends(require_token)) -> dict:
+    """Fetch a blob by its content address. Digest carries the `sha256:` prefix."""
+    blob = artifacts.get(digest)
+    if blob is None:
+        raise HTTPException(status_code=404, detail=f"no artifact {digest}")
+    return {"digest": digest, "blob": blob}
+
+
+@app.get("/v1/diff")
+def diff_view(a: str, b: str, _: None = Depends(require_token)) -> dict:
+    """Data-level diff of two runs by their receipt ids — shared/added/removed
+    output blobs. Reproducibility you can see: identical inputs ⇒ identical digests."""
+    return artifacts.diff(a, b)
+
+
+@app.get("/v1/receipts/{receipt_id}/artifacts")
+def receipt_artifacts(receipt_id: str, _: None = Depends(require_token)) -> dict:
+    return {"receipt": receipt_id, "artifacts": artifacts.for_receipt(receipt_id)}
 
 
 @app.get("/v1/receipts/{receipt_id}/ro-crate")
