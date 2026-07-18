@@ -36,7 +36,7 @@ import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
-import { pagerank, connectedComponents, analyticsBackend } from './analytics.js'
+import { pagerank, connectedComponents, bfs, sssp, cdlp, analyticsBackend } from './analytics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -69,13 +69,23 @@ const server = http.createServer((req, res) => {
 
   // Graph analytics over the BENCHMARKED Rust CSR kernel (hg_analytics via N-API) — the same code
   // hellgraph-bench measured, now actually running in the shipping service. `backend` reports whether the
-  // native kernel or the TS fallback served the result (no silent swap). metric = pagerank | components.
+  // native kernel or the TS fallback served it (no silent swap). The full LDBC-style suite:
+  //   pagerank | components (WCC) | bfs&source= | sssp&source= | cdlp[&iters=].
+  // bfs/sssp/cdlp are native-only (the fast Rust kernel is THE path — no slow TS re-implementation).
   if (req.method === 'GET' && url.pathname === '/api/graph/analytics') {
     const metric = url.searchParams.get('metric') ?? 'pagerank'
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 20), 500)
     if (metric === 'components') return json(res, 200, connectedComponents(g))
     if (metric === 'pagerank') return json(res, 200, { metric, ...pagerank(g, limit) })
-    return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components)` })
+    try {
+      if (metric === 'cdlp') return json(res, 200, { metric, ...cdlp(g, Math.min(Number(url.searchParams.get('iters') ?? 10), 100)) })
+      if (metric === 'bfs' || metric === 'sssp') {
+        const source = url.searchParams.get('source')
+        if (!source) return json(res, 400, { error: `metric '${metric}' needs ?source=<nodeId>` })
+        return json(res, 200, { metric, ...(metric === 'bfs' ? bfs(g, source) : sssp(g, source)) })
+      }
+    } catch (e) { return json(res, 500, { error: String(e) }) }
+    return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components | bfs | sssp | cdlp)` })
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/node') {
@@ -117,6 +127,53 @@ const server = http.createServer((req, res) => {
     // induced subgraph: keep an edge only when both endpoints are in the node set (no dangling)
     const edges = g.allEdges().filter((e) => ids.has(e.from) && ids.has(e.to))
     return json(res, 200, { count: nodes.length, edges: edges.length, nodes, edgeList: edges })
+  }
+
+  // Explorer "surface": the highest-degree induced neighbourhood shaped for a force/radial graph UI.
+  // Mirrors the agent-machine /api/graph/surface contract (view + root + degree + featured) so the
+  // cockpit KnowledgeGraph and the Studio GraphExplorer read ONE canonical backend with identical UX.
+  if (req.method === 'GET' && url.pathname === '/api/graph/surface') {
+    const view = url.searchParams.get('view') ?? 'all'
+    const root = url.searchParams.get('root') ?? ''
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? 34), 500)
+    const allEdges = g.allEdges()
+    const deg = new Map<string, number>()
+    for (const e of allEdges) { deg.set(e.from, (deg.get(e.from) ?? 0) + 1); deg.set(e.to, (deg.get(e.to) ?? 0) + 1) }
+    const categorize = (labels: string[]): string => {
+      const l = (labels ?? []).map((x) => x.toLowerCase())
+      const has = (s: string) => l.some((x) => x.includes(s))
+      if (has('code') || has('module') || has('service') || has('repo') || has('feature-atom')) return 'code'
+      if (has('doc') || has('interaction') || has('note') || has('episode')) return 'docs'
+      if (has('person') || has('people') || has('agent') || has('org') || has('company')) return 'people'
+      if (has('course') || has('concept') || has('learn') || has('skill') || has('topic') || has('ontolog') || has('class') || has('kpi') || has('driver')) return 'learning'
+      return labels && labels[0] ? labels[0].toLowerCase() : 'default'
+    }
+    const VIEW: Record<string, string[]> = {
+      knowledge: ['learning', 'knowledge', 'concept', 'topic'],
+      tech: ['code', 'tech'],
+      people: ['people', 'person'],
+    }
+    let pool = g.allNodes().map((n) => ({
+      id: n.id,
+      label: (n.properties?.['name'] as string) ?? (n.properties?.['label'] as string) ?? n.id,
+      category: categorize(n.labels),
+      degree: deg.get(n.id) ?? 0,
+    }))
+    if (VIEW[view]) pool = pool.filter((n) => VIEW[view]!.includes(n.category))
+    if (root) {
+      const nbr = new Set<string>([root])
+      for (const e of allEdges) { if (e.from === root) nbr.add(e.to); if (e.to === root) nbr.add(e.from) }
+      pool = pool.filter((n) => nbr.has(n.id))
+    }
+    pool.sort((a, b) => b.degree - a.degree)
+    const picked = pool.slice(0, limit)
+    const featuredId = root || (picked[0]?.id ?? '')
+    const nodes = picked.map((n) => ({ ...n, kind: n.category, kvClass: n.category, featured: n.id === featuredId }))
+    const pids = new Set(nodes.map((n) => n.id))
+    const links = allEdges
+      .filter((e) => pids.has(e.from) && pids.has(e.to))
+      .map((e) => ({ source: e.from, target: e.to, primary: !!root && (e.from === root || e.to === root), epistemic: 'derived', dimension: e.label }))
+    return json(res, 200, { nodes, links, total: { nodes: pool.length, edges: links.length } })
   }
 
   // Dereferenceable resource description (Linked-Data publishing): GET the URI, get its Concise Bounded
