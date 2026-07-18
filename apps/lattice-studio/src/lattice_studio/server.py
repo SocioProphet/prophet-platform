@@ -2841,3 +2841,18 @@ async def compute_run(req: ComputeRun) -> dict[str, Any]:
 async def compute_receipts(project: str = "default") -> dict[str, Any]:
     data, err = await _gateway("GET", "/v1/receipts", params={"project": project})
     return data or {"project": project, "receipts": [], "count": 0, "degraded": err}
+
+
+class ComputePlan(BaseModel):
+    capabilities: list[str] = []
+    project: str = "default"
+    intent: str | None = None
+    entitlement: str | None = None
+
+
+@app.post("/api/studio/compute/plan")
+async def compute_plan(req: ComputePlan) -> dict[str, Any]:
+    """Plan a governed workflow over the capability registry (the agent action space).
+    A preview — returns a runnable workflow spec the surface hands back to /run."""
+    data, err = await _gateway("POST", "/v1/plan", json=req.model_dump())
+    return data or {"strategy": "degraded", "degraded": err, "plan": None, "steps": []}
