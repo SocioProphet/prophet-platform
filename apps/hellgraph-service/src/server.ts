@@ -36,7 +36,7 @@ import * as engine from '@socioprophet/hellgraph'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
-import { pagerank, connectedComponents, bfs, sssp, cdlp, analyticsBackend } from './analytics.js'
+import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend } from './analytics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -79,13 +79,14 @@ const server = http.createServer((req, res) => {
     if (metric === 'pagerank') return json(res, 200, { metric, ...pagerank(g, limit) })
     try {
       if (metric === 'cdlp') return json(res, 200, { metric, ...cdlp(g, Math.min(Number(url.searchParams.get('iters') ?? 10), 100)) })
+      if (metric === 'lcc') return json(res, 200, { metric, ...lcc(g) })
       if (metric === 'bfs' || metric === 'sssp') {
         const source = url.searchParams.get('source')
         if (!source) return json(res, 400, { error: `metric '${metric}' needs ?source=<nodeId>` })
         return json(res, 200, { metric, ...(metric === 'bfs' ? bfs(g, source) : sssp(g, source)) })
       }
     } catch (e) { return json(res, 500, { error: String(e) }) }
-    return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components | bfs | sssp | cdlp)` })
+    return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components | bfs | sssp | cdlp | lcc)` })
   }
 
   if (req.method === 'POST' && url.pathname === '/api/graph/node') {

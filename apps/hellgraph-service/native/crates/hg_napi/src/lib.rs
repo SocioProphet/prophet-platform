@@ -3,7 +3,7 @@
 //! This is the SAME Rust kernel measured in hellgraph-bench (PreparedGraph CSR + parallel PageRank / WCC),
 //! exposed to the Node hellgraph-service so the SHIPPING product runs the benchmarked code — not a separate
 //! single-threaded TS re-implementation. Edges are passed as parallel from/to index arrays (dense 0..n ids).
-use hg_analytics::{bfs_parallel, cdlp_parallel, connected_components_parallel, sssp_parallel, PreparedGraph};
+use hg_analytics::{bfs_parallel, cdlp_parallel, connected_components_parallel, lcc_parallel, sssp_parallel, PreparedGraph};
 use napi_derive::napi;
 
 fn zip_edges(from: &[u32], to: &[u32]) -> Vec<(usize, usize)> {
@@ -44,6 +44,13 @@ pub fn sssp(node_count: u32, edges_from: Vec<u32>, edges_to: Vec<u32>, weights: 
 pub fn cdlp(node_count: u32, edges_from: Vec<u32>, edges_to: Vec<u32>, iters: u32) -> Vec<u32> {
     let edges = zip_edges(&edges_from, &edges_to);
     cdlp_parallel(node_count as usize, &edges, iters as usize)
+}
+
+/// LCC — local clustering coefficient per node (simple undirected graph, triangle counting). One value in [0,1] per node.
+#[napi]
+pub fn lcc(node_count: u32, edges_from: Vec<u32>, edges_to: Vec<u32>) -> Vec<f64> {
+    let edges = zip_edges(&edges_from, &edges_to);
+    lcc_parallel(node_count as usize, &edges)
 }
 
 /// Identifies the kernel so the service can log which analytics backend is live.
