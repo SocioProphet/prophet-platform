@@ -17,10 +17,11 @@ os.environ["GATEWAY_SIGNING_KEY"] = base64.b64encode(b"0" * 32).decode()
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from compute_gateway import adapters, receipts, registry, server, zerotrust  # noqa: E402
+from compute_gateway import adapters, engine, receipts, registry, server, zerotrust  # noqa: E402
 from compute_gateway.contract import ComputeOutput  # noqa: E402
 
 importlib.reload(zerotrust)
+importlib.reload(engine)
 importlib.reload(server)
 client = TestClient(server.app)
 AUTH = {"Authorization": "Bearer t"}
@@ -28,7 +29,7 @@ AUTH = {"Authorization": "Bearer t"}
 
 def setup_function():
     receipts._CHAINS.clear()
-    server._MEMO.clear()
+    engine._MEMO.clear()
     zerotrust.ZEROTRUST_ENFORCE = False
 
     async def fake_forge(spec, project, session):
