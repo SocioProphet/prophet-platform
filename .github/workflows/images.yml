@@ -64,6 +64,7 @@ jobs:
           - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
           - { image: search-gateway,        context: apps/search-gateway,        dockerfile: Dockerfile }
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }
+          - { image: lattice-forge,         context: apps/lattice-forge,         dockerfile: Dockerfile }
           - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
           - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }

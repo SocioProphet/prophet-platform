@@ -1,0 +1,86 @@
+# sovereign-runtime network isolation. This namespace executes untrusted user
+# code (notebook kernels, Spark jobs), so it is default-deny with a tiny egress
+# allowlist (DNS + the specific governed in-cluster services).
+#
+# NOTE on metadata: NetworkPolicy rules are ADDITIVE allows — there is no "deny"
+# rule. Because egress is a strict allowlist that never includes the internet,
+# the GKE metadata endpoint (169.254.169.254) is UNREACHABLE by construction —
+# the classic notebook/CI token-theft path is closed. We deliberately do NOT add
+# an "allow 0.0.0.0/0 except metadata" rule: that would OPEN the whole internet.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: sovereign-runtime
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  # no ingress/egress rules → everything denied by default
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: sovereign-runtime
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+# egress to ONLY the governed in-cluster services the forge needs
+# (tritfabric + governance ledger). No general internet: dependencies come from
+# the governed image/channels, not pip-at-runtime.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-governed-services
+  namespace: sovereign-runtime
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: socioprophet }
+      ports:
+        - { protocol: TCP, port: 8750 }   # tritfabric
+        - { protocol: TCP, port: 8760 }   # model-governance-ledger
+---
+# forge <-> jupyterlab may talk within the isolated namespace (broker → runtime)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: sovereign-runtime
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: {} }]
+  egress:
+    - to: [{ podSelector: {} }]
+---
+# ingress from the socioprophet namespace: the lattice-studio BFF reaches the
+# forge (8870) and proxies JupyterLab (8888). JupyterLab is never exposed direct.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-from-platform
+  namespace: sovereign-runtime
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: socioprophet }
+      ports:
+        - { protocol: TCP, port: 8870 }
+        - { protocol: TCP, port: 8888 }

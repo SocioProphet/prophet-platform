@@ -1,0 +1,24 @@
+# Argo CD Application — the sovereign-runtime namespace + its isolation
+# (default-deny NetworkPolicies, ResourceQuota/LimitRange, restricted PSA).
+# Kept SEPARATE from the workloads so the guardrails exist before anything runs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sovereign-runtime-namespace
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: socioprophet
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/sovereign-runtime
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sovereign-runtime
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

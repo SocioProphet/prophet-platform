@@ -1,0 +1,47 @@
+# lattice-forge — governed, adapter-based notebook runtime (apps/lattice-forge).
+# Headless nbclient execution + JupyterLab session broker, every cell sealed into
+# a hash-chained receipt mirrored to the governance ledger. Adapter-based per the
+# NotebookSurfacePlane (jupyterlab default; NOT hard-coded as the ontology).
+#
+# ISOLATION: deployed by the `runtime-services` ApplicationSet into its OWN
+# `sovereign-runtime` namespace (default-deny NetworkPolicy, no metadata egress,
+# ResourceQuota) because it executes untrusted user code. See
+# deploy/argocd/runtime-services.yaml + infra/k8s/sovereign-runtime/.
+# tag:latest → sha-pinned by gitops-promote after first build.
+image: { repository: lattice-forge, tag: latest }
+service: { port: 8870, portName: http }
+
+config:
+  # governed in-cluster dependencies only (egress allowlist enforces this)
+  TRITFABRIC_URL: "http://tritfabric.socioprophet.svc.cluster.local:8750"
+  GOVERNANCE_LEDGER_URL: "http://model-governance-ledger.socioprophet.svc.cluster.local:8760"
+  # JupyterLab broker target (the jupyterlab adapter) — the real Lab deployed in
+  # this namespace (infra/k8s/sovereign-runtime/jupyterlab.yaml). The BFF proxies it.
+  JUPYTERLAB_URL: "http://jupyterlab.sovereign-runtime.svc.cluster.local:8888"
+  FORGE_EXEC_TIMEOUT: "60"
+  # readOnlyRootFilesystem is true (chart default) → keep kernel scratch on the tmpfs
+  JUPYTER_RUNTIME_DIR: "/tmp/jupyter"
+  IPYTHONDIR: "/tmp/ipython"
+  HOME: "/tmp"
+
+# FORGE_TOKEN provisioned out-of-band (kubectl -n sovereign-runtime create secret
+# generic lattice-forge-token --from-literal=token=$(openssl rand -hex 32)).
+# Absent → the service is fail-closed (503 on protected routes).
+secretEnv:
+  FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
+
+# executes user code → give it real but bounded headroom; tmpfs for kernels.
+resources:
+  requests: { cpu: "150m", memory: "384Mi" }
+  limits:   { cpu: "1500m", memory: "1536Mi" }
+tmpDir: { enabled: true, sizeLimit: "512Mi" }
+writableDirs: ["/tmp"]
+
+probes:
+  readiness: { path: /healthz, port: 8870 }
+  liveness:  { path: /healthz, port: 8870 }
+
+# persistent per-session kernels are POD-LOCAL state → single replica, no HPA.
+# (Horizontal scale needs sticky sessions / a per-user JupyterHub spawner — next step.)
+replicaCount: 1
+autoscaling: { enabled: false }

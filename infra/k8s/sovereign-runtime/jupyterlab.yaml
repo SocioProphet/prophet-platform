@@ -1,0 +1,67 @@
+# JupyterLab — the default interactive notebook runtime (the plane's
+# defaultAdapter), deployed INTO the isolated sovereign-runtime namespace.
+# lattice-forge brokers governed per-project sessions to it; the Studio surface
+# opens it in a new tab. Real Jupyter, wrapped in the estate's governance +
+# network isolation (no metadata egress, default-deny + allowlist).
+#
+# v1 = one governed shared Lab in the locked-down namespace. Per-user isolation
+# via JupyterHub (hub + spawner) is the documented next step.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jupyterlab
+  namespace: sovereign-runtime
+  labels: { app: jupyterlab, socioprophet.dev/trust-boundary: executes-user-code }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: jupyterlab } }
+  template:
+    metadata:
+      labels: { app: jupyterlab }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: jupyterlab
+          # third-party image — pin to a digest before prod (not on our sha pipeline).
+          image: quay.io/jupyter/base-notebook:python-3.12
+          args:
+            - "start-notebook.py"
+            - "--IdentityProvider.token=$(JUPYTER_TOKEN)"
+            - "--ServerApp.base_url=/lab"
+          env:
+            - name: JUPYTER_TOKEN
+              valueFrom: { secretKeyRef: { name: jupyterlab-token, key: token } }
+            - name: JUPYTER_ENABLE_LAB
+              value: "yes"
+          ports:
+            - { name: http, containerPort: 8888 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+            # jupyter needs a writable home; keep the rest of the fs immutable via the emptyDir mount
+          volumeMounts:
+            - { name: home, mountPath: /home/jovyan }
+          readinessProbe:
+            httpGet: { path: /lab/api, port: 8888 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "250m", memory: "512Mi" }
+            limits:   { cpu: "2", memory: "4Gi" }
+      volumes:
+        - name: home
+          emptyDir: { sizeLimit: "2Gi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterlab
+  namespace: sovereign-runtime
+spec:
+  selector: { app: jupyterlab }
+  ports:
+    - { name: http, port: 8888, targetPort: 8888 }
