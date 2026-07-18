@@ -1,5 +1,5 @@
 # socioprophet-api — tritRPC core API
-image: { repository: socioprophet-api, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
+image: { repository: socioprophet-api, tag: latest }
 service: { port: 9000, portName: tritrpc }
 probes: { enabled: true, httpGet: false }   # raw tritRPC, no HTTP health
 config:
