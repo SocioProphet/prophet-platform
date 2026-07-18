@@ -51,6 +51,21 @@ KINDS: dict[str, dict] = {
         "capabilities": ["dag", "compose", "fan-in", "memoized-steps"],
         "epistemic": "derived", "executes_user_code": False, "status": "live",
     },
+    # ── IFM: document → SQL, proof-carrying ──
+    # Extract a (graphics-heavy) document into typed rows against a target schema;
+    # each fact carries its lineage + warrant. Backend = Holmes/Sherlock (Studio).
+    "extraction": {
+        "backends": ["holmes"], "default": "holmes",
+        "capabilities": ["pdf", "pptx", "tables", "typed-rows", "source-spans"],
+        "epistemic": "derived", "executes_user_code": False, "status": "live",
+    },
+    # Reconcile extracted facts against a structured reference (SEC EDGAR open data
+    # now; FactSet on a key later). Agreement → verified; divergence → flagged edge.
+    "reconcile": {
+        "backends": ["open-data"], "default": "open-data",
+        "capabilities": ["sec-edgar", "tolerance-check", "warrant-promotion", "divergence-flag"],
+        "epistemic": "verified", "executes_user_code": False, "status": "live",
+    },
 }
 
 

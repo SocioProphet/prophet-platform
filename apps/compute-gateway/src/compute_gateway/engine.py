@@ -43,8 +43,17 @@ class WorkflowError(ValueError):
     pass
 
 
+def _as_list(x) -> list[str]:
+    return [] if x is None else ([x] if isinstance(x, str) else list(x))
+
+
+def _deps(s: dict) -> list[str]:
+    """A step depends on its explicit `needs` AND any `from` it threads data out of."""
+    return list(dict.fromkeys((s.get("needs", []) or []) + _as_list(s.get("from"))))
+
+
 def _topo_order(steps: list[dict]) -> list[dict]:
-    """Kahn topological sort of steps by their `needs`. Raises on unknown dep or cycle."""
+    """Kahn topological sort of steps by their `needs`/`from`. Raises on unknown dep or cycle."""
     by_id = {}
     for s in steps:
         sid = s.get("id")
@@ -53,7 +62,7 @@ def _topo_order(steps: list[dict]) -> list[dict]:
         by_id[sid] = s
     indeg = {sid: 0 for sid in by_id}
     for s in steps:
-        for dep in s.get("needs", []) or []:
+        for dep in _deps(s):
             if dep not in by_id:
                 raise WorkflowError(f"step '{s['id']}' needs unknown step '{dep}'")
             indeg[s["id"]] += 1
@@ -63,7 +72,7 @@ def _topo_order(steps: list[dict]) -> list[dict]:
         sid = ready.pop(0)
         order.append(by_id[sid])
         for s in steps:
-            if sid in (s.get("needs", []) or []):
+            if sid in _deps(s):
                 indeg[s["id"]] -= 1
                 if indeg[s["id"]] == 0:
                     ready.append(s["id"])
@@ -91,13 +100,22 @@ async def _orchestrate(req: ComputeRequest, depth: int) -> tuple[dict, list[dict
 
     summaries: list[dict] = []
     receipt_ids: list[str] = []
+    outputs_by_id: dict[str, dict] = {}   # step id → its primary output data (for `from` threading)
     status = "ok"
     for s in ordered:
+        # data threading: a step pulls the output of the step(s) it declares `from`, so a
+        # pipeline (extract → reconcile → load) passes real data, not just governance order.
+        # Explicit spec fields win over threaded ones.
+        spec = {}
+        for src in _as_list(s.get("from")):
+            spec.update(outputs_by_id.get(src, {}))
+        spec.update(s.get("spec") or {})
         step_req = ComputeRequest(
-            kind=s.get("kind", ""), spec=s.get("spec", {}) or {}, backend=s.get("backend"),
+            kind=s.get("kind", ""), spec=spec, backend=s.get("backend"),
             project=req.project, entitlement=req.entitlement, grant_id=req.grant_id,
             actor=req.actor, session=req.session, no_cache=req.no_cache)
         res = await execute(step_req, _depth=depth + 1)
+        outputs_by_id[s["id"]] = (res.outputs[0].data if res.outputs and res.outputs[0].data else {})
         summaries.append({
             "id": s["id"], "kind": res.kind, "backend": res.backend, "status": res.status,
             "epistemic_status": res.epistemic_status,
@@ -164,6 +182,9 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
         raw = await adapters.dispatch(kind, backend, req.spec, req.project, req.session)
         step_receipt_ids = []
     status = raw["status"]
+    # an adapter may TYPE the warrant dynamically (extraction = weakest extracted fact;
+    # reconcile → verified only when every fact reconciled). Falls back to the kind default.
+    epistemic = raw.get("epistemic", epistemic)
 
     receipt = receipts.seal(
         req.project, kind=kind, backend=backend, runtime=raw["runtime"],
