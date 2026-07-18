@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sourceos.local/schemas/canonical/policy_decision.schema.json",
+  "title": "PolicyDecision",
+  "type": "object",
+  "required": [
+    "allow",
+    "danger_class",
+    "policy_hash",
+    "reason",
+    "constraints"
+  ],
+  "properties": {
+    "allow": {
+      "type": "boolean"
+    },
+    "danger_class": {
+      "type": "string",
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ]
+    },
+    "policy_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "constraints": {
+      "type": "object",
+      "properties": {
+        "ttl_sec": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "paths_allow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "paths_deny": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "bytes_max": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "rate_per_min": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "allow_domains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "deny_methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": true
+    },
+    "required_quorum": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9,
+      "default": 0
+    },
+    "quorum_proof": {
+      "$ref": "quorum_proof.schema.json"
+    },
+    "evidence_refs": {
+      "$ref": "https://socioprophet.dev/schema/governance/runtime_evidence_refs.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

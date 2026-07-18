@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import artifacts, engine, planner, receipts, registry, rocrate, zerotrust
+from . import artifacts, engine, grants, planner, receipts, registry, rocrate, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -77,6 +77,54 @@ def plan_view(req: PlanRequest, _: None = Depends(require_token)) -> dict:
     hand `plan` to POST /v1/compute to run it under full governance."""
     return planner.plan(capabilities=req.capabilities, project=req.project,
                         intent=req.intent, entitlement=req.entitlement)
+
+
+class GrantRequestBody(BaseModel):
+    kind: str
+    backend: str | None = None
+    project: str = "default"
+    actor: str = "user"
+    session: str | None = None
+    quorum_signatures: list[dict] | None = None   # [{spiffe_id, sig}] for HIGH-danger
+
+
+@app.post("/v1/grants")
+def grant_request(req: GrantRequestBody, _: None = Depends(require_token)) -> dict:
+    """The full grant flow (deep kernel): PolicyDecision → (human quorum if HIGH) →
+    issued Grant + ledger event. A HIGH-danger (user-code) op with no quorum
+    signatures returns the decision + `quorum_required`, no grant. Present the
+    returned grant_id on /v1/compute under ZEROTRUST_ENFORCE."""
+    try:
+        kind, _d, backend = registry.resolve(req.kind, req.backend)
+    except (registry.UnknownKind, registry.UnknownBackend) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return grants.request_grant(kind=kind, backend=backend, project=req.project,
+                                actor=req.actor, session=req.session,
+                                quorum_signatures=req.quorum_signatures)
+
+
+@app.get("/v1/grants/ledger")
+def grant_ledger(_: None = Depends(require_token)) -> dict:
+    """The append-only grant ledger — issue / validate / revoke / deny events."""
+    led = grants.ledger()
+    return {"count": len(led), "events": led}
+
+
+@app.post("/v1/grants/{grant_id}/revoke")
+def grant_revoke(grant_id: str, _: None = Depends(require_token)) -> dict:
+    """Revoke a grant. Authoritative — every subsequent check fails closed."""
+    ok = grants.revoke(grant_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"no grant {grant_id}")
+    return {"grant_id": grant_id, "revoked": True}
+
+
+@app.get("/v1/grants/{grant_id}")
+def grant_get(grant_id: str, _: None = Depends(require_token)) -> dict:
+    g = grants.get(grant_id)
+    if g is None:
+        raise HTTPException(status_code=404, detail=f"no grant {grant_id}")
+    return {"grant": g, "validity": grants.validate(grant_id)}
 
 
 @app.get("/v1/capability-registry")

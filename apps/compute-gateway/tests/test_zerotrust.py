@@ -17,7 +17,7 @@ os.environ["GATEWAY_SIGNING_KEY"] = base64.b64encode(b"0" * 32).decode()
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from compute_gateway import adapters, engine, receipts, registry, server, zerotrust  # noqa: E402
+from compute_gateway import adapters, engine, grants, receipts, registry, server, zerotrust  # noqa: E402
 from compute_gateway.contract import ComputeOutput  # noqa: E402
 
 importlib.reload(zerotrust)
@@ -31,6 +31,7 @@ def setup_function():
     os.environ["COMPUTE_ENTITLEMENTS"] = "demo,graph-query,graph-stats,spark"   # pin: shared env
     receipts._CHAINS.clear()
     engine._MEMO.clear()
+    grants._reset()
     zerotrust.ZEROTRUST_ENFORCE = False
 
     async def fake_forge(spec, project, session):
@@ -93,12 +94,35 @@ def test_zerotrust_enforce_fails_closed_without_grant():
     assert r2.json()["status"] in ("ok", "degraded")     # not grant_required
 
 
-def test_enforce_permits_with_grant():
+def test_enforce_permits_with_real_grant():
+    # the full deep flow: request a grant (notebook is HIGH → needs a human quorum
+    # signature), then present it on /v1/compute under enforce.
+    gr = client.post("/v1/grants", json={"kind": "notebook", "project": "demo",
+                     "quorum_signatures": [{"spiffe_id": "spiffe://x/human", "sig": "0" * 16}]},
+                     headers=AUTH).json()
+    gid = gr["grant"]["grant_id"]
     zerotrust.ZEROTRUST_ENFORCE = True
     r = client.post("/v1/compute",
                     json={"kind": "notebook", "project": "demo", "spec": {"code": "1+1"},
-                          "grant_id": "grant-xyz98765"}, headers=AUTH).json()
+                          "grant_id": gid}, headers=AUTH).json()
     assert r["status"] == "ok" and r["grant_check"]["result"]["valid"] is True
+
+
+def test_enforce_denies_unknown_and_revoked_grant():
+    zerotrust.ZEROTRUST_ENFORCE = True
+    # an unknown grant fails closed
+    r = client.post("/v1/compute", json={"kind": "notebook", "project": "demo",
+                    "spec": {"code": "x"}, "grant_id": "grant-does-not-exist"}, headers=AUTH).json()
+    assert r["status"] == "grant_required" and r["grant_check"]["result"]["reason"] == "unknown grant"
+    # a revoked grant fails closed too
+    zerotrust.ZEROTRUST_ENFORCE = False
+    gr = client.post("/v1/grants", json={"kind": "graph-query", "project": "demo"}, headers=AUTH).json()
+    gid = gr["grant"]["grant_id"]
+    client.post(f"/v1/grants/{gid}/revoke", headers=AUTH)
+    zerotrust.ZEROTRUST_ENFORCE = True
+    r2 = client.post("/v1/compute", json={"kind": "graph-query", "project": "demo",
+                     "spec": {"label": "demo"}, "grant_id": gid}, headers=AUTH).json()
+    assert r2["status"] == "grant_required" and r2["grant_check"]["result"]["revoked"] is True
 
 
 # ── AttestationBundle over the signed receipt ──
