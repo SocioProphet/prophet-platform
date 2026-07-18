@@ -8,6 +8,8 @@ Adapters are injectable (`set_backend`) so tests never need a live forge/graph.
 from __future__ import annotations
 
 import os
+import sqlite3
+import time
 from typing import Any, Awaitable, Callable
 
 import httpx
@@ -259,6 +261,73 @@ async def _reconcile(req_spec: dict, project: str, session: str | None) -> Adapt
             "epistemic": "verified" if (all_ok and recs) else "derived"}
 
 
+# ── IFM: load reconciled facts into the structured SQL layer (the doc→SQL sink) ──
+SQL_LOAD_DSN = os.getenv("SQL_LOAD_DSN", "sqlite:////tmp/ifm_extract.db")
+
+
+def _sqlite_path(dsn: str) -> str:
+    return dsn[len("sqlite:///"):] if dsn.startswith("sqlite:///") else dsn
+
+
+async def _sql_load(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Upsert reconciled facts into the consolidated SQL layer, keyed by (entity, period,
+    field), each row carrying its warrant + reference + source. Demonstrated against a
+    sovereign SQLite file (no creds); a Postgres DSN is the production swap. The load
+    step's warrant is the WEAKEST row loaded — you can't trust the table more than its
+    least-trustworthy cell."""
+    rows = req_spec.get("rows") or req_spec.get("reconciliations") or req_spec.get("facts") or []
+    table = req_spec.get("table") or (req_spec.get("target_schema") or {}).get("table") or "extracted_facts"
+    if not table.replace("_", "").isalnum():
+        return {"outputs": [], "runtime": "sql", "status": "error",
+                "error": f"unsafe table name: {table!r}", "degraded": None}
+    entity = req_spec.get("entity", {})
+    ent_id = str(entity.get("cik") or entity.get("name") or entity) if isinstance(entity, dict) else str(entity)
+    period, source = str(req_spec.get("period", "")), str(req_spec.get("source", "extraction"))
+    if not rows:
+        return {"outputs": [], "runtime": "sql", "status": "degraded", "error": None,
+                "degraded": "no rows to load"}
+    dsn = req_spec.get("dsn") or SQL_LOAD_DSN
+    if not dsn.startswith("sqlite"):
+        # Postgres/other = the production sink; the driver isn't vendored in the gateway.
+        return {"outputs": [], "runtime": "sql", "status": "degraded", "error": None,
+                "degraded": f"non-sqlite DSN needs the production driver (swap here): {dsn.split('://')[0]}"}
+    warrants = []
+    try:
+        con = sqlite3.connect(_sqlite_path(dsn))
+        con.execute(f"CREATE TABLE IF NOT EXISTS {table} (entity TEXT, period TEXT, field TEXT, "
+                    "value TEXT, warrant TEXT, reference TEXT, within_tol INTEGER, source TEXT, "
+                    "loaded_at TEXT, PRIMARY KEY(entity, period, field))")
+        inserted = updated = 0
+        now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        for r in rows:
+            field = r.get("field")
+            value = r.get("extracted", r.get("value"))
+            warrant = r.get("warrant") or "derived"
+            warrants.append(warrant)
+            exists = con.execute(f"SELECT 1 FROM {table} WHERE entity=? AND period=? AND field=?",
+                                 (ent_id, period, field)).fetchone() is not None
+            con.execute(
+                f"INSERT INTO {table}(entity,period,field,value,warrant,reference,within_tol,source,loaded_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(entity,period,field) DO UPDATE SET "
+                "value=excluded.value, warrant=excluded.warrant, reference=excluded.reference, "
+                "within_tol=excluded.within_tol, source=excluded.source, loaded_at=excluded.loaded_at",
+                (ent_id, period, field, str(value), warrant,
+                 str(r.get("reference")), 1 if r.get("within_tol") else 0, source, now))
+            inserted, updated = (inserted, updated + 1) if exists else (inserted + 1, updated)
+        con.commit()
+        total = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        con.close()
+    except Exception as e:  # noqa: BLE001
+        return {"outputs": [], "runtime": "sql", "status": "error",
+                "error": f"sql load failed: {e}", "degraded": None}
+    weakest = min(warrants, key=lambda w: _WARRANT_ORDER.index(w) if w in _WARRANT_ORDER else 0)
+    return {"outputs": [ComputeOutput(type="table", data={
+                "table": table, "target": dsn, "inserted": inserted, "updated": updated,
+                "rows_written": inserted + updated, "table_total": total,
+                "entity": ent_id, "period": period})],
+            "runtime": "sql", "status": "ok", "error": None, "degraded": None, "epistemic": weakest}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
@@ -268,6 +337,7 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "model-server": lambda spec, project, session: _inference(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
     "open-data": lambda spec, project, session: _reconcile(spec, project, session),
+    "sql": lambda spec, project, session: _sql_load(spec, project, session),
 }
 
 
