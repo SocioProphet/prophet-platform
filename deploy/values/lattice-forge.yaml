@@ -39,8 +39,10 @@ secretEnv:
 resources:
   requests: { cpu: "150m", memory: "384Mi" }
   limits:   { cpu: "1500m", memory: "1536Mi" }
+# /tmp emptyDir (readOnlyRootFilesystem is true) — the only writable dir the
+# kernels need; HOME/JUPYTER_RUNTIME_DIR/IPYTHONDIR all live under it. (Do NOT
+# also list /tmp in writableDirs — the chart would mount it twice → invalid pod.)
 tmpDir: { enabled: true, sizeLimit: "512Mi" }
-writableDirs: ["/tmp"]
 
 probes:
   readiness: { path: /healthz, port: 8870 }
