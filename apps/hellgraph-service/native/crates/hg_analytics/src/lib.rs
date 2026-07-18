@@ -1121,6 +1121,52 @@ fn brandes_source(s: usize, adj: &[Vec<usize>], n: usize, bc: &mut [f64]) {
     }
 }
 
+/// LCC — local clustering coefficient per node, on the SIMPLE undirected graph (parallel edges deduped,
+/// self-loops dropped). Per node: triangles among its neighbours / (d·(d−1)). Neighbour rows are sorted
+/// so each triangle count is a linear merge-intersection; the per-node loop is rayon-parallel. `tri` counts
+/// each triangle from both endpoints, so the d·(d−1) denominator (not d·(d−1)/2) yields the standard value.
+pub fn lcc_parallel(n: usize, edges: &[(usize, usize)]) -> Vec<f64> {
+    let mut adj: Vec<Vec<u32>> = vec![Vec::new(); n];
+    for &(u, v) in edges {
+        if u < n && v < n && u != v {
+            adj[u].push(v as u32);
+            adj[v].push(u as u32);
+        }
+    }
+    adj.par_iter_mut().for_each(|row| {
+        row.sort_unstable();
+        row.dedup();
+    });
+    let adj_ref = &adj;
+    (0..n)
+        .into_par_iter()
+        .map(|v| {
+            let nb = &adj_ref[v];
+            let d = nb.len();
+            if d < 2 {
+                return 0.0;
+            }
+            let mut tri = 0usize;
+            for &a in nb {
+                let na = &adj_ref[a as usize];
+                let (mut i, mut j) = (0usize, 0usize);
+                while i < nb.len() && j < na.len() {
+                    match nb[i].cmp(&na[j]) {
+                        std::cmp::Ordering::Less => i += 1,
+                        std::cmp::Ordering::Greater => j += 1,
+                        std::cmp::Ordering::Equal => {
+                            tri += 1;
+                            i += 1;
+                            j += 1;
+                        }
+                    }
+                }
+            }
+            tri as f64 / (d as f64 * (d as f64 - 1.0))
+        })
+        .collect()
+}
+
 /// Parallel (rayon) Brandes betweenness — the source loop is embarrassingly parallel and
 /// COMPUTE-bound (each BFS is real work, not a memory gather), so this scales near-linearly in
 /// cores. Determinism is preserved: sources are split into fixed contiguous chunks, each chunk

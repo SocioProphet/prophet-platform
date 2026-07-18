@@ -19,6 +19,7 @@ interface NativeKernel {
   bfs(n: number, from: number[], to: number[], src: number): number[]
   sssp(n: number, from: number[], to: number[], weights: number[], src: number): number[]
   cdlp(n: number, from: number[], to: number[], iters: number): number[]
+  lcc(n: number, from: number[], to: number[]): number[]
   backend(): string
 }
 
@@ -150,4 +151,15 @@ export function cdlp(g: GraphSource, iters = 10): CommunitiesResult {
   for (const l of label) sizes.set(l, (sizes.get(l) ?? 0) + 1)
   return { backend: analyticsBackend(), nodes: ids.length, edges: from.length,
     communities: sizes.size, largest: sizes.size ? Math.max(...sizes.values()) : 0 }
+}
+
+export interface LccResult { backend: string; nodes: number; edges: number; averageCoefficient: number }
+
+/** LCC — average local clustering coefficient (simple undirected graph) — benchmarked parallel kernel (native-only). */
+export function lcc(g: GraphSource): LccResult {
+  const K = requireNative('lcc')
+  const { ids, from, to } = indexGraph(g)
+  const coeff = K.lcc(ids.length, from, to)
+  const avg = coeff.length ? coeff.reduce((s, c) => s + c, 0) / coeff.length : 0
+  return { backend: analyticsBackend(), nodes: ids.length, edges: from.length, averageCoefficient: Math.round(avg * 1e6) / 1e6 }
 }
