@@ -43,6 +43,14 @@ KINDS: dict[str, dict] = {
         "capabilities": ["chat", "embed"],
         "epistemic": "derived", "executes_user_code": False, "status": "declared",
     },
+    # the COMPOSITE kind: a DAG of governed sub-computes, each sealing its own
+    # receipt, bound by one composite receipt. Orchestrated by the engine itself
+    # (backend "gateway") — no external runtime. Its warrant is the weakest step.
+    "workflow": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["dag", "compose", "fan-in", "memoized-steps"],
+        "epistemic": "derived", "executes_user_code": False, "status": "live",
+    },
 }
 
 
