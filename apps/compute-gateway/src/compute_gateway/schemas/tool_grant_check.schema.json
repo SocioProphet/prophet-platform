@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sourceos.local/schemas/interop/tool_grant_check.schema.json",
+  "title": "ToolGrantCheck",
+  "description": "Records the result of a ToolGrant validation or revocation check. Revoked or expired grants MUST fail closed: the check result is authoritative and the corresponding OperationCommand MUST be rejected. Every check emits a ledger event (OP_GRANT_VALIDATE or OP_GRANT_REVOKE).",
+  "type": "object",
+  "required": [
+    "check_id",
+    "operation",
+    "grant_id",
+    "checked_at",
+    "actor",
+    "result",
+    "policy_hash"
+  ],
+  "properties": {
+    "check_id": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Stable, globally unique identifier for this check record."
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "tool_grant.validate",
+        "tool_grant.revoke"
+      ],
+      "description": "Whether this record describes a validation or a revocation."
+    },
+    "grant_id": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Identifier of the Grant being checked."
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp at which the check was performed; used for TTL and expiry evaluation."
+    },
+    "actor": {
+      "type": "object",
+      "required": [
+        "spiffe_id"
+      ],
+      "properties": {
+        "spiffe_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "SPIFFE identity of the principal requesting or performing the check."
+        },
+        "aum_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "valid"
+      ],
+      "properties": {
+        "valid": {
+          "type": "boolean",
+          "description": "True only if the grant exists, has not expired, and has not been revoked."
+        },
+        "expired": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if the grant's expires_at is in the past relative to checked_at."
+        },
+        "revoked": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if the grant has been explicitly revoked via tool_grant.revoke."
+        },
+        "revoked_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the revocation event, present when revoked=true."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable explanation of the check outcome."
+        }
+      },
+      "additionalProperties": false
+    },
+    "trust_boundary_id": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Optional reference to the TrustBoundary the grant was scoped to."
+    },
+    "policy_hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Hash of the policy used to evaluate grant validity."
+    },
+    "evidence_refs": {
+      "$ref": "https://socioprophet.dev/schema/governance/runtime_evidence_refs.schema.json"
+    }
+  },
+  "additionalProperties": false
+}

@@ -42,6 +42,10 @@ class Receipt(BaseModel):
     epistemic_status: EpistemicStatus
     prev: str | None = None
     ts: float
+    # ── standards-based attestation (derived; NOT part of the id-hash) ──
+    statement: dict[str, Any] | None = None     # in-toto Statement v1
+    signature: str | None = None                # base64 Ed25519 sig over canonical statement bytes
+    public_key: str | None = None               # base64 raw Ed25519 public key (None → unsigned)
 
 
 class GraphNode(BaseModel):
@@ -71,8 +75,10 @@ class ComputeRequest(BaseModel):
     backend: str | None = None                  # explicit backend, else the kind's default
     project: str = "default"
     entitlement: str | None = None              # caller-presented paid entitlement token
+    grant_id: str | None = None                 # zero-trust capability grant (kernel-issued)
     actor: str = "user"
     session: str | None = None                  # session/kernel id for stateful kinds
+    no_cache: bool = False                       # bypass the content-addressed compute memo
 
 
 class ComputeResult(BaseModel):
@@ -87,3 +93,7 @@ class ComputeResult(BaseModel):
     degraded: str | None = None
     entitlement_required: bool = False
     message: str | None = None
+    # ── zero-trust conformance (OUR kernel: SocioProphet/mcp-a2a-zero-trust) ──
+    grant_check: dict[str, Any] | None = None   # conforming ToolGrantCheck emitted before dispatch
+    attestation: dict[str, Any] | None = None   # conforming AttestationBundle over the signed receipt
+    memoized: bool = False                       # served from the compute memo cache

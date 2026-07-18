@@ -12,6 +12,7 @@ import json
 import time
 from typing import Any
 
+from . import signing
 from .contract import EpistemicStatus, Receipt
 
 # per-project hash chain
@@ -34,6 +35,9 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
         "actor": actor, "epistemic_status": epistemic_status, "prev": prev, "ts": time.time(),
     }
     receipt = Receipt(id=sha(body), **body)
+    # standards-based authenticity, layered on top of the chain's integrity:
+    # in-toto Statement v1 + Ed25519 signature (unsigned if no key configured).
+    signing.attest(receipt, signing.load_signing_key())
     chain.append(receipt)
     return receipt
 
@@ -43,16 +47,33 @@ def chain(project: str) -> list[Receipt]:
 
 
 def verify(project: str) -> dict:
-    """Recompute every id + re-walk every prev-link. Tamper-evidence, checkable."""
+    """Recompute every id + re-walk every prev-link, and verify every present
+    Ed25519 signature. Two independent guarantees: chain integrity (id-hash +
+    prev-link) and statement authenticity (signature over the in-toto Statement).
+
+    `signed` reports how many receipts carried a *verifying* signature. A receipt
+    that carries a signature which does NOT verify fails the whole check
+    (`valid=False`) — a broken signature is tampering, not "unsigned".
+    """
     ch = _CHAINS.get(project, [])
     prev: str | None = None
+    signed = 0
     for r in ch:
         body = {k: getattr(r, k) for k in (
             "project", "kind", "backend", "runtime", "inputs_sha", "outputs_sha",
             "status", "actor", "epistemic_status", "prev", "ts")}
         if sha(body) != r.id:
-            return {"valid": False, "count": len(ch), "broken_at": r.id, "reason": "id-hash mismatch"}
+            return {"valid": False, "count": len(ch), "signed": signed,
+                    "broken_at": r.id, "reason": "id-hash mismatch"}
         if r.prev != prev:
-            return {"valid": False, "count": len(ch), "broken_at": r.id, "reason": "prev-link broken"}
+            return {"valid": False, "count": len(ch), "signed": signed,
+                    "broken_at": r.id, "reason": "prev-link broken"}
+        if r.signature is not None:
+            if r.statement is None or not signing.verify_signature(
+                    r.statement, r.signature, r.public_key):
+                return {"valid": False, "count": len(ch), "signed": signed,
+                        "broken_at": r.id, "reason": "signature invalid"}
+            signed += 1
         prev = r.id
-    return {"valid": True, "count": len(ch), "broken_at": None, "reason": None}
+    return {"valid": True, "count": len(ch), "signed": signed,
+            "broken_at": None, "reason": None}
