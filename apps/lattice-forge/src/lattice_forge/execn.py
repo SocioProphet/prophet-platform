@@ -71,7 +71,17 @@ def _live_run(code: str, language: str, timeout: int, session_id: str) -> dict:
             outputs.append({"type": "stream", "name": c.get("name"), "text": c.get("text", "")})
         elif mt in ("execute_result", "display_data"):
             data = c.get("data", {})
-            outputs.append({"type": mt, "text": data.get("text/plain", ""), "mime": list(data.keys())})
+            out = {"type": mt, "text": data.get("text/plain", ""), "mime": list(data.keys())}
+            # carry RICH representations so the surface can render plots/tables/HTML
+            # (matplotlib PNG, DataFrame HTML, SVG) — not just text. Better-than-Databricks
+            # needs real DS outputs; the receipt still seals over all of it.
+            if "image/png" in data:
+                out["png"] = data["image/png"]           # base64 (data URI on the client)
+            if "image/svg+xml" in data:
+                out["svg"] = data["image/svg+xml"]
+            if "text/html" in data:
+                out["html"] = data["text/html"]           # e.g. df._repr_html_()
+            outputs.append(out)
         elif mt == "error":
             status = "error"
             outputs.append({"type": "error", "ename": c.get("ename"), "evalue": c.get("evalue")})
