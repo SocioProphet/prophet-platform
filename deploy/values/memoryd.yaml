@@ -2,7 +2,7 @@
 # CI so it builds with the estate's WIF like every other service. Recall/write/retract over a pluggable store;
 # defaults to in-memory (MEMORYMESH_STORE_URI=memory://) so it boots with no database. Point at a Postgres DSN
 # to persist. tag:latest → sha-pinned after first build.
-image: { repository: memoryd, tag: latest }
+image: { repository: memoryd, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8787, portName: http }
 config:
   MEMORYMESH_STORE_URI: "memory://"

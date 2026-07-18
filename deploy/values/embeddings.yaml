@@ -3,7 +3,7 @@
 # vectors. The model is baked into the image (no runtime HuggingFace egress, no PVC). tag:latest is
 # sha-pinned by gitops-promote after the first CI build.
 nameOverride: embeddings
-image: { repository: embeddings, tag: latest }
+image: { repository: embeddings, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }
 
 probes:

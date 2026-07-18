@@ -1,5 +1,5 @@
 # agentic-os-api
-image: { repository: agentic-os-api, tag: latest }
+image: { repository: agentic-os-api, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }
 # The app exposes @app.get("/health") (app/main.py:19), not the chart's default
 # /healthz — so every probe 404'd and the kubelet killed it: 939 restarts over

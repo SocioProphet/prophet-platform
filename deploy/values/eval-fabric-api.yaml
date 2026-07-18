@@ -1,3 +1,3 @@
 # eval-fabric-api
-image: { repository: eval-fabric-api, tag: latest }
+image: { repository: eval-fabric-api, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }

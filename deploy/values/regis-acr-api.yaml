@@ -1,6 +1,6 @@
 # regis-acr-api — Regis Attested Concordance Record API (apps/regis-acr-api). The provenance/registry surface
 # for the entity-resolution + evidence spine (ACR concordance records, decision-ledger reads). It BUILDS in CI
 # but was never scheduled — this wires it into the ApplicationSet. tag:latest → sha-pinned after next build.
-image: { repository: regis-acr-api, tag: latest }
+image: { repository: regis-acr-api, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

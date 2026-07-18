@@ -3,7 +3,7 @@
 # SPARQL surface on hellgraph-service), so GRLPlus actually DECIDES close/keep-open/escalate instead of
 # the standards repo's export shim. This is the symbolic shield over the same graph the Graph-RL loop
 # learns on. Pinned to the immutable sha- tag the first CI build published.
-image: { repository: grlplus-service, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
+image: { repository: grlplus-service, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:

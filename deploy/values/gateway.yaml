@@ -1,5 +1,5 @@
 # socioprophet-gateway — HTTP edge gateway
-image: { repository: socioprophet-gateway, tag: latest }
+image: { repository: socioprophet-gateway, tag: sha-20e0586644fdbb5d46b73bef0017f3ee3fba7bca }
 service: { port: 8080, portName: http }
 # The binary reads GATEWAY_PORT (cmd/tritrpc-gateway/main.go:30) and binds ":"+port.
 # A Service named `gateway` makes Kubernetes inject GATEWAY_PORT=tcp://<clusterIP>:8080
