@@ -51,6 +51,13 @@ jobs:
           fi
           echo "promoting to sha-$SHA (all=$ALL)"
 
+          # GUARD: a commit that changed no app/service source built NO images, so
+          # promoting to it creates dangling pins → estate-wide ImagePullBackOff.
+          # (This is the root cause of the 2026-07-18 incident.) Bail out cleanly.
+          if ! git show --name-only --pretty="" "$SHA" | grep -qE '^(apps|services)/'; then
+            echo "sha-$SHA changed no service source → no images built → nothing to promote"; exit 0
+          fi
+
           if [ "$ALL" = "true" ]; then
             # one-time catch-up: every values file that pins a sha- tag
             FILES=$(grep -lE 'tag: (sha-[0-9a-f]+|latest)\b' deploy/values/*.yaml 2>/dev/null || true)
