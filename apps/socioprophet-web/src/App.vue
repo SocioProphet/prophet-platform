@@ -10,6 +10,7 @@ import Reasoner from './views/Reasoner.vue'
 import EntityResolution from './views/EntityResolution.vue'
 import ResourceBrowser from './views/ResourceBrowser.vue'
 import Ontology from './views/Ontology.vue'
+import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
 
 const NAV = [
   { group: 'Explore', items: [
@@ -26,6 +27,9 @@ const NAV = [
     { id: 'reasoner', label: 'Reasoner', ic: '⊢', comp: Reasoner, sub: 'RDFS/OWL entailment + proof trees' },
     { id: 'er', label: 'Entity Resolution', ic: '⚭', comp: EntityResolution, sub: 'Proof-carrying record linkage' },
     { id: 'ontology', label: 'Ontology', ic: '❖', comp: Ontology, sub: 'Docs + TBox graph' },
+  ]},
+  { group: 'Operate', items: [
+    { id: 'workroom', label: 'Workroom', ic: '🛡', comp: DevSecOpsWorkroomReportCard, sub: 'DevSecOps runtime-parity report — evidence · RCA · action grants' },
   ]},
 ]
 const flat = NAV.flatMap((g) => g.items)
@@ -66,7 +70,12 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', route))
         <span class="spacer"></span>
         <span class="pill accent">prophet-platform</span>
       </div>
-      <div class="view"><component :is="active.comp" :key="active.id" /></div>
+      <div class="view">
+        <template v-if="active.id === 'workroom'">
+          <DevSecOpsWorkroomReportCard />
+        </template>
+        <component v-else :is="active.comp" :key="active.id" />
+      </div>
     </div>
   </div>
 </template>
