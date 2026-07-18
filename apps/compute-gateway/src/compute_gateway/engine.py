@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from . import adapters, receipts, registry, zerotrust
+from . import adapters, artifacts, receipts, registry, zerotrust
 from .contract import ComputeOutput, ComputeRequest, ComputeResult, GraphEdge
 
 MEMOIZE = os.getenv("GATEWAY_MEMOIZE", "true").lower() == "true"
@@ -184,11 +184,13 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
         delta.written = await adapters.write_provenance(delta)
 
     attestation = zerotrust.attestation_bundle(receipt)
+    # content-address each output blob (dedup) → data-level lineage + diff
+    art = artifacts.store_outputs(receipt.id, [o.model_dump() for o in raw["outputs"]]) if status == "ok" else []
     result = ComputeResult(
         status=status, kind=kind, backend=backend, epistemic_status=epistemic,
         outputs=raw["outputs"], receipt=receipt, graph_delta=delta,
         error=raw.get("error"), degraded=raw.get("degraded"),
-        grant_check=check, attestation=attestation, memoized=False)
+        grant_check=check, attestation=attestation, memoized=False, artifacts=art)
 
     if MEMOIZE and not req.no_cache and status == "ok":
         if len(_MEMO) >= _MEMO_MAX:

@@ -97,3 +97,4 @@ class ComputeResult(BaseModel):
     grant_check: dict[str, Any] | None = None   # conforming ToolGrantCheck emitted before dispatch
     attestation: dict[str, Any] | None = None   # conforming AttestationBundle over the signed receipt
     memoized: bool = False                       # served from the compute memo cache
+    artifacts: list[str] = []                    # content-addressed digests of each output blob
