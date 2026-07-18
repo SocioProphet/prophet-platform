@@ -8,3 +8,4 @@ resources:
   - resourcequota.yaml
   - jupyterlab.yaml
   - jupyterlab-ingress.yaml
+  - schedule-tick.yaml
