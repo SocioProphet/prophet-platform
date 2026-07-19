@@ -14,6 +14,7 @@ import WorkstationPipelines from './pages/WorkstationPipelines.vue';
 import WorkstationDeploy from './pages/WorkstationDeploy.vue';
 import WorkstationServices from './pages/WorkstationServices.vue';
 import WorkstationTerminal from './pages/WorkstationTerminal.vue';
+import WorkstationDevSecOps from './pages/WorkstationDevSecOps.vue';
 import ModelLabs from './pages/ModelLabs.vue';
 import Studio from './pages/Studio.vue';
 import Discovery from './pages/Discovery.vue';
@@ -120,6 +121,7 @@ const explicitRoutes = [
   { path: '/workstation/deploy', component: WorkstationDeploy },
   { path: '/workstation/services', component: WorkstationServices },
   { path: '/workstation/terminal', component: WorkstationTerminal },
+  { path: '/workstation/devsecops', component: WorkstationDevSecOps },
   { path: '/ai/labs', component: ModelLabs },
   { path: '/studio', component: Studio },
   { path: '/discovery', component: Discovery },

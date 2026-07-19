@@ -252,6 +252,7 @@ export const AGENT_COCKPIT: NavGroup[] = [
       { label: 'Deploy', to: '/workstation/deploy' },
       { label: 'Services · DevSpaces', to: '/workstation/services' },
       { label: 'Terminal', to: '/workstation/terminal' },
+      { label: 'DevSecOps Workroom', to: '/workstation/devsecops' },
       { label: 'Add Local Repo', to: '/forge/import' },
     ],
   },

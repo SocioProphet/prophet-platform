@@ -6,7 +6,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPONENT = ROOT / "apps" / "socioprophet-web" / "src" / "components" / "DevSecOpsWorkroomReportCard.vue"
-APP = ROOT / "apps" / "socioprophet-web" / "src" / "App.vue"
+# client-vue (the deployed cockpit since Phase 3) is router-based: App.vue is the shell and each
+# surface is its own routed page. The Workroom card is wired into its own route
+# (/workstation/devsecops) rather than the old single-page App.vue, so the wiring check reads that
+# page. The card itself is byte-for-byte unchanged, so the governance contract still holds.
+APP = ROOT / "apps" / "socioprophet-web" / "src" / "pages" / "WorkstationDevSecOps.vue"
 GATEWAY = ROOT / "apps" / "gateway" / "cmd" / "tritrpc-gateway" / "main.go"
 
 REQUIRED_COMPONENT = [
