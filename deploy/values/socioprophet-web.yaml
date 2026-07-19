@@ -1,17 +1,26 @@
-# socioprophet-web — web portal
-# Pin the immutable commit-SHA tag, per the chart's own contract ("Immutable tag =
-# the commit SHA the GitOps promotion writes"). `latest` is a MOVING tag and the
-# chart sets imagePullPolicy: IfNotPresent — so once a node has cached `latest`,
-# kubelet never pulls a newer one, and even `rollout restart` re-runs the stale
-# image. That is how a broken build survived 574 restarts over 2 days: the fix was
-# published to `latest` in GAR and the nodes kept serving the cached digest.
-# sha-2ff20cbd... = merge of #726 (nginx port/healthz contract fix),
-# digest sha256:50ef50bf14fb64f0eca84ac393bf0124c72840499ed1a0e5daa82182c45d71bf.
-image: { repository: socioprophet-web, tag: sha-04ee10e76cfef259b5611c73946d96f61a0bae2c }
+# socioprophet-web — THE unified analyst cockpit (client-vue), first service on the SOVEREIGN registry.
+#
+# Registry: registry.socioprophet.ai (zot), NOT GAR. socioprophet-web is the proof of the GAR→zot
+# cutover: images.yml builds+pushes it there (registry: registry.socioprophet.ai, basic auth), so the
+# deploy MUST pull from there too. Overriding the GAR default here is what fixes a 24h ImagePullBackOff
+# (6539 pulls): the image existed only in zot, the chart pulled it from GAR, the digest never matched.
+# The `zot-pull` dockerconfigjson secret (namespace socioprophet) carries the basic-auth creds for zot.
+#
+# Pin the immutable commit-SHA tag, per the chart's own contract ("Immutable tag = the commit SHA the
+# GitOps promotion writes"). `latest` is a MOVING tag and the chart sets imagePullPolicy: IfNotPresent —
+# so once a node caches `latest`, kubelet never pulls a newer one, and even `rollout restart` re-runs the
+# stale image (that trap survived 574 restarts over 2 days). gitops-promote rewrites this tag to the
+# fresh client-vue build SHA when this branch merges to main.
+image: { registry: registry.socioprophet.ai, repository: socioprophet-web, tag: sha-04ee10e76cfef259b5611c73946d96f61a0bae2c }
+imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
 ingress:
   enabled: true
   className: ""   # cluster default; set per-cloud (gce / azure-application-gateway / alb) via overlay
+  # Bind the ingress to the reserved GLOBAL static IP (8.233.245.238) so app.socioprophet.ai's A record
+  # stays stable across ingress re-creates. Reserved as `socioprophet-web-app-ip` (IN_USE).
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: socioprophet-web-app-ip
   hosts: [{ host: app.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
 # nginx needs these writable under the chart's readOnlyRootFilesystem (Autopilot).

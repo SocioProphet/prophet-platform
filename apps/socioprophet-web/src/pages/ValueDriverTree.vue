@@ -1,0 +1,252 @@
+<template>
+  <section class="vdt" aria-label="Value Driver Tree">
+    <header class="vdt-top">
+      <div class="vdt-title">
+        <div>
+          <p class="vdt-eyebrow">Economy &amp; Industry</p>
+          <h1>Value Drivers</h1>
+        </div>
+        <span class="vdt-pill" :class="mode" :title="mode === 'live' ? 'Served live from economic-prophet via dashboard-bff /v1/vdt' : 'dashboard-bff unavailable — rendering the local fixture (same engine math)'">{{ mode }}</span>
+        <select v-if="industries.length > 1" v-model="industryId" class="vdt-industry" aria-label="Industry">
+          <option v-for="i in industries" :key="i.id" :value="i.id">{{ i.label }}</option>
+        </select>
+        <span v-else class="vdt-ind">{{ industry }}</span>
+        <button class="vdt-ask" type="button" @click="askNoetica" title="Ask Noetica about these value drivers">◇ Ask Noetica</button>
+      </div>
+      <div class="vdt-metrics">
+        <div class="vdt-metric"><span class="vdt-m-label">Enterprise value</span><span class="vdt-m-val">{{ money(evBaseline) }}</span></div>
+        <div class="vdt-metric up"><span class="vdt-m-label">Projected uplift <ProvenanceBadge :p="upliftProv" compact /></span><span class="vdt-m-val">+{{ money(c.totalUplift) }}</span><span class="vdt-m-sub">+{{ (c.upliftFraction * 100).toFixed(2) }}%</span></div>
+        <div class="vdt-metric"><span class="vdt-m-label">Projected EV</span><span class="vdt-m-val">{{ money(c.projectedEnterpriseValue) }}</span></div>
+      </div>
+    </header>
+
+    <SplitPane storage-key="value-drivers" label="drivers" :initial="380">
+      <template #list>
+      <!-- Driver × capability-domain value-attribution tensor -->
+      <div class="vdt-panel">
+        <div class="vdt-panel-h vdt-panel-h-row">
+          <span>Value attribution — driver × capability domain <span class="vdt-hint">share of EV · outlined = KPI lever</span></span>
+          <span class="vdt-scale" aria-hidden="true">
+            <span class="vdt-scale-lo">{{ (minWeight * 100).toFixed(1) }}%</span>
+            <span class="vdt-scale-bar"></span>
+            <span class="vdt-scale-hi">{{ (maxWeight * 100).toFixed(1) }}%</span>
+          </span>
+        </div>
+        <div class="vdt-matrix" :style="{ gridTemplateColumns: `minmax(150px, 1.3fr) repeat(${domains.length}, 1fr)` }">
+          <div class="vdt-corner"></div>
+          <div v-for="d in domains" :key="d" class="vdt-colh" :title="d">{{ short(d) }}</div>
+          <template v-for="drv in drivers" :key="drv">
+            <div class="vdt-rowh">{{ drv }}</div>
+            <div
+              v-for="d in domains"
+              :key="drv + d"
+              class="vdt-cell"
+              :class="{ lever: hasLever(drv, d) }"
+              :style="cellStyle(weightOf(drv, d))"
+              :title="`${drv} × ${d} — ${(weightOf(drv, d) * 100).toFixed(1)}% of EV${hasLever(drv, d) ? ' · KPI: ' + leverOf(drv, d)!.kpi : ''}`"
+            ><span v-if="hasLever(drv, d)" class="vdt-cell-dot" aria-hidden="true"></span>{{ (weightOf(drv, d) * 100).toFixed(1) }}</div>
+          </template>
+        </div>
+      </div>
+      </template>
+
+      <template #detail>
+
+      <!-- Per-driver uplift -->
+      <div class="vdt-panel">
+        <div class="vdt-panel-h">Uplift by driver</div>
+        <div class="vdt-bars">
+          <div v-for="drv in driversWithUplift" :key="drv" class="vdt-bar-row">
+            <span class="vdt-bar-label">{{ drv }}</span>
+            <div class="vdt-bar-track"><div class="vdt-bar-fill" :style="{ width: barPct(c.perDriver[drv]!) + '%' }" /></div>
+            <span class="vdt-bar-val">+{{ money(c.perDriver[drv]!) }}</span>
+          </div>
+          <p v-if="driversWithUplift.length === 0" class="vdt-empty">No KPI levers set.</p>
+        </div>
+
+        <div class="vdt-panel-h" style="margin-top: 1rem">KPI levers</div>
+        <div class="vdt-levers">
+          <div v-for="k in c.perKpi" :key="k.kpi" class="vdt-lever">
+            <div class="vdt-lever-h">
+              <code>{{ k.kpi }}</code>
+              <span class="vdt-delta" :class="k.contribution >= 0 ? 'up' : 'down'">{{ k.deltaPct > 0 ? '+' : '' }}{{ k.deltaPct }}%</span>
+            </div>
+            <div class="vdt-lever-meta">{{ k.driver }} · {{ short(k.domain) }} · <span class="vdt-pol">{{ k.polarity === 'higher_better' ? '↑ better' : '↓ better' }}</span></div>
+            <div class="vdt-lever-val">+{{ money(k.contribution) }}</div>
+          </div>
+        </div>
+      </div>
+      </template>
+    </SplitPane>
+
+    <p class="vdt-foot">Same model as the canonical value engine — <code>economic-prophet --mode vdt</code>. Each KPI lever moves the value carried by its (driver × domain) cell; <span class="vdt-pol">lower-better</span> metrics improve as they fall.</p>
+  </section>
+</template>
+
+<script setup lang="ts">
+import SplitPane from '../components/SplitPane.vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { fetchVdtWithFallback, fetchVdtCatalogWithFallback, fixtureView, type VdtView, type VdtIndustry } from '../api/vdtApi';
+import { useCockpit } from '../stores/cockpit';
+import ProvenanceBadge from '../components/ProvenanceBadge.vue';
+import { prov } from '../features/provenance/types';
+
+// Initialise from the fixture (canonical engine math computed locally) so the surface renders
+// synchronously; on mount, load the industry catalog + the live dashboard-bff /v1/vdt and swap in
+// the engine's output. Fixture mode carries only Software (the client can't compute other tensors).
+const view = ref<VdtView>(fixtureView());
+const mode = ref<'live' | 'fixture'>('fixture');
+const industries = ref<VdtIndustry[]>([{ id: 'software', label: 'Software & Platforms', industry: view.value.industry }]);
+const industryId = ref<string>('software');
+
+async function loadVdt(): Promise<void> {
+  const res = await fetchVdtWithFallback(industryId.value);
+  view.value = res.view;
+  mode.value = res.mode;
+}
+
+onMounted(async () => {
+  const cat = await fetchVdtCatalogWithFallback();
+  industries.value = cat.industries;
+  if (!industries.value.some((i) => i.id === industryId.value)) industryId.value = industries.value[0]?.id ?? 'software';
+  await loadVdt();
+});
+
+watch(industryId, loadVdt);
+
+const industry = computed(() => view.value.industry);
+const evBaseline = computed(() => view.value.evBaseline);
+const drivers = computed(() => view.value.drivers);
+const domains = computed(() => view.value.domains);
+const weights = computed(() => view.value.weights);
+const c = computed(() => view.value);
+
+const money = (n: number): string =>
+  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 2 }).format(n);
+
+function short(d: string): string {
+  return d
+    .replace('CustomerInterface', 'Customer')
+    .replace('ProductServiceDev', 'Product')
+    .replace('SupplyDelivery', 'Supply')
+    .replace('OperationsSupport', 'Ops')
+    .replace('RiskSecurity', 'Risk')
+    .replace('GovernanceKnowledge', 'Govern');
+}
+
+const weightIndex = computed(
+  () => new Map(view.value.weights.map((w) => [`${w.driver}|${w.domain}`, w.weight] as const)),
+);
+const weightOf = (drv: string, d: string): number => weightIndex.value.get(`${drv}|${d}`) ?? 0;
+
+const leverMap = computed(
+  () => new Map(view.value.perKpi.map((k) => [`${k.driver}|${k.domain}`, k] as const)),
+);
+const hasLever = (drv: string, d: string) => leverMap.value.has(`${drv}|${d}`);
+const leverOf = (drv: string, d: string) => leverMap.value.get(`${drv}|${d}`);
+
+const minWeight = computed(() => Math.min(...view.value.weights.map((w) => w.weight)));
+const maxWeight = computed(() => Math.max(...view.value.weights.map((w) => w.weight)));
+
+// Sequential blue ramp (light → dark) for the attribution heatmap. Replaces the old
+// low-alpha wash, which left small-share cells almost invisible on the dark surface.
+const RAMP: Array<[number, number, number]> = [
+  [230, 241, 251], [133, 183, 235], [55, 138, 221], [24, 95, 165], [4, 44, 83],
+];
+function normWeight(w: number): number {
+  const lo = minWeight.value;
+  const hi = maxWeight.value;
+  return hi > lo ? (w - lo) / (hi - lo) : 0;
+}
+function rampColor(t: number): string {
+  const c = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+  const i = Math.floor(c);
+  const f = c - i;
+  const a = RAMP[i];
+  const b = RAMP[Math.min(i + 1, RAMP.length - 1)];
+  const mix = (k: number) => Math.round(a[k] + (b[k] - a[k]) * f);
+  return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
+}
+// Cell fill by share of EV; text flips to dark ink on the lighter (low-share) cells.
+function cellStyle(w: number): Record<string, string> {
+  const t = normWeight(w);
+  return { background: rampColor(t), color: t < 0.55 ? '#042c53' : '#eaf2fc' };
+}
+
+const driversWithUplift = computed(() => view.value.drivers.filter((d) => (view.value.perDriver[d] ?? 0) !== 0));
+const maxDriverUplift = computed(() => Math.max(1, ...Object.values(view.value.perDriver)));
+const barPct = (v: number) => Math.max(2, (v / maxDriverUplift.value) * 100);
+
+// The uplift is engine-computed (deterministic) — the verified-compute moat.
+const cockpit = useCockpit();
+const upliftProv = computed(() => prov('computed', {
+  verifier: 'economic-prophet engine',
+  formula: 'uplift = Σ_kpi baseline × weight × |Δpct| / 100',
+  sources: [`vdt:${industryId.value}`, mode.value === 'live' ? 'dashboard-bff /v1/vdt' : 'local fixture (same engine math)'],
+  receipt: `sha256:vdt-${industryId.value}`,
+  note: mode.value === 'live' ? 'Served live from the value engine.' : 'Local fixture — identical engine math, self-consistent (reported == computed).',
+}));
+function askNoetica() {
+  cockpit.askAbout(`Read the value-driver tree for ${industry.value}: projected uplift +${(c.value.upliftFraction * 100).toFixed(2)}% (${money(c.value.totalUplift)}) on ${money(evBaseline.value)} EV. Which KPI levers drive it, and where's the risk in that attribution?`);
+}
+watch([industry, () => c.value.upliftFraction], () => cockpit.setContext({
+  surface: 'Value Drivers',
+  entityLabel: industry.value,
+  detail: `+${(c.value.upliftFraction * 100).toFixed(2)}% uplift · ${mode.value}`,
+  route: '/economy/value-drivers',
+}), { immediate: true });
+</script>
+
+<style scoped>
+.vdt { height: 100%; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 0.9rem; padding: 1rem 1.25rem 1.25rem; background: var(--bg); color: rgba(255, 255, 255, 0.92); }
+.vdt-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.vdt-title { display: flex; align-items: baseline; gap: 0.7rem; flex-wrap: wrap; } .vdt-title h1 { margin: 0; font-size: 1.3rem; }
+.vdt-eyebrow { margin: 0 0 0.1rem; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
+.vdt-pill { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: #e3b341; background: rgba(227, 179, 65, 0.14); border-radius: 5px; padding: 0.1rem 0.35rem; }
+.vdt-pill.live { color: var(--up); background: rgba(63, 185, 80, 0.16); }
+.vdt-ind { font-size: 0.78rem; color: rgba(255, 255, 255, 0.55); }
+.vdt-industry { font-size: 0.78rem; color: var(--text, rgba(255,255,255,0.9)); background: var(--surface, transparent); border: 1px solid var(--line-2, rgba(255,255,255,0.15)); border-radius: 7px; padding: 0.2rem 0.45rem; }
+.vdt-metrics { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.vdt-metric { display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 10px; padding: 0.4rem 0.8rem; min-width: 8rem; }
+.vdt-metric.up { border-color: rgba(63, 185, 80, 0.35); }
+.vdt-m-label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.45); }
+.vdt-ask { border: 1px solid rgba(120, 160, 255, 0.45); background: rgba(120, 160, 255, 0.08); color: #93b4ff; border-radius: 8px; padding: 0.28rem 0.65rem; font-size: 0.74rem; cursor: pointer; } .vdt-ask:hover { background: rgba(120, 160, 255, 0.16); color: #fff; }
+.vdt-m-val { font-size: 1.05rem; font-weight: 700; } .vdt-metric.up .vdt-m-val { color: var(--up); }
+.vdt-m-sub { font-size: 0.68rem; color: var(--up); }
+
+.vdt-body { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0.9rem; }
+@media (max-width: 1000px) { .vdt-body { grid-template-columns: 1fr; } }
+.vdt-panel { border: 1px solid var(--line-2); border-radius: 12px; padding: 0.85rem; background: var(--surface); }
+.vdt-panel-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.09em; color: rgba(255, 255, 255, 0.5); margin-bottom: 0.7rem; }
+.vdt-hint { text-transform: none; letter-spacing: 0; color: var(--text-3); font-size: 0.66rem; }
+.vdt-panel-h-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.vdt-scale { display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 0.62rem; color: var(--text-3); }
+.vdt-scale-bar { width: 110px; height: 9px; border-radius: 3px; background: linear-gradient(90deg, rgb(230, 241, 251), rgb(55, 138, 221), rgb(4, 44, 83)); }
+
+.vdt-matrix { display: grid; gap: 3px; }
+.vdt-corner { }
+.vdt-colh { font-size: 0.6rem; color: rgba(255, 255, 255, 0.5); text-align: center; padding: 0.2rem 0; white-space: nowrap; }
+.vdt-rowh { font-size: 0.72rem; color: rgba(255, 255, 255, 0.8); display: flex; align-items: center; padding-right: 0.4rem; }
+.vdt-cell { position: relative; display: grid; place-items: center; height: 34px; border-radius: 6px; font-size: 0.7rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.vdt-cell.lever { outline: 2px solid #eda100; outline-offset: -2px; font-weight: 700; }
+.vdt-cell-dot { position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: #eda100; }
+
+.vdt-bars { display: flex; flex-direction: column; gap: 0.45rem; }
+.vdt-bar-row { display: grid; grid-template-columns: 8.5rem 1fr auto; align-items: center; gap: 0.6rem; }
+.vdt-bar-label { font-size: 0.76rem; color: rgba(255, 255, 255, 0.8); }
+.vdt-bar-track { height: 10px; background: rgba(255, 255, 255, 0.06); border-radius: 999px; overflow: hidden; }
+.vdt-bar-fill { height: 100%; background: linear-gradient(90deg, #1f6feb, #58a6ff); border-radius: 999px; }
+.vdt-bar-val { font-size: 0.76rem; font-weight: 700; color: var(--up); font-variant-numeric: tabular-nums; }
+.vdt-empty { color: rgba(255, 255, 255, 0.45); font-size: 0.82rem; }
+
+.vdt-levers { display: flex; flex-direction: column; gap: 0.5rem; }
+.vdt-lever { border: 1px solid var(--line-2); border-radius: 9px; padding: 0.5rem 0.65rem; }
+.vdt-lever-h { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.vdt-lever-h code { font-size: 0.78rem; color: rgba(255, 255, 255, 0.9); }
+.vdt-delta { font-size: 0.72rem; font-weight: 700; border-radius: 5px; padding: 0.03rem 0.35rem; } .vdt-delta.up { color: var(--up); background: rgba(63, 185, 80, 0.14); } .vdt-delta.down { color: var(--down); background: rgba(248, 81, 73, 0.16); }
+.vdt-lever-meta { font-size: 0.68rem; color: rgba(255, 255, 255, 0.5); margin-top: 0.2rem; }
+.vdt-pol { color: #58a6ff; }
+.vdt-lever-val { font-size: 0.82rem; font-weight: 700; color: var(--up); margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+
+.vdt-foot { margin: 0; font-size: 0.72rem; color: rgba(255, 255, 255, 0.45); line-height: 1.5; } .vdt-foot code { color: rgba(255, 255, 255, 0.7); }
+</style>

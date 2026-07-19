@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import labelContract from '../../../../contracts/integrations/tritfabric-ui-labels.v0.json'
+// Vendored copy of contracts/integrations/tritfabric-ui-labels.v0.json — the client-vue image
+// build only copies apps/socioprophet-web, so a repo-root import would break the Docker build.
+// The root contract is kept in sync and is what validate_tritfabric_ui_component.py checks.
+import labelContract from '../contracts/tritfabric-ui-labels.v0.json'
 
 type Label = {
   surface_id: string
