@@ -1,11 +1,14 @@
 # sherlock-engine — sovereign Discovery search (Tantivy, Rust, no JVM). Multi-stage: build the
 # static-ish binary, ship it on a slim runtime with the corpus. Canonical source: SocioProphet/sherlock-search
 # (engine/), vendored here for the estate image build (same pattern as other apps).
-FROM rust:1.83-slim AS build
+# Rust 1.83 was too old to parse a bumped transitive manifest (idna_adapter 1.2.2 via url/idna);
+# pin a newer toolchain + a committed Cargo.lock so the build is reproducible and stops resolving
+# newer, toolchain-incompatible deps on every run.
+FROM rust:1.97-slim AS build
 WORKDIR /build
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 COPY src ./src
-RUN cargo build --release && strip target/release/sherlock-engine
+RUN cargo build --release --locked && strip target/release/sherlock-engine
 
 FROM debian:bookworm-slim
 WORKDIR /app
