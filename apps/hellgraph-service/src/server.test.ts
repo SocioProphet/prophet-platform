@@ -216,7 +216,7 @@ test('graphrag: /ask degrades to facts-only when no sovereign LLM is configured 
   assert.equal((await req('POST', '/api/graph/ask', {})).status, 400)     // question required
 })
 
-test('graphrag: SEMANTIC retrieval seeds by embedding cosine, not substring (fake sovereign endpoint)', async () => {
+test('graphrag: HYBRID retrieval (HNSW+BM25 RRF) seeds by embedding, not substring (fake sovereign endpoint)', async () => {
   const nodes = [
     { id: 'n:cat', labels: ['Topic'], properties: { name: 'feline pets' } },
     { id: 'n:fin', labels: ['Topic'], properties: { name: 'stock market' } },
@@ -236,8 +236,8 @@ test('graphrag: SEMANTIC retrieval seeds by embedding cosine, not substring (fak
   process.env.EMBEDDINGS_URL = 'http://fake/embed'
   try {
     const gr = await retrieveGroundingAuto(g, 'tell me about a kitten', 1, 24, fakeFetch)
-    assert.match(gr.retrieval, /semantic/)
-    assert.ok(gr.seeds.includes('n:cat') && !gr.seeds.includes('n:fin'), 'semantic seed = cat, not finance')
+    assert.match(gr.retrieval, /hybrid/)
+    assert.ok(gr.seeds.includes('n:cat') && !gr.seeds.includes('n:fin'), 'embedding seed = cat, not finance (BM25 leg adds nothing here; cosine gate drops finance)')
   } finally { delete process.env.EMBEDDINGS_URL }
 })
 
