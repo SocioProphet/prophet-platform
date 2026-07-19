@@ -3,7 +3,7 @@
 # Pinned manually: the image built fine, but the images matrix run failed on an UNRELATED service
 # (sherlock-engine), and gitops-promote only fires on a fully-green images run — so one unrelated build
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
-image: { repository: hellgraph-service, tag: sha-6ffb4c7c706f9cd04cfb2c1e9e974ba877abe56d }
+image: { repository: hellgraph-service, tag: sha-6f2c572cb9560e01190c7844d36fae16170d09ad }
 service: { port: 8090, portName: http }
 config:
   # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
