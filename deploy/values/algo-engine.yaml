@@ -1,6 +1,6 @@
 # algo-engine — real backtests / strategy-from-NL / paper-execution ledger (apps/algo-engine). Powers the
 # Algo Trading cockpit surface; pulls Yahoo daily bars, no in-cluster deps. tag:latest → sha-pinned by
 # gitops-promote after the first image build (same pattern as owl-reasoner / entity-resolution).
-image: { repository: algo-engine, tag: latest }
+image: { repository: algo-engine, tag: sha-32f5996a06f6b6d971e6717ca5f3cf5b0661cda2 }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

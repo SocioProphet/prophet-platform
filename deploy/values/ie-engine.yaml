@@ -1,7 +1,7 @@
 # ie-engine — spaCy NER + relations + claims + /to-graph writeback into HellGraph (apps/ie-engine). Powers the
 # NLP & IE cockpit surface. Writes extracted entities/edges into hellgraph-service (:8090). tag:latest →
 # sha-pinned by gitops-promote after the first image build.
-image: { repository: ie-engine, tag: latest }
+image: { repository: ie-engine, tag: sha-32f5996a06f6b6d971e6717ca5f3cf5b0661cda2 }
 service: { port: 8080, portName: http }
 config:
   HELLGRAPH_BASE: "http://hellgraph-service:8090"
