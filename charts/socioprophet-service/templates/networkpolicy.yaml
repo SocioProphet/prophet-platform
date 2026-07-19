@@ -1,0 +1,44 @@
+{{- if .Values.networkPolicy.enabled }}
+# Ingress isolation for this service. OFF by default estate-wide (zero blast radius); enabled per-service
+# in deploy/values/<name>.yaml once its real ingress sources are known — the safe path to a namespace
+# default-deny (recon: the namespace is NOT default-deny; a blind flip breaks every service without an
+# allowlist). Same-namespace ingress is always allowed when enabled; LB + observability are opt-in.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "svc.fullname" . }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "svc.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Same-namespace pods (other services in socioprophet calling this one) — always allowed.
+    - from:
+        - podSelector: {}
+      {{- with .Values.networkPolicy.ports }}
+      ports:
+        {{- range . }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+      {{- end }}
+    {{- if .Values.networkPolicy.allowObservability }}
+    # Prometheus scrape from the observability namespace.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+    {{- end }}
+    {{- if .Values.networkPolicy.allowLoadBalancer }}
+    # GKE container-native LB (NEG) health checks + client traffic arrive from the GFE ranges — required
+    # for any service behind a public Ingress, else the LB health check fails and the backend goes UNHEALTHY.
+    - from:
+        - ipBlock: { cidr: 130.211.0.0/22 }
+        - ipBlock: { cidr: 35.191.0.0/16 }
+    {{- end }}
+    {{- with .Values.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
