@@ -120,14 +120,9 @@ KNOWN_BROKEN = {
         "sha- tag; switched values from the sha-REPLACE_ON_FIRST_BUILD placeholder to tag:latest so gitops-promote "
         "pins it like every other service. Placeholder never matched the promote pattern, which is why it was stuck."
     ),
-    "algo-engine:moving-tag": (
-        "New service — Dockerfile + images.yml entry + values + ApplicationSet added this PR (FastAPI backtests "
-        "powering the Algo Trading surface). Pin tag:latest -> the sha- tag after the first CI build; none until merge."
-    ),
-    "ie-engine:moving-tag": (
-        "New service — Dockerfile (spaCy en_core_web_sm baked in) + images.yml + values + ApplicationSet added this "
-        "PR (NLP & IE surface, /to-graph writeback into HellGraph). Pin tag:latest -> sha- after the first CI build."
-    ),
+    # algo-engine + ie-engine were pinned to sha- tags by gitops-promote (18f02aad,
+    # sha-32f5996a06f6) after their first CI build, so they no longer violate — the
+    # ratchet requires removing them here (it only shrinks).
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
     # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`
     # + IfNotPresent means nodes may be running an older cached digest than `latest`
