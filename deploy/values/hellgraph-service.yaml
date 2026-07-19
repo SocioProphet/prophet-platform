@@ -1,9 +1,9 @@
 # hellgraph-service — the engine serves on :8090 (not 8080); align service + probes.
-# tag pinned to the 9bb04243 build — the first image with the full fast-kernel bridge (BFS/SSSP/CDLP
-# now exposed via N-API, not just PageRank/WCC). Pinned manually because gitops-promote skips MERGE
-# commits (git show --name-only is empty for a merge → the changed service is invisible), so #864's
-# hellgraph-service change never auto-promoted. See the gitops-promote merge-detection fix.
-image: { repository: hellgraph-service, tag: sha-f2c93f4ab96c87e2474ca1559125241e57e71a7c }
+# tag pinned to the 6bc77790 build — WO-2: HNSW+BM25 hybrid retrieval on the GraphRAG grounding path.
+# Pinned manually: the image built fine, but the images matrix run failed on an UNRELATED service
+# (sherlock-engine), and gitops-promote only fires on a fully-green images run — so one unrelated build
+# failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
+image: { repository: hellgraph-service, tag: sha-6bc77790dd33577f486e1ae3141825a18d82d8bb }
 service: { port: 8090, portName: http }
 config:
   # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
