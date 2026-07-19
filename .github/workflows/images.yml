@@ -71,6 +71,8 @@ jobs:
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
           - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }
           - { image: entity-resolution,     context: apps/entity-resolution,     dockerfile: Dockerfile }
+          - { image: algo-engine,           context: apps/algo-engine,           dockerfile: Dockerfile }
+          - { image: ie-engine,             context: apps/ie-engine,             dockerfile: Dockerfile }
           - { image: memoryd,               context: apps/memoryd,               dockerfile: Dockerfile }
           - { image: node-commander,        context: apps/node-commander,        dockerfile: Dockerfile }
           - { image: liberty-stack-readout, context: apps/liberty-stack-readout, dockerfile: Dockerfile }

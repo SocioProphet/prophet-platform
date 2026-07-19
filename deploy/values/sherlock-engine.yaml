@@ -1,7 +1,7 @@
 # sherlock-engine — sovereign, ontology-driven Discovery search (Tantivy/Rust, no JVM). Serves the
 # lexical (BM25) tier of the federated search plane; the search-gateway fans it in as source "corpus"
 # alongside SearXNG (web) + commons-search (commons). Pin the immutable sha- tag the build publishes.
-image: { repository: sherlock-engine, tag: sha-REPLACE_ON_FIRST_BUILD }
+image: { repository: sherlock-engine, tag: latest }
 service: { port: 8093, portName: http }
 # server serves /healthz (chart default).
 config:
