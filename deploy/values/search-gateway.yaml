@@ -11,6 +11,8 @@ config:
   # In-cluster engine URLs (ClusterIP, same namespace).
   SEARXNG_URL: "http://searxng.socioprophet.svc.cluster.local:8080"
   COMMONS_SEARCH_URL: "http://commons-search.socioprophet.svc.cluster.local:8080"
+  # sherlock-engine (Tantivy Discovery) — the "corpus" source in the fan-out.
+  SHERLOCK_URL: "http://sherlock-engine.socioprophet.svc.cluster.local:8093"
   # CORS allowlist — only the .ai surfaces + the Firebase dev/prod app sites may call it from a browser.
   SEARCH_CORS_ORIGINS: "https://socioprophet.ai,https://www.socioprophet.ai,https://app.socioprophet.com,https://socioprophet-builder.web.app,https://socioprophet-builder-dev.web.app"
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

@@ -63,6 +63,7 @@ jobs:
           - { image: embeddings,           context: apps/embeddings,           dockerfile: Dockerfile }
           - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
           - { image: search-gateway,        context: apps/search-gateway,        dockerfile: Dockerfile }
+          - { image: sherlock-engine,       context: apps/sherlock-engine,       dockerfile: Dockerfile }
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }
           - { image: lattice-forge,         context: apps/lattice-forge,         dockerfile: Dockerfile }
           - { image: compute-gateway,       context: apps/compute-gateway,       dockerfile: Dockerfile }

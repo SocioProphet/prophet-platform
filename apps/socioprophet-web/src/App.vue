@@ -10,13 +10,17 @@ import Reasoner from './views/Reasoner.vue'
 import EntityResolution from './views/EntityResolution.vue'
 import ResourceBrowser from './views/ResourceBrowser.vue'
 import Ontology from './views/Ontology.vue'
+import CausalValuation from './views/CausalValuation.vue'
 import DevSecOpsWorkroomReportCard from './components/DevSecOpsWorkroomReportCard.vue'
 
 const NAV = [
   { group: 'Explore', items: [
-    { id: 'overview', label: 'Overview', ic: '◱', comp: Overview, sub: 'Platform health & program readouts' },
+    { id: 'overview', label: 'Overview', ic: '◱', comp: Overview, sub: 'Platform health & program index' },
     { id: 'explorer', label: 'Graph Explorer', ic: '⟡', comp: GraphExplorer, sub: 'Force-directed graph + provenance inspector' },
     { id: 'resource', label: 'Resource Browser', ic: '◈', comp: ResourceBrowser, sub: 'Dereferenceable Linked Data' },
+  ]},
+  { group: 'Programs', items: [
+    { id: 'causal', label: 'Causal Valuation', ic: '◵', comp: CausalValuation, sub: 'GYG · supply-chain causal graph → economic-prophet value-driver tree → enterprise value' },
   ]},
   { group: 'Query & Analyze', items: [
     { id: 'query', label: 'Query Console', ic: '⌘', comp: QueryConsole, sub: 'SPARQL · Cypher · Gremlin' },

@@ -1,0 +1,16 @@
+# sherlock-engine — sovereign, ontology-driven Discovery search (Tantivy/Rust, no JVM). Serves the
+# lexical (BM25) tier of the federated search plane; the search-gateway fans it in as source "corpus"
+# alongside SearXNG (web) + commons-search (commons). Pin the immutable sha- tag the build publishes.
+image: { repository: sherlock-engine, tag: sha-REPLACE_ON_FIRST_BUILD }
+service: { port: 8093, portName: http }
+# server serves /healthz (chart default).
+config:
+  # Dense / semantic substrate (hybrid lexical+vector). Qdrant is the shared platform vector store
+  # (infra/k8s/mesh-qdrant) already used by memoryd + the Prophet Mesh — Sherlock rides it, no new
+  # store. Embeddings via the estate sovereign contract (same as hellgraph-service/memoryd).
+  # NOTE: consumed once the engine's dense-rerank path lands; declared here so the binding is explicit.
+  QDRANT_URL: "http://mesh-qdrant.socioprophet.svc.cluster.local:6333"
+  QDRANT_COLLECTION: "sherlock-corpus"
+  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  EMBEDDINGS_MODEL: "nomic-embed-text"
+autoscaling: { enabled: false }

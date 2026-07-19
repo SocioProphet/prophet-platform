@@ -1,0 +1,20 @@
+[package]
+name = "sherlock-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Sherlock — sovereign, ontology-driven Discovery search engine (Tantivy, no JVM)."
+
+[[bin]]
+name = "sherlock-engine"
+path = "src/main.rs"
+
+[dependencies]
+tantivy = "0.22"
+tiny_http = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# blocking HTTP client for the dense tier (embeddings + Qdrant) — light deps, fast compile
+ureq = { version = "2", features = ["json"] }
+
+[profile.release]
+opt-level = 2

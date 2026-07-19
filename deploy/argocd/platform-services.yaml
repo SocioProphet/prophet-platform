@@ -26,6 +26,7 @@ spec:
           - { name: reasoning-failure-runner }
           - { name: search-orchestrator }
           - { name: search-gateway }
+          - { name: sherlock-engine }
           - { name: lattice-studio }
           - { name: grlplus-service }
           - { name: grl-mesh }

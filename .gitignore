@@ -30,3 +30,5 @@ artifacts/runtime/**/private.pem
 .env
 *.env
 !.env.example
+.dev-venv/
+scripts/.dev-logs/
