@@ -22,6 +22,7 @@ beforeEach(() => {
     const u = String(input)
     if (u.includes('commons-search')) return new Response(JSON.stringify({ results: [{ title: 'C', url: 'noetica://x', content: 'c' }] }), { status: 200 })
     if (u.includes('searxng')) return new Response(JSON.stringify({ results: [{ title: 'W', url: 'https://w.example', content: 'w', engine: 'ddg' }] }), { status: 200 })
+    if (u.includes('sherlock-engine')) return new Response(JSON.stringify({ hits: [] }), { status: 200 })
     return origFetch(input as never, init)   // the test → gateway requests
   }) as typeof fetch
 })
@@ -38,7 +39,7 @@ test('search blends web + commons', async () => {
   const b = await r.json()
   assert.equal(r.status, 200)
   assert.equal(b.results.length, 2)
-  assert.deepEqual(b.counts, { web: 1, commons: 1 })
+  assert.deepEqual(b.counts, { web: 1, commons: 1, corpus: 0 })
 })
 
 test('CORS: allowed origin is echoed', async () => {

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { health, graph, type Health } from '../studio/api'
-import GygCausalValuationCard from '../components/GygCausalValuationCard.vue'
 import ProphetMeshRuntimeReadinessCard from '../components/ProphetMeshRuntimeReadinessCard.vue'
 import ChronosEvidenceLoopCard from '../components/ChronosEvidenceLoopCard.vue'
 
@@ -38,9 +37,20 @@ onMounted(load)
 
   <div class="card">
     <h3>Program readouts</h3>
-    <p class="desc">Governed program evidence surfaces.</p>
-    <GygCausalValuationCard />
+    <p class="desc">Governed program evidence surfaces. Each program opens as its own workbench surface.</p>
+    <a class="program-index row" href="#causal">
+      <div>
+        <b>Causal Valuation — Guzman y Gomez (ASX:GYG)</b>
+        <div class="desc">Supply-chain causal graph → economic-prophet value-driver tree → enterprise value.</div>
+      </div>
+      <span class="pill accent">Open →</span>
+    </a>
     <ProphetMeshRuntimeReadinessCard />
     <ChronosEvidenceLoopCard />
   </div>
 </template>
+
+<style scoped>
+.program-index { justify-content: space-between; gap: 1rem; padding: .8rem .9rem; border: 1px solid var(--border); border-radius: 10px; text-decoration: none; color: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+.program-index:hover { border-color: var(--accent); background: rgba(255,255,255,.02); }
+</style>
