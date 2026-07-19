@@ -27,10 +27,12 @@ concurrency:
 
 jobs:
   promote:
-    # auto: only on a SUCCESSFUL images build on main. manual: always.
+    # auto: on any COMPLETED images run for main (success OR failure). The per-service build-job check in the
+    # step below promotes ONLY services that actually built — so one unrelated matrix failure can't block
+    # everyone's deploy (the sherlock-engine incident). manual (workflow_dispatch): always.
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+      (github.event.workflow_run.head_branch == 'main' && (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +42,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Re-pin values to the built sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for the per-service build-job success query (gh api)
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -68,8 +72,22 @@ jobs:
             # only the services whose source changed in this commit (image-name == dir-name convention)
             CHANGED=$(git show --name-only --first-parent --pretty="" "$SHA" | grep -oE '^(apps|services)/[^/]+/' \
                       | sed -E 's#(apps|services)/([^/]+)/#\2#' | sort -u || true)
+            # PARTIAL-SUCCESS: the images matrix builds every service (fail-fast:false), so one unrelated
+            # service failing makes the whole run "failure" — which must NOT block the services that DID
+            # build. On a workflow_run, keep only changed services whose per-service build job SUCCEEDED
+            # (so its image exists). Fail SAFE: if the job list can't be read, OK is empty → nothing is
+            # promoted (manual-pin fallback), never a dangling pin. A manual dispatch has no run → no filter.
+            OK=""
+            if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+              OK=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}/jobs" --paginate \
+                     --jq '.jobs[] | select(.conclusion=="success") | .name' 2>/dev/null \
+                   | sed -nE 's/^build \(([^,]+),.*/\1/p' | sort -u || true)
+            fi
             FILES=""
             for name in $CHANGED; do
+              if [ "${{ github.event_name }}" != "workflow_dispatch" ] && ! printf '%s\n' "$OK" | grep -qxF "$name"; then
+                echo "skip $name — its image build did not succeed in this run"; continue
+              fi
               f="deploy/values/${name}.yaml"
               [ -f "$f" ] && grep -qE 'tag: (sha-[0-9a-f]+|latest)\b' "$f" && FILES="$FILES $f"
             done
