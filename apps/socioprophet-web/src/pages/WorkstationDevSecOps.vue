@@ -5,6 +5,7 @@
 // the gateway) so the devsecops-workroom-rca-guards governance guard still holds — it just lives
 // on its own route now instead of the old single-page App.vue.
 import DevSecOpsWorkroomReportCard from '../components/DevSecOpsWorkroomReportCard.vue';
+import TritFabricReadinessLabels from '../components/TritFabricReadinessLabels.vue';
 </script>
 
 <template>
@@ -14,5 +15,8 @@ import DevSecOpsWorkroomReportCard from '../components/DevSecOpsWorkroomReportCa
       <p>Root-cause analysis, Guardrail bindings, and runtime-parity posture — rendered from the governed fixture contracts, with explicit non-claims.</p>
     </header>
     <DevSecOpsWorkroomReportCard />
+    <!-- TritFabric product-consumption readiness labels — a sibling governed-honesty surface
+         (label contract only; renders without implying runtime authority). -->
+    <TritFabricReadinessLabels />
   </section>
 </template>
