@@ -11,6 +11,9 @@
  * honest extractive answer), and any LLM error degrades the same way. Read-only; never throws.
  */
 import type { Triple } from '@socioprophet/hellgraph'
+// WO-2: the built-but-dark hybrid retrieval primitives — HNSW dense index, BM25 lexical index, and the
+// RRF fusion entrypoint — now ON the retrieval path (they were exported but never wired).
+import { HnswIndex, BM25Index, hybridRetrieve } from '@socioprophet/hellgraph'
 
 export interface GraphNodeLite { id: string; labels: string[]; properties: Record<string, unknown> }
 export interface GraphSource {
@@ -132,20 +135,47 @@ function cosine(a: number[], b: number[]): number {
 
 /** Auto retrieval: SEMANTIC (embedding cosine) seeding when EMBEDDINGS_URL is configured + reachable, else the
  * lexical substring path. `hops` configurable (default 1). Fixes the audit's "substring + fixed-1-hop" finding. */
+// ── WO-2 hybrid retrieval index: HNSW dense ⊕ BM25 lexical, built ONCE over the node corpus and cached
+// (rebuilt only when the node count changes). A query then embeds the QUERY alone + does one ANN + one
+// BM25 lookup — instead of the old path that re-embedded EVERY node on EVERY query (O(n) embeds/query).
+// Rebuilds reuse embedCache, so they're near-free after the first pass. vecOf keeps the node vectors so
+// seeds can still be cosine-gated for grounding quality.
+let hybridIndex: { hnsw: HnswIndex; bm25: BM25Index; vecOf: Map<string, number[]>; signature: string } | null = null
+
+async function getHybridIndex(g: GraphSource, cfg: EmbedConfig, fetchImpl: typeof fetch) {
+  const nodes = g.allNodes()
+  // signature = count + a cheap rolling hash of node ids, so a different corpus (added/removed nodes)
+  // rebuilds — count alone would collide two distinct same-size graphs (and break test isolation).
+  let h = 0
+  for (const nd of nodes) for (let i = 0; i < nd.id.length; i++) h = (Math.imul(h, 31) + nd.id.charCodeAt(i)) | 0
+  const signature = `${nodes.length}:${h >>> 0}`
+  if (hybridIndex && hybridIndex.signature === signature) return hybridIndex
+  const hnsw = new HnswIndex()
+  const bm25 = new BM25Index()
+  const vecOf = new Map<string, number[]>()
+  for (const nd of nodes) {
+    const text = nodeText(nd)
+    bm25.add(nd.id, text)
+    const nv = await embed(text, cfg, fetchImpl)
+    if (nv) { hnsw.add(nd.id, nv); vecOf.set(nd.id, nv) }
+  }
+  hybridIndex = { hnsw, bm25, vecOf, signature }
+  return hybridIndex
+}
+
 export async function retrieveGroundingAuto(g: GraphSource, question: string, hops = 1, maxCitations = MAX_CITATIONS, fetchImpl: typeof fetch = fetch): Promise<Grounding & { retrieval: string }> {
   const cfg = embedConfig()
   if (cfg) {
     const qv = await embed(question, cfg, fetchImpl)
     if (qv) {
-      const nodes = g.allNodes()
-      const scored: { id: string; score: number }[] = []
-      for (const nd of nodes) {
-        const nv = await embed(nodeText(nd), cfg, fetchImpl)
-        if (nv) scored.push({ id: nd.id, score: cosine(qv, nv) })
-      }
-      if (scored.length) {
-        const seeds = scored.sort((a, b) => b.score - a.score).slice(0, MAX_SEEDS).filter((s) => s.score > 0.2).map((s) => s.id)
-        return { ...groundingFromSeeds(g, seeds, hops, maxCitations), retrieval: `semantic (${cfg.model})` }
+      const idx = await getHybridIndex(g, cfg, fetchImpl)
+      // dense (HNSW ANN) ⊕ lexical (BM25), fused with Reciprocal Rank Fusion — one ANN + one BM25 lookup.
+      const fused = hybridRetrieve({ dense: idx.hnsw, bm25: idx.bm25 }, { vector: qv, text: question, topK: MAX_SEEDS })
+      // Keep grounding honest: a seed WITH an embedding must clear the cosine relevance bar; BM25-only
+      // (unembedded) hits pass on their lexical match. Empty → fall through to the lexical path.
+      const seeds = fused.map((s) => s.id).filter((id) => { const v = idx.vecOf.get(id); return v ? cosine(qv, v) > 0.2 : true })
+      if (seeds.length) {
+        return { ...groundingFromSeeds(g, seeds, hops, maxCitations), retrieval: `hybrid HNSW+BM25 RRF (${cfg.model})` }
       }
     }
   }
