@@ -124,7 +124,7 @@ const totalPnl = computed(() => unrealized.value + portfolio.realized);
 
 const money = (n: number): string => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const num = (n: number): string => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${money(Math.abs(n)).replace('$', '$')}`;
+const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
 const pnlDir = (n: number): 'up' | 'down' | 'flat' => (n > 0.005 ? 'up' : n < -0.005 ? 'down' : 'flat');
 const time = (ts: number): string => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 

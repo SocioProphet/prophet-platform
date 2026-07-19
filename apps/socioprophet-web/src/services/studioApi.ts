@@ -588,7 +588,7 @@ export async function loadNotebookAdapters(): Promise<{ default: string; adapter
 
 export async function createNotebookSession(input: { project: string; adapter?: string; name?: string }): Promise<NbSession> {
   const b = nbBase();
-  if (!b) return { id: "stub-" + Math.random().toString(16).slice(2, 8), project: input.project, adapter: input.adapter || "jupyterlab",
+  if (!b) return { id: "stub-" + Array.from(crypto.getRandomValues(new Uint8Array(3)), (n) => n.toString(16).padStart(2, "0")).join(""), project: input.project, adapter: input.adapter || "jupyterlab",
                    role: "scientific-notebook", mode: "session", kernel: "python3", name: input.name || "Notebook session", status: "stub", url: null };
   const r = await fetch(`${b}/api/studio/notebook/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
   if (!r.ok) throw new Error(`session failed (HTTP ${r.status})`);
