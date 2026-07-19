@@ -28,8 +28,11 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: ollama
-          # ollama/ollama:0.9.0 pinned by digest (anti moving-tag), pulled through the sovereign registry.
-          image: registry.socioprophet.ai/ollama/ollama@sha256:2ea3b768a8f2dcd4d910f838d79702bb952089414dd578146619c0a939647ac6
+          # ollama/ollama pinned to the immutable version tag 0.9.0 (not `latest`), pulled through the
+          # sovereign registry. Must be a TAG, not a bare @sha256 digest: zot's on-demand sync fetches an
+          # un-cached upstream image by tag/reference — a digest for a repo zot has never synced resolves
+          # to NotFound (this bit the first roll). The version tag is immutable, so IfNotPresent is safe.
+          image: registry.socioprophet.ai/ollama/ollama:0.9.0
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
