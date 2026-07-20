@@ -116,17 +116,8 @@ KNOWN_BROKEN = {
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
     # sherlock-engine pinned to a sha- tag by gitops-promote after the 0.0.0.0 bind fix (#887) → removed
-    # from the ratchet (it only shrinks).
-    "synapse-bridge:moving-tag": (
-        "New service — synapseiq/bridge vendored into apps/synapse-bridge this PR (KKO + normalize on :8092, "
-        "powers ieApi.kkoClassify → /svc/synapse). Pin tag:latest -> the sha- tag gitops-promote writes after "
-        "the first CI build; no sha exists until merge."
-    ),
-    "holmes:moving-tag": (
-        "New service — holmes (Go claim-verifier) vendored into apps/holmes this PR (/verify on :8091 over "
-        "hellgraph, powers ieApi.verifyClaims → /svc/holmes + the Law citator). Pin tag:latest -> the sha- tag "
-        "gitops-promote writes after the first CI build; no sha exists until merge."
-    ),
+    # from the ratchet (it only shrinks). Same for synapse-bridge + holmes: gitops-promote sha-pinned both
+    # after their first builds landed (#905/#906), so their moving-tag entries now pass and are removed.
     # algo-engine + ie-engine were pinned to sha- tags by gitops-promote (18f02aad,
     # sha-32f5996a06f6) after their first CI build, so they no longer violate — the
     # ratchet requires removing them here (it only shrinks).
