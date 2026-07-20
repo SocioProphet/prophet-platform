@@ -85,3 +85,54 @@
 .psteps .step .op .c { font-family: 'Roboto Mono', ui-monospace, monospace; color: var(--sp-blue); font-size: 11px; }
 .psteps .step .d { font-size: 10.5px; color: var(--sp-gray-60); margin-top: 2px; }
 .psteps .step.start { border-style: dashed; color: var(--sp-gray-60); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Dark-cockpit retheme. The primitives above were retinted verbatim from the
+   IBM-Carbon LIGHT render-harness (#fff / #161616 / #e0e0e0 / *-10 tints), which
+   clashes hard inside the dark cockpit. Rather than rewrite every rule, we (a)
+   remap the Carbon light tokens to the cockpit's dark tokens at the workbench
+   container — so every `var(--sp-gray-*)` / `var(--sp-*-10)` re-resolves dark —
+   and (b) override the few hardcoded hex backgrounds/text. Scoped to the
+   workbench so nothing else is touched.
+   ───────────────────────────────────────────────────────────────────────────── */
+.wb-page, .wb-stage-body {
+  --sp-gray-20: var(--line-2);
+  --sp-gray-60: var(--text-3);
+  --sp-gray-70: var(--text-2);
+  --sp-blue-10:   color-mix(in srgb, var(--sp-blue) 16%, transparent);
+  --sp-green-10:  color-mix(in srgb, var(--up) 15%, transparent);
+  --sp-red-10:    color-mix(in srgb, var(--down) 15%, transparent);
+  --sp-amber-10:  color-mix(in srgb, var(--sp-amber) 15%, transparent);
+  --sp-purple-10: color-mix(in srgb, var(--sp-purple) 15%, transparent);
+  --sp-teal-10:   color-mix(in srgb, var(--sp-teal) 15%, transparent);
+}
+/* Cards / panels / inputs — white → surface, dark text → light text, grey rules → hairlines */
+.wb-stage-body .carbon-card,
+.wb-stage-body .panel,
+.wb-stage-body .state-card,
+.wb-stage-body .pverdict,
+.wb-stage-body .psteps .step,
+.wb-stage-body .gtoolbar button { background: var(--surface); border-color: var(--line-2); }
+.wb-stage-body .surface-header h1,
+.wb-stage-body .psteps .step .op b,
+.wb-stage-body .pnode .lbl { color: var(--text); }
+.wb-stage-body .surface-summary,
+.wb-stage-body .canvas .hint,
+.wb-stage-body .gtoolbar button { color: var(--text-3); }
+.wb-stage-body .tag { background: var(--surface-2); border-color: var(--line-2); color: var(--text-2); }
+/* Verdict — dark header + hairline rows */
+.wb-stage-body .pverdict .vh { background: var(--surface-2); color: var(--text); }
+.wb-stage-body .pverdict .vr { border-color: var(--line); }
+.wb-stage-body .pverdict .vr .v { color: var(--text); }
+.wb-stage-body .pverdict .note { background: var(--sp-red-10); border-color: color-mix(in srgb, var(--down) 45%, transparent); color: #fca5a5; }
+/* Bars — light track → dark track */
+.wb-stage-body .pbars .brow .track { background: var(--line); }
+.wb-stage-body .pbars .brow .bv { color: var(--text-2); }
+/* Graph canvas edges + node count badge stay legible on dark */
+.wb-stage-body .elabel { fill: var(--text-3); }
+/* Base Carbon classes hardcode light in styles.css — override within the workbench */
+.wb-stage-body .canvas, .wb-stage-body .map-stage { background: var(--surface-2); border-color: var(--line-2); }
+.wb-stage-body .section-title { color: var(--text-3); }
+.wb-stage-body .field { background: var(--surface-2); border-color: var(--line-2); color: var(--text); }
+.wb-stage-body .layer-card { background: var(--surface); border-color: var(--line-2); color: var(--text); }
+.wb-stage-body .runtime-row strong { color: var(--text); }
