@@ -38,6 +38,7 @@ import NoeticaControlPlane from './pages/NoeticaControlPlane.vue';
 import DomainSurfacePage from './pages/DomainSurfacePage.vue';
 import AcademyOverview from './pages/AcademyOverview.vue';
 import DegreeExplorer from './pages/DegreeExplorer.vue';
+import CourseView from './pages/CourseView.vue';
 import FeedPage from './pages/FeedPage.vue';
 import Journal from './pages/Journal.vue';
 import MapPage from './pages/MapPage.vue';
@@ -77,6 +78,8 @@ const explicitRoutes = [
   { path: '/academy', component: AcademyOverview },
   { path: '/academy/homeschool', component: DegreeExplorer },
   { path: '/academy/degrees', component: DegreeExplorer },
+  { path: '/academy/course/:id', component: CourseView },
+  { path: '/academy/tutor', component: CourseView },
   { path: '/agentic-os', component: AgenticOS },
   { path: '/marketplace', component: Marketplace },
   { path: '/people/labor-market', component: LaborMarket },
