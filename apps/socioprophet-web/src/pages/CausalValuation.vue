@@ -106,6 +106,22 @@ const kpis = computed(() => [...(cv.value?.vdt?.per_kpi_contribution ?? [])].sor
 const drivers = computed(() => Object.entries(cv.value?.vdt?.per_driver_uplift ?? {}).sort((a, b) => b[1] - a[1]));
 // Waterfall segments (baseline → driver contributions → projected) for the story chart.
 const driverSegments = computed(() => drivers.value.map(([label, value]) => ({ label, value })));
+// Grounding: surface the real public sources behind the scenario (they're in evidence_refs but were
+// never shown — which is why it read as "fairy tale"). Classify each ref by URL so the annual report /
+// results / news article / market data are legible at a glance.
+const sources = computed(() => {
+  const refs = (cv.value?.vdt?.evidence_refs ?? []).filter((r) => /^https?:\/\//.test(r));
+  return refs.map((url) => {
+    const u = url.toLowerCase();
+    let kind = 'source', label = 'Source';
+    if (/annual[-_]?report/.test(u)) { kind = 'filing'; label = 'Annual Report'; }
+    else if (/results|presentation|fy2[0-9]/.test(u)) { kind = 'results'; label = 'Results'; }
+    else if (/proactiveinvestors|reuters|bloomberg|\bafr\b|abc\.net|news|\.com\/companies\//.test(u)) { kind = 'news'; label = 'News'; }
+    else if (/stockanalysis|marketwatch|yahoo|statistics|morningstar/.test(u)) { kind = 'market'; label = 'Market data'; }
+    const host = url.replace(/^https?:\/\//, '').split('/')[0].replace(/^www\./, '');
+    return { url, kind, label, host };
+  });
+});
 // Decision-tool verdict — the plain-language call (over / under / fair) + an honest band.
 const verdict = computed(() => {
   const v = cv.value?.valuation;
@@ -192,6 +208,27 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
       <div v-if="verdict" class="cv-verdict" :class="verdict.tone">
         <span class="cv-v-dot"></span>
         <span class="cv-v-text">At these assumptions, projected enterprise value is <b>{{ money(verdict.projected) }}</b> — <b>{{ verdict.word }} {{ verdict.pct }}</b> vs the {{ money(verdict.baseline) }} baseline <span class="cv-v-band">(±{{ verdict.band }} pp · 80%)</span>.</span>
+      </div>
+
+      <!-- Grounded in: the real public sources behind the scenario. These live in evidence_refs but
+           were never surfaced — which is exactly why the valuation read as "fairy tale". Show them. -->
+      <div v-if="sources.length" class="cv-grounding">
+        <div class="cv-grounding-h">
+          <span class="cv-grounding-t">Grounded in <b>{{ sources.length }}</b> public source{{ sources.length === 1 ? '' : 's' }}</span>
+          <span v-if="cv.vdt?.epistemic_status" class="cv-epi" :title="`confidence ${cv.vdt.epistemic_status.confidence}`">
+            {{ cv.vdt.epistemic_status.level.replace(/_/g, ' ') }} · {{ cv.vdt.epistemic_status.review_status.replace(/_/g, ' ') }}
+          </span>
+        </div>
+        <div class="cv-source-list">
+          <a v-for="s in sources" :key="s.url" class="cv-source" :class="s.kind" :href="s.url" target="_blank" rel="noopener noreferrer">
+            <span class="cv-source-kind">{{ s.label }}</span>
+            <span class="cv-source-host">{{ s.host }}</span>
+          </a>
+        </div>
+        <p class="cv-grounding-note">
+          A source-cited scenario, not a live-news read. It's anchored to the filings and reporting above; live-news grounding
+          arrives as the News → extraction → graph loop feeds fresh events into this driver.
+        </p>
       </div>
 
       <div class="cv-panel">
@@ -326,6 +363,22 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
 .cv-verdict.up .cv-v-dot { background: var(--up); } .cv-verdict.down .cv-v-dot { background: var(--down); }
 .cv-v-text b { color: var(--text); font-weight: 650; } .cv-v-band { color: var(--text-3); font-size: .8rem; }
 .cv-waterfall { width: 100%; height: 200px; margin: .3rem 0 .6rem; }
+/* Grounding — the real sources behind the scenario (kills "fairy tale mode") */
+.cv-grounding { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: .75rem .85rem; margin: 0 0 1rem; }
+.cv-grounding-h { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.cv-grounding-t { font-size: .82rem; color: var(--text-2); } .cv-grounding-t b { color: var(--text); font-weight: 700; }
+.cv-epi { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 999px; padding: .12rem .5rem; }
+.cv-source-list { display: flex; flex-wrap: wrap; gap: .4rem; margin: .55rem 0 .4rem; }
+.cv-source { display: inline-flex; align-items: center; gap: .4rem; text-decoration: none; border: 1px solid var(--line-2); border-left-width: 3px; border-radius: 8px; padding: .28rem .55rem; background: var(--surface-2); transition: border-color .15s, transform .1s; }
+.cv-source:hover { transform: translateY(-1px); border-color: var(--text-3); }
+.cv-source-kind { font-size: .68rem; text-transform: uppercase; letter-spacing: .03em; font-weight: 700; color: var(--text-2); }
+.cv-source-host { font-size: .74rem; color: var(--text-3); font-family: var(--mono, ui-monospace, monospace); }
+.cv-source.filing { border-left-color: #60a5fa; } .cv-source.filing .cv-source-kind { color: #93c5fd; }
+.cv-source.results { border-left-color: #34d399; } .cv-source.results .cv-source-kind { color: #6ee7b7; }
+.cv-source.news { border-left-color: #fbbf24; } .cv-source.news .cv-source-kind { color: #fcd34d; }
+.cv-source.market { border-left-color: #a78bfa; } .cv-source.market .cv-source-kind { color: #c4b5fd; }
+.cv-source.source { border-left-color: var(--text-3); }
+.cv-grounding-note { font-size: .76rem; color: var(--text-3); line-height: 1.5; margin: .2rem 0 0; }
 .cv-metric { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: .85rem; display: flex; flex-direction: column; }
 .cv-m-label { font-size: .72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .cv-m-val { font-size: 1.35rem; font-weight: 700; color: var(--text); }
