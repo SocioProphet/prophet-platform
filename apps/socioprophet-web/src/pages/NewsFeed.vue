@@ -8,6 +8,13 @@
           <h1>{{ scope && !scope.isPrimary ? scope.label : 'News' }}</h1>
         </div>
         <span class="nf-pill" :class="{ live: liveState === 'live' }">{{ liveState === 'live' ? `live · ${liveItems.length}` : 'fixture' }}</span>
+        <!-- Live pulse: streaming state, last-poll tick, and the running News→graph grounding count. -->
+        <span v-if="liveState === 'live'" class="nf-pulse" :title="`Auto-refreshing every ${LIVE_POLL_MS / 1000}s · new items grounded into HellGraph`">
+          <span class="nf-pulse-dot" :class="{ working: grounding }" />
+          streaming<span class="nf-pulse-sep">·</span><span class="nf-pulse-ago">updated {{ liveAgo }}</span>
+          <span v-if="groundedFacts" class="nf-pulse-sep">·</span>
+          <span v-if="groundedFacts" class="nf-grounded" title="Facts extracted from the live feed and written into the sovereign HellGraph">{{ groundedFacts }} → graph</span>
+        </span>
       </div>
       <div class="nf-tools">
         <label class="nf-search">
@@ -63,7 +70,11 @@
 
         <!-- Story rows -->
         <template v-else>
-          <article v-for="it in items" :key="it.id" class="nf-story" :class="{ on: it.id === selectedId, social: !!bskyOf(it) }" @click="select(it.id)">
+          <!-- Twitter-style "N new" streamer — click to pull staged items in without yanking scroll -->
+          <button v-if="pendingNew.length" class="nf-newpill" @click="showPending">
+            <span class="nf-newpill-dot" /> {{ pendingNew.length }} new stor{{ pendingNew.length === 1 ? 'y' : 'ies' }} — show
+          </button>
+          <article v-for="it in visibleItems" :key="it.id" class="nf-story" :class="{ on: it.id === selectedId, social: !!bskyOf(it), flash: flashIds.has(it.id) }" @click="select(it.id)">
             <!-- Bluesky (ATProto) social card -->
             <div v-if="bskyOf(it)" class="nf-bsky">
               <div class="nf-bsky-av" aria-hidden="true">{{ initials(bskyOf(it)!.actor.displayName) }}</div>
@@ -119,6 +130,12 @@
               </div>
             </div>
           </article>
+
+          <!-- Infinite-scroll sentinel + footer -->
+          <div ref="sentinelEl" class="nf-sentinel" aria-hidden="true"></div>
+          <div v-if="visibleCount < items.length" class="nf-more" @click="loadMore">Load more ({{ items.length - visibleCount }} more)</div>
+          <div v-else-if="liveState === 'live'" class="nf-more streaming"><span class="nf-pulse-dot" /> streaming live — scroll for older stories</div>
+          <div v-else-if="items.length" class="nf-more end">· end of feed · <button class="nf-more-live" @click="goLive">go live for more →</button></div>
         </template>
       </div>
 
@@ -231,6 +248,7 @@ import ClaimsPanel from '../components/ClaimsPanel.vue';
 import ReputationBadge from '../components/ReputationBadge.vue';
 import LiveToggle from '../components/LiveToggle.vue';
 import EmptyState from '../components/EmptyState.vue';
+import { toGraph } from '../services/ieApi';
 
 // Bluesky (ATProto) is a first-class social source alongside the RSS/capture feeds.
 // Live Bluesky adapter — flip the Bluesky source from fixture to the real public
@@ -239,18 +257,102 @@ const liveItems = ref<FeedItem[]>([]);
 const liveMeta = ref<Map<string, BskyPost>>(new Map());
 const liveState = ref<'idle' | 'loading' | 'live' | 'error'>('idle');
 const liveSources = ref<typeof newsSources>([]);
+
+// ── Live newswire: not a one-shot fetch. When live, we poll every LIVE_POLL_MS,
+// stage genuinely-new items in a buffer (Twitter-style "N new" pill so the scroll
+// position is never yanked), and GROUND each new item into the sovereign HellGraph
+// via ie-engine (/svc/ie → /to-graph). That is the News → IE → graph edge of the
+// grounding loop, closing continuously as the feed streams. All best-effort: if a
+// live source or ie-engine is unreachable we fail closed and stay on what we have.
+const LIVE_POLL_MS = 40_000;
+let pollTimer: ReturnType<typeof setInterval> | undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+const seenIds = new Set<string>();
+const pendingNew = ref<FeedItem[]>([]);   // fetched, not yet shown
+const flashIds = ref<Set<string>>(new Set()); // freshly-prepended → flash animation
+const groundedFacts = ref(0);              // running count of facts written to the graph
+const grounding = ref(false);
+const lastLiveAt = ref(0);
+const nowRef = ref(Date.now());            // reactive clock so live timestamps tick
+
+async function fetchLive(): Promise<FeedItem[]> {
+  const [bsky, hn, gdelt] = await Promise.all([fetchBlueskyLive(), fetchHackerNews(), fetchGdelt('world news', 25)]);
+  liveMeta.value = new Map([...liveMeta.value, ...(bsky?.meta ?? new Map())]);
+  const srcs = [...(bsky?.items.length ? [BSKY_LIVE_SOURCE] : []), ...(hn?.length ? [HN_LIVE_SOURCE] : []), ...(gdelt?.length ? [GDELT_LIVE_SOURCE] : [])];
+  for (const s of srcs) if (!liveSources.value.some((x) => x.id === s.id)) liveSources.value = [...liveSources.value, s];
+  return [...(bsky?.items ?? []), ...(hn ?? []), ...(gdelt ?? [])];
+}
+
+// Ground a batch of items into HellGraph (sequential, capped, best-effort).
+async function groundLive(batch: FeedItem[]) {
+  if (!batch.length) return;
+  grounding.value = true;
+  for (const it of batch.slice(0, 8)) {
+    try {
+      const w = await toGraph(`${it.title}. ${it.summary}`);
+      groundedFacts.value += (w.nodes_written ?? 0) + (w.edges_written ?? 0);
+    } catch { /* ie-engine unreachable → skip, stay resilient */ }
+  }
+  grounding.value = false;
+}
+
 async function goLive() {
   if (liveState.value === 'loading') return;
+  if (liveState.value === 'live') { stopLive(); return; }
   liveState.value = 'loading';
-  const [bsky, hn, gdelt] = await Promise.all([fetchBlueskyLive(), fetchHackerNews(), fetchGdelt()]);
-  const items = [...(bsky?.items ?? []), ...(hn ?? []), ...(gdelt ?? [])];
-  if (items.length) {
-    liveItems.value = items;
-    liveMeta.value = bsky?.meta ?? new Map();
-    liveSources.value = [...(bsky?.items.length ? [BSKY_LIVE_SOURCE] : []), ...(hn?.length ? [HN_LIVE_SOURCE] : []), ...(gdelt?.length ? [GDELT_LIVE_SOURCE] : [])];
-    liveState.value = 'live';
-  } else liveState.value = 'error';
+  const items = await fetchLive();
+  if (!items.length) { liveState.value = 'error'; return; }
+  for (const i of items) seenIds.add(i.id);
+  liveItems.value = items;
+  liveState.value = 'live';
+  lastLiveAt.value = Date.now();
+  visibleCount.value = PAGE;
+  void groundLive(items);
+  pollTimer = setInterval(pollLive, LIVE_POLL_MS);
+  clockTimer = setInterval(() => { nowRef.value = Date.now(); }, 15_000);
 }
+function stopLive() {
+  liveState.value = 'idle';
+  if (pollTimer) clearInterval(pollTimer); pollTimer = undefined;
+  if (clockTimer) clearInterval(clockTimer); clockTimer = undefined;
+  pendingNew.value = [];
+}
+async function pollLive() {
+  if (liveState.value !== 'live') return;
+  const items = await fetchLive();
+  const fresh = items.filter((i) => !seenIds.has(i.id));
+  for (const i of fresh) seenIds.add(i.id);
+  lastLiveAt.value = Date.now();
+  if (!fresh.length) return;
+  // If the reader is at the very top and no reader is open, stream straight in;
+  // otherwise stage them behind the "N new" pill.
+  const atTop = (listEl.value?.scrollTop ?? 1) < 24;
+  if (atTop) prependItems(fresh);
+  else pendingNew.value = [...fresh, ...pendingNew.value];
+  void groundLive(fresh);
+}
+function prependItems(fresh: FeedItem[]) {
+  liveItems.value = [...fresh, ...liveItems.value];
+  const fl = new Set(flashIds.value);
+  for (const i of fresh) fl.add(i.id);
+  flashIds.value = fl;
+  visibleCount.value += fresh.length;
+  setTimeout(() => {
+    const rem = new Set(flashIds.value);
+    for (const i of fresh) rem.delete(i.id);
+    flashIds.value = rem;
+  }, 2400);
+}
+function showPending() {
+  prependItems(pendingNew.value);
+  pendingNew.value = [];
+  listEl.value?.scrollTo({ top: 0, behavior: 'smooth' });
+}
+const liveAgo = computed(() => {
+  if (liveState.value !== 'live' || !lastLiveAt.value) return '';
+  const s = Math.max(0, Math.round((nowRef.value - lastLiveAt.value) / 1000));
+  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`;
+});
 const sources = computed(() => [...newsSources, ...blueskySources, ...liveSources.value]);
 const all = computed(() => [...newsItems, ...blueskyItems, ...liveItems.value]);
 const research = useResearch();
@@ -291,6 +393,26 @@ const cUp = ref<Set<string>>(new Set());
 const cDown = ref<Map<string, DownvoteReason>>(new Map());
 const openDown = ref<string>('');
 const listEl = ref<HTMLElement | null>(null);
+const sentinelEl = ref<HTMLElement | null>(null);
+
+// Infinite scroll: reveal the stream progressively (so even the corpus scrolls),
+// and when live + near the end, pull an older GDELT page so it never dead-ends.
+const PAGE = 14;
+const visibleCount = ref(PAGE);
+let scrollObserver: IntersectionObserver | undefined;
+async function loadMore() {
+  if (visibleCount.value < items.value.length) {
+    visibleCount.value = Math.min(items.value.length, visibleCount.value + PAGE);
+    return;
+  }
+  if (liveState.value === 'live') {
+    // reached the end of the live buffer → fetch an older page and append
+    const more = await fetchGdelt('world OR markets OR policy', 25);
+    const fresh = (more ?? []).filter((i) => !seenIds.has(i.id));
+    for (const i of fresh) seenIds.add(i.id);
+    if (fresh.length) { liveItems.value = [...liveItems.value, ...fresh]; visibleCount.value += fresh.length; }
+  }
+}
 
 const scope = computed(() => navScopeForPath(route.path));
 const mode = computed<'feed' | 'calendar'>(() => (route.path.endsWith('/calendar') ? 'calendar' : 'feed'));
@@ -317,6 +439,11 @@ const items = computed<FeedItem[]>(() => {
   else s.sort((a, b) => scoreOf(b) - scoreOf(a)); // hot
   return s;
 });
+// Progressive slice shown in the stream (grown by the scroll sentinel).
+const visibleItems = computed<FeedItem[]>(() => items.value.slice(0, visibleCount.value));
+// Reset the window when the filter set changes so you always see the top of the new list.
+watch([activeSourceId, activeTag, governedOnly, q, sort], () => { visibleCount.value = PAGE; });
+
 const readerClosed = ref(false);
 const selected = computed<FeedItem | undefined>(() => (readerClosed.value ? undefined : (all.value.find((i) => i.id === selectedId.value) ?? items.value[0])));
 
@@ -374,7 +501,11 @@ function commentsFor(it: FeedItem): CommentVM[] {
 
 const NOW = new Date('2026-07-03T14:00:00-04:00').getTime();
 function relative(iso: string): string {
-  const mins = Math.max(0, Math.round((NOW - new Date(iso).getTime()) / 60000));
+  // When streaming, measure against the live reactive clock so times tick; otherwise
+  // against the fixture's frozen "now" so the corpus reads consistently.
+  const base = liveState.value === 'live' ? nowRef.value : NOW;
+  const mins = Math.max(0, Math.round((base - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'now';
   if (mins < 60) return `${mins}m`;
   const h = Math.round(mins / 60);
   return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`;
@@ -398,10 +529,10 @@ function onKey(e: KeyboardEvent) {
   const tag = (e.target as HTMLElement | null)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (e.key === 'Escape') { if (!readerClosed.value) { e.preventDefault(); closeReader(); } return; }
-  const list = items.value;
+  const list = visibleItems.value;
   if (!list.length) return;
   const idx = list.findIndex((i) => i.id === selectedId.value);
-  if (e.key === 'j') { e.preventDefault(); select(list[Math.min(list.length - 1, idx + 1)]!.id); }
+  if (e.key === 'j') { e.preventDefault(); const n = Math.min(list.length - 1, idx + 1); if (n === list.length - 1) void loadMore(); select(list[n]!.id); }
   else if (e.key === 'k') { e.preventDefault(); select(list[Math.max(0, idx < 0 ? 0 : idx - 1)]!.id); }
   else if (e.key === 'o' || e.key === 'Enter') { if (selected.value) window.open(selected.value.canonicalUrl, '_blank', 'noreferrer'); }
   else if (e.key === 'u') { if (selected.value) toggleUp(selected.value.id); }
@@ -420,8 +551,20 @@ onMounted(() => {
   const deep = typeof route.query.item === 'string' ? route.query.item : '';
   selectedId.value = (deep && all.value.some((i) => i.id === deep)) ? deep : (items.value[0]?.id ?? '');
   window.addEventListener('keydown', onKey);
+  nextTick(() => {
+    if (!sentinelEl.value) return;
+    scrollObserver = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore();
+    }, { root: listEl.value, rootMargin: '400px' });
+    scrollObserver.observe(sentinelEl.value);
+  });
 });
-onUnmounted(() => window.removeEventListener('keydown', onKey));
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKey);
+  scrollObserver?.disconnect();
+  if (pollTimer) clearInterval(pollTimer);
+  if (clockTimer) clearInterval(clockTimer);
+});
 </script>
 
 <style scoped>
@@ -431,6 +574,33 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-eyebrow { margin: 0 0 0.1rem; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
 .nf-pill { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--amber); background: var(--amber-soft); border-radius: 5px; padding: 0.1rem 0.35rem; }
 .nf-pill.live { color: var(--live); background: var(--live-soft); }
+/* Live pulse (Bloomberg-terminal cue): streaming state + tick + running graph-grounding count */
+.nf-pulse { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.64rem; color: var(--text-3); letter-spacing: 0.02em; }
+.nf-pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); flex: 0 0 auto; animation: nfPulse 1.8s ease-in-out infinite; }
+.nf-pulse-dot.working { background: var(--accent); animation-duration: 0.8s; }
+.nf-pulse-sep { opacity: 0.4; }
+.nf-pulse-ago { font-variant-numeric: tabular-nums; }
+.nf-grounded { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+@keyframes nfPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+
+/* Streaming "N new" pill (Twitter-style) */
+.nf-newpill { position: sticky; top: 0.3rem; z-index: 3; display: block; margin: 0.4rem auto; padding: 0.3rem 0.9rem; border: 1px solid color-mix(in srgb, var(--live) 45%, transparent); background: color-mix(in srgb, var(--live) 14%, var(--surface)); color: var(--live); border-radius: 999px; font-size: 0.74rem; font-weight: 650; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,0.28); }
+.nf-newpill:hover { background: color-mix(in srgb, var(--live) 22%, var(--surface)); }
+.nf-newpill-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--live); margin-right: 0.35rem; animation: nfPulse 1.6s ease-in-out infinite; }
+
+/* Freshly-streamed rows flash in */
+.nf-story.flash { animation: nfFlash 2.4s ease; }
+@keyframes nfFlash { 0% { background: color-mix(in srgb, var(--live) 16%, transparent); } 100% { background: transparent; } }
+
+/* Scroll sentinel + footer */
+.nf-sentinel { height: 1px; }
+.nf-more { display: flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.85rem; font-size: 0.74rem; color: var(--text-3); cursor: pointer; border-top: 1px solid var(--line); }
+.nf-more:hover { color: var(--text-2); }
+.nf-more.streaming, .nf-more.end { cursor: default; }
+.nf-more.streaming .nf-pulse-dot { margin-right: 0.15rem; }
+.nf-more-live { border: none; background: transparent; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
+.nf-more-live:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .nf-pulse-dot, .nf-newpill-dot { animation: none; } .nf-story.flash { animation: none; } }
 .nf-live.on { border-color: #4bbf73; color: #4bbf73; background: rgba(75, 191, 115, 0.14); }
 .nf-live.err { border-color: rgba(240, 101, 106, 0.5); color: #f0656a; }
 .nf-btn:disabled { opacity: 0.6; cursor: default; }
