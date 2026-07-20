@@ -266,9 +266,11 @@ const asOfLabel = new Date(NOW).toLocaleString('en-US', { weekday: 'short', mont
 
 /* Tufte pass: cards are de-boxed — no border/fill/radius. Separation comes from the
    grid gap + the header's single hairline + whitespace (data-ink, not chartjunk). */
-.db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.05rem 1.6rem; }
-.db-card { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
-.db-card-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.15rem 0.42rem; border-bottom: 1px solid var(--line-2); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); text-decoration: none; font-weight: 700; background: var(--bg); }
+/* Tufte: fill the whole data rectangle. Masonry (CSS columns) packs cards to natural height —
+   no per-card scroll-prisons (no clipping, no 9 scrollbars), no dead gaps; the page scrolls as one. */
+.db-grid { columns: 340px; column-gap: 1.6rem; }
+.db-card { display: flex; flex-direction: column; break-inside: avoid; margin-bottom: 1.05rem; }
+.db-card-head { display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.15rem 0.42rem; border-bottom: 1px solid var(--line-2); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); text-decoration: none; font-weight: 700; }
 .db-card-head:hover { color: var(--accent); }
 .db-open { font-size: 0.64rem; color: var(--text-3); font-weight: 600; letter-spacing: 0; text-transform: none; }
 .db-card-head:hover .db-open { color: var(--accent); }
@@ -311,7 +313,7 @@ const asOfLabel = new Date(NOW).toLocaleString('en-US', { weekday: 'short', mont
 .db-empty { padding: 1rem 0.85rem; color: var(--text-3); font-size: 0.8rem; }
 .db-x { margin-left: auto; border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: 0.72rem; padding: 0 0.2rem; }
 .db-x:hover { color: var(--down); }
-.db-add { display: flex; gap: 0.4rem; padding: 0.45rem 0.15rem; border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--bg); }
+.db-add { display: flex; gap: 0.4rem; padding: 0.45rem 0.15rem; border-top: 1px solid var(--line); background: var(--bg); }
 .db-add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; color: var(--text); padding: 0.3rem 0.5rem; font: inherit; font-size: 0.78rem; }
 .db-add button { border: none; background: var(--surface-2); color: var(--text-2); border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.74rem; cursor: pointer; white-space: nowrap; }
 .db-add button:hover:not(:disabled) { color: var(--accent); }
