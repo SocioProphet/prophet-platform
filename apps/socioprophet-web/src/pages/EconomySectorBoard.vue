@@ -70,7 +70,18 @@
             </div>
           </div>
 
-          <svg class="ec-area" viewBox="0 0 320 90" preserveAspectRatio="none" role="img" aria-label="trend">
+          <!-- The wedge: indicators get a forecast fan (we predict); sectors keep the momentum area. -->
+          <div v-if="sel.kind === 'indicator'" class="ec-fc-wrap">
+            <MacroForecastChart :series="detail.series" :tone="toneColor(detailTone)" :horizon="10" class="ec-fc-chart" />
+            <div class="ec-fc-cap">
+              <span class="ec-fc-swatch hist" /> actual
+              <span class="ec-fc-swatch rec" /> contraction
+              <span class="ec-fc-swatch fc" /> forecast
+              <span class="ec-fc-swatch fan" /> 50/80% band
+              <span class="ec-fc-note">economic-prophet projection · fan widens with horizon</span>
+            </div>
+          </div>
+          <svg v-else class="ec-area" viewBox="0 0 320 90" preserveAspectRatio="none" role="img" aria-label="trend">
             <defs>
               <linearGradient :id="`ecg-${sel.id}`" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" :stop-color="toneColor(detailTone)" stop-opacity="0.32" />
@@ -125,6 +136,7 @@
 <script setup lang="ts">
 import SurfaceHeader from '../components/SurfaceHeader.vue';
 import LiveToggle from '../components/LiveToggle.vue';
+import MacroForecastChart from '../components/MacroForecastChart.vue';
 import { fetchWorldBankIndicators } from '../data/adapters/worldBankLive';
 import SplitPane from '../components/SplitPane.vue';
 import { ref, computed, watch, onMounted } from 'vue';
@@ -245,6 +257,16 @@ const asOfLabel = new Date(asOf).toLocaleString('en-US', { month: 'short', day: 
 .ec-d-name { font-size: 1.1rem; font-weight: 700; } .ec-d-kind { font-size: 0.72rem; color: rgba(255, 255, 255, 0.5); margin-top: 0.15rem; }
 .ec-d-val { text-align: right; } .ec-d-num { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .ec-area { width: 100%; height: 100px; margin: 0.9rem 0; }
+/* Forecast fan (the wedge) */
+.ec-fc-wrap { margin: 0.9rem 0; }
+.ec-fc-chart { width: 100%; height: 150px; }
+.ec-fc-cap { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.85rem; margin-top: 0.35rem; font-size: 0.66rem; color: var(--text-3); }
+.ec-fc-swatch { display: inline-block; margin-right: 0.3rem; vertical-align: middle; }
+.ec-fc-swatch.hist { width: 12px; height: 0; border-top: 2px solid #8fd3a6; }
+.ec-fc-swatch.fc { width: 12px; height: 0; border-top: 2px dashed var(--accent); }
+.ec-fc-swatch.rec { width: 11px; height: 8px; background: rgba(237, 238, 242, 0.09); border-radius: 1px; }
+.ec-fc-swatch.fan { width: 11px; height: 8px; background: rgba(216, 162, 80, 0.2); border-radius: 1px; }
+.ec-fc-note { margin-left: auto; color: var(--text-3); opacity: 0.85; }
 .ec-block { margin-top: 0.9rem; border-top: 1px solid var(--line-2); padding-top: 0.8rem; }
 .ec-block-h { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); margin-bottom: 0.5rem; }
 .ec-breadth-cap { font-size: 0.72rem; color: rgba(255, 255, 255, 0.5); margin-top: 0.4rem; }
