@@ -11,7 +11,7 @@
 # so once a node caches `latest`, kubelet never pulls a newer one, and even `rollout restart` re-runs the
 # stale image (that trap survived 574 restarts over 2 days). gitops-promote rewrites this tag to the
 # fresh client-vue build SHA when this branch merges to main.
-image: { registry: registry.socioprophet.ai, repository: socioprophet-web, tag: sha-5a458fe52ec8d4c50169b74e5fc0e0787589691f }
+image: { registry: registry.socioprophet.ai, repository: socioprophet-web, tag: sha-cfa1c1991fb610ceb288263839ff884360d10bd2 }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
 ingress:
