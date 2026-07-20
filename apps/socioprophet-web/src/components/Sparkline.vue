@@ -14,7 +14,7 @@ const props = withDefaults(
     h?: number;
     tone?: 'neutral' | 'up' | 'down' | 'accent';
   }>(),
-  { w: 60, h: 18, tone: 'neutral' },
+  { w: 64, h: 20, tone: 'neutral' },
 );
 
 const points = computed(() => {
@@ -37,7 +37,7 @@ const stroke = computed(() => {
     case 'down': return 'var(--down)';
     case 'up': return 'var(--up)';
     case 'accent': return 'var(--accent)';
-    default: return 'var(--spark-line, rgba(237, 238, 242, 0.42))';
+    default: return 'var(--spark-line, rgba(237, 238, 242, 0.55))';
   }
 });
 </script>
@@ -58,11 +58,11 @@ const stroke = computed(() => {
       :points="line"
       fill="none"
       :stroke="stroke"
-      stroke-width="1.25"
+      stroke-width="1.4"
       stroke-linejoin="round"
       stroke-linecap="round"
     />
-    <circle :cx="last.x" :cy="last.y" r="1.6" :fill="stroke" />
+    <circle :cx="last.x" :cy="last.y" r="2" :fill="stroke" />
   </svg>
 </template>
 
