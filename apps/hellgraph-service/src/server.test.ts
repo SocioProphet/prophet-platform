@@ -9,6 +9,7 @@ import { retrieveGroundingAuto } from './graphrag.js'
 
 process.env.PORT = String(19091) // free test port, read at module import
 process.env.HELLGRAPH_STORE_DIR = `${process.env.TMPDIR ?? '/tmp'}/hgsvc-test-${process.pid}`
+process.env.HELLGRAPH_SEED = 'off' // tests build their own graphs — don't auto-seed the boot corpus
 
 const BASE = `http://127.0.0.1:${process.env.PORT}`
 let srv: { close: (cb?: () => void) => void }

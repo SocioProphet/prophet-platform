@@ -26,6 +26,8 @@
 import * as http from 'node:http'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import * as fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 // Storage isolation: this service must NOT share Noetica's single-writer JSONL
 // store. Set a service-local store dir BEFORE the engine's lazy getAtomSpace()
@@ -267,6 +269,43 @@ const server = http.createServer((req, res) => {
   json(res, 404, { error: 'not_found' })
 })
 
+// Auto-seed on boot (idempotent): a fresh pod starts with an empty store (the /data VOLUME is
+// ephemeral — no PVC is mounted — so nothing persists across restarts), which leaves every knowledge
+// surface blank: Graph Explorer, Query Console, Analytics, GraphRAG all render nothing. When the graph
+// has zero nodes, ingest the bundled seed corpus (apps/hellgraph-service/seeds/*.json, schema matches
+// POST /api/graph/node|edge) so the cockpit shows a coherent graph. Skipped when the store is already
+// populated (idempotent — safe once a volume is mounted) or when HELLGRAPH_SEED=off (tests / clean box).
+function seedIfEmpty(): void {
+  if (process.env['HELLGRAPH_SEED'] === 'off') return
+  try {
+    const g = getHellGraph()
+    if (g.allNodes().length > 0) return
+    const seedDir = process.env['HELLGRAPH_SEED_DIR'] ||
+      path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'seeds')
+    if (!fs.existsSync(seedDir)) return
+    const files = fs.readdirSync(seedDir).filter((f) => f.endsWith('.json')).sort()
+    let nodes = 0, edges = 0
+    for (const f of files) {
+      const seed = JSON.parse(fs.readFileSync(path.join(seedDir, f), 'utf8')) as {
+        nodes?: Array<{ id: string; labels: string[]; properties?: Record<string, unknown> }>
+        edges?: Array<{ label: string; from: string; to: string; properties?: Record<string, unknown> }>
+      }
+      for (const n of seed.nodes ?? []) {
+        if (!n?.id || !Array.isArray(n.labels)) continue
+        g.addNode(n.id, n.labels, (n.properties ?? {}) as Record<string, never>); nodes++
+      }
+      for (const e of seed.edges ?? []) {
+        if (!e?.label || !e.from || !e.to) continue
+        g.addEdge(e.label, e.from, e.to, (e.properties ?? {}) as Record<string, never>); edges++
+      }
+    }
+    if (nodes || edges) console.log(`[hellgraph-service] auto-seeded ${nodes} nodes / ${edges} edges from ${files.length} seed file(s)`)
+  } catch (e) {
+    // Never let a seed error take the service down — log and serve whatever is there.
+    console.error('[hellgraph-service] auto-seed skipped (error):', e instanceof Error ? e.message : String(e))
+  }
+}
+
 function startLocalService(): void {
   server.listen(PORT, () => {
     console.log(`[hellgraph-service] listening on :${PORT} (engine exports: ${Object.keys(engine).length})`)
@@ -279,7 +318,11 @@ function startLocalService(): void {
         console.log(rocks
           ? `[hellgraph-service] RocksDB backend active — ${rocks.storagePath()}`
           : '[hellgraph-service] RocksDB requested but binding unavailable — using JSONL')
+        // Seed AFTER the persisted store is attached, so the emptiness check sees existing data.
+        seedIfEmpty()
       })
+    } else {
+      seedIfEmpty()
     }
   })
 }
