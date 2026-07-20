@@ -2,9 +2,9 @@
   <div class="gt">
     <div class="gt-head">
       <span class="gt-title">Grounded Tutor</span>
-      <span class="gt-persona">in the voice of {{ course.teacher }}</span>
+      <span v-if="course" class="gt-persona">in the voice of {{ course.teacher }}</span>
     </div>
-    <p class="gt-blurb">Ask about the course. Every answer is <b>quoted and cited</b> to a captured lecture segment — it never invents.</p>
+    <p class="gt-blurb">{{ course ? 'Ask about the course.' : 'Ask about this standard.' }} Every answer is <b>quoted and cited</b> to captured material — it never invents.</p>
 
     <form class="gt-ask" @submit.prevent="ask">
       <input v-model="qText" class="gt-input" type="text" placeholder="e.g. why doesn't a ball fall faster if you throw it sideways?" aria-label="Ask the tutor" />
@@ -48,18 +48,21 @@
         </div>
       </template>
       <template v-else>
-        <p class="gt-nomatch">I answer only from the captured lectures, and I don’t find this in the corpus. Try one of these topics: <b>{{ topConcepts.join(', ') }}</b>.</p>
+        <p class="gt-nomatch">I answer only from the captured corpus, and I don’t find this yet. This standard’s material isn’t captured — the Commons is still filling in.<span v-if="topConcepts.length"> Try: <b>{{ topConcepts.join(', ') }}</b>.</span></p>
       </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { Course } from '../data/courseFixture';
 import { retrievePassages, ORIGIN_META, type AcademySource, type PassageOrigin } from '../services/academyApi';
 
-const props = defineProps<{ course: Course }>();
+// `course` is optional: with it, Commons falls back to the in-app lecture transcripts; without it
+// (e.g. the Homeschool planner teaching a standard) the tutor grounds purely on the live academy
+// ingest / local Noetica. `seed` prefills + auto-asks a question — used to teach a specific standard.
+const props = defineProps<{ course?: Course; seed?: string }>();
 defineEmits<{ (e: 'jump', lessonId: string): void }>();
 
 const qText = ref('');
@@ -75,7 +78,7 @@ function tokens(s: string): string[] {
 }
 
 const topConcepts = computed(() => {
-  const all = props.course.lessons.flatMap((l) => l.concepts);
+  const all = (props.course?.lessons ?? []).flatMap((l) => l.concepts);
   return [...new Set(all)].slice(0, 5);
 });
 
@@ -102,8 +105,10 @@ function sentenceOf(text: string, qt: string[]): string {
 
 // Commons grounding — extractive over the in-app captured transcripts (the guaranteed fallback).
 function fixtureAnswer(qt: string[]): Answer {
-  let best: { lesson: typeof props.course.lessons[number]; score: number } | null = null;
-  for (const lesson of props.course.lessons) {
+  const lessons = props.course?.lessons ?? [];
+  if (lessons.length === 0) return { cited: false, intro: '', quote: '', lessonId: '', lessonN: 0, title: '', chunkRef: '', concepts: [], origin: 'fixture' };
+  let best: { lesson: typeof lessons[number]; score: number } | null = null;
+  for (const lesson of lessons) {
     const conceptToks = new Set(lesson.concepts.flatMap(tokens));
     const titleToks = new Set(tokens(lesson.title));
     const bodyToks = new Set(tokens(lesson.transcript));
@@ -121,7 +126,7 @@ function fixtureAnswer(qt: string[]): Answer {
   const hitConcepts = best.lesson.concepts.filter((c) => tokens(c).some((t) => qt.includes(t)));
   return {
     cited: true,
-    intro: `Here's what ${props.course.teacher} says on this:`,
+    intro: `Here's what ${props.course?.teacher ?? 'the source'} says on this:`,
     quote: sentenceOf(best.lesson.transcript, qt),
     lessonId: best.lesson.id, lessonN: best.lesson.n, title: best.lesson.title, chunkRef: best.lesson.chunkRef,
     concepts: hitConcepts.length ? hitConcepts : best.lesson.concepts.slice(0, 2),
@@ -157,6 +162,9 @@ async function ask() {
     loading.value = false;
   }
 }
+
+// Teach a specific standard/topic: when `seed` changes, prefill and ask against the live corpus.
+watch(() => props.seed, (s) => { if (s) { qText.value = s; void ask(); } }, { immediate: true });
 </script>
 
 <style scoped>
