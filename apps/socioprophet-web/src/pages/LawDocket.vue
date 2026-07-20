@@ -155,6 +155,7 @@ import { crossLinksForDocket } from '../features/crosslink/entityLinks';
 import { useCockpit } from '../stores/cockpit';
 import ExtractionPanel from '../components/ExtractionPanel.vue';
 import EvidenceGraph from '../components/EvidenceGraph.vue';
+import { verifyClaims, type Verdict } from '../services/ieApi';
 import ClaimsPanel from '../components/ClaimsPanel.vue';
 
 const cockpit = useCockpit();
@@ -251,15 +252,37 @@ function onCiteEvidence(lk: { rel?: string; node: { label: string } }) {
   cockpit.askAbout(`For ${selected.value?.cite}, what is the citation treatment of ${lk.node.label} (${lk.rel}) — is it followed, distinguished, questioned, or overruled? Cite the passage.`);
 }
 
-// Citator — the "is this still good law?" validity flag (Shepard's/KeyCite equivalent). Heuristic
-// preview here (in-force status + whether newer authorities cite it); the REAL treatment comes from
-// holmes /verify once deployed. Honest: labelled a membrane preview.
+// Citator — the "is this still good law?" validity flag (Shepard's/KeyCite equivalent). Wired to the
+// LIVE holmes deduction engine (/svc/holmes/verify): the docket's impact claim is checked against
+// graph evidence. Falls back to the in-force heuristic when holmes is unreachable or has no evidence
+// yet (the graph is still filling in via the News→IE→graph loop) — so it never mis-flags.
+const holmesVerdict = ref<Verdict | null>(null);
+watch(selected, async (d) => {
+  holmesVerdict.value = null;
+  const claim = d?.impact || d?.summary;
+  if (!claim) return;
+  try {
+    const r = await verifyClaims([claim]);
+    holmesVerdict.value = r.results?.[0] ?? null;
+  } catch { holmesVerdict.value = null; } // holmes not reachable yet → heuristic
+}, { immediate: true });
+
 const citator = computed(() => {
   const s = selected.value;
   if (!s) return { label: '—', tone: 'flat', why: '' };
+  // Prefer a POSITIVE holmes signal (supported / weakly-supported); "unverified" here usually just
+  // means the graph doesn't hold this authority yet, so don't flag it — fall through to the heuristic.
+  const hv = holmesVerdict.value;
+  if (hv && hv.verdict === 'supported') {
+    return { label: 'GOOD LAW', tone: 'good', why: `holmes: supported by ${hv.evidence_count} graph fact(s)${hv.matched_terms?.length ? ' · ' + hv.matched_terms.join(', ') : ''}.` };
+  }
+  if (hv && hv.verdict === 'weakly-supported') {
+    return { label: 'REVIEW', tone: 'amber', why: `holmes: weakly supported (${hv.evidence_count} fact(s)) — check treatment.` };
+  }
+  // Heuristic fallback (holmes unreachable / no graph evidence yet).
   const subsequent = dockets.some((d) => d.id !== s.id && new Date(d.updated).getTime() > new Date(s.updated).getTime() && d.citations.some((c) => c.docketId === s.id || c.cite === s.cite));
-  if (subsequent) return { label: 'REVIEW', tone: 'amber', why: 'Subsequent authorities cite this — check treatment (membrane preview; holmes /verify pending).' };
-  if (s.status === 'enacted') return { label: 'GOOD LAW', tone: 'good', why: 'In force; no distinguishing authority found (membrane preview).' };
+  if (subsequent) return { label: 'REVIEW', tone: 'amber', why: 'Subsequent authorities cite this — check treatment (in-force heuristic; holmes finds no graph evidence yet).' };
+  if (s.status === 'enacted') return { label: 'GOOD LAW', tone: 'good', why: 'In force; no distinguishing authority found (in-force heuristic).' };
   return { label: 'PENDING', tone: 'amber', why: 'Not yet in force — no binding effect yet.' };
 });
 
