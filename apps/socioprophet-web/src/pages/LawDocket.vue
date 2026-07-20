@@ -88,7 +88,21 @@
           <CrossLinks :links="crossLinks" />
         </div>
 
-        <!-- Citations -->
+        <!-- Citation network — the authority web as an evidence-backed ego-net (cites + cited-by) -->
+        <div v-if="citationLinks.length" class="lw-block">
+          <div class="lw-block-h">Citation network <span class="lw-legend">evidence-backed · HellGraph</span></div>
+          <EvidenceGraph
+            :center="{ id: selected.id, label: selected.cite, type: selected.type }"
+            :links="citationLinks"
+            :w="300"
+            :h="200"
+            @select="(n) => goDocket(n.id)"
+            @evidence="onCiteEvidence"
+          />
+          <div class="lw-ego-cap"><span class="d dash"></span>cites <span class="d solid"></span>cited-by · click a node to open · click an edge for the treatment</div>
+        </div>
+
+        <!-- Citations (list) -->
         <div v-if="selected.citations.length" class="lw-block">
           <div class="lw-block-h">Cites</div>
           <div class="lw-cites">
@@ -130,6 +144,7 @@ import CrossLinks from '../components/CrossLinks.vue';
 import { crossLinksForDocket } from '../features/crosslink/entityLinks';
 import { useCockpit } from '../stores/cockpit';
 import ExtractionPanel from '../components/ExtractionPanel.vue';
+import EvidenceGraph from '../components/EvidenceGraph.vue';
 import ClaimsPanel from '../components/ClaimsPanel.vue';
 
 const cockpit = useCockpit();
@@ -206,6 +221,25 @@ const docketProv = computed(() => (isLive.value
       note: 'Illustrative docket for the demo — not retrieved from a live regulatory source; the citation, reference and redline are sample data.',
     })));
 function goDocket(id?: string) { if (id) { deepLinked.value = true; selectedId.value = id; } }
+
+// Citation ego-net: outgoing cites (dashed) + derived cited-by (solid) — the authority web.
+const citationLinks = computed(() => {
+  const s = selected.value;
+  if (!s) return [] as Array<{ node: { id: string; label: string; type: string }; rel: string; provenance: 'record' | 'news' | 'personal' | 'derived'; dir: 'in' | 'out'; evidence?: string }>;
+  const out = s.citations.map((c) => ({
+    node: { id: c.docketId ?? c.cite, label: c.cite, type: 'rule' },
+    rel: 'cites', provenance: 'derived' as const, dir: 'out' as const, evidence: c.docketId ? `docket:${c.docketId}` : undefined,
+  }));
+  const citedBy = dockets
+    .filter((d) => d.id !== s.id && d.citations.some((c) => c.docketId === s.id || c.cite === s.cite))
+    .map((d) => ({
+      node: { id: d.id, label: d.cite, type: d.type }, rel: 'cited by', provenance: 'record' as const, dir: 'in' as const, evidence: `docket:${d.id}`,
+    }));
+  return [...out, ...citedBy];
+});
+function onCiteEvidence(lk: { rel?: string; node: { label: string } }) {
+  cockpit.askAbout(`For ${selected.value?.cite}, what is the citation treatment of ${lk.node.label} (${lk.rel}) — is it followed, distinguished, questioned, or overruled? Cite the passage.`);
+}
 function askNoetica() {
   const d = selected.value; if (!d) return;
   const tail = isLive.value
@@ -280,6 +314,9 @@ function deadlineSoon(iso: string): boolean { const days = (new Date(iso).getTim
 .lw-block { margin-top: 1rem; border-top: 1px solid var(--line-2); padding-top: 0.85rem; }
 .lw-block-h { display: flex; align-items: center; justify-content: space-between; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); margin-bottom: 0.6rem; }
 .lw-legend { display: flex; align-items: center; gap: 0.4rem; text-transform: none; letter-spacing: 0; color: rgba(255, 255, 255, 0.4); } .lw-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 0.2rem; } .lw-legend i.add { background: var(--up); } .lw-legend i.del { background: var(--down); }
+.lw-ego-cap { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.6rem; margin-top: 0.3rem; font-size: 0.62rem; color: var(--text-3); }
+.lw-ego-cap .d { display: inline-block; width: 12px; height: 0; }
+.lw-ego-cap .d.solid { border-top: 1.5px solid var(--text-2); } .lw-ego-cap .d.dash { border-top: 1.5px dashed var(--accent); }
 .lw-redline { border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; font-family: ui-monospace, 'SF Mono', monospace; font-size: 0.8rem; }
 .lw-seg { display: flex; gap: 0.5rem; padding: 0.2rem 0.6rem; line-height: 1.5; white-space: pre-wrap; }
 .lw-seg.ctx { color: rgba(255, 255, 255, 0.6); } .lw-seg.add { background: rgba(63, 185, 80, 0.12); color: #86efac; } .lw-seg.del { background: rgba(248, 81, 73, 0.12); color: #fca5a5; }
