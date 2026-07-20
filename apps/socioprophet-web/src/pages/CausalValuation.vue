@@ -6,6 +6,7 @@ import {
   fetchStudioValuation, recomputeStudioValuation, fetchStudioTemplates, type StudioParams,
   type CausalValuation, type LocationsPayload, type LoadMode,
 } from '../api/causalValuationApi';
+import { groundGraph, type GroundFact } from '../services/hellgraphApi';
 
 const cv = ref<CausalValuation | null>(null);
 const loc = ref<LocationsPayload | null>(null);
@@ -45,6 +46,7 @@ async function runStudio() {
       : { ticker: studioTicker.value.trim(), template: studioTemplate.value };
     studioCtx.value = p;
     applyLoaded(await fetchStudioValuation(p));
+    void loadGrounding();
   } catch (e) { error.value = e instanceof Error ? e.message : String(e); }
   finally { loading.value = false; }
 }
@@ -65,6 +67,7 @@ async function loadAll() {
     discountPct.value = Math.round(cv.value.timeseries.discount_rate * 100);
   }
   dirty.value = false; loading.value = false;
+  void loadGrounding();
 }
 
 async function recompute() {
@@ -122,6 +125,42 @@ const sources = computed(() => {
     return { url, kind, label, host };
   });
 });
+
+// ── Live grounding — the other half of the News→IE→graph→driver loop. We query the sovereign
+// HellGraph for the facts touching this company's value drivers; each carries an assertion time,
+// so facts written by the live News feed (via ie-engine /to-graph) show up here with fresh
+// timestamps. Best-effort: if hellgraph is unreachable we simply don't render the live panel.
+const grounding = ref<{ facts: GroundFact[]; nodes: string[] } | null>(null);
+async function loadGrounding() {
+  try {
+    const name = studioCtx.value ? (studioName.value || studioTicker.value || 'this company') : 'Guzman y Gomez';
+    const g = await groundGraph(`${name} revenue growth cost efficiency experience`, 1);
+    grounding.value = { facts: g.citations ?? [], nodes: g.groundedNodes ?? [] };
+  } catch { grounding.value = null; }
+}
+function nodeLabel(uri: string): string {
+  const seg = uri.split(':').pop() ?? uri;
+  return seg.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function relTime(iso?: string): string {
+  if (!iso) return '';
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 3600) return `${Math.max(1, Math.round(s / 60))}m ago`;
+  const h = Math.round(s / 3600);
+  return h < 48 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
+}
+const groundingView = computed(() => {
+  const g = grounding.value;
+  if (!g || !g.facts.length) return null;
+  const dated = g.facts.filter((f) => f.assertedAt).map((f) => f.assertedAt!);
+  const newest = dated.length ? dated.reduce((m, a) => (a > m ? a : m), dated[0]!) : '';
+  const fresh = newest ? Date.now() - new Date(newest).getTime() < 36 * 3600 * 1000 : false;
+  const drivers = g.nodes.filter((n) => n.includes(':driver:')).length;
+  const kpis = g.nodes.filter((n) => n.includes(':kpi:')).length;
+  const sc = g.nodes.filter((n) => n.includes(':sc:')).length;
+  return { count: g.facts.length, nodeCount: g.nodes.length, newest, fresh, drivers, kpis, sc, top: g.facts.slice(0, 6) };
+});
+
 // Decision-tool verdict — the plain-language call (over / under / fair) + an honest band.
 const verdict = computed(() => {
   const v = cv.value?.valuation;
@@ -226,8 +265,38 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
           </a>
         </div>
         <p class="cv-grounding-note">
-          A source-cited scenario, not a live-news read. It's anchored to the filings and reporting above; live-news grounding
-          arrives as the News → extraction → graph loop feeds fresh events into this driver.
+          <template v-if="groundingView">A source-cited scenario, now <b>anchored to the live graph</b> — the drivers below trace to real facts in the sovereign HellGraph.</template>
+          <template v-else>A source-cited scenario, not yet a live-news read. It's anchored to the filings and reporting above; live grounding arrives as the News → extraction → graph loop feeds fresh events into this driver.</template>
+        </p>
+      </div>
+
+      <!-- Live grounding — the graph→driver half of the loop: the value drivers, traced to real
+           facts in the sovereign HellGraph, each with its assertion time. Facts written by the live
+           News feed (News → ie-engine /to-graph) land here with fresh timestamps. -->
+      <div v-if="groundingView" class="cv-live">
+        <div class="cv-live-h">
+          <span class="cv-live-t">Live grounding<span class="cv-live-src">HellGraph</span></span>
+          <span class="cv-fresh" :class="{ live: groundingView.fresh }">
+            <span class="cv-fresh-dot" /> {{ groundingView.fresh ? 'live' : 'seeded' }}<span v-if="groundingView.newest"> · newest {{ relTime(groundingView.newest) }}</span>
+          </span>
+        </div>
+        <p class="cv-live-sum">
+          The value drivers trace to <b>{{ groundingView.count }}</b> fact{{ groundingView.count === 1 ? '' : 's' }} across
+          <b>{{ groundingView.drivers }}</b> driver{{ groundingView.drivers === 1 ? '' : 's' }} ·
+          <b>{{ groundingView.kpis }}</b> KPI{{ groundingView.kpis === 1 ? '' : 's' }} ·
+          <b>{{ groundingView.sc }}</b> supply-chain node{{ groundingView.sc === 1 ? '' : 's' }} in the graph.
+        </p>
+        <ul class="cv-fact-list">
+          <li v-for="f in groundingView.top" :key="f.n" class="cv-fact">
+            <code class="cv-fact-s">{{ nodeLabel(f.subject) }}</code>
+            <span class="cv-fact-p">{{ f.predicate.replace(/^.*[:#]/, '') }}</span>
+            <span class="cv-fact-o">{{ f.object }}</span>
+            <span v-if="f.assertedAt" class="cv-fact-t">{{ relTime(f.assertedAt) }}</span>
+          </li>
+        </ul>
+        <p class="cv-grounding-note">
+          Facts extracted from the live News feed (News → ie-engine → graph) surface here with fresh timestamps — open <b>News</b>,
+          hit <b>Go live</b>, and new GYG events flow into this grounding. The scenario stays source-cited; the graph anchors it to evidence.
         </p>
       </div>
 
@@ -379,6 +448,24 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
 .cv-source.market { border-left-color: #a78bfa; } .cv-source.market .cv-source-kind { color: #c4b5fd; }
 .cv-source.source { border-left-color: var(--text-3); }
 .cv-grounding-note { font-size: .76rem; color: var(--text-3); line-height: 1.5; margin: .2rem 0 0; }
+/* Live grounding — the graph→driver half of the loop */
+.cv-live { border: 1px solid var(--line-2); border-left: 3px solid var(--accent); border-radius: 12px; background: var(--surface); padding: .75rem .85rem; margin: 0 0 1rem; }
+.cv-live-h { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.cv-live-t { font-size: .82rem; font-weight: 700; color: var(--text); display: inline-flex; align-items: center; gap: .5rem; }
+.cv-live-src { font-size: .54rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 4px; padding: .04rem .3rem; }
+.cv-fresh { display: inline-flex; align-items: center; gap: .3rem; font-size: .66rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); }
+.cv-fresh.live { color: #6ee7b7; }
+.cv-fresh-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); } .cv-fresh.live .cv-fresh-dot { background: #34d399; animation: cvPulse 1.8s ease-in-out infinite; }
+@keyframes cvPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .cv-fresh-dot { animation: none; } }
+.cv-live-sum { font-size: .8rem; color: var(--text-2); line-height: 1.5; margin: .45rem 0 .5rem; } .cv-live-sum b { color: var(--text); font-variant-numeric: tabular-nums; }
+.cv-fact-list { list-style: none; margin: 0 0 .4rem; padding: 0; display: flex; flex-direction: column; gap: .2rem; }
+.cv-fact { display: flex; align-items: baseline; gap: .4rem; font-size: .74rem; padding: .18rem 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cv-fact:last-child { border-bottom: none; }
+.cv-fact-s { color: var(--text); font-family: var(--mono, ui-monospace, monospace); font-size: .72rem; }
+.cv-fact-p { color: var(--accent); font-size: .68rem; }
+.cv-fact-o { color: var(--text-2); flex: 1; min-width: 0; }
+.cv-fact-t { color: var(--text-3); font-size: .66rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cv-metric { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: .85rem; display: flex; flex-direction: column; }
 .cv-m-label { font-size: .72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .cv-m-val { font-size: 1.35rem; font-weight: 700; color: var(--text); }
