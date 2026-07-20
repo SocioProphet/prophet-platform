@@ -99,13 +99,14 @@
         </p>
         <div v-else class="pf-table" role="table">
           <div class="pf-row pf-row-head" role="row">
-            <span>Symbol</span><span class="r">Qty</span><span class="r">Avg</span><span class="r">Last</span><span class="r">Mkt value</span><span class="r">Unreal. P&amp;L</span>
+            <span>Symbol</span><span class="r">Qty</span><span class="r">Avg</span><span class="r">Last</span><span class="c">30d</span><span class="r">Mkt value</span><span class="r">Unreal. P&amp;L</span>
           </div>
           <button v-for="r in rows" :key="r.symbol" class="pf-row" role="row" @click="openSymbol(r.symbol)">
             <span class="pf-sym"><b>{{ r.symbol }}</b><small>{{ r.name }}</small></span>
             <span class="r">{{ r.qty }}</span>
             <span class="r">{{ num(r.avgCost) }}</span>
             <span class="r">{{ num(r.last) }}</span>
+            <span class="pf-spark"><Sparkline v-if="r.series.length" :series="r.series" :tone="r.uplPct >= 0 ? 'up' : 'down'" :w="52" :h="18" /></span>
             <span class="r">{{ money(r.mv) }}</span>
             <span class="r" :class="pnlDir(r.upl)">{{ signed(r.upl) }} <small>({{ r.uplPct >= 0 ? '+' : '' }}{{ r.uplPct.toFixed(1) }}%)</small></span>
           </button>
@@ -144,6 +145,7 @@ import { instruments } from '../data/marketsFixture';
 import { usePortfolio } from '../stores/portfolio';
 import { useCockpit } from '../stores/cockpit';
 import ProvenanceBadge from '../components/ProvenanceBadge.vue';
+import Sparkline from '../components/Sparkline.vue';
 import { prov } from '../features/provenance/types';
 import { runPortfolioAgent, bookFromPositions, PORTFOLIO_TOOLS, type AgentResult, type ProposedOrder } from '../services/portfolioAgent';
 
@@ -169,7 +171,7 @@ const rows = computed(() =>
     const mv = last * p.qty;
     const upl = (last - p.avgCost) * p.qty;
     const uplPct = p.avgCost ? ((last - p.avgCost) / p.avgCost) * 100 : 0;
-    return { ...p, last, mv, upl, uplPct };
+    return { ...p, last, mv, upl, uplPct, series: inst?.series ?? [] };
   }),
 );
 const marketValue = computed(() => rows.value.reduce((s, r) => s + r.mv, 0));
@@ -268,11 +270,13 @@ onMounted(() => cockpit.setContext({
 .pf-empty { margin: 0; padding: 1rem; font-size: 0.82rem; color: var(--text-3); line-height: 1.6; } .pf-link { color: var(--accent); text-decoration: none; } .pf-link:hover { text-decoration: underline; }
 
 .pf-table { display: flex; flex-direction: column; overflow-y: auto; }
-.pf-row { display: grid; grid-template-columns: 1.4fr 3rem 4.5rem 4.5rem 5rem 7rem; align-items: center; gap: 0.5rem; padding: 0.5rem 0.85rem; border: none; border-bottom: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; }
+.pf-row { display: grid; grid-template-columns: 1.4fr 3rem 4.5rem 4.5rem 3.6rem 5rem 7rem; align-items: center; gap: 0.5rem; padding: 0.5rem 0.85rem; border: none; border-bottom: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; }
 .pf-row:hover { background: rgba(255, 255, 255, 0.03); }
 .pf-row-head { color: var(--text-3); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: default; }
 .pf-row-head:hover { background: transparent; }
 .pf-row .r, .pf-row-head .r { text-align: right; font-variant-numeric: tabular-nums; }
+.pf-row .c, .pf-row-head .c { text-align: center; }
+.pf-spark { display: flex; justify-content: center; align-items: center; opacity: 0.9; }
 .pf-sym { display: flex; flex-direction: column; min-width: 0; } .pf-sym b { font-size: 0.82rem; } .pf-sym small { font-size: 0.66rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf-row .up { color: var(--up); } .pf-row .down { color: var(--down); } .pf-row .flat { color: var(--text-2); } .pf-row small { color: inherit; opacity: 0.75; }
 
