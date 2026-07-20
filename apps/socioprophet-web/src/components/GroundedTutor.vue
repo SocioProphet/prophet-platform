@@ -8,26 +8,42 @@
 
     <form class="gt-ask" @submit.prevent="ask">
       <input v-model="qText" class="gt-input" type="text" placeholder="e.g. why doesn't a ball fall faster if you throw it sideways?" aria-label="Ask the tutor" />
-      <button class="gt-go" type="submit" :disabled="!qText.trim()">Ask</button>
+      <button class="gt-go" type="submit" :disabled="!qText.trim() || loading">Ask</button>
     </form>
 
-    <div v-if="!answer" class="gt-seeds">
+    <!-- Engine switch — the local+cloud seam: Auto tries cloud academy ingest → local Noetica → Commons. -->
+    <div class="gt-src" role="group" aria-label="Retrieval engine">
+      <span class="gt-src-h">engine</span>
+      <button v-for="s in SOURCES" :key="s.v" type="button" class="gt-src-btn" :class="{ on: source === s.v }" @click="source = s.v">{{ s.label }}</button>
+    </div>
+
+    <div v-if="loading" class="gt-loading"><span class="gt-load-dot" /> grounding…</div>
+
+    <div v-else-if="!answer" class="gt-seeds">
       <span class="gt-seeds-h">try:</span>
       <button v-for="s in SEEDS" :key="s" class="gt-seed" @click="qText = s; ask()">{{ s }}</button>
     </div>
 
-    <div v-if="answer" class="gt-answer" :class="{ nomatch: !answer.cited }">
+    <div v-else class="gt-answer" :class="{ nomatch: !answer.cited }">
       <template v-if="answer.cited">
         <p class="gt-persona-line">{{ answer.intro }}</p>
         <blockquote class="gt-quote">“{{ answer.quote }}”</blockquote>
-        <button class="gt-cite" @click="$emit('jump', answer.lessonId)">
+        <!-- Commons: jump to the in-app lecture. Cloud/local with a URL: open it. Else: static ref. -->
+        <button v-if="answer.lessonId" class="gt-cite" @click="$emit('jump', answer.lessonId)">
           <span class="gt-cite-g">◆</span>
           <span>Lecture {{ answer.lessonN }} · {{ answer.title }}</span>
           <code>{{ answer.chunkRef }}</code>
           <span class="gt-cite-open">open →</span>
         </button>
+        <a v-else-if="answer.uri" class="gt-cite" :href="answer.uri" target="_blank" rel="noreferrer">
+          <span class="gt-cite-g">◆</span><span>{{ answer.title }}</span><code>{{ answer.chunkRef }}</code><span class="gt-cite-open">open ↗</span>
+        </a>
+        <div v-else class="gt-cite static">
+          <span class="gt-cite-g">◆</span><span>{{ answer.title }}</span><code>{{ answer.chunkRef }}</code>
+        </div>
         <div class="gt-prov">
           <span class="gt-prov-tag">extractive · quoted, not generated</span>
+          <span class="gt-origin" :class="answer.origin" :title="originMeta[answer.origin].label">{{ originMeta[answer.origin].glyph }} {{ originMeta[answer.origin].label }}</span>
           <span v-if="answer.concepts.length" class="gt-prov-concepts">on {{ answer.concepts.join(', ') }}</span>
         </div>
       </template>
@@ -41,6 +57,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { Course } from '../data/courseFixture';
+import { retrievePassages, ORIGIN_META, type AcademySource, type PassageOrigin } from '../services/academyApi';
 
 const props = defineProps<{ course: Course }>();
 defineEmits<{ (e: 'jump', lessonId: string): void }>();
@@ -62,16 +79,29 @@ const topConcepts = computed(() => {
   return [...new Set(all)].slice(0, 5);
 });
 
-interface Answer { cited: boolean; intro: string; quote: string; lessonId: string; lessonN: number; title: string; chunkRef: string; concepts: string[] }
+interface Answer { cited: boolean; intro: string; quote: string; lessonId: string; lessonN: number; title: string; chunkRef: string; concepts: string[]; origin: PassageOrigin; uri?: string }
 const answer = ref<Answer | null>(null);
+const loading = ref(false);
+const source = ref<AcademySource>('auto');
+const SOURCES: { v: AcademySource; label: string }[] = [
+  { v: 'auto', label: 'Auto' }, { v: 'cloud', label: 'Cloud' }, { v: 'local', label: 'Local' }, { v: 'fixture', label: 'Commons' },
+];
+const originMeta = ORIGIN_META;
 
-function ask() {
-  const query = qText.value.trim();
-  if (!query) return;
-  const qt = tokens(query);
-  if (qt.length === 0) { answer.value = { cited: false } as Answer; return; }
+// Pick the single most query-relevant sentence from a passage (tightest quote).
+function sentenceOf(text: string, qt: string[]): string {
+  const sentences = text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+  let best = sentences[0] ?? text; let sc = -1;
+  for (const s of sentences) {
+    const st = new Set(tokens(s));
+    const overlap = qt.reduce((n, t) => n + (st.has(t) ? 1 : 0), 0);
+    if (overlap > sc) { sc = overlap; best = s; }
+  }
+  return best.trim();
+}
 
-  // Score each lesson: concept hits weigh most, then title, then transcript.
+// Commons grounding — extractive over the in-app captured transcripts (the guaranteed fallback).
+function fixtureAnswer(qt: string[]): Answer {
   let best: { lesson: typeof props.course.lessons[number]; score: number } | null = null;
   for (const lesson of props.course.lessons) {
     const conceptToks = new Set(lesson.concepts.flatMap(tokens));
@@ -85,30 +115,47 @@ function ask() {
     }
     if (!best || score > best.score) best = { lesson, score };
   }
-
-  if (!best || best.score === 0) { answer.value = { cited: false } as Answer; return; }
-
-  // Extract the single most relevant sentence from the winning transcript.
-  const sentences = best.lesson.transcript.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
-  let bestSentence = sentences[0] ?? best.lesson.transcript;
-  let sScore = -1;
-  for (const s of sentences) {
-    const st = new Set(tokens(s));
-    const overlap = qt.reduce((n, t) => n + (st.has(t) ? 1 : 0), 0);
-    if (overlap > sScore) { sScore = overlap; bestSentence = s; }
+  if (!best || best.score === 0) {
+    return { cited: false, intro: '', quote: '', lessonId: '', lessonN: 0, title: '', chunkRef: '', concepts: [], origin: 'fixture' };
   }
   const hitConcepts = best.lesson.concepts.filter((c) => tokens(c).some((t) => qt.includes(t)));
-
-  answer.value = {
+  return {
     cited: true,
     intro: `Here's what ${props.course.teacher} says on this:`,
-    quote: bestSentence.trim(),
-    lessonId: best.lesson.id,
-    lessonN: best.lesson.n,
-    title: best.lesson.title,
-    chunkRef: best.lesson.chunkRef,
+    quote: sentenceOf(best.lesson.transcript, qt),
+    lessonId: best.lesson.id, lessonN: best.lesson.n, title: best.lesson.title, chunkRef: best.lesson.chunkRef,
     concepts: hitConcepts.length ? hitConcepts : best.lesson.concepts.slice(0, 2),
+    origin: 'fixture',
   };
+}
+
+async function ask() {
+  const query = qText.value.trim();
+  if (!query) return;
+  const qt = tokens(query);
+  if (qt.length === 0) { answer.value = fixtureAnswer(qt); return; }
+  loading.value = true;
+  try {
+    // Try the live engine(s) first (cloud academy ingest / local Noetica), unless Commons is forced.
+    if (source.value !== 'fixture') {
+      const { passages, origin } = await retrievePassages(query, source.value);
+      if (passages.length) {
+        const top = passages[0]!;
+        answer.value = {
+          cited: true,
+          intro: `From the ${originMeta[origin].label}:`,
+          quote: sentenceOf(top.text, qt) || top.text,
+          lessonId: '', lessonN: 0, title: top.title, chunkRef: top.chunkRef, concepts: [],
+          origin, uri: top.uri,
+        };
+        return;
+      }
+    }
+    // Nothing live (or Commons forced) → extractive over the captured transcripts.
+    answer.value = fixtureAnswer(qt);
+  } finally {
+    loading.value = false;
+  }
 }
 </script>
 
@@ -135,4 +182,18 @@ function ask() {
 .gt-prov-tag { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: var(--up); background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.35); border-radius: 4px; padding: 0.05rem 0.4rem; }
 .gt-prov-concepts { font-size: 0.68rem; color: var(--text-3); }
 .gt-nomatch { margin: 0; font-size: 0.8rem; color: var(--text-2); line-height: 1.55; } .gt-nomatch b { color: var(--text); }
+
+/* Engine switch (local + cloud seam) */
+.gt-src { display: flex; align-items: center; gap: 0.3rem; }
+.gt-src-h { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); margin-right: 0.15rem; }
+.gt-src-btn { border: 1px solid var(--line-2); background: transparent; color: var(--text-3); border-radius: 6px; padding: 0.14rem 0.5rem; font-size: 0.68rem; cursor: pointer; } .gt-src-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft, rgba(120,160,255,0.12)); }
+.gt-loading { display: flex; align-items: center; gap: 0.4rem; font-size: 0.76rem; color: var(--text-3); padding: 0.3rem 0; }
+.gt-load-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: gtPulse 0.9s ease-in-out infinite; }
+@keyframes gtPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .gt-load-dot { animation: none; } }
+.gt-cite.static { cursor: default; }
+.gt-origin { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; border-radius: 4px; padding: 0.05rem 0.4rem; border: 1px solid var(--line-2); color: var(--text-3); }
+.gt-origin.cloud { color: #58a6ff; border-color: rgba(88,166,255,0.4); }
+.gt-origin.local { color: #6ee7b7; border-color: rgba(63,185,80,0.4); }
+.gt-origin.fixture { color: var(--text-3); }
 </style>
