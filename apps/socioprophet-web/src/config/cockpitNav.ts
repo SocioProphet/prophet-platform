@@ -112,6 +112,17 @@ export const DOMAIN_MENU: NavGroup[] = [
     ],
   },
   {
+    label: 'Academy',
+    to: '/academy',
+    items: [
+      { label: 'Academy Overview', to: '/academy' },
+      { label: 'Homeschool · K-12', to: '/academy/homeschool' },
+      { label: 'University Degrees', to: '/academy/degrees' },
+      { label: 'Flagship Course · 8.01', to: '/academy/course/ocw-801' },
+      { label: 'Grounded Tutor', to: '/academy/tutor' },
+    ],
+  },
+  {
     label: 'Knowledge',
     to: '/knowledge/graph',
     items: [
