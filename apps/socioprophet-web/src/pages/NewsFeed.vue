@@ -622,7 +622,7 @@ onUnmounted(() => {
 
 /* Masthead — broadsheet flag + dateline + Bloomberg ticker strip */
 .nf-masthead { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 1rem; padding: 0.2rem 0.25rem 0.5rem; border-bottom: 2px solid var(--text); }
-.nf-flag { font-family: Georgia, 'Times New Roman', serif; font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.nf-flag { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
 .nf-dateline { font-size: 0.72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; } .nf-dl-live { color: var(--live); text-transform: none; letter-spacing: 0; }
 .nf-ticker { display: flex; gap: 0.9rem; overflow: hidden; justify-content: flex-end; font-variant-numeric: tabular-nums; }
 .nf-tk { font-size: 0.68rem; color: var(--text-2); white-space: nowrap; } .nf-tk b { font-weight: 700; color: var(--text); margin-right: 0.15rem; } .nf-tk i { font-style: normal; font-size: 0.62rem; }
@@ -649,7 +649,7 @@ onUnmounted(() => {
 /* Lead well — the day's dominant story */
 .nf-lead { border-bottom: 2px solid var(--line-2); padding: 0.4rem 0 1.1rem; margin-bottom: 1rem; cursor: pointer; }
 .nf-lead:hover .nf-lead-title, .nf-lead.on .nf-lead-title { color: var(--accent); }
-.nf-lead-title { font-family: Georgia, 'Times New Roman', serif; font-size: 2.3rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; color: var(--text); margin: 0.1rem 0 0.45rem; text-wrap: balance; }
+.nf-lead-title { font-family: var(--font-serif); font-size: 2.3rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; color: var(--text); margin: 0.1rem 0 0.45rem; text-wrap: balance; }
 .nf-lead.social .nf-lead-title { font-size: 1.7rem; font-style: italic; }
 .nf-lead-deck { font-size: 1.02rem; line-height: 1.55; color: var(--text-2); margin: 0 0 0.6rem; max-width: 62ch; }
 .nf-lead-foot { font-size: 0.74rem; color: var(--text-3); display: flex; align-items: center; gap: 0.5rem; } .nf-lead-foot .nf-auth { font-weight: 600; color: var(--text-2); } .nf-foot-sep { opacity: 0.5; }
@@ -660,7 +660,7 @@ onUnmounted(() => {
 .nf-art { break-inside: avoid; -webkit-column-break-inside: avoid; padding: 0.7rem 0 0.8rem; border-top: 1px solid var(--line); cursor: pointer; }
 .nf-art:hover .nf-art-title, .nf-art.on .nf-art-title { color: var(--accent); }
 .nf-art.on { box-shadow: inset 3px 0 0 var(--accent); padding-left: 0.5rem; }
-.nf-art-title { font-family: Georgia, 'Times New Roman', serif; font-size: 1.08rem; line-height: 1.25; font-weight: 700; color: var(--text); margin: 0 0 0.25rem; text-wrap: pretty; }
+.nf-art-title { font-family: var(--font-serif); font-size: 1.08rem; line-height: 1.25; font-weight: 700; color: var(--text); margin: 0 0 0.25rem; text-wrap: pretty; }
 .nf-art.social .nf-art-title { font-size: 0.95rem; font-style: italic; font-weight: 600; color: var(--text-2); }
 .nf-art-deck { font-size: 0.82rem; line-height: 1.5; color: var(--text-3); margin: 0 0 0.35rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .nf-art-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }

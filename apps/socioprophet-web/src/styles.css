@@ -38,7 +38,14 @@
   --fs-md: 0.95rem;
   --fs-lg: 1.05rem;
   --fs-xl: 1.25rem;        /* surface title */
+  --fs-2xl: 1.7rem;        /* section lead / feature headline */
+  --fs-3xl: 2.3rem;        /* editorial lead headline (News front page) */
   --ls-eyebrow: 0.1em;
+  /* Font families — one deliberate pairing across the whole cockpit: Inter for UI + data,
+     a serif for editorial/publication headlines (News, features), mono for code + figures. */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+  --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --radius: 14px;
   --radius-sm: 10px;
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
@@ -58,13 +65,19 @@ html, body, #app { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.011em;
 }
 button, input, select, textarea { font: inherit; }
 a { color: inherit; }
+/* Editorial display type — the shared "publication" voice (News front page, feature headlines).
+   Adopt via class rather than inlining a serif stack, so the pairing stays unified estate-wide. */
+.u-display { font-family: var(--font-serif); font-weight: 700; letter-spacing: -0.02em; line-height: 1.12; text-wrap: balance; }
+.u-eyebrow { font-size: var(--fs-eyebrow); text-transform: uppercase; letter-spacing: var(--ls-eyebrow); color: var(--text-3); }
+/* De-box primitive (Tufte): a section carried by a hairline rule + whitespace, not a bordered card. */
+.u-ruled { border: 0; border-top: 1px solid var(--line-2); border-radius: 0; background: transparent; padding: 0.85rem 0 0; }
 /* Visible keyboard focus across the shell chrome + palette (mouse clicks stay clean via :focus-visible). */
 .sp-shell a:focus-visible, .sp-shell button:focus-visible, .cp a:focus-visible, .cp button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 6px; }
 /* Low-specificity baseline: every interactive control gets a crisp, consistent ring instead of
@@ -81,7 +94,7 @@ a { color: inherit; }
     transition: background-color 0.13s ease, border-color 0.13s ease, color 0.13s ease, box-shadow 0.13s ease, opacity 0.13s ease;
   }
 }
-code, pre, .mono { font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+code, pre, .mono { font-family: var(--font-mono); }
 
 .sp-shell {
   /* Grounded edge-to-edge to the viewport (dvh survives zoom + mobile chrome),

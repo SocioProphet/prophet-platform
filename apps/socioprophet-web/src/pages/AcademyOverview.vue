@@ -99,7 +99,8 @@ onMounted(() => cockpit.setContext({
 .ac { height: 100%; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; padding: 0.85rem 1.1rem 1.5rem; background: var(--bg); color: var(--text); }
 .ac-pill { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--up); background: rgba(63,185,80,0.14); border-radius: 5px; padding: 0.1rem 0.4rem; }
 
-.ac-moat { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: 0.85rem 1rem; }
+/* De-boxed (Tufte): the moat reads from a hairline rule + whitespace, not a bordered card. */
+.ac-moat { border: 0; border-top: 2px solid var(--text); border-radius: 0; background: transparent; padding: 0.7rem 0 0.2rem; }
 .ac-moat-lead { font-size: 0.9rem; color: var(--text-2); margin-bottom: 0.7rem; }
 .ac-pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.6rem; }
 .ac-pillar { display: flex; gap: 0.55rem; align-items: flex-start; }
