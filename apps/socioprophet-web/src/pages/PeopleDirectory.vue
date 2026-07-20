@@ -84,19 +84,15 @@
         <!-- Ego graph -->
         <div class="pd-block">
           <div class="pd-block-h">Relationships</div>
-          <svg class="pd-ego" viewBox="0 0 300 210" role="img" aria-label="relationship graph">
-            <line v-for="(n, i) in egoNodes" :key="'e' + i" x1="150" y1="105" :x2="n.x" :y2="n.y" class="pd-edge" />
-            <g v-for="(n, i) in egoNodes" :key="'n' + i" :transform="`translate(${n.x},${n.y})`" :class="{ link: n.exists }" @click="n.exists && (selectedId = n.id)">
-              <circle r="15" :fill="kindColor(n.kind)" />
-              <text class="pd-ego-init" y="4" text-anchor="middle">{{ initials(n.name) }}</text>
-              <text class="pd-ego-lbl" y="30" text-anchor="middle">{{ n.short }}</text>
-              <text class="pd-ego-rel" y="-20" text-anchor="middle">{{ n.label }}</text>
-            </g>
-            <g transform="translate(150,105)">
-              <circle r="22" :fill="kindColor(selected.kind)" stroke="var(--bg)" stroke-width="2" />
-              <text class="pd-ego-init self" y="5" text-anchor="middle">{{ initials(selected.name) }}</text>
-            </g>
-          </svg>
+          <EvidenceGraph
+            :center="{ id: selected.id, label: selected.name, type: selected.kind }"
+            :links="egoLinks"
+            :w="300"
+            :h="210"
+            @select="onEgoSelect"
+            @evidence="onEgoEvidence"
+          />
+          <div class="pd-ego-cap"><span class="d solid"></span>record <span class="d dash"></span>news-derived · click a node to open · click an edge for evidence</div>
         </div>
 
         <!-- OSINT: social accounts -->
@@ -175,6 +171,8 @@
 import SurfaceHeader from '../components/SurfaceHeader.vue';
 import LiveToggle from '../components/LiveToggle.vue';
 import EmptyState from '../components/EmptyState.vue';
+import EvidenceGraph from '../components/EvidenceGraph.vue';
+import { useCockpit } from '../stores/cockpit';
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import SplitPane from '../components/SplitPane.vue';
@@ -290,6 +288,28 @@ const egoNodes = computed(() => {
   });
 });
 
+// Ego-net links for the reusable EvidenceGraph: resolve each relation to its entity, tag a
+// provenance (co-author/employ/advise = record → solid; brief/testify = news-derived → dashed).
+const cockpit = useCockpit();
+const egoLinks = computed(() =>
+  (selected.value?.relations ?? []).map((rel) => {
+    const target = byId.value.get(rel.to);
+    const l = rel.label.toLowerCase();
+    const provenance: 'record' | 'news' | 'personal' | 'derived' =
+      /brief|testif|advised by/.test(l) ? 'derived' : /co-?author/.test(l) ? 'personal' : 'record';
+    return {
+      node: { id: rel.to, label: target?.name ?? rel.to, type: (target?.kind ?? 'org') as string },
+      rel: rel.label,
+      provenance,
+      evidence: target ? `dir:${rel.to}` : undefined,
+    };
+  }),
+);
+function onEgoSelect(n: { id: string }) { if (byId.value.has(n.id)) selectedId.value = n.id; }
+function onEgoEvidence(lk: { rel?: string; node: { label: string } }) {
+  cockpit.askAbout(`What is the evidence that ${selected.value?.name} ${lk.rel ?? 'is connected to'} ${lk.node.label}? Cite the news, filings, or graph facts.`);
+}
+
 const asOfLabel = new Date(asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 </script>
 
@@ -330,6 +350,9 @@ const asOfLabel = new Date(asOf).toLocaleString('en-US', { month: 'short', day: 
 .pd-block { margin-top: 0.9rem; border-top: 1px solid var(--line-2); padding-top: 0.8rem; }
 .pd-block-h { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); margin-bottom: 0.5rem; }
 .pd-ego { width: 100%; height: 210px; }
+.pd-ego-cap { display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.6rem; margin-top: 0.3rem; font-size: 0.62rem; color: var(--text-3); }
+.pd-ego-cap .d { display: inline-block; width: 12px; height: 0; }
+.pd-ego-cap .d.solid { border-top: 1.5px solid var(--text-2); } .pd-ego-cap .d.dash { border-top: 1.5px dashed var(--accent); }
 .pd-edge { stroke: rgba(255, 255, 255, 0.14); stroke-width: 1; }
 .pd-ego .link { cursor: pointer; } .pd-ego .link:hover circle { stroke: #fff; stroke-width: 2; }
 .pd-ego circle { stroke: var(--bg); stroke-width: 1.5; }
