@@ -174,6 +174,13 @@
         >◈ Graph</button>
         <button
           type="button"
+          class="sp-graph-toggle"
+          :class="{ on: cockpit.extractOpen }"
+          title="Toggle extraction — live entities/claims + promote to graph (⌘E / Ctrl+E)"
+          @click="cockpit.toggleExtract()"
+        >⌖ Extract</button>
+        <button
+          type="button"
           class="sp-noetica-toggle"
           :class="{ on: cockpit.dockOpen }"
           title="Toggle Noetica assistant (⌘J / Ctrl+J)"
@@ -221,6 +228,9 @@
 
     <!-- Global knowledge-graph dock (⌘G / Ctrl+G) -->
     <GraphDock :open="cockpit.graphOpen" @close="cockpit.closeGraph()" />
+
+    <!-- Ubiquitous IE: global extraction dock on every surface (⌘E / Ctrl+E) -->
+    <ExtractDock :open="cockpit.extractOpen" @close="cockpit.closeExtract()" />
   </div>
 </template>
 
@@ -236,6 +246,7 @@ import QuakeTerminal from './components/QuakeTerminal.vue';
 import CommandPalette from './components/CommandPalette.vue';
 import NoeticaDock from './components/NoeticaDock.vue';
 import GraphDock from './components/GraphDock.vue';
+import ExtractDock from './components/ExtractDock.vue';
 import { useOperatorTerminal } from './composables/useOperatorTerminal';
 import { useNoeticaChat } from './composables/useNoeticaChat';
 import { domainSurfaces, surfaceForRoute, surfacesForDomain } from './config/domainRoutes';
@@ -380,6 +391,12 @@ function onTermHotkey(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && (e.key === 'g' || e.key === 'G')) {
     e.preventDefault();
     cockpit.toggleGraph();
+    return;
+  }
+  // Cmd/Ctrl+E — toggle the ubiquitous extraction dock (live IE, every surface).
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'e' || e.key === 'E')) {
+    e.preventDefault();
+    cockpit.toggleExtract();
     return;
   }
   if (e.key === 'Escape' && cockpit.dockOpen && !termOpen.value) { cockpit.closeDock(); return; }
