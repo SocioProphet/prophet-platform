@@ -17,11 +17,24 @@ service: { port: 8080, portName: http }
 ingress:
   enabled: true
   className: ""   # cluster default; set per-cloud (gce / azure-application-gateway / alb) via overlay
-  # Bind the ingress to the reserved GLOBAL static IP (8.233.245.238) so app.socioprophet.ai's A record
-  # stays stable across ingress re-creates. Reserved as `socioprophet-web-app-ip` (IN_USE).
+  # Bind the ingress to the reserved GLOBAL static IP (8.233.245.238) so the A records
+  # stay stable across ingress re-creates. Reserved as `socioprophet-web-app-ip` (IN_USE).
   annotations:
     kubernetes.io/ingress.global-static-ip-name: socioprophet-web-app-ip
-  hosts: [{ host: app.socioprophet.ai, paths: [{ path: /, pathType: Prefix }] }]
+    # HTTPS for the public prod domain. The GKE-managed cert (below) provisions once
+    # app.socioprophet.com's A record points at 8.233.245.238 — decoupled from .ai (which
+    # has no public A record yet), so it's its OWN single-domain cert, not a shared one.
+    networking.gke.io/managed-certificates: socioprophet-web-com-cert
+  # GKE ManagedCertificate rendered by the chart (templates/managed-certificate.yaml) —
+  # only socioprophet-web sets this, so no other chart consumer emits a cert.
+  managedCertificate:
+    name: socioprophet-web-com-cert
+    domains: [app.socioprophet.com]
+  # app.socioprophet.com = the prod login URL (marketing "Sign in" button → here). app.socioprophet.ai
+  # stays as the .ai alias (HTTP for now; no public A record). Same backend/cockpit for both.
+  hosts:
+    - { host: app.socioprophet.ai,  paths: [{ path: /, pathType: Prefix }] }
+    - { host: app.socioprophet.com, paths: [{ path: /, pathType: Prefix }] }
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
 # nginx needs these writable under the chart's readOnlyRootFilesystem (Autopilot).
 writableDirs: [/var/cache/nginx, /var/run]

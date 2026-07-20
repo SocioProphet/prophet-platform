@@ -1,0 +1,14 @@
+{{- if and .Values.ingress.enabled .Values.ingress.managedCertificate }}
+# GKE-managed TLS cert for the ingress's public domain(s). Opt-in: only a values file that sets
+# `ingress.managedCertificate` renders this (socioprophet-web does, for app.socioprophet.com), so every
+# other chart consumer is unaffected. Pairs with the `networking.gke.io/managed-certificates` annotation
+# on the Ingress. Google provisions the cert only AFTER the domain's A record resolves to the ingress IP
+# (STATUS Provisioning → Active), so it's safe to ship before the DNS cutover.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: {{ .Values.ingress.managedCertificate.name | quote }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  domains: {{- toYaml .Values.ingress.managedCertificate.domains | nindent 4 }}
+{{- end }}
