@@ -6,7 +6,7 @@
 #
 # tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
 # same as synapse-bridge/owl-reasoner). Pulls from GAR (chart default).
-image: { repository: holmes, tag: latest }
+image: { repository: holmes, tag: sha-319fb2c4daf579e384788dadb63dfa7f46d605b9 }
 service: { port: 8091, portName: http }
 extraEnv:
   - name: HOLMES_HELLGRAPH
