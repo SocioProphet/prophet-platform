@@ -39,6 +39,7 @@ import DomainSurfacePage from './pages/DomainSurfacePage.vue';
 import AcademyOverview from './pages/AcademyOverview.vue';
 import DegreeExplorer from './pages/DegreeExplorer.vue';
 import CourseView from './pages/CourseView.vue';
+import HomeschoolPlanner from './pages/HomeschoolPlanner.vue';
 import FeedPage from './pages/FeedPage.vue';
 import Journal from './pages/Journal.vue';
 import MapPage from './pages/MapPage.vue';
@@ -76,7 +77,7 @@ const explicitRoutes = [
   { path: '/login', component: Login, meta: { public: true } },
   { path: '/capability/dashboard', component: OperatorDashboard },
   { path: '/academy', component: AcademyOverview },
-  { path: '/academy/homeschool', component: DegreeExplorer },
+  { path: '/academy/homeschool', component: HomeschoolPlanner },
   { path: '/academy/degrees', component: DegreeExplorer },
   { path: '/academy/course/:id', component: CourseView },
   { path: '/academy/tutor', component: CourseView },
