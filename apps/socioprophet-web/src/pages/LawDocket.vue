@@ -54,9 +54,19 @@
         <div class="lw-d-head">
           <span class="lw-type" :class="selected.type">{{ selected.type }}</span>
           <span class="lw-status" :class="selected.status">{{ selected.status }}</span>
+          <span class="lw-citator" :class="citator.tone" :title="citator.why">◆ {{ citator.label }}</span>
         </div>
         <h2 class="lw-d-title">{{ selected.title }}</h2>
         <div class="lw-d-meta">{{ selected.cite }} · {{ selected.jurisdiction }} · updated {{ relative(selected.updated) }}</div>
+
+        <!-- Lifecycle timeline: comment → pending → enacted → effective -->
+        <div class="lw-timeline" aria-label="Docket lifecycle">
+          <template v-for="(st, i) in lifecycle" :key="st.key">
+            <div class="lw-tl-step" :class="st.state"><span class="lw-tl-dot" /><span class="lw-tl-lbl">{{ st.label }}</span></div>
+            <div v-if="i < lifecycle.length - 1" class="lw-tl-bar" :class="{ done: st.state === 'done' }" />
+          </template>
+        </div>
+
         <p class="lw-d-summary">{{ selected.summary }}</p>
 
         <!-- Key facts -->
@@ -240,6 +250,33 @@ const citationLinks = computed(() => {
 function onCiteEvidence(lk: { rel?: string; node: { label: string } }) {
   cockpit.askAbout(`For ${selected.value?.cite}, what is the citation treatment of ${lk.node.label} (${lk.rel}) — is it followed, distinguished, questioned, or overruled? Cite the passage.`);
 }
+
+// Citator — the "is this still good law?" validity flag (Shepard's/KeyCite equivalent). Heuristic
+// preview here (in-force status + whether newer authorities cite it); the REAL treatment comes from
+// holmes /verify once deployed. Honest: labelled a membrane preview.
+const citator = computed(() => {
+  const s = selected.value;
+  if (!s) return { label: '—', tone: 'flat', why: '' };
+  const subsequent = dockets.some((d) => d.id !== s.id && new Date(d.updated).getTime() > new Date(s.updated).getTime() && d.citations.some((c) => c.docketId === s.id || c.cite === s.cite));
+  if (subsequent) return { label: 'REVIEW', tone: 'amber', why: 'Subsequent authorities cite this — check treatment (membrane preview; holmes /verify pending).' };
+  if (s.status === 'enacted') return { label: 'GOOD LAW', tone: 'good', why: 'In force; no distinguishing authority found (membrane preview).' };
+  return { label: 'PENDING', tone: 'amber', why: 'Not yet in force — no binding effect yet.' };
+});
+
+// Lifecycle rail: map the docket status onto comment → pending → enacted → effective.
+const lifecycle = computed(() => {
+  const s = selected.value;
+  const st = s?.status ?? 'pending';
+  const idx = st === 'comment' ? 0 : st === 'enacted' ? 2 : 1; // pending/open → 1
+  const effectiveReached = st === 'enacted' && !!s?.effectiveDate && /^\d/.test(s.effectiveDate);
+  const cur = effectiveReached ? 3 : idx;
+  return [
+    { key: 'comment', label: 'Comment' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'enacted', label: 'Enacted' },
+    { key: 'effective', label: 'Effective' },
+  ].map((sg, i) => ({ ...sg, state: i < cur ? 'done' : i === cur ? 'now' : 'todo' }));
+});
 function askNoetica() {
   const d = selected.value; if (!d) return;
   const tail = isLive.value
@@ -294,8 +331,22 @@ function deadlineSoon(iso: string): boolean { const days = (new Date(iso).getTim
 .lw-detail.empty { display: grid; place-items: center; color: var(--text-3); font-size: 0.85rem; padding: 1.1rem; }
 .lw-ribbon { display: flex; align-items: center; gap: 0.6rem; margin: 0 -1.1rem 0.9rem; padding: 0.4rem 1.1rem; background: var(--accent-soft); border-bottom: 1px solid var(--line-2); font-size: 0.7rem; }
 .lw-ribbon-k { text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 700; font-size: 0.6rem; } .lw-ribbon code { color: rgba(255, 255, 255, 0.6); font-family: ui-monospace, monospace; } .lw-ribbon-as { margin-left: auto; color: rgba(255, 255, 255, 0.4); }
-.lw-d-head { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.lw-d-head { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
 .lw-d-head .lw-status { margin-left: 0; }
+/* Citator — the "still good law?" validity flag (Shepard's/KeyCite equivalent) */
+.lw-citator { margin-left: auto; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.05em; border-radius: 5px; padding: 0.1rem 0.45rem; border: 1px solid; cursor: help; }
+.lw-citator.good { color: var(--up); border-color: rgba(75, 191, 115, 0.45); background: rgba(75, 191, 115, 0.1); }
+.lw-citator.amber { color: #e3b341; border-color: rgba(227, 179, 65, 0.45); background: rgba(227, 179, 65, 0.1); }
+.lw-citator.flat { color: var(--text-3); border-color: var(--line-2); }
+/* Lifecycle timeline */
+.lw-timeline { display: flex; align-items: center; margin: 0.7rem 0 0.2rem; }
+.lw-tl-step { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 0.6rem; color: var(--text-3); }
+.lw-tl-step.done { color: var(--text-2); } .lw-tl-step.now { color: var(--accent); font-weight: 700; }
+.lw-tl-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(237, 238, 242, 0.18); }
+.lw-tl-step.done .lw-tl-dot { background: var(--text-2); }
+.lw-tl-step.now .lw-tl-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(216, 162, 80, 0.18); }
+.lw-tl-bar { flex: 1; height: 1.5px; background: rgba(237, 238, 242, 0.12); margin: 0 3px; margin-bottom: 0.85rem; }
+.lw-tl-bar.done { background: var(--text-2); }
 .lw-d-title { margin: 0.5rem 0 0.3rem; font-size: 1.35rem; line-height: 1.25; }
 .lw-d-meta { font-size: 0.76rem; color: rgba(255, 255, 255, 0.5); font-family: ui-monospace, monospace; }
 .lw-d-summary { margin: 0.7rem 0 0; font-size: 0.9rem; line-height: 1.6; color: rgba(255, 255, 255, 0.8); }
