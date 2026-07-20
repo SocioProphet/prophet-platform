@@ -31,6 +31,7 @@
         <button v-for="i in indices" :key="i.symbol" class="db-row" @click="go('/markets/indices-funds', { sym: i.symbol })">
           <span class="db-row-k">{{ i.symbol }}</span>
           <span class="db-row-sub">{{ i.name }}</span>
+          <Sparkline :series="i.series" />
           <span class="db-num">{{ fmtPrice(i.price) }}</span>
           <span class="db-chg" :class="pctClass(i.changePct)">{{ fmtPct(i.changePct) }}</span>
         </button>
@@ -77,6 +78,7 @@
         <RouterLink class="db-card-head" to="/economy/macro-economics"><span>Economy</span><span class="db-open">open →</span></RouterLink>
         <button v-for="k in indicators" :key="k.id" class="db-row" @click="go('/economy/macro-economics', { k: k.id, kind: 'indicator' })">
           <span class="db-row-sub wide">{{ k.name }}</span>
+          <Sparkline :series="k.series" />
           <span class="db-num">{{ fmtVal(k.value, k.unit) }}</span>
           <span class="db-chg" :class="econClass(k.changeAbs, k.better)">{{ signed(k.changeAbs) }}{{ k.unit === '%' ? 'pp' : '' }}</span>
         </button>
@@ -111,6 +113,7 @@
         <button v-for="r in regions" :key="r.id" class="db-row" @click="go('/weather/forecast', { r: r.id })">
           <span class="db-row-k narrow">{{ r.name }}</span>
           <span class="db-row-sub">{{ r.cond }}</span>
+          <Sparkline :series="r.series" />
           <span class="db-num">{{ r.tempF }}°</span>
           <span class="db-chg" :class="r.changeF >= 0 ? 'up' : 'down'">{{ signed(r.changeF) }}°</span>
         </button>
@@ -158,6 +161,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter, type LocationQueryRaw } from 'vue-router';
+import Sparkline from '../components/Sparkline.vue';
 import { ALL_SURFACES } from '../config/cockpitNav';
 import { useDashboard } from '../stores/dashboard';
 import { indices } from '../data/marketsFixture';
@@ -250,14 +254,16 @@ const asOfLabel = new Date(NOW).toLocaleString('en-US', { weekday: 'short', mont
 .db-addbar-chip { border: 1px solid var(--line-2); background: var(--surface); color: var(--text-2); border-radius: 999px; padding: 0.25rem 0.7rem; font-size: 0.78rem; cursor: pointer; }
 .db-addbar-chip:hover { color: var(--accent); border-color: var(--accent); }
 
-.db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.85rem; }
-.db-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
-.db-card-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--line); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); text-decoration: none; font-weight: 700; background: var(--surface); }
-.db-card-head:hover { color: var(--accent); background: var(--surface-2); }
+/* Tufte pass: cards are de-boxed — no border/fill/radius. Separation comes from the
+   grid gap + the header's single hairline + whitespace (data-ink, not chartjunk). */
+.db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.05rem 1.6rem; }
+.db-card { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
+.db-card-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 0.3rem 0.15rem 0.42rem; border-bottom: 1px solid var(--line-2); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); text-decoration: none; font-weight: 700; background: var(--bg); }
+.db-card-head:hover { color: var(--accent); }
 .db-open { font-size: 0.64rem; color: var(--text-3); font-weight: 600; letter-spacing: 0; text-transform: none; }
 .db-card-head:hover .db-open { color: var(--accent); }
 
-.db-row { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; border-bottom: 1px solid var(--line); background: transparent; color: inherit; padding: 0.5rem 0.85rem; cursor: pointer; text-align: left; font: inherit; }
+.db-row { display: flex; align-items: center; gap: 0.55rem; width: 100%; border: none; border-bottom: 1px solid rgba(237, 238, 242, 0.05); background: transparent; color: inherit; padding: 0.4rem 0.15rem; cursor: pointer; text-align: left; font: inherit; border-radius: 4px; }
 .db-row:last-child { border-bottom: none; }
 .db-row:hover { background: var(--surface-2); }
 .db-row.col { flex-direction: column; align-items: stretch; gap: 0.2rem; }
@@ -280,7 +286,7 @@ const asOfLabel = new Date(NOW).toLocaleString('en-US', { weekday: 'short', mont
 .db-empty { padding: 1rem 0.85rem; color: var(--text-3); font-size: 0.8rem; }
 .db-x { margin-left: auto; border: none; background: transparent; color: var(--text-3); cursor: pointer; font-size: 0.72rem; padding: 0 0.2rem; }
 .db-x:hover { color: var(--down); }
-.db-add { display: flex; gap: 0.4rem; padding: 0.45rem 0.85rem; border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--surface); }
+.db-add { display: flex; gap: 0.4rem; padding: 0.45rem 0.15rem; border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--bg); }
 .db-add input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; color: var(--text); padding: 0.3rem 0.5rem; font: inherit; font-size: 0.78rem; }
 .db-add button { border: none; background: var(--surface-2); color: var(--text-2); border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.74rem; cursor: pointer; white-space: nowrap; }
 .db-add button:hover:not(:disabled) { color: var(--accent); }
