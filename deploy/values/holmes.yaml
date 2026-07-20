@@ -1,0 +1,13 @@
+# holmes — the claim deduction/verification engine (Go). `holmes serve` on :8091 reasons over the
+# canonical hellgraph (HOLMES_HELLGRAPH). The cockpit's ieApi.verifyClaims → nginx /svc/holmes → this
+# service — it's what makes the Law citator + News claim-verify REAL (were 502 / Noetica-narrated).
+# nginx already routes /svc/holmes → holmes.socioprophet.svc:8091. Binds 0.0.0.0 (bind fix). Vendored
+# from ~/dev/holmes.
+#
+# tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
+# same as synapse-bridge/owl-reasoner). Pulls from GAR (chart default).
+image: { repository: holmes, tag: latest }
+service: { port: 8091, portName: http }
+extraEnv:
+  - name: HOLMES_HELLGRAPH
+    value: http://hellgraph-service.socioprophet.svc.cluster.local:8090

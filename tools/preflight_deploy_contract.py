@@ -122,6 +122,11 @@ KNOWN_BROKEN = {
         "powers ieApi.kkoClassify → /svc/synapse). Pin tag:latest -> the sha- tag gitops-promote writes after "
         "the first CI build; no sha exists until merge."
     ),
+    "holmes:moving-tag": (
+        "New service — holmes (Go claim-verifier) vendored into apps/holmes this PR (/verify on :8091 over "
+        "hellgraph, powers ieApi.verifyClaims → /svc/holmes + the Law citator). Pin tag:latest -> the sha- tag "
+        "gitops-promote writes after the first CI build; no sha exists until merge."
+    ),
     # algo-engine + ie-engine were pinned to sha- tags by gitops-promote (18f02aad,
     # sha-32f5996a06f6) after their first CI build, so they no longer violate — the
     # ratchet requires removing them here (it only shrinks).
