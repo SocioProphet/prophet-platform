@@ -115,10 +115,12 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
-    "sherlock-engine:moving-tag": (
-        "Rust image build fixed this PR (rust:1.97 + committed Cargo.lock) — first successful build published a "
-        "sha- tag; switched values from the sha-REPLACE_ON_FIRST_BUILD placeholder to tag:latest so gitops-promote "
-        "pins it like every other service. Placeholder never matched the promote pattern, which is why it was stuck."
+    # sherlock-engine pinned to a sha- tag by gitops-promote after the 0.0.0.0 bind fix (#887) → removed
+    # from the ratchet (it only shrinks).
+    "synapse-bridge:moving-tag": (
+        "New service — synapseiq/bridge vendored into apps/synapse-bridge this PR (KKO + normalize on :8092, "
+        "powers ieApi.kkoClassify → /svc/synapse). Pin tag:latest -> the sha- tag gitops-promote writes after "
+        "the first CI build; no sha exists until merge."
     ),
     # algo-engine + ie-engine were pinned to sha- tags by gitops-promote (18f02aad,
     # sha-32f5996a06f6) after their first CI build, so they no longer violate — the
