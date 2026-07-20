@@ -82,7 +82,7 @@ spec:
           {{- end }}
           {{- end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.tmpDir.enabled .Values.writableDirs }}
+          {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts }}
           volumeMounts:
             {{- if .Values.tmpDir.enabled }}
             - name: tmp
@@ -92,8 +92,17 @@ spec:
             - name: writable-{{ $i }}
               mountPath: {{ $p }}
             {{- end }}
+            {{- range $i, $m := .Values.extraFileMounts }}
+            # Overlay a single file (e.g. firebase-config.js) from a ConfigMap onto the built image.
+            # Injected at deploy, NOT baked into the image — keeps public-but-not-secret runtime config
+            # (Firebase web config) out of the git-tracked source + image layers. readOnly by nature.
+            - name: filemount-{{ $i }}
+              mountPath: {{ $m.mountPath }}
+              subPath: {{ $m.subPath | default $m.key }}
+              readOnly: true
+            {{- end }}
           {{- end }}
-      {{- if or .Values.tmpDir.enabled .Values.writableDirs }}
+      {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts }}
       volumes:
         {{- if .Values.tmpDir.enabled }}
         - name: tmp
@@ -103,6 +112,14 @@ spec:
         {{- range $i, $p := .Values.writableDirs }}
         - name: writable-{{ $i }}
           emptyDir: {}
+        {{- end }}
+        {{- range $i, $m := .Values.extraFileMounts }}
+        - name: filemount-{{ $i }}
+          configMap:
+            name: {{ $m.configMap }}
+            items:
+              - key: {{ $m.key }}
+                path: {{ $m.subPath | default $m.key }}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
