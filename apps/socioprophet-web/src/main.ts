@@ -36,6 +36,8 @@ import WeatherMonitor from './pages/WeatherMonitor.vue';
 import ControlPlaneLifecycle from './pages/ControlPlaneLifecycle.vue';
 import NoeticaControlPlane from './pages/NoeticaControlPlane.vue';
 import DomainSurfacePage from './pages/DomainSurfacePage.vue';
+import AcademyOverview from './pages/AcademyOverview.vue';
+import DegreeExplorer from './pages/DegreeExplorer.vue';
 import FeedPage from './pages/FeedPage.vue';
 import Journal from './pages/Journal.vue';
 import MapPage from './pages/MapPage.vue';
@@ -72,6 +74,9 @@ const explicitRoutes = [
   { path: '/', redirect: '/capability/dashboard' },
   { path: '/login', component: Login, meta: { public: true } },
   { path: '/capability/dashboard', component: OperatorDashboard },
+  { path: '/academy', component: AcademyOverview },
+  { path: '/academy/homeschool', component: DegreeExplorer },
+  { path: '/academy/degrees', component: DegreeExplorer },
   { path: '/agentic-os', component: AgenticOS },
   { path: '/marketplace', component: Marketplace },
   { path: '/people/labor-market', component: LaborMarket },
