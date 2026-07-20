@@ -34,6 +34,7 @@ spec:
           - { name: entity-resolution }
           - { name: algo-engine }
           - { name: ie-engine }
+          - { name: synapse-bridge }
           - { name: memoryd }
           - { name: embeddings }
           - { name: regis-acr-api }

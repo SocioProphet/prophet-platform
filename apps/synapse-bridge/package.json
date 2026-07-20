@@ -1,0 +1,10 @@
+{
+  "name": "synapse-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SynapseIQ language-intelligence bridge (KKO classification + normalization) — vendored from synapseiq/bridge",
+  "dependencies": {
+    "tsx": "^4.19.2"
+  }
+}

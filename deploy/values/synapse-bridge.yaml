@@ -1,0 +1,11 @@
+# synapse-bridge — SynapseIQ language-intelligence bridge (KKO Peircean type classification +
+# name/token normalization), vendored from synapseiq/bridge into prophet-platform CI. Serves
+# /kko-class + /normalize + /healthz on :8092. The cockpit's ieApi.kkoClassify → nginx /svc/synapse
+# → this service (nginx already routes synapse-bridge.socioprophet.svc:8092). Node binds 0.0.0.0.
+#
+# tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
+# same as sherlock-engine/owl-reasoner). Pulls from GAR (chart default) until a zot cutover.
+image: { repository: synapse-bridge, tag: latest }
+service: { port: 8092, portName: http }
+# tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
+tmpDir: { enabled: true }
