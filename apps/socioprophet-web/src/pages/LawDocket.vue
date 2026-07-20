@@ -30,6 +30,7 @@
           @click="selectedId = d.id"
         >
           <div class="lw-row-top">
+            <span class="lw-treat" :class="treatmentOf(d).kind" :title="treatmentOf(d).label + ' — ' + treatmentOf(d).why">{{ treatmentOf(d).glyph }}</span>
             <span class="lw-type" :class="d.type">{{ d.type }}</span>
             <span class="lw-cite">{{ d.cite }}</span>
             <span class="lw-status" :class="d.status">{{ d.status }}</span>
@@ -51,13 +52,25 @@
           <span class="lw-ribbon-as">as of {{ asOfLabel }}</span>
         </div>
 
-        <div class="lw-d-head">
+        <div class="lw-d-kicker">
           <span class="lw-type" :class="selected.type">{{ selected.type }}</span>
           <span class="lw-status" :class="selected.status">{{ selected.status }}</span>
-          <span class="lw-citator" :class="citator.tone" :title="citator.why">◆ {{ citator.label }}</span>
         </div>
         <h2 class="lw-d-title">{{ selected.title }}</h2>
         <div class="lw-d-meta">{{ selected.cite }} · {{ selected.jurisdiction }} · updated {{ relative(selected.updated) }}</div>
+
+        <!-- Citator banner — the "can I rely on this?" verdict, up front (Shepard's/KeyCite). -->
+        <div class="lw-treat-banner" :class="treatment.kind" :aria-label="`Citator: ${treatment.label}`">
+          <span class="lw-tb-glyph">{{ treatment.glyph }}</span>
+          <div class="lw-tb-body">
+            <div class="lw-tb-label">{{ treatment.label }}<span class="lw-tb-src">citator</span></div>
+            <div class="lw-tb-why">{{ treatment.why }}</div>
+          </div>
+          <div class="lw-tb-meta">
+            <span v-if="citedBy.length">cited by <b>{{ citedBy.length }}</b></span>
+            <span v-if="holmesVerdict?.evidence_count"><b>{{ holmesVerdict.evidence_count }}</b> graph facts</span>
+          </div>
+        </div>
 
         <!-- Lifecycle timeline: comment → pending → enacted → effective -->
         <div class="lw-timeline" aria-label="Docket lifecycle">
@@ -67,35 +80,56 @@
           </template>
         </div>
 
-        <p class="lw-d-summary">{{ selected.summary }}</p>
+        <!-- Metadata — inline definition row, no boxes (Tufte: type does the work). -->
+        <dl class="lw-meta-line">
+          <div><dt>Agency</dt><dd>{{ selected.agency }}</dd></div>
+          <div><dt>Jurisdiction</dt><dd>{{ selected.jurisdiction }}</dd></div>
+          <div v-if="selected.effectiveDate"><dt>Effective</dt><dd>{{ selected.effectiveDate.includes('T') ? dateLabel(selected.effectiveDate) : selected.effectiveDate }}</dd></div>
+          <div v-if="selected.commentDeadline"><dt>Comment closes</dt><dd :class="{ soon: deadlineSoon(selected.commentDeadline) }">{{ dateLabel(selected.commentDeadline) }} · {{ countdown(selected.commentDeadline) }}</dd></div>
+        </dl>
 
-        <!-- Key facts -->
-        <div class="lw-facts">
-          <div class="lw-fact"><span>Agency</span><b>{{ selected.agency }}</b></div>
-          <div class="lw-fact"><span>Jurisdiction</span><b>{{ selected.jurisdiction }}</b></div>
-          <div v-if="selected.commentDeadline" class="lw-fact"><span>Comment closes</span><b :class="{ soon: deadlineSoon(selected.commentDeadline) }">{{ dateLabel(selected.commentDeadline) }} · {{ countdown(selected.commentDeadline) }}</b></div>
-          <div v-if="selected.effectiveDate" class="lw-fact"><span>Effective</span><b>{{ selected.effectiveDate.includes('T') ? dateLabel(selected.effectiveDate) : selected.effectiveDate }}</b></div>
-        </div>
+        <!-- Holding — the operative recommendation/ruling, stated once. -->
+        <section class="lw-section">
+          <div class="lw-sec-h">Holding</div>
+          <p class="lw-d-summary">{{ selected.summary }}</p>
+        </section>
 
-        <!-- Extraction + reified claims -->
-        <div class="lw-block">
-          <ExtractionPanel :text="`${selected.title}. ${selected.summary} ${selected.impact}`" :source="selected.cite" />
-        </div>
-        <div class="lw-block">
-          <ClaimsPanel :text="`${selected.title}. ${selected.summary} ${selected.impact}`" :source="selected.cite" />
-        </div>
-
-        <!-- Impact + tags -->
-        <div class="lw-block">
-          <div class="lw-block-h">Impact</div>
+        <!-- Who it hits — the distinct downstream / compliance read (NOT a restatement). -->
+        <section class="lw-section">
+          <div class="lw-sec-h">Who it hits</div>
           <p class="lw-impact">{{ selected.impact }}</p>
           <div class="lw-tags"><button v-for="t in selected.tags" :key="t" class="lw-tag" @click="cmd = t">#{{ t }}</button></div>
+        </section>
+
+        <!-- Structure: topics + entities (claims live in their own verified block below). -->
+        <div class="lw-block">
+          <ExtractionPanel :text="`${selected.title}. ${selected.summary} ${selected.impact}`" :source="selected.cite" :show-claims="false" />
+        </div>
+        <div class="lw-block">
+          <ClaimsPanel :text="`${selected.summary} ${selected.impact}`" :source="selected.cite" />
         </div>
 
         <!-- Affected entities — cross-links -->
         <div v-if="crossLinks.length" class="lw-block">
           <div class="lw-block-h">Affected — trace across</div>
           <CrossLinks :links="crossLinks" />
+        </div>
+
+        <!-- Depth of treatment (Shepard's citing-references analysis) — how later authority treats this. -->
+        <div v-if="citedBy.length" class="lw-block">
+          <div class="lw-block-h">Depth of treatment <span class="lw-legend">how {{ citedBy.length }} later authorit{{ citedBy.length === 1 ? 'y' : 'ies' }} treat{{ citedBy.length === 1 ? 's' : '' }} this</span></div>
+          <div class="lw-tt-bar" role="img" :aria-label="`${tally.followed} followed, ${tally.superseded} superseded`">
+            <span v-if="tally.followed" class="lw-tt-seg followed" :style="{ flex: tally.followed }" />
+            <span v-if="tally.superseded" class="lw-tt-seg superseded" :style="{ flex: tally.superseded }" />
+          </div>
+          <div class="lw-tt-legend"><span><i class="followed" />followed {{ tally.followed }}</span><span><i class="superseded" />superseded {{ tally.superseded }}</span></div>
+          <div class="lw-tt-list">
+            <button v-for="c in citedBy" :key="c.d.id" class="lw-tt-cite" :class="c.treat" @click="goDocket(c.d.id)">
+              <span class="lw-tt-flag">{{ c.treat === 'superseded' ? '▲' : '↳' }}</span>
+              <code>{{ c.d.cite }}</code><span class="lw-tt-title">{{ c.d.title }}</span>
+              <span class="lw-tt-tag">{{ c.treat }}</span>
+            </button>
+          </div>
         </div>
 
         <!-- Citation network — the authority web as an evidence-backed ego-net (cites + cited-by) -->
@@ -267,24 +301,53 @@ watch(selected, async (d) => {
   } catch { holmesVerdict.value = null; } // holmes not reachable yet → heuristic
 }, { immediate: true });
 
-const citator = computed(() => {
-  const s = selected.value;
-  if (!s) return { label: '—', tone: 'flat', why: '' };
-  // Prefer a POSITIVE holmes signal (supported / weakly-supported); "unverified" here usually just
-  // means the graph doesn't hold this authority yet, so don't flag it — fall through to the heuristic.
-  const hv = holmesVerdict.value;
-  if (hv && hv.verdict === 'supported') {
-    return { label: 'GOOD LAW', tone: 'good', why: `holmes: supported by ${hv.evidence_count} graph fact(s)${hv.matched_terms?.length ? ' · ' + hv.matched_terms.join(', ') : ''}.` };
+// ── Treatment (the citator) — a Shepard's/KeyCite-grade "can I rely on this?" signal.
+// One model, used both as the dominant banner on the open docket AND as a per-row
+// flag down the list (Tufte small multiples: scan the whole corpus' health at a glance).
+// Negative treatment (superseded/overruled) dominates; then a positive holmes signal;
+// then structural signals (cited-by-later, in-force). Deterministic + explainable.
+type TreatKind = 'good' | 'caution' | 'negative' | 'pending';
+interface Treatment { kind: TreatKind; glyph: string; label: string; why: string }
+
+function citingLater(d: Docket): Docket[] {
+  return activeDockets.value.filter((x) => x.id !== d.id
+    && x.citations.some((c) => c.docketId === d.id || c.cite === d.cite));
+}
+function treatmentOf(d: Docket, hv?: Verdict | null): Treatment {
+  if (d.supersededBy) {
+    const by = activeDockets.value.find((x) => x.id === d.supersededBy);
+    return { kind: 'negative', glyph: '▲', label: 'SUPERSEDED IN PART',
+      why: `A later authority${by ? ` (${by.cite})` : ''} supersedes part of this — do not rely on the superseded provision.` };
   }
-  if (hv && hv.verdict === 'weakly-supported') {
-    return { label: 'REVIEW', tone: 'amber', why: `holmes: weakly supported (${hv.evidence_count} fact(s)) — check treatment.` };
+  if (hv?.verdict === 'supported') {
+    return { kind: 'good', glyph: '●', label: 'GOOD LAW',
+      why: `holmes: supported by ${hv.evidence_count} graph fact(s)${hv.matched_terms?.length ? ' · ' + hv.matched_terms.join(', ') : ''}.` };
   }
-  // Heuristic fallback (holmes unreachable / no graph evidence yet).
-  const subsequent = dockets.some((d) => d.id !== s.id && new Date(d.updated).getTime() > new Date(s.updated).getTime() && d.citations.some((c) => c.docketId === s.id || c.cite === s.cite));
-  if (subsequent) return { label: 'REVIEW', tone: 'amber', why: 'Subsequent authorities cite this — check treatment (in-force heuristic; holmes finds no graph evidence yet).' };
-  if (s.status === 'enacted') return { label: 'GOOD LAW', tone: 'good', why: 'In force; no distinguishing authority found (in-force heuristic).' };
-  return { label: 'PENDING', tone: 'amber', why: 'Not yet in force — no binding effect yet.' };
+  const later = citingLater(d);
+  if (later.length) {
+    return { kind: 'caution', glyph: '◐', label: 'CAUTION',
+      why: `Cited by ${later.length} later authorit${later.length === 1 ? 'y' : 'ies'} (${later.map((x) => x.cite).join(', ')}) — check treatment.` };
+  }
+  if (hv?.verdict === 'weakly-supported') {
+    return { kind: 'caution', glyph: '◐', label: 'CAUTION', why: `holmes: weakly supported (${hv.evidence_count} fact(s)) — check treatment.` };
+  }
+  if (d.status === 'enacted') return { kind: 'good', glyph: '●', label: 'GOOD LAW', why: 'In force; no distinguishing authority found.' };
+  if (d.status === 'comment' || d.status === 'pending') return { kind: 'pending', glyph: '○', label: 'PENDING', why: 'Not yet in force — no binding effect yet.' };
+  return { kind: 'good', glyph: '●', label: 'IN EFFECT', why: 'No negative treatment found.' };
+}
+// The open docket's banner uses the live holmes verdict; row flags use the cheap structural read.
+const treatment = computed<Treatment>(() => (selected.value ? treatmentOf(selected.value, holmesVerdict.value) : { kind: 'pending', glyph: '○', label: '—', why: '' }));
+
+// Depth-of-treatment (Shepard's): who cites this, and how. The superseding authority is
+// flagged 'superseded'; everything else 'followed' — a compact citing-references tally.
+const citedBy = computed(() => {
+  const s = selected.value; if (!s) return [] as { d: Docket; treat: 'followed' | 'superseded' }[];
+  return citingLater(s).map((d) => ({ d, treat: (s.supersededBy === d.id ? 'superseded' : 'followed') as 'followed' | 'superseded' }));
 });
+const tally = computed(() => ({
+  followed: citedBy.value.filter((c) => c.treat === 'followed').length,
+  superseded: citedBy.value.filter((c) => c.treat === 'superseded').length,
+}));
 
 // Lifecycle rail: map the docket status onto comment → pending → enacted → effective.
 const lifecycle = computed(() => {
@@ -361,6 +424,50 @@ function deadlineSoon(iso: string): boolean { const days = (new Date(iso).getTim
 .lw-citator.good { color: var(--up); border-color: rgba(75, 191, 115, 0.45); background: rgba(75, 191, 115, 0.1); }
 .lw-citator.amber { color: #e3b341; border-color: rgba(227, 179, 65, 0.45); background: rgba(227, 179, 65, 0.1); }
 .lw-citator.flat { color: var(--text-3); border-color: var(--line-2); }
+
+/* ── Treatment (citator) system — one visual language for "can I rely on this?" ── */
+/* Per-row flag in the docket list (small multiples: scan corpus health at a glance) */
+.lw-treat { font-size: 0.7rem; line-height: 1; width: 0.9rem; text-align: center; flex: 0 0 auto; }
+.lw-treat.good { color: var(--up); } .lw-treat.caution { color: #e3b341; } .lw-treat.negative { color: var(--down); } .lw-treat.pending { color: rgba(255,255,255,0.3); }
+.lw-d-kicker { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+/* The dominant banner — the first thing you read on the open docket. */
+.lw-treat-banner { display: flex; align-items: flex-start; gap: 0.6rem; margin: 0.7rem 0 0.2rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line-2); border-left-width: 4px; border-radius: 10px; background: var(--surface-2, rgba(255,255,255,0.015)); }
+.lw-treat-banner.good { border-left-color: var(--up); background: rgba(63,185,80,0.06); }
+.lw-treat-banner.caution { border-left-color: #e3b341; background: rgba(227,179,65,0.07); }
+.lw-treat-banner.negative { border-left-color: var(--down); background: rgba(248,81,73,0.07); }
+.lw-treat-banner.pending { border-left-color: rgba(255,255,255,0.25); }
+.lw-tb-glyph { font-size: 1.05rem; line-height: 1.2; flex: 0 0 auto; }
+.lw-treat-banner.good .lw-tb-glyph { color: var(--up); } .lw-treat-banner.caution .lw-tb-glyph { color: #e3b341; } .lw-treat-banner.negative .lw-tb-glyph { color: var(--down); } .lw-treat-banner.pending .lw-tb-glyph { color: rgba(255,255,255,0.4); }
+.lw-tb-body { flex: 1; min-width: 0; }
+.lw-tb-label { display: flex; align-items: center; gap: 0.5rem; font-size: 0.86rem; font-weight: 800; letter-spacing: 0.03em; color: var(--text); }
+.lw-treat-banner.good .lw-tb-label { color: #86efac; } .lw-treat-banner.caution .lw-tb-label { color: #e3b341; } .lw-treat-banner.negative .lw-tb-label { color: #fca5a5; }
+.lw-tb-src { font-size: 0.54rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 0.04rem 0.3rem; }
+.lw-tb-why { font-size: 0.78rem; line-height: 1.5; color: rgba(255,255,255,0.72); margin-top: 0.15rem; }
+.lw-tb-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; flex: 0 0 auto; font-size: 0.64rem; color: var(--text-3); text-align: right; } .lw-tb-meta b { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* Inline metadata (replaces the fact boxes) */
+.lw-meta-line { display: flex; flex-wrap: wrap; gap: 0.25rem 1.4rem; margin: 0.85rem 0 0; padding: 0.55rem 0 0; border-top: 1px solid var(--line); }
+.lw-meta-line > div { display: flex; flex-direction: column; gap: 0.05rem; }
+.lw-meta-line dt { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.lw-meta-line dd { margin: 0; font-size: 0.82rem; color: var(--text); font-variant-numeric: tabular-nums; } .lw-meta-line dd.soon { color: #e3b341; }
+
+/* Content sections (Tufte: light rules, no boxes) */
+.lw-section { margin-top: 1.05rem; }
+.lw-sec-h { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.35rem; }
+
+/* Depth-of-treatment tally (Shepard's citing-references) */
+.lw-tt-bar { display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: var(--line); }
+.lw-tt-seg.followed { background: var(--up); } .lw-tt-seg.superseded { background: var(--down); }
+.lw-tt-legend { display: flex; gap: 1rem; margin-top: 0.35rem; font-size: 0.66rem; color: var(--text-3); }
+.lw-tt-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 0.3rem; } .lw-tt-legend i.followed { background: var(--up); } .lw-tt-legend i.superseded { background: var(--down); }
+.lw-tt-list { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.6rem; }
+.lw-tt-cite { display: flex; align-items: center; gap: 0.5rem; text-align: left; border: 1px solid var(--line-2); border-left-width: 3px; background: var(--surface-2, rgba(255,255,255,0.015)); color: var(--text-2); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.78rem; cursor: pointer; }
+.lw-tt-cite.followed { border-left-color: var(--up); } .lw-tt-cite.superseded { border-left-color: var(--down); }
+.lw-tt-cite:hover { border-color: var(--accent); }
+.lw-tt-flag { flex: 0 0 auto; } .lw-tt-cite.superseded .lw-tt-flag { color: var(--down); } .lw-tt-cite.followed .lw-tt-flag { color: var(--text-3); }
+.lw-tt-cite code { color: rgba(255,255,255,0.9); font-family: ui-monospace, monospace; font-size: 0.72rem; }
+.lw-tt-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lw-tt-tag { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; border-radius: 999px; padding: 0.05rem 0.4rem; } .lw-tt-cite.followed .lw-tt-tag { color: var(--up); background: rgba(63,185,80,0.14); } .lw-tt-cite.superseded .lw-tt-tag { color: var(--down); background: rgba(248,81,73,0.14); }
 /* Lifecycle timeline */
 .lw-timeline { display: flex; align-items: center; margin: 0.7rem 0 0.2rem; }
 .lw-tl-step { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 0.6rem; color: var(--text-3); }

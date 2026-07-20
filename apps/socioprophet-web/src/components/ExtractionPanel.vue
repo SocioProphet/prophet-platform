@@ -37,7 +37,7 @@
       </div>
     </div>
 
-    <div v-if="view.claims.length" class="xp-block">
+    <div v-if="showClaims && view.claims.length" class="xp-block">
       <div class="xp-block-h">Claims <span class="xp-hint">→ verify with Sherlock</span></div>
       <div class="xp-claims">
         <button v-for="(c, i) in view.claims" :key="i" class="xp-claim" @click="onClaim(c)">
@@ -59,7 +59,7 @@ import ProvenanceBadge from './ProvenanceBadge.vue';
 import { useCockpit } from '../stores/cockpit';
 import { useOntology } from '../stores/ontology';
 
-const props = defineProps<{ text: string; source?: string }>();
+const props = withDefaults(defineProps<{ text: string; source?: string; showClaims?: boolean }>(), { showClaims: true });
 const cockpit = useCockpit();
 const ontology = useOntology();
 

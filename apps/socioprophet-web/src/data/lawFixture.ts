@@ -29,6 +29,7 @@ export interface Docket {
   commentDeadline?: string;
   effectiveDate?: string;
   url?: string; // real source link when the docket is live (e.g. federalregister.gov)
+  supersededBy?: string; // docketId of a later authority that supersedes this (in whole or part)
 }
 
 export const dockets: Docket[] = [
@@ -52,12 +53,16 @@ export const dockets: Docket[] = [
   },
   {
     id: 'd-audit', cite: 'WG-AUD-07', title: 'Audit-Trail Guidance (Cross-Jurisdiction)', type: 'rule', jurisdiction: 'International', status: 'pending', updated: '2026-07-03T09:45:00-04:00',
-    summary: 'Recommends hash-sealed, replayable audit trails for high-stakes automation; aligns with existing evidence frameworks.',
+    summary: 'Recommends hash-sealed, replayable audit trails sufficient to reconstruct each high-stakes automated decision, interoperable with existing evidence frameworks.',
     agency: 'Cross-Jurisdiction Working Group',
     tags: ['audit-trail', 'evidence', 'interoperability'],
     affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT', 'JPM'], topics: ['Audit Trail'] },
-    impact: 'Recommends hash-sealed, replayable audit trails sufficient to reconstruct each high-stakes decision — raising the evidentiary standard for automated systems in regulated industries.',
-    citations: [{ cite: 'ODG-2026-114', title: 'Model-Provenance Disclosure Rule', docketId: 'd-provenance' }],
+    impact: 'Regulated operators would have to retain reconstruction-grade logs — not summaries — for every high-stakes automated decision. For firms like MSFT and JPM running automated decisioning at scale, that is a materially higher retention and storage burden, and shifts the evidentiary default from "documented" to "replayable".',
+    citations: [
+      { cite: 'ODG-2026-114', title: 'Model-Provenance Disclosure Rule', docketId: 'd-provenance' },
+      { cite: 'EV-STD-3', title: 'Digital Evidence Interoperability Standard', docketId: 'd-evstd' },
+    ],
+    supersededBy: 'd-liability',
     effectiveDate: 'on adoption',
     provenanceHash: 'sha256:wgaud07…41a', redline: [
       { type: 'ctx', text: 'Recommendation 3 — Evidentiary retention.' },
@@ -108,6 +113,35 @@ export const dockets: Docket[] = [
     provenanceHash: 'sha256:case4471…8fa', redline: [
       { type: 'ctx', text: 'Interim order — routing and inspection.' },
       { type: 'add', text: '  Convoys may transit under the inspection protocol in Annex B pending final determination.' },
+    ],
+  },
+  {
+    id: 'd-evstd', cite: 'EV-STD-3', title: 'Digital Evidence Interoperability Standard', type: 'rule', jurisdiction: 'International', status: 'enacted', updated: '2026-05-12T09:00:00-04:00',
+    summary: 'Common schema and exchange format for machine-generated evidence so audit records are portable across jurisdictions and tribunals.',
+    agency: 'International Standards Board',
+    tags: ['evidence', 'interoperability', 'standard'],
+    affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT'], topics: ['Evidence Standard', 'Interoperability'] },
+    impact: 'Sets the interchange format later guidance builds on. Once adopted, evidence produced under one regime is admissible under another — lowering the cost of cross-border compliance but fixing the record schema vendors must emit.',
+    citations: [],
+    effectiveDate: '2026-06-01T00:00:00-04:00',
+    provenanceHash: 'sha256:evstd3…7b1', redline: [
+      { type: 'ctx', text: 'Clause 2 — Record schema.' },
+      { type: 'add', text: '  Conforming systems shall emit evidence in the EV-STD-3 envelope (subject, decision, inputs-hash, replay-seed).' },
+    ],
+  },
+  {
+    id: 'd-liability', cite: 'DIR-2026-ASL', title: 'Automated-Systems Liability Directive', type: 'bill', jurisdiction: 'International', status: 'pending', updated: '2026-07-01T11:30:00-04:00',
+    summary: 'Establishes a rebuttable presumption of fault where an operator cannot produce a replayable record for a challenged automated decision; supersedes the retention recommendation in WG-AUD-07 Rec 3 with a binding standard.',
+    agency: 'Cross-Jurisdiction Working Group',
+    tags: ['liability', 'automated-decisions', 'audit-trail', 'evidence'],
+    affects: { sectors: ['Technology', 'Financials', 'Healthcare'], symbols: ['MSFT', 'JPM'], topics: ['Automated Decisions', 'Liability'] },
+    impact: 'Turns the audit-trail recommendation into a liability rule: no replayable record means the operator, not the claimant, carries the burden. This is the operative instrument that supersedes the earlier voluntary guidance — firms that treated WG-AUD-07 as optional are now exposed.',
+    citations: [{ cite: 'WG-AUD-07', title: 'Audit-Trail Guidance (Cross-Jurisdiction)', docketId: 'd-audit' }],
+    commentDeadline: '2026-08-15T23:59:00-04:00',
+    provenanceHash: 'sha256:dirasl…c40', redline: [
+      { type: 'ctx', text: 'Article 4 — Burden of proof.' },
+      { type: 'del', text: '  Claimant must establish the system acted wrongfully.' },
+      { type: 'add', text: '  Where the operator cannot produce a replayable record under EV-STD-3, fault is presumed and the operator bears the burden of rebuttal.' },
     ],
   },
 ];
