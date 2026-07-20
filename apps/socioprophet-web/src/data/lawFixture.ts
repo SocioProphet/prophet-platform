@@ -144,6 +144,54 @@ export const dockets: Docket[] = [
       { type: 'add', text: '  Where the operator cannot produce a replayable record under EV-STD-3, fault is presumed and the operator bears the burden of rebuttal.' },
     ],
   },
+
+  // ── Case-law citator chain — the canonical Shepard's demo: a foundational precedent,
+  // a decision that distinguishes it, and a later decision that OVERRULES it. The citator
+  // flags the precedent red ("overruled") and the depth-of-treatment tally shows the split.
+  {
+    id: 'd-meridian', cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2024-03-11T10:00:00-04:00',
+    summary: 'Held that an operator of an automated decision system is liable only where the claimant proves the system departed from a documented internal standard.',
+    agency: 'Court of Appeals (9th Cir.)',
+    tags: ['automated-decisions', 'liability', 'precedent'],
+    affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT'], topics: ['Automated Decisions', 'Liability'] },
+    impact: 'For a decade this was the controlling standard: plaintiffs had to reverse-engineer an internal deviation to recover, which in practice shielded operators that kept only summary documentation.',
+    citations: [],
+    supersededBy: 'd-calder',
+    effectiveDate: '2024-03-11T00:00:00-04:00',
+    provenanceHash: 'sha256:meridian…a11', redline: [
+      { type: 'ctx', text: 'Holding — standard of liability.' },
+      { type: 'add', text: '  Liability attaches only on proof of departure from a documented internal standard.' },
+    ],
+  },
+  {
+    id: 'd-doe', cite: 'Doe v. Data Authority', title: 'Doe v. Data Authority', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2025-06-20T10:00:00-04:00',
+    summary: 'Distinguished Meridian on its facts: where no internal standard exists at all, the documented-deviation test cannot apply and the operator must show its process was reasonable.',
+    agency: 'District Court (S.D.N.Y.)',
+    tags: ['automated-decisions', 'liability', 'distinguished'],
+    affects: { sectors: ['Technology'], symbols: ['GOOGL'], topics: ['Automated Decisions'] },
+    impact: 'Carved out the "no-standard" case from Meridian without disturbing it — the first crack, narrowing where operators could hide behind the absence of documentation.',
+    citations: [{ cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', docketId: 'd-meridian' }],
+    effectiveDate: '2025-06-20T00:00:00-04:00',
+    provenanceHash: 'sha256:doe…b20', redline: [
+      { type: 'ctx', text: 'Holding — scope of Meridian.' },
+      { type: 'add', text: '  Where no internal standard exists, the operator must affirmatively show a reasonable process.' },
+    ],
+  },
+  {
+    id: 'd-calder', cite: 'Calder v. Meridian Logistics', title: 'Calder v. Meridian Logistics', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2026-06-15T10:00:00-04:00',
+    summary: 'Overruled Meridian: an operator that cannot produce a replayable record of a challenged automated decision is presumed at fault, aligning the common-law standard with the DIR-2026-ASL evidence regime.',
+    agency: 'Supreme Court',
+    tags: ['automated-decisions', 'liability', 'overruled', 'audit-trail'],
+    affects: { sectors: ['Technology', 'Financials', 'Healthcare'], symbols: ['MSFT', 'JPM'], topics: ['Automated Decisions', 'Liability'] },
+    impact: 'Flips the decade-old default: the burden now sits with the operator, and "we only kept summaries" is no longer a defense. Every firm relying on Meridian must revisit its retention posture.',
+    citations: [{ cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', docketId: 'd-meridian' }],
+    effectiveDate: '2026-06-15T00:00:00-04:00',
+    provenanceHash: 'sha256:calder…c15', redline: [
+      { type: 'ctx', text: 'Holding — overruling Meridian.' },
+      { type: 'del', text: '  Liability attaches only on proof of departure from a documented internal standard.' },
+      { type: 'add', text: '  Absent a replayable record, fault is presumed and the burden shifts to the operator.' },
+    ],
+  },
 ];
 
 export const asOf = '2026-07-03T14:00:00-04:00';
