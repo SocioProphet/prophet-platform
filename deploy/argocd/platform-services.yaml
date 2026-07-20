@@ -36,6 +36,7 @@ spec:
           - { name: ie-engine }
           - { name: synapse-bridge }
           - { name: holmes }
+          - { name: portfolio-agent }
           - { name: memoryd }
           - { name: embeddings }
           - { name: regis-acr-api }

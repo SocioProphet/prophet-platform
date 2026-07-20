@@ -45,9 +45,14 @@
           placeholder="Goal for the agent…"
           @keydown.enter="runAgent"
         />
-        <button class="pf-agent-run" type="button" @click="runAgent">Run</button>
+        <div class="pf-agent-engine" role="group" aria-label="Agent engine">
+          <button class="pf-eng-btn" :class="{ on: engine === 'local' }" title="Run in-browser (①)" @click="engine = 'local'">Local ①</button>
+          <button class="pf-eng-btn" :class="{ on: engine === 'cloud' }" title="Run our own sovereign cloud agent (②)" @click="engine = 'cloud'">Cloud ②</button>
+        </div>
+        <button class="pf-agent-run" type="button" :disabled="agentRunning" @click="runAgent">{{ agentRunning ? '…' : 'Run' }}</button>
         <button class="pf-agent-x" type="button" title="Close" @click="agentOpen = false">×</button>
       </div>
+      <p v-if="ranVia" class="pf-ran-via">ran via <b>{{ ranVia }}</b></p>
 
       <template v-if="agentResult">
         <p class="pf-agent-narrative">
@@ -147,7 +152,7 @@ import { useCockpit } from '../stores/cockpit';
 import ProvenanceBadge from '../components/ProvenanceBadge.vue';
 import Sparkline from '../components/Sparkline.vue';
 import { prov } from '../features/provenance/types';
-import { runPortfolioAgent, bookFromPositions, PORTFOLIO_TOOLS, type AgentResult, type ProposedOrder } from '../services/portfolioAgent';
+import { runPortfolioAgent, runCloudAgent, bookFromPositions, PORTFOLIO_TOOLS, type AgentResult, type ProposedOrder } from '../services/portfolioAgent';
 
 // P&L is deterministic compute from the blotter + marks — the verified-compute moat.
 const pnlProv = prov('computed', {
@@ -190,11 +195,27 @@ const agentGoal = ref('Reduce concentration and size my downside risk');
 const agentResult = ref<AgentResult | null>(null);
 const agentOpen = ref(false);
 const staged = ref<Set<string>>(new Set());
-function runAgent() {
+// Both ways: ① in-browser tool layer, or ② our own sovereign cloud agent (/svc/portfolio).
+const engine = ref<'local' | 'cloud'>('local');
+const agentRunning = ref(false);
+const ranVia = ref('');
+async function runAgent() {
   const book = bookFromPositions(portfolio.positions);
-  agentResult.value = runPortfolioAgent(agentGoal.value, book, equity.value);
-  staged.value = new Set();
   agentOpen.value = true;
+  agentRunning.value = true;
+  try {
+    if (engine.value === 'cloud') {
+      const cloud = await runCloudAgent(agentGoal.value, book, equity.value);
+      agentResult.value = cloud ?? runPortfolioAgent(agentGoal.value, book, equity.value);
+      ranVia.value = cloud ? 'our sovereign cloud agent ②' : 'local ① (cloud unreachable)';
+    } else {
+      agentResult.value = runPortfolioAgent(agentGoal.value, book, equity.value);
+      ranVia.value = 'the in-browser tool layer ①';
+    }
+    staged.value = new Set();
+  } finally {
+    agentRunning.value = false;
+  }
 }
 function stageOrder(a: ProposedOrder, i: number) {
   const res = portfolio.placeOrder({ symbol: a.symbol, name: a.name, side: a.side, qty: a.qty, price: a.price, source: 'agent:rebalance' });
@@ -231,7 +252,10 @@ onMounted(() => cockpit.setContext({
 .pf-agent-bar { display: flex; gap: 0.5rem; align-items: center; }
 .pf-agent-goal { flex: 1; min-width: 0; border: 1px solid var(--line-2); background: var(--surface-2, rgba(255,255,255,0.02)); color: var(--text); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.82rem; }
 .pf-agent-goal:focus { outline: none; border-color: rgba(110, 231, 183, 0.5); }
-.pf-agent-run { border: 1px solid rgba(110, 231, 183, 0.45); background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-radius: 8px; padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; } .pf-agent-run:hover { background: rgba(16, 185, 129, 0.24); }
+.pf-agent-run { border: 1px solid rgba(110, 231, 183, 0.45); background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-radius: 8px; padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; } .pf-agent-run:hover { background: rgba(16, 185, 129, 0.24); } .pf-agent-run:disabled { opacity: 0.6; cursor: default; }
+.pf-agent-engine { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.pf-eng-btn { border: none; background: transparent; color: var(--text-3); font-size: 0.72rem; padding: 0.35rem 0.6rem; cursor: pointer; } .pf-eng-btn.on { background: var(--accent-soft, rgba(120,160,255,0.14)); color: var(--accent); font-weight: 600; }
+.pf-ran-via { margin: 0.1rem 0 0; font-size: 0.68rem; color: var(--text-3); } .pf-ran-via b { color: var(--text-2); }
 .pf-agent-x { border: none; background: transparent; color: var(--text-3); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 0.3rem; } .pf-agent-x:hover { color: var(--text); }
 .pf-agent-narrative { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--text); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 .pf-agent-tools { margin: 0; font-size: 0.66rem; color: var(--text-3); display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
