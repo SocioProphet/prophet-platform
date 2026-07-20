@@ -195,7 +195,10 @@ fn main() {
     };
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "8093".into());
-    let server = tiny_http::Server::http(format!("127.0.0.1:{}", port)).unwrap();
+    // Bind 0.0.0.0, not 127.0.0.1: in-cluster the kubelet liveness/readiness probe hits the POD IP,
+    // so a localhost-only bind returns "connection refused" → failed liveness → SIGKILL (137) → CrashLoop
+    // (385 restarts observed). 0.0.0.0 lets the probe on :8093/healthz reach the server.
+    let server = tiny_http::Server::http(format!("0.0.0.0:{}", port)).unwrap();
     eprintln!("sherlock-engine on :{} — {} docs, mode={}", port, docs.len(), if dense { "hybrid (tantivy+qdrant/RRF)" } else { "tantivy BM25" });
 
     for request in server.incoming_requests() {
