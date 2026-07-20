@@ -447,7 +447,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-body { min-height: 0; display: grid; grid-template-columns: 208px minmax(360px, 1.4fr) minmax(320px, 1fr); gap: 0.75rem; }
 @media (max-width: 1080px) { .nf-body { grid-template-columns: 170px 1fr; } .nf-reader:not(.empty) { display: none; } .nf-reader.empty { display: none; } }
 
-.nf-rail { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.12rem; }
+/* Tufte pass: de-box the three panels — no rounded borders/fills; columns read from content
+   + quiet hairline dividers in the grid gap (data-ink, not chartjunk). */
+.nf-rail { min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); padding: 0.25rem 0.85rem 0.25rem 0.1rem; display: flex; flex-direction: column; gap: 0.12rem; }
 .nf-rail-head { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); padding: 0.3rem 0.5rem; }
 .nf-src { display: flex; align-items: center; gap: 0.5rem; border: none; background: transparent; color: rgba(255, 255, 255, 0.78); border-radius: 8px; padding: 0.4rem 0.5rem; font-size: 0.82rem; cursor: pointer; text-align: left; } .nf-src:hover { background: rgba(255, 255, 255, 0.05); } .nf-src.on { background: rgba(88, 166, 255, 0.14); color: #fff; }
 .nf-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
@@ -457,7 +459,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-hash { color: var(--text-3); }
 .nf-rail-hint { margin-top: auto; padding: 0.5rem; font-size: 0.64rem; color: var(--text-3); line-height: 1.5; }
 
-.nf-list { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; }
+.nf-list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); }
 
 /* Lobsters story row */
 .nf-story { display: flex; gap: 0.7rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); cursor: pointer; } .nf-story:hover { background: rgba(255, 255, 255, 0.03); } .nf-story.on { background: rgba(88, 166, 255, 0.1); box-shadow: inset 3px 0 0 #58a6ff; }
@@ -523,7 +525,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-agenda-src { flex: 0 0 auto; font-size: 0.72rem; }
 
 /* Reader */
-.nf-reader { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; padding: 1.1rem 1.25rem; }
+.nf-reader { min-height: 0; overflow-y: auto; padding: 0.4rem 0.35rem 1rem 1.1rem; }
 .nf-reader.empty { display: grid; place-items: center; color: var(--text-3); font-size: 0.85rem; }
 .nf-reader-meta { display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem; }
 .nf-reader-close { margin-left: auto; display: grid; place-items: center; width: 1.55rem; height: 1.55rem; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-size: 0.8rem; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
