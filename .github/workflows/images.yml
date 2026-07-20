@@ -74,6 +74,7 @@ jobs:
           - { image: algo-engine,           context: apps/algo-engine,           dockerfile: Dockerfile }
           - { image: ie-engine,             context: apps/ie-engine,             dockerfile: Dockerfile }
           - { image: synapse-bridge,        context: apps/synapse-bridge,        dockerfile: Dockerfile }
+          - { image: holmes,                context: apps/holmes,                dockerfile: Dockerfile }
           - { image: memoryd,               context: apps/memoryd,               dockerfile: Dockerfile }
           - { image: node-commander,        context: apps/node-commander,        dockerfile: Dockerfile }
           - { image: liberty-stack-readout, context: apps/liberty-stack-readout, dockerfile: Dockerfile }
