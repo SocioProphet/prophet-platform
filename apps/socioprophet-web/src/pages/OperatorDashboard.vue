@@ -214,7 +214,10 @@ function rel(iso: string): string {
 function initials(name: string): string { return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join(''); }
 function fmtPrice(n: number): string { return n >= 1000 ? n.toLocaleString('en-US') : n.toFixed(2); }
 function fmtVal(n: number, unit: string): string { return `${n.toLocaleString('en-US')}${unit && unit !== '%' ? '' : unit}`; }
-function fmtPct(p: number): string { return `${p >= 0 ? '+' : ''}${(p * 100).toFixed(2)}%`; }
+// changePct is already in PERCENT units (marketsFixture: ((price-prevClose)/prevClose)*100),
+// so it must NOT be multiplied by 100 again — that turned a −1.14% move into "−114%"
+// (graphical integrity / Lie Factor). Format the percent value directly.
+function fmtPct(p: number): string { return `${p >= 0 ? '+' : ''}${p.toFixed(2)}%`; }
 function signed(n: number): string { return `${n >= 0 ? '+' : ''}${n}`; }
 function fmtNum(n: number): string { return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n); }
 function pctClass(p: number): string { return p > 0 ? 'up' : p < 0 ? 'down' : 'flat'; }
