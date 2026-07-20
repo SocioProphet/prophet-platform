@@ -33,7 +33,11 @@ function isAcademy(r: any): boolean {
 
 // Cloud: search-orchestrator fans academy records into /v0/search/query.
 async function cloudRetrieve(query: string, limit: number): Promise<TutorPassage[]> {
-  const body = { query_id: `tutor-${Date.now()}`, actor_id: 'cockpit-tutor', text: query, mode: 'academy', limit };
+  // scope.cloud_workspace MUST be true — the orchestrator gates academy records behind it.
+  const body = {
+    query_id: `tutor-${Date.now()}`, actor_id: 'cockpit-tutor', text: query, mode: 'academy', limit,
+    scope: { cloud_workspace: true, local_desktop: false, memory: false },
+  };
   const res = await fetch(`${CLOUD}/v0/search/query`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   });

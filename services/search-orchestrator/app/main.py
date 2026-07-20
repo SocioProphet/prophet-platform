@@ -5,8 +5,16 @@ from app.metrics import increment, snapshot
 from app.models import LearningSearchRecord, SearchRequest, SearchResult, SearchResultActions, SearchResultScore
 from app.policy import describe_academy_policy_evaluator
 from app.repositories import describe_academy_repository
+from app.seed import seed_academy_if_empty
 
 app = FastAPI(title="search-orchestrator", version="0.1.0")
+
+
+@app.on_event("startup")
+def _seed_academy_on_startup() -> None:
+    seeded = seed_academy_if_empty()
+    if seeded:
+        increment("academy_seed_total", seeded)
 
 
 @app.get("/healthz")
