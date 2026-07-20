@@ -38,3 +38,13 @@ ingress:
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
 # nginx needs these writable under the chart's readOnlyRootFilesystem (Autopilot).
 writableDirs: [/var/cache/nginx, /var/run]
+# Overlay the REAL Firebase web config at runtime from an out-of-git ConfigMap, so the
+# public-but-not-secret key never lands in source or image layers. The ConfigMap
+# `socioprophet-web-firebase-config` (key firebase-config.js) is created out-of-band in
+# the cluster (NOT committed) — see the deploy runbook. Empty repo copy → local dev bypass;
+# this mount → real login in-cluster.
+extraFileMounts:
+  - configMap: socioprophet-web-firebase-config
+    key: firebase-config.js
+    mountPath: /usr/share/nginx/html/firebase-config.js
+    subPath: firebase-config.js
