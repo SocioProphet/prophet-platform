@@ -79,11 +79,11 @@
                 <p v-if="bskyOf(it)!.isReply" class="nf-bsky-reply">↳ reply in thread</p>
                 <p class="nf-bsky-text">{{ bskyOf(it)!.text }}</p>
                 <div class="nf-bsky-eng">
-                  <span title="Replies">💬 {{ bskyOf(it)!.replyCount }}</span>
-                  <span title="Reposts">🔁 {{ bskyOf(it)!.repostCount }}</span>
-                  <span title="Likes">♥ {{ bskyOf(it)!.likeCount }}</span>
-                  <span class="nf-bsky-rail" title="Mirror rail · lane">🦋 mirror · {{ bskyOf(it)!.lane }}</span>
-                  <span class="nf-q" :class="metaOf(it).qualityBand" title="Truth/quality signal">◆ {{ Math.round(metaOf(it).quality * 100) }}</span>
+                  <span class="nf-q" :class="metaOf(it).qualityBand" title="Truth rating">{{ Math.round(metaOf(it).quality * 100) }} truth</span>
+                  <span class="nf-bsky-rail" title="Mirror rail · lane">mirror → {{ bskyOf(it)!.lane }}</span>
+                  <span class="nf-eng-n" title="Replies">{{ bskyOf(it)!.replyCount }} replies</span>
+                  <span class="nf-eng-n" title="Shares">{{ bskyOf(it)!.repostCount }} shares</span>
+                  <span class="nf-eng-n" title="Signals">{{ bskyOf(it)!.likeCount }} signals</span>
                 </div>
               </div>
             </div>
@@ -101,14 +101,14 @@
               </div>
               <div class="nf-story-meta">
                 <button v-for="t in metaOf(it).tags" :key="t" class="nf-tag" @click.stop="toggleTag(t)">{{ t }}</button>
-                <span class="nf-q" :class="metaOf(it).qualityBand" :title="`Truth/quality signal · membrane ${it.membraneDecision}`">◆ {{ Math.round(metaOf(it).quality * 100) }}</span>
+                <span class="nf-q" :class="metaOf(it).qualityBand" :title="`Truth rating · membrane ${it.membraneDecision}`">{{ Math.round(metaOf(it).quality * 100) }} truth</span>
                 <span v-if="it.membraneDecision !== 'admit'" class="nf-mem" :class="it.membraneDecision">{{ it.membraneDecision }}</span>
               </div>
               <div class="nf-story-by">
                 <span class="nf-src-tag" :style="{ color: sourceColor(it.sourceId) }">{{ sourceOf(it)?.title }}</span>
                 <span class="nf-time">{{ relative(it.publishedAt) }}</span>
                 <span class="nf-auth">by {{ metaOf(it).submitter }}<span v-if="metaOf(it).hat" class="nf-hat" :class="metaOf(it).hat!.kind">{{ metaOf(it).hat!.label }}</span></span>
-                <button class="nf-link" @click.stop="select(it.id)">💬 {{ metaOf(it).comments }} comments</button>
+                <button class="nf-link" @click.stop="select(it.id)">{{ metaOf(it).comments }} comments</button>
                 <button class="nf-flag" :class="{ done: flags.has(it.id) }" title="Flag with a reason" @click.stop="openFlag = openFlag === it.id ? '' : it.id">
                   {{ flags.has(it.id) ? `flagged: ${flags.get(it.id)}` : '⚑ flag' }}
                 </button>
@@ -462,7 +462,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-list { min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); }
 
 /* Lobsters story row */
-.nf-story { display: flex; gap: 0.7rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); cursor: pointer; } .nf-story:hover { background: rgba(255, 255, 255, 0.03); } .nf-story.on { background: rgba(88, 166, 255, 0.1); box-shadow: inset 3px 0 0 #58a6ff; }
+.nf-story { display: flex; gap: 0.7rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); cursor: pointer; } .nf-story:hover { background: rgba(255, 255, 255, 0.03); } .nf-story.on { background: color-mix(in srgb, var(--accent) 7%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
 .nf-vote { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; flex: 0 0 2rem; padding-top: 0.1rem; }
 .nf-up { border: none; background: transparent; color: var(--text-3); font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0.1rem; } .nf-up:hover { color: var(--text-2); } .nf-up.on { color: var(--up); }
 .nf-up.sm, .nf-down.sm { font-size: 0.72rem; }
@@ -472,20 +472,23 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 
 /* Bluesky (ATProto) social card — author-forward, feed-like (not an inbox row) */
 .nf-story.social { padding: 0.8rem 0.95rem; }
-.nf-story.social.on { box-shadow: inset 3px 0 0 #3b9cff; background: rgba(59, 156, 255, 0.08); }
+.nf-story.social.on { box-shadow: inset 2px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
 .nf-bsky { display: flex; gap: 0.7rem; width: 100%; min-width: 0; }
-.nf-bsky-av { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 0.82rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #3b9cff, #7a5cff); }
+/* Editorial pass: flat institutional monogram, not a social gradient avatar. */
+.nf-bsky-av { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font-size: 0.68rem; font-weight: 600; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line-2); }
 .nf-bsky-av.sm { width: 28px; height: 28px; font-size: 0.66rem; }
 .nf-bsky-main { min-width: 0; flex: 1; }
 .nf-bsky-id { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.8rem; }
 .nf-bsky-name { font-weight: 700; color: #fff; }
 .nf-bsky-handle { color: rgba(255, 255, 255, 0.45); font-size: 0.76rem; }
-.nf-bsky-did { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: #3b9cff; background: rgba(59, 156, 255, 0.16); border-radius: 4px; padding: 0.03rem 0.3rem; }
+.nf-bsky-did { font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--live); background: color-mix(in srgb, var(--live) 14%, transparent); border-radius: 4px; padding: 0.03rem 0.3rem; }
 .nf-bsky-reply { margin: 0.15rem 0 0; font-size: 0.68rem; color: rgba(255, 255, 255, 0.4); }
 .nf-bsky-text { margin: 0.35rem 0 0.5rem; font-size: 0.92rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); white-space: pre-wrap; }
-.nf-bsky-eng { display: flex; align-items: center; gap: 0.9rem; font-size: 0.74rem; color: rgba(255, 255, 255, 0.5); flex-wrap: wrap; }
-.nf-bsky-eng.small { gap: 0.7rem; font-size: 0.68rem; margin-top: 0.2rem; }
-.nf-bsky-rail { color: #3b9cff; }
+/* Engagement demoted to a quiet metrics line; the truth rating + source lead. */
+.nf-bsky-eng { display: flex; align-items: center; gap: 0.7rem; font-size: 0.68rem; color: var(--text-3); flex-wrap: wrap; margin-top: 0.15rem; }
+.nf-bsky-eng.small { gap: 0.6rem; font-size: 0.64rem; margin-top: 0.2rem; }
+.nf-bsky-rail { color: var(--text-3); }
+.nf-eng-n { color: var(--text-3); font-variant-numeric: tabular-nums; }
 
 /* Thread (Live-rail context) in the reader */
 .nf-thread { display: flex; gap: 0.55rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
@@ -495,13 +498,14 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-thread-id { font-size: 0.76rem; color: rgba(255, 255, 255, 0.85); } .nf-thread-id b { color: #fff; }
 .nf-thread-reply { margin-left: 0.4rem; font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; color: #3b9cff; background: rgba(59, 156, 255, 0.14); border-radius: 4px; padding: 0.03rem 0.3rem; }
 .nf-thread-text { margin: 0.2rem 0 0; font-size: 0.82rem; line-height: 1.5; color: rgba(255, 255, 255, 0.8); }
-.nf-act-ask { color: #93b4ff !important; border-color: rgba(120, 160, 255, 0.45) !important; }
+.nf-act-ask { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important; }
 .nf-act-ask:hover { background: rgba(120, 160, 255, 0.14); }
 .nf-story-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-.nf-story-title { font-size: 0.95rem; font-weight: 600; line-height: 1.35; color: #fff; text-decoration: none; } .nf-story-title:hover { color: #58a6ff; text-decoration: underline; }
+/* Headline is the hero — editorial, not a link in a stream. */
+.nf-story-title { font-size: 1.02rem; font-weight: 650; line-height: 1.28; letter-spacing: -0.01em; color: var(--text); text-decoration: none; } .nf-story-title:hover { color: var(--accent); }
 .nf-domain { font-size: 0.7rem; color: rgba(255, 255, 255, 0.4); }
 .nf-story-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem; }
-.nf-tag { font-size: 0.68rem; color: #c9d1d9; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-2); border-radius: 999px; padding: 0.05rem 0.45rem; cursor: pointer; } .nf-tag:hover { border-color: #58a6ff; color: #58a6ff; }
+.nf-tag { font-size: 0.66rem; color: var(--text-2); background: transparent; border: 1px solid var(--line-2); border-radius: 4px; padding: 0.05rem 0.4rem; cursor: pointer; } .nf-tag:hover { border-color: var(--accent); color: var(--accent); }
 .nf-q { font-size: 0.68rem; font-weight: 700; border-radius: 5px; padding: 0.03rem 0.34rem; } .nf-q.high { color: var(--up); background: rgba(63, 185, 80, 0.14); } .nf-q.medium { color: #e3b341; background: rgba(227, 179, 65, 0.16); } .nf-q.low { color: var(--down); background: rgba(248, 81, 73, 0.16); }
 .nf-mem { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; border-radius: 4px; padding: 0.03rem 0.3rem; font-weight: 700; }
 .nf-mem.hold { color: #e3b341; background: rgba(227, 179, 65, 0.16); } .nf-mem.quarantine { color: var(--down); background: rgba(248, 81, 73, 0.16); } .nf-mem.reject { color: #8b949e; background: rgba(139, 148, 158, 0.16); } .nf-mem.admit { color: var(--up); background: rgba(63, 185, 80, 0.14); }
@@ -534,7 +538,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 .nf-reader-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.8rem; }
 .nf-reader-body { margin: 0 0 1rem; font-size: 0.95rem; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
 .nf-actions { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
-.nf-act { border: 1px solid var(--line-2); background: transparent; color: rgba(255, 255, 255, 0.8); border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; text-decoration: none; } .nf-act:hover { border-color: var(--text-3); } .nf-act.on { color: var(--up); border-color: rgba(63, 185, 80, 0.4); } .nf-act.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; } .nf-act.done { color: var(--up); border-color: rgba(63, 185, 80, 0.4); cursor: default; }
+.nf-act { border: 1px solid var(--line-2); background: transparent; color: rgba(255, 255, 255, 0.8); border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; text-decoration: none; } .nf-act:hover { border-color: var(--text-3); } .nf-act.on { color: var(--up); border-color: rgba(63, 185, 80, 0.4); } .nf-act.primary { background: var(--surface-2); border-color: var(--line-2); color: var(--text); } .nf-act.done { color: var(--up); border-color: rgba(63, 185, 80, 0.4); cursor: default; }
 .nf-block { border-top: 1px solid var(--line-2); padding: 0.8rem 0; }
 .nf-block-h { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); margin-bottom: 0.5rem; }
 .nf-claims { margin: 0; padding-left: 1.1rem; color: rgba(255, 255, 255, 0.72); font-size: 0.82rem; line-height: 1.6; }
