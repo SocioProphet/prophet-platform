@@ -5,7 +5,10 @@
         <p class="db-eyebrow">SocioProphet</p>
         <h1>User Dashboard</h1>
       </div>
-      <span class="db-asof">as of {{ asOfLabel }}</span>
+      <div class="db-head-r">
+        <span class="db-live" title="Live pulse — values tick on an interval"><span class="db-live-dot"></span>streaming</span>
+        <span class="db-asof">as of {{ asOfLabel }}</span>
+      </div>
     </header>
 
     <!-- Universal bar: jump to any surface OR ask Noetica — anything in one action -->
@@ -28,7 +31,7 @@
       <article v-if="db.visible('markets')" class="db-card">
         <button class="db-remove" title="Hide card" @click="db.hide('markets')">✕</button>
         <RouterLink class="db-card-head" to="/markets/indices-funds"><span>Markets</span><span class="db-open">open →</span></RouterLink>
-        <button v-for="i in indices" :key="i.symbol" class="db-row" @click="go('/markets/indices-funds', { sym: i.symbol })">
+        <button v-for="i in mkt" :key="i.symbol" class="db-row" :class="flashClass(i)" @click="go('/markets/indices-funds', { sym: i.symbol })">
           <span class="db-row-k">{{ i.symbol }}</span>
           <span class="db-row-sub">{{ i.name }}</span>
           <Sparkline :series="i.series" />
@@ -76,7 +79,7 @@
       <article v-if="db.visible('economy')" class="db-card">
         <button class="db-remove" title="Hide card" @click="db.hide('economy')">✕</button>
         <RouterLink class="db-card-head" to="/economy/macro-economics"><span>Economy</span><span class="db-open">open →</span></RouterLink>
-        <button v-for="k in indicators" :key="k.id" class="db-row" @click="go('/economy/macro-economics', { k: k.id, kind: 'indicator' })">
+        <button v-for="k in eco" :key="k.id" class="db-row" :class="flashClass(k)" @click="go('/economy/macro-economics', { k: k.id, kind: 'indicator' })">
           <span class="db-row-sub wide">{{ k.name }}</span>
           <Sparkline :series="k.series" />
           <span class="db-num">{{ fmtVal(k.value, k.unit) }}</span>
@@ -92,6 +95,7 @@
           <span class="db-avatar">{{ initials(e.name) }}</span>
           <span class="db-row-k narrow">{{ e.name }}</span>
           <span class="db-row-sub">{{ e.role }}</span>
+          <span class="db-conf" :title="`confidence ${(e.confidence * 100).toFixed(0)}%`"><span class="db-conf-fill" :style="{ width: (e.confidence * 100) + '%' }"></span></span>
           <span class="db-num sm">{{ (e.confidence * 100).toFixed(0) }}%</span>
         </button>
       </article>
@@ -110,7 +114,7 @@
       <article v-if="db.visible('weather')" class="db-card">
         <button class="db-remove" title="Hide card" @click="db.hide('weather')">✕</button>
         <RouterLink class="db-card-head" to="/weather/forecast"><span>Weather</span><span class="db-open">open →</span></RouterLink>
-        <button v-for="r in regions" :key="r.id" class="db-row" @click="go('/weather/forecast', { r: r.id })">
+        <button v-for="r in wx" :key="r.id" class="db-row" :class="flashClass(r)" @click="go('/weather/forecast', { r: r.id })">
           <span class="db-row-k narrow">{{ r.name }}</span>
           <span class="db-row-sub">{{ r.cond }}</span>
           <Sparkline :series="r.series" />
@@ -159,9 +163,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { useRouter, type LocationQueryRaw } from 'vue-router';
 import Sparkline from '../components/Sparkline.vue';
+import { useLiveTicks, type Ticked } from '../composables/useLiveTicks';
 import { ALL_SURFACES } from '../config/cockpitNav';
 import { useDashboard } from '../stores/dashboard';
 import { indices } from '../data/marketsFixture';
@@ -178,6 +183,17 @@ const router = useRouter();
 const chat = useNoeticaChat();
 const prompt = ref('');
 const lists = useUserLists();
+
+// Live pulse: reactive copies of the fixtures that the tick engine drifts on an interval, so the
+// board reads like a terminal (numbers tick, sparklines crawl, cells flash) instead of a frozen
+// snapshot. Different cadences per group feel organic (markets fast, economy slow). Fixture-driven
+// until a live quote feed is wired — the FIXTURE badge keeps that honest.
+const mkt = reactive(indices.map((i) => ({ ...i, series: [...i.series] }))) as Array<Record<string, any> & Ticked>;
+const eco = reactive(indicators.map((k) => ({ ...k, series: [...k.series] }))) as Array<Record<string, any> & Ticked>;
+const wx = reactive(regions.map((r) => ({ ...r, series: [...r.series] }))) as Array<Record<string, any> & Ticked>;
+useLiveTicks(mkt as unknown as Ticked[], { valueKey: 'price', deltaKey: 'changePct', deltaMode: 'pct', vol: 0.0011, decimals: 2, hasSeries: true }, 2200);
+useLiveTicks(eco as unknown as Ticked[], { valueKey: 'value', deltaKey: 'changeAbs', deltaMode: 'abs', vol: 0.003, decimals: 1, hasSeries: true }, 5200);
+useLiveTicks(wx as unknown as Ticked[], { valueKey: 'tempF', deltaKey: 'changeF', deltaMode: 'abs', vol: 0.004, decimals: 0, hasSeries: true }, 4200);
 const db = useDashboard();
 const newSym = ref('');
 const newCity = ref('');
@@ -221,6 +237,10 @@ function fmtPct(p: number): string { return `${p >= 0 ? '+' : ''}${p.toFixed(2)}
 function signed(n: number): string { return `${n >= 0 ? '+' : ''}${n}`; }
 function fmtNum(n: number): string { return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n); }
 function pctClass(p: number): string { return p > 0 ? 'up' : p < 0 ? 'down' : 'flat'; }
+// Bloomberg-style tick flash — set briefly by the live tick engine, fades via CSS.
+function flashClass(it: Record<string, any>): Record<string, boolean> {
+  return { 'db-tick-up': it._flash === 'up', 'db-tick-down': it._flash === 'down' };
+}
 function econClass(chg: number, better: 'higher' | 'lower'): string {
   if (chg === 0) return 'flat';
   const good = chg > 0 === (better === 'higher');
@@ -280,6 +300,21 @@ const asOfLabel = new Date(NOW).toLocaleString('en-US', { weekday: 'short', mont
 .db-num { font-size: 0.82rem; font-variant-numeric: tabular-nums; color: var(--text); text-align: right; } .db-num.sm { font-size: 0.74rem; color: var(--text-2); }
 .db-chg { font-size: 0.74rem; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; min-width: 3.5rem; }
 .db-chg.up { color: var(--up); } .db-chg.down { color: var(--down); } .db-chg.flat { color: #8b949e; }
+
+/* Live pulse — a terminal breathes: a pulsing "streaming" dot, and Bloomberg-style row flash on tick. */
+.db-head-r { display: flex; align-items: center; gap: 0.85rem; }
+.db-live { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--live); font-weight: 600; }
+.db-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); animation: db-pulse 2.2s ease-out infinite; }
+@keyframes db-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 55%, transparent); } 70% { box-shadow: 0 0 0 5px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.db-tick-up { animation: db-flash-up 0.7s ease-out; }
+.db-tick-down { animation: db-flash-down 0.7s ease-out; }
+@keyframes db-flash-up { 0% { background: color-mix(in srgb, var(--up) 20%, transparent); } 100% { background: transparent; } }
+@keyframes db-flash-down { 0% { background: color-mix(in srgb, var(--down) 20%, transparent); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .db-tick-up, .db-tick-down, .db-live-dot { animation: none; } }
+
+/* People confidence — a quiet small-multiple so the list card carries a visual like the sparkline cards. */
+.db-conf { flex: 0 0 auto; width: 46px; height: 4px; border-radius: 2px; background: rgba(237, 238, 242, 0.08); overflow: hidden; }
+.db-conf-fill { display: block; height: 100%; background: color-mix(in srgb, var(--accent) 68%, transparent); border-radius: 2px; }
 .db-avatar { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.58rem; font-weight: 800; color: #04121f; background: #58a6ff; }
 
 .db-mem, .db-status, .db-sev { font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 700; border-radius: 4px; padding: 0.03rem 0.3rem; }
