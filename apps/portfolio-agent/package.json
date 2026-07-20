@@ -1,0 +1,10 @@
+{
+  "name": "portfolio-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sovereign cloud portfolio agent (Portfolio ②) — concentration / VaR / rebalance as a proof-carrying HTTP service",
+  "dependencies": {
+    "tsx": "^4.19.2"
+  }
+}

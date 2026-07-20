@@ -1,0 +1,11 @@
+# portfolio-agent — the sovereign cloud portfolio agent (Portfolio ②). The same proof-carrying tool
+# layer the cockpit runs in-browser (①: concentration / VaR / rebalance), served over HTTP so it can
+# run server-side / autonomously. The cockpit's cloud path → nginx /svc/portfolio → this on :8094.
+# Node binds 0.0.0.0 (no localhost-bind CrashLoop trap).
+#
+# tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
+# same as synapse-bridge/holmes).
+image: { repository: portfolio-agent, tag: latest }
+service: { port: 8094, portName: http }
+# tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
+tmpDir: { enabled: true }

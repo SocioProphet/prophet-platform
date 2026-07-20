@@ -115,6 +115,11 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
+    "portfolio-agent:moving-tag": (
+        "New service — the sovereign cloud portfolio agent (Portfolio ②, apps/portfolio-agent: concentration/VaR/"
+        "rebalance on :8094) added to CI this PR. Pin tag:latest -> the sha- tag gitops-promote writes after the "
+        "first CI build; no sha exists until merge."
+    ),
     # sherlock-engine pinned to a sha- tag by gitops-promote after the 0.0.0.0 bind fix (#887) → removed
     # from the ratchet (it only shrinks). Same for synapse-bridge + holmes: gitops-promote sha-pinned both
     # after their first builds landed (#905/#906), so their moving-tag entries now pass and are removed.
@@ -135,8 +140,7 @@ KNOWN_BROKEN = {
     ) for svc in [
         "api", "agentic-os-api", "eval-fabric-api",
         "evidence-receipts", "gateway", "osm-map-api",
-        "search-orchestrator",
-    ]},  # hellgraph-service + evidence-console pinned to immutable sha- tags → removed from the ratchet
+    ]},  # hellgraph-service + evidence-console + search-orchestrator (academy sha-pin) → removed from the ratchet
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is

@@ -83,6 +83,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/search/, ''),
         },
+        // Sovereign cloud portfolio agent (Portfolio ②).
+        '/svc/portfolio': {
+          target: env.VITE_PORTFOLIO_BASE || 'http://localhost:8094',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/portfolio/, ''),
+        },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
           target: env.VITE_MESH_BASE || 'https://mesh.socioprophet.ai',

@@ -228,3 +228,44 @@ export function bookFromPositions(
 function fmtMoney(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
+
+// ── Portfolio ② — our OWN sovereign cloud agent. The same tool layer, run server-side by the
+// deployed portfolio-agent service (/svc/portfolio). "Both ways": ① is this in-browser, ② is the
+// cloud. Best-effort — returns null on failure so the caller can fall back to the local ① run.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function cloudFinding(f: any): Finding {
+  return {
+    id: String(f.id), severity: f.severity, title: String(f.title), detail: String(f.detail),
+    prov: prov('computed', {
+      verifier: 'portfolio-agent (sovereign cloud)', formula: f.formula, receipt: f.receipt,
+      note: 'Computed by our own cloud agent — replayable from its inputs, not a third-party.',
+    }),
+  };
+}
+export async function runCloudAgent(goal: string, book: BookPosition[], equity: number): Promise<AgentResult | null> {
+  try {
+    const res = await fetch('/svc/portfolio/analyze', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        goal, equity,
+        positions: book.map((p) => ({ symbol: p.symbol, name: p.name, qty: p.qty, avgCost: p.avgCost, last: p.last, series: p.series })),
+      }),
+    });
+    if (!res.ok) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d = (await res.json()) as any;
+    return {
+      goal: d.goal ?? goal,
+      findings: (d.findings ?? []).map(cloudFinding),
+      actions: d.actions ?? [],
+      narrative: d.narrative ?? '',
+      tools: d.tools ?? [],
+      prov: prov('computed', {
+        verifier: d.engine ?? 'portfolio-agent (sovereign cloud)', receipt: d.receipt,
+        note: 'Our own cloud agent — we roll our own, not a third-party cloud provider.',
+      }),
+    };
+  } catch {
+    return null;
+  }
+}
