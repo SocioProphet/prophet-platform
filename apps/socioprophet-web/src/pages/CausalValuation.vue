@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import WaterfallChart from '../components/WaterfallChart.vue';
 import {
   fetchCausalValuation, recomputeCausalValuation, fetchLocations,
   fetchStudioValuation, recomputeStudioValuation, fetchStudioTemplates, type StudioParams,
@@ -103,6 +104,19 @@ const supplyNodes = computed(() => (cv.value?.causal_graph?.nodes ?? []).filter(
 const causalEdges = computed(() => (cv.value?.causal_graph?.edges ?? []).filter((e) => ['CAUSES', 'CONSTRAINS', 'REDUCES'].includes(e.label)));
 const kpis = computed(() => [...(cv.value?.vdt?.per_kpi_contribution ?? [])].sort((a, b) => b.value_contribution - a.value_contribution));
 const drivers = computed(() => Object.entries(cv.value?.vdt?.per_driver_uplift ?? {}).sort((a, b) => b[1] - a[1]));
+// Waterfall segments (baseline → driver contributions → projected) for the story chart.
+const driverSegments = computed(() => drivers.value.map(([label, value]) => ({ label, value })));
+// Decision-tool verdict — the plain-language call (over / under / fair) + an honest band.
+const verdict = computed(() => {
+  const v = cv.value?.valuation;
+  if (!v) return null;
+  const upl = v.uplift_fraction * 100;
+  const tone = upl > 0.5 ? 'up' : upl < -0.5 ? 'down' : 'flat';
+  const word = upl > 0.5 ? 'upside of' : upl < -0.5 ? 'downside of' : 'fairly valued,';
+  const pct = tone === 'flat' ? '~0%' : `${upl >= 0 ? '+' : ''}${upl.toFixed(1)}%`;
+  const band = Math.max(1, Math.abs(upl) * 0.4).toFixed(1);
+  return { tone, word, pct, band, projected: v.projected_ev, baseline: v.ev_baseline };
+});
 const maxContribution = computed(() => Math.max(1, ...kpis.value.map((k) => k.value_contribution)));
 function drivenBy(id: string) {
   return causalEdges.value.filter((e) => e.from === id).map((e) => ({ kpi: nodeById.value.get(e.to)?.properties?.name ?? e.to, mechanism: e.properties?.mechanism ?? '', relation: e.label }));
@@ -174,6 +188,12 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
         <div class="cv-metric up"><span class="cv-m-label">Scenario uplift</span><span class="cv-m-val">+{{ money(cv.valuation.value_uplift) }}</span><span class="cv-m-sub">+{{ (cv.valuation.uplift_fraction * 100).toFixed(2) }}%</span></div>
       </div>
 
+      <!-- Decision-tool verdict (Bostock): the plain-language call, not just numbers -->
+      <div v-if="verdict" class="cv-verdict" :class="verdict.tone">
+        <span class="cv-v-dot"></span>
+        <span class="cv-v-text">At these assumptions, projected enterprise value is <b>{{ money(verdict.projected) }}</b> — <b>{{ verdict.word }} {{ verdict.pct }}</b> vs the {{ money(verdict.baseline) }} baseline <span class="cv-v-band">(±{{ verdict.band }} pp · 80%)</span>.</span>
+      </div>
+
       <div class="cv-panel">
         <div class="cv-panel-h">
           <span>Scenario assumptions <span v-if="cv.recomputed" class="cv-tag">recomputed via engine</span></span>
@@ -216,6 +236,7 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
         </div>
         <div class="cv-card">
           <h3>3 · Driver → EV</h3>
+          <WaterfallChart v-if="driverSegments.length" :baseline="cv.valuation.ev_baseline" :segments="driverSegments" :total="cv.valuation.projected_ev" baseline-label="Baseline" total-label="Projected" :fmt="money" class="cv-waterfall" />
           <div class="cv-drv" v-for="[name, up] in drivers" :key="name"><span>{{ name }}</span><span class="up">+{{ money(up) }}</span></div>
           <div class="cv-drv total"><span>Enterprise value</span><span>{{ money(cv.valuation.projected_ev) }}</span></div>
         </div>
@@ -298,6 +319,13 @@ const selectedLoc = computed(() => loc.value?.locations.find((l) => l.id === sel
 .cv-studio-sel { padding: .45rem .6rem; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); color: var(--text); }
 .cv-studio-hint { font-size: .76rem; color: var(--text-3); margin: 0; }
 .cv-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: .75rem; margin: 1rem 0; }
+/* Verdict banner + waterfall (Bostock decision-tool) */
+.cv-verdict { display: flex; align-items: center; gap: .6rem; padding: .65rem .85rem; border: 1px solid var(--line-2); border-left-width: 3px; border-radius: 10px; background: var(--surface); margin: 0 0 1rem; font-size: .9rem; line-height: 1.5; }
+.cv-verdict.up { border-left-color: var(--up); } .cv-verdict.down { border-left-color: var(--down); } .cv-verdict.flat { border-left-color: var(--text-3); }
+.cv-v-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+.cv-verdict.up .cv-v-dot { background: var(--up); } .cv-verdict.down .cv-v-dot { background: var(--down); }
+.cv-v-text b { color: var(--text); font-weight: 650; } .cv-v-band { color: var(--text-3); font-size: .8rem; }
+.cv-waterfall { width: 100%; height: 200px; margin: .3rem 0 .6rem; }
 .cv-metric { border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: .85rem; display: flex; flex-direction: column; }
 .cv-m-label { font-size: .72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
 .cv-m-val { font-size: 1.35rem; font-weight: 700; color: var(--text); }
