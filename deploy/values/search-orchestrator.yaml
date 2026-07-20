@@ -2,3 +2,7 @@
 image: { repository: search-orchestrator, tag: latest }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 4 }
+# Boot-seed the academy ingest with the bundled 8.01 corpus so the cockpit tutor's Cloud engine
+# returns real Commons records (idempotent; in-memory repo re-seeds each boot).
+extraEnv:
+  - { name: SEARCH_ORCHESTRATOR_ACADEMY_SEED, value: /app/services/search-orchestrator/app/seeds/academy-8.01.jsonl }
