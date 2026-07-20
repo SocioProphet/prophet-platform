@@ -28,6 +28,7 @@
             <code class="hp-code">{{ st.code }}</code>
             <span class="hp-std-title">{{ st.title }}</span>
             <span class="hp-std-actions">
+              <button class="hp-chip teach" :class="{ on: teaching?.code === st.code }" title="Teach this standard with the grounded tutor" @click="teach(st)">◆ teach</button>
               <button class="hp-chip" :class="{ on: plan.has(st.code) }" @click="togglePlan(st.code)">{{ plan.has(st.code) ? '✓ in plan' : '+ plan' }}</button>
               <button class="hp-chip cov" :class="{ on: covered.has(st.code) }" :disabled="!plan.has(st.code)" :title="plan.has(st.code) ? 'Mark this standard covered' : 'Add to plan first'" @click="toggleCovered(st.code)">{{ covered.has(st.code) ? '● covered' : '○ covered' }}</button>
             </span>
@@ -42,8 +43,17 @@
         </div>
       </div>
 
-      <!-- My Plan -->
-      <aside class="hp-plan" aria-label="My plan">
+      <!-- Right panel: the grounded tutor teaching a standard (real retrieval), else the plan. -->
+      <aside class="hp-plan" aria-label="Plan and tutor">
+        <template v-if="teaching">
+          <div class="hp-teach-h">
+            <span><code>{{ teaching.code }}</code> {{ teaching.title }}</span>
+            <button class="hp-teach-x" title="Back to plan" @click="teaching = null">×</button>
+          </div>
+          <GroundedTutor :seed="teachQuery" />
+          <p class="hp-teach-note">Grounded in the live academy corpus — the tutor quotes and cites real captured material for this standard, or says plainly when none is captured yet.</p>
+        </template>
+        <template v-else>
         <div class="hp-plan-h">My plan</div>
         <template v-if="plan.size">
           <div class="hp-progress">
@@ -60,7 +70,8 @@
           </div>
           <p class="hp-plan-note">A parent-owned plan against the public standards — coverage tracked locally. As the Commons captures each standard's OER, the tutor grounds on it.</p>
         </template>
-        <p v-else class="hp-plan-empty">Add standards to build a term plan. Track what you've covered, see the gaps, and let the grounded tutor teach each one.</p>
+        <p v-else class="hp-plan-empty">Add standards to build a term plan. Track what you've covered, see the gaps, and hit <b>teach</b> on any standard to have the grounded tutor teach it from the live corpus.</p>
+        </template>
       </aside>
     </div>
   </section>
@@ -70,10 +81,18 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import SurfaceHeader from '../components/SurfaceHeader.vue';
 import { useCockpit } from '../stores/cockpit';
-import { gradePrograms, coverageOfSubject, type SubjectStrand } from '../data/homeschoolFixture';
+import { gradePrograms, coverageOfSubject, type SubjectStrand, type Standard } from '../data/homeschoolFixture';
 import { skillName } from '../data/academyFixture';
+import GroundedTutor from '../components/GroundedTutor.vue';
 
 const cockpit = useCockpit();
+
+// Teach a standard with the real grounded tutor: the standard's title + description seeds a live
+// retrieval over the academy corpus (cloud ingest / local Noetica), quoted + cited — or an honest
+// "not captured yet" when the Commons has no material for it.
+const teaching = ref<Standard | null>(null);
+function teach(st: Standard) { teaching.value = teaching.value?.code === st.code ? null : st; }
+const teachQuery = computed(() => (teaching.value ? `${teaching.value.title}. ${teaching.value.description}` : ''));
 const STORE = 'sp-homeschool-v1';
 
 const band = ref<string>('6-8');
@@ -149,6 +168,10 @@ onMounted(() => {
 .hp-chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft, rgba(120,160,255,0.12)); }
 .hp-chip.cov.on { border-color: rgba(63,185,80,0.5); color: #6ee7b7; background: rgba(63,185,80,0.1); }
 .hp-chip:disabled { opacity: 0.4; cursor: default; }
+.hp-chip.teach { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); } .hp-chip.teach.on { background: var(--accent-soft, rgba(120,160,255,0.12)); }
+.hp-teach-h { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; font-size: 0.82rem; font-weight: 600; color: var(--text); } .hp-teach-h code { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-3); margin-right: 0.35rem; }
+.hp-teach-x { border: none; background: transparent; color: var(--text-3); font-size: 1.1rem; line-height: 1; cursor: pointer; } .hp-teach-x:hover { color: var(--text); }
+.hp-teach-note { font-size: 0.72rem; color: var(--text-3); line-height: 1.5; margin-top: 0.6rem; }
 .hp-std-desc { font-size: 0.82rem; line-height: 1.55; color: var(--text-2); margin: 0.35rem 0; }
 .hp-std-foot { display: flex; align-items: center; gap: 0.5rem 0.9rem; flex-wrap: wrap; font-size: 0.72rem; color: var(--text-3); }
 .hp-res em { font-style: normal; color: var(--up); } .hp-res.uncaptured em { color: #e3b341; } .hp-res-x { color: #e3b341; }
