@@ -122,10 +122,10 @@
             <span v-if="tally.followed" class="lw-tt-seg followed" :style="{ flex: tally.followed }" />
             <span v-if="tally.superseded" class="lw-tt-seg superseded" :style="{ flex: tally.superseded }" />
           </div>
-          <div class="lw-tt-legend"><span><i class="followed" />followed {{ tally.followed }}</span><span><i class="superseded" />superseded {{ tally.superseded }}</span></div>
+          <div class="lw-tt-legend"><span><i class="followed" />followed {{ tally.followed }}</span><span><i class="superseded" />negative {{ tally.superseded }}</span></div>
           <div class="lw-tt-list">
             <button v-for="c in citedBy" :key="c.d.id" class="lw-tt-cite" :class="c.treat" @click="goDocket(c.d.id)">
-              <span class="lw-tt-flag">{{ c.treat === 'superseded' ? '▲' : '↳' }}</span>
+              <span class="lw-tt-flag">{{ c.treat === 'followed' ? '↳' : '▲' }}</span>
               <code>{{ c.d.cite }}</code><span class="lw-tt-title">{{ c.d.title }}</span>
               <span class="lw-tt-tag">{{ c.treat }}</span>
             </button>
@@ -316,8 +316,11 @@ function citingLater(d: Docket): Docket[] {
 function treatmentOf(d: Docket, hv?: Verdict | null): Treatment {
   if (d.supersededBy) {
     const by = activeDockets.value.find((x) => x.id === d.supersededBy);
-    return { kind: 'negative', glyph: '▲', label: 'SUPERSEDED IN PART',
-      why: `A later authority${by ? ` (${by.cite})` : ''} supersedes part of this — do not rely on the superseded provision.` };
+    const overruled = d.type === 'case';
+    return { kind: 'negative', glyph: '▲', label: overruled ? 'OVERRULED' : 'SUPERSEDED IN PART',
+      why: overruled
+        ? `Overruled by a later decision${by ? ` (${by.cite})` : ''} — no longer good law on the point.`
+        : `A later authority${by ? ` (${by.cite})` : ''} supersedes part of this — do not rely on the superseded provision.` };
   }
   if (hv?.verdict === 'supported') {
     return { kind: 'good', glyph: '●', label: 'GOOD LAW',
@@ -340,13 +343,17 @@ const treatment = computed<Treatment>(() => (selected.value ? treatmentOf(select
 
 // Depth-of-treatment (Shepard's): who cites this, and how. The superseding authority is
 // flagged 'superseded'; everything else 'followed' — a compact citing-references tally.
+type CiteTreat = 'followed' | 'superseded' | 'overruled';
 const citedBy = computed(() => {
-  const s = selected.value; if (!s) return [] as { d: Docket; treat: 'followed' | 'superseded' }[];
-  return citingLater(s).map((d) => ({ d, treat: (s.supersededBy === d.id ? 'superseded' : 'followed') as 'followed' | 'superseded' }));
+  const s = selected.value; if (!s) return [] as { d: Docket; treat: CiteTreat }[];
+  return citingLater(s).map((d) => {
+    const treat: CiteTreat = s.supersededBy === d.id ? (s.type === 'case' ? 'overruled' : 'superseded') : 'followed';
+    return { d, treat };
+  });
 });
 const tally = computed(() => ({
   followed: citedBy.value.filter((c) => c.treat === 'followed').length,
-  superseded: citedBy.value.filter((c) => c.treat === 'superseded').length,
+  superseded: citedBy.value.filter((c) => c.treat !== 'followed').length, // superseded | overruled
 }));
 
 // Lifecycle rail: map the docket status onto comment → pending → enacted → effective.
@@ -462,7 +469,7 @@ function deadlineSoon(iso: string): boolean { const days = (new Date(iso).getTim
 .lw-tt-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 0.3rem; } .lw-tt-legend i.followed { background: var(--up); } .lw-tt-legend i.superseded { background: var(--down); }
 .lw-tt-list { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.6rem; }
 .lw-tt-cite { display: flex; align-items: center; gap: 0.5rem; text-align: left; border: 1px solid var(--line-2); border-left-width: 3px; background: var(--surface-2, rgba(255,255,255,0.015)); color: var(--text-2); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.78rem; cursor: pointer; }
-.lw-tt-cite.followed { border-left-color: var(--up); } .lw-tt-cite.superseded { border-left-color: var(--down); }
+.lw-tt-cite.followed { border-left-color: var(--up); } .lw-tt-cite.superseded, .lw-tt-cite.overruled { border-left-color: var(--down); }
 .lw-tt-cite:hover { border-color: var(--accent); }
 .lw-tt-flag { flex: 0 0 auto; } .lw-tt-cite.superseded .lw-tt-flag { color: var(--down); } .lw-tt-cite.followed .lw-tt-flag { color: var(--text-3); }
 .lw-tt-cite code { color: rgba(255,255,255,0.9); font-family: ui-monospace, monospace; font-size: 0.72rem; }
