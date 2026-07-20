@@ -77,6 +77,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/sherlock/, ''),
         },
+        // Academy retrieval — search-orchestrator (academy ingest over the captured Commons chunks).
+        '/svc/search': {
+          target: env.VITE_SEARCH_BASE || 'http://localhost:8080',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/search/, ''),
+        },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
           target: env.VITE_MESH_BASE || 'https://mesh.socioprophet.ai',
