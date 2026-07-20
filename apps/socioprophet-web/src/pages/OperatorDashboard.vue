@@ -87,18 +87,7 @@
         </button>
       </article>
 
-      <!-- People -->
-      <article v-if="db.visible('people')" class="db-card">
-        <button class="db-remove" title="Hide card" @click="db.hide('people')">✕</button>
-        <RouterLink class="db-card-head" to="/people/search"><span>People</span><span class="db-open">open →</span></RouterLink>
-        <button v-for="e in entities" :key="e.id" class="db-row" @click="go('/people/search', { id: e.id })">
-          <span class="db-avatar">{{ initials(e.name) }}</span>
-          <span class="db-row-k narrow">{{ e.name }}</span>
-          <span class="db-row-sub">{{ e.role }}</span>
-          <span class="db-conf" :title="`confidence ${(e.confidence * 100).toFixed(0)}%`"><span class="db-conf-fill" :style="{ width: (e.confidence * 100) + '%' }"></span></span>
-          <span class="db-num sm">{{ (e.confidence * 100).toFixed(0) }}%</span>
-        </button>
-      </article>
+<!-- People card removed from the main dashboard — people belong on the People page (with the ego-net). -->
 
       <!-- Law -->
       <article v-if="db.visible('law')" class="db-card">
@@ -174,7 +163,6 @@ import { indicators } from '../data/economyFixture';
 import { regions, alerts } from '../data/weatherFixture';
 import { dockets } from '../data/lawFixture';
 import { trends } from '../data/socialFixture';
-import { entities } from '../data/peopleFixture';
 import { newsItems, newsSources } from '../data/newsFeedFixture';
 import { useNoeticaChat } from '../composables/useNoeticaChat';
 import { useUserLists } from '../stores/userLists';
@@ -227,7 +215,6 @@ function rel(iso: string): string {
   const m = Math.max(0, Math.round((NOW - new Date(iso).getTime()) / 60000));
   return m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : `${Math.round(m / 1440)}d`;
 }
-function initials(name: string): string { return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join(''); }
 function fmtPrice(n: number): string { return n >= 1000 ? n.toLocaleString('en-US') : n.toFixed(2); }
 function fmtVal(n: number, unit: string): string { return `${n.toLocaleString('en-US')}${unit && unit !== '%' ? '' : unit}`; }
 // changePct is already in PERCENT units (marketsFixture: ((price-prevClose)/prevClose)*100),
