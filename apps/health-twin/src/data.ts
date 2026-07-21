@@ -26,6 +26,7 @@ export const SYSTEMS: System[] = [
   { id: 'respiratory', label: 'Respiratory', organs: ['Lungs'], iri: `${HEALTH_NS}RespiratorySystem`, compartment: 'respiratory' },
   { id: 'hepatic', label: 'Hepatic / Digestive', organs: ['Liver', 'Stomach', 'Pancreas', 'Intestines'], iri: `${HEALTH_NS}DigestiveSystem`, compartment: 'hepatic' },
   { id: 'urinary', label: 'Urinary', organs: ['Kidneys', 'Bladder'], iri: `${HEALTH_NS}UrinarySystem`, compartment: 'renal' },
+  { id: 'musculoskeletal', label: 'Musculoskeletal', organs: ['Knee'], iri: `${HEALTH_NS}MusculoskeletalSystem`, compartment: 'musculoskeletal' },
 ];
 
 // Organ → health:Organ IRI (the localizedTo target that paints a record onto anatomy).
@@ -33,6 +34,7 @@ export const ORGAN_IRI: Record<string, string> = {
   Brain: `${HEALTH_NS}Brain`, Heart: `${HEALTH_NS}Heart`, Lungs: `${HEALTH_NS}Lungs`,
   Liver: `${HEALTH_NS}Liver`, Stomach: `${HEALTH_NS}Stomach`, Pancreas: `${HEALTH_NS}Pancreas`,
   Intestines: `${HEALTH_NS}Intestines`, Kidneys: `${HEALTH_NS}Kidneys`, Bladder: `${HEALTH_NS}Bladder`,
+  Knee: `${HEALTH_NS}Knee`,
 };
 
 // `organ` = the anatomical structure this record localises to (health:localizedTo) — what paints it onto the twin.
@@ -77,9 +79,11 @@ export const ENCOUNTERS: Encounter[] = [
   { id: 'enc-card', system: 'cardiovascular', type: 'Cardiology consult', date: '2026-05-02', provider: 'Dr. A. Rivera', note: 'BP + lipids reviewed; lifestyle plan; recheck in 3 months.' },
   { id: 'enc-lab', system: 'hepatic', type: 'Lab draw — metabolic panel', date: '2026-04-18', provider: 'LabCorp', note: 'A1c, ALT, eGFR, lipid panel.' },
   { id: 'enc-pcp', system: 'cardiovascular', type: 'Primary care visit', date: '2024-11-10', provider: 'Dr. J. Okafor', note: 'Hypertension diagnosed; started monitoring.' },
+  { id: 'enc-knee', system: 'musculoskeletal', type: 'ER visit — knee injury', date: '2003-06-14', provider: 'Pediatric ER', note: 'Fell off a bike aged 9. Left knee X-ray showed no fracture — diagnosed a sprain; RICE + rest. Follow-up at 3 weeks: full recovery, no lasting damage.' },
 ];
 
 export const IMAGING: ImagingStudy[] = [
   { id: 'img-mri', system: 'nervous', modality: 'MRI', bodySite: 'Brain', date: '2026-05-20', description: 'MRI brain w/o contrast', epistemic: 'attested' },
   { id: 'img-cxr', system: 'respiratory', modality: 'X-ray', bodySite: 'Chest', date: '2025-09-14', description: 'Chest radiograph, PA + lateral', epistemic: 'attested' },
+  { id: 'img-knee', system: 'musculoskeletal', modality: 'X-ray', bodySite: 'Knee', date: '2003-06-14', description: 'Left knee radiograph — no fracture; soft-tissue swelling consistent with sprain', epistemic: 'attested' },
 ];
