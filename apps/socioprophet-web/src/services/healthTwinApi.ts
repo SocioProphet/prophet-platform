@@ -107,6 +107,14 @@ export async function askTwin(q: string): Promise<AskAnswer> {
   return await res.json();
 }
 
+// guideline-grounded, cited, non-diagnostic guidance over the twin's own numbers
+export interface GuidanceItem { finding: string; says: string; source: string; strength: 'screen' | 'discuss' | 'monitor' | 'confirm'; cites: string[] }
+export async function guidance(): Promise<{ items: GuidanceItem[]; disclaimer: string }> {
+  const res = await fetch(`${BASE}/api/health/guidance`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`guidance failed (${res.status})`);
+  return await res.json();
+}
+
 // ── Capture surface: voice notes / photos / documents → the twin, hash-sealed + tier-tagged ────────
 export interface CodedEntity { text: string; category: string; code: string; codeSystem: string; display: string; negated: boolean }
 export interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; tier: string; by: string; contentHash: string; organ?: string; system?: string; capturedAt: string; receipt: string; coded?: CodedEntity[] }
