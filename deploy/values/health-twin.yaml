@@ -10,3 +10,15 @@ image: { repository: health-twin, tag: sha-28298ff5f677fddb5c33fdcc9a8de2d07377c
 service: { port: 8097, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
+config:
+  # Wall 2/3 reconciliation + CDS Hooks ORCHESTRATE existing estate services (the twin never rebuilds
+  # NLP/ER/vector/reasoning). In-cluster DNS; every call degrades gracefully (a service that is absent
+  # or on a different port simply reports 'degraded' — it never breaks the twin, which is local-first).
+  HT_ER_URL: "http://entity-resolution.socioprophet.svc.cluster.local:8080"        # dedup → golden records
+  HT_IE_URL: "http://ie-engine.socioprophet.svc.cluster.local:8080"                # free-text → facts (spaCy)
+  HT_HOLMES_URL: "http://holmes.socioprophet.svc.cluster.local:8091"               # claim grounding (anti-Watson)
+  HT_HELLGRAPH_URL: "http://hellgraph-service.socioprophet.svc.cluster.local:8090" # land + hybrid semantic search
+  HT_OWL_URL: "http://owl-reasoner.socioprophet.svc.cluster.local:8080"            # TTL → entailments
+  HT_EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  # SMART launch link base for CDS Hooks cards (the cockpit's /health surface).
+  SMART_APP_BASE: "https://socioprophet.md"
