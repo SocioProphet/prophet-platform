@@ -16,14 +16,26 @@ export interface Encounter { id: string; system: string; type: string; date: str
 export interface ImagingStudy { id: string; system: string; modality: string; bodySite: string; date: string; description: string; epistemic: EpistemicMode }
 export interface SystemBundle { id: string; label: string; organs: string[]; iri?: string; compartment?: string; observations: Observation[]; conditions: Condition[]; encounters: Encounter[]; imaging: ImagingStudy[] }
 export interface Grant { id: string; agent: string; scope: string; granted_at: string; expires_at: string; revoked: boolean; reads: number; receipt: string; active?: boolean }
+export interface Medication { id: string; system: string; organ: string; code: string; codeSystem: string; display: string; dose: string; status: string; started: string; epistemic: string }
+export interface Allergy { id: string; code: string; codeSystem: string; display: string; reaction: string; criticality: string; epistemic: string }
+export interface Immunization { id: string; code: string; codeSystem: string; display: string; date: string; epistemic: string }
+export interface CareTeamMember { id: string; name: string; specialty: string; role: string; credentials: string; org: string; location: string; npi?: string; verified: boolean; yearsInPractice: number; visits: number; lastSeen: string; firstSeen: string }
+export interface Reading { id: string; system: string; organ: string; code: string; codeSystem: string; display: string; value: number; unit: string; effective: string; epistemic: string; by: string; source: string }
 export interface TwinBundle {
-  subject: { id: string; label: string; note: string };
-  systems: SystemBundle[];
+  subject: { id: string; label: string; note: string; ageBand?: string; sex?: string };
+  systems: (SystemBundle & { medications?: Medication[] })[];
+  medications?: Medication[]; allergies?: Allergy[]; immunizations?: Immunization[];
+  careTeam?: CareTeamMember[]; readings?: Reading[];
   timeline: Encounter[];
   counts: { observations: number; conditions: number; encounters: number; imaging: number };
   grants: Grant[];
   ontology?: { health: string; hdt: string; subjectClass: string; note: string };
   disclaimer: string;
+}
+export async function addReading(text: string, by = 'clinician', source = 'keyboard'): Promise<{ created: Reading[]; count: number }> {
+  const res = await fetch(`${BASE}/api/health/reading`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, by, source }) });
+  if (!res.ok) throw new Error(`reading failed (${res.status})`);
+  return await res.json();
 }
 
 export async function loadTwin(): Promise<TwinBundle> {

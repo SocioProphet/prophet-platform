@@ -16,6 +16,7 @@ import SpineOverlay from './SpineOverlay.vue';
 import ConsultView from './ConsultView.vue';
 import AskTwin from './AskTwin.vue';
 import CaptureView from './CaptureView.vue';
+import DoctorChart from './DoctorChart.vue';
 import { plateFor, ATLAS_CREDIT } from '../data/anatomyAtlas';
 import './studio/studio-tokens.css';
 
@@ -28,7 +29,7 @@ const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const selected = ref<string>('cardiovascular');
-const view = ref<'systems' | 'spine' | 'sources' | 'consults' | 'ask' | 'capture'>('systems');
+const view = ref<'systems' | 'spine' | 'sources' | 'consults' | 'ask' | 'capture' | 'chart'>('systems');
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
@@ -179,12 +180,17 @@ async function doAgentRead(id: string) {
           <button class="vbtn" :class="{ on: view === 'ask' }" @click="view = 'ask'">Ask</button>
           <button class="vbtn" :class="{ on: view === 'capture' }" @click="view = 'capture'">Capture</button>
           <button class="vbtn" :class="{ on: view === 'consults' }" @click="view = 'consults'">Consults</button>
+          <button class="vbtn" :class="{ on: view === 'chart' }" @click="view = 'chart'">Chart</button>
         </div>
         <button class="ghost" @click="load" :disabled="loading" aria-label="Reload">↻</button>
         <button class="ghost txt" @click="optOut">Turn off</button>
       </header>
       <p class="disclaimer">⚕ Not medical advice · organises records, does not diagnose · <b>synthetic sample data</b>.</p>
       <p class="credit">{{ ATLAS_CREDIT }}</p>
+      <div v-if="view === 'systems' && twin?.careTeam?.length" class="ht-careteam">
+        <span class="ct-h">Your care team</span>
+        <span v-for="p in twin.careTeam" :key="p.id" class="ct-doc" :title="`${p.credentials} · ${p.org} · ${p.location}`"><b>{{ p.name }}</b> · {{ p.specialty }} · {{ p.yearsInPractice }}y<em v-if="p.verified" class="ct-vf">✓ verified</em></span>
+      </div>
       <p v-if="flash" class="flash">{{ flash }}</p>
       <p v-if="err" class="msg err">{{ err }}</p>
       <p v-else-if="loading && !twin" class="msg">Loading your twin…</p>
@@ -278,6 +284,9 @@ async function doAgentRead(id: string) {
       <div v-else-if="twin && view === 'spine'" class="ht-spine">
         <SpineOverlay :record-organs="recordOrgans" @organ="onSpineOrgan" />
       </div>
+
+      <!-- Doctor's chart (iPad): the authorized record as a clinical chart + Noetica intelligence -->
+      <div v-else-if="twin && view === 'chart'" class="ht-consults"><DoctorChart /></div>
 
       <!-- Ask-my-agent (patient magic): conversational recall over the twin, cited -->
       <div v-else-if="twin && view === 'ask'" class="ht-consults"><AskTwin /></div>
@@ -388,6 +397,9 @@ async function doAgentRead(id: string) {
 .organ-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-2); background: var(--sunken); border-radius: var(--pill); padding: 1px 8px; } .organ-chip i { font-style: normal; color: var(--accent); font-size: 9px; }
 .ht-spine { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
 .ht-consults { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
+.ht-careteam { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 var(--sp-3); }
+.ht-careteam .ct-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 4px; }
+.ht-careteam .ct-doc { display: inline-flex; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ink-2); background: var(--sunken); border: 1px solid var(--hairline); border-radius: var(--pill); padding: 3px 11px; } .ht-careteam .ct-doc b { color: var(--ink); } .ht-careteam .ct-vf { color: var(--ok); font-style: normal; font-size: 10px; }
 
 /* sources & reconciliation */
 .ht-sources { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--sp-3); }

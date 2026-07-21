@@ -17,6 +17,8 @@ import { deidentify } from './deident.js';
 import { ask } from './ask.js';
 import { ground, groundFromBrain } from './knowledge.js';
 import { communityAggregate, communityScopes, type Scope } from './enclave.js';
+import { directory, provider, careTeam } from './providers.js';
+import { parseReadings, type Reading } from './readings.js';
 import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
@@ -34,6 +36,9 @@ function receipt(kind: string, parts: string[]): { id: string; verifier: 'health
 
 // In-memory grant ledger (skeleton). Local-first store in production.
 const grants: Grant[] = [];
+
+// Entered readings — device / voice / keyboard vitals that became coded observations. Local-first store.
+const readings: Reading[] = [];
 
 // Capture surface — voice notes, photos, documents captured across devices land here, each hash-sealed
 // with provenance + an epistemic tier. A clinician's dictated note is 'attested'; a patient photo is
@@ -82,6 +87,7 @@ function bundle() {
     subject: SUBJECT,
     systems: bySystem,
     medications: MEDICATIONS, allergies: ALLERGIES, immunizations: IMMUNIZATIONS,
+    careTeam: careTeam(), readings,
     timeline: [...ENCOUNTERS].sort((a, b) => (a.date < b.date ? 1 : -1)),
     counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length, medications: MEDICATIONS.length, allergies: ALLERGIES.length, immunizations: IMMUNIZATIONS.length },
     grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
@@ -305,6 +311,23 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/health/community/aggregate') {
     try { const b = await readJson(req); return send(res, 200, communityAggregate((b.scope ?? {}) as Scope)); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'aggregate failed' }); }
+  }
+
+  // Provider directory + a provider's profile (the patient reviews who their doctors are).
+  if (req.method === 'GET' && url.pathname === '/api/health/providers') return send(res, 200, { providers: directory(), careTeam: careTeam() });
+  if (req.method === 'GET' && url.pathname.startsWith('/api/health/provider/')) {
+    const p = provider(url.pathname.slice('/api/health/provider/'.length));
+    return send(res, p ? 200 : 404, p ?? { error: 'provider not found' });
+  }
+
+  // Easy entry — a device reading / spoken phrase / typed line → coded vital+lab observations.
+  if (req.method === 'POST' && url.pathname === '/api/health/reading') {
+    try {
+      const b = await readJson(req);
+      const created = parseReadings(String(b.text ?? ''), b.by === 'clinician' ? 'clinician' : 'patient', String(b.source ?? 'manual'));
+      readings.unshift(...created);
+      return send(res, 200, { created, count: readings.length, receipt: receipt('reading', [String(created.length), String(Date.now())]) });
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'reading failed' }); }
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
