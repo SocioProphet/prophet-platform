@@ -5,7 +5,7 @@
 //
 // Each opinion attaches to the consult as a TIER=hypothesis claim (an opinion, never asserted truth —
 // the anti-Watson rule). The aggregate is a signal, NOT a diagnosis; a clinician still decides.
-import { deidentify, type DeidView, type DeidReceipt } from './deident.js';
+import { deidentify, type DeidView, type DisclosureScope } from './deident.js';
 
 function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
 const receipt = (kind: string, parts: string[]) => ({ id: `ht-${kind}-${djb2(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() });
@@ -20,26 +20,45 @@ export interface Opinion {
   at: string;
   receipt: { id: string };
 }
+// The patient's agreement is the gate: a consult only exists because the patient consented to a
+// disclosure scope. Anonymous by default; anything beyond the agreed scope is a request they must approve.
+export interface Consent { agreed: boolean; disclosure: DisclosureScope; at: string; receipt: string }
+export interface MoreRequest { id: string; field: string; reason: string; status: 'pending' | 'approved' | 'declined'; at: string }
 export interface Consult {
   id: string;
   createdAt: string;
   scope: string;
+  consent: Consent;       // the patient agreed to these terms before anyone was asked
   slice: DeidView;        // the de-identified view every reviewer sees (no identity)
   blind: true;
   opinions: Opinion[];
+  moreRequests: MoreRequest[];
 }
 
 // in-memory consult ledger (local-first store in production)
 const consults = new Map<string, Consult>();
 
-// Open a blinded consult over the twin (optionally scoped to a system). Returns the consult id + the
-// de-identified slice reviewers will see — identity is already gone before anyone reads it.
-export function openConsult(bundle: any, scope = 'whole twin'): { consult_id: string; slice: DeidView; receipt: { id: string } } {
+// Open a blinded consult over the twin. Requires the patient's agreement (anonymous by default); the
+// agreed `disclosure` scope decides what the de-identified slice keeps. Returns the consult id + the
+// slice reviewers will see — identity is already gone before anyone reads it.
+export function openConsult(bundle: any, scope = 'whole twin', disclosure: DisclosureScope = 'standard', agreed = true): { consult_id?: string; slice?: DeidView; consent?: Consent; receipt?: { id: string }; error?: string } {
+  if (!agreed) return { error: 'patient must agree to the disclosure terms before a consult can open' };
   const salt = `${Date.now()}-${scope}`;
-  const slice = deidentify(bundle, salt);
+  const slice = deidentify(bundle, salt, disclosure);
   const id = `consult-${djb2([slice.receipt.pseudonym, scope, salt].join('|'))}`;
-  consults.set(id, { id, createdAt: new Date().toISOString(), scope, slice, blind: true, opinions: [] });
-  return { consult_id: id, slice, receipt: receipt('consult-open', [id, scope]) };
+  const consent: Consent = { agreed: true, disclosure, at: new Date().toISOString(), receipt: receipt('consent', [id, disclosure]).id };
+  consults.set(id, { id, createdAt: new Date().toISOString(), scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
+  return { consult_id: id, slice, consent, receipt: receipt('consult-open', [id, scope]) };
+}
+
+// A reviewer asks to see something beyond the agreed scope → a request the PATIENT decides on (it is
+// NOT granted here). Anonymous-by-default means more disclosure is always the patient's explicit call.
+export function requestMore(consultId: string, field: string, reason: string): MoreRequest | { error: string } {
+  const c = consults.get(consultId);
+  if (!c) return { error: 'consult not found' };
+  const r: MoreRequest = { id: `more-${djb2([consultId, field, String(Date.now())].join('|'))}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
+  c.moreRequests.push(r);
+  return r;
 }
 
 // The de-identified slice a reviewer opens (blind read — no identity, no other opinions shown here).

@@ -14,7 +14,7 @@ import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/recon
 import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { deidentify } from './deident.js';
-import { openConsult, reviewerView, submitOpinion, aggregate, type Confidence } from './consult.js';
+import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -230,10 +230,16 @@ const server = http.createServer(async (req, res) => {
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
   if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));
 
-  // Open a blinded consult: N clinicians will each read this de-identified slice independently.
+  // Open a blinded consult: requires the patient's agreement (anonymous by default). `disclosure` =
+  // the agreed scope ('standard' keeps age-band + sex a doctor needs; 'minimal' = facts only).
   if (req.method === 'POST' && url.pathname === '/api/health/consult') {
-    try { const b = await readJson(req); return send(res, 200, openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin')); }
-    catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }
+    try {
+      const b = await readJson(req);
+      const disclosure = b.disclosure === 'minimal' ? 'minimal' : 'standard';
+      const agreed = b.agreed !== false; // must explicitly agree; default true for the demo
+      const r = openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin', disclosure, agreed);
+      return send(res, (r as any).error ? 422 : 200, r);
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }
   }
 
   // Consult sub-routes: /api/health/consult/{id}[/review|/opinion]
@@ -250,6 +256,14 @@ const server = http.createServer(async (req, res) => {
         const r = submitOpinion(id!, String(b.reviewer ?? ''), String(b.assessment ?? ''), (['low', 'moderate', 'high'].includes(b.confidence) ? b.confidence : 'moderate') as Confidence);
         return send(res, (r as any).error ? 400 : 200, r);
       } catch (e) { return send(res, 400, { error: (e as Error).message || 'opinion failed' }); }
+    }
+    // A reviewer asks to see more than the agreed scope → a request the PATIENT decides on (not granted here).
+    if (req.method === 'POST' && sub === 'request-more') {
+      try {
+        const b = await readJson(req);
+        const r = requestMore(id!, String(b.field ?? ''), String(b.reason ?? ''));
+        return send(res, (r as any).error ? 404 : 200, r);
+      } catch (e) { return send(res, 400, { error: (e as Error).message || 'request failed' }); }
     }
   }
 

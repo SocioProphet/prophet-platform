@@ -29,6 +29,13 @@ const view = deidentify(sampleBundle, 'test');
 const leaks = identifierLeaks(view);
 ok(leaks.length === 0, `no identifier fields in the de-identified view (leaks: ${JSON.stringify(leaks)})`);
 ok(view.subject.pseudonym.startsWith('anon:') && !(view.subject as any).label && !(view.subject as any).id, 'subject reduced to a pseudonym (no id, no label)');
+// consent-scoped disclosure: 'standard' keeps the coarsened clinical essentials a doctor needs...
+ok(view.subject.ageBand === '50s' && view.subject.sex === 'male', "standard scope keeps age-band + sex (doctor needs them)");
+ok(!(view.subject as any).dob && !(view.subject as any).name, 'exact DOB + name never present');
+// ...'minimal' drops even those
+const minimal = deidentify(sampleBundle, 'test', 'minimal');
+ok(!minimal.subject.ageBand && !minimal.subject.sex, "minimal scope drops age-band + sex");
+ok(identifierLeaks(minimal).length === 0, 'minimal view also leaks no identity');
 ok(view.systems.every((s) => s.encounters.every((e) => !('provider' in e) && !('note' in e))), 'provider names + free-text notes removed from encounters');
 ok(view.receipt.identifiersRemoved.length > 0 && view.receipt.method === 'safe-harbor+date-shift', 'de-id receipt records method + identifiers removed');
 // dates broken but intervals preserved: an observation date must differ from the original

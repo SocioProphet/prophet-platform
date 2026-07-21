@@ -73,3 +73,27 @@ export async function serviceHealth(): Promise<{ services: ServiceHealth[] }> {
   if (!res.ok) throw new Error(`services unreachable (${res.status})`);
   return await res.json();
 }
+
+// ── blinded second opinions (wall 4): consent-scoped, double-blind, non-diagnostic ─────────────────
+export interface DeidView { subject: { pseudonym: string; ageBand?: string; sex?: string }; systems: { id: string; label: string; observations: { code: string; codeSystem: string; display: string; value: number; unit: string; refLow?: number; refHigh?: number; effective: string; trend?: number[]; epistemic: string }[]; conditions: { display: string; clinicalStatus: string; epistemic: string }[] }[]; receipt: { pseudonym: string; scope: string; dateShiftDays: number; identifiersRemoved: string[] } }
+export interface OpenConsult { consult_id?: string; slice?: DeidView; consent?: { agreed: boolean; disclosure: string; receipt: string }; error?: string }
+export interface OpinionOut { reviewer: string; assessment: string; confidence: string; tier: string; receipt: string }
+export interface Concordance { n: number; verdict: 'insufficient' | 'unanimous' | 'majority' | 'split'; agreement: number; groups: { assessment: string; count: number; reviewers: string[] }[]; flag: string }
+export interface ConsultAgg { consult_id: string; scope: string; blind: boolean; opinions: OpinionOut[]; concordance: Concordance; disclaimer: string; error?: string }
+
+export async function openConsult(scope: string, disclosure = 'standard', agreed = true): Promise<OpenConsult> {
+  const res = await fetch(`${BASE}/api/health/consult`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope, disclosure, agreed }) });
+  return await res.json();
+}
+export async function consultResult(id: string): Promise<ConsultAgg> {
+  const res = await fetch(`${BASE}/api/health/consult/${encodeURIComponent(id)}`, { headers: { accept: 'application/json' } });
+  return await res.json();
+}
+export async function reviewerSlice(id: string): Promise<{ scope: string; slice: DeidView } | { error: string }> {
+  const res = await fetch(`${BASE}/api/health/consult/${encodeURIComponent(id)}/review`, { headers: { accept: 'application/json' } });
+  return await res.json();
+}
+export async function submitOpinion(id: string, reviewer: string, assessment: string, confidence: string): Promise<OpinionOut | { error: string }> {
+  const res = await fetch(`${BASE}/api/health/consult/${encodeURIComponent(id)}/opinion`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reviewer, assessment, confidence }) });
+  return await res.json();
+}
