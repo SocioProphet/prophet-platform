@@ -13,6 +13,8 @@ import { mergeResults, resultCounts, emptyResult, type IngestResult, type Ingest
 import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/reconcile.js';
 import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
+import { deidentify } from './deident.js';
+import { openConsult, reviewerView, submitOpinion, aggregate, type Confidence } from './consult.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -220,6 +222,35 @@ const server = http.createServer(async (req, res) => {
       if (id === 'health-twin-medication-reconciliation') return send(res, 200, await medReconciliationCards(ingested, base));
       return send(res, 404, { error: `unknown cds-service: ${id}` });
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'cds failed' }); }
+  }
+
+  // ── Wall 4: de-identification + blinded n-ary consults (the moat). Non-diagnostic; the aggregate is a
+  // concordance signal, a clinician decides. ────────────────────────────────────────────────────────
+
+  // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
+  if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));
+
+  // Open a blinded consult: N clinicians will each read this de-identified slice independently.
+  if (req.method === 'POST' && url.pathname === '/api/health/consult') {
+    try { const b = await readJson(req); return send(res, 200, openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin')); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }
+  }
+
+  // Consult sub-routes: /api/health/consult/{id}[/review|/opinion]
+  if (url.pathname.startsWith('/api/health/consult/')) {
+    const rest = url.pathname.slice('/api/health/consult/'.length);
+    const [id, sub] = rest.split('/');
+    // A reviewer opens the blinded slice (no identity, no other opinions shown).
+    if (req.method === 'GET' && !sub) { const a = aggregate(id!); return send(res, (a as any).error ? 404 : 200, a); }
+    if (req.method === 'GET' && sub === 'review') { const v = reviewerView(id!); return send(res, v ? 200 : 404, v ?? { error: 'consult not found' }); }
+    // A reviewer submits an independent opinion (blind).
+    if (req.method === 'POST' && sub === 'opinion') {
+      try {
+        const b = await readJson(req);
+        const r = submitOpinion(id!, String(b.reviewer ?? ''), String(b.assessment ?? ''), (['low', 'moderate', 'high'].includes(b.confidence) ? b.confidence : 'moderate') as Confidence);
+        return send(res, (r as any).error ? 400 : 200, r);
+      } catch (e) { return send(res, 400, { error: (e as Error).message || 'opinion failed' }); }
+    }
   }
 
   // Grant a designated agent a scoped, time-boxed read grant — receipted.
