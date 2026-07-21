@@ -14,6 +14,8 @@ import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
 import SpineOverlay from './SpineOverlay.vue';
 import ConsultView from './ConsultView.vue';
+import AskTwin from './AskTwin.vue';
+import CaptureView from './CaptureView.vue';
 import { plateFor, ATLAS_CREDIT } from '../data/anatomyAtlas';
 import './studio/studio-tokens.css';
 
@@ -26,7 +28,7 @@ const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const selected = ref<string>('cardiovascular');
-const view = ref<'systems' | 'spine' | 'sources' | 'consults'>('systems');
+const view = ref<'systems' | 'spine' | 'sources' | 'consults' | 'ask' | 'capture'>('systems');
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
@@ -174,6 +176,8 @@ async function doAgentRead(id: string) {
           <button class="vbtn" :class="{ on: view === 'systems' }" @click="view = 'systems'">Systems</button>
           <button class="vbtn" :class="{ on: view === 'spine' }" @click="view = 'spine'">Spine</button>
           <button class="vbtn" :class="{ on: view === 'sources' }" @click="view = 'sources'">Sources</button>
+          <button class="vbtn" :class="{ on: view === 'ask' }" @click="view = 'ask'">Ask</button>
+          <button class="vbtn" :class="{ on: view === 'capture' }" @click="view = 'capture'">Capture</button>
           <button class="vbtn" :class="{ on: view === 'consults' }" @click="view = 'consults'">Consults</button>
         </div>
         <button class="ghost" @click="load" :disabled="loading" aria-label="Reload">↻</button>
@@ -274,6 +278,12 @@ async function doAgentRead(id: string) {
       <div v-else-if="twin && view === 'spine'" class="ht-spine">
         <SpineOverlay :record-organs="recordOrgans" @organ="onSpineOrgan" />
       </div>
+
+      <!-- Ask-my-agent (patient magic): conversational recall over the twin, cited -->
+      <div v-else-if="twin && view === 'ask'" class="ht-consults"><AskTwin /></div>
+
+      <!-- Capture: voice note + camera/media into the twin -->
+      <div v-else-if="twin && view === 'capture'" class="ht-consults"><CaptureView /></div>
 
       <!-- Blinded second opinions (wall 4 — the moat): consent-scoped, double-blind, non-diagnostic -->
       <div v-else-if="twin && view === 'consults'" class="ht-consults">
