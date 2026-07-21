@@ -95,6 +95,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/board/, ''),
         },
+        // Agora — the work + knowledge plane (Jira/Confluence killer over HellGraph).
+        '/svc/agora': {
+          target: env.VITE_AGORA_BASE || 'http://localhost:8096',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/agora/, ''),
+        },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
           target: env.VITE_MESH_BASE || 'https://mesh.socioprophet.ai',

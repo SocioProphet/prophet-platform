@@ -231,6 +231,7 @@ export const AGENT_COCKPIT: NavGroup[] = [
       { label: 'Operations', to: '/studio?section=operations' },
       { label: 'Governance', to: '/studio?section=governance' },
       { label: 'Commons', to: '/studio?section=commons' },
+      { label: 'Agora (work + wiki)', to: '/agora' },
     ],
   },
   {
