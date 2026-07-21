@@ -37,6 +37,7 @@ spec:
           - { name: synapse-bridge }
           - { name: holmes }
           - { name: portfolio-agent }
+          - { name: academy-board }
           - { name: memoryd }
           - { name: embeddings }
           - { name: regis-acr-api }
