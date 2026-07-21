@@ -5,7 +5,7 @@
 #
 # tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
 # same as portfolio-agent/synapse-bridge/holmes).
-image: { repository: academy-board, tag: latest }
+image: { repository: academy-board, tag: sha-f59cf2c937bad042565eeed561ba9a11af95919a }
 service: { port: 8095, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
