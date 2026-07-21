@@ -522,6 +522,33 @@ export const loadPipelines = (project: string) => _read(`/api/studio/pipelines?p
 export const loadModels = (project: string) => _read(`/api/studio/models?project=${encodeURIComponent(project)}`, STUB_MODELS);
 export const loadCatalog = (project: string) => _read(`/api/studio/catalog?project=${encodeURIComponent(project)}`, STUB_CATALOG);
 export const loadCompute = (project: string) => _read(`/api/studio/compute?project=${encodeURIComponent(project)}`, STUB_COMPUTE);
+
+// Execution timeline events — real per-run timings (started_at + duration_ms) for the Operations
+// gantt. Live from the bff when available; a demo window otherwise. Self-contained + fault-tolerant
+// (returns the demo window on a missing/failed endpoint) so a not-yet-wired bff never breaks Ops.
+export interface ExecutionEvent { id: string; label: string; backend: string; kind: string; epistemic: string; status: string; started_at: number; duration_ms: number }
+function demoExecutions(): { executions: ExecutionEvent[] } {
+  const now = Date.now();
+  const mk = (id: string, label: string, backend: string, kind: string, epi: string, status: string, agoMs: number, dur: number): ExecutionEvent =>
+    ({ id, label, backend, kind, epistemic: epi, status, started_at: now - agoMs, duration_ms: dur });
+  return { executions: [
+    mk("x-a", "ETL → train", "mesh-k8s", "pipeline-step", "observed", "done", 9 * 60000, 132000),
+    mk("x-b", "sweep-lr", "mesh-k8s", "job", "observed", "done", 7 * 60000, 210000),
+    mk("x-c", "doc-ingest — governed", "byo-ray", "job", "derived", "done", 5 * 60000, 96000),
+    mk("x-d", "graphrag-communities", "mesh-k8s", "query", "verified", "done", 165000, 41000),
+    mk("x-e", "notebook cell 14", "mesh-k8s", "notebook-cell", "observed", "running", 90000, 90000),
+  ] };
+}
+export async function loadExecutions(project: string): Promise<{ executions: ExecutionEvent[] }> {
+  const stub = demoExecutions();
+  if (!BASE) return stub;
+  try {
+    const res = await fetch(`${BASE.replace(/\/$/, "")}/api/studio/executions?project=${encodeURIComponent(project)}`, { headers: { accept: "application/json" } });
+    if (!res.ok) return stub;
+    const d = await res.json();
+    return Array.isArray(d?.executions) && d.executions.length ? d : stub;
+  } catch { return stub; }
+}
 export const loadCommunities = (project: string) => _read(`/api/studio/communities?project=${encodeURIComponent(project)}`, STUB_COMMUNITIES);
 
 export async function runPipeline(input: { project: string; pipeline: string; status?: string }, token: string): Promise<{ run_id: string; status: string }> {

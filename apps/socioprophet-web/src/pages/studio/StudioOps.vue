@@ -5,11 +5,12 @@
 // Foundry but sovereign + multi-backend.
 import { ref, onMounted, watch } from "vue";
 import {
-  loadPipelines, runPipeline, loadModels, promoteModel, loadCompute, execute, loadCommunities,
+  loadPipelines, runPipeline, loadModels, promoteModel, loadCompute, execute, loadCommunities, loadExecutions,
   EPISTEMIC_COLORS,
-  type Pipeline, type ModelEntry, type Compute, type Community, type ExecResult,
+  type Pipeline, type ModelEntry, type Compute, type Community, type ExecResult, type ExecutionEvent,
 } from "../../services/studioApi";
 import LineageDag from "./LineageDag.vue";
+import ExecutionTimeline from "./ExecutionTimeline.vue";
 
 const props = defineProps<{ project: string }>();
 
@@ -17,6 +18,7 @@ const pipelines = ref<Pipeline[]>([]);
 const models = ref<ModelEntry[]>([]);
 const compute = ref<Compute | null>(null);
 const communities = ref<Community[]>([]);
+const executions = ref<ExecutionEvent[]>([]);
 const loading = ref(true);
 const err = ref("");
 const token = ref("");
@@ -24,12 +26,12 @@ const token = ref("");
 async function load() {
   loading.value = true; err.value = "";
   try {
-    const [p, m, cp, cm] = await Promise.all([
+    const [p, m, cp, cm, ex] = await Promise.all([
       loadPipelines(props.project), loadModels(props.project),
-      loadCompute(props.project), loadCommunities(props.project),
+      loadCompute(props.project), loadCommunities(props.project), loadExecutions(props.project),
     ]);
     pipelines.value = p.pipelines; models.value = m.models;
-    compute.value = cp; communities.value = cm.communities;
+    compute.value = cp; communities.value = cm.communities; executions.value = ex.executions;
   } catch (e) { err.value = e instanceof Error ? e.message : "failed to load operations"; }
   finally { loading.value = false; }
 }
@@ -83,6 +85,13 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
     <p v-else-if="loading" class="msg">Loading operations…</p>
 
     <div v-else class="grid">
+      <!-- Execution timeline — real time-scaled gantt of recent runs -->
+      <section class="card wide" v-if="executions.length">
+        <header class="ch"><span class="ci">▦</span> Execution timeline<span class="tagline">live · time-scaled</span></header>
+        <ExecutionTimeline :events="executions" />
+        <p class="sub">Every bar is placed + sized from real timings (<b>started_at + duration</b>) on a shared axis, grouped by backend, with a live now-line and running tasks that grow to the present — a governed answer to the Databricks/Foundry run timeline. Each bar's stripe is the run's epistemic status.</p>
+      </section>
+
       <!-- Pay-gated compute -->
       <section class="card wide" v-if="compute">
         <header class="ch"><span class="ci">⚙</span> Compute<span class="tagline">pay-gated · sovereign · multi-backend</span></header>
