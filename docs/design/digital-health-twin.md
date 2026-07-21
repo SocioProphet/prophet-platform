@@ -133,6 +133,29 @@ hierarchy)**; labs via LOINC; the same epistemic ramp for record trust.
 6. **Trust promotion**: self-reported vs. lab-verified vs. clinician-attested — the epistemic ramp +
    promotion membrane, but who/what is allowed to promote to "attested"?
 
+## ⭐ The anatomical visual model is FIRST-CLASS (under-scoped in v1 — corrected 2026-07-21)
+
+The centerpiece of a "digital health *self*" is a **body that looks like the person, that you can look
+*into*, system by system** — exactly the anatomical organ-map posters Michael shared. The first
+skeleton (#932) led with the data/consent plane and reduced anatomy to a list of system chips; the
+body was punted to a footnote. **That was the wrong emphasis.** The visual model IS the product.
+
+Requirement:
+- A **representative human figure** on-screen with **switchable, separable anatomical layers** you can
+  view into — skeletal, muscular, cardiovascular, respiratory, nervous, digestive, urinary, endocrine,
+  lymphatic — like Complete Anatomy / BioDigital Human, but sovereign + local-first.
+- **Organs are the index into records** — click the heart → cardiology records — on the model itself.
+- **Personalization ("looks like them"):** body-shape parameters from the person's own metrics
+  (height/weight/measurements), skin tone, and (opt-in, later) an optional face/likeness. All local.
+
+Production path (NOT hand-drawn SVG — that carries the concept, not the fidelity):
+- A rigged **3D parametric human** (MakeHuman / SMPL-class body, glTF) rendered in-browser with
+  **three.js**, rotatable, with real per-system meshes toggled as layers. Self-contained/offline.
+- Interim: a higher-fidelity **layered 2D anatomical illustration set** (open medical-illustration
+  source) can bridge before the 3D model lands.
+- An interactive SVG PoC (layers + clickable organs + record links + skin-tone stub) was built in-chat
+  2026-07-21 to validate the interaction model — treat it as a wireframe, not the target.
+
 ## Guardrails (non-negotiable)
 - **Opt-in only.** Nothing is captured or shared without explicit, per-class consent.
 - **Local-first, sovereign, encrypted.** No vendor cloud by default; the user can export and leave.
