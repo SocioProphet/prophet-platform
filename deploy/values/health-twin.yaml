@@ -1,0 +1,12 @@
+# health-twin — the Digital Health Twin engine (walking skeleton). FHIR-lite record bundle keyed to
+# organ systems + governed, receipted, revocable consent grants. The cockpit's /health surface →
+# nginx /svc/health → this on :8097. Node binds 0.0.0.0 (no localhost-bind CrashLoop trap).
+#
+# NOTE: in production this engine is LOCAL-FIRST on the person's own node (never a shared cloud); this
+# deployment is the walking-skeleton demo with SYNTHETIC data only — no real PHI.
+#
+# tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern).
+image: { repository: health-twin, tag: latest }
+service: { port: 8097, portName: http }
+# tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
+tmpDir: { enabled: true }

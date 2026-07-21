@@ -101,6 +101,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/agora/, ''),
         },
+        // Digital Health Twin engine (opt-in local-first record bundle + governed consent grants).
+        '/svc/health': {
+          target: env.VITE_HEALTH_BASE || 'http://localhost:8097',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/health/, ''),
+        },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
           target: env.VITE_MESH_BASE || 'https://mesh.socioprophet.ai',

@@ -201,6 +201,7 @@ export const OPERATOR_SHORTCUTS: NavLeaf[] = [
   { label: 'Research Capture', to: '/research' },
   { label: 'Reader', to: '/reader' },
   { label: 'Journal', to: '/journal' },
+  { label: 'Health Self (opt-in)', to: '/health' },
 ];
 
 // Agent Machine cockpit — live on-device surfaces backed by the Noetica

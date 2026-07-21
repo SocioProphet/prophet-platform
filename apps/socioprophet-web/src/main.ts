@@ -20,6 +20,7 @@ import Studio from './pages/Studio.vue';
 import Discovery from './pages/Discovery.vue';
 import DataSearch from './pages/DataSearch.vue';
 import AgoraSurface from './pages/AgoraSurface.vue';
+import HealthTwin from './pages/HealthTwin.vue';
 import KnowledgeGraph from './pages/KnowledgeGraph.vue';
 import ForgeImport from './pages/ForgeImport.vue';
 import NewsFeed from './pages/NewsFeed.vue';
@@ -137,6 +138,7 @@ const explicitRoutes = [
   { path: '/discovery', component: Discovery },
   { path: '/data/search', component: DataSearch },
   { path: '/agora', component: AgoraSurface },
+  { path: '/health', component: HealthTwin },
   { path: '/knowledge/graph', component: KnowledgeGraph },
   { path: '/forge/import', component: ForgeImport },
   { path: '/news', component: NewsFeed },

@@ -38,6 +38,7 @@ spec:
           - { name: holmes }
           - { name: portfolio-agent }
           - { name: academy-board }
+          - { name: health-twin }
           - { name: memoryd }
           - { name: embeddings }
           - { name: regis-acr-api }
