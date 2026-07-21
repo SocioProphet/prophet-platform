@@ -15,6 +15,7 @@ import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { deidentify } from './deident.js';
 import { ask } from './ask.js';
+import { codeText, type CodedEntity } from './clinical.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
@@ -34,7 +35,7 @@ const grants: Grant[] = [];
 // Capture surface — voice notes, photos, documents captured across devices land here, each hash-sealed
 // with provenance + an epistemic tier. A clinician's dictated note is 'attested'; a patient photo is
 // 'observed' (self-reported). Content-addressed (hash) so media is tamper-evident. Local-first store.
-interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; system?: string; organ?: string; contentHash: string; tier: string; by: 'clinician' | 'patient'; capturedAt: string; receipt: string }
+interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; system?: string; organ?: string; contentHash: string; tier: string; by: 'clinician' | 'patient'; capturedAt: string; receipt: string; coded?: CodedEntity[] }
 const captured: Captured[] = [];
 
 // In-memory ingested store — records pulled through the connector plane (fixture mode here). Every
@@ -236,6 +237,13 @@ const server = http.createServer(async (req, res) => {
   // ── Wall 4: de-identification + blinded n-ary consults (the moat). Non-diagnostic; the aggregate is a
   // concordance signal, a clinician decides. ────────────────────────────────────────────────────────
 
+  // Clinical coder — free text → coded facts (conditions→SNOMED, meds→RxNorm, labs→LOINC) + negation.
+  // Clinical-terminology extraction for the cardiometabolic wedge; non-diagnostic (labels, not diagnoses).
+  if (req.method === 'POST' && url.pathname === '/api/health/code') {
+    try { const b = await readJson(req); return send(res, 200, codeText(String(b.text ?? ''))); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'code failed' }); }
+  }
+
   // Ask-my-agent — conversational recall over the twin, cited + non-diagnostic. Local-first (sovereign):
   // answers on the person's own node; hellgraph semantic grounding is additive when reachable.
   if (req.method === 'POST' && url.pathname === '/api/health/ask') {
@@ -258,6 +266,8 @@ const server = http.createServer(async (req, res) => {
         system: b.system ? String(b.system) : undefined, organ: b.organ ? String(b.organ) : undefined,
         contentHash: `sha-${contentHash}`, tier: kind === 'note' && by === 'clinician' ? 'attested' : 'observed',
         by, capturedAt: new Date().toISOString(), receipt: receipt('capture', [kind, caption, contentHash]).id,
+        // clinically code the note text (conditions→SNOMED, meds→RxNorm, labs→LOINC) with negation
+        coded: text ? codeText(text).entities : undefined,
       };
       captured.unshift(rec);
       return send(res, 200, { captured: rec, count: captured.length });

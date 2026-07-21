@@ -92,6 +92,9 @@ async function onFile(e: Event, kind: 'photo' | 'document') {
           <b>{{ it.caption }}</b>
           <small v-if="it.text">{{ it.text }}</small>
           <div class="ci-meta"><span class="tier" :class="it.tier === 'attested' ? 'attested' : 'observed'">{{ it.tier }}</span><span class="by">{{ it.by }}</span><span class="hash mono">{{ it.contentHash }}</span></div>
+          <div v-if="it.coded && it.coded.length" class="coded">
+            <span v-for="c in it.coded" :key="c.code" class="code-chip" :class="{ neg: c.negated }" :title="`${c.codeSystem} ${c.code}${c.negated ? ' · negated' : ''}`">{{ c.negated ? '∅ ' : '' }}{{ c.display }} <i>{{ c.codeSystem }}</i></span>
+          </div>
         </div>
       </div>
     </section>
@@ -125,5 +128,8 @@ async function onFile(e: Event, kind: 'photo' | 'document') {
 .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: var(--r-2); border: 1px solid var(--hairline); } .ic { font-size: 22px; width: 44px; text-align: center; }
 .ci-body { min-width: 0; } .ci-body b { font-size: 13px; } .ci-body small { display: block; color: var(--muted); font-size: 11.5px; margin: 1px 0 3px; }
 .ci-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 10px; } .by { color: var(--faint); text-transform: uppercase; letter-spacing: .04em; } .hash { color: var(--faint); } .mono { font-family: var(--mono); }
+.coded { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.code-chip { font-size: 10.5px; color: var(--accent-ink); background: var(--accent-wash); border: 1px solid var(--accent); border-radius: var(--pill); padding: 1px 8px; } .code-chip i { font-style: normal; color: var(--muted); font-size: 9px; }
+.code-chip.neg { color: var(--muted); background: var(--sunken); border-color: var(--hairline); text-decoration: line-through; }
 .cap-foot { font-size: 11px; color: var(--faint); border-top: 1px solid var(--hairline); padding-top: 10px; margin-top: var(--sp-4); }
 </style>
