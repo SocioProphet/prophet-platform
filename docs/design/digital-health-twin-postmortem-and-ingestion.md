@@ -160,3 +160,24 @@ lacked and the one the aggregators are being *litigated* for abusing under a "tr
 Everything is modular so a real feed — open (LOINC, RxNorm, CVX, USCDI value sets, OpenStax anatomy) or
 paid (a QHIN membership, a lab network) or patient-authorized (the person's own OAuth grant) — drops
 into a connector's `fetch` without touching `normalize` or anything downstream.
+
+### Wall 2 — reconciliation & extraction: reuse the estate, don't rebuild it
+The twin is an **orchestrator**, not a new NLP/ER/vector stack. Wall 2 delegates entirely to services
+that already exist and ship in `prophet-platform/apps/` (`src/reconcile/`):
+
+| Need | Estate service (reused) | Endpoint | What the twin does with it |
+|---|---|---|---|
+| **Cross-source dedup / golden records** | `entity-resolution` | `POST /resolve` | Feed ingested records (name + coded attributes) → **proof-carrying** golden records + a replayable decision ledger. Each golden record is annotated with the union of contributing sources. |
+| **Unstructured → facts** | `ie-engine` (spaCy) | `POST /extract` | C-CDA narrative / discharge summary / OCR'd PDF → candidate entities + claims, surfaced at **tier=hypothesis** (never promoted without clinician attestation). |
+| **Verify generated claims** | `holmes` | `POST /verify` | Any summary the twin generates has its claims verified against HellGraph — the **anti-Watson guard** (no assertion sold as truth without grounding). |
+| **Semantic search over records** | `hellgraph-service` | `POST /api/graph/node`, `GET /api/graph/ground` | Land records as typed nodes, then hybrid **HNSW⊕BM25 RRF** cited retrieval. |
+| **Entailments / promotion** | `owl-reasoner` | `POST /reason` | Reason over the twin's `twin.ttl` → RDFS/OWL-RL closure (conditions ⊑ `hdt:FHIRResource`, drives correspondence promotion). |
+| **Vectors** | `embeddings` | `POST /v1/embeddings` | 768-dim nomic vectors (L2-normalized, cosine=dot) for direct analyte-similarity when needed. |
+
+Every reconcile route **degrades gracefully**: a down service reports `degraded` and the twin keeps
+working (local-first) — a dependency is never a hard requirement. **Proven live end-to-end:** with
+`entity-resolution` running, ingesting Epic + Blue Button + Apple and calling `POST
+/api/health/reconcile` deduped 13 records → 12 golden, merging *Lisinopril* across Epic (a
+`MedicationRequest`) and Blue Button (a Part D fill) into one record with a replayable
+`MERGE_VERIFIED` decision (name_sim 1.0, attr_sim 1.0) and both sources credited — the aggregator
+"90% dedup" feature, but **auditable** and built on estate primitives, not a homegrown matcher.

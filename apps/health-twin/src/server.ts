@@ -10,6 +10,8 @@ import http from 'node:http';
 import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
 import { connectorCatalogue, runConnector } from './connectors/index.js';
 import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
+import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/reconcile.js';
+import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -156,6 +158,53 @@ const server = http.createServer(async (req, res) => {
         receipt: receipt('ingest', [connector, mode, String(added.total)]),
       });
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'ingest failed' }); }
+  }
+
+  // ── Reconciliation + reasoning plane — ORCHESTRATES existing estate services (entity-resolution,
+  // ie-engine, holmes, hellgraph-service, owl-reasoner). Every route degrades gracefully: a down
+  // service never breaks the twin, it reports 'degraded'. Non-diagnostic throughout. ────────────────
+
+  // What's connected — health of every estate service the twin reuses.
+  if (req.method === 'GET' && url.pathname === '/api/health/services') {
+    return send(res, 200, { services: await serviceHealth() });
+  }
+
+  // Cross-source dedup via entity-resolution → proof-carrying golden records (the aggregator feature,
+  // but auditable): each golden record shows the union of sources that saw it + the decision ledger.
+  if (req.method === 'POST' && url.pathname === '/api/health/reconcile') {
+    const report = await dedupeIngested(ingested);
+    return send(res, 200, { ...report, receipt: receipt('reconcile', [String(report.before), String(report.after), report.service]) });
+  }
+
+  // Unstructured narrative → candidate facts (ie-engine spaCy) + claim verification (holmes). Candidates
+  // are TIER=hypothesis, never promoted without clinician attestation.
+  if (req.method === 'POST' && url.pathname === '/api/health/extract') {
+    try {
+      const b = await readJson(req);
+      const text = String(b.text ?? '').trim();
+      if (!text) return send(res, 422, { error: 'text required' });
+      return send(res, 200, await extractNarrative(text));
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'extract failed' }); }
+  }
+
+  // Land ingested records as typed nodes in HellGraph (enables hybrid semantic search + PLN reason).
+  if (req.method === 'POST' && url.pathname === '/api/health/graph/sync') {
+    return send(res, 200, await landInGraph(ingested));
+  }
+
+  // Hybrid (HNSW⊕BM25 RRF) cited semantic search over the record graph, via hellgraph-service.
+  if (req.method === 'GET' && url.pathname === '/api/health/search') {
+    const q = url.searchParams.get('q') ?? '';
+    if (!q) return send(res, 422, { error: 'q required' });
+    const r = await graphGround(q);
+    return send(res, r.ok ? 200 : 200, r.ok ? r.data : { service: 'degraded', reason: r.reason, groundedNodes: [], citations: [] });
+  }
+
+  // Reason over the twin's typed RDF via owl-reasoner → RDFS/OWL-RL entailments (conditions ⊑
+  // hdt:FHIRResource, drives correspondence promotion). Reuses the same twin.ttl the reasoner consumes.
+  if (req.method === 'POST' && url.pathname === '/api/health/reason') {
+    const r = await reasonTurtle(twinTtl(), 'rdfs');
+    return send(res, 200, r.ok ? r.data : { service: 'degraded', reason: r.reason, entailed_triples: 0, entailments: [] });
   }
 
   // Grant a designated agent a scoped, time-boxed read grant — receipted.
