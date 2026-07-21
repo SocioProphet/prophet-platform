@@ -7,7 +7,7 @@
 // NOT a medical device. NOT diagnostic. Organises + retrieves + governs sharing of a person's own
 // records. Synthetic data only in this skeleton — no real PHI.
 import http from 'node:http';
-import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
+import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, MEDICATIONS, ALLERGIES, IMMUNIZATIONS, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
 import { connectorCatalogue, runConnector } from './connectors/index.js';
 import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
 import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/reconcile.js';
@@ -74,12 +74,14 @@ function bundle() {
     conditions: CONDITIONS.filter((c) => c.system === s.id).map(condView),
     encounters: ENCOUNTERS.filter((e) => e.system === s.id),
     imaging: IMAGING.filter((i) => i.system === s.id),
+    medications: MEDICATIONS.filter((m) => m.system === s.id),
   }));
   return {
     subject: SUBJECT,
     systems: bySystem,
+    medications: MEDICATIONS, allergies: ALLERGIES, immunizations: IMMUNIZATIONS,
     timeline: [...ENCOUNTERS].sort((a, b) => (a.date < b.date ? 1 : -1)),
-    counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length },
+    counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length, medications: MEDICATIONS.length, allergies: ALLERGIES.length, immunizations: IMMUNIZATIONS.length },
     grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
     // records pulled through the connector plane (provenance + epistemic tier on every one).
     ingested: { ...ingested, summary: ingestedSummary() },

@@ -4,9 +4,9 @@
 // over the person's own twin (no cloud needed). When hellgraph-service is reachable it can add hybrid
 // semantic grounding on top — but the twin answers on its own node first. Non-diagnostic: it recalls and
 // cites the person's records; it does not diagnose.
-import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING } from './data.js';
+import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, MEDICATIONS, ALLERGIES, IMMUNIZATIONS } from './data.js';
 
-export interface Citation { id: string; kind: 'lab' | 'condition' | 'encounter' | 'imaging'; text: string; date?: string; tier?: string; system?: string }
+export interface Citation { id: string; kind: 'lab' | 'condition' | 'encounter' | 'imaging' | 'medication' | 'allergy' | 'immunization'; text: string; date?: string; tier?: string; system?: string }
 export interface AskAnswer { question: string; answer: string; citations: Citation[]; retrieval: 'local-recall' | 'local-recall+hellgraph'; nonDiagnostic: true }
 
 // build a flat, searchable index of every record in the twin (each row keeps its provenance for citing)
@@ -17,16 +17,22 @@ function index(): Row[] {
   for (const c of CONDITIONS) rows.push({ id: c.id, kind: 'condition', text: `${c.display} — ${c.clinicalStatus}, onset ${c.onset}`, hay: `${c.display} ${c.code} ${c.system} ${c.organ} condition diagnosis problem`.toLowerCase(), date: c.onset, tier: c.epistemic, system: c.system });
   for (const e of ENCOUNTERS) rows.push({ id: e.id, kind: 'encounter', text: `${e.type} (${e.date}) — ${e.provider}: ${e.note}`, hay: `${e.type} ${e.provider} ${e.note} ${e.system} visit encounter`.toLowerCase(), date: e.date, system: e.system });
   for (const im of IMAGING) rows.push({ id: im.id, kind: 'imaging', text: `${im.modality} of ${im.bodySite} (${im.date}) — ${im.description}`, hay: `${im.modality} ${im.bodySite} ${im.description} ${im.system} imaging scan xray mri ct`.toLowerCase(), date: im.date, tier: im.epistemic, system: im.system });
+  for (const m of MEDICATIONS) rows.push({ id: m.id, kind: 'medication', text: `${m.display} — ${m.dose} (${m.status}, since ${m.started})`, hay: `${m.display} ${m.code} medication drug pill prescription taking on meds ${m.system} ${m.organ}`.toLowerCase(), date: m.started, tier: m.epistemic, system: m.system });
+  for (const a of ALLERGIES) rows.push({ id: a.id, kind: 'allergy', text: `Allergy: ${a.display} — ${a.reaction} (${a.criticality})`, hay: `${a.display} allergy allergic reaction ${a.reaction}`.toLowerCase(), tier: a.epistemic });
+  for (const im of IMMUNIZATIONS) rows.push({ id: im.id, kind: 'immunization', text: `${im.display} vaccine (${im.date})`, hay: `${im.display} immunization vaccine vaccinated shot flu tdap`.toLowerCase(), date: im.date, tier: im.epistemic });
   return rows;
 }
 
-const STOP = new Set(['the', 'a', 'an', 'i', 'my', 'me', 'was', 'were', 'is', 'are', 'did', 'do', 'what', 'when', 'where', 'how', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'that', 'this', 'it', 'as', 'kid', 'child', 'ago', 'years', 'year', 'old', 'have', 'had', 'has', 'outcome', 'result']);
+const STOP = new Set(['the', 'a', 'an', 'i', 'my', 'me', 'was', 'were', 'is', 'are', 'did', 'do', 'what', 'when', 'where', 'how', 'and', 'or', 'to', 'of', 'in', 'on', 'for', 'that', 'this', 'it', 'as', 'kid', 'child', 'ago', 'years', 'year', 'old', 'have', 'had', 'has', 'outcome', 'result', 'up', 'any', 'anything', 'currently', 'taking', 'about', 'been', 'am', 'get', 'got']);
 const SYN: Record<string, string[]> = { knee: ['knee', 'leg', 'joint'], heart: ['heart', 'cardiac', 'cardiovascular', 'bp', 'blood', 'pressure', 'cholesterol', 'ldl'], brain: ['brain', 'head', 'nervous', 'mri'], sugar: ['sugar', 'glucose', 'a1c', 'diabetes', 'prediabetes', 'pancreas'], kidney: ['kidney', 'renal', 'egfr'], liver: ['liver', 'hepatic', 'alt'], lung: ['lung', 'chest', 'respiratory', 'x-ray', 'xray'] };
 
 function terms(q: string): string[] {
   const base = q.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w && !STOP.has(w));
   const expanded = new Set(base);
-  for (const w of base) for (const [, syns] of Object.entries(SYN)) if (syns.includes(w)) syns.forEach((s) => expanded.add(s));
+  for (const w of base) {
+    if (w.endsWith('s') && w.length > 3) expanded.add(w.slice(0, -1)); // crude stem: medications→medication
+    for (const [, syns] of Object.entries(SYN)) if (syns.includes(w)) syns.forEach((s) => expanded.add(s));
+  }
   return [...expanded];
 }
 
@@ -35,7 +41,9 @@ function terms(q: string): string[] {
 export function ask(question: string): AskAnswer {
   const q = String(question || '').trim();
   const ts = terms(q);
-  const scored = index().map((r) => ({ r, score: ts.reduce((n, t) => n + (r.hay.includes(t) ? 1 : 0), 0) }))
+  const wordRe = (t: string) => new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+  // whole-word match (not substring) — so "on" doesn't match inside "prescription", etc.
+  const scored = index().map((r) => ({ r, score: ts.reduce((n, t) => n + (wordRe(t).test(r.hay) ? 1 : 0), 0) }))
     .filter((x) => x.score > 0)
     .sort((a, b) => b.score - a.score || (a.r.date && b.r.date ? (a.r.date < b.r.date ? -1 : 1) : 0));
   const hits = scored.slice(0, 4).map((x) => x.r);
