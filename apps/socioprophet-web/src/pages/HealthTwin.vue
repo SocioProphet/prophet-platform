@@ -13,6 +13,7 @@ import { loadTwin, grantAccess, revokeAccess, agentRead, listConnectors, ingestC
 import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
 import SpineOverlay from './SpineOverlay.vue';
+import ConsultView from './ConsultView.vue';
 import { plateFor, ATLAS_CREDIT } from '../data/anatomyAtlas';
 import './studio/studio-tokens.css';
 
@@ -25,7 +26,7 @@ const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const selected = ref<string>('cardiovascular');
-const view = ref<'systems' | 'spine' | 'sources'>('systems');
+const view = ref<'systems' | 'spine' | 'sources' | 'consults'>('systems');
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
@@ -173,6 +174,7 @@ async function doAgentRead(id: string) {
           <button class="vbtn" :class="{ on: view === 'systems' }" @click="view = 'systems'">Systems</button>
           <button class="vbtn" :class="{ on: view === 'spine' }" @click="view = 'spine'">Spine</button>
           <button class="vbtn" :class="{ on: view === 'sources' }" @click="view = 'sources'">Sources</button>
+          <button class="vbtn" :class="{ on: view === 'consults' }" @click="view = 'consults'">Consults</button>
         </div>
         <button class="ghost" @click="load" :disabled="loading" aria-label="Reload">↻</button>
         <button class="ghost txt" @click="optOut">Turn off</button>
@@ -273,6 +275,11 @@ async function doAgentRead(id: string) {
         <SpineOverlay :record-organs="recordOrgans" @organ="onSpineOrgan" />
       </div>
 
+      <!-- Blinded second opinions (wall 4 — the moat): consent-scoped, double-blind, non-diagnostic -->
+      <div v-else-if="twin && view === 'consults'" class="ht-consults">
+        <ConsultView />
+      </div>
+
       <!-- Sources & reconciliation: the ingest → reconcile → estate-services chain, made visible -->
       <div v-else-if="twin && view === 'sources'" class="ht-sources">
         <section class="src-main">
@@ -370,6 +377,7 @@ async function doAgentRead(id: string) {
 .vbtn.on { background: var(--accent-wash); color: var(--accent-ink); }
 .organ-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-2); background: var(--sunken); border-radius: var(--pill); padding: 1px 8px; } .organ-chip i { font-style: normal; color: var(--accent); font-size: 9px; }
 .ht-spine { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
+.ht-consults { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
 
 /* sources & reconciliation */
 .ht-sources { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--sp-3); }

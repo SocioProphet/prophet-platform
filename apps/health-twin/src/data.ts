@@ -54,7 +54,10 @@ export interface Grant {
 }
 
 // ── clearly-synthetic seed (NOT real PHI) ────────────────────────────────────────────────────────
-export const SUBJECT = { id: 'synthetic-subject-0', label: 'Demo Patient (synthetic)', note: 'Synthetic sample data — not a real person, not real medical records.' };
+// ageBand/sex are COARSENED demographics: clinically essential (a doctor needs them) and not direct
+// identifiers (HIPAA Safe Harbor permits age <90). They survive de-identification under the default
+// disclosure scope; exact DOB, name, and contacts never do.
+export const SUBJECT = { id: 'synthetic-subject-0', label: 'Demo Patient (synthetic)', note: 'Synthetic sample data — not a real person, not real medical records.', ageBand: '50s', sex: 'male' };
 
 export const OBSERVATIONS: Observation[] = [
   { id: 'obs-ldl', system: 'cardiovascular', organ: 'Heart', code: '13457-7', codeSystem: 'LOINC', display: 'LDL cholesterol', value: 148, unit: 'mg/dL', refLow: 0, refHigh: 100, effective: '2026-05-02', epistemic: 'verified', trend: [121, 126, 130, 129, 138, 142, 148] },

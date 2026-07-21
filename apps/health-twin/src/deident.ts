@@ -21,12 +21,18 @@ export interface DeidReceipt {
   pseudonym: string;
   identifiersRemoved: string[]; // categories handled
   dateShiftDays: number;        // preserves intervals; absolute dates broken
+  scope: DisclosureScope;       // the patient's agreed disclosure
   at: string;
 }
 
+// Disclosure scope — set by the PATIENT'S agreement. 'standard' shares the clinical essentials a doctor
+// needs (age-band + sex + facts) and nothing identifying. 'minimal' shares only the facts. Anything
+// beyond 'standard' is a doctor request the patient must approve (see consult.requestMore).
+export type DisclosureScope = 'minimal' | 'standard';
+
 // The de-identified view a blinded reviewer sees. Note: NO name/label/provider, subject is a pseudonym.
 export interface DeidView {
-  subject: { pseudonym: string };
+  subject: { pseudonym: string; ageBand?: string; sex?: string };
   systems: {
     id: string; label: string; organs: string[];
     observations: { code: string; codeSystem: string; display: string; value: number; unit: string; refLow?: number; refHigh?: number; effective: string; trend?: number[]; epistemic: string; organ?: string }[];
@@ -41,8 +47,9 @@ export interface DeidView {
 const NONDX = 'De-identified record for blinded review. Not a diagnosis; a clinician forms an opinion. Synthetic data.';
 
 // Build a de-identified view from the twin bundle. `salt` scopes the pseudonym + date-shift to a consult
-// so different consults are unlinkable. The bundle is the shape returned by the engine's bundle().
-export function deidentify(bundle: any, salt = 'default'): DeidView {
+// so different consults are unlinkable. `scope` = the patient's agreed disclosure ('standard' keeps the
+// coarsened age-band + sex a doctor needs). The bundle is the shape returned by the engine's bundle().
+export function deidentify(bundle: any, salt = 'default', scope: DisclosureScope = 'standard'): DeidView {
   const subjectId = bundle?.subject?.id ?? 'subject';
   const pseudonym = `anon:${djb2(`${subjectId}|${salt}`)}`;
   // per-view deterministic date shift in [-183, +182] days — breaks absolute dates, preserves intervals
@@ -75,14 +82,20 @@ export function deidentify(bundle: any, salt = 'default'): DeidView {
   if (bundle?.subject?.note) removed.add('narrative');
   removed.add('dates'); // shifted
 
+  // 'standard' scope keeps the coarsened demographics a doctor needs; 'minimal' shares only facts.
+  const subject: DeidView['subject'] = { pseudonym };
+  if (scope === 'standard') {
+    if (bundle?.subject?.ageBand) subject.ageBand = bundle.subject.ageBand;
+    if (bundle?.subject?.sex) subject.sex = bundle.subject.sex;
+  }
   return {
-    subject: { pseudonym },
+    subject,
     systems,
     disclaimer: NONDX,
     receipt: {
       method: 'safe-harbor+date-shift', pseudonym, identifiersRemoved: [...removed].sort(),
-      dateShiftDays, at: new Date().toISOString(),
-    },
+      dateShiftDays, scope, at: new Date().toISOString(),
+    } as DeidReceipt,
   };
 }
 
