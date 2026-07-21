@@ -7,6 +7,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { loadCatalog, EPISTEMIC_COLORS, type Dataset } from '../../services/studioApi';
 import Sparkline from '../../components/Sparkline.vue';
+import FactsheetDrawer from './FactsheetDrawer.vue';
 
 const props = defineProps<{ project: string }>();
 
@@ -14,7 +15,7 @@ const datasets = ref<Dataset[]>([]);
 const loading = ref(true);
 const err = ref('');
 const facet = ref<string>('all');       // connector filter
-const expanded = ref<string>('');       // dataset id whose schema is open
+const sheet = ref<Dataset | null>(null); // dataset whose factsheet drawer is open
 
 async function load() {
   loading.value = true; err.value = '';
@@ -53,7 +54,19 @@ function demoSeries(id: string): number[] {
 function series(d: Dataset): number[] { return d.volume_trend?.length ? d.volume_trend : demoSeries(d.id); }
 function isLive(d: Dataset): boolean { return !!d.volume_trend?.length; }
 function last(s: number[]): number { return s[s.length - 1] ?? 0; }
-function toggle(id: string) { expanded.value = expanded.value === id ? '' : id; }
+function openSheet(d: Dataset) { sheet.value = d; }
+
+// Attested factsheet — a deterministic, recomputable summary built from the dataset's OWN facts
+// (not model-generated prose), with a content-id receipt = a hash of those facts. Honest "attested
+// AI": the attestation is real (recompute the hash to verify), the text is extractive/templated.
+function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
+function attest(d: Dataset): { summary: string; receipt: string; live: boolean } {
+  const s = series(d);
+  const dir = s.length > 1 ? (s[s.length - 1] > s[0] ? 'rising' : s[s.length - 1] < s[0] ? 'falling' : 'flat') : 'flat';
+  const summary = `${d.name} is a ${d.epistemic_mode} dataset${d.connector ? ` ingested via ${d.connector}` : ''} with ${d.columns.length} column${d.columns.length === 1 ? '' : 's'}${d.labels.length ? ` (${d.labels.join(', ')})` : ''}. Ingest volume is ${dir} across the ${s.length} most recent snapshots.`;
+  const receipt = `fs-${djb2([d.id, d.connector || '', d.epistemic_mode, String(d.columns.length), dir].join('|'))}`;
+  return { summary, receipt, live: isLive(d) };
+}
 </script>
 
 <template>
@@ -84,7 +97,7 @@ function toggle(id: string) { expanded.value = expanded.value === id ? '' : id; 
       <div v-for="d in shown" :key="d.id" class="crow-wrap">
         <div class="crow epi-stripe" role="row" :style="{ '--epi': color(d.epistemic_mode) }">
           <span class="c-nm" role="cell">
-            <button class="nm-btn" @click="toggle(d.id)" :aria-expanded="expanded === d.id">
+            <button class="nm-btn" @click="openSheet(d)" title="Open factsheet">
               <b>{{ d.name }}</b>
               <span class="labels"><i v-for="l in d.labels" :key="l" class="lbl">{{ l }}</i></span>
             </button>
@@ -97,12 +110,29 @@ function toggle(id: string) { expanded.value = expanded.value === id ? '' : id; 
             <span class="spv tnum" :title="isLive(d) ? 'live ingest volume' : 'demo series — backend volume_trend not yet supplied'">{{ isLive(d) ? '' : '~' }}{{ last(series(d)) }}</span>
           </span>
         </div>
-        <div v-if="expanded === d.id" class="schema" role="row">
-          <span class="sk-h">schema</span>
-          <code v-for="c in d.columns" :key="c" class="col">{{ c }}</code>
-        </div>
       </div>
     </div>
+
+    <FactsheetDrawer :open="!!sheet" :title="sheet?.name" :eyebrow="sheet?.connector ? ('dataset · ' + sheet.connector) : 'dataset'" @close="sheet = null">
+      <template v-if="sheet">
+        <div class="fs-top">
+          <span class="epi-chip" :style="{ '--epi': color(sheet.epistemic_mode), '--epi-wash': 'transparent' }">{{ sheet.epistemic_mode }}</span>
+          <code class="fs-id">{{ sheet.id }}</code>
+        </div>
+        <div class="fs-facts">
+          <div class="fct"><span class="fk">Connector</span><span class="fv">{{ sheet.connector || '—' }}</span></div>
+          <div class="fct"><span class="fk">Columns</span><span class="fv tnum">{{ sheet.columns.length }}</span></div>
+          <div class="fct"><span class="fk">Labels</span><span class="fv">{{ sheet.labels.join(', ') || '—' }}</span></div>
+          <div class="fct"><span class="fk">Ingest</span><span class="fv sp"><Sparkline :series="series(sheet)" :w="90" :h="22" tone="accent" /><b class="tnum">{{ isLive(sheet) ? '' : '~' }}{{ last(series(sheet)) }}</b></span></div>
+        </div>
+        <div class="fs-sec"><h4>Schema</h4><div class="fs-cols"><code v-for="c in sheet.columns" :key="c">{{ c }}</code></div></div>
+        <div class="fs-sec attested">
+          <h4>Attested factsheet <span class="att-chip" title="deterministic · recomputable">▪ {{ attest(sheet).receipt }}</span></h4>
+          <p class="att-text">{{ attest(sheet).summary }}</p>
+          <span class="att-note">Computed from the dataset's own facts — deterministic + recomputable (the receipt is a hash of those facts), not model-generated prose. {{ attest(sheet).live ? 'Ingest volume is live.' : 'Ingest volume is a demo series until the backend supplies volume_trend.' }}</span>
+        </div>
+      </template>
+    </FactsheetDrawer>
 
     <p class="foot">Datasets are proof-carrying graph nodes — provenance + epistemic status are native fields, not a bolt-on catalog. The stripe on each row is its epistemic mode; the sparkline is ingest volume ({{ '~' }} = demo until the backend supplies <code>volume_trend</code>).</p>
   </div>
@@ -141,8 +171,21 @@ function toggle(id: string) { expanded.value = expanded.value === id ? '' : id; 
 .c-co { color: var(--ink-2); font-size: 12.5px; }
 .c-sp { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .spv { font-size: 11.5px; color: var(--muted); min-width: 30px; text-align: right; }
-.schema { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 6px var(--sp-4) 10px calc(var(--sp-4) + 3px); background: var(--sunken); }
-.sk-h { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-right: 4px; }
-.col { font-family: var(--mono); font-size: 11px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-1); padding: 1px 6px; }
 .foot { color: var(--muted); font-size: 12px; margin: var(--sp-3) 0 0; } .foot code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+
+/* factsheet drawer content */
+.fs-top { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.fs-id { font-family: var(--mono); font-size: 10.5px; color: var(--faint); word-break: break-all; }
+.fs-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.fct { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 7px 10px; background: var(--surface); }
+.fk { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+.fv { font-size: 13px; color: var(--ink); } .fv.sp { display: flex; align-items: center; gap: 6px; } .fv.sp b { font-size: 12px; color: var(--muted); }
+.fs-sec { margin-bottom: var(--sp-4); }
+.fs-sec h4 { margin: 0 0 var(--sp-2); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.fs-cols { display: flex; flex-wrap: wrap; gap: 5px; }
+.fs-cols code { font-family: var(--mono); font-size: 11px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-1); padding: 1px 6px; }
+.attested { border: 1px solid color-mix(in srgb, var(--epi-attested) 30%, var(--hairline)); border-radius: var(--r-3); padding: var(--sp-3) var(--sp-4); background: var(--epi-attested-wash, var(--sunken)); }
+.att-chip { font-family: var(--mono); font-size: 10px; color: var(--epi-attested); background: color-mix(in srgb, var(--epi-attested) 12%, transparent); border-radius: var(--r-1); padding: 1px 6px; letter-spacing: 0; text-transform: none; }
+.att-text { font-size: 13px; line-height: 1.55; color: var(--ink); margin: 0 0 8px; }
+.att-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
 </style>

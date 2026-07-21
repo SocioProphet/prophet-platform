@@ -13,8 +13,8 @@
     </form>
     <p v-if="error" class="error">{{ error }}</p>
     <div class="cols">
-      <div v-for="col in visibleCols" :key="col.key" class="col">
-        <div class="ch" :style="{ color: col.tint }">{{ col.label }}
+      <div v-for="col in visibleCols" :key="col.key" class="col" :style="{ color: col.tint }">
+        <div class="ch">{{ col.label }}
           <span v-if="col.r" class="count">{{ col.r.configured ? (col.r.ok ? `${col.r.hits.length} hits` : (col.r.error || 'unreachable')) : 'not configured' }}</span>
         </div>
         <template v-if="col.r">
@@ -53,24 +53,27 @@ async function run() {
 
 const visibleCols = computed(() => {
   const cols: Array<{ key: string; label: string; tint: string; r: SearchResult['local'] | undefined }> = [];
-  if (scope.value !== 'platform') cols.push({ key: 'local', label: 'Local · lampstand', tint: '#4ade80', r: result.value?.local });
-  if (scope.value !== 'local') cols.push({ key: 'platform', label: 'Platform · sherlock', tint: '#93c5fd', r: result.value?.platform });
+  if (scope.value !== 'platform') cols.push({ key: 'local', label: 'Local · lampstand', tint: 'var(--up)', r: result.value?.local });
+  if (scope.value !== 'local') cols.push({ key: 'platform', label: 'Platform · sherlock', tint: 'var(--info)', r: result.value?.platform });
   return cols;
 });
 </script>
 
 <style scoped>
-.surface { display: grid; gap: 1rem; max-width: 960px; margin: 1rem auto; padding: 1.5rem 1.75rem; background: var(--bg); color: rgba(255, 255, 255, 0.92); border: 1px solid var(--line-2); border-radius: 16px; }
-h1 { margin: 0; font-size: 1.25rem; } header p { margin: 0.25rem 0 0; color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; }
+/* Aligned to the cockpit token spine — no hardcoded rgba/hex. Source tint (local=up, platform=info)
+   reads each result column as its own signal, and each hit carries a left stripe in that tint. */
+.surface { display: grid; gap: 1rem; max-width: 960px; margin: 1rem auto; padding: 1.5rem 1.75rem; background: var(--surface); color: var(--text); border: 1px solid var(--line-2); border-radius: 16px; }
+h1 { margin: 0; font-size: 1.25rem; } header p { margin: 0.25rem 0 0; color: var(--text-3); font-size: 0.85rem; }
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-.bar input { flex: 1 1 240px; min-width: 0; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 10px; padding: 0.5rem 0.7rem; color: #fff; font-size: 0.9rem; }
-.bar button { border: none; background: #2563eb; color: #fff; border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; } .bar button:disabled { opacity: 0.5; }
-.scopes { display: flex; gap: 0.25rem; } .sc { background: transparent; border: none; color: rgba(255, 255, 255, 0.6); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.75rem; text-transform: capitalize; cursor: pointer; } .sc.on { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
-.error, .err2 { color: #fca5a5; font-size: 0.82rem; } .mut { color: rgba(255, 255, 255, 0.45); font-size: 0.8rem; }
+.bar input { flex: 1 1 240px; min-width: 0; background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 0.5rem 0.7rem; color: var(--text); font-size: 0.9rem; }
+.bar input:focus { outline: none; border-color: var(--accent); }
+.bar button { border: none; background: var(--accent); color: var(--bg); border-radius: 10px; padding: 0.5rem 0.9rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; } .bar button:disabled { opacity: 0.5; }
+.scopes { display: flex; gap: 0.25rem; } .sc { background: transparent; border: none; color: var(--text-3); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.75rem; text-transform: capitalize; cursor: pointer; } .sc:hover { color: var(--text); } .sc.on { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.error, .err2 { color: var(--down); font-size: 0.82rem; } .mut { color: var(--text-3); font-size: 0.8rem; }
 .cols { display: grid; grid-template-columns: 1fr; gap: 0.75rem; } @media (min-width: 720px) { .cols { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } }
-.col { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 14px; padding: 0.5rem; }
-.ch { display: flex; justify-content: space-between; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.3rem 0.5rem; } .count { color: rgba(255, 255, 255, 0.4); }
-.hit { padding: 0.4rem 0.55rem; border-radius: 8px; } .hit:hover { background: rgba(255, 255, 255, 0.05); }
-.hrow { display: flex; gap: 0.5rem; } .ht { font-weight: 600; font-size: 0.82rem; } .hs { margin-left: auto; font-size: 0.66rem; color: rgba(255, 255, 255, 0.4); }
-.hsnip { font-size: 0.76rem; color: rgba(255, 255, 255, 0.65); margin-top: 0.15rem; } .href { font-size: 0.64rem; color: rgba(255, 255, 255, 0.4); margin-top: 0.15rem; }
+.col { border: 1px solid var(--line); border-radius: 14px; padding: 0.5rem; }
+.ch { display: flex; justify-content: space-between; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.3rem 0.5rem; } .count { color: var(--text-3); }
+.hit { padding: 0.4rem 0.55rem 0.4rem 0.7rem; border-radius: 8px; border-left: 2px solid transparent; } .hit:hover { background: var(--surface-2); border-left-color: currentColor; }
+.hrow { display: flex; gap: 0.5rem; } .ht { font-weight: 600; font-size: 0.82rem; color: var(--text); } .hs { margin-left: auto; font-size: 0.66rem; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.hsnip { font-size: 0.76rem; color: var(--text-2); margin-top: 0.15rem; } .href { font-size: 0.64rem; color: var(--text-3); margin-top: 0.15rem; font-family: var(--font-mono, ui-monospace, monospace); }
 </style>
