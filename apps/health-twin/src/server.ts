@@ -12,6 +12,7 @@ import { connectorCatalogue, runConnector } from './connectors/index.js';
 import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
 import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/reconcile.js';
 import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
+import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -205,6 +206,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/health/reason') {
     const r = await reasonTurtle(twinTtl(), 'rdfs');
     return send(res, 200, r.ok ? r.data : { service: 'degraded', reason: r.reason, entailed_triples: 0, entailments: [] });
+  }
+
+  // ── CDS Hooks (HL7 CDS Hooks 2.0) — the twin as a decision-moment service inside the EHR. Cards are
+  // cited, epistemic-tiered, holmes-verified, and framed non-diagnostically. ────────────────────────
+  if (req.method === 'GET' && url.pathname === '/cds-services') return send(res, 200, discovery());
+  if (req.method === 'POST' && url.pathname.startsWith('/cds-services/')) {
+    try {
+      await readJson(req); // hook context (patientId, prefetch) — skeleton reads the local twin
+      const id = url.pathname.slice('/cds-services/'.length);
+      const base = process.env.SMART_APP_BASE ?? `http://${req.headers.host}`;
+      if (id === 'health-twin-patient-summary') return send(res, 200, await patientSummaryCards(ingested, base));
+      if (id === 'health-twin-medication-reconciliation') return send(res, 200, await medReconciliationCards(ingested, base));
+      return send(res, 404, { error: `unknown cds-service: ${id}` });
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'cds failed' }); }
   }
 
   // Grant a designated agent a scoped, time-boxed read grant — receipted.
