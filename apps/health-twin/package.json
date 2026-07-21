@@ -1,0 +1,10 @@
+{
+  "name": "health-twin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Digital Health Twin engine (walking skeleton) — opt-in, local-first, sovereign FHIR-lite record store + governed consent grants. Synthetic data only; non-diagnostic.",
+  "dependencies": {
+    "tsx": "^4.19.2"
+  }
+}
