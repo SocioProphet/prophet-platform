@@ -108,7 +108,8 @@ export async function askTwin(q: string): Promise<AskAnswer> {
 }
 
 // ── Capture surface: voice notes / photos / documents → the twin, hash-sealed + tier-tagged ────────
-export interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; tier: string; by: string; contentHash: string; organ?: string; system?: string; capturedAt: string; receipt: string }
+export interface CodedEntity { text: string; category: string; code: string; codeSystem: string; display: string; negated: boolean }
+export interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; tier: string; by: string; contentHash: string; organ?: string; system?: string; capturedAt: string; receipt: string; coded?: CodedEntity[] }
 export async function capture(payload: { kind: string; by: string; caption?: string; text?: string; system?: string; organ?: string; contentHash?: string }): Promise<{ captured: Captured; count: number }> {
   const res = await fetch(`${BASE}/api/health/capture`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   if (!res.ok) throw new Error(`capture failed (${res.status})`);
