@@ -8,6 +8,8 @@
 // records. Synthetic data only in this skeleton — no real PHI.
 import http from 'node:http';
 import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
+import { connectorCatalogue, runConnector } from './connectors/index.js';
+import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -22,6 +24,29 @@ function receipt(kind: string, parts: string[]): { id: string; verifier: 'health
 
 // In-memory grant ledger (skeleton). Local-first store in production.
 const grants: Grant[] = [];
+
+// In-memory ingested store — records pulled through the connector plane (fixture mode here). Every
+// record carries provenance + an epistemic tier (the lineage Watson Health never had). Local-first in
+// production; this accumulates across ingest calls so the twin reflects what's been connected.
+let ingested: IngestResult = emptyResult();
+
+// A compact summary of what's been ingested: which sources, and which USCDI classes are now covered.
+function ingestedSummary() {
+  const all = [
+    ...ingested.observations, ...ingested.conditions, ...ingested.medications,
+    ...ingested.immunizations, ...ingested.allergies, ...ingested.imaging, ...ingested.coverage,
+  ];
+  const sources = new Map<string, { source: string; connector: string; mode: string; count: number }>();
+  const uscdi = new Set<string>();
+  for (const r of all as any[]) {
+    const p = r.provenance; if (!p) continue;
+    uscdi.add(p.uscdi);
+    const k = p.source;
+    const s = sources.get(k) ?? { source: p.source, connector: p.connector, mode: p.mode, count: 0 };
+    s.count += 1; sources.set(k, s);
+  }
+  return { counts: resultCounts(ingested), sources: [...sources.values()], uscdiCoverage: [...uscdi].sort() };
+}
 
 // enrich a record with its ontology IRIs so it lands in HellGraph as a typed node, not a label string.
 const obsView = (o: Observation) => ({ ...o, classIri: OBSERVATION_CLASS, organIri: ORGAN_IRI[o.organ] ?? null });
@@ -42,6 +67,8 @@ function bundle() {
     timeline: [...ENCOUNTERS].sort((a, b) => (a.date < b.date ? 1 : -1)),
     counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length },
     grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
+    // records pulled through the connector plane (provenance + epistemic tier on every one).
+    ingested: { ...ingested, summary: ingestedSummary() },
     // the twin speaks the estate's ontology: every fact carries a class IRI from the HDT ontology.
     ontology: { health: HEALTH_NS, hdt: HDT_NS, subjectClass: `${HDT_NS}HumanDigitalTwin`, note: 'Facts carry health:/hdt: class IRIs so they type into HellGraph + reason in Ontogenesis.' },
     disclaimer: 'Synthetic sample. Not a real person, not medical advice. This tool organises records; it does not diagnose.',
@@ -102,6 +129,33 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
     res.writeHead(200, { 'content-type': 'text/turtle; charset=utf-8', 'access-control-allow-origin': '*' });
     return res.end(twinTtl());
+  }
+
+  // The connector catalogue — "connect a source". Each proves out on a real-schema fixture and flips
+  // to live with a credential (no downstream change).
+  if (req.method === 'GET' && url.pathname === '/api/health/connectors') {
+    return send(res, 200, { connectors: connectorCatalogue(), summary: ingestedSummary() });
+  }
+
+  // Ingest from a connector: fetch(mode) → normalize() → merge into the twin. fixture mode proves the
+  // live path (normalize is mode-invariant). Every landed record carries provenance + an epistemic tier.
+  if (req.method === 'POST' && url.pathname === '/api/health/ingest') {
+    try {
+      const b = await readJson(req);
+      const connector = String(b.connector ?? '').trim() as SourceId;
+      const mode = (String(b.mode ?? 'fixture').trim() || 'fixture') as IngestMode;
+      if (!connector) return send(res, 422, { error: 'connector required' });
+      const delta = await runConnector(connector, mode);
+      ingested = mergeResults([ingested, delta]);
+      const added = resultCounts(delta);
+      const sample = [...delta.observations, ...delta.conditions, ...delta.medications, ...delta.imaging][0] as any;
+      return send(res, 200, {
+        connector, mode, added, added_result: delta,
+        provenanceSample: sample?.provenance ?? null,
+        summary: ingestedSummary(),
+        receipt: receipt('ingest', [connector, mode, String(added.total)]),
+      });
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'ingest failed' }); }
   }
 
   // Grant a designated agent a scoped, time-boxed read grant — receipted.
