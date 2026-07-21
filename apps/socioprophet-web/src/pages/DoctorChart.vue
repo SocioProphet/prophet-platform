@@ -4,16 +4,22 @@
 // one-tap voice/keyboard entry, labs with trends, and the full history as far back as it goes. Noetica's
 // intelligence, focused on the clinician. Non-diagnostic; a clinician decides.
 import { ref, computed, onMounted } from 'vue';
-import { loadTwin, addReading, type TwinBundle } from '../services/healthTwinApi';
+import { loadTwin, addReading, groundEvidence, type TwinBundle, type TwinEvidence } from '../services/healthTwinApi';
 import Sparkline from '../components/Sparkline.vue';
 
 const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const flash = ref('');
+const evidence = ref<TwinEvidence[]>([]);
+const evContext = ref('');
+const evByRecord = computed(() => { const m: Record<string, TwinEvidence> = {}; for (const e of evidence.value) m[e.recordId] = e; return m; });
 async function load() {
   loading.value = true; err.value = '';
-  try { twin.value = await loadTwin(); } catch (e) { err.value = e instanceof Error ? e.message : 'chart unreachable'; }
+  try {
+    twin.value = await loadTwin();
+    try { const g = await groundEvidence(); evidence.value = g.items; evContext.value = g.context; } catch { /* evidence optional */ }
+  } catch (e) { err.value = e instanceof Error ? e.message : 'chart unreachable'; }
   finally { loading.value = false; }
 }
 onMounted(load);
@@ -78,7 +84,10 @@ async function submitReading() {
       <section class="dc-grid3">
         <div class="dc-card">
           <div class="dc-card-h">Active problems</div>
-          <div v-for="c in conditions" :key="c.id" class="dc-line"><b>{{ c.display }}</b><span class="dc-sub">{{ c.codeSystem }} {{ c.code }} · {{ c.clinicalStatus }}</span></div>
+          <div v-for="c in conditions" :key="c.id" class="dc-line">
+            <b>{{ c.display }}</b><span class="dc-sub">{{ c.codeSystem }} {{ c.code }} · {{ c.clinicalStatus }}</span>
+            <div v-if="evByRecord[c.id]" class="dc-ev">▸ {{ evByRecord[c.id].evidence }}<span class="dc-ev-src">⟢ {{ evByRecord[c.id].citations.map((x) => x.source).join('; ') }}</span></div>
+          </div>
           <p v-if="!conditions.length" class="dc-empty">none recorded</p>
         </div>
         <div class="dc-card">
@@ -106,15 +115,35 @@ async function submitReading() {
         </div>
       </section>
 
-      <!-- labs with trends -->
+      <!-- body systems: the anatomical twin for the clinician — full record where authorized -->
       <section class="dc-card">
-        <div class="dc-card-h">Labs</div>
-        <div v-for="o in labs" :key="o.id" class="dc-lab">
-          <span class="dc-lab-nm">{{ o.display }}</span>
-          <span class="dc-lab-v" :class="{ oor: oor(o) }">{{ o.value }} <i>{{ o.unit }}</i></span>
-          <Sparkline v-if="o.trend" :series="o.trend" :w="120" :h="26" :tone="oor(o) ? 'down' : 'accent'" />
-          <span class="dc-lab-ref">ref {{ o.refLow ?? '—' }}–{{ o.refHigh ?? '—' }}</span>
-          <span class="dc-lab-d">{{ o.effective }}</span>
+        <div class="dc-card-h">Body systems <span class="dc-sub">the anatomical twin · full record where the patient opted in</span></div>
+        <div class="dc-systems">
+          <div v-for="s in twin.systems" :key="s.id" class="dc-sys">
+            <div class="dc-sys-h"><b>{{ s.label }}</b><span>{{ s.organs.join(' · ') }}</span></div>
+            <div class="dc-sys-counts">
+              <span v-if="s.observations.length" class="dc-chip">{{ s.observations.length }} labs</span>
+              <span v-if="s.conditions.length" class="dc-chip warn">{{ s.conditions.length }} problems</span>
+              <span v-if="s.imaging.length" class="dc-chip">{{ s.imaging.length }} imaging</span>
+              <span v-if="s.encounters.length" class="dc-chip">{{ s.encounters.length }} visits</span>
+              <span v-if="!(s.observations.length || s.conditions.length || s.imaging.length || s.encounters.length)" class="dc-empty">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- labs with trends + evidence grounded on the twin -->
+      <section class="dc-card">
+        <div class="dc-card-h">Labs <span v-if="evContext" class="dc-sub">evidence contextualized to: {{ evContext }}</span></div>
+        <div v-for="o in labs" :key="o.id" class="dc-labwrap">
+          <div class="dc-lab">
+            <span class="dc-lab-nm">{{ o.display }}</span>
+            <span class="dc-lab-v" :class="{ oor: oor(o) }">{{ o.value }} <i>{{ o.unit }}</i></span>
+            <Sparkline v-if="o.trend" :series="o.trend" :w="120" :h="26" :tone="oor(o) ? 'down' : 'accent'" />
+            <span class="dc-lab-ref">ref {{ o.refLow ?? '—' }}–{{ o.refHigh ?? '—' }}</span>
+            <span class="dc-lab-d">{{ o.effective }}</span>
+          </div>
+          <div v-if="evByRecord[o.id]" class="dc-ev">▸ {{ evByRecord[o.id].evidence }}<span class="dc-ev-src">⟢ {{ evByRecord[o.id].citations.map((x) => x.source).join('; ') }} · {{ evByRecord[o.id].retrieval }}</span></div>
         </div>
       </section>
 
@@ -150,6 +179,14 @@ async function submitReading() {
 .dc-flash { font-weight: 400; color: var(--ok); text-transform: none; letter-spacing: 0; }
 .dc-line { padding: 6px 0; border-top: 1px solid var(--hairline); } .dc-line:first-of-type { border-top: 0; } .dc-line b { font-size: 14px; } .dc-sub { display: block; color: var(--muted); font-size: 11.5px; }
 .dc-empty { color: var(--faint); font-size: 12.5px; }
+.dc-ev { margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--ink-2); background: var(--accent-wash); border-left: 2px solid var(--accent); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 5px 9px; }
+.dc-ev-src { display: block; color: var(--faint); font-size: 10.5px; margin-top: 2px; }
+.dc-systems { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.dc-sys { border: 1px solid var(--hairline); border-radius: var(--r-2); background: var(--sunken); padding: 8px 10px; }
+.dc-sys-h b { font-size: 13px; } .dc-sys-h span { display: block; color: var(--muted); font-size: 10.5px; }
+.dc-sys-counts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.dc-chip { font-size: 10.5px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--pill); padding: 1px 8px; } .dc-chip.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--hairline)); }
+.dc-labwrap { border-top: 1px solid var(--hairline); padding: 8px 0; } .dc-labwrap:first-of-type { border-top: 0; } .dc-labwrap .dc-lab { border-top: 0; padding: 0; }
 .dc-entry { display: flex; gap: 8px; margin-bottom: 10px; }
 .dc-in { flex: 1; min-height: 44px; border: 1px solid var(--hairline-strong); border-radius: var(--r-2); padding: 0 14px; font: inherit; font-size: 15px; background: var(--sunken); color: var(--ink); }
 .dc-in:focus { outline: 0; border-color: var(--accent); }

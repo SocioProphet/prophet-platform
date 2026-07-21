@@ -19,6 +19,7 @@ import { ground, groundFromBrain } from './knowledge.js';
 import { communityAggregate, communityScopes, type Scope } from './enclave.js';
 import { directory, provider, careTeam } from './providers.js';
 import { parseReadings, type Reading } from './readings.js';
+import { groundTwin } from './evidence.js';
 import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
@@ -312,6 +313,10 @@ const server = http.createServer(async (req, res) => {
     try { const b = await readJson(req); return send(res, 200, communityAggregate((b.scope ?? {}) as Scope)); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'aggregate failed' }); }
   }
+
+  // Evidence grounded ON the twin — the brain lookup contextualized by the patient's own record and
+  // bound evidentiarily to each finding. The clinician chart shows the literature behind each number.
+  if (req.method === 'GET' && url.pathname === '/api/health/evidence') return send(res, 200, await groundTwin());
 
   // Provider directory + a provider's profile (the patient reviews who their doctors are).
   if (req.method === 'GET' && url.pathname === '/api/health/providers') return send(res, 200, { providers: directory(), careTeam: careTeam() });

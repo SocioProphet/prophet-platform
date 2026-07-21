@@ -37,6 +37,13 @@ export async function addReading(text: string, by = 'clinician', source = 'keybo
   if (!res.ok) throw new Error(`reading failed (${res.status})`);
   return await res.json();
 }
+// evidence grounded ON the twin — contextual (patient-specific query) + evidentiary (bound to a record)
+export interface TwinEvidence { recordId: string; finding: string; query: string; evidence: string; citations: { source: string; tier: string }[]; retrieval: string }
+export async function groundEvidence(): Promise<{ context: string; items: TwinEvidence[] }> {
+  const res = await fetch(`${BASE}/api/health/evidence`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`evidence failed (${res.status})`);
+  return await res.json();
+}
 
 export async function loadTwin(): Promise<TwinBundle> {
   const res = await fetch(`${BASE}/api/health/twin`, { headers: { accept: 'application/json' } });
