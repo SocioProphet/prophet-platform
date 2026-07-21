@@ -16,6 +16,7 @@ import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cd
 import { deidentify } from './deident.js';
 import { ask } from './ask.js';
 import { codeText, type CodedEntity } from './clinical.js';
+import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
@@ -236,6 +237,10 @@ const server = http.createServer(async (req, res) => {
 
   // ── Wall 4: de-identification + blinded n-ary consults (the moat). Non-diagnostic; the aggregate is a
   // concordance signal, a clinician decides. ────────────────────────────────────────────────────────
+
+  // Guideline-grounded guidance — the twin's own numbers → cited, non-diagnostic recommendations
+  // grounded in real clinical guidelines (ACC/AHA, ADA, USPSTF, KDIGO).
+  if (req.method === 'GET' && url.pathname === '/api/health/guidance') return send(res, 200, guidance());
 
   // Clinical coder — free text → coded facts (conditions→SNOMED, meds→RxNorm, labs→LOINC) + negation.
   // Clinical-terminology extraction for the cardiometabolic wedge; non-diagnostic (labels, not diagnoses).
