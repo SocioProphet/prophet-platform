@@ -1,0 +1,11 @@
+# academy-board — the sovereign scoring service behind the Academy mastery check. The answer key
+# lives in the image, never in the browser bundle, so grading is a real authority (not client-side
+# `pick === answer`), and each verdict carries a deterministic receipt. The cockpit's mastery check
+# → nginx /svc/board → this on :8095. Node binds 0.0.0.0 (no localhost-bind CrashLoop trap).
+#
+# tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern,
+# same as portfolio-agent/synapse-bridge/holmes).
+image: { repository: academy-board, tag: latest }
+service: { port: 8095, portName: http }
+# tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
+tmpDir: { enabled: true }

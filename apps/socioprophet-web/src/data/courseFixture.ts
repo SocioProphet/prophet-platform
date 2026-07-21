@@ -16,13 +16,15 @@ export interface Lesson {
   transcript: string;    // the captured lecture segment the tutor quotes from
 }
 
+// The mastery-check question as the browser sees it — question + options ONLY. The correct-answer
+// index and the explanation are NOT here: they live in the academy-board service and are revealed
+// only in a graded verdict (see services/academyBoard.ts). Shipping the answer key to the client
+// would make the board trivially cheatable and the "verified assessment" claim a paper tiger.
 export interface AssessmentItem {
   id: string;
   concept: string;
   q: string;
   options: string[];
-  answer: number;        // index into options
-  explain: string;
 }
 
 export interface Course {
@@ -85,26 +87,23 @@ const PHYSICS_801: Course = {
         'An object moving in a circle at constant speed is still accelerating, because the direction of its velocity is always changing. That acceleration points toward the center of the circle and is called centripetal acceleration; its magnitude is v squared divided by r. There is no such thing as centrifugal force pushing you outward — what you feel is your own inertia, and some real force, such as tension or friction, must point inward to keep you on the circular path.',
     },
   ],
+  // Questions + options only — the answer key lives server-side in academy-board (keys.ts).
   assessment: [
     {
       id: 'a1', concept: 'acceleration', q: 'A ball is thrown straight up. At the highest point of its flight, what is true?',
       options: ['Velocity and acceleration are both zero', 'Velocity is zero, acceleration is 9.8 m/s² downward', 'Velocity is maximum, acceleration is zero', 'Both point upward'],
-      answer: 1, explain: 'At the top the ball is momentarily at rest (v = 0) but gravity never stops — acceleration is 9.8 m/s² downward throughout (Lecture 2).',
     },
     {
       id: 'a2', concept: 'projectile motion', q: 'A bullet fired horizontally and a bullet dropped from the same height — which lands first?',
       options: ['The fired bullet', 'The dropped bullet', 'They land at the same time', 'Depends on the muzzle speed'],
-      answer: 2, explain: 'Horizontal and vertical motion are independent; both have the same vertical drop under gravity, so they land together (Lecture 3).',
     },
     {
       id: 'a3', concept: 'Newton’s third law', q: 'Why do action–reaction force pairs never cancel each other out?',
       options: ['They are unequal', 'They act on different objects', 'One is always larger', 'They act at different times'],
-      answer: 1, explain: 'Newton’s third-law pairs are equal and opposite but act on different bodies, so they can’t cancel on a single object (Lecture 4).',
     },
     {
       id: 'a4', concept: 'centripetal force', q: 'What keeps an object moving in a circle at constant speed?',
       options: ['An outward centrifugal force', 'No force — it moves freely', 'A net force directed toward the center', 'Its own momentum only'],
-      answer: 2, explain: 'A centripetal (center-pointing) net force is required; “centrifugal force” is just felt inertia, not a real inward force (Lecture 5).',
     },
   ],
 };

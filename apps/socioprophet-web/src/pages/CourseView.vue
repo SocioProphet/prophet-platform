@@ -35,11 +35,14 @@
         </template>
 
         <template v-else-if="tab === 'quiz'">
-          <div class="cvw-lesson-h">Mastery check <span>board engine · deterministic scoring</span></div>
+          <div class="cvw-lesson-h">Mastery check <span>board engine · server-scored · receipts</span></div>
           <div class="cvw-score" :class="{ done: answered === course.assessment.length }">
             <b>{{ correct }}</b> / {{ course.assessment.length }} correct
             <span v-if="answered < course.assessment.length">· {{ course.assessment.length - answered }} to go</span>
-            <span v-else class="cvw-score-tag">{{ correct === course.assessment.length ? 'mastered' : 'keep going' }}</span>
+            <template v-else>
+              <span class="cvw-score-tag">{{ board?.mastered ? 'mastered' : 'keep going' }}</span>
+              <span v-if="board" class="cvw-receipt" :title="board.receipt.formula">▪ {{ board.receipt.id }}</span>
+            </template>
           </div>
           <div v-for="item in course.assessment" :key="item.id" class="cvw-q">
             <div class="cvw-q-text">{{ item.q }}</div>
@@ -54,8 +57,11 @@
                 <span class="cvw-opt-mark">{{ optMark(item, i) }}</span>{{ opt }}
               </button>
             </div>
-            <div v-if="picks[item.id] !== undefined" class="cvw-explain" :class="{ ok: picks[item.id] === item.answer }">
-              {{ picks[item.id] === item.answer ? '✓ ' : '✗ ' }}{{ item.explain }}
+            <div v-if="grading[item.id]" class="cvw-explain">Grading on the board engine…</div>
+            <div v-else-if="unavailable[item.id]" class="cvw-explain unavail">Board engine unavailable — click an option to retry.</div>
+            <div v-else-if="verdicts[item.id]" class="cvw-explain" :class="{ ok: verdicts[item.id].correct }">
+              {{ verdicts[item.id].correct ? '✓ ' : '✗ ' }}{{ verdicts[item.id].explain }}
+              <span class="cvw-receipt" :title="verdicts[item.id].receipt.formula">▪ {{ verdicts[item.id].receipt.id }} · {{ verdicts[item.id].chunkRef }}</span>
             </div>
           </div>
         </template>
@@ -76,6 +82,7 @@ import SurfaceHeader from '../components/SurfaceHeader.vue';
 import GroundedTutor from '../components/GroundedTutor.vue';
 import { useCockpit } from '../stores/cockpit';
 import { getCourse, type AssessmentItem } from '../data/courseFixture';
+import { gradeItem, gradeBoard, type ItemVerdict, type BoardVerdict } from '../services/academyBoard';
 
 const route = useRoute();
 const cockpit = useCockpit();
@@ -92,27 +99,62 @@ function openLesson(id: string) {
   nextTick(() => transcriptEl.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 }
 
-// Mastery check state
+// Mastery check state. The correct answer is NOT in this bundle — every verdict comes from the
+// academy-board service, so `picks` only records which option the learner chose; the graded
+// verdict (with its receipt + the authoritative answer index) lands in `verdicts`.
 const picks = ref<Record<string, number>>({});
-function pick(itemId: string, i: number) { if (picks.value[itemId] === undefined) picks.value = { ...picks.value, [itemId]: i }; }
-const answered = computed(() => Object.keys(picks.value).length);
-const correct = computed(() => course.value.assessment.filter((it) => picks.value[it.id] === it.answer).length);
+const verdicts = ref<Record<string, ItemVerdict>>({});
+const grading = ref<Record<string, boolean>>({});
+const unavailable = ref<Record<string, boolean>>({});
+const board = ref<BoardVerdict | null>(null);
+
+async function pick(itemId: string, i: number) {
+  if (picks.value[itemId] !== undefined) return;
+  picks.value = { ...picks.value, [itemId]: i };
+  unavailable.value = { ...unavailable.value, [itemId]: false };
+  grading.value = { ...grading.value, [itemId]: true };
+  const v = await gradeItem(course.value.id, itemId, i);
+  grading.value = { ...grading.value, [itemId]: false };
+  if (v) {
+    verdicts.value = { ...verdicts.value, [itemId]: v };
+  } else {
+    // Board engine unreachable — degrade honestly, never fake a verdict. Re-enable for retry.
+    unavailable.value = { ...unavailable.value, [itemId]: true };
+    const { [itemId]: _drop, ...rest } = picks.value;
+    picks.value = rest;
+  }
+}
+
+const answered = computed(() => Object.keys(verdicts.value).length);
+const correct = computed(() => Object.values(verdicts.value).filter((v) => v.correct).length);
 function optClass(item: AssessmentItem, i: number) {
-  const p = picks.value[item.id];
-  if (p === undefined) return '';
-  if (i === item.answer) return 'correct';
-  if (i === p) return 'wrong';
+  const v = verdicts.value[item.id];
+  if (!v) return '';
+  if (i === v.answer) return 'correct';
+  if (i === picks.value[item.id]) return 'wrong';
   return 'muted';
 }
 function optMark(item: AssessmentItem, i: number): string {
-  const p = picks.value[item.id];
-  if (p === undefined) return '○';
-  if (i === item.answer) return '✓';
-  if (i === p) return '✗';
+  const v = verdicts.value[item.id];
+  if (!v) return '○';
+  if (i === v.answer) return '✓';
+  if (i === picks.value[item.id]) return '✗';
   return '○';
 }
 
-watch(course, (c) => { selectedId.value = c.lessons[0]?.id ?? ''; tab.value = 'lesson'; picks.value = {}; });
+// Once every item is graded, fetch the board-level receipt that binds the per-item verdicts —
+// so a "mastered" claim is itself checkable, not just a client-side count.
+watch(answered, async (n) => {
+  if (n === course.value.assessment.length && !board.value) {
+    board.value = await gradeBoard(course.value.id, Object.entries(picks.value).map(([itemId, p]) => ({ itemId, pick: p })));
+  }
+});
+
+watch(course, (c) => {
+  selectedId.value = c.lessons[0]?.id ?? '';
+  tab.value = 'lesson';
+  picks.value = {}; verdicts.value = {}; grading.value = {}; unavailable.value = {}; board.value = null;
+});
 watch([() => route.path, tab, selectedId], () => {
   cockpit.setContext({ surface: 'Academy · Course', entityLabel: course.value.title, detail: tab.value === 'quiz' ? 'mastery check' : (lesson.value?.title ?? ''), route: route.path });
 }, { immediate: true });
@@ -155,7 +197,8 @@ onMounted(() => { if (route.path.endsWith('/tutor')) { /* land on flagship with 
 .cvw-opt.correct { border-color: rgba(63,185,80,0.5); background: rgba(63,185,80,0.08); color: #86efac; } .cvw-opt.correct .cvw-opt-mark { color: var(--up); }
 .cvw-opt.wrong { border-color: rgba(248,81,73,0.5); background: rgba(248,81,73,0.08); color: #fca5a5; } .cvw-opt.wrong .cvw-opt-mark { color: var(--down); }
 .cvw-opt.muted { opacity: 0.5; }
-.cvw-explain { margin-top: 0.4rem; font-size: 0.76rem; line-height: 1.5; color: var(--text-3); } .cvw-explain.ok { color: #86efac; }
+.cvw-explain { margin-top: 0.4rem; font-size: 0.76rem; line-height: 1.5; color: var(--text-3); } .cvw-explain.ok { color: #86efac; } .cvw-explain.unavail { color: var(--down); }
+.cvw-receipt { margin-left: 0.4rem; font-family: ui-monospace, monospace; font-size: 0.64rem; color: var(--text-3); white-space: nowrap; }
 
 .cvw-tutor { min-height: 0; overflow-y: auto; }
 </style>

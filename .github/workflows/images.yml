@@ -76,6 +76,7 @@ jobs:
           - { image: synapse-bridge,        context: apps/synapse-bridge,        dockerfile: Dockerfile }
           - { image: holmes,                context: apps/holmes,                dockerfile: Dockerfile }
           - { image: portfolio-agent,       context: apps/portfolio-agent,       dockerfile: Dockerfile }
+          - { image: academy-board,         context: apps/academy-board,         dockerfile: Dockerfile }
           - { image: memoryd,               context: apps/memoryd,               dockerfile: Dockerfile }
           - { image: node-commander,        context: apps/node-commander,        dockerfile: Dockerfile }
           - { image: liberty-stack-readout, context: apps/liberty-stack-readout, dockerfile: Dockerfile }

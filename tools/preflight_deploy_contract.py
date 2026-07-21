@@ -115,10 +115,12 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
-    "portfolio-agent:moving-tag": (
-        "New service — the sovereign cloud portfolio agent (Portfolio ②, apps/portfolio-agent: concentration/VaR/"
-        "rebalance on :8094) added to CI this PR. Pin tag:latest -> the sha- tag gitops-promote writes after the "
-        "first CI build; no sha exists until merge."
+    # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
+    # sha-a6d8311383) → removed from the ratchet (it only shrinks).
+    "academy-board:moving-tag": (
+        "New service — the sovereign Academy board engine (apps/academy-board: server-authoritative mastery-check "
+        "grading + receipts on :8095, answer key never ships to the browser) added to CI this PR. Pin tag:latest -> "
+        "the sha- tag gitops-promote writes after the first CI build; no sha exists until merge."
     ),
     # sherlock-engine pinned to a sha- tag by gitops-promote after the 0.0.0.0 bind fix (#887) → removed
     # from the ratchet (it only shrinks). Same for synapse-bridge + holmes: gitops-promote sha-pinned both

@@ -89,6 +89,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/portfolio/, ''),
         },
+        // Sovereign Academy board engine (server-authoritative mastery-check grading + receipts).
+        '/svc/board': {
+          target: env.VITE_BOARD_BASE || 'http://localhost:8095',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/board/, ''),
+        },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
           target: env.VITE_MESH_BASE || 'https://mesh.socioprophet.ai',

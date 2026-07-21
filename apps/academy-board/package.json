@@ -1,0 +1,10 @@
+{
+  "name": "academy-board",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sovereign Academy board engine — server-authoritative mastery-check grading with deterministic receipts (answer key never ships to the browser)",
+  "dependencies": {
+    "tsx": "^4.19.2"
+  }
+}
