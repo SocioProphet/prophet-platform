@@ -9,7 +9,7 @@
 // Guardrails, enforced in the UI: opt-in gate before anything renders · non-diagnostic framing ·
 // nothing shared without an explicit grant · every access receipted.
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { loadTwin, grantAccess, revokeAccess, agentRead, type TwinBundle, type SystemBundle, type Observation, type Condition } from '../services/healthTwinApi';
+import { loadTwin, grantAccess, revokeAccess, agentRead, listConnectors, ingestConnector, reconcile, serviceHealth, type TwinBundle, type SystemBundle, type Observation, type Condition, type ConnectorMeta, type IngestSummary, type ServiceHealth, type ReconcileReport } from '../services/healthTwinApi';
 import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
 import SpineOverlay from './SpineOverlay.vue';
@@ -25,7 +25,7 @@ const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const selected = ref<string>('cardiovascular');
-const view = ref<'systems' | 'spine'>('systems');
+const view = ref<'systems' | 'spine' | 'sources'>('systems');
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
@@ -38,6 +38,35 @@ async function load() {
   finally { loading.value = false; }
 }
 onMounted(() => { if (optedIn.value) load(); });
+
+// Sources & reconciliation — the ingest → reconcile → estate-services chain, made visible. The twin
+// ORCHESTRATES existing services (entity-resolution, ie-engine, holmes, hellgraph, owl-reasoner); it
+// never rebuilds them. Every call degrades gracefully.
+const connectors = ref<ConnectorMeta[]>([]);
+const ingestSummary = ref<IngestSummary | null>(null);
+const services = ref<ServiceHealth[]>([]);
+const recon = ref<ReconcileReport | null>(null);
+const busy = ref<string>('');
+async function loadSources() {
+  try {
+    const [c, s] = await Promise.all([listConnectors(), serviceHealth()]);
+    connectors.value = c.connectors; ingestSummary.value = c.summary; services.value = s.services;
+  } catch (e) { say(e instanceof Error ? e.message : 'sources unreachable'); }
+}
+async function doIngest(id: string) {
+  busy.value = id;
+  try { const r = await ingestConnector(id); ingestSummary.value = r.summary; say(`Ingested ${r.added.total} record(s) · receipt ${r.receipt.id}`); }
+  catch (e) { say(e instanceof Error ? e.message : 'ingest failed'); }
+  finally { busy.value = ''; }
+}
+async function doReconcile() {
+  busy.value = 'reconcile';
+  try { recon.value = await reconcile(); say(recon.value.service === 'entity-resolution' ? `Reconciled ${recon.value.before}→${recon.value.after} (${recon.value.merged} merged)` : `Reconcile ${recon.value.reason ?? 'degraded'}`); }
+  catch (e) { say(e instanceof Error ? e.message : 'reconcile failed'); }
+  finally { busy.value = ''; }
+}
+const ingestedCount = (id: string): number => ingestSummary.value?.sources.find((s) => s.source === id)?.count ?? 0;
+watch(view, (v) => { if (v === 'sources' && connectors.value.length === 0) loadSources(); });
 
 function epi(mode: string): string { return EPISTEMIC_COLORS[mode] || 'var(--epi-unknown)'; }
 function recordCount(s: SystemBundle): number { return s.observations.length + s.conditions.length + s.encounters.length + s.imaging.length; }
@@ -143,6 +172,7 @@ async function doAgentRead(id: string) {
         <div class="ht-views">
           <button class="vbtn" :class="{ on: view === 'systems' }" @click="view = 'systems'">Systems</button>
           <button class="vbtn" :class="{ on: view === 'spine' }" @click="view = 'spine'">Spine</button>
+          <button class="vbtn" :class="{ on: view === 'sources' }" @click="view = 'sources'">Sources</button>
         </div>
         <button class="ghost" @click="load" :disabled="loading" aria-label="Reload">↻</button>
         <button class="ghost txt" @click="optOut">Turn off</button>
@@ -243,6 +273,48 @@ async function doAgentRead(id: string) {
         <SpineOverlay :record-organs="recordOrgans" @organ="onSpineOrgan" />
       </div>
 
+      <!-- Sources & reconciliation: the ingest → reconcile → estate-services chain, made visible -->
+      <div v-else-if="twin && view === 'sources'" class="ht-sources">
+        <section class="src-main">
+          <div class="src-h">Connect a source <small>each connector proves out on the real API schema (fixture); going live needs only a credential</small></div>
+          <div class="conns">
+            <div v-for="c in connectors" :key="c.id" class="conn">
+              <div class="conn-t"><b>{{ c.name }}</b><span class="conn-kind">{{ c.kind }}</span><span v-if="ingestedCount(c.id)" class="conn-in">✓ {{ ingestedCount(c.id) }}</span></div>
+              <div class="conn-u"><span v-for="u in c.uscdiClasses" :key="u" class="uchip">{{ u }}</span></div>
+              <div class="conn-meta"><span class="mono">{{ c.sourceShape }}</span></div>
+              <button class="mini" :disabled="busy === c.id" @click="doIngest(c.id)">{{ busy === c.id ? 'ingesting…' : 'Ingest (fixture)' }}</button>
+            </div>
+            <p v-if="!connectors.length" class="sh-empty">Connecting to the twin engine…</p>
+          </div>
+          <div v-if="ingestSummary && ingestSummary.counts.total" class="src-cov">
+            <span class="cov-n tnum">{{ ingestSummary.counts.total }}</span> records ingested · USCDI coverage:
+            <span v-for="u in ingestSummary.uscdiCoverage" :key="u" class="uchip on">{{ u }}</span>
+          </div>
+        </section>
+
+        <aside class="src-rail" aria-label="Reconciliation">
+          <div class="sh-h">What's connected</div>
+          <p class="sh-lead">The twin <b>orchestrates existing estate services</b> — it never rebuilds NLP / entity-resolution / vector / reasoning. A service that's down degrades gracefully.</p>
+          <div class="svcs">
+            <div v-for="s in services" :key="s.service" class="svc"><span class="dot" :class="{ up: s.up }" /><span>{{ s.service }}</span></div>
+          </div>
+          <div class="recon">
+            <button class="btn" :disabled="busy === 'reconcile'" @click="doReconcile">{{ busy === 'reconcile' ? 'reconciling…' : 'Reconcile across sources' }}</button>
+            <div v-if="recon" class="recon-r">
+              <template v-if="recon.service === 'entity-resolution'">
+                <div class="recon-stat"><b class="tnum">{{ recon.before }}→{{ recon.after }}</b> records · <b class="tnum">{{ recon.merged }}</b> cross-source merge(s)</div>
+                <div v-for="g in recon.golden.filter((x) => x.size > 1)" :key="g.entity_id" class="merged">
+                  <b>{{ g.name }}</b>
+                  <span class="src-chips"><span v-for="s in g.contributingSources" :key="s" class="schip">{{ s }}</span></span>
+                </div>
+              </template>
+              <p v-else class="sh-empty">Reconciliation service {{ recon.reason || 'offline' }} — records held locally.</p>
+            </div>
+          </div>
+          <p class="src-fine">⚕ Non-diagnostic. Every record carries provenance + an epistemic tier — merges are proof-carrying.</p>
+        </aside>
+      </div>
+
       <!-- self-contained record factsheet drawer (attested, non-diagnostic) -->
       <Teleport to="body">
         <Transition name="fd">
@@ -298,6 +370,28 @@ async function doAgentRead(id: string) {
 .vbtn.on { background: var(--accent-wash); color: var(--accent-ink); }
 .organ-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-2); background: var(--sunken); border-radius: var(--pill); padding: 1px 8px; } .organ-chip i { font-style: normal; color: var(--accent); font-size: 9px; }
 .ht-spine { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
+
+/* sources & reconciliation */
+.ht-sources { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--sp-3); }
+@media (max-width: 1080px) { .ht-sources { grid-template-columns: 1fr; } }
+.src-main { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
+.src-h { font-size: 12px; font-weight: 600; } .src-h small { font-weight: 400; color: var(--muted); display: block; font-size: 11px; margin: 2px 0 var(--sp-3); }
+.conns { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.conn { border: 1px solid var(--hairline); border-radius: var(--r-2); background: var(--sunken); padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.conn-t { display: flex; align-items: center; gap: 6px; } .conn-t b { font-size: 12.5px; }
+.conn-kind { font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: var(--surface); border-radius: var(--pill); padding: 1px 7px; }
+.conn-in { margin-left: auto; font-size: 10.5px; color: var(--ok); }
+.conn-u { display: flex; flex-wrap: wrap; gap: 3px; }
+.uchip { font-size: 9.5px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--pill); padding: 1px 6px; } .uchip.on { background: var(--accent-wash); color: var(--accent-ink); border-color: var(--accent); }
+.conn-meta { font-size: 10px; color: var(--faint); } .conn .mini { align-self: flex-start; }
+.src-cov { margin-top: var(--sp-3); font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; } .cov-n { font-size: 14px; color: var(--ink); }
+.src-rail { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--sunken); padding: var(--sp-3); align-self: start; }
+.svcs { display: flex; flex-direction: column; gap: 4px; margin-bottom: var(--sp-3); }
+.svc { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); } .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); } .dot.up { background: var(--ok); }
+.recon-r { margin-top: 8px; } .recon-stat { font-size: 12px; margin-bottom: 6px; }
+.merged { display: flex; flex-direction: column; gap: 3px; border: 1px solid var(--hairline); border-radius: var(--r-2); background: var(--surface); padding: 6px 8px; margin-bottom: 5px; } .merged b { font-size: 12px; }
+.src-chips { display: flex; gap: 3px; flex-wrap: wrap; } .schip { font-size: 9.5px; color: var(--accent-ink); background: var(--accent-wash); border-radius: var(--pill); padding: 1px 7px; }
+.src-fine { font-size: 10.5px; color: var(--faint); margin: var(--sp-3) 0 0; }
 .disclaimer { font-size: 11.5px; color: var(--warn); background: var(--warn-wash); border-radius: var(--r-2); padding: 5px 10px; margin: 0 0 var(--sp-3); } .disclaimer b { color: var(--ink); }
 .flash { background: var(--ok-wash); color: var(--ok); border-radius: var(--r-2); padding: 6px 11px; font-size: 12.5px; margin: 0 0 10px; }
 .msg { color: var(--muted); } .msg.err { color: var(--fail); }

@@ -45,3 +45,31 @@ export async function agentRead(grant: string): Promise<{ blocked?: boolean; rea
   const res = await fetch(`${BASE}/api/health/agent-read`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ grant }) });
   return await res.json();
 }
+
+// ── ingestion + reconciliation surface (the connector plane + the estate services it orchestrates) ──
+export interface ConnectorMeta { id: string; name: string; kind: string; authModel: string; sourceShape: string; uscdiClasses: string[]; modes: string[] }
+export interface IngestSummary { counts: { total: number } & Record<string, number>; sources: { source: string; connector: string; mode: string; count: number }[]; uscdiCoverage: string[] }
+export interface ServiceHealth { service: string; up: boolean; url: string }
+export interface GoldenRecord { entity_id: string; name: string; size: number; members: string[]; contributingSources: string[] }
+export interface ReconcileReport { service: string; reason?: string; before: number; after: number; merged: number; golden: GoldenRecord[]; receipt?: { id: string } }
+
+export async function listConnectors(): Promise<{ connectors: ConnectorMeta[]; summary: IngestSummary }> {
+  const res = await fetch(`${BASE}/api/health/connectors`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`connectors unreachable (${res.status})`);
+  return await res.json();
+}
+export async function ingestConnector(connector: string, mode = 'fixture'): Promise<{ added: { total: number }; summary: IngestSummary; receipt: { id: string } }> {
+  const res = await fetch(`${BASE}/api/health/ingest`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connector, mode }) });
+  if (!res.ok) throw new Error(`ingest failed (${res.status})`);
+  return await res.json();
+}
+export async function reconcile(): Promise<ReconcileReport> {
+  const res = await fetch(`${BASE}/api/health/reconcile`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+  if (!res.ok) throw new Error(`reconcile failed (${res.status})`);
+  return await res.json();
+}
+export async function serviceHealth(): Promise<{ services: ServiceHealth[] }> {
+  const res = await fetch(`${BASE}/api/health/services`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`services unreachable (${res.status})`);
+  return await res.json();
+}
