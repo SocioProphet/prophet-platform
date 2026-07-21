@@ -5,9 +5,10 @@
 // semantic grounding on top — but the twin answers on its own node first. Non-diagnostic: it recalls and
 // cites the person's records; it does not diagnose.
 import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, MEDICATIONS, ALLERGIES, IMMUNIZATIONS } from './data.js';
+import { ground, type Grounded } from './knowledge.js';
 
 export interface Citation { id: string; kind: 'lab' | 'condition' | 'encounter' | 'imaging' | 'medication' | 'allergy' | 'immunization'; text: string; date?: string; tier?: string; system?: string }
-export interface AskAnswer { question: string; answer: string; citations: Citation[]; retrieval: 'local-recall' | 'local-recall+hellgraph'; nonDiagnostic: true }
+export interface AskAnswer { question: string; answer: string; citations: Citation[]; retrieval: 'local-recall' | 'local-recall+hellgraph'; grounded?: Grounded; nonDiagnostic: true }
 
 // build a flat, searchable index of every record in the twin (each row keeps its provenance for citing)
 interface Row { id: string; kind: Citation['kind']; text: string; hay: string; date?: string; tier?: string; system?: string }
@@ -57,5 +58,8 @@ export function ask(question: string): AskAnswer {
     const lead = hits.length === 1 ? 'Here\'s the record that matches:' : `Here's what your records show (${hits.length} related records${oldest.date ? `, earliest ${oldest.date}` : ''}):`;
     answer = `${lead}\n` + hits.map((r) => `• ${r.text}${r.tier ? ` [${r.tier}]` : ''}`).join('\n') + `\n\nThese are your own records, cited above — not a diagnosis. Your clinician can help interpret them.`;
   }
-  return { question: q, answer, citations, retrieval: 'local-recall', nonDiagnostic: true };
+  // ground the question in authoritative medical knowledge too (cited, evidence-tiered) — so the
+  // person gets their own records AND what the medicine says. Brain corpus plugs in behind ground().
+  const g = ground(q);
+  return { question: q, answer, citations, retrieval: 'local-recall', grounded: g.grounded ? g : undefined, nonDiagnostic: true };
 }
