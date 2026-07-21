@@ -6,7 +6,7 @@
 # deployment is the walking-skeleton demo with SYNTHETIC data only — no real PHI.
 #
 # tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern).
-image: { repository: health-twin, tag: sha-de21315f15bde7db678000b4e3af879f75cf00b2 }
+image: { repository: health-twin, tag: sha-0e77538dca866fad5943cffac58120f10e79435b }
 service: { port: 8097, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
