@@ -14,6 +14,7 @@ import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/recon
 import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { deidentify } from './deident.js';
+import { ask } from './ask.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
@@ -226,6 +227,13 @@ const server = http.createServer(async (req, res) => {
 
   // ── Wall 4: de-identification + blinded n-ary consults (the moat). Non-diagnostic; the aggregate is a
   // concordance signal, a clinician decides. ────────────────────────────────────────────────────────
+
+  // Ask-my-agent — conversational recall over the twin, cited + non-diagnostic. Local-first (sovereign):
+  // answers on the person's own node; hellgraph semantic grounding is additive when reachable.
+  if (req.method === 'POST' && url.pathname === '/api/health/ask') {
+    try { const b = await readJson(req); return send(res, 200, ask(String(b.q ?? b.question ?? ''))); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'ask failed' }); }
+  }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
   if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));

@@ -40,15 +40,41 @@ const FIXTURE: Bundle = { resourceType: 'Bundle', type: 'searchset', entry: [
     vaccineCode: { coding: [{ system: 'http://hl7.org/fhir/sid/cvx', code: '158', display: 'Influenza, injectable, quadrivalent' }] } } },
 ] };
 
+// SANDBOX transport — REAL network fetch against an open SMART-on-FHIR R4 sandbox (Synthea patients, no
+// auth). The honest fixture→sandbox step: same normalize(), real records over the wire. `live` is the
+// same shape with a bearer token + the person's own FHIR base.
+const SANDBOX_BASE = process.env.HT_SMART_SANDBOX ?? 'https://r4.smarthealthit.org';
+async function fetchSandbox(base: string, token?: string): Promise<Bundle> {
+  const headers: Record<string, string> = { accept: 'application/fhir+json' };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const get = async (path: string) => {
+    const r = await fetch(`${base}/${path}`, { headers });
+    if (!r.ok) throw new Error(`FHIR ${r.status} on ${path}`);
+    return (await r.json()) as { entry?: { resource: FhirResource }[] };
+  };
+  const pj = await get('Patient?_count=1');
+  const pid = pj.entry?.[0]?.resource?.id;
+  if (!pid) throw new Error('sandbox: no patient found');
+  const queries = ['Condition', 'Observation?category=laboratory', 'MedicationRequest', 'AllergyIntolerance', 'Immunization'];
+  const entry: { resource: FhirResource }[] = [];
+  for (const q of queries) {
+    const sep = q.includes('?') ? '&' : '?';
+    try { const b = await get(`${q}${sep}patient=${pid}&_count=8`); for (const e of b.entry ?? []) if (e.resource) entry.push({ resource: e.resource }); }
+    catch { /* skip a type the server rejects; the rest still flow */ }
+  }
+  return { resourceType: 'Bundle', type: 'searchset', entry };
+}
+
 export const epicSmartFhir: Connector = {
   id: 'epic-smart-fhir', name: 'Epic — SMART-on-FHIR (patient access)', kind: 'ehr',
   authModel: 'oauth2-smart-on-fhir', sourceShape: 'FHIR R4 US Core Bundle',
   uscdiClasses: ['Problems', 'Laboratory', 'Medications', 'Allergies and Intolerances', 'Immunizations'],
   modes: ['fixture', 'sandbox', 'live'],
   async fetch(mode: IngestMode) {
-    // live/sandbox: GET {fhirBase}/Condition?patient=... etc. with the SMART bearer token, gather a Bundle.
     if (mode === 'fixture') return FIXTURE;
-    throw new Error('epic-smart-fhir sandbox/live requires a SMART-on-FHIR access token + FHIR base URL');
+    // sandbox = REAL FHIR over the wire (open Synthea server); live = same + a SMART bearer token + base.
+    if (mode === 'sandbox') return fetchSandbox(SANDBOX_BASE);
+    return fetchSandbox(process.env.HT_SMART_FHIR_BASE ?? SANDBOX_BASE, process.env.HT_SMART_TOKEN);
   },
   normalize(raw: unknown, mode: IngestMode): IngestResult {
     const out: IngestResult = emptyResult();
