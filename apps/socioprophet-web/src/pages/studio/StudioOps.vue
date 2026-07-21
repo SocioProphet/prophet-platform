@@ -9,6 +9,7 @@ import {
   EPISTEMIC_COLORS,
   type Pipeline, type ModelEntry, type Compute, type Community, type ExecResult,
 } from "../../services/studioApi";
+import LineageDag from "./LineageDag.vue";
 
 const props = defineProps<{ project: string }>();
 
@@ -140,11 +141,7 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
             <span class="pname">{{ p.name }}</span>
             <button class="run" @click="doRun(p.name)" :disabled="busy === p.name">▷ Run</button>
           </div>
-          <div class="dag">
-            <template v-for="(s, i) in p.steps" :key="s.id">
-              <span class="step" :title="s.kind">{{ s.id }}</span><span v-if="i < p.steps.length - 1" class="arrow">→</span>
-            </template>
-          </div>
+          <LineageDag :steps="p.steps" />
         </div>
         <p class="sub">A proof-carrying DAG with a governed run ledger; lineage IS the graph — beats Databricks Workflows / Foundry Pipeline Builder.</p>
       </section>
@@ -217,8 +214,6 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
 /* pipelines */
 .pipe { margin-bottom: 8px; } .prow { display: flex; align-items: center; gap: var(--sp-2); }
 .pname { font-weight: 600; } .run { margin-left: auto; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); border-radius: var(--r-2); padding: 3px 10px; font-size: 12px; cursor: pointer; }
-.dag { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-.step { font-size: 11.5px; background: var(--sunken); border-radius: var(--r-2); padding: 2px 9px; } .arrow { color: var(--faint); }
 
 /* communities */
 .comms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
