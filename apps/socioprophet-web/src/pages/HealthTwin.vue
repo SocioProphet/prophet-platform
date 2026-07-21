@@ -12,6 +12,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { loadTwin, grantAccess, revokeAccess, agentRead, type TwinBundle, type SystemBundle, type Observation, type Condition } from '../services/healthTwinApi';
 import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
+import { plateFor, ATLAS_CREDIT } from '../data/anatomyAtlas';
 import './studio/studio-tokens.css';
 
 const OPTIN_KEY = 'health-twin-optin-v1';
@@ -40,6 +41,22 @@ function epi(mode: string): string { return EPISTEMIC_COLORS[mode] || 'var(--epi
 function recordCount(s: SystemBundle): number { return s.observations.length + s.conditions.length + s.encounters.length + s.imaging.length; }
 const sys = computed<SystemBundle | null>(() => twin.value?.systems.find((s) => s.id === selected.value) ?? null);
 function outOfRange(o: Observation): boolean { return (o.refHigh != null && o.value > o.refHigh) || (o.refLow != null && o.value < o.refLow); }
+
+// Anatomy atlas plate for the selected system: vendored (sovereign) → remote CC-BY → placeholder.
+const plate = computed(() => plateFor(selected.value));
+const plateStage = ref<'vendored' | 'remote' | 'none'>('vendored');
+watch(selected, () => { plateStage.value = 'vendored'; });
+const plateSrc = computed(() => {
+  const p = plate.value; if (!p) return '';
+  if (plateStage.value === 'vendored' && p.vendored) return `${import.meta.env.BASE_URL}${p.vendored}`;
+  if (plateStage.value !== 'none' && p.remote) return p.remote;
+  return '';
+});
+function onPlateError() {
+  const p = plate.value;
+  if (plateStage.value === 'vendored' && p?.remote) plateStage.value = 'remote';
+  else plateStage.value = 'none';
+}
 
 // factsheet (attested, deterministic, non-diagnostic)
 function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
@@ -111,6 +128,7 @@ async function doAgentRead(id: string) {
         <button class="ghost txt" @click="optOut">Turn off</button>
       </header>
       <p class="disclaimer">⚕ Not medical advice · organises records, does not diagnose · <b>synthetic sample data</b>.</p>
+      <p class="credit">{{ ATLAS_CREDIT }}</p>
       <p v-if="flash" class="flash">{{ flash }}</p>
       <p v-if="err" class="msg err">{{ err }}</p>
       <p v-else-if="loading && !twin" class="msg">Loading your twin…</p>
@@ -128,6 +146,16 @@ async function doAgentRead(id: string) {
         <!-- Selected system detail -->
         <section class="ht-detail" v-if="sys">
           <h2 class="det-h">{{ sys.label }} <span>{{ sys.organs.join(' · ') }}</span></h2>
+
+          <figure v-if="plate" class="plate">
+            <img v-if="plateSrc" :src="plateSrc" :alt="plate.title + ' — anatomical illustration'" loading="lazy" @error="onPlateError" />
+            <div v-else class="plate-ph">
+              <i class="plate-ic">▤</i>
+              <span>Illustration pending — {{ plate.license }}</span>
+              <a :href="plate.sourceUrl" target="_blank" rel="noopener" class="plate-src">review the source →</a>
+            </div>
+            <figcaption>{{ plate.attribution }}</figcaption>
+          </figure>
 
           <div v-if="sys.observations.length" class="det-sec">
             <h3>Labs</h3>
@@ -256,6 +284,13 @@ async function doAgentRead(id: string) {
 /* detail */
 .ht-detail { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); min-width: 0; }
 .det-h { margin: 0 0 var(--sp-3); font-size: 1.05rem; } .det-h span { color: var(--muted); font-size: .8rem; font-weight: 400; }
+.plate { margin: 0 0 var(--sp-4); }
+.plate img { display: block; width: 100%; max-height: 300px; object-fit: contain; background: #fff; border: 1px solid var(--hairline); border-radius: var(--r-3); }
+.plate-ph { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 160px; border: 1px dashed var(--hairline-strong); border-radius: var(--r-3); background: var(--sunken); color: var(--muted); font-size: 12px; }
+.plate-ph .plate-ic { font-size: 22px; color: var(--faint); font-style: normal; }
+.plate-ph .plate-src { color: var(--accent); font-size: 12px; text-decoration: none; } .plate-ph .plate-src:hover { text-decoration: underline; }
+.plate figcaption { margin-top: 4px; font-size: 10.5px; color: var(--faint); }
+.credit { margin: 0 0 var(--sp-3); font-size: 10.5px; color: var(--faint); }
 .det-sec { margin-bottom: var(--sp-4); } .det-sec h3 { margin: 0 0 var(--sp-2); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .obs { display: flex; align-items: center; gap: var(--sp-3); padding: 7px 10px 7px 12px; border: 1px solid var(--hairline); border-radius: var(--r-2); margin-bottom: 6px; background: var(--sunken); flex-wrap: wrap; }
 .obs-nm { background: none; border: 0; color: var(--ink); font-weight: 600; font-size: 13px; cursor: pointer; padding: 0; text-align: left; }
