@@ -13,6 +13,14 @@ export interface CodedEntity {
   codeSystem: 'SNOMED' | 'RxNorm' | 'LOINC';
   display: string;
   negated: boolean;             // NegEx-style: the note says this is absent/ruled-out
+  value?: string;               // a numeric value pulled from nearby text ("LDL 148", "BP 138/85", "A1c 6.0")
+}
+
+// pull a value that sits right after a lab/vital mention: "ldl 148", "a1c 6.0", "bp 138/85 mmhg"
+function valueAfter(lower: string, afterIdx: number): string | undefined {
+  const w = lower.slice(afterIdx, afterIdx + 18).replace(/^[\s:=of]+/, '');
+  const m = /^(\d{1,3}(?:\.\d+)?(?:\s*\/\s*\d{1,3})?)/.exec(w);
+  return m ? m[1]!.replace(/\s+/g, '') : undefined;
 }
 
 interface LexEntry { terms: string[]; category: CodedEntity['category']; code: string; codeSystem: CodedEntity['codeSystem']; display: string }
@@ -91,12 +99,15 @@ export function codeText(text: string): { entities: CodedEntity[]; model: 'clini
       let m: RegExpExecArray | null;
       while ((m = re.exec(lower)) !== null) {
         const idx = m.index + m[1]!.length;
+        const afterIdx = idx + m[2]!.length;
         const negated = isNegated(lower, idx);
+        // labs & vitals carry a value ("ldl 148", "bp 138/85"); conditions/meds/symptoms don't
+        const value = e.category === 'lab' || e.category === 'vital' ? valueAfter(lower, afterIdx) : undefined;
         const prior = byCode.get(e.code);
-        if (!prior || (prior.negated && !negated)) {
-          byCode.set(e.code, { text: term, category: e.category, code: e.code, codeSystem: e.codeSystem, display: e.display, negated });
+        if (!prior || (prior.negated && !negated) || (!prior.value && value)) {
+          byCode.set(e.code, { text: term, category: e.category, code: e.code, codeSystem: e.codeSystem, display: e.display, negated, value: value ?? prior?.value });
         }
-        re.lastIndex = idx + m[2]!.length; // advance past this match
+        re.lastIndex = afterIdx; // advance past this match
       }
     }
   }

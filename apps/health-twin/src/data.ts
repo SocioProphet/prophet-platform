@@ -87,3 +87,20 @@ export const IMAGING: ImagingStudy[] = [
   { id: 'img-cxr', system: 'respiratory', modality: 'X-ray', bodySite: 'Chest', date: '2025-09-14', description: 'Chest radiograph, PA + lateral', epistemic: 'attested' },
   { id: 'img-knee', system: 'musculoskeletal', modality: 'X-ray', bodySite: 'Knee', date: '2003-06-14', description: 'Left knee radiograph — no fracture; soft-tissue swelling consistent with sprain', epistemic: 'attested' },
 ];
+
+// Medications, allergies, immunizations — the parts a real twin needs that the seed was missing. The
+// person is on lisinopril (for hypertension) but NOT on a statin despite LDL 148 + HTN — a care gap the
+// guideline reasoner now catches.
+export interface Medication { id: string; system: string; organ: string; code: string; codeSystem: 'RxNorm'; display: string; dose: string; status: string; started: string; epistemic: EpistemicMode }
+export const MEDICATIONS: Medication[] = [
+  { id: 'med-lisinopril', system: 'cardiovascular', organ: 'Heart', code: '314076', codeSystem: 'RxNorm', display: 'Lisinopril 10 MG Oral Tablet', dose: '10 mg once daily', status: 'active', started: '2024-11-10', epistemic: 'attested' },
+];
+export interface Allergy { id: string; code: string; codeSystem: 'RxNorm'; display: string; reaction: string; criticality: string; epistemic: EpistemicMode }
+export const ALLERGIES: Allergy[] = [
+  { id: 'alg-pcn', code: '7980', codeSystem: 'RxNorm', display: 'Penicillin', reaction: 'hives', criticality: 'high', epistemic: 'attested' },
+];
+export interface Immunization { id: string; code: string; codeSystem: 'CVX'; display: string; date: string; epistemic: EpistemicMode }
+export const IMMUNIZATIONS: Immunization[] = [
+  { id: 'imm-flu', code: '158', codeSystem: 'CVX', display: 'Influenza (quadrivalent)', date: '2025-10-04', epistemic: 'attested' },
+  { id: 'imm-tdap', code: '115', codeSystem: 'CVX', display: 'Tdap', date: '2019-03-11', epistemic: 'attested' },
+];

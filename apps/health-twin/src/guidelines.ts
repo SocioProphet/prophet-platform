@@ -3,7 +3,7 @@
 // and surfaces recommendations grounded in REAL clinical guidelines (ACC/AHA, ADA, USPSTF, KDIGO), each
 // with its source, a strength, and a plain explanation. It NEVER diagnoses or prescribes — it says "here
 // is what the guidelines say about your numbers; discuss with your clinician." Deterministic, local-first.
-import { OBSERVATIONS, CONDITIONS, SUBJECT } from './data.js';
+import { OBSERVATIONS, CONDITIONS, MEDICATIONS, SUBJECT } from './data.js';
 
 export interface Guidance {
   finding: string;         // the observation that triggered it (from the person's own record)
@@ -19,17 +19,20 @@ const ageNum = () => { const m = /(\d+)/.exec(String((SUBJECT as any).ageBand ??
 
 // Each rule is grounded in a named guideline; thresholds are the guideline's own. Non-diagnostic framing
 // is structural (strength = screen/discuss/monitor/confirm, never "diagnose").
+const onStatin = () => MEDICATIONS.some((m) => /statin|atorvastatin|rosuvastatin|simvastatin|pravastatin|lovastatin/i.test(m.display));
+
 export function guidance(): { subject: string; items: Guidance[]; disclaimer: string } {
   const items: Guidance[] = [];
 
   const ldl = obs('13457-7');
   if (ldl && ldl.value >= 100) {
     const high = ldl.value >= 190;
+    const statinGap = !onStatin() && (hasCond('38341003') || high); // elevated LDL + risk, not on a statin
     items.push({
       finding: `LDL cholesterol ${ldl.value} ${ldl.unit} (target <100)`,
       says: high
-        ? 'LDL ≥190 is a statin-benefit group on its own. A high-intensity statin discussion is warranted.'
-        : `LDL is above target${hasCond('38341003') ? ', and with hypertension your 10-year cardiovascular risk is higher' : ''}. Guidelines suggest discussing lifestyle and statin candidacy (via an ASCVD risk estimate) with your clinician.`,
+        ? `LDL ≥190 is a statin-benefit group on its own. A high-intensity statin discussion is warranted${statinGap ? ", and you're not currently on a statin" : ''}.`
+        : `LDL is above target${hasCond('38341003') ? ', and with hypertension your 10-year cardiovascular risk is higher' : ''}. Guidelines suggest discussing lifestyle and statin candidacy (via an ASCVD risk estimate) with your clinician${statinGap ? " — you're not currently on a statin" : ''}.`,
       source: 'ACC/AHA 2018 Blood Cholesterol Guideline',
       strength: 'discuss', cites: [ldl.id],
     });
