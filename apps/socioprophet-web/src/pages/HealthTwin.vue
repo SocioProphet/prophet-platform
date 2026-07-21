@@ -12,6 +12,7 @@ import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
 import { loadTwin, grantAccess, revokeAccess, agentRead, type TwinBundle, type SystemBundle, type Observation, type Condition } from '../services/healthTwinApi';
 import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
+import SpineOverlay from './SpineOverlay.vue';
 import { plateFor, ATLAS_CREDIT } from '../data/anatomyAtlas';
 import './studio/studio-tokens.css';
 
@@ -24,6 +25,7 @@ const twin = ref<TwinBundle | null>(null);
 const loading = ref(false);
 const err = ref('');
 const selected = ref<string>('cardiovascular');
+const view = ref<'systems' | 'spine'>('systems');
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
@@ -41,6 +43,20 @@ function epi(mode: string): string { return EPISTEMIC_COLORS[mode] || 'var(--epi
 function recordCount(s: SystemBundle): number { return s.observations.length + s.conditions.length + s.encounters.length + s.imaging.length; }
 const sys = computed<SystemBundle | null>(() => twin.value?.systems.find((s) => s.id === selected.value) ?? null);
 function outOfRange(o: Observation): boolean { return (o.refHigh != null && o.value > o.refHigh) || (o.refLow != null && o.value < o.refLow); }
+
+// organs that carry records — the Spine overlay links only those back to the twin.
+const recordOrgans = computed<string[]>(() => {
+  const set = new Set<string>();
+  for (const s of twin.value?.systems ?? []) {
+    for (const o of s.observations) if (o.organ) set.add(o.organ);
+    for (const c of s.conditions) if (c.organ) set.add(c.organ);
+  }
+  return [...set];
+});
+function onSpineOrgan(organ: string) {
+  const owner = twin.value?.systems.find((s) => s.organs.includes(organ));
+  if (owner) { selected.value = owner.id; view.value = 'systems'; }
+}
 
 // Anatomy atlas plate for the selected system: vendored (sovereign) → remote CC-BY → placeholder.
 const plate = computed(() => plateFor(selected.value));
@@ -69,7 +85,7 @@ function obsSheet(o: Observation) {
     title: o.display, eyebrow: `lab · ${o.codeSystem} ${o.code}`, epistemic: o.epistemic,
     summary: `${o.display} measured ${o.value} ${o.unit} on ${o.effective}, ${dir} over ${o.trend?.length ?? 1} results. Reference ${o.refLow ?? '—'}–${o.refHigh ?? '—'} ${o.unit}; this value is ${pos} range. Verified by lab. A record, not a diagnosis.`,
     receipt: `ht-${djb2([o.id, String(o.value), o.effective, pos, dir].join('|'))}`,
-    facts: [{ k: 'Value', v: `${o.value} ${o.unit}` }, { k: 'Reference', v: `${o.refLow ?? '—'}–${o.refHigh ?? '—'} ${o.unit}` }, { k: 'Date', v: o.effective }, { k: 'Code', v: `${o.codeSystem} ${o.code}` }],
+    facts: [{ k: 'Value', v: `${o.value} ${o.unit}` }, { k: 'Reference', v: `${o.refLow ?? '—'}–${o.refHigh ?? '—'} ${o.unit}` }, { k: 'Date', v: o.effective }, { k: 'Code', v: `${o.codeSystem} ${o.code}` }, { k: 'Localized to', v: o.organ ?? '—' }, { k: 'Type', v: 'hdt:Observation' }],
     trend: o.trend,
   };
 }
@@ -78,7 +94,7 @@ function condSheet(c: Condition) {
     title: c.display, eyebrow: `condition · ${c.codeSystem} ${c.code}`, epistemic: c.epistemic,
     summary: `${c.display} (${c.codeSystem} ${c.code}), ${c.clinicalStatus}, onset ${c.onset}. Trust level: ${c.epistemic}. This is a stored record; it is not re-diagnosed here.`,
     receipt: `ht-${djb2([c.id, c.clinicalStatus, c.onset].join('|'))}`,
-    facts: [{ k: 'Status', v: c.clinicalStatus }, { k: 'Onset', v: c.onset }, { k: 'Code', v: `${c.codeSystem} ${c.code}` }, { k: 'Trust', v: c.epistemic }],
+    facts: [{ k: 'Status', v: c.clinicalStatus }, { k: 'Onset', v: c.onset }, { k: 'Code', v: `${c.codeSystem} ${c.code}` }, { k: 'Trust', v: c.epistemic }, { k: 'Localized to', v: c.organ ?? '—' }, { k: 'Type', v: 'health:Condition' }],
   };
 }
 // self-contained drawer: ESC closes (kept local so the health twin doesn't couple to Studio components)
@@ -124,6 +140,10 @@ async function doAgentRead(id: string) {
     <template v-else>
       <header class="ht-top">
         <div class="ht-h"><span class="ht-mark">◈</span><div><h1>Digital Health Self</h1><span class="ht-sub">{{ twin?.subject.label }} · organ-system index</span></div></div>
+        <div class="ht-views">
+          <button class="vbtn" :class="{ on: view === 'systems' }" @click="view = 'systems'">Systems</button>
+          <button class="vbtn" :class="{ on: view === 'spine' }" @click="view = 'spine'">Spine</button>
+        </div>
         <button class="ghost" @click="load" :disabled="loading" aria-label="Reload">↻</button>
         <button class="ghost txt" @click="optOut">Turn off</button>
       </header>
@@ -133,7 +153,7 @@ async function doAgentRead(id: string) {
       <p v-if="err" class="msg err">{{ err }}</p>
       <p v-else-if="loading && !twin" class="msg">Loading your twin…</p>
 
-      <div v-else-if="twin" class="ht-body">
+      <div v-else-if="twin && view === 'systems'" class="ht-body">
         <!-- Anatomical system index -->
         <aside class="ht-index" aria-label="Body systems">
           <div class="idx-h">Body systems</div>
@@ -164,6 +184,7 @@ async function doAgentRead(id: string) {
               <span class="obs-v tnum" :class="{ oor: outOfRange(o) }">{{ o.value }} <i>{{ o.unit }}</i></span>
               <Sparkline v-if="o.trend" :series="o.trend" :w="88" :h="22" :tone="outOfRange(o) ? 'down' : 'accent'" />
               <span class="obs-ref">ref {{ o.refLow ?? '—' }}–{{ o.refHigh ?? '—' }}</span>
+              <span v-if="o.organ" class="organ-chip" title="localized to (health:localizedTo)"><i>◍</i>{{ o.organ }}</span>
               <span class="epi-chip" :style="{ '--epi': epi(o.epistemic), '--epi-wash': 'transparent' }">{{ o.epistemic }}</span>
             </div>
           </div>
@@ -172,6 +193,7 @@ async function doAgentRead(id: string) {
             <h3>Conditions</h3>
             <button v-for="c in sys.conditions" :key="c.id" class="cond epi-stripe" :style="{ '--epi': epi(c.epistemic) }" @click="condSheet(c)">
               <b>{{ c.display }}</b><span class="cond-s">{{ c.clinicalStatus }}</span><span class="cond-o">onset {{ c.onset }}</span>
+              <span v-if="c.organ" class="organ-chip" title="localized to"><i>◍</i>{{ c.organ }}</span>
               <span class="epi-chip" :style="{ '--epi': epi(c.epistemic), '--epi-wash': 'transparent' }">{{ c.epistemic }}</span>
             </button>
           </div>
@@ -214,6 +236,11 @@ async function doAgentRead(id: string) {
             <p v-if="!twin.grants.length" class="sh-empty">No grants — your records are private.</p>
           </div>
         </aside>
+      </div>
+
+      <!-- Spine view: the three-lens spinal correspondence chart -->
+      <div v-else-if="twin && view === 'spine'" class="ht-spine">
+        <SpineOverlay :record-organs="recordOrgans" @organ="onSpineOrgan" />
       </div>
 
       <!-- self-contained record factsheet drawer (attested, non-diagnostic) -->
@@ -266,6 +293,11 @@ async function doAgentRead(id: string) {
 .ht-h { display: flex; align-items: center; gap: var(--sp-3); margin-right: auto; }
 .ht-mark { color: var(--accent); font-size: 1.2rem; } .ht-h h1 { margin: 0; font-size: 1.15rem; } .ht-sub { color: var(--muted); font-size: .78rem; }
 .ghost { border: 1px solid var(--hairline-strong); background: var(--surface); color: var(--ink-2); border-radius: var(--r-2); height: 30px; min-width: 30px; padding: 0 8px; cursor: pointer; } .ghost.txt { font-size: 12px; }
+.ht-views { display: flex; gap: 3px; background: var(--sunken); border-radius: var(--pill); padding: 3px; }
+.vbtn { border: 0; background: transparent; color: var(--muted); border-radius: var(--pill); padding: 4px 14px; font-size: 12.5px; cursor: pointer; }
+.vbtn.on { background: var(--accent-wash); color: var(--accent-ink); }
+.organ-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-2); background: var(--sunken); border-radius: var(--pill); padding: 1px 8px; } .organ-chip i { font-style: normal; color: var(--accent); font-size: 9px; }
+.ht-spine { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--surface); padding: var(--sp-4); }
 .disclaimer { font-size: 11.5px; color: var(--warn); background: var(--warn-wash); border-radius: var(--r-2); padding: 5px 10px; margin: 0 0 var(--sp-3); } .disclaimer b { color: var(--ink); }
 .flash { background: var(--ok-wash); color: var(--ok); border-radius: var(--r-2); padding: 6px 11px; font-size: 12.5px; margin: 0 0 10px; }
 .msg { color: var(--muted); } .msg.err { color: var(--fail); }

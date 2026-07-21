@@ -115,11 +115,8 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
-    "health-twin:moving-tag": (
-        "New service — the Digital Health Twin engine (apps/health-twin: opt-in local-first FHIR-lite record "
-        "bundle + governed receipted consent grants on :8097, synthetic data only) added to CI this PR. Pin "
-        "tag:latest -> the sha- tag gitops-promote writes after the first CI build; no sha exists until merge."
-    ),
+    # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
+    # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
     # sha-a6d8311383) → removed from the ratchet (it only shrinks). Same for academy-board:
     # gitops-promote sha-pinned it after #926's first build (sha-f59cf2c9), so its moving-tag
