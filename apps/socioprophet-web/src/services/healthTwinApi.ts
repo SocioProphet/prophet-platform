@@ -8,11 +8,13 @@ import { resolveBase } from '../config/cockpitRuntime';
 const BASE = resolveBase('health', 'VITE_HEALTH_BASE', '/svc/health');
 
 export type EpistemicMode = 'observed' | 'derived' | 'verified' | 'attested' | 'hypothesis';
-export interface Observation { id: string; system: string; code: string; codeSystem: string; display: string; value: number; unit: string; refLow?: number; refHigh?: number; effective: string; trend?: number[]; epistemic: EpistemicMode }
-export interface Condition { id: string; system: string; code: string; codeSystem: string; display: string; onset: string; clinicalStatus: string; epistemic: EpistemicMode }
+// organ = the anatomical structure a record localises to (health:localizedTo); classIri/organIri = the
+// HDT ontology class + organ IRIs the fact carries, so it types into HellGraph + reasons in Ontogenesis.
+export interface Observation { id: string; system: string; organ?: string; classIri?: string; organIri?: string | null; code: string; codeSystem: string; display: string; value: number; unit: string; refLow?: number; refHigh?: number; effective: string; trend?: number[]; epistemic: EpistemicMode }
+export interface Condition { id: string; system: string; organ?: string; classIri?: string; organIri?: string | null; code: string; codeSystem: string; display: string; onset: string; clinicalStatus: string; epistemic: EpistemicMode }
 export interface Encounter { id: string; system: string; type: string; date: string; provider: string; note: string }
 export interface ImagingStudy { id: string; system: string; modality: string; bodySite: string; date: string; description: string; epistemic: EpistemicMode }
-export interface SystemBundle { id: string; label: string; organs: string[]; observations: Observation[]; conditions: Condition[]; encounters: Encounter[]; imaging: ImagingStudy[] }
+export interface SystemBundle { id: string; label: string; organs: string[]; iri?: string; compartment?: string; observations: Observation[]; conditions: Condition[]; encounters: Encounter[]; imaging: ImagingStudy[] }
 export interface Grant { id: string; agent: string; scope: string; granted_at: string; expires_at: string; revoked: boolean; reads: number; receipt: string; active?: boolean }
 export interface TwinBundle {
   subject: { id: string; label: string; note: string };
@@ -20,6 +22,7 @@ export interface TwinBundle {
   timeline: Encounter[];
   counts: { observations: number; conditions: number; encounters: number; imaging: number };
   grants: Grant[];
+  ontology?: { health: string; hdt: string; subjectClass: string; note: string };
   disclaimer: string;
 }
 

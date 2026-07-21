@@ -7,7 +7,7 @@
 // NOT a medical device. NOT diagnostic. Organises + retrieves + governs sharing of a person's own
 // records. Synthetic data only in this skeleton — no real PHI.
 import http from 'node:http';
-import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, type Grant } from './data.js';
+import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -23,12 +23,16 @@ function receipt(kind: string, parts: string[]): { id: string; verifier: 'health
 // In-memory grant ledger (skeleton). Local-first store in production.
 const grants: Grant[] = [];
 
+// enrich a record with its ontology IRIs so it lands in HellGraph as a typed node, not a label string.
+const obsView = (o: Observation) => ({ ...o, classIri: OBSERVATION_CLASS, organIri: ORGAN_IRI[o.organ] ?? null });
+const condView = (c: Condition) => ({ ...c, classIri: CONDITION_CLASS, organIri: ORGAN_IRI[c.organ] ?? null });
+
 function bundle() {
   // group records per system for the anatomical index
   const bySystem = SYSTEMS.map((s) => ({
     ...s,
-    observations: OBSERVATIONS.filter((o) => o.system === s.id),
-    conditions: CONDITIONS.filter((c) => c.system === s.id),
+    observations: OBSERVATIONS.filter((o) => o.system === s.id).map(obsView),
+    conditions: CONDITIONS.filter((c) => c.system === s.id).map(condView),
     encounters: ENCOUNTERS.filter((e) => e.system === s.id),
     imaging: IMAGING.filter((i) => i.system === s.id),
   }));
@@ -38,6 +42,8 @@ function bundle() {
     timeline: [...ENCOUNTERS].sort((a, b) => (a.date < b.date ? 1 : -1)),
     counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length },
     grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
+    // the twin speaks the estate's ontology: every fact carries a class IRI from the HDT ontology.
+    ontology: { health: HEALTH_NS, hdt: HDT_NS, subjectClass: `${HDT_NS}HumanDigitalTwin`, note: 'Facts carry health:/hdt: class IRIs so they type into HellGraph + reason in Ontogenesis.' },
     disclaimer: 'Synthetic sample. Not a real person, not medical advice. This tool organises records; it does not diagnose.',
   };
 }

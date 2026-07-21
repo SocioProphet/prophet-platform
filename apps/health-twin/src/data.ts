@@ -8,23 +8,41 @@
 
 export type EpistemicMode = 'observed' | 'derived' | 'verified' | 'attested' | 'hypothesis';
 
-// Organ systems = the anatomical index. `organs` are the diagram labels the poster shows.
-export interface System { id: string; label: string; organs: string[] }
+// Ontology IRIs — the twin's facts carry real class identity from the HDT ontology, so they land in
+// HellGraph as typed nodes (not label strings) and reason in the estate's canonical vocabulary.
+//   • HEALTH_NS = the health/anatomy layer (ontogenesis Domains/health-anatomy.ttl, hosted socioprophet.md)
+//   • HDT_NS    = the Ontogenesis HDT core (hdt:Observation ⊑ hdt:FHIRResource)
+export const HEALTH_NS = 'https://socioprophet.md/ont/health#';
+export const HDT_NS = 'https://socioprophet.dev/ont/ontogenesis#';
+export const OBSERVATION_CLASS = `${HDT_NS}Observation`;
+export const CONDITION_CLASS = `${HEALTH_NS}Condition`;
+
+// Organ systems = the anatomical index. `iri` = the health:OrganSystem class; `compartment` = the
+// body-state x(t) compartment; keys match the ontology's health:systemKey.
+export interface System { id: string; label: string; organs: string[]; iri: string; compartment: string }
 export const SYSTEMS: System[] = [
-  { id: 'nervous', label: 'Nervous', organs: ['Brain'] },
-  { id: 'cardiovascular', label: 'Cardiovascular', organs: ['Heart'] },
-  { id: 'respiratory', label: 'Respiratory', organs: ['Lungs'] },
-  { id: 'hepatic', label: 'Hepatic / Digestive', organs: ['Liver', 'Stomach', 'Pancreas', 'Intestines'] },
-  { id: 'urinary', label: 'Urinary', organs: ['Kidneys', 'Bladder'] },
+  { id: 'nervous', label: 'Nervous', organs: ['Brain'], iri: `${HEALTH_NS}NervousSystem`, compartment: 'neuro' },
+  { id: 'cardiovascular', label: 'Cardiovascular', organs: ['Heart'], iri: `${HEALTH_NS}CardiovascularSystem`, compartment: 'cardio' },
+  { id: 'respiratory', label: 'Respiratory', organs: ['Lungs'], iri: `${HEALTH_NS}RespiratorySystem`, compartment: 'respiratory' },
+  { id: 'hepatic', label: 'Hepatic / Digestive', organs: ['Liver', 'Stomach', 'Pancreas', 'Intestines'], iri: `${HEALTH_NS}DigestiveSystem`, compartment: 'hepatic' },
+  { id: 'urinary', label: 'Urinary', organs: ['Kidneys', 'Bladder'], iri: `${HEALTH_NS}UrinarySystem`, compartment: 'renal' },
 ];
 
+// Organ → health:Organ IRI (the localizedTo target that paints a record onto anatomy).
+export const ORGAN_IRI: Record<string, string> = {
+  Brain: `${HEALTH_NS}Brain`, Heart: `${HEALTH_NS}Heart`, Lungs: `${HEALTH_NS}Lungs`,
+  Liver: `${HEALTH_NS}Liver`, Stomach: `${HEALTH_NS}Stomach`, Pancreas: `${HEALTH_NS}Pancreas`,
+  Intestines: `${HEALTH_NS}Intestines`, Kidneys: `${HEALTH_NS}Kidneys`, Bladder: `${HEALTH_NS}Bladder`,
+};
+
+// `organ` = the anatomical structure this record localises to (health:localizedTo) — what paints it onto the twin.
 export interface Observation {
-  id: string; system: string; code: string; codeSystem: 'LOINC'; display: string;
+  id: string; system: string; organ: string; code: string; codeSystem: 'LOINC'; display: string;
   value: number; unit: string; refLow?: number; refHigh?: number;
   effective: string; trend?: number[]; epistemic: EpistemicMode;
 }
 export interface Condition {
-  id: string; system: string; code: string; codeSystem: 'SNOMED'; display: string;
+  id: string; system: string; organ: string; code: string; codeSystem: 'SNOMED'; display: string;
   onset: string; clinicalStatus: string; epistemic: EpistemicMode;
 }
 export interface Encounter { id: string; system: string; type: string; date: string; provider: string; note: string }
@@ -39,16 +57,16 @@ export interface Grant {
 export const SUBJECT = { id: 'synthetic-subject-0', label: 'Demo Patient (synthetic)', note: 'Synthetic sample data — not a real person, not real medical records.' };
 
 export const OBSERVATIONS: Observation[] = [
-  { id: 'obs-ldl', system: 'cardiovascular', code: '13457-7', codeSystem: 'LOINC', display: 'LDL cholesterol', value: 148, unit: 'mg/dL', refLow: 0, refHigh: 100, effective: '2026-05-02', epistemic: 'verified', trend: [121, 126, 130, 129, 138, 142, 148] },
-  { id: 'obs-sbp', system: 'cardiovascular', code: '8480-6', codeSystem: 'LOINC', display: 'Systolic blood pressure', value: 138, unit: 'mmHg', refLow: 90, refHigh: 120, effective: '2026-05-02', epistemic: 'verified', trend: [128, 132, 130, 135, 134, 139, 138] },
-  { id: 'obs-a1c', system: 'hepatic', code: '4548-4', codeSystem: 'LOINC', display: 'Hemoglobin A1c', value: 5.9, unit: '%', refLow: 4, refHigh: 5.6, effective: '2026-04-18', epistemic: 'verified', trend: [5.4, 5.5, 5.6, 5.7, 5.8, 5.8, 5.9] },
-  { id: 'obs-alt', system: 'hepatic', code: '1742-6', codeSystem: 'LOINC', display: 'ALT (liver enzyme)', value: 31, unit: 'U/L', refLow: 7, refHigh: 56, effective: '2026-04-18', epistemic: 'verified', trend: [24, 26, 25, 28, 29, 30, 31] },
-  { id: 'obs-egfr', system: 'urinary', code: '33914-3', codeSystem: 'LOINC', display: 'eGFR (kidney function)', value: 92, unit: 'mL/min', refLow: 90, refHigh: 120, effective: '2026-04-18', epistemic: 'verified', trend: [99, 98, 97, 95, 94, 93, 92] },
+  { id: 'obs-ldl', system: 'cardiovascular', organ: 'Heart', code: '13457-7', codeSystem: 'LOINC', display: 'LDL cholesterol', value: 148, unit: 'mg/dL', refLow: 0, refHigh: 100, effective: '2026-05-02', epistemic: 'verified', trend: [121, 126, 130, 129, 138, 142, 148] },
+  { id: 'obs-sbp', system: 'cardiovascular', organ: 'Heart', code: '8480-6', codeSystem: 'LOINC', display: 'Systolic blood pressure', value: 138, unit: 'mmHg', refLow: 90, refHigh: 120, effective: '2026-05-02', epistemic: 'verified', trend: [128, 132, 130, 135, 134, 139, 138] },
+  { id: 'obs-a1c', system: 'hepatic', organ: 'Pancreas', code: '4548-4', codeSystem: 'LOINC', display: 'Hemoglobin A1c', value: 5.9, unit: '%', refLow: 4, refHigh: 5.6, effective: '2026-04-18', epistemic: 'verified', trend: [5.4, 5.5, 5.6, 5.7, 5.8, 5.8, 5.9] },
+  { id: 'obs-alt', system: 'hepatic', organ: 'Liver', code: '1742-6', codeSystem: 'LOINC', display: 'ALT (liver enzyme)', value: 31, unit: 'U/L', refLow: 7, refHigh: 56, effective: '2026-04-18', epistemic: 'verified', trend: [24, 26, 25, 28, 29, 30, 31] },
+  { id: 'obs-egfr', system: 'urinary', organ: 'Kidneys', code: '33914-3', codeSystem: 'LOINC', display: 'eGFR (kidney function)', value: 92, unit: 'mL/min', refLow: 90, refHigh: 120, effective: '2026-04-18', epistemic: 'verified', trend: [99, 98, 97, 95, 94, 93, 92] },
 ];
 
 export const CONDITIONS: Condition[] = [
-  { id: 'cond-htn', system: 'cardiovascular', code: '38341003', codeSystem: 'SNOMED', display: 'Essential hypertension', onset: '2024-11-10', clinicalStatus: 'active', epistemic: 'attested' },
-  { id: 'cond-pre', system: 'hepatic', code: '714628002', codeSystem: 'SNOMED', display: 'Prediabetes', onset: '2026-04-18', clinicalStatus: 'active', epistemic: 'verified' },
+  { id: 'cond-htn', system: 'cardiovascular', organ: 'Heart', code: '38341003', codeSystem: 'SNOMED', display: 'Essential hypertension', onset: '2024-11-10', clinicalStatus: 'active', epistemic: 'attested' },
+  { id: 'cond-pre', system: 'hepatic', organ: 'Pancreas', code: '714628002', codeSystem: 'SNOMED', display: 'Prediabetes', onset: '2026-04-18', clinicalStatus: 'active', epistemic: 'verified' },
 ];
 
 export const ENCOUNTERS: Encounter[] = [
