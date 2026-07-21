@@ -31,6 +31,12 @@ function receipt(kind: string, parts: string[]): { id: string; verifier: 'health
 // In-memory grant ledger (skeleton). Local-first store in production.
 const grants: Grant[] = [];
 
+// Capture surface — voice notes, photos, documents captured across devices land here, each hash-sealed
+// with provenance + an epistemic tier. A clinician's dictated note is 'attested'; a patient photo is
+// 'observed' (self-reported). Content-addressed (hash) so media is tamper-evident. Local-first store.
+interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; system?: string; organ?: string; contentHash: string; tier: string; by: 'clinician' | 'patient'; capturedAt: string; receipt: string }
+const captured: Captured[] = [];
+
 // In-memory ingested store — records pulled through the connector plane (fixture mode here). Every
 // record carries provenance + an epistemic tier (the lineage Watson Health never had). Local-first in
 // production; this accumulates across ingest calls so the twin reflects what's been connected.
@@ -75,6 +81,8 @@ function bundle() {
     grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
     // records pulled through the connector plane (provenance + epistemic tier on every one).
     ingested: { ...ingested, summary: ingestedSummary() },
+    // captured media (voice notes, photos, documents) — hash-sealed, tier-tagged.
+    captured,
     // the twin speaks the estate's ontology: every fact carries a class IRI from the HDT ontology.
     ontology: { health: HEALTH_NS, hdt: HDT_NS, subjectClass: `${HDT_NS}HumanDigitalTwin`, note: 'Facts carry health:/hdt: class IRIs so they type into HellGraph + reason in Ontogenesis.' },
     disclaimer: 'Synthetic sample. Not a real person, not medical advice. This tool organises records; it does not diagnose.',
@@ -233,6 +241,27 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/health/ask') {
     try { const b = await readJson(req); return send(res, 200, ask(String(b.q ?? b.question ?? ''))); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'ask failed' }); }
+  }
+
+  // Capture — a voice note / photo / document lands in the twin, hash-sealed + tier-tagged. The doctor's
+  // "talk, it writes the note and pulls the films" and the patient's "snap a record" both flow here.
+  if (req.method === 'POST' && url.pathname === '/api/health/capture') {
+    try {
+      const b = await readJson(req);
+      const kind = (['note', 'photo', 'document'].includes(b.kind) ? b.kind : 'note') as Captured['kind'];
+      const caption = String(b.caption ?? '').trim() || (kind === 'note' ? 'Note' : 'Capture');
+      const text = b.text ? String(b.text) : undefined;
+      const by = b.by === 'clinician' ? 'clinician' : 'patient';
+      const contentHash = djb2([kind, caption, text ?? '', String(b.contentHash ?? '')].join('|'));
+      const rec: Captured = {
+        id: `cap-${contentHash}`, kind, caption, text,
+        system: b.system ? String(b.system) : undefined, organ: b.organ ? String(b.organ) : undefined,
+        contentHash: `sha-${contentHash}`, tier: kind === 'note' && by === 'clinician' ? 'attested' : 'observed',
+        by, capturedAt: new Date().toISOString(), receipt: receipt('capture', [kind, caption, contentHash]).id,
+      };
+      captured.unshift(rec);
+      return send(res, 200, { captured: rec, count: captured.length });
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'capture failed' }); }
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.

@@ -97,3 +97,20 @@ export async function submitOpinion(id: string, reviewer: string, assessment: st
   const res = await fetch(`${BASE}/api/health/consult/${encodeURIComponent(id)}/opinion`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reviewer, assessment, confidence }) });
   return await res.json();
 }
+
+// ── Ask-my-agent (patient magic): conversational recall over the twin, cited + non-diagnostic ──────
+export interface AskCitation { id: string; kind: string; text: string; date?: string; tier?: string; system?: string }
+export interface AskAnswer { question: string; answer: string; citations: AskCitation[]; retrieval: string }
+export async function askTwin(q: string): Promise<AskAnswer> {
+  const res = await fetch(`${BASE}/api/health/ask`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ q }) });
+  if (!res.ok) throw new Error(`ask failed (${res.status})`);
+  return await res.json();
+}
+
+// ── Capture surface: voice notes / photos / documents → the twin, hash-sealed + tier-tagged ────────
+export interface Captured { id: string; kind: 'note' | 'photo' | 'document'; caption: string; text?: string; tier: string; by: string; contentHash: string; organ?: string; system?: string; capturedAt: string; receipt: string }
+export async function capture(payload: { kind: string; by: string; caption?: string; text?: string; system?: string; organ?: string; contentHash?: string }): Promise<{ captured: Captured; count: number }> {
+  const res = await fetch(`${BASE}/api/health/capture`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+  if (!res.ok) throw new Error(`capture failed (${res.status})`);
+  return await res.json();
+}
