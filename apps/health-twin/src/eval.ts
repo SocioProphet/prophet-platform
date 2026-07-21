@@ -8,6 +8,7 @@
 // Run: `npx tsx src/eval.ts`. Exits non-zero if any metric falls below its floor — so quality is gated.
 import { codeText } from './clinical.js';
 import { guidance } from './guidelines.js';
+import { ground } from './knowledge.js';
 
 interface Gold { code: string; negated: boolean; value?: string }
 interface Case { text: string; gold: Gold[] }
@@ -66,23 +67,39 @@ function evalGuidance() {
   return { want: want.length, hit: hit.length, acc: hit.length / want.length };
 }
 
+// grounding: does a clinical-knowledge question retrieve the right authoritative source?
+function evalGrounding() {
+  const cases: { q: string; source: string }[] = [
+    { q: 'what does prediabetes mean', source: 'ADA Standards of Care in Diabetes' },
+    { q: 'what does a statin do', source: 'Cholesterol Treatment Trialists’ meta-analyses' },
+    { q: 'what is my egfr and kidney function', source: 'KDIGO Chronic Kidney Disease Guideline' },
+    { q: 'what are blood pressure stages', source: 'ACC/AHA 2017 High Blood Pressure Guideline' },
+  ];
+  let hit = 0;
+  for (const c of cases) { const g = ground(c.q); if (g.grounded && g.citations.some((x) => x.source === c.source)) hit++; }
+  return { hit, total: cases.length, acc: hit / cases.length };
+}
+
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const cod = evalCoding();
 const gud = evalGuidance();
+const grd = evalGrounding();
 
 console.log('\n═══ prophet-health clinical eval (honest — NOT MedQA) ═══');
 console.log(`  Clinical coding   precision ${pct(cod.precision)} · recall ${pct(cod.recall)} · F1 ${pct(cod.f1)}   (tp ${cod.tp} fp ${cod.fp} fn ${cod.fn})`);
 console.log(`  Negation          accuracy  ${pct(cod.negAcc)}`);
 console.log(`  Value extraction  accuracy  ${pct(cod.valAcc)}`);
 console.log(`  Guideline firing  ${gud.hit}/${gud.want}  ${pct(gud.acc)}`);
-console.log('  (measures OUR capabilities — coding/negation/values/guidance — not full clinical QA)');
+console.log(`  Grounding source  ${grd.hit}/${grd.total}  ${pct(grd.acc)}   (right authoritative source cited)`);
+console.log('  (measures OUR capabilities — coding/negation/values/guidance/grounding — not full clinical QA)');
 
 // quality floors — the build fails if we regress below these
-const floors = { f1: 0.85, negAcc: 0.9, valAcc: 0.9, guidance: 1.0 };
+const floors = { f1: 0.85, negAcc: 0.9, valAcc: 0.9, guidance: 1.0, grounding: 1.0 };
 const fails: string[] = [];
 if (cod.f1 < floors.f1) fails.push(`F1 ${pct(cod.f1)} < ${pct(floors.f1)}`);
 if (cod.negAcc < floors.negAcc) fails.push(`negation ${pct(cod.negAcc)} < ${pct(floors.negAcc)}`);
 if (cod.valAcc < floors.valAcc) fails.push(`values ${pct(cod.valAcc)} < ${pct(floors.valAcc)}`);
 if (gud.acc < floors.guidance) fails.push(`guidance ${pct(gud.acc)} < ${pct(floors.guidance)}`);
+if (grd.acc < floors.grounding) fails.push(`grounding ${pct(grd.acc)} < ${pct(floors.grounding)}`);
 console.log(fails.length ? `\n✗ below floor: ${fails.join(' · ')}` : '\n✓ all metrics above floor');
 process.exit(fails.length ? 1 : 0);

@@ -20,5 +20,8 @@ config:
   HT_HELLGRAPH_URL: "http://hellgraph-service.socioprophet.svc.cluster.local:8090" # land + hybrid semantic search
   HT_OWL_URL: "http://owl-reasoner.socioprophet.svc.cluster.local:8080"            # TTL → entailments
   HT_EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  # The estate's medical BRAIN (Noetica agent-machine, 125k USMLE-textbook chunks): grounds Ask/Explain
+  # in cited medical texts via /api/study/retrieve. Degrades to the local sourced KB if unreachable.
+  NOETICA_AM_URL: "http://agent-machine.socioprophet.svc.cluster.local:8080"
   # SMART launch link base for CDS Hooks cards (the cockpit's /health surface).
   SMART_APP_BASE: "https://socioprophet.md"

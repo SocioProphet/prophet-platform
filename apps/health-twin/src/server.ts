@@ -15,6 +15,8 @@ import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { deidentify } from './deident.js';
 import { ask } from './ask.js';
+import { ground, groundFromBrain } from './knowledge.js';
+import { communityAggregate, communityScopes, type Scope } from './enclave.js';
 import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
@@ -254,8 +256,23 @@ const server = http.createServer(async (req, res) => {
   // Ask-my-agent — conversational recall over the twin, cited + non-diagnostic. Local-first (sovereign):
   // answers on the person's own node; hellgraph semantic grounding is additive when reachable.
   if (req.method === 'POST' && url.pathname === '/api/health/ask') {
-    try { const b = await readJson(req); return send(res, 200, ask(String(b.q ?? b.question ?? ''))); }
-    catch (e) { return send(res, 400, { error: (e as Error).message || 'ask failed' }); }
+    try {
+      const b = await readJson(req); const q = String(b.q ?? b.question ?? '');
+      const a = ask(q);
+      const brain = await groundFromBrain(q); // prefer the estate's brain corpus when wired; else local KB
+      if (brain && brain.grounded) a.grounded = brain;
+      return send(res, 200, a);
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'ask failed' }); }
+  }
+
+  // Explain — a clinical-knowledge question grounded in authoritative medical sources (cited, tiered).
+  // Uses the estate's brain corpus when wired (HT_BRAIN_URL), else the local sourced knowledge base.
+  if (req.method === 'POST' && url.pathname === '/api/health/explain') {
+    try {
+      const b = await readJson(req); const q = String(b.q ?? b.question ?? '');
+      const brain = await groundFromBrain(q);
+      return send(res, 200, brain && brain.grounded ? brain : ground(q));
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'explain failed' }); }
   }
 
   // Capture — a voice note / photo / document lands in the twin, hash-sealed + tier-tagged. The doctor's
@@ -279,6 +296,15 @@ const server = http.createServer(async (req, res) => {
       captured.unshift(rec);
       return send(res, 200, { captured: rec, count: captured.length });
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'capture failed' }); }
+  }
+
+  // ── Doctor community over confidential compute (first slice): blinded-consult aggregation run INSIDE
+  // an attested enclave over a SCOPED community pool. The enclave sees de-identified inputs only and
+  // emits digests + a result — never raw data. Skeleton attestation; real deployment = Nitro/SGX/SEV. ──
+  if (req.method === 'GET' && url.pathname === '/api/health/community/scopes') return send(res, 200, communityScopes());
+  if (req.method === 'POST' && url.pathname === '/api/health/community/aggregate') {
+    try { const b = await readJson(req); return send(res, 200, communityAggregate((b.scope ?? {}) as Scope)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'aggregate failed' }); }
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
