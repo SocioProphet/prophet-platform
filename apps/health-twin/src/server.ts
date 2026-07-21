@@ -48,6 +48,36 @@ function bundle() {
   };
 }
 
+// Emit the twin as typed RDF (Turtle) the owl-reasoner can consume: the subject is a
+// hdt:HumanDigitalTwin, each observation a hdt:Observation, each condition a health:Condition, each
+// localised to a health:Organ — importing the HDT health ontology (socioprophet.md). Loading this
+// alongside the ontology TBox lets a reasoner entail (e.g. conditions ⊑ hdt:FHIRResource) and drive
+// the correspondence promotion membrane. Synthetic data only.
+function ttlEsc(s: string): string { return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+function twinTtl(): string {
+  const head = [
+    '@prefix health: <https://socioprophet.md/ont/health#> .',
+    '@prefix hdt: <https://socioprophet.dev/ont/ontogenesis#> .',
+    '@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .',
+    '@prefix owl: <http://www.w3.org/2002/07/owl#> .',
+    '@prefix sp: <https://socioprophet.ai/kg#> .',
+    '',
+    '<urn:health-twin:graph> a owl:Ontology ; owl:imports <https://socioprophet.md/ont/health#> .',
+  ];
+  const S = `<urn:health-twin:${SUBJECT.id}>`;
+  const out = [`${S} a hdt:HumanDigitalTwin ; rdfs:label "${ttlEsc(SUBJECT.label)}" .`];
+  for (const s of SYSTEMS) out.push(`<${s.iri}> a health:OrganSystem ; rdfs:label "${ttlEsc(s.label)}" .`);
+  for (const o of OBSERVATIONS) {
+    const oi = ORGAN_IRI[o.organ];
+    out.push(`<urn:health-twin:${o.id}> a hdt:Observation ; rdfs:label "${ttlEsc(o.display)}" ; sp:epistemicMode "${o.epistemic}" ; health:code "${o.code}" ; health:codeSystem "${o.codeSystem}"${oi ? ` ; health:localizedTo <${oi}>` : ''} .`);
+  }
+  for (const c of CONDITIONS) {
+    const oi = ORGAN_IRI[c.organ];
+    out.push(`<urn:health-twin:${c.id}> a health:Condition ; rdfs:label "${ttlEsc(c.display)}" ; sp:epistemicMode "${c.epistemic}" ; health:code "${c.code}" ; health:codeSystem "${c.codeSystem}"${oi ? ` ; health:localizedTo <${oi}>` : ''} .`);
+  }
+  return head.concat(out).join('\n') + '\n';
+}
+
 function send(res: http.ServerResponse, code: number, body: unknown) {
   res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'POST, GET, OPTIONS' });
   res.end(JSON.stringify(body));
@@ -67,6 +97,12 @@ const server = http.createServer(async (req, res) => {
 
   // The twin bundle (the surface's one read).
   if (req.method === 'GET' && url.pathname === '/api/health/twin') return send(res, 200, bundle());
+
+  // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
+  if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
+    res.writeHead(200, { 'content-type': 'text/turtle; charset=utf-8', 'access-control-allow-origin': '*' });
+    return res.end(twinTtl());
+  }
 
   // Grant a designated agent a scoped, time-boxed read grant — receipted.
   if (req.method === 'POST' && url.pathname === '/api/health/grant') {
