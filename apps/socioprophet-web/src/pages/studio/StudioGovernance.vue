@@ -10,6 +10,8 @@ import {
   type OntologyView, type OntologyClassDetail, type ActionDef, type WorldSignal, type GaiaOntology,
   type HdtObservation, type HdtOntology,
 } from "../../services/studioApi";
+import { computed } from "vue";
+import PromotionMembrane from "./PromotionMembrane.vue";
 
 const props = defineProps<{ project: string }>();
 
@@ -83,6 +85,20 @@ async function doHdtPromote(o: HdtObservation, to_state: string, actor_kind: str
 }
 
 function epi(mode?: string | null): string { return EPISTEMIC_COLORS[mode || "observed"] || "var(--faint)"; }
+
+// Membrane state lists + live occupancy per twin, for the shared PromotionMembrane + small-multiples.
+const gaiaStates = computed(() => (gaia.value?.promotion_epistemic_membrane ?? []).map((m) => ({ state: m.state, epistemic: m.epistemic_human, canonical: m.canonical })));
+const gaiaOcc = computed<Record<string, number>>(() => { const o: Record<string, number> = {}; for (const s of signals.value) o[s.promotion_state] = (o[s.promotion_state] ?? 0) + 1; return o; });
+const hdtStates = computed(() => (hdt.value?.omega_epistemic_lattice ?? []).map((m) => ({ state: m.state, epistemic: m.epistemic_human, canonical: m.canonical })));
+const hdtOcc = computed<Record<string, number>>(() => { const o: Record<string, number> = {}; for (const ob of observations.value) o[ob.omega_state] = (o[ob.omega_state] ?? 0) + 1; return o; });
+// Knowledge twin = the epistemic ramp itself (graph facts promote observed→attested); occupancy lives on the graph.
+const knowledgeStates = [
+  { state: "hypothesis", epistemic: "hypothesis", canonical: false },
+  { state: "observed", epistemic: "observed", canonical: false },
+  { state: "derived", epistemic: "derived", canonical: false },
+  { state: "verified", epistemic: "verified", canonical: false },
+  { state: "attested", epistemic: "attested", canonical: true },
+];
 </script>
 
 <template>
@@ -98,6 +114,17 @@ function epi(mode?: string | null): string { return EPISTEMIC_COLORS[mode || "ob
     <p v-else-if="loading" class="msg">Loading governance…</p>
 
     <div v-else class="grid">
+      <!-- Three-twin small multiples — one promotion discipline across Earth, Human, Knowledge -->
+      <section class="card wide" v-if="gaia && hdt">
+        <header class="ch"><span class="ci">⧉</span> Three twins — one promotion discipline<span class="tagline">small multiples</span></header>
+        <div class="tw-grid">
+          <div class="tw"><div class="tw-h"><b>Earth</b><small>GAIA world-signals</small></div><PromotionMembrane compact :states="gaiaStates" :occupancy="gaiaOcc" /></div>
+          <div class="tw"><div class="tw-h"><b>Human</b><small>HDT observations</small></div><PromotionMembrane compact :states="hdtStates" :occupancy="hdtOcc" /></div>
+          <div class="tw"><div class="tw-h"><b>Knowledge</b><small>HellGraph facts · on the graph</small></div><PromotionMembrane compact :states="knowledgeStates" /></div>
+        </div>
+        <p class="sub">The <b>same</b> promotion membrane across all three twins — evidence proposes, only a human canonizes (the sealed ⛬ chamber). Identical encoding is the point: one governed-evidence discipline for Earth, human &amp; knowledge.</p>
+      </section>
+
       <!-- Ontogenesis ontology browser -->
       <section class="card">
         <header class="ch"><span class="ci">⬡</span> Ontology<span class="score" v-if="onto">{{ onto.counts.classes }} classes · real</span></header>
@@ -140,13 +167,7 @@ function epi(mode?: string | null): string { return EPISTEMIC_COLORS[mode || "ob
       <!-- GAIA promotion membrane -->
       <section class="card wide" v-if="gaia">
         <header class="ch"><span class="ci">◍</span> GAIA world-signals — the promotion membrane<span class="tagline">Earth twin</span></header>
-        <div class="membrane">
-          <div v-for="(m, i) in gaia.promotion_epistemic_membrane" :key="m.state" class="mstate" :class="{ canon: m.canonical }">
-            <span class="ms-n">{{ m.state }}</span>
-            <span class="ms-epi" :style="{ color: epi(m.epistemic_human) }">{{ m.epistemic_human }}</span>
-            <span v-if="i < gaia.promotion_epistemic_membrane.length - 1" class="ms-arrow">→</span>
-          </div>
-        </div>
+        <PromotionMembrane :states="gaiaStates" :occupancy="gaiaOcc" />
         <p class="invariant">⚖ {{ gaia.invariant }}</p>
 
         <div class="submit">
@@ -178,13 +199,7 @@ function epi(mode?: string | null): string { return EPISTEMIC_COLORS[mode || "ob
       <!-- HDT — the human twin (closes the triangle) -->
       <section class="card wide" v-if="hdt">
         <header class="ch"><span class="ci">◐</span> HDT observations — the OmegaState lattice<span class="tagline">human twin · closes the triangle</span></header>
-        <div class="membrane">
-          <div v-for="(m, i) in hdt.omega_epistemic_lattice" :key="m.state" class="mstate" :class="{ canon: m.canonical }">
-            <span class="ms-n">{{ m.state }}</span>
-            <span class="ms-epi" :style="{ color: epi(m.epistemic_human) }">{{ m.epistemic_human }}</span>
-            <span v-if="i < hdt.omega_epistemic_lattice.length - 1" class="ms-arrow">→</span>
-          </div>
-        </div>
+        <PromotionMembrane :states="hdtStates" :occupancy="hdtOcc" />
         <p class="invariant">⚖ {{ hdt.invariant }}</p>
         <div class="submit">
           <input v-model="hdtSubject" class="j" placeholder="subject (person id)" />
@@ -251,11 +266,14 @@ function epi(mode?: string | null): string { return EPISTEMIC_COLORS[mode || "ob
 .invoke { border-top: 1px solid var(--sunken); padding-top: 8px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px; }
 .irow { display: flex; gap: 6px; } .irow .j { flex: 1; } .invoke .j { width: 100%; }
 
-.membrane { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
-.mstate { display: flex; align-items: center; gap: 6px; border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 5px 9px; }
-.mstate.canon { border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: var(--ok-wash); }
-.ms-n { font-weight: 600; font-size: 12px; } .ms-epi { font-size: 10.5px; } .ms-arrow { color: var(--faint); margin: 0 2px; }
-.invariant { background: var(--warn-wash); color: var(--warn); border-radius: var(--r-2); padding: 6px 10px; font-size: 12px; margin: 0 0 10px; }
+.invariant { background: var(--warn-wash); color: var(--warn); border-radius: var(--r-2); padding: 6px 10px; font-size: 12px; margin: 10px 0; }
+
+/* three-twin small multiples */
+.tw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
+@media (max-width: 860px) { .tw-grid { grid-template-columns: 1fr; } }
+.tw { border: 1px solid var(--hairline); border-radius: var(--r-3); padding: 8px 10px; background: var(--sunken); overflow: hidden; }
+.tw-h { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.tw-h b { font-size: 12.5px; } .tw-h small { color: var(--muted); font-size: 10.5px; }
 .submit { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .wgrid { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .wgrid th { text-align: left; padding: 6px 8px; background: var(--sunken); border-bottom: 1px solid var(--hairline); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
