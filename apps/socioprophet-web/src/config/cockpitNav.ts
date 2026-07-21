@@ -218,6 +218,7 @@ export const AGENT_COCKPIT: NavGroup[] = [
     items: [
       { label: 'Notebooks', to: '/studio?section=notebooks' },
       { label: 'Compute Plane', to: '/studio?section=compute' },
+      { label: 'Data Catalog', to: '/studio?section=catalog' },
       { label: 'Graph Explorer', to: '/studio?section=graph' },
       { label: 'Query Console', to: '/studio?section=query' },
       { label: 'Analytics', to: '/studio?section=analytics' },

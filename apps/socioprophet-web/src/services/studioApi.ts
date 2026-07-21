@@ -474,7 +474,10 @@ export interface PipelineStepDef { id: string; kind: string; inputs?: string[]; 
 export interface Pipeline { pipeline_id: string; name: string; steps: PipelineStepDef[]; step_count: number }
 export interface ModelVersion { model_id: string; version: string; stage: string; metrics: Record<string, number>; run?: string | null }
 export interface ModelEntry { name: string; versions: ModelVersion[] }
-export interface Dataset { id: string; name: string; labels: string[]; connector?: string | null; epistemic_mode: string; columns: string[] }
+// volume_trend: optional per-dataset ingest-volume series (row count over recent snapshots). When
+// the catalog backend supplies it the Catalog renders a live sparkline; otherwise the surface shows
+// a deterministic demo series (marked ~) — the same "shaped-like-real, live swaps in" seam as the rest.
+export interface Dataset { id: string; name: string; labels: string[]; connector?: string | null; epistemic_mode: string; columns: string[]; volume_trend?: number[] }
 export interface ComputeBackend { id: string; kind: string; note: string; entitled: boolean; default?: boolean }
 export interface Compute { backends: ComputeBackend[]; entitled_any: boolean; model: string }
 export interface Community { community: string; size: number; top_members: { id: string; label: string; degree: number }[]; epistemic_distribution: Record<string, number> }

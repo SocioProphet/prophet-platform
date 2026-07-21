@@ -116,12 +116,9 @@ KNOWN_BROKEN = {
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
-    # sha-a6d8311383) → removed from the ratchet (it only shrinks).
-    "academy-board:moving-tag": (
-        "New service — the sovereign Academy board engine (apps/academy-board: server-authoritative mastery-check "
-        "grading + receipts on :8095, answer key never ships to the browser) added to CI this PR. Pin tag:latest -> "
-        "the sha- tag gitops-promote writes after the first CI build; no sha exists until merge."
-    ),
+    # sha-a6d8311383) → removed from the ratchet (it only shrinks). Same for academy-board:
+    # gitops-promote sha-pinned it after #926's first build (sha-f59cf2c9), so its moving-tag
+    # entry now passes and is removed.
     # sherlock-engine pinned to a sha- tag by gitops-promote after the 0.0.0.0 bind fix (#887) → removed
     # from the ratchet (it only shrinks). Same for synapse-bridge + holmes: gitops-promote sha-pinned both
     # after their first builds landed (#905/#906), so their moving-tag entries now pass and are removed.
