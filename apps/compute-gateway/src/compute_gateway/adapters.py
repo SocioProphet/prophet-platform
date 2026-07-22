@@ -293,10 +293,13 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
     if facts is None:
         headers = {"Authorization": f"Bearer {EXTRACT_TOKEN}"} if EXTRACT_TOKEN else {}
         body = {"project": project, "document": req_spec.get("document"),
-                "blocks": req_spec.get("blocks"), "target_schema": schema}
+                "blocks": req_spec.get("blocks"), "target_schema": schema,
+                "period": req_spec.get("period")}
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
-                r = await c.post(f"{EXTRACT_URL}/api/studio/extract", json=body)
+                # fact-mode endpoint: {blocks, target_schema, period} → {facts[]} — NOT the
+                # graph-writing /api/studio/extract, whose contract is text→entities.
+                r = await c.post(f"{EXTRACT_URL}/api/studio/extract-facts", json=body)
                 if r.status_code != 200:
                     return {"outputs": [], "runtime": "holmes", "status": "error",
                             "error": f"extract HTTP {r.status_code}", "degraded": None}
