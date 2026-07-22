@@ -37,12 +37,36 @@ export async function addReading(text: string, by = 'clinician', source = 'keybo
   if (!res.ok) throw new Error(`reading failed (${res.status})`);
   return await res.json();
 }
-// evidence grounded ON the twin — contextual (patient-specific query) + evidentiary (bound to a record)
+// evidence grounded ON the twin — contextual (patient-specific query) + evidentiary (bound to a record).
+// Pass a grant id and the engine scopes evidence SERVER-SIDE to records inside the grant, so withheld
+// findings can't leak to a clinician through the evidence side door.
 export interface TwinEvidence { recordId: string; finding: string; query: string; evidence: string; citations: { source: string; tier: string }[]; retrieval: string }
-export async function groundEvidence(): Promise<{ context: string; items: TwinEvidence[] }> {
-  const res = await fetch(`${BASE}/api/health/evidence`, { headers: { accept: 'application/json' } });
+export async function groundEvidence(grant?: string): Promise<{ context: string; items: TwinEvidence[] }> {
+  const q = grant ? `?grant=${encodeURIComponent(grant)}` : '';
+  const res = await fetch(`${BASE}/api/health/evidence${q}`, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`evidence failed (${res.status})`);
   return await res.json();
+}
+
+// ── grant-scoped clinician access: the doctor chart reads THROUGH a consent grant ─────────────────
+// The engine returns exactly the granted slice plus withheld COUNTS (never content); revoked/expired
+// grants return an explicit receipted block. Every read increments the grant's receipt trail.
+export interface GrantSummary { id: string; agent: string; scope: string; scopeSummary: string; active: boolean; expires_at: string; reads: number }
+export async function listGrants(): Promise<{ grants: GrantSummary[]; presets: Record<string, string> }> {
+  const res = await fetch(`${BASE}/api/health/grants`, { headers: { accept: 'application/json' } });
+  if (!res.ok) throw new Error(`grants unreachable (${res.status})`);
+  return await res.json();
+}
+export type WithheldCounts = { total: number } & Partial<Record<'observations' | 'conditions' | 'encounters' | 'imaging' | 'medications' | 'allergies' | 'immunizations' | 'readings', number>>;
+export interface DoctorView {
+  blocked?: boolean; reason?: string;
+  grant?: { id: string; agent: string; scope: string; scopeSummary: string; expires_at: string; reads: number };
+  view?: Omit<TwinBundle, 'grants'>; withheld?: WithheldCounts;
+  receipt?: { id: string };
+}
+export async function doctorView(grantId: string): Promise<DoctorView> {
+  const res = await fetch(`${BASE}/api/health/doctor-view?grant=${encodeURIComponent(grantId)}`, { headers: { accept: 'application/json' } });
+  return await res.json(); // a 403 carries the { blocked, reason, receipt } shape — the block IS the answer
 }
 
 export async function loadTwin(): Promise<TwinBundle> {

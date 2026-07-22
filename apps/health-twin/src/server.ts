@@ -23,6 +23,7 @@ import { groundTwin } from './evidence.js';
 import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
+import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -35,8 +36,18 @@ function receipt(kind: string, parts: string[]): { id: string; verifier: 'health
   return { id: `ht-${kind}-${djb2(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
 }
 
-// In-memory grant ledger (skeleton). Local-first store in production.
-const grants: Grant[] = [];
+// In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
+// cardiometabolic grant for the care-team cardiologist so the doctor chart demos scoping on a
+// fresh boot (the childhood knee history is OUTSIDE this scope — it shows up as withheld counts).
+const grants: Grant[] = [{
+  id: 'grant-seed-rivera',
+  agent: 'Dr. A. Rivera (Cardiology)',
+  scope: 'cardiometabolic',
+  scopeSpec: resolveScope('cardiometabolic'),
+  granted_at: new Date().toISOString(),
+  expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+  revoked: false, reads: 0, receipt: 'ht-grant-seed',
+}];
 
 // Entered readings — device / voice / keyboard vitals that became coded observations. Local-first store.
 const readings: Reading[] = [];
@@ -316,7 +327,22 @@ const server = http.createServer(async (req, res) => {
 
   // Evidence grounded ON the twin — the brain lookup contextualized by the patient's own record and
   // bound evidentiarily to each finding. The clinician chart shows the literature behind each number.
-  if (req.method === 'GET' && url.pathname === '/api/health/evidence') return send(res, 200, await groundTwin());
+  // Grant-aware: with ?grant=<id> the evidence is scoped SERVER-SIDE to records inside the grant, so
+  // withheld findings can't leak to the clinician through the evidence side door. Enforced here, not
+  // in the client. A blocked grant blocks evidence too.
+  if (req.method === 'GET' && url.pathname === '/api/health/evidence') {
+    const gid = url.searchParams.get('grant');
+    const grounded = await groundTwin();
+    if (!gid) return send(res, 200, grounded);
+    const r = resolveGrant(grants, String(gid));
+    if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('evidence-blocked', [String(gid), r.reason]) });
+    const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+    const { view } = applyScope(bundle(), scope);
+    const keptIds = new Set<string>([
+      ...view.systems.flatMap((s: any) => [...s.observations, ...s.conditions].map((x: any) => x.id)),
+    ]);
+    return send(res, 200, { ...grounded, items: grounded.items.filter((i) => keptIds.has(i.recordId)) });
+  }
 
   // Provider directory + a provider's profile (the patient reviews who their doctors are).
   if (req.method === 'GET' && url.pathname === '/api/health/providers') return send(res, 200, { providers: directory(), careTeam: careTeam() });
@@ -389,10 +415,44 @@ const server = http.createServer(async (req, res) => {
         agent, scope, granted_at: now.toISOString(),
         expires_at: new Date(now.getTime() + ttlDays * 86400000).toISOString(),
         revoked: false, reads: 0, receipt: receipt('grant', [agent, scope, String(ttlDays)]).id,
+        // structured scope: explicit spec > preset name > the scope label if it names a preset > full history
+        scopeSpec: resolveScope(String(b.preset ?? scope), b.scopeSpec),
       };
       grants.unshift(g);
-      return send(res, 200, { grant: g });
+      return send(res, 200, { grant: { ...g, scopeSummary: scopeSummary(g.scopeSpec!) } });
     } catch { return send(res, 400, { error: 'bad json' }); }
+  }
+
+  // Grant summaries for the clinician surface (id + label + active — never the record itself).
+  if (req.method === 'GET' && url.pathname === '/api/health/grants') {
+    return send(res, 200, {
+      grants: grants.map((g) => ({
+        id: g.id, agent: g.agent, scope: g.scope,
+        scopeSummary: scopeSummary(g.scopeSpec ?? resolveScope(g.scope)),
+        active: !g.revoked && new Date(g.expires_at) > new Date(),
+        expires_at: g.expires_at, reads: g.reads,
+      })),
+      presets: Object.fromEntries(Object.entries(SCOPE_PRESETS).map(([k, v]) => [k, scopeSummary(v)])),
+    });
+  }
+
+  // The doctor chart's data source: exercise a grant → the SCOPED bundle. The subject stays
+  // identified (the clinician is authorized); the slice is exactly what the consent covers, with
+  // withheld COUNTS (never content) so the doctor can see more history exists and request it.
+  // Every read is a receipt; revoked/expired/unknown grants get an explicit receipted block.
+  if (req.method === 'GET' && url.pathname === '/api/health/doctor-view') {
+    const id = String(url.searchParams.get('grant') ?? '');
+    const r = resolveGrant(grants, id);
+    if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('doctor-read-blocked', [id, r.reason]) });
+    const g = r.grant;
+    g.reads += 1;
+    const scope = g.scopeSpec ?? resolveScope(g.scope);
+    const { view, withheld } = applyScope(bundle(), scope);
+    return send(res, 200, {
+      grant: { id: g.id, agent: g.agent, scope: g.scope, scopeSummary: scopeSummary(scope), expires_at: g.expires_at, reads: g.reads },
+      view, withheld,
+      receipt: receipt('doctor-read', [g.id, String(g.reads)]),
+    });
   }
 
   // Revoke a grant — read-enforced: future reads by that agent are blocked.

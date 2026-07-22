@@ -53,6 +53,9 @@ export interface ImagingStudy { id: string; system: string; modality: string; bo
 export interface Grant {
   id: string; agent: string; scope: string; granted_at: string; expires_at: string;
   revoked: boolean; reads: number; receipt: string;
+  // structured consent scope (systems/kinds/lookback) — `scope` stays the human-readable label.
+  // Type-only import from grants.js: no runtime cycle.
+  scopeSpec?: import('./grants.js').GrantScope;
 }
 
 // ── clearly-synthetic seed (NOT real PHI) ────────────────────────────────────────────────────────
