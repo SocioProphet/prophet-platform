@@ -122,7 +122,9 @@ def test_five_stage_pipeline_document_to_sql(tmp_path, monkeypatch):
     monkeypatch.setattr(adapters, "SQL_DSN", str(tmp_path / "ifm.db"), raising=False)
 
     async def ref(entity, field, period):
-        return {"revenue": 1204.0}.get(field)                  # open-data stand-in agrees with the pack
+        # open-data stand-in agrees with the pack — references speak ABSOLUTE units
+        # (the pack's '$1,204m' cell scales to 1.204e9 before comparison)
+        return {"revenue": 1_204_000_000.0}.get(field)
     adapters.set_reference_resolver(ref)
 
     async def extract_from_blocks(spec, project, session):

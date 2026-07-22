@@ -294,7 +294,8 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
         headers = {"Authorization": f"Bearer {EXTRACT_TOKEN}"} if EXTRACT_TOKEN else {}
         body = {"project": project, "document": req_spec.get("document"),
                 "blocks": req_spec.get("blocks"), "target_schema": schema,
-                "period": req_spec.get("period")}
+                "period": req_spec.get("period"),
+                "column_convention": req_spec.get("column_convention", "current-last")}
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
                 # fact-mode endpoint: {blocks, target_schema, period} → {facts[]} — NOT the
@@ -317,17 +318,19 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
             "epistemic": warrant}
 
 
-# field → us-gaap XBRL concept (extend as the schema grows)
-_XBRL_CONCEPT = {
-    "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax",
-    "revenues": "Revenues", "net_income": "NetIncomeLoss", "net_profit": "NetIncomeLoss",
-    "npat": "NetIncomeLoss",
-    "gross_profit": "GrossProfit", "cost_of_revenue": "CostOfRevenue",
-    "operating_income": "OperatingIncomeLoss", "operating_profit": "OperatingIncomeLoss",
-    "eps_basic": "EarningsPerShareBasic", "eps_diluted": "EarningsPerShareDiluted",
-    "assets": "Assets", "liabilities": "Liabilities", "equity": "StockholdersEquity",
-    "cash": "CashAndCashEquivalentsAtCarryingValue",
-    "operating_cash_flow": "NetCashProvidedByUsedInOperatingActivities",
+# field → us-gaap XBRL concepts, in preference order — filers differ on which concept
+# they tag (Chipotle reports revenue under plain `Revenues`, not the ASC-606 name), so a
+# single-concept map silently fails reconciliation for perfectly ordinary filers.
+_XBRL_CONCEPT: dict[str, list[str]] = {
+    "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"],
+    "revenues": ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"],
+    "net_income": ["NetIncomeLoss"], "net_profit": ["NetIncomeLoss"], "npat": ["NetIncomeLoss"],
+    "gross_profit": ["GrossProfit"], "cost_of_revenue": ["CostOfRevenue", "CostOfGoodsAndServicesSold"],
+    "operating_income": ["OperatingIncomeLoss"], "operating_profit": ["OperatingIncomeLoss"],
+    "eps_basic": ["EarningsPerShareBasic"], "eps_diluted": ["EarningsPerShareDiluted"],
+    "assets": ["Assets"], "liabilities": ["Liabilities"], "equity": ["StockholdersEquity"],
+    "cash": ["CashAndCashEquivalentsAtCarryingValue"],
+    "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
 }
 
 # companyfacts returns EVERY concept for an entity in one (large) payload — cached per
@@ -358,19 +361,23 @@ async def _sec_edgar_reference(entity: dict, field: str, period: str) -> float |
     `cik`. Returns the value whose fiscal period matches, else None (unresolved → the fact
     simply can't reach `verified`)."""
     cik = str(entity.get("cik", "")).zfill(10)
-    concept = _XBRL_CONCEPT.get(field.lower())
-    if not cik.strip("0") or concept is None:
+    concepts = _XBRL_CONCEPT.get(field.lower())
+    if not cik.strip("0") or not concepts:
         return None
     data = await _edgar_companyfacts(cik)
-    fact = ((data or {}).get("facts", {}).get("us-gaap", {}) or {}).get(concept) or {}
-    for unit_rows in (fact.get("units") or {}).values():
-        for row in unit_rows:
-            if period and (row.get("fp") == period or str(row.get("frame", "")).find(period) >= 0
-                           or str(row.get("fy")) == period):
-                try:
-                    return float(row["val"])
-                except (KeyError, TypeError, ValueError):
-                    continue
+    gaap = (data or {}).get("facts", {}).get("us-gaap", {}) or {}
+    for concept in concepts:                 # preference order; first concept with a period match wins
+        fact = gaap.get(concept) or {}
+        for unit_rows in (fact.get("units") or {}).values():
+            for row in unit_rows:
+                # NB match by frame when the period names one ('CY2026Q1'): fy/fp alone are
+                # ambiguous — a filing tags BOTH years' comparatives with the same fy+fp.
+                if period and (row.get("fp") == period or str(row.get("frame", "")).find(period) >= 0
+                               or str(row.get("fy")) == period):
+                    try:
+                        return float(row["val"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
     return None
 
 
@@ -387,15 +394,21 @@ async def _asx_prior_extraction_reference(entity: dict, field: str, period: str)
         return None
     try:
         con = sqlite3.connect(_sqlite_path(SQL_LOAD_DSN))
-        row = con.execute(f"SELECT value FROM {table} WHERE entity=? AND period=? AND field=?",
+        row = con.execute(f"SELECT value_abs, value FROM {table} WHERE entity=? AND period=? AND field=?",
                           (ent_id, period, field)).fetchone()
         con.close()
     except Exception:  # noqa: BLE001
         return None
-    try:
-        return float(row[0]) if row is not None else None
-    except (TypeError, ValueError):
+    if row is None:
         return None
+    # absolute value preferred — reconcile compares in absolute units on both sides
+    for v in row:
+        try:
+            if v is not None:
+                return float(v)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 _REFERENCE_BACKENDS: dict[str, Callable[..., Awaitable[float | None]]] = {
@@ -424,11 +437,32 @@ def set_reference_resolver(fn) -> None:
     _REFERENCE = fn
 
 
+# magnitude suffixes a pack prints beside a number ('$1,204m', '2.5bn'). A unit string
+# may carry a currency prefix ('AUD_m') — the suffix after the final '_' is what scales.
+_UNIT_SCALE = {"k": 1e3, "m": 1e6, "b": 1e9, "bn": 1e9}
+
+
+def _fact_abs_value(val: Any, unit: Any) -> float | None:
+    """Printed value → absolute units for comparison (1204 + 'm' → 1_204_000_000).
+    References (EDGAR XBRL, FactSet) speak absolute; packs print magnitudes — comparing
+    them raw would false-flag every correct fact. Unknown/absent unit → as printed."""
+    if val is None:
+        return None
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return None
+    u = str(unit or "").lower().rsplit("_", 1)[-1]
+    return v * _UNIT_SCALE.get(u, 1.0)
+
+
 async def _reconcile(req_spec: dict, project: str, session: str | None) -> AdapterResult:
     """Reconcile extracted facts against a structured reference source (SEC EDGAR open
     data now; FactSet on a key later — the logic is identical). Agreement within tolerance
     PROMOTES a fact to `verified`; divergence is FLAGGED (the tradable edge). The step's
-    warrant is `verified` iff every fact reconciled, else `derived`."""
+    warrant is `verified` iff every fact reconciled, else `derived`. Comparison happens in
+    ABSOLUTE units (the design's validate-stage unit check): '$1,204m' vs XBRL 1204000000
+    agree; a magnitude slip false-flags instead of silently verifying."""
     # `rows` is what the extraction step emits — accept it so a workflow can thread
     # extraction → reconcile via `from` without a rename.
     facts = req_spec.get("facts") or req_spec.get("rows") or []
@@ -440,13 +474,15 @@ async def _reconcile(req_spec: dict, project: str, session: str | None) -> Adapt
         resolver = _REFERENCE               # injected test resolver beats routing
     recs, all_ok = [], True
     for f in facts:
-        field, val = f.get("field"), f.get("value")
+        field, val, unit = f.get("field"), f.get("value"), f.get("unit")
         ref = await resolver(entity, field, period)
-        within = ref is not None and val is not None and abs(float(val) - ref) <= abs(ref) * tol
-        delta = (float(val) - ref) if (ref is not None and val is not None) else None
+        val_abs = _fact_abs_value(val, unit)
+        within = ref is not None and val_abs is not None and abs(val_abs - ref) <= abs(ref) * tol
+        delta = (val_abs - ref) if (ref is not None and val_abs is not None) else None
         warrant = "verified" if within else (f.get("warrant") or "derived")
         all_ok = all_ok and within
-        recs.append({"field": field, "extracted": val, "reference": ref, "delta": delta,
+        recs.append({"field": field, "extracted": val, "extracted_abs": val_abs, "unit": unit,
+                     "reference": ref, "delta": delta,
                      "within_tol": within, "warrant": warrant, "flagged": ref is not None and not within})
     return {"outputs": [ComputeOutput(type="table", data={
                 "entity": entity, "period": period, "source": source,
@@ -491,23 +527,36 @@ async def _sql_load(req_spec: dict, project: str, session: str | None) -> Adapte
         con = sqlite3.connect(_sqlite_path(dsn))
         con.execute(f"CREATE TABLE IF NOT EXISTS {table} (entity TEXT, period TEXT, field TEXT, "
                     "value TEXT, warrant TEXT, reference TEXT, within_tol INTEGER, source TEXT, "
-                    "loaded_at TEXT, PRIMARY KEY(entity, period, field))")
+                    "loaded_at TEXT, value_abs REAL, unit TEXT, PRIMARY KEY(entity, period, field))")
+        for col, typ in (("value_abs", "REAL"), ("unit", "TEXT")):
+            try:  # pre-normalization tables lack these columns — migrate in place
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+            except sqlite3.OperationalError:
+                pass
         inserted = updated = 0
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         for r in rows:
             field = r.get("field")
             value = r.get("extracted", r.get("value"))
+            unit = r.get("unit")
+            # absolute value beside the printed one, so cross-document reconciliation
+            # (the AU path reads this table as its reference) compares like with like
+            value_abs = r.get("extracted_abs")
+            if value_abs is None:
+                value_abs = _fact_abs_value(value, unit)
             warrant = r.get("warrant") or "derived"
             warrants.append(warrant)
             exists = con.execute(f"SELECT 1 FROM {table} WHERE entity=? AND period=? AND field=?",
                                  (ent_id, period, field)).fetchone() is not None
             con.execute(
-                f"INSERT INTO {table}(entity,period,field,value,warrant,reference,within_tol,source,loaded_at) "
-                "VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(entity,period,field) DO UPDATE SET "
+                f"INSERT INTO {table}(entity,period,field,value,warrant,reference,within_tol,source,loaded_at,value_abs,unit) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(entity,period,field) DO UPDATE SET "
                 "value=excluded.value, warrant=excluded.warrant, reference=excluded.reference, "
-                "within_tol=excluded.within_tol, source=excluded.source, loaded_at=excluded.loaded_at",
+                "within_tol=excluded.within_tol, source=excluded.source, loaded_at=excluded.loaded_at, "
+                "value_abs=excluded.value_abs, unit=excluded.unit",
                 (ent_id, period, field, str(value), warrant,
-                 str(r.get("reference")), 1 if r.get("within_tol") else 0, source, now))
+                 str(r.get("reference")), 1 if r.get("within_tol") else 0, source, now,
+                 value_abs, str(unit) if unit is not None else None))
             inserted, updated = (inserted, updated + 1) if exists else (inserted + 1, updated)
         con.commit()
         total = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
