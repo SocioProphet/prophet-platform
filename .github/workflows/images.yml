@@ -52,6 +52,7 @@ jobs:
           - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
           - { image: agentic-os-api,        context: apps/agentic-os-api,       dockerfile: Dockerfile }
           - { image: hellgraph-service,     context: apps/hellgraph-service,    dockerfile: Dockerfile }
+          - { image: reporting-watcher,     context: apps/reporting-watcher,    dockerfile: Dockerfile }
           - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
           - { image: dashboard-bff,         context: .,                         dockerfile: apps/dashboard-bff/Dockerfile }
           - { image: workspace-mail,        context: services/workspace-mail,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }

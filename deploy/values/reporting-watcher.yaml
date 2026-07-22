@@ -1,0 +1,20 @@
+# reporting-watcher — the IFM design's CADENCE trigger (apps/reporting-watcher).
+# Polls the ASX announcements API for the watched tickers' reporting events (results
+# packs, statutory Appendix 4D/4E) and runs the governed doc→SQL workflow on the
+# compute gateway the moment a pack lands. Statutory forms process FIRST so the
+# Appendix 4E is in the reference table before the investor pack reconciles (the AU
+# cross-document design). Stateless by design: packs are content-addressed and
+# requests memoized at the gateway, so restarts reprocess nothing.
+# tag:latest is a bootstrap; sha-pin after first build (gitops-promote only
+# MAINTAINS an existing sha- pin — a new latest service must be pinned once).
+image: { repository: reporting-watcher, tag: latest }
+service: { port: 8080, portName: http }
+config:
+  GATEWAY_URL: "http://compute-gateway:8080"
+  WATCH_TICKERS: "gyg"
+  WATCH_PROJECT: "gyg-reporting"
+  REPORT_PERIOD: "FY26"
+  POLL_SECONDS: "1800"
+# Same bearer the gateway accepts — the watcher is a gateway client, no second secret.
+secretEnv:
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
