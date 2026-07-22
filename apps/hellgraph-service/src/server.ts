@@ -35,6 +35,7 @@ import { fileURLToPath } from 'node:url'
 process.env['HELLGRAPH_STORE_DIR'] ||= path.join(os.homedir(), '.hellgraph-service')
 
 import * as engine from '@socioprophet/hellgraph'
+import { startFederation, handleFederation, type Federation } from './federation.js'
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
@@ -57,9 +58,20 @@ function readBody(req: http.IncomingMessage): Promise<string> {
   })
 }
 
+// The org super-peer (opt-in; see federation.ts). Initialized before listen() below.
+let federation: Federation | null = null
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   const g = getHellGraph()
+
+  // Federation governance surface (status open; admit scope-gated). Same port, nothing new exposed.
+  if (url.pathname.startsWith('/api/federation/')) {
+    if (req.method === 'POST') {
+      return void readBody(req).then((b) => { handleFederation(federation, req, res, url, b) })
+    }
+    if (handleFederation(federation, req, res, url, '')) return
+  }
 
   if (req.method === 'GET' && url.pathname === '/healthz') {
     return json(res, 200, { ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length })
@@ -307,6 +319,11 @@ function seedIfEmpty(): void {
 }
 
 function startLocalService(): void {
+  // Org super-peer first (opt-in, fail-closed, never fatal) — so /api/federation/status is
+  // truthful from the first request the service answers.
+  void startFederation().then((fed) => { federation = fed }).catch((e) => {
+    console.error('[federation] init failed (service continues without it):', e instanceof Error ? e.message : String(e))
+  })
   server.listen(PORT, () => {
     console.log(`[hellgraph-service] listening on :${PORT} (engine exports: ${Object.keys(engine).length})`)
     // Convergence backend: opt into RocksDB (same store model as Noetica, aligned to
