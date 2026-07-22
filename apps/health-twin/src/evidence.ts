@@ -32,7 +32,11 @@ export async function groundTwin(): Promise<{ context: string; items: TwinEviden
 
   const items: TwinEvidence[] = [];
   for (const f of findings) {
-    const query = `${f.term} ${context}`.trim();          // CONTEXTUAL: finding + this patient's context
+    // CONTEXTUAL + CLINICALLY FRAMED: leading with "evaluation and management of <finding>" pulls the
+    // on-topic clinical passage; a bare "<term> <demographics>" query drifts into demographic noise
+    // (measured: reproductive-biology exam vs. the pharmacology passage we want). Comorbidities stay
+    // in the query — they're the clinically-relevant context; age/sex stay in the displayed context.
+    const query = `clinical evaluation and management of ${f.term}${comorbid ? ` in a patient with ${comorbid}` : ''}`;
     const g = (await groundFromBrain(query)) ?? ground(f.term); // brain (contextual) → else local KB
     if (!g.grounded) continue;
     items.push({

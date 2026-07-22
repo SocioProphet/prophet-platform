@@ -1157,12 +1157,22 @@ def test_action_define_requires_token_and_effects(monkeypatch):
 
 def test_ontology_serves_real_classes_not_a_mock():
     b = client.get("/api/studio/ontology").json()
-    assert b["counts"]["classes"] == 817                                   # the real Ontogenesis corpus
+    assert b["counts"]["classes"] == 827                    # the real Ontogenesis corpus (+10 health classes, #936)
     assert b["base_iri"].endswith("ontogenesis#")
     assert any(c["iri"] == "upper:Entity" for c in b["classes"])           # upper ontology by default
     one = client.get("/api/studio/ontology?cls=ACSETAttr").json()
     props = {p["iri"] for p in one["class"]["inherited_properties"]}
     assert "acsetAttrName" in props and "attrType" in props                # real declared properties
+
+
+def test_ontology_prefixes_expand_to_full_iris():
+    """REGRESSION — the silent-wrong that disarmed SHACL: the generated index carried no prefix map, so
+    expand() returned curies unexpanded and pyshacl targeted nothing (every writeback vacuously conformed).
+    expand() must yield a real IRI for shape-constrained prefixes, whatever the index version."""
+    from lattice_studio import ontology
+    assert ontology.prefixes(), "prefix map must never be empty"
+    expanded = ontology.expand("sp:Surface")
+    assert expanded.startswith("http") and expanded.endswith("#Surface")
 
 
 def test_action_define_rejects_non_ontology_class(monkeypatch):
