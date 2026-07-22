@@ -318,17 +318,19 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
             "epistemic": warrant}
 
 
-# field → us-gaap XBRL concept (extend as the schema grows)
-_XBRL_CONCEPT = {
-    "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax",
-    "revenues": "Revenues", "net_income": "NetIncomeLoss", "net_profit": "NetIncomeLoss",
-    "npat": "NetIncomeLoss",
-    "gross_profit": "GrossProfit", "cost_of_revenue": "CostOfRevenue",
-    "operating_income": "OperatingIncomeLoss", "operating_profit": "OperatingIncomeLoss",
-    "eps_basic": "EarningsPerShareBasic", "eps_diluted": "EarningsPerShareDiluted",
-    "assets": "Assets", "liabilities": "Liabilities", "equity": "StockholdersEquity",
-    "cash": "CashAndCashEquivalentsAtCarryingValue",
-    "operating_cash_flow": "NetCashProvidedByUsedInOperatingActivities",
+# field → us-gaap XBRL concepts, in preference order — filers differ on which concept
+# they tag (Chipotle reports revenue under plain `Revenues`, not the ASC-606 name), so a
+# single-concept map silently fails reconciliation for perfectly ordinary filers.
+_XBRL_CONCEPT: dict[str, list[str]] = {
+    "revenue": ["RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"],
+    "revenues": ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax"],
+    "net_income": ["NetIncomeLoss"], "net_profit": ["NetIncomeLoss"], "npat": ["NetIncomeLoss"],
+    "gross_profit": ["GrossProfit"], "cost_of_revenue": ["CostOfRevenue", "CostOfGoodsAndServicesSold"],
+    "operating_income": ["OperatingIncomeLoss"], "operating_profit": ["OperatingIncomeLoss"],
+    "eps_basic": ["EarningsPerShareBasic"], "eps_diluted": ["EarningsPerShareDiluted"],
+    "assets": ["Assets"], "liabilities": ["Liabilities"], "equity": ["StockholdersEquity"],
+    "cash": ["CashAndCashEquivalentsAtCarryingValue"],
+    "operating_cash_flow": ["NetCashProvidedByUsedInOperatingActivities"],
 }
 
 # companyfacts returns EVERY concept for an entity in one (large) payload — cached per
@@ -359,19 +361,23 @@ async def _sec_edgar_reference(entity: dict, field: str, period: str) -> float |
     `cik`. Returns the value whose fiscal period matches, else None (unresolved → the fact
     simply can't reach `verified`)."""
     cik = str(entity.get("cik", "")).zfill(10)
-    concept = _XBRL_CONCEPT.get(field.lower())
-    if not cik.strip("0") or concept is None:
+    concepts = _XBRL_CONCEPT.get(field.lower())
+    if not cik.strip("0") or not concepts:
         return None
     data = await _edgar_companyfacts(cik)
-    fact = ((data or {}).get("facts", {}).get("us-gaap", {}) or {}).get(concept) or {}
-    for unit_rows in (fact.get("units") or {}).values():
-        for row in unit_rows:
-            if period and (row.get("fp") == period or str(row.get("frame", "")).find(period) >= 0
-                           or str(row.get("fy")) == period):
-                try:
-                    return float(row["val"])
-                except (KeyError, TypeError, ValueError):
-                    continue
+    gaap = (data or {}).get("facts", {}).get("us-gaap", {}) or {}
+    for concept in concepts:                 # preference order; first concept with a period match wins
+        fact = gaap.get(concept) or {}
+        for unit_rows in (fact.get("units") or {}).values():
+            for row in unit_rows:
+                # NB match by frame when the period names one ('CY2026Q1'): fy/fp alone are
+                # ambiguous — a filing tags BOTH years' comparatives with the same fy+fp.
+                if period and (row.get("fp") == period or str(row.get("frame", "")).find(period) >= 0
+                               or str(row.get("fy")) == period):
+                    try:
+                        return float(row["val"])
+                    except (KeyError, TypeError, ValueError):
+                        continue
     return None
 
 
