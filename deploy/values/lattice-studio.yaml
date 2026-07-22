@@ -13,6 +13,10 @@ config:
   HELLGRAPH_URL: "http://hellgraph-service:8090"
   TRITFABRIC_URL: "http://tritfabric:8750"
   SEARCH_ORCH_URL: "http://search-orchestrator:8080"
+  # ST024 document-ingestion pipeline upstreams: /api/studio/ingest-document chains
+  # ie-engine (spaCy NER/relations) → entity-resolution (golden records) → hellgraph.
+  IE_ENGINE_URL: "http://ie-engine:8080"
+  ER_URL: "http://entity-resolution:8080"
   # The sovereign Spark backend. lattice-studio dispatches backend='spark' jobs to spark-runner (auth'd with the
   # shared SPARK_RUNNER_TOKEN secretEnv below). The loop is now closed end-to-end.
   SPARK_RUNNER_URL: "http://spark-runner.sovereign-runtime.svc.cluster.local:8080"
