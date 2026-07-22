@@ -99,10 +99,6 @@ KNOWN_BROKEN = {
         "New service — node-commander (node runtime control API) vendored into prophet-platform CI this PR. "
         "Pin tag:latest -> the sha- tag after the first build; none exists until merge."
     ),
-    "reporting-watcher:moving-tag": (
-        "New service — the IFM cadence trigger (ASX reporting events -> governed doc->SQL runs) added this "
-        "PR. Pin tag:latest -> the sha- tag after the first CI build; none exists until merge."
-    ),
     "regis-acr-api:moving-tag": (
         "Build-orphan fixed — regis-acr-api already BUILT in CI but was never in the ApplicationSet; this PR "
         "adds the deploy. Pin tag:latest -> the sha- tag after the next build; none exists for the deploy yet."
