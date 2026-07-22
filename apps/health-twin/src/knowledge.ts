@@ -70,7 +70,11 @@ export async function groundFromBrain(question: string): Promise<Grounded | null
   if (!url) return null;
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 5000);
   try {
-    const r = await fetch(`${url}/api/study/retrieve`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: question, fields: ['medicine'], topK: 6 }), signal: ac.signal });
+    // The agent-machine rejects no-Origin callers without a bearer (its local security gate) —
+    // server-to-server callers like this engine pass NOETICA_AM_TOKEN (= ~/.noetica/local-token).
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (process.env.NOETICA_AM_TOKEN) headers.authorization = `Bearer ${process.env.NOETICA_AM_TOKEN}`;
+    const r = await fetch(`${url}/api/study/retrieve`, { method: 'POST', headers, body: JSON.stringify({ query: question, fields: ['medicine'], topK: 6 }), signal: ac.signal });
     if (!r.ok) return null;
     const d = (await r.json()) as { hits?: StudyHit[] };
     const hits = (d.hits ?? []).slice(0, 3);
@@ -78,7 +82,9 @@ export async function groundFromBrain(question: string): Promise<Grounded | null
     return {
       question, grounded: true,
       answer: hits.map((h) => h.text.trim()).join(' '),
-      citations: hits.map((h) => ({ topic: h.slug ?? 'passage', source: h.source ?? h.material ?? 'USMLE textbook corpus (MedRAG)', tier: 'textbook-reference' as EvidenceTier })),
+      // cite the course slug (real provenance, e.g. hst-151-principles-of-pharmacology) — h.material
+      // is just the chunk type ("exam"), useless as a citation.
+      citations: hits.map((h) => ({ topic: h.slug ?? 'passage', source: h.slug ?? h.source ?? 'USMLE textbook corpus (MedRAG)', tier: 'textbook-reference' as EvidenceTier })),
       retrieval: 'brain',
     };
   } catch { return null; }

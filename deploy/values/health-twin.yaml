@@ -23,5 +23,8 @@ config:
   # The estate's medical BRAIN (Noetica agent-machine, 125k USMLE-textbook chunks): grounds Ask/Explain
   # in cited medical texts via /api/study/retrieve. Degrades to the local sourced KB if unreachable.
   NOETICA_AM_URL: "http://agent-machine.socioprophet.svc.cluster.local:8080"
+  # The agent-machine rejects no-Origin server-to-server callers without a bearer, so brain grounding
+  # in-cluster needs NOETICA_AM_TOKEN (= the AM's local-token). Inject it from a Secret via envFrom —
+  # do NOT put the token here. Absent → the twin degrades gracefully to the local sourced KB (no break).
   # SMART launch link base for CDS Hooks cards (the cockpit's /health surface).
   SMART_APP_BASE: "https://socioprophet.md"
