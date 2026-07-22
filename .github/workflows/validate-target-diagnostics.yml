@@ -3,6 +3,8 @@ name: validate-target-diagnostics
 on:
   pull_request:
     branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -154,3 +156,18 @@ jobs:
           python-version: '3.11'
       - name: Run target
         run: make ${{ matrix.target }}
+
+  # Single stable check name for branch-protection rulesets: requiring this one
+  # job covers every matrix leg above (and any added later) without having to
+  # enumerate ~45 per-target check names in repo settings.
+  diagnostics-gate:
+    if: always()
+    needs: [validate-target-diagnostics, app-test-diagnostics, smoke-target-diagnostics]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any diagnostics job failed
+        run: |
+          echo "validate=${{ needs.validate-target-diagnostics.result }}"
+          echo "app-tests=${{ needs.app-test-diagnostics.result }}"
+          echo "smokes=${{ needs.smoke-target-diagnostics.result }}"
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]
