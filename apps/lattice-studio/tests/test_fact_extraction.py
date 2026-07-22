@@ -117,3 +117,35 @@ def test_headerless_us_table_current_first_fallback():
     # AU default (current-last) preserved for the AU-shaped pack
     au = {f["field"]: f for f in extract_facts_from_blocks(PACK_BLOCKS, SCHEMA)}
     assert au["revenue"]["value"] == 1204.0
+
+
+def test_punctuated_and_prose_values_parse_correctly():
+    # trailing comma must not reject the value ('was $0.23, a 17.9% decrease…')
+    assert _parse_fact_value("$0.23,") == (0.23, None)
+    blocks = [{"page": 1, "kind": "text",
+               "text": "Diluted earnings per share was $0.23, a 17.9% decrease from $0.28\n\n"
+                       "Net income for the first quarter of 2026 was $302.8 million\n\n"
+                       "Total revenue increased 7.4% to $3.1 billion"}]
+    schema = {"table": "t", "fields": [
+        {"name": "eps_diluted", "labels": ["diluted earnings per share"]},
+        {"name": "net_income", "unit": "USD_m", "labels": ["net income"]},
+        {"name": "revenue", "unit": "USD_bn", "labels": ["total revenue"]},
+    ]}
+    facts = {f["field"]: f for f in extract_facts_from_blocks(blocks, schema)}
+    assert facts["eps_diluted"]["value"] == 0.23     # not the 17.9% decrease
+    assert facts["net_income"]["value"] == 302.8     # not the bare year 2026
+    assert facts["revenue"]["value"] == 3.1          # not the 7.4% growth rate
+
+
+def test_piped_tables_inside_text_blocks_beat_prose():
+    """Converted documents (HTML→text) carry tables as piped lines inside text blocks —
+    the labelled cell must still win at table confidence over any prose mention."""
+    blocks = [{"page": 1, "kind": "text",
+               "text": "Total revenue increased 7.4% to $3.1 billion\n"
+                       "2026 | Percent of total revenue | 2025 | Percent of total revenue\n"
+                       "Total revenue | 3,088,242 | 100.0 | 2,875,253 | 100.0"}]
+    schema = {"table": "t", "fields": [{"name": "revenue", "unit": "USD_k", "labels": ["total revenue"]}]}
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(blocks, schema, period="CY2026Q1", convention="current-first")}
+    assert facts["revenue"]["value"] == 3088242.0
+    assert facts["revenue"]["confidence"] >= 0.9     # table confidence, not prose

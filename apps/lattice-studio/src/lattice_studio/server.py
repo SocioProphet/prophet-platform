@@ -2767,7 +2767,7 @@ async def ingest_file(req: IngestFileRequest, authorization: str = Header(defaul
 # left boundary blocks period/word-glued digits ('FY26', 'v1.5') from reading as values
 _FACT_NUM = re.compile(
     r"(?<![\w.$])\(\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:%|bn|b|m|k)?\s*\)"     # accounting negative: (…)
-    r"|(?<![\w.$])\$?\s*-?\d[\d,]*(?:\.\d+)?\s*(?:%|bn|b|m|k)?(?=[\s|)]|$)", re.I)
+    r"|(?<![\w.$])\$?\s*-?\d[\d,]*(?:\.\d+)?\s*(?:%|bn|b|m|k)?(?=[\s|),.;:]|$)", re.I)
 _FACT_SUFFIX_UNIT = {"%": "%", "m": "m", "b": "bn", "bn": "bn", "k": "k"}
 
 
@@ -2789,6 +2789,23 @@ def _parse_fact_value(cell: str) -> tuple[float, str | None] | None:
         val = -val
     sfx = (m2.group(2) or "").lower()
     return val, (_FACT_SUFFIX_UNIT.get(sfx) if sfx else None)
+
+
+def _pick_prose_value(tail: str, pct_field: bool) -> tuple[float, str | None] | None:
+    """First plausible value in prose AFTER the label: bare-year integers are narrative
+    ('…of 2026 was…'), and %-tokens are growth rates unless the field itself is a percent."""
+    for m in _FACT_NUM.finditer(tail):
+        parsed = _parse_fact_value(m.group(0))
+        if parsed is None:
+            continue
+        val, unit = parsed
+        tok = m.group(0).strip()
+        if unit is None and val.is_integer() and 1900 <= val <= 2099 and "$" not in tok:
+            continue                                   # a year, not a value
+        if unit == "%" and not pct_field:
+            continue                                   # growth rate, not the money value
+        return parsed
+    return None
 
 
 def _fact_label_variants(field: dict[str, Any]) -> list[str]:
@@ -2849,12 +2866,14 @@ def extract_facts_from_blocks(blocks: list[dict[str, Any]], target_schema: dict[
             page, kind = b.get("page"), b.get("kind", "text")
             header: list[str] = []
             for lno, line in enumerate(str(b.get("text", "")).splitlines()):
-                if kind == "table" and "|" in line:
+                if "|" in line:
+                    # A piped line IS tabular, whatever block it sits in — converted documents
+                    # (HTML→text, PDF page text) carry their tables as piped lines inside
+                    # ordinary text blocks, and a labelled cell must still beat prose.
                     cells = [c.strip() for c in line.split("|")]
-                    # A first row that is numberless OR carries bare 4-digit years is the
-                    # period header (US statement headers are often just '2026 | … | 2025').
-                    if lno == 0 and (_parse_fact_value(line) is None
-                                     or re.search(r"(?:19|20)\d{2}", line)):
+                    # A numberless piped row, or one carrying bare 4-digit years, is a period
+                    # header ('2026 | … | 2025') — track the most recent one in the block.
+                    if _parse_fact_value(line) is None or re.search(r"(?:19|20)\d{2}", line):
                         header = cells
                     lbl = _norm_label(cells[0])
                     conf = 0.95 if lbl in variants else 0.9 if any(lbl == f"total {v}" for v in variants) else None
@@ -2867,8 +2886,12 @@ def extract_facts_from_blocks(blocks: list[dict[str, Any]], target_schema: dict[
                     hit = next((v for v in variants if v in low), None)
                     if hit is None:
                         continue
-                    # the number must FOLLOW the label in the same line — 'revenue of $500m'
-                    parsed = _parse_fact_value(line[low.index(hit) + len(hit):])
+                    # the number must FOLLOW the label in the same line — 'revenue of $500m' —
+                    # skipping bare years ('first quarter of 2026 was …') and, for non-percent
+                    # fields, growth-% tokens ('increased 7.4% to $3.1 billion')
+                    tail = line[low.index(hit) + len(hit):]
+                    pct_field = "%" in str(field.get("unit") or "")
+                    parsed = _pick_prose_value(tail, pct_field)
                     conf, span = 0.6, f"p{page}/txt: {line.strip()[:80]}"
                 if parsed is None:
                     continue
