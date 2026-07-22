@@ -63,6 +63,9 @@ def main() -> None:
     index = {
         "source": "ontogenesis", "commit": commit, "base_iri": "https://socioprophet.dev/ont/ontogenesis#",
         "parsed_files": parsed,
+        # The prefix map is LOAD-BEARING: ontology.expand() needs it to turn curies into full IRIs.
+        # Without it, SHACL writeback validation silently targets nothing (vacuous conforms=True).
+        "prefixes": {p: str(ns) for p, ns in g.namespaces() if p and not p.startswith(("xml", "rdf", "rdfs", "owl", "xsd"))},
         "counts": {"classes": len(classes),
                    "object_properties": sum(1 for v in props_by_domain.values() for e in v if e["kind"] == "object"),
                    "datatype_properties": sum(1 for v in props_by_domain.values() for e in v if e["kind"] == "datatype")},

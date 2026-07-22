@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
@@ -76,9 +77,30 @@ def _resolve_property(props: dict[str, dict[str, Any]], name: str) -> dict[str, 
     return next((p for p in props.values() if str(p.get("label", "")).lower() == low), None)
 
 
+_SHAPES_TTL_PATH = os.path.join(os.path.dirname(__file__), "data", "ontogenesis_shapes.ttl")
+
+
 @lru_cache(maxsize=1)
 def prefixes() -> dict[str, str]:
-    return _index().get("prefixes", {})
+    """Corpus prefix map, from the index when present, else recovered from the vendored shapes TTL.
+
+    The fallback is load-bearing: gen_ontogenesis_index.py historically emitted NO 'prefixes' key, so
+    expand() returned curies unexpanded — and pyshacl then targeted nothing (rdf:type <sp:Surface> never
+    matches the shapes' full IRIs), silently turning SHACL writeback validation into a vacuous pass.
+    The shapes TTL binds every corpus prefix in exactly the namespace world the validator resolves
+    against, so it is the authoritative recovery source."""
+    pf = dict(_index().get("prefixes", {}))
+    if pf:
+        return pf
+    try:
+        with open(_SHAPES_TTL_PATH, encoding="utf-8") as fh:
+            for line in fh:
+                m = re.match(r"\s*@prefix\s+([\w-]*):\s*<([^>]+)>", line)
+                if m and m.group(1):
+                    pf.setdefault(m.group(1), m.group(2))
+    except OSError:
+        pass
+    return pf
 
 
 def expand(curie: str) -> str:
