@@ -2759,6 +2759,131 @@ async def ingest_file(req: IngestFileRequest, authorization: str = Header(defaul
         extra_prov={"file_sha": hashlib.sha256(data).hexdigest()})
 
 
+# ---------------------------------------------------------------------------
+# Fact-mode extraction (IFM stage 03): parse blocks → typed facts against a target
+# SQL schema. This serves the contract the compute-gateway extraction adapter speaks
+# ({blocks, target_schema} → {facts[]}) — deterministic, span-preserving, and it
+# NEVER fabricates: a field the document doesn't state yields no fact at all.
+# left boundary blocks period/word-glued digits ('FY26', 'v1.5') from reading as values
+_FACT_NUM = re.compile(
+    r"(?<![\w.$])\(\s*\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:%|bn|b|m|k)?\s*\)"     # accounting negative: (…)
+    r"|(?<![\w.$])\$?\s*-?\d[\d,]*(?:\.\d+)?\s*(?:%|bn|b|m|k)?(?=[\s|)]|$)", re.I)
+_FACT_SUFFIX_UNIT = {"%": "%", "m": "m", "b": "bn", "bn": "bn", "k": "k"}
+
+
+def _parse_fact_value(cell: str) -> tuple[float, str | None] | None:
+    """First numeric token in a cell → (value, detected_unit|None). Handles $, thousands
+    commas, m/bn/k magnitude suffixes, %, and accounting-style (parenthesised) negatives.
+    Values stay AS PRINTED (1204 for '$1,204m', unit 'm') — normalisation is validate's job."""
+    m = _FACT_NUM.search(cell)
+    if not m:
+        return None
+    tok = m.group(0).strip()
+    neg = tok.startswith("(")
+    t = tok.strip("()").replace("$", "").replace(",", "").strip()
+    m2 = re.match(r"(-?\d+(?:\.\d+)?)\s*(%|bn|b|m|k)?$", t, re.I)
+    if not m2:
+        return None
+    val = float(m2.group(1))
+    if neg:
+        val = -val
+    sfx = (m2.group(2) or "").lower()
+    return val, (_FACT_SUFFIX_UNIT.get(sfx) if sfx else None)
+
+
+def _fact_label_variants(field: dict[str, Any]) -> list[str]:
+    """Label strings that count as this field, all normalised: schema-author aliases
+    first (explicit intent wins), then the field name with underscores as spaces."""
+    out = [str(v).strip().lower() for v in field.get("labels", []) if str(v).strip()]
+    out.append(str(field.get("name", "")).replace("_", " ").strip().lower())
+    return [v for v in out if v]
+
+
+def _norm_label(s: str) -> str:
+    return re.sub(r"\s+", " ", s.strip().rstrip(":").lower())
+
+
+def _pick_period_cell(cells: list[str], header: list[str], period: str | None) -> tuple[float, str | None] | None:
+    """Which column is THE value? If the table header names the requested period ('FY26'),
+    that column wins. Otherwise the LAST parsable cell — results tables put the current
+    period rightmost by convention. (Wrong column = silently trading on last year's number.)"""
+    if period and header:
+        p = period.strip().lower()
+        for i, h in enumerate(header):
+            if p and p in h.strip().lower() and i < len(cells):
+                if (parsed := _parse_fact_value(cells[i])) is not None:
+                    return parsed
+    for c in reversed(cells[1:]):
+        if (parsed := _parse_fact_value(c)) is not None:
+            return parsed
+    return None
+
+
+def extract_facts_from_blocks(blocks: list[dict[str, Any]], target_schema: dict[str, Any],
+                              period: str | None = None) -> list[dict[str, Any]]:
+    """For each schema field, find the best-evidenced value in the blocks. Table rows beat
+    prose (a labelled cell IS the number; prose needs interpretation), exact label matches
+    beat 'Total X' prefixes, earlier pages beat later. One fact per field, or none."""
+    fields = [f for f in target_schema.get("fields", []) if f.get("name")]
+    facts: list[dict[str, Any]] = []
+    for field in fields:
+        variants = _fact_label_variants(field)
+        best: dict[str, Any] | None = None
+        for b in blocks:
+            page, kind = b.get("page"), b.get("kind", "text")
+            header: list[str] = []
+            for lno, line in enumerate(str(b.get("text", "")).splitlines()):
+                if kind == "table" and "|" in line:
+                    cells = [c.strip() for c in line.split("|")]
+                    if lno == 0 and _parse_fact_value(line) is None:
+                        header = cells          # a numberless first row is the period header
+                    lbl = _norm_label(cells[0])
+                    conf = 0.95 if lbl in variants else 0.9 if any(lbl == f"total {v}" for v in variants) else None
+                    if conf is None:
+                        continue
+                    parsed = _pick_period_cell(cells, header, period)
+                    span = f"p{page}/tbl: {cells[0]}"
+                else:
+                    low = line.lower()
+                    hit = next((v for v in variants if v in low), None)
+                    if hit is None:
+                        continue
+                    # the number must FOLLOW the label in the same line — 'revenue of $500m'
+                    parsed = _parse_fact_value(line[low.index(hit) + len(hit):])
+                    conf, span = 0.6, f"p{page}/txt: {line.strip()[:80]}"
+                if parsed is None:
+                    continue
+                value, detected_unit = parsed
+                cand = {"field": field["name"], "value": value,
+                        "unit": detected_unit or field.get("unit"),
+                        "page": page, "source_span": span, "confidence": conf, "verbatim": True}
+                if best is None or (cand["confidence"], -(cand["page"] or 0)) > (best["confidence"], -(best["page"] or 0)):
+                    best = cand
+        if best is not None:
+            facts.append(best)
+    return facts
+
+
+class ExtractFactsRequest(BaseModel):
+    project: str = "default"
+    blocks: list[dict[str, Any]]
+    target_schema: dict[str, Any] = {}
+    period: str | None = None
+    document: str | None = None
+
+
+@app.post("/api/studio/extract-facts")
+async def extract_facts_endpoint(req: ExtractFactsRequest) -> dict[str, Any]:
+    """The gateway extraction backend. Pure and side-effect-free — writes nothing, calls
+    nothing — so it carries no write gate; the compute plane's entitlement gate governs
+    who may run it as a compute. Every fact keeps page + source span; absent fields are
+    absent, not invented — the downstream warrant machinery depends on that honesty."""
+    facts = extract_facts_from_blocks(req.blocks, req.target_schema, req.period)
+    return {"facts": facts,
+            "fields_requested": len(req.target_schema.get("fields", [])),
+            "fields_found": len(facts)}
+
+
 class NodeRequest(BaseModel):
     project: str = "default"
     name: str
