@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// The physician's chart — built for an iPad at the bedside. The complete AUTHORIZED record (what the
-// patient granted), presented as a clinical chart: problems / meds / allergies up top, vitals with
-// one-tap voice/keyboard entry, labs with trends, and the full history as far back as it goes. Noetica's
-// intelligence, focused on the clinician. Non-diagnostic; a clinician decides.
+// The physician's chart — built for an iPad at the bedside. The chart reads THROUGH the patient's
+// consent grant: the engine returns exactly the granted slice (systems · record kinds · lookback),
+// withheld COUNTS (never content), and a receipt per read; a revoked or expired grant is an explicit
+// block. Problems / meds / allergies up top, vitals with one-tap voice/keyboard entry, labs with
+// trends, and history as far back as the grant reaches. Non-diagnostic; a clinician decides.
 import { ref, computed, onMounted } from 'vue';
-import { loadTwin, addReading, groundEvidence, type TwinBundle, type TwinEvidence } from '../services/healthTwinApi';
+import { listGrants, doctorView, addReading, groundEvidence, type GrantSummary, type WithheldCounts, type TwinBundle, type TwinEvidence } from '../services/healthTwinApi';
 import Sparkline from '../components/Sparkline.vue';
 
 const twin = ref<TwinBundle | null>(null);
@@ -14,11 +15,34 @@ const flash = ref('');
 const evidence = ref<TwinEvidence[]>([]);
 const evContext = ref('');
 const evByRecord = computed(() => { const m: Record<string, TwinEvidence> = {}; for (const e of evidence.value) m[e.recordId] = e; return m; });
+
+// consent membrane state — which grant this chart reads through
+const grants = ref<GrantSummary[]>([]);
+const grantId = ref('');
+const grantMeta = ref<{ agent: string; scope: string; scopeSummary: string; expires_at: string; reads: number } | null>(null);
+const withheld = ref<WithheldCounts | null>(null);
+const readReceipt = ref('');
+const blockedReason = ref('');
+const withheldDetail = computed(() =>
+  Object.entries(withheld.value ?? {}).filter(([k, v]) => k !== 'total' && v).map(([k, v]) => `${v} ${k}`).join(', '));
+
 async function load() {
   loading.value = true; err.value = '';
   try {
-    twin.value = await loadTwin();
-    try { const g = await groundEvidence(); evidence.value = g.items; evContext.value = g.context; } catch { /* evidence optional */ }
+    const gl = await listGrants();
+    grants.value = gl.grants;
+    if (!grantId.value) grantId.value = (gl.grants.find((g) => g.active) ?? gl.grants[0])?.id ?? '';
+    if (!grantId.value) { blockedReason.value = 'No consent grant on file — the patient has not authorized clinician access.'; twin.value = null; return; }
+    const dv = await doctorView(grantId.value);
+    if (dv.blocked || !dv.view) {
+      blockedReason.value = dv.reason ?? 'access blocked';
+      twin.value = null; grantMeta.value = null; withheld.value = null; evidence.value = [];
+      return;
+    }
+    blockedReason.value = '';
+    twin.value = dv.view as TwinBundle; // the SCOPED slice — grants panel stays with the patient
+    grantMeta.value = dv.grant ?? null; withheld.value = dv.withheld ?? null; readReceipt.value = dv.receipt?.id ?? '';
+    try { const g = await groundEvidence(grantId.value); evidence.value = g.items; evContext.value = g.context; } catch { /* evidence optional */ }
   } catch (e) { err.value = e instanceof Error ? e.message : 'chart unreachable'; }
   finally { loading.value = false; }
 }
@@ -61,7 +85,32 @@ async function submitReading() {
   <div class="dc">
     <p class="dc-dx">⚕ Clinician chart — the patient's authorized record. Not a diagnosis; a clinician decides. Synthetic demo data.</p>
     <p v-if="err" class="dc-err">{{ err }}</p>
-    <p v-else-if="loading && !twin" class="dc-msg">Loading chart…</p>
+    <p v-else-if="loading && !twin && !blockedReason" class="dc-msg">Loading chart…</p>
+
+    <!-- consent membrane: which grant this chart reads through — scope, receipt, and what's withheld -->
+    <section v-if="grants.length" class="dc-gate">
+      <div class="dc-gate-row">
+        <span class="dc-gate-h">Consent grant</span>
+        <select v-model="grantId" class="dc-gate-sel" @change="load()">
+          <option v-for="g in grants" :key="g.id" :value="g.id">{{ g.agent }} — {{ g.scope }}{{ g.active ? '' : ' (inactive)' }}</option>
+        </select>
+        <template v-if="grantMeta">
+          <span class="dc-gate-scope">{{ grantMeta.scopeSummary }}</span>
+          <span class="dc-gate-sub">expires {{ grantMeta.expires_at.slice(0, 10) }} · read #{{ grantMeta.reads }} · receipt {{ readReceipt }}</span>
+        </template>
+      </div>
+      <p v-if="withheld?.total" class="dc-withheld">
+        ⛉ {{ withheld.total }} record(s) withheld by the patient's consent scope <span class="dc-gate-sub">({{ withheldDetail }})</span>
+        — counts only; content stays with the patient. Expanded access is the patient's decision.
+      </p>
+    </section>
+
+    <!-- an explicit block IS the answer: revoked / expired / no grant -->
+    <div v-if="blockedReason" class="dc-blocked">
+      <b>⛔ Access blocked</b>
+      <span>{{ blockedReason }}</span>
+      <p>Every read is a receipt or a block. Ask the patient to grant (or re-grant) access from their twin.</p>
+    </div>
 
     <template v-if="twin">
       <!-- patient header + care team -->
@@ -166,6 +215,16 @@ async function submitReading() {
 .dc { font: 15px/1.55 var(--ui); color: var(--ink); max-width: 1100px; }
 .dc-dx { font-size: 12px; color: var(--warn); background: var(--warn-wash); border-radius: var(--r-2); padding: 6px 12px; margin: 0 0 var(--sp-3); }
 .dc-err { color: var(--fail); } .dc-msg { color: var(--muted); }
+/* consent membrane strip */
+.dc-gate { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--sunken); padding: 10px var(--sp-4); margin-bottom: var(--sp-3); }
+.dc-gate-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.dc-gate-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
+.dc-gate-sel { font: 13px var(--ui); color: var(--ink); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 4px 8px; max-width: 340px; }
+.dc-gate-scope { font-size: 12.5px; font-weight: 600; }
+.dc-gate-sub { font-size: 11.5px; color: var(--muted); }
+.dc-withheld { font-size: 12.5px; color: var(--warn); margin: 8px 0 0; }
+.dc-blocked { border: 1px solid color-mix(in srgb, var(--fail) 40%, var(--hairline)); border-radius: var(--r-3); background: color-mix(in srgb, var(--fail) 7%, var(--surface)); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); display: flex; flex-direction: column; gap: 4px; }
+.dc-blocked b { color: var(--fail); } .dc-blocked span { font-size: 14px; } .dc-blocked p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
 .dc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .dc-who h1 { margin: 0; font-size: 1.5rem; } .dc-demo { color: var(--muted); font-size: .85rem; }
 .dc-team { min-width: 260px; } .dc-team-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }

@@ -63,5 +63,46 @@ ok(agg.blind === true && /not a diagnosis/i.test(agg.disclaimer), 'aggregate is 
 ok(['insufficient', 'unanimous', 'majority', 'split'].includes(agg.concordance.verdict), `concordance verdict computed (${agg.concordance.verdict}, agreement ${agg.concordance.agreement})`);
 ok(agg.opinions.every((o: any) => o.tier === 'hypothesis'), 'all aggregated opinions remain hypotheses');
 
-console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification enforced)' : `✗ ${fails} invariant(s) violated`}`);
+console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the granted slice');
+{
+  const { resolveScope, resolveGrant, applyScope } = await import('./grants.js');
+  const { MEDICATIONS, ALLERGIES, IMMUNIZATIONS } = await import('./data.js');
+  const fullBundle = {
+    ...sampleBundle,
+    systems: sampleBundle.systems.map((s) => ({ ...s, medications: MEDICATIONS.filter((m) => m.system === s.id) })),
+    medications: MEDICATIONS, allergies: ALLERGIES, immunizations: IMMUNIZATIONS, readings: [],
+  };
+
+  // cardiometabolic scope: nothing musculoskeletal crosses the membrane; withheld COUNTS do
+  const cardio = applyScope(fullBundle, resolveScope('cardiometabolic'));
+  ok(cardio.view.systems.every((s: any) => s.id !== 'musculoskeletal'), 'cardiometabolic view contains no musculoskeletal system');
+  ok(!JSON.stringify(cardio.view).toLowerCase().includes('knee'), 'the childhood knee history never leaves the twin');
+  ok(cardio.withheld.total > 0, `withheld COUNTS are reported (${cardio.withheld.total} records) — content never is`);
+
+  // conservation: kept + withheld = full (no record silently vanishes or double-counts)
+  const fullTotal = fullBundle.systems.reduce((n, s: any) => n + s.observations.length + s.conditions.length + s.encounters.length + s.imaging.length, 0)
+    + MEDICATIONS.length + ALLERGIES.length + IMMUNIZATIONS.length;
+  const keptTotal = Object.values(cardio.view.counts as Record<string, number>).reduce((a, b) => a + b, 0);
+  ok(keptTotal + cardio.withheld.total === fullTotal, `conservation: kept (${keptTotal}) + withheld (${cardio.withheld.total}) = full (${fullTotal})`);
+
+  // kinds scope: meds-allergies view carries no observations/conditions but still delivers its kinds
+  const medsOnly = applyScope(fullBundle, resolveScope('meds-allergies'));
+  ok(medsOnly.view.counts.observations === 0 && medsOnly.view.counts.conditions === 0, 'meds-allergies scope excludes observations + conditions');
+  ok(medsOnly.view.counts.medications > 0 && medsOnly.view.counts.allergies > 0, 'meds-allergies scope still delivers meds + allergies');
+
+  // clinical-safety floor: a time-boxed grant never hides allergies or ACTIVE conditions
+  const recent = applyScope(fullBundle, resolveScope('recent-90d'));
+  ok(recent.view.counts.allergies === ALLERGIES.length, 'lookback window never hides allergies (safety floor)');
+  const activeFull = fullBundle.systems.flatMap((s: any) => s.conditions).filter((c: any) => c.clinicalStatus === 'active').length;
+  ok(recent.view.counts.conditions >= activeFull, 'lookback window never hides ACTIVE conditions (safety floor)');
+
+  // enforcement: revoked / expired / unknown grants block with a stated reason
+  const now = Date.now();
+  const mk = (over: any) => ({ id: 'g', agent: 'a', scope: 'full-history', granted_at: new Date(now).toISOString(), expires_at: new Date(now + 864e5).toISOString(), revoked: false, reads: 0, receipt: 'r', ...over });
+  ok((resolveGrant([mk({ revoked: true })], 'g') as any).reason?.includes('revoked'), 'revoked grant blocks with reason');
+  ok((resolveGrant([mk({ expires_at: new Date(now - 1000).toISOString() })], 'g') as any).reason?.includes('expired'), 'expired grant blocks with reason');
+  ok((resolveGrant([], 'nope') as any).reason?.includes('not found'), 'unknown grant blocks with reason');
+}
+
+console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);
