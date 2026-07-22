@@ -294,7 +294,8 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
         headers = {"Authorization": f"Bearer {EXTRACT_TOKEN}"} if EXTRACT_TOKEN else {}
         body = {"project": project, "document": req_spec.get("document"),
                 "blocks": req_spec.get("blocks"), "target_schema": schema,
-                "period": req_spec.get("period")}
+                "period": req_spec.get("period"),
+                "column_convention": req_spec.get("column_convention", "current-last")}
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as c:
                 # fact-mode endpoint: {blocks, target_schema, period} → {facts[]} — NOT the
