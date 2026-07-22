@@ -38,6 +38,9 @@ SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
 TRITFABRIC_URL = os.getenv("TRITFABRIC_URL", "http://tritfabric:8750")
 SEARCH_ORCH_URL = os.getenv("SEARCH_ORCH_URL", "http://search-orchestrator:8080")
+# Document-ingestion pipeline upstreams: real NER/relation extraction + entity resolution.
+IE_ENGINE_URL = os.getenv("IE_ENGINE_URL", "http://ie-engine:8080")
+ER_URL = os.getenv("ER_URL", "http://entity-resolution:8080")
 TIMEOUT = float(os.getenv("STUDIO_TIMEOUT", "5"))
 # Write gate for /api/studio/extract (mutates the graph). Fail-closed: unset → writes refused.
 STUDIO_WRITE_TOKEN = os.getenv("STUDIO_WRITE_TOKEN", "")
@@ -2497,6 +2500,186 @@ async def extract(req: ExtractRequest, authorization: str = Header(default="")) 
         "written": {"nodes": written_nodes, "edges": written_edges},
         "provenance": prov,
         "sample": entities[:10],
+        "errors": errors[:5] or None,
+    }
+
+
+def _chunk_text(text: str, max_chars: int = 4000) -> list[str]:
+    """Paragraph-preserving chunks for the IE hop (ie-engine caps entities/relations PER CALL, so chunking
+    is what lets a full document through, not just its first page). Oversized paragraphs split on sentence
+    boundaries; a pathological single sentence is hard-split rather than dropped."""
+    chunks: list[str] = []
+    buf = ""
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        if len(buf) + len(para) + 2 <= max_chars:
+            buf = f"{buf}\n\n{para}" if buf else para
+            continue
+        if buf:
+            chunks.append(buf); buf = ""
+        if len(para) <= max_chars:
+            buf = para
+            continue
+        for sent in re.split(r"(?<=[.!?])\s+", para):
+            while len(sent) > max_chars:                     # pathological unbroken run
+                chunks.append(sent[:max_chars]); sent = sent[max_chars:]
+            if len(buf) + len(sent) + 1 > max_chars:
+                chunks.append(buf); buf = sent
+            else:
+                buf = f"{buf} {sent}" if buf else sent
+    if buf:
+        chunks.append(buf)
+    return chunks
+
+
+class IngestDocumentRequest(BaseModel):
+    project: str = "default"
+    text: str
+    filename: str | None = None
+    source: str | None = None
+
+
+@app.post("/api/studio/ingest-document")
+async def ingest_document(req: IngestDocumentRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """The document→linked-knowledge pipeline (ST024): chunk → ie-engine (real spaCy NER + SVO relations)
+    → entity-resolution (proof-carrying golden records) → hellgraph upsert under ONE canonical id scheme.
+
+    Before this endpoint the estate had extraction, ER, and the graph as disconnected hops with two
+    incompatible id schemes (ie:<slug> vs <coll>:ent:<slug>) and NOBODY calling ER — the same real-world
+    entity landed as different nodes per path. Here every mention is resolved to a golden record first and
+    written as _ent_id(coll, canonical_name), the SAME scheme /extract and the workbench use, so document-
+    extracted, hand-authored, and regex-extracted facts about one entity converge on one node.
+
+    Fail-soft at each hop: IE unreachable → deterministic extract_facts fallback (tagged in provenance);
+    ER unreachable → identity resolution (each mention its own entity, error surfaced). Graph writes carry
+    the full studio provenance stamp + doc_sha so every fact traces back to the source document."""
+    _require_write_token(authorization)
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="empty document")
+    coll = proj_collection(req.project)
+    doc_sha = hashlib.sha256(text.encode()).hexdigest()
+    src = req.source or f"doc:{doc_sha[:16]}"
+    chunks = _chunk_text(text)
+
+    errors: list[str] = []
+    mentions: dict[str, str] = {}          # mention text → entity type ("" when unknown)
+    relations: list[dict[str, str]] = []   # {from, relation, to} in mention-text space
+    claims: list[dict[str, Any]] = []
+    extractor = "lattice-studio/ie-pipeline-v1"
+
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        # 1) EXTRACT — ie-engine per chunk, concurrently. Topics are ambience, not entities → skipped.
+        ie_results = await asyncio.gather(
+            *[_req(client, "POST", f"{IE_ENGINE_URL}/extract", json={"text": c}) for c in chunks]
+        )
+        ie_ok = False
+        for body, err in ie_results:
+            if err or not isinstance(body, dict):
+                if err:
+                    errors.append(f"ie-engine: {err}")
+                continue
+            ie_ok = True
+            for e in body.get("entities", []):
+                name, typ = str(e.get("text", "")).strip(), str(e.get("type", ""))
+                if name and typ != "Topic":
+                    mentions.setdefault(name, typ)
+            relations.extend(
+                {"from": str(r.get("from", "")), "relation": str(r.get("relation", "")), "to": str(r.get("to", ""))}
+                for r in body.get("relations", []) if r.get("from") and r.get("to")
+            )
+            claims.extend(body.get("claims", []))
+        if not ie_ok:
+            # Degraded but never dead: the deterministic extractor keeps ingestion working and the
+            # provenance tag makes the degradation visible instead of silent.
+            extractor = "lattice-studio/deterministic-v0-fallback"
+            ents, rels = extract_facts(text)
+            for n in ents:
+                mentions.setdefault(n, "")
+            relations.extend({"from": a, "relation": "co_occurs", "to": b} for a, b in rels)
+
+        # 2) RESOLVE — every unique mention through ER; golden records give the canonical name per entity.
+        mention_names = list(mentions)
+        canonical_of: dict[str, str] = {n: n for n in mention_names}    # identity fallback
+        aliases_of: dict[str, list[str]] = {}
+        er_meta: dict[str, Any] = {"resolved": False, "merged": 0, "review_queue": 0}
+        if mention_names:
+            records = [
+                {"id": f"m{i}", "name": n, "attributes": ({"type": mentions[n]} if mentions[n] else {}), "scope": coll}
+                for i, n in enumerate(mention_names)
+            ]
+            er_body, er_err = await _req(client, "POST", f"{ER_URL}/resolve", json={"records": records})
+            if er_err or not isinstance(er_body, dict):
+                if er_err:
+                    errors.append(f"entity-resolution: {er_err} (identity fallback)")
+            else:
+                by_rid = {r["id"]: r["name"] for r in records}
+                for ent in er_body.get("entities", []):
+                    canon = str(ent.get("canonical", {}).get("name", "")).strip()
+                    members = [by_rid[m] for m in ent.get("members", []) if m in by_rid]
+                    if not canon or not members:
+                        continue
+                    for m in members:
+                        canonical_of[m] = canon
+                    if len(members) > 1:
+                        aliases_of[canon] = sorted(m for m in members if m != canon)
+                er_meta = {"resolved": True, "merged": er_body.get("merged", 0),
+                           "review_queue": len(er_body.get("review_queue", [])),
+                           "replay_key": er_body.get("replay_key")}
+
+        # 3) WRITE — canonical nodes, then relations mapped through the canonical ids. A relation is written
+        # only when BOTH endpoints resolved to a known entity — dependency spans that matched nothing would
+        # otherwise mint junk nodes.
+        prov = {"epistemic_mode": "observed", "source": src, "extractor": extractor,
+                "project": coll, "kko_type": "Particulars", "doc_sha": doc_sha,
+                **({"filename": req.filename} if req.filename else {})}
+        canon_type: dict[str, str] = {}
+        for m, canon in canonical_of.items():
+            if mentions.get(m) and not canon_type.get(canon):
+                canon_type[canon] = mentions[m]
+        written_nodes = written_edges = 0
+        node_calls = [
+            _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                 json={"id": _ent_id(coll, canon),
+                       "labels": [coll, "Entity", *([canon_type[canon]] if canon_type.get(canon) else [])],
+                       "properties": {"name": canon, **({"aliases": aliases_of[canon]} if canon in aliases_of else {}), **prov}})
+            for canon in sorted(set(canonical_of.values()))
+        ]
+        for _, err in await asyncio.gather(*node_calls):
+            if err:
+                errors.append(err)
+            else:
+                written_nodes += 1
+        lookup = {n.lower(): c for n, c in canonical_of.items()}
+        resolved_rels = []
+        for r in relations:
+            fa, ta = lookup.get(r["from"].strip().lower()), lookup.get(r["to"].strip().lower())
+            if fa and ta and fa != ta:
+                label = re.sub(r"[^a-z0-9]+", "_", r["relation"].lower()).strip("_") or "relates_to"
+                resolved_rels.append((fa, label, ta))
+        skipped_relations = len(relations) - len(resolved_rels)
+        edge_calls = [
+            _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                 json={"label": label, "from": _ent_id(coll, fa), "to": _ent_id(coll, ta), "properties": prov})
+            for fa, label, ta in dict.fromkeys(resolved_rels)
+        ]
+        for _, err in await asyncio.gather(*edge_calls):
+            if err:
+                errors.append(err)
+            else:
+                written_edges += 1
+
+    return {
+        "project": req.project, "projectCollection": coll, "source": src, "doc_sha": doc_sha,
+        "chunks": len(chunks),
+        "extracted": {"mentions": len(mentions), "relations": len(relations), "claims": len(claims)},
+        "resolution": {**er_meta, "entities": len(set(canonical_of.values()))},
+        "written": {"nodes": written_nodes, "edges": written_edges, "skipped_relations": skipped_relations},
+        "claims": claims[:20],
+        "provenance": prov,
+        "sample": sorted(set(canonical_of.values()))[:10],
         "errors": errors[:5] or None,
     }
 
