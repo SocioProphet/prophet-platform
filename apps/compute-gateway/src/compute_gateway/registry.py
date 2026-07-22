@@ -73,11 +73,15 @@ KINDS: dict[str, dict] = {
         "capabilities": ["pdf", "pptx", "tables", "typed-rows", "source-spans"],
         "epistemic": "derived", "executes_user_code": False, "status": "live",
     },
-    # Reconcile extracted facts against a structured reference (SEC EDGAR open data
-    # now; FactSet on a key later). Agreement → verified; divergence → flagged edge.
+    # Reconcile extracted facts against a structured reference. Jurisdiction-routed:
+    # US = SEC EDGAR company-facts (open XBRL); AU = statutory Appendix 4E/4D previously
+    # extracted through this same pipeline (cross-document — AU has no open-XBRL twin).
+    # FactSet on a key later; the logic never changes. Agreement → verified; divergence
+    # → flagged edge (the tradable signal).
     "reconcile": {
         "backends": ["open-data"], "default": "open-data",
-        "capabilities": ["sec-edgar", "tolerance-check", "warrant-promotion", "divergence-flag"],
+        "capabilities": ["sec-edgar", "companyfacts", "asx-appendix", "jurisdiction-routing",
+                         "tolerance-check", "warrant-promotion", "divergence-flag"],
         "epistemic": "verified", "executes_user_code": False, "status": "live",
     },
     # Load reconciled facts into the structured SQL layer (the doc→SQL sink), keyed by

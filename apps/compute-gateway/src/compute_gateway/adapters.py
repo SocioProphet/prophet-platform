@@ -321,35 +321,102 @@ async def _extraction(req_spec: dict, project: str, session: str | None) -> Adap
 _XBRL_CONCEPT = {
     "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax",
     "revenues": "Revenues", "net_income": "NetIncomeLoss", "net_profit": "NetIncomeLoss",
-    "assets": "Assets", "liabilities": "Liabilities",
+    "npat": "NetIncomeLoss",
+    "gross_profit": "GrossProfit", "cost_of_revenue": "CostOfRevenue",
+    "operating_income": "OperatingIncomeLoss", "operating_profit": "OperatingIncomeLoss",
+    "eps_basic": "EarningsPerShareBasic", "eps_diluted": "EarningsPerShareDiluted",
+    "assets": "Assets", "liabilities": "Liabilities", "equity": "StockholdersEquity",
+    "cash": "CashAndCashEquivalentsAtCarryingValue",
+    "operating_cash_flow": "NetCashProvidedByUsedInOperatingActivities",
 }
+
+# companyfacts returns EVERY concept for an entity in one (large) payload — cached per
+# CIK so a multi-field reconcile is one EDGAR call, not one per field.
+_EDGAR_CACHE: dict[str, tuple[float, dict]] = {}
+_EDGAR_CACHE_TTL = float(os.getenv("SEC_EDGAR_CACHE_TTL", "900"))
+
+
+async def _edgar_companyfacts(cik: str) -> dict | None:
+    hit = _EDGAR_CACHE.get(cik)
+    if hit and (time.time() - hit[0]) < _EDGAR_CACHE_TTL:
+        return hit[1]
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, headers={"User-Agent": SEC_EDGAR_UA}) as c:
+            r = await c.get(f"{SEC_EDGAR_URL}/api/xbrl/companyfacts/CIK{cik}.json")
+            if r.status_code != 200:
+                return None
+            data = r.json()
+    except Exception:  # noqa: BLE001
+        return None
+    _EDGAR_CACHE[cik] = (time.time(), data)
+    return data
 
 
 async def _sec_edgar_reference(entity: dict, field: str, period: str) -> float | None:
-    """Reference value from SEC EDGAR XBRL company-facts (public, keyless). `entity`
-    carries a zero-padded 10-digit `cik`. Returns the value whose fiscal period matches,
-    else None (unresolved → the fact simply can't reach `verified`)."""
+    """US reference — SEC EDGAR XBRL via the company-facts endpoint the design names
+    (public, keyless; one call per entity, cached). `entity` carries a zero-padded 10-digit
+    `cik`. Returns the value whose fiscal period matches, else None (unresolved → the fact
+    simply can't reach `verified`)."""
     cik = str(entity.get("cik", "")).zfill(10)
     concept = _XBRL_CONCEPT.get(field.lower())
     if not cik.strip("0") or concept is None:
         return None
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT, headers={"User-Agent": SEC_EDGAR_UA}) as c:
-            r = await c.get(f"{SEC_EDGAR_URL}/api/xbrl/companyconcept/CIK{cik}/us-gaap/{concept}.json")
-            if r.status_code != 200:
-                return None
-            for unit_rows in r.json().get("units", {}).values():
-                for row in unit_rows:
-                    if period and (row.get("fp") == period or row.get("frame", "").find(period) >= 0
-                                   or str(row.get("fy")) == period):
-                        return float(row["val"])
-    except Exception:  # noqa: BLE001
-        return None
+    data = await _edgar_companyfacts(cik)
+    fact = ((data or {}).get("facts", {}).get("us-gaap", {}) or {}).get(concept) or {}
+    for unit_rows in (fact.get("units") or {}).values():
+        for row in unit_rows:
+            if period and (row.get("fp") == period or str(row.get("frame", "")).find(period) >= 0
+                           or str(row.get("fy")) == period):
+                try:
+                    return float(row["val"])
+                except (KeyError, TypeError, ValueError):
+                    continue
     return None
 
 
-# the reference resolver is injectable (tests supply a deterministic source; prod = SEC EDGAR)
-_REFERENCE = _sec_edgar_reference
+async def _asx_prior_extraction_reference(entity: dict, field: str, period: str) -> float | None:
+    """AU reference — cross-document: Australia has no open-XBRL EDGAR twin (ASIC is paid),
+    but every ASX results release is lodged WITH a statutory Appendix 4E/4D. Run the
+    statutory form through this same pipeline FIRST (its rows land in the SQL sink,
+    receipts and all), then the glossy investor pack reconciles against those rows —
+    reference data that itself carries provenance. Reads (entity, period, field) from the
+    reference table in the load sink."""
+    ent_id = str(entity.get("cik") or entity.get("asx") or entity.get("name") or "")
+    table = str(entity.get("reference_table") or "reference_facts")
+    if not ent_id or not table.replace("_", "").isalnum():
+        return None
+    try:
+        con = sqlite3.connect(_sqlite_path(SQL_LOAD_DSN))
+        row = con.execute(f"SELECT value FROM {table} WHERE entity=? AND period=? AND field=?",
+                          (ent_id, period, field)).fetchone()
+        con.close()
+    except Exception:  # noqa: BLE001
+        return None
+    try:
+        return float(row[0]) if row is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+_REFERENCE_BACKENDS: dict[str, Callable[..., Awaitable[float | None]]] = {
+    "sec-edgar": _sec_edgar_reference,
+    "asx-appendix": _asx_prior_extraction_reference,
+}
+
+
+def _pick_reference(source: str | None, entity: dict) -> tuple[str, Callable[..., Awaitable[float | None]]]:
+    """Jurisdiction routing: an explicit source wins; else a CIK routes US (EDGAR) and an
+    ASX ticker routes AU (statutory cross-document). FactSet lands here as one more entry —
+    the reconcile logic never changes."""
+    if source in _REFERENCE_BACKENDS:
+        return source, _REFERENCE_BACKENDS[source]
+    if entity.get("asx") and not entity.get("cik"):
+        return "asx-appendix", _REFERENCE_BACKENDS["asx-appendix"]
+    return "sec-edgar", _REFERENCE_BACKENDS["sec-edgar"]
+
+
+# test override: when set, it beats jurisdiction routing (tests supply a deterministic source)
+_REFERENCE: Callable[..., Awaitable[float | None]] | None = None
 
 
 def set_reference_resolver(fn) -> None:
@@ -368,11 +435,13 @@ async def _reconcile(req_spec: dict, project: str, session: str | None) -> Adapt
     entity = req_spec.get("entity", {})
     period = req_spec.get("period", "")
     tol = float(req_spec.get("tolerance", 0.01))   # 1% default
-    source = req_spec.get("source", "sec-edgar")
+    source, resolver = _pick_reference(req_spec.get("source"), entity if isinstance(entity, dict) else {})
+    if _REFERENCE is not None:
+        resolver = _REFERENCE               # injected test resolver beats routing
     recs, all_ok = [], True
     for f in facts:
         field, val = f.get("field"), f.get("value")
-        ref = await _REFERENCE(entity, field, period)
+        ref = await resolver(entity, field, period)
         within = ref is not None and val is not None and abs(float(val) - ref) <= abs(ref) * tol
         delta = (float(val) - ref) if (ref is not None and val is not None) else None
         warrant = "verified" if within else (f.get("warrant") or "derived")
@@ -406,7 +475,8 @@ async def _sql_load(req_spec: dict, project: str, session: str | None) -> Adapte
         return {"outputs": [], "runtime": "sql", "status": "error",
                 "error": f"unsafe table name: {table!r}", "degraded": None}
     entity = req_spec.get("entity", {})
-    ent_id = str(entity.get("cik") or entity.get("name") or entity) if isinstance(entity, dict) else str(entity)
+    # keying must match what the reference resolvers use: cik (US) → asx (AU) → name
+    ent_id = str(entity.get("cik") or entity.get("asx") or entity.get("name") or entity) if isinstance(entity, dict) else str(entity)
     period, source = str(req_spec.get("period", "")), str(req_spec.get("source", "extraction"))
     if not rows:
         return {"outputs": [], "runtime": "sql", "status": "degraded", "error": None,
