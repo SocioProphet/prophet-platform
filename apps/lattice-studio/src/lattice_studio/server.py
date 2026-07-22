@@ -3039,6 +3039,52 @@ async def _fetch_nodes(coll: str, limit: int = 200) -> tuple[list[dict[str, Any]
     return nodes, err
 
 
+@app.get("/api/studio/documents")
+async def documents(project: str = "default", limit: int = 500, doc_sha: str = "",
+                    _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The DOCUMENT view of the project graph — what a Noetica user published, and how much
+    linked knowledge each document yielded. Groups nodes by the doc-level provenance the
+    ingestion pipeline stamps (doc_sha/filename/file_sha), so the cockpit shows documents,
+    not a node soup. Pass doc_sha to get one document's node ids (the explorer filter)."""
+    coll = proj_collection(project)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={coll}&limit={limit}")
+    raw_nodes = res.get("nodes", []) if isinstance(res, dict) else []
+    raw_edges = res.get("edgeList", []) if isinstance(res, dict) else []
+    docs: dict[str, dict[str, Any]] = {}
+    node_doc: dict[str, str] = {}
+    undocumented = 0
+    for n in (raw_nodes if isinstance(raw_nodes, list) else []):
+        props = (n.get("properties") or {}) if isinstance(n, dict) else {}
+        sha = props.get("doc_sha")
+        if not sha:
+            undocumented += 1          # hand-authored / non-document facts — still real, just not doc-scoped
+            continue
+        d = docs.setdefault(sha, {"doc_sha": sha, "filename": props.get("filename"),
+                                  "file_sha": props.get("file_sha"), "source": props.get("source"),
+                                  "extractor": props.get("extractor"),
+                                  "entities": 0, "edges": 0, "sample": [], "node_ids": []})
+        d["entities"] += 1
+        if props.get("filename") and not d["filename"]:
+            d["filename"] = props["filename"]
+        if len(d["sample"]) < 5:
+            d["sample"].append(props.get("name", n.get("id")))
+        d["node_ids"].append(n.get("id", ""))
+        node_doc[n.get("id", "")] = sha
+    for e in (raw_edges if isinstance(raw_edges, list) else []):
+        sha = ((e.get("properties") or {}).get("doc_sha")) or node_doc.get(e.get("from", ""))
+        if sha in docs:
+            docs[sha]["edges"] += 1
+    if doc_sha:
+        docs = {k: v for k, v in docs.items() if k == doc_sha}
+    out = sorted(docs.values(), key=lambda d: -d["entities"])
+    for d in out:                       # node_ids only for a single-document query — list views stay light
+        if not doc_sha:
+            d.pop("node_ids", None)
+    return {"project": project, "projectCollection": coll, "documents": out, "count": len(out),
+            "undocumented_nodes": undocumented, "degraded": (err if err else None)}
+
+
 @app.get("/api/studio/graph")
 async def graph(project: str = "default", limit: int = 100, _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
     """KE-2: the project sub-graph with PROVENANCE PER NODE — the differentiator, read from the live kernel.

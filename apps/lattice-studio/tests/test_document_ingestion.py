@@ -156,3 +156,29 @@ def test_chunker_preserves_paragraphs_and_splits_oversized():
     chunks = _chunk_text(one_long_sentence)
     assert all(len(c) <= 4000 for c in chunks)
     assert sum(c.count("word") for c in chunks) == 2000
+
+
+def test_documents_view_groups_by_doc_provenance(monkeypatch):
+    """The cockpit's document view: nodes group by doc_sha, hand-authored facts counted
+    separately, single-doc query returns node ids for the explorer filter."""
+    async def fake_req(client, method, url, json=None):
+        return ({"nodes": [
+            {"id": "p:ent:a", "labels": ["p"], "properties": {"name": "GYG", "doc_sha": "d1", "filename": "gyg.pdf",
+                                                              "source": "doc:d1", "extractor": "lattice-studio/ie-pipeline-v1"}},
+            {"id": "p:ent:b", "labels": ["p"], "properties": {"name": "Sydney", "doc_sha": "d1"}},
+            {"id": "p:ent:c", "labels": ["p"], "properties": {"name": "Chipotle", "doc_sha": "d2", "filename": "cmg.htm"}},
+            {"id": "p:ent:h", "labels": ["p"], "properties": {"name": "Hand-authored"}},
+        ], "edgeList": [
+            {"id": "e1", "from": "p:ent:a", "to": "p:ent:b", "label": "open", "properties": {"doc_sha": "d1"}},
+        ]}, None)
+    import lattice_studio.server as srv2
+    monkeypatch.setattr(srv2, "_req", fake_req)
+
+    b = client.get("/api/studio/documents?project=team-x").json()
+    assert b["count"] == 2 and b["undocumented_nodes"] == 1
+    d1 = next(d for d in b["documents"] if d["doc_sha"] == "d1")
+    assert d1["entities"] == 2 and d1["edges"] == 1 and d1["filename"] == "gyg.pdf"
+    assert "GYG" in d1["sample"] and "node_ids" not in d1        # list view stays light
+
+    one = client.get("/api/studio/documents?project=team-x&doc_sha=d1").json()
+    assert one["count"] == 1 and set(one["documents"][0]["node_ids"]) == {"p:ent:a", "p:ent:b"}
