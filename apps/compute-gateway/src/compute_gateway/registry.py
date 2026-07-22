@@ -52,6 +52,20 @@ KINDS: dict[str, dict] = {
         "epistemic": "derived", "executes_user_code": False, "status": "live",
     },
     # ── IFM: document → SQL, proof-carrying ──
+    # Land the pack (stage 01): content-hash the raw bytes so identical packs are
+    # comparable and re-runs are free (request memoization = the dedupe). In-process.
+    "ingest": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["content-address", "pdf", "pptx", "dedupe"],
+        "epistemic": "observed", "executes_user_code": False, "status": "live",
+    },
+    # Layout-aware parse (stage 02): document bytes → blocks[], each keeping its page
+    # (+ shape bbox for PPTX, table cells pipe-joined; page/paragraph regions for PDF).
+    "parse": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["pdf", "pptx", "text-blocks", "tables", "page-regions"],
+        "epistemic": "observed", "executes_user_code": False, "status": "live",
+    },
     # Extract a (graphics-heavy) document into typed rows against a target schema;
     # each fact carries its lineage + warrant. Backend = Holmes/Sherlock (Studio).
     "extraction": {

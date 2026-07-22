@@ -7,7 +7,11 @@ Adapters are injectable (`set_backend`) so tests never need a live forge/graph.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import io
 import os
+import re
 import sqlite3
 import time
 from typing import Any, Awaitable, Callable
@@ -142,6 +146,124 @@ async def _inference(req_spec: dict, project: str, session: str | None) -> Adapt
     except Exception as e:  # noqa: BLE001
         return {"outputs": [], "runtime": "model-server", "status": "degraded",
                 "error": None, "degraded": f"model-server unreachable: {e}"}
+
+
+# ── IFM stages 01–02: land the pack, parse it to blocks ──
+_EMU_PER_PT = 12700  # PowerPoint positions are EMU; points are what humans cite
+
+
+def _sniff_media(filename: str, raw: bytes) -> str:
+    """Magic-bytes first (filenames lie), extension as tiebreak for zip containers."""
+    if raw[:5] == b"%PDF-":
+        return "application/pdf"
+    if raw[:4] == b"PK\x03\x04":  # OOXML container — pptx and docx share it
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext == "pptx":
+            return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        if ext == "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        return "application/zip"
+    return "text/plain"
+
+
+async def _ingest(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Stage 01 — land the pack by content hash. The sha256 is over the RAW bytes, so
+    identical packs hash identically whatever they're named, and a re-run of the same
+    request memoizes (the dedupe). Threads document_b64 + media_type to parse."""
+    try:
+        raw = base64.b64decode(req_spec.get("document_b64") or "", validate=True)
+    except Exception:  # noqa: BLE001
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "ingest needs document_b64 (valid base64)", "degraded": None}
+    if not raw:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "ingest needs document_b64 (valid base64)", "degraded": None}
+    filename = str(req_spec.get("filename") or "")
+    media = str(req_spec.get("media_type") or _sniff_media(filename, raw))
+    return {"outputs": [ComputeOutput(type="artifact", data={
+                "sha256": hashlib.sha256(raw).hexdigest(), "size": len(raw),
+                "media_type": media, "filename": filename,
+                "document_b64": req_spec.get("document_b64")})],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "epistemic": "observed"}
+
+
+def _pdf_blocks(raw: bytes) -> tuple[list[dict], int]:
+    from pypdf import PdfReader  # lazy: parse is the only kind that needs it
+    reader = PdfReader(io.BytesIO(raw))
+    blocks: list[dict] = []
+    for pno, page in enumerate(reader.pages, 1):
+        text = (page.extract_text() or "").strip()
+        region = 0
+        for para in re.split(r"\n\s*\n", text):
+            para = para.strip()
+            if para:
+                blocks.append({"page": pno, "region": region, "kind": "text", "text": para})
+                region += 1
+    return blocks, len(reader.pages)
+
+
+def _pptx_blocks(raw: bytes) -> tuple[list[dict], int]:
+    from pptx import Presentation  # lazy, same reason
+    prs = Presentation(io.BytesIO(raw))
+    blocks: list[dict] = []
+    n = 0
+    for sno, slide in enumerate(prs.slides, 1):
+        n = sno
+        for shape in slide.shapes:
+            bbox = None
+            if shape.left is not None and shape.top is not None:
+                bbox = [round(shape.left / _EMU_PER_PT, 1), round(shape.top / _EMU_PER_PT, 1),
+                        round((shape.width or 0) / _EMU_PER_PT, 1), round((shape.height or 0) / _EMU_PER_PT, 1)]
+            if getattr(shape, "has_table", False):
+                # tables carry the numbers — cells pipe-joined row-wise, one block per table
+                rows = "\n".join(" | ".join(c.text.strip() for c in row.cells) for row in shape.table.rows)
+                if rows.strip():
+                    blocks.append({"page": sno, "kind": "table", "text": rows, "bbox": bbox})
+            elif getattr(shape, "has_text_frame", False) and shape.text_frame.text.strip():
+                blocks.append({"page": sno, "kind": "text", "text": shape.text_frame.text.strip(), "bbox": bbox})
+    return blocks, n
+
+
+async def _parse(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Stage 02 — document bytes → blocks[], each keeping its page (+ bbox in points for
+    PPTX shapes, tables pipe-joined; page/paragraph regions for PDF). Consumes the fields
+    ingest threads in; a corrupt or unsupported document is an ERROR, never a crash."""
+    try:
+        raw = base64.b64decode(req_spec.get("document_b64") or "", validate=True)
+    except Exception:  # noqa: BLE001
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "parse needs document_b64 (thread it from an ingest step)", "degraded": None}
+    if not raw:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "parse needs document_b64 (thread it from an ingest step)", "degraded": None}
+    filename = str(req_spec.get("filename") or "")
+    media = str(req_spec.get("media_type") or _sniff_media(filename, raw))
+    try:
+        if media == "application/pdf":
+            blocks, pages = _pdf_blocks(raw)
+        elif media.endswith("presentationml.presentation"):
+            blocks, pages = _pptx_blocks(raw)
+        elif media.startswith("text/"):
+            text = raw.decode("utf-8", errors="replace").strip()
+            blocks = [{"page": 1, "region": i, "kind": "text", "text": p.strip()}
+                      for i, p in enumerate(re.split(r"\n\s*\n", text)) if p.strip()]
+            pages = 1
+        else:
+            return {"outputs": [], "runtime": "gateway", "status": "error",
+                    "error": f"parse: unsupported media type {media}", "degraded": None}
+    except Exception as e:  # noqa: BLE001 — corrupt document → honest error, not a 500
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"parse failed: {e}", "degraded": None}
+    if not blocks:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "parse: no extractable content (image-only/scanned documents need OCR)",
+                "degraded": None}
+    return {"outputs": [ComputeOutput(type="blocks", data={
+                "blocks": blocks, "pages": pages, "media_type": media,
+                "sha256": req_spec.get("sha256"), "filename": filename})],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "epistemic": "observed"}
 
 
 # ── IFM: document → structured facts (extraction) + reconcile vs open data ──
@@ -335,6 +457,8 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "hellgraph:graph-stats": lambda spec, project, session: _hellgraph_stats(spec, project),
     "spark-runner": lambda spec, project, session: _spark(spec, project, session),
     "model-server": lambda spec, project, session: _inference(spec, project, session),
+    "gateway:ingest": lambda spec, project, session: _ingest(spec, project, session),
+    "gateway:parse": lambda spec, project, session: _parse(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
     "open-data": lambda spec, project, session: _reconcile(spec, project, session),
     "sql": lambda spec, project, session: _sql_load(spec, project, session),
