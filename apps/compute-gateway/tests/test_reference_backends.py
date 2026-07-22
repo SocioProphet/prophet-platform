@@ -127,3 +127,39 @@ def test_au_reference_missing_row_cannot_reach_verified(tmp_path, monkeypatch):
     rec = r["outputs"][0]["data"]["reconciliations"][0]
     assert rec["reference"] is None and rec["within_tol"] is False
     assert rec["warrant"] == "observed"                         # keeps its warrant, no promotion
+
+
+# ── unit normalization (the validate-stage unit check) ──
+def test_unit_scaling_to_absolute():
+    assert adapters._fact_abs_value(1204, "m") == 1_204_000_000
+    assert adapters._fact_abs_value(1.204, "bn") == 1_204_000_000.0
+    assert adapters._fact_abs_value(1204, "AUD_m") == 1_204_000_000   # currency prefix ignored
+    assert adapters._fact_abs_value(0.29, None) == 0.29               # EPS-style: as printed
+    assert adapters._fact_abs_value("x", "m") is None
+
+
+def test_cross_magnitude_agreement_verifies_and_slip_flags(tmp_path, monkeypatch):
+    monkeypatch.setattr(adapters, "SQL_LOAD_DSN", f"sqlite:///{tmp_path}/ifm.db")
+    # appendix states revenue in millions
+    _compute({"kind": "workflow", "spec": {"steps": [
+        {"id": "extract", "kind": "extraction", "spec": {
+            "target_schema": {"table": "reference_facts"},
+            "entity": {"asx": "GYG"}, "period": "FY26",
+            "facts": [{"field": "revenue", "value": 1204, "unit": "AUD_m", "source_span": "4E/p2"}]}},
+        {"id": "load", "kind": "load", "from": "extract",
+         "spec": {"table": "reference_facts", "source": "asx-appendix-4e"}},
+    ]}})
+    # the pack states the same number in BILLIONS — must still verify (same absolute value)
+    r = _compute({"kind": "reconcile", "spec": {
+        "entity": {"asx": "GYG"}, "period": "FY26",
+        "facts": [{"field": "revenue", "value": 1.204, "unit": "bn"}]}})
+    rec = r["outputs"][0]["data"]["reconciliations"][0]
+    assert rec["within_tol"] and rec["warrant"] == "verified"
+    assert rec["extracted_abs"] == 1_204_000_000.0
+
+    # a genuine magnitude slip (thousands vs millions) must FLAG, never silently verify
+    r2 = _compute({"kind": "reconcile", "spec": {
+        "entity": {"asx": "GYG"}, "period": "FY26",
+        "facts": [{"field": "revenue", "value": 1204, "unit": "k"}]}})
+    rec2 = r2["outputs"][0]["data"]["reconciliations"][0]
+    assert rec2["flagged"] and not rec2["within_tol"]
