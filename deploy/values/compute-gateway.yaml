@@ -13,7 +13,7 @@ config:
   HELLGRAPH_URL: "http://hellgraph-service:8090"
   # THE uniform pay-gate across ALL compute kinds (generalizes STUDIO_COMPUTE_ENTITLEMENTS).
   # Tokens: "*" | "<kind>" | "<kind>:<backend>" | "<project>" | "<project>:<kind>" | "<project>:<kind>:<backend>".
-  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats"
+  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting"
   # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
   GATEWAY_WRITE_PROVENANCE: "true"
 # GATEWAY_TOKEN provisioned out-of-band; FORGE_TOKEN is the SAME lattice-forge-token
