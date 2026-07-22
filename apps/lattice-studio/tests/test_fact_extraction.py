@@ -75,3 +75,77 @@ def test_extract_facts_endpoint_serves_gateway_contract():
     b = r.json()
     assert b["fields_requested"] == 5 and b["fields_found"] == 4
     assert all({"field", "value", "page", "source_span", "confidence"} <= set(f) for f in b["facts"])
+
+
+US_STATEMENT_BLOCKS = [
+    {"page": 4, "kind": "table",
+     "text": "2026 | Percent of total revenue | 2025 | Percent of total revenue\n"
+             "Total revenue | 3,088,242 | 100.0 | 2,875,253 | 100.0\n"
+             "Net income | $ | 302,824 | 9.8 | % | $ | 386,599 | 13.4 | %"},
+    {"page": 6, "kind": "table",
+     "text": "Net income | $ | 302,824 | $ | 386,599\n"
+             "Diluted | $ | 0.23 | $ | 0.28"},
+]
+US_SCHEMA = {"table": "financials", "fields": [
+    {"name": "revenue", "type": "number", "unit": "USD_k", "labels": ["total revenue"]},
+    {"name": "net_income", "type": "number", "unit": "USD_k", "labels": ["net income"]},
+    {"name": "eps_diluted", "type": "number", "labels": ["diluted"]},
+]}
+
+
+def test_us_statement_year_headers_and_missing_label_column():
+    """SEC statement shape: bare-year headers WITHOUT a label column, % columns interleaved.
+    The requested year's column must win — not the % cell, not last year's number."""
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                       period="CY2026Q1", convention="current-first")}
+    assert facts["revenue"]["value"] == 3088242.0        # 2026 column, not 100.0, not 2,875,253
+    assert facts["net_income"]["value"] == 302824.0
+    # prior year still addressable
+    fy25 = {f["field"]: f for f in
+            extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                      period="CY2025Q1", convention="current-first")}
+    assert fy25["revenue"]["value"] == 2875253.0
+
+
+def test_headerless_us_table_current_first_fallback():
+    # the EPS sub-table has no year header — the convention decides, and US is current-first
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                       period="CY2026Q1", convention="current-first")}
+    assert facts["eps_diluted"]["value"] == 0.23          # NOT last year's 0.28
+    # AU default (current-last) preserved for the AU-shaped pack
+    au = {f["field"]: f for f in extract_facts_from_blocks(PACK_BLOCKS, SCHEMA)}
+    assert au["revenue"]["value"] == 1204.0
+
+
+def test_punctuated_and_prose_values_parse_correctly():
+    # trailing comma must not reject the value ('was $0.23, a 17.9% decrease…')
+    assert _parse_fact_value("$0.23,") == (0.23, None)
+    blocks = [{"page": 1, "kind": "text",
+               "text": "Diluted earnings per share was $0.23, a 17.9% decrease from $0.28\n\n"
+                       "Net income for the first quarter of 2026 was $302.8 million\n\n"
+                       "Total revenue increased 7.4% to $3.1 billion"}]
+    schema = {"table": "t", "fields": [
+        {"name": "eps_diluted", "labels": ["diluted earnings per share"]},
+        {"name": "net_income", "unit": "USD_m", "labels": ["net income"]},
+        {"name": "revenue", "unit": "USD_bn", "labels": ["total revenue"]},
+    ]}
+    facts = {f["field"]: f for f in extract_facts_from_blocks(blocks, schema)}
+    assert facts["eps_diluted"]["value"] == 0.23     # not the 17.9% decrease
+    assert facts["net_income"]["value"] == 302.8     # not the bare year 2026
+    assert facts["revenue"]["value"] == 3.1          # not the 7.4% growth rate
+
+
+def test_piped_tables_inside_text_blocks_beat_prose():
+    """Converted documents (HTML→text) carry tables as piped lines inside text blocks —
+    the labelled cell must still win at table confidence over any prose mention."""
+    blocks = [{"page": 1, "kind": "text",
+               "text": "Total revenue increased 7.4% to $3.1 billion\n"
+                       "2026 | Percent of total revenue | 2025 | Percent of total revenue\n"
+                       "Total revenue | 3,088,242 | 100.0 | 2,875,253 | 100.0"}]
+    schema = {"table": "t", "fields": [{"name": "revenue", "unit": "USD_k", "labels": ["total revenue"]}]}
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(blocks, schema, period="CY2026Q1", convention="current-first")}
+    assert facts["revenue"]["value"] == 3088242.0
+    assert facts["revenue"]["confidence"] >= 0.9     # table confidence, not prose
