@@ -20,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write   # promote merges via auto-merged PR (see push step) — no direct-push bypass needed
 
 concurrency:
   group: gitops-promote
@@ -107,7 +108,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add deploy/values
           git commit -m "gitops: promote${bumped} → sha-${SHA:0:12}"
-          # main may have advanced while the build ran — rebase then push (values-only, no image re-trigger)
-          git pull --rebase --autostash origin main
-          git push origin main
-          echo "promoted:${bumped}"
+          # The main-required-checks ruleset (required diagnostics-gate) rejects direct
+          # GITHUB_TOKEN pushes — a required check can never pre-exist on a fresh commit,
+          # and the GitHub Actions app can't be a ruleset bypass actor. So promote merges
+          # the way everyone else does: a PR that PASSES the gate, auto-merged. Credential-
+          # free — no PAT in CI — and the gate stays meaningful for the bot too.
+          BRANCH="gitops/promote-${SHA:0:12}-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "gitops: promote${bumped} → sha-${SHA:0:12}" \
+            --body "Automated image-pin promotion (values-only). Auto-merges when diagnostics-gate passes."
+          gh pr merge "$BRANCH" --squash --auto --delete-branch
+          echo "promoted via auto-merge PR:${bumped}"

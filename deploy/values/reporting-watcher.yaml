@@ -7,7 +7,7 @@
 # requests memoized at the gateway, so restarts reprocess nothing.
 # tag:latest is a bootstrap; sha-pin after first build (gitops-promote only
 # MAINTAINS an existing sha- pin — a new latest service must be pinned once).
-image: { repository: reporting-watcher, tag: latest }
+image: { repository: reporting-watcher, tag: sha-15221040ff2d9780ec9f307c7f386db84f432e37 }
 service: { port: 8080, portName: http }
 config:
   GATEWAY_URL: "http://compute-gateway:8080"
