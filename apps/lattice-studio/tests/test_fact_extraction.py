@@ -75,3 +75,45 @@ def test_extract_facts_endpoint_serves_gateway_contract():
     b = r.json()
     assert b["fields_requested"] == 5 and b["fields_found"] == 4
     assert all({"field", "value", "page", "source_span", "confidence"} <= set(f) for f in b["facts"])
+
+
+US_STATEMENT_BLOCKS = [
+    {"page": 4, "kind": "table",
+     "text": "2026 | Percent of total revenue | 2025 | Percent of total revenue\n"
+             "Total revenue | 3,088,242 | 100.0 | 2,875,253 | 100.0\n"
+             "Net income | $ | 302,824 | 9.8 | % | $ | 386,599 | 13.4 | %"},
+    {"page": 6, "kind": "table",
+     "text": "Net income | $ | 302,824 | $ | 386,599\n"
+             "Diluted | $ | 0.23 | $ | 0.28"},
+]
+US_SCHEMA = {"table": "financials", "fields": [
+    {"name": "revenue", "type": "number", "unit": "USD_k", "labels": ["total revenue"]},
+    {"name": "net_income", "type": "number", "unit": "USD_k", "labels": ["net income"]},
+    {"name": "eps_diluted", "type": "number", "labels": ["diluted"]},
+]}
+
+
+def test_us_statement_year_headers_and_missing_label_column():
+    """SEC statement shape: bare-year headers WITHOUT a label column, % columns interleaved.
+    The requested year's column must win — not the % cell, not last year's number."""
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                       period="CY2026Q1", convention="current-first")}
+    assert facts["revenue"]["value"] == 3088242.0        # 2026 column, not 100.0, not 2,875,253
+    assert facts["net_income"]["value"] == 302824.0
+    # prior year still addressable
+    fy25 = {f["field"]: f for f in
+            extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                      period="CY2025Q1", convention="current-first")}
+    assert fy25["revenue"]["value"] == 2875253.0
+
+
+def test_headerless_us_table_current_first_fallback():
+    # the EPS sub-table has no year header — the convention decides, and US is current-first
+    facts = {f["field"]: f for f in
+             extract_facts_from_blocks(US_STATEMENT_BLOCKS, US_SCHEMA,
+                                       period="CY2026Q1", convention="current-first")}
+    assert facts["eps_diluted"]["value"] == 0.23          # NOT last year's 0.28
+    # AU default (current-last) preserved for the AU-shaped pack
+    au = {f["field"]: f for f in extract_facts_from_blocks(PACK_BLOCKS, SCHEMA)}
+    assert au["revenue"]["value"] == 1204.0

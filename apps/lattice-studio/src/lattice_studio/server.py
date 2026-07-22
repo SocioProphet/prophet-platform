@@ -2803,24 +2803,40 @@ def _norm_label(s: str) -> str:
     return re.sub(r"\s+", " ", s.strip().rstrip(":").lower())
 
 
-def _pick_period_cell(cells: list[str], header: list[str], period: str | None) -> tuple[float, str | None] | None:
-    """Which column is THE value? If the table header names the requested period ('FY26'),
-    that column wins. Otherwise the LAST parsable cell — results tables put the current
-    period rightmost by convention. (Wrong column = silently trading on last year's number.)"""
+def _pick_period_cell(cells: list[str], header: list[str], period: str | None,
+                      convention: str = "current-last") -> tuple[float, str | None] | None:
+    """Which column is THE value? (Wrong column = silently trading on last year's number.)
+
+    Header matching first: a header cell naming the requested period — 'FY26', or its bare
+    4-digit year, since US statement headers are often just '2026' — selects the column.
+    Statement headers frequently OMIT the label column (they start at the first value
+    column), so the shifted index is tried first, then the exact one. Only when no header
+    column matches: fall back by convention — 'current-last' (AU results: current period
+    rightmost, the default) or 'current-first' (US statements: current period leftmost)."""
     if period and header:
         p = period.strip().lower()
-        for i, h in enumerate(header):
-            if p and p in h.strip().lower() and i < len(cells):
-                if (parsed := _parse_fact_value(cells[i])) is not None:
+        keys = [p, *re.findall(r"(?:19|20)\d{2}", p)]
+        # Does the header include the label column? If its first cell is itself a period
+        # (a bare year, '2026') the header starts at the first VALUE column and every
+        # header index maps to cells index+1. If it's a word ('Metric'), it's aligned.
+        first = header[0].strip() if header else ""
+        shift = 1 if (_parse_fact_value(first) is not None or re.search(r"(?:19|20)\d{2}", first)) else 0
+        for j, h in enumerate(header):
+            hl = h.strip().lower()
+            if not any(k and k in hl for k in keys):
+                continue
+            for cand in (j + shift, j + 1 - shift):
+                if 0 <= cand < len(cells) and (parsed := _parse_fact_value(cells[cand])) is not None:
                     return parsed
-    for c in reversed(cells[1:]):
+    ordered = cells[1:] if convention == "current-first" else list(reversed(cells[1:]))
+    for c in ordered:
         if (parsed := _parse_fact_value(c)) is not None:
             return parsed
     return None
 
 
 def extract_facts_from_blocks(blocks: list[dict[str, Any]], target_schema: dict[str, Any],
-                              period: str | None = None) -> list[dict[str, Any]]:
+                              period: str | None = None, convention: str = "current-last") -> list[dict[str, Any]]:
     """For each schema field, find the best-evidenced value in the blocks. Table rows beat
     prose (a labelled cell IS the number; prose needs interpretation), exact label matches
     beat 'Total X' prefixes, earlier pages beat later. One fact per field, or none."""
@@ -2835,13 +2851,16 @@ def extract_facts_from_blocks(blocks: list[dict[str, Any]], target_schema: dict[
             for lno, line in enumerate(str(b.get("text", "")).splitlines()):
                 if kind == "table" and "|" in line:
                     cells = [c.strip() for c in line.split("|")]
-                    if lno == 0 and _parse_fact_value(line) is None:
-                        header = cells          # a numberless first row is the period header
+                    # A first row that is numberless OR carries bare 4-digit years is the
+                    # period header (US statement headers are often just '2026 | … | 2025').
+                    if lno == 0 and (_parse_fact_value(line) is None
+                                     or re.search(r"(?:19|20)\d{2}", line)):
+                        header = cells
                     lbl = _norm_label(cells[0])
                     conf = 0.95 if lbl in variants else 0.9 if any(lbl == f"total {v}" for v in variants) else None
                     if conf is None:
                         continue
-                    parsed = _pick_period_cell(cells, header, period)
+                    parsed = _pick_period_cell(cells, header, period, convention)
                     span = f"p{page}/tbl: {cells[0]}"
                 else:
                     low = line.lower()
@@ -2869,6 +2888,8 @@ class ExtractFactsRequest(BaseModel):
     blocks: list[dict[str, Any]]
     target_schema: dict[str, Any] = {}
     period: str | None = None
+    # headerless-table column fallback: 'current-last' (AU results) | 'current-first' (US statements)
+    column_convention: str = "current-last"
     document: str | None = None
 
 
@@ -2878,7 +2899,7 @@ async def extract_facts_endpoint(req: ExtractFactsRequest) -> dict[str, Any]:
     nothing — so it carries no write gate; the compute plane's entitlement gate governs
     who may run it as a compute. Every fact keeps page + source span; absent fields are
     absent, not invented — the downstream warrant machinery depends on that honesty."""
-    facts = extract_facts_from_blocks(req.blocks, req.target_schema, req.period)
+    facts = extract_facts_from_blocks(req.blocks, req.target_schema, req.period, req.column_convention)
     return {"facts": facts,
             "fields_requested": len(req.target_schema.get("fields", [])),
             "fields_found": len(facts)}
