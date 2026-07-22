@@ -4,3 +4,5 @@ pydantic>=2.6
 httpx>=0.27
 cryptography>=42.0
 jsonschema>=4.21
+pypdf>=5.1
+python-pptx>=1.0
