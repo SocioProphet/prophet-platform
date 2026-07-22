@@ -15,3 +15,17 @@ config:
   # to "" in the appset so a sovereign tier never reaches this socioprophet-namespace service.
   EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
+  # ── ORG SUPER-PEER (federation) — opt-in, OFF by default ──────────────────────────────────
+  # The membership loop for local Noetica users: admit a user's writer key ONCE (signed
+  # addWriter control op) and their local graph changes percolate to this org graph
+  # automatically over Hyperswarm (P2P discovery by base key — no ingress needed; the
+  # super-peer is an INDEX, never a data owner, so its storage re-materializes from
+  # participants' logs). Governance is fail-closed: enabling without the HMAC secret
+  # refuses to start. TO ACTIVATE:
+  #   kubectl -n socioprophet create secret generic hellgraph-federation-hmac --from-literal=secret=<random>
+  #   flip FEDERATION_ENABLED to "1", uncomment the secretEnv entry below, commit.
+  # Admit tokens are minted operator-side from the same secret (HmacTokenVerifier.mint,
+  # scope 'admit') — admission is the identity primitive until the login work lands.
+  FEDERATION_ENABLED: "0"
+# secretEnv addition when activating federation (see comment above):
+#   FEDERATION_HMAC_SECRET: { secretName: hellgraph-federation-hmac, key: secret }
