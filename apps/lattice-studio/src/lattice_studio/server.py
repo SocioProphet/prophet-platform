@@ -17,6 +17,7 @@ Upstreams (real, in-cluster):
 from __future__ import annotations
 
 import asyncio
+import base64
 import csv
 import hashlib
 import io
@@ -2559,9 +2560,16 @@ async def ingest_document(req: IngestDocumentRequest, authorization: str = Heade
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="empty document")
-    coll = proj_collection(req.project)
+    return await _run_ingest_pipeline(req.project, text, req.filename, req.source)
+
+
+async def _run_ingest_pipeline(project: str, text: str, filename: str | None, source: str | None,
+                               extra_prov: dict[str, Any] | None = None) -> dict[str, Any]:
+    """The shared IE→ER→graph pipeline behind /ingest-document (raw text) and /ingest-file (converted files).
+    Caller is responsible for the write gate and for handing in non-empty text."""
+    coll = proj_collection(project)
     doc_sha = hashlib.sha256(text.encode()).hexdigest()
-    src = req.source or f"doc:{doc_sha[:16]}"
+    src = source or f"doc:{doc_sha[:16]}"
     chunks = _chunk_text(text)
 
     errors: list[str] = []
@@ -2634,7 +2642,7 @@ async def ingest_document(req: IngestDocumentRequest, authorization: str = Heade
         # otherwise mint junk nodes.
         prov = {"epistemic_mode": "observed", "source": src, "extractor": extractor,
                 "project": coll, "kko_type": "Particulars", "doc_sha": doc_sha,
-                **({"filename": req.filename} if req.filename else {})}
+                **({"filename": filename} if filename else {}), **(extra_prov or {})}
         canon_type: dict[str, str] = {}
         for m, canon in canonical_of.items():
             if mentions.get(m) and not canon_type.get(canon):
@@ -2672,7 +2680,7 @@ async def ingest_document(req: IngestDocumentRequest, authorization: str = Heade
                 written_edges += 1
 
     return {
-        "project": req.project, "projectCollection": coll, "source": src, "doc_sha": doc_sha,
+        "project": project, "projectCollection": coll, "source": src, "doc_sha": doc_sha,
         "chunks": len(chunks),
         "extracted": {"mentions": len(mentions), "relations": len(relations), "claims": len(claims)},
         "resolution": {**er_meta, "entities": len(set(canonical_of.values()))},
@@ -2682,6 +2690,73 @@ async def ingest_document(req: IngestDocumentRequest, authorization: str = Heade
         "sample": sorted(set(canonical_of.values()))[:10],
         "errors": errors[:5] or None,
     }
+
+
+# ---------------------------------------------------------------------------
+# File front door: PDF/DOCX/plain-text → text → the same IE→ER→graph pipeline.
+# Payload is base64 JSON (matching the estate's JSON-body convention) rather than
+# multipart, so callers — Noetica, app-vue, curl — need no special client handling.
+MAX_FILE_BYTES = int(os.getenv("STUDIO_MAX_FILE_BYTES", str(20 * 1024 * 1024)))
+
+
+def _doc_to_text(filename: str, data: bytes) -> str:
+    """Convert a supported document to plain text. Raises 415 for unsupported types; parser
+    failures are the caller's to wrap (422) so corrupt files never 500."""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext == "pdf":
+        from pypdf import PdfReader  # lazy: keeps cold-start light for the non-file routes
+        reader = PdfReader(io.BytesIO(data))
+        return "\n\n".join((page.extract_text() or "") for page in reader.pages)
+    if ext == "docx":
+        from docx import Document as DocxDocument  # lazy, same reason
+        d = DocxDocument(io.BytesIO(data))
+        parts = [p.text for p in d.paragraphs]
+        # Tables carry the numbers in business documents — flatten row-wise, cells pipe-joined.
+        for t in d.tables:
+            parts.extend(" | ".join(c.text.strip() for c in row.cells) for row in t.rows)
+        return "\n\n".join(x for x in parts if x.strip())
+    if ext in ("txt", "md", "markdown"):
+        return data.decode("utf-8", errors="replace")
+    raise HTTPException(
+        status_code=415,
+        detail=f"unsupported file type .{ext or '?'} — supported: pdf, docx, txt, md "
+               "(for tabular csv/json use /api/studio/ingest)")
+
+
+class IngestFileRequest(BaseModel):
+    project: str = "default"
+    filename: str
+    content_b64: str
+    source: str | None = None
+
+
+@app.post("/api/studio/ingest-file")
+async def ingest_file(req: IngestFileRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Drop a FILE in, get linked knowledge out — the literal ST024 outcome. Decodes + converts the
+    document, then runs the exact same governed pipeline as /ingest-document. Provenance additionally
+    carries file_sha (hash of the original bytes) next to doc_sha (hash of the extracted text), so a
+    fact is traceable both to the file that was dropped and to the text the extractor actually saw."""
+    _require_write_token(authorization)
+    try:
+        data = base64.b64decode(req.content_b64, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="content_b64 is not valid base64") from None
+    if not data:
+        raise HTTPException(status_code=400, detail="empty file")
+    if len(data) > MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail=f"file exceeds {MAX_FILE_BYTES} bytes")
+    try:
+        text = _doc_to_text(req.filename, data)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — corrupt/unparseable document must 422, never 500
+        raise HTTPException(status_code=422, detail=f"could not parse {req.filename}: {exc}") from None
+    if not text.strip():
+        raise HTTPException(status_code=422,
+                            detail=f"no extractable text in {req.filename} (scanned/image-only PDFs need OCR first)")
+    return await _run_ingest_pipeline(
+        req.project, text.strip(), req.filename, req.source,
+        extra_prov={"file_sha": hashlib.sha256(data).hexdigest()})
 
 
 class NodeRequest(BaseModel):
