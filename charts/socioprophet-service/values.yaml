@@ -21,6 +21,18 @@ replicaCount: 1
 # for single-replica services on tight clusters to avoid a 2x-memory surge.
 strategy: {}
 
+# Optional durable volume (PVC). Default OFF — these services are stateless, so this is a
+# no-op for every service that doesn't opt in. Enable for a SINGLE-WRITER service (e.g.
+# compute-gateway's SQLite proof store): pair it with replicaCount: 1, autoscaling.enabled:
+# false, and strategy: { type: Recreate }, because a ReadWriteOnce PD binds to one pod and a
+# rolling update would deadlock on the mount.
+persistence:
+  enabled: false
+  storageClass: ""              # "" = cluster default; GKE PD single-writer = dynamic-rwo
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  mountPath: /data
+
 # Container port the app listens on (also the Service targetPort).
 service:
   type: ClusterIP

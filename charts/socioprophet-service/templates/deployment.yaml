@@ -82,8 +82,12 @@ spec:
           {{- end }}
           {{- end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts }}
+          {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts .Values.persistence.enabled }}
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
             {{- if .Values.tmpDir.enabled }}
             - name: tmp
               mountPath: /tmp
@@ -102,8 +106,13 @@ spec:
               readOnly: true
             {{- end }}
           {{- end }}
-      {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts }}
+      {{- if or .Values.tmpDir.enabled .Values.writableDirs .Values.extraFileMounts .Values.persistence.enabled }}
       volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "svc.fullname" . }}-data
+        {{- end }}
         {{- if .Values.tmpDir.enabled }}
         - name: tmp
           emptyDir:
