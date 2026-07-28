@@ -21,18 +21,27 @@ ingress:
   # stay stable across ingress re-creates. Reserved as `socioprophet-web-app-ip` (IN_USE).
   annotations:
     kubernetes.io/ingress.global-static-ip-name: socioprophet-web-app-ip
-    # HTTPS for the public prod domain. The GKE-managed cert (below) provisions once
-    # app.socioprophet.com's A record points at 8.233.245.238 — decoupled from .ai (which
-    # has no public A record yet), so it's its OWN single-domain cert, not a shared one.
-    networking.gke.io/managed-certificates: socioprophet-web-com-cert
+    # HTTPS for the public prod domain + the .ai APEX. Each domain gets its OWN
+    # ManagedCertificate object (a cert's domain list is immutable and fail-closed — one
+    # unresolvable domain stalls the whole cert), so the live .com cert is never at risk
+    # while the apex cert sits Provisioning until socioprophet.ai's A record (Namecheap)
+    # points at 8.233.245.238.
+    networking.gke.io/managed-certificates: socioprophet-web-com-cert,socioprophet-ai-apex-cert
   # GKE ManagedCertificate rendered by the chart (templates/managed-certificate.yaml) —
   # only socioprophet-web sets this, so no other chart consumer emits a cert.
   managedCertificate:
     name: socioprophet-web-com-cert
     domains: [app.socioprophet.com]
+  # The .ai apex as a SEPARATE, independently-provisioning cert. The apex serves the
+  # store-identity statics: Flathub domain verification (/.well-known/org.flathub.VerifiedApps.txt
+  # — token file mounts via extraFileMounts once Flathub issues it) and /screenshots/.
+  additionalManagedCertificates:
+    - { name: socioprophet-ai-apex-cert, domains: [socioprophet.ai] }
   # app.socioprophet.com = the prod login URL (marketing "Sign in" button → here). app.socioprophet.ai
-  # stays as the .ai alias (HTTP for now; no public A record). Same backend/cockpit for both.
+  # stays as the .ai alias (HTTP for now; no public A record). socioprophet.ai (apex) = the
+  # store/canonical identity domain. Same backend/cockpit for all three.
   hosts:
+    - { host: socioprophet.ai,      paths: [{ path: /, pathType: Prefix }] }
     - { host: app.socioprophet.ai,  paths: [{ path: /, pathType: Prefix }] }
     - { host: app.socioprophet.com, paths: [{ path: /, pathType: Prefix }] }
 autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
