@@ -73,6 +73,37 @@ const server = http.createServer((req, res) => {
     if (handleFederation(federation, req, res, url, '')) return
   }
 
+  // KKO ontology surface — proves the KBpedia Knowledge Ontology (kko:) is live in this graph.
+  //   GET /api/graph/kko                     → census: version, class count, in-graph count, roots
+  //   GET /api/graph/kko?class=kko:Suchness  → { label, subClassOf, ancestors } via the type lattice
+  //   GET /api/graph/kko?isa=Suchness,Monads → { isA } subsumption check via the type lattice
+  if (req.method === 'GET' && url.pathname === '/api/graph/kko') {
+    const as = getAtomSpace()
+    const onto = engine.kkoOntology()
+    const toIri = (x: string): string => (x.startsWith('http') ? x : engine.KKO_NS + x.replace(/^kko:/, ''))
+    const cls = url.searchParams.get('class')
+    if (cls) {
+      const iri = toIri(cls)
+      const node = onto.byIri.get(iri)
+      if (!node) return void json(res, 404, { ok: false, error: `unknown KKO class: ${cls}` })
+      const ancestors = [...as.types.ancestors(iri)].filter((a) => a.startsWith(engine.KKO_NS)).map(engine.kkoShort)
+      return void json(res, 200, {
+        ok: true, iri, short: engine.kkoShort(iri), label: node.label ?? null,
+        subClassOf: node.subClassOf.map(engine.kkoShort), ancestors,
+      })
+    }
+    const isa = url.searchParams.get('isa')
+    if (isa) {
+      const [c, p] = isa.split(',').map((s) => s.trim())
+      if (!c || !p) return void json(res, 400, { ok: false, error: 'isa expects "child,parent"' })
+      return void json(res, 200, { ok: true, child: c, parent: p, isA: as.types.isA(toIri(c), toIri(p)) })
+    }
+    const inGraph = g.nodesByLabel('KkoClass').length
+    const childIris = new Set(onto.classes.filter((c) => c.subClassOf.some((p) => onto.byIri.has(p))).map((c) => c.iri))
+    const roots = onto.classes.filter((c) => !childIris.has(c.iri)).map((c) => engine.kkoShort(c.iri))
+    return void json(res, 200, { ok: true, version: onto.version, classes: onto.classes.length, inGraph, roots })
+  }
+
   if (req.method === 'GET' && url.pathname === '/healthz') {
     return json(res, 200, { ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length })
   }
@@ -318,6 +349,25 @@ function seedIfEmpty(): void {
   }
 }
 
+// Load the KKO ontology backbone (KBpedia Knowledge Ontology) into the live AtomSpace + type
+// lattice at startup. Idempotent (content-addressed atoms), fast (168 classes), fail-safe.
+// Disable with HELLGRAPH_LOAD_KKO=off.
+function loadKkoIfEnabled(): void {
+  if (process.env['HELLGRAPH_LOAD_KKO'] === 'off') return
+  try {
+    const stats = engine.loadKkoIntoAtomSpace(getAtomSpace())
+    console.log(`[hellgraph-service] KKO ${stats.version} loaded — ${stats.classes} classes / ${stats.subClassOfEdges} subClassOf edges (label 'KkoClass'; query via SPARQL/Cypher or GET /api/graph/kko)`)
+  } catch (e) {
+    console.error('[hellgraph-service] KKO load skipped (error):', e instanceof Error ? e.message : String(e))
+  }
+}
+
+// Bring the graph up to a coherent baseline: seed the demo corpus (if empty) + load the KKO backbone.
+function bootstrap(): void {
+  seedIfEmpty()
+  loadKkoIfEnabled()
+}
+
 function startLocalService(): void {
   // Org super-peer first (opt-in, fail-closed, never fatal) — so /api/federation/status is
   // truthful from the first request the service answers.
@@ -336,10 +386,10 @@ function startLocalService(): void {
           ? `[hellgraph-service] RocksDB backend active — ${rocks.storagePath()}`
           : '[hellgraph-service] RocksDB requested but binding unavailable — using JSONL')
         // Seed AFTER the persisted store is attached, so the emptiness check sees existing data.
-        seedIfEmpty()
+        bootstrap()
       })
     } else {
-      seedIfEmpty()
+      bootstrap()
     }
   })
 }
