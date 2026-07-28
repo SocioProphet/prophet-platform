@@ -16,9 +16,20 @@ config:
   COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting"
   # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
   GATEWAY_WRITE_PROVENANCE: "true"
+  # Durable proof store: receipts + content-addressed artifacts + the doc→SQL sink land on
+  # the PVC mounted here, so a governed run survives a restart (compute-gateway persistence).
+  GATEWAY_STORE_DIR: "/data"
 # GATEWAY_TOKEN provisioned out-of-band; FORGE_TOKEN is the SAME lattice-forge-token
 # already present in socioprophet (the gateway authenticates to the forge with it).
 secretEnv:
   GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
   FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# The proof store is one SQLite file ⇒ exactly one writer. Pin a single replica (no HPA) on a
+# ReadWriteOnce PD and Recreate on rollout so the PD is released before the new pod mounts it.
+# The gateway is control-plane and already ran effectively at 1 replica; the trade is a few
+# seconds of rollout downtime for durability — deliberate. Object-store backend removes this
+# constraint for a multi-writer HA gateway later.
+autoscaling: { enabled: false }
+replicaCount: 1
+strategy: { type: Recreate }
+persistence: { enabled: true, storageClass: dynamic-rwo, size: 2Gi, mountPath: /data }
