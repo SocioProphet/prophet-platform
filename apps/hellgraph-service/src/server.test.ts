@@ -70,6 +70,23 @@ test('enrich profiles a class + ranks new attributes via /api/graph/enrich', asy
   assert.ok(r.json.recommendation.recommendations.some((x: any) => x.key === 'enrExtra'), 'peer-common attr recommended')
 })
 
+test('explore suggests graph-proximal nodes via /api/graph/explore', async () => {
+  const L = `exp-${process.pid}`
+  await req('POST', '/api/graph/node', { id: `${L}:s`, labels: [L] })
+  await req('POST', '/api/graph/node', { id: `${L}:n1`, labels: [L] })
+  await req('POST', '/api/graph/node', { id: `${L}:n2`, labels: [L] })
+  await req('POST', '/api/graph/edge', { label: 'rel', from: `${L}:s`, to: `${L}:n1` })
+  await req('POST', '/api/graph/edge', { label: 'rel', from: `${L}:s`, to: `${L}:n2` })
+
+  const r = await req('GET', `/api/graph/explore?seeds=${encodeURIComponent(`${L}:s`)}&topK=5`)
+  assert.equal(r.status, 200)
+  assert.match(r.json.exploration.hash, /^sha256:/)                          // proof-carrying
+  const ids = r.json.exploration.suggestions.map((x: any) => x.id)
+  assert.ok(!ids.includes(`${L}:s`), 'seed excluded')
+  assert.ok(ids.includes(`${L}:n1`) && ids.includes(`${L}:n2`), 'neighbours suggested')
+  assert.equal((await req('GET', '/api/graph/explore')).status, 400)          // no-seeds guard
+})
+
 test('subgraph returns nodes + only internal edges (induced, no dangling)', async () => {
   const L = `proj-test${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:a`, labels: [L, 'Entity'], properties: { name: 'A' } })

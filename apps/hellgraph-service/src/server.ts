@@ -117,6 +117,19 @@ const server = http.createServer((req, res) => {
     return void json(res, 200, { ok: true, profile, recommendation })
   }
 
+  // Guided exploration — from seed node id(s), rank what to explore next (proof-carrying).
+  //   GET /api/graph/explore?seeds=id1,id2[&topK=N]  → { exploration }
+  // fuses personalized-PageRank (multi-hop relevance from the seeds) with seed-adjacency, RRF-fused,
+  // seeds excluded, sealed with a hash over the ranked suggestions + graph snapshot.
+  if (req.method === 'GET' && url.pathname === '/api/graph/explore') {
+    const seedsParam = url.searchParams.get('seeds')
+    if (!seedsParam) return void json(res, 400, { ok: false, error: 'explore requires ?seeds=id1,id2' })
+    const seeds = seedsParam.split(',').map((s) => s.trim()).filter(Boolean)
+    if (seeds.length === 0) return void json(res, 400, { ok: false, error: 'explore requires at least one seed id' })
+    const topK = Math.max(1, Math.min(100, Number(url.searchParams.get('topK') ?? 10) || 10))
+    return void json(res, 200, { ok: true, exploration: engine.exploreFrom(g, seeds, { topK }) })
+  }
+
   if (req.method === 'GET' && url.pathname === '/healthz') {
     return json(res, 200, { ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length })
   }
