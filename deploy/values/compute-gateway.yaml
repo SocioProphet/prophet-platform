@@ -25,11 +25,13 @@ secretEnv:
   GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
   FORGE_TOKEN: { secretName: lattice-forge-token, key: token }
 # The proof store is one SQLite file ⇒ exactly one writer. Pin a single replica (no HPA) on a
-# ReadWriteOnce PD and Recreate on rollout so the PD is released before the new pod mounts it.
-# The gateway is control-plane and already ran effectively at 1 replica; the trade is a few
-# seconds of rollout downtime for durability — deliberate. Object-store backend removes this
-# constraint for a multi-writer HA gateway later.
+# ReadWriteOnce PD, and the new pod must not start until the old one releases the disk. We do
+# that with a surge-free rolling update (maxSurge 0, maxUnavailable 1) rather than type:Recreate:
+# for a single replica it behaves identically (old terminates before new starts), but it keeps
+# strategy.type == RollingUpdate, so switching an existing Deployment over doesn't hit the
+# apply-time conflict ("rollingUpdate may not be specified when type is Recreate"). Same few
+# seconds of rollout downtime — deliberate; the object-store backend lifts this later.
 autoscaling: { enabled: false }
 replicaCount: 1
-strategy: { type: Recreate }
+strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
 persistence: { enabled: true, storageClass: dynamic-rwo, size: 2Gi, mountPath: /data }
