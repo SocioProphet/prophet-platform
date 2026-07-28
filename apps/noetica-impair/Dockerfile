@@ -20,7 +20,9 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY pyproject.toml ./
+# LICENSE comes along because pyproject declares license = { file = "LICENSE" };
+# without it the editable install fails with "License file does not exist".
+COPY pyproject.toml LICENSE ./
 COPY src ./src
 RUN pip install --no-cache-dir --no-deps -e .
 
