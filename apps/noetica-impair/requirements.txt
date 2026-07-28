@@ -1,23 +1,30 @@
-# Pinned to the versions the test suite actually runs against, not to whatever is
-# newest. torch/CUDA come from the base image, never from here.
+# Pins for the container image. torch/CUDA come from the base image, never from here.
 #
-# The first build of this image failed because the pins were assembled by checking
-# that each version EXISTS on PyPI, which is not the same as checking they RESOLVE
-# together: transformers 5.14.1 requires safetensors>=0.8.0 and the pin said 0.5.3.
-# Worse, a pin that resolves but differs from the tested stack is the quieter bug --
-# the rig's hooks reach into transformers internals (decoder layer structure, and the
-# MoE gate return signature changed in transformers>=5), so a container running a
-# different version than the suite is validating nothing.
+# THE RULE, learned the hard way over two failed builds:
+# pin EXACTLY the packages whose internals the rig couples to; let genuinely
+# transitive dependencies float within a compatible range.
+#
+# The rig's hooks reach into transformers internals -- decoder-layer structure, the
+# MLP branch, and the MoE gate return signature which changed in transformers>=5 -- so
+# a version drift there silently changes what the hooks attach to. Those get exact
+# pins, matched to the versions the test suite imports.
+#
+# numpy is the counter-example and the one that broke the build. Nothing here depends
+# on numpy-2.5-specific behaviour, but it had been pinned to the exact local version.
+# numpy 2.5.x requires Python >=3.12 while the CUDA base image is 3.11, so that pin
+# made the container unbuildable AND falsely coupled the dev Python to the runtime
+# Python. Floating it fixes both.
 transformers==5.14.1
 safetensors==0.8.0
 tokenizers==0.22.2
 huggingface-hub==1.24.0
-numpy==2.5.1
+
+numpy>=2.1,<3
 pyyaml==6.0.2
 
-# device_map="auto" in models/loaders.py needs accelerate. It is NOT installed in the
-# local dev env, so this pin is the one thing here the suite does not exercise -- the
-# CPU toy path never takes the device_map branch. Flagged rather than silently trusted.
+# device_map="auto" in models/loaders.py needs accelerate. NOT installed in the local
+# dev env, so this pin is the one thing here the suite does not exercise -- the CPU toy
+# path never takes the device_map branch. Flagged rather than silently trusted.
 accelerate==1.10.1
 
 # Loading a SentencePiece-tokenizer model (Gemma, Llama) needs this at load time.
