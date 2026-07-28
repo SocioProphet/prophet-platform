@@ -17,6 +17,8 @@ import hashlib
 import json
 from typing import Any, Protocol
 
+from . import persistence
+
 
 def digest(obj: Any) -> str:
     """The content address — sha256 of the canonical JSON encoding."""
@@ -54,8 +56,27 @@ class MemoryBackend:
         return d in self._blobs
 
 
+class SqliteBackend:
+    """Durable content-addressed blob store — survives a restart. Same put/get/has
+    contract as MemoryBackend, but blobs live in the gateway SQLite file (unbounded:
+    durability is the whole point). zot/MinIO would be one more Backend behind this seam."""
+
+    def put(self, d: str, blob: Any) -> bool:
+        if persistence.has_blob(d):
+            return False
+        persistence.save_blob(d, blob)
+        return True
+
+    def get(self, d: str) -> Any | None:
+        return persistence.get_blob(d)
+
+    def has(self, d: str) -> bool:
+        return persistence.has_blob(d)
+
+
 _backend: Backend = MemoryBackend()
-# receipt id → the ordered artifact digests it produced (the data-lineage index)
+# receipt id → the ordered artifact digests it produced (the data-lineage index). A cache
+# hydrated from durable storage on boot and written through on store_outputs when enabled.
 _by_receipt: dict[str, list[str]] = {}
 _stats = {"puts": 0, "dedup_hits": 0}
 
@@ -63,6 +84,16 @@ _stats = {"puts": 0, "dedup_hits": 0}
 def set_backend(b: Backend) -> None:
     global _backend
     _backend = b
+
+
+def hydrate() -> None:
+    """Point at the durable backend and reload the data-lineage index. No-op when
+    persistence is disabled. Called at import so restarts keep full data lineage."""
+    if not persistence.enabled():
+        return
+    set_backend(SqliteBackend())
+    _by_receipt.clear()
+    _by_receipt.update(persistence.load_index())
 
 
 def store_outputs(receipt_id: str, outputs: list[Any]) -> list[str]:
@@ -77,6 +108,7 @@ def store_outputs(receipt_id: str, outputs: list[Any]) -> list[str]:
             _stats["dedup_hits"] += 1
         digests.append(d)
     _by_receipt[receipt_id] = digests
+    persistence.save_index(receipt_id, digests)   # write-through (no-op when disabled)
     return digests
 
 
@@ -113,3 +145,7 @@ def _reset() -> None:   # test hook
     _backend = MemoryBackend()
     _by_receipt.clear()
     _stats.update(puts=0, dedup_hits=0)
+
+
+# Boot onto durable storage if configured (no-op otherwise).
+hydrate()
