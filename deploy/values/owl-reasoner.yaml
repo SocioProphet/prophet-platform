@@ -2,7 +2,7 @@
 # Ontogenesis-class inference (rdflib/owlrl/pyshacl) onto the graph: entails knowledge derivable but not
 # stated, over the KKO upper ontology — Protégé/Stardog reasoner parity, proof-carrying. Reasons over raw
 # Turtle or pulls a project's KKO-typed graph from lattice-studio. tag:latest → sha-pinned after first build.
-image: { repository: owl-reasoner, tag: latest }
+image: { repository: owl-reasoner, tag: sha-01faed593ae18e1497161e5934bb1199b9f58a7a }
 service: { port: 8080, portName: http }
 config:
   LATTICE_STUDIO_URL: "http://lattice-studio:8080"
