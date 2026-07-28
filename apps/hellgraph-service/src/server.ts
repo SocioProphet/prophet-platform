@@ -104,6 +104,19 @@ const server = http.createServer((req, res) => {
     return void json(res, 200, { ok: true, version: onto.version, classes: onto.classes.length, inGraph, roots })
   }
 
+  // Enrichment surface — profile a class's schema-in-use + rank useful new attributes (proof-carrying).
+  //   GET /api/graph/enrich?label=X[&topK=N]  → { profile, recommendation }
+  // profile = property/relation coverage + cardinality; recommendation = RRF-fused (consistency, trust,
+  // PLN-probabilistic) candidate new attributes, each sealed with a hash over the graph snapshot.
+  if (req.method === 'GET' && url.pathname === '/api/graph/enrich') {
+    const label = url.searchParams.get('label')
+    if (!label) return void json(res, 400, { ok: false, error: 'enrich requires ?label=' })
+    const topK = Math.max(1, Math.min(100, Number(url.searchParams.get('topK') ?? 10) || 10))
+    const profile = engine.profileClass(g, label)
+    const recommendation = engine.rankAttributeRecommendations(g, label, { topK })
+    return void json(res, 200, { ok: true, profile, recommendation })
+  }
+
   if (req.method === 'GET' && url.pathname === '/healthz') {
     return json(res, 200, { ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length })
   }
