@@ -87,6 +87,45 @@ def test_ro_crate_requires_auth():
     assert client.get("/v1/receipts/x/ro-crate").status_code == 401
 
 
+def _run_workflow():
+    return client.post("/v1/compute", json={"kind": "workflow", "project": "demo", "spec": {"steps": [
+        {"id": "a", "kind": "notebook", "spec": {"code": "1"}},
+        {"id": "b", "kind": "notebook", "spec": {"code": "2"}, "needs": ["a"]},
+    ]}}, headers=AUTH).json()
+
+
+def test_workflow_ro_crate_aggregates_every_step_with_proof():
+    rid = _run_workflow()["receipt"]["id"]
+    crate = client.get(f"/v1/workflows/{rid}/ro-crate", params={"project": "demo"}, headers=AUTH).json()
+    ids = _ids(crate)
+    assert crate["@context"] == "https://w3id.org/ro/crate/1.1/context"
+    # one research object, the composite run as its main entity, referencing both steps in order
+    assert ids["./"]["mainEntity"]["@id"] == "#run"
+    assert [s["@id"] for s in ids["#run"]["step"]] == ["#step0", "#step1"]
+    # each step is its own CreateAction, chained by prov:wasInformedBy (pipeline lineage)
+    assert "CreateAction" in ids["#step0"]["@type"] and "CreateAction" in ids["#step1"]["@type"]
+    assert ids["#step1"]["prov:wasInformedBy"][0]["@id"] == "#step0"
+    # every step carries its own content-addressed receipt + a signed attestation
+    for i in (0, 1):
+        assert len(ids[f"#step{i}-receipt"]["identifier"]) > 0
+        assert ids[f"#step{i}-output"]["prov:wasGeneratedBy"]["@id"] == f"#step{i}"
+        assert f"#step{i}-attestation" in ids
+    # ...and so does the composite
+    assert "#attestation" in ids and ids["#receipt"]["identifier"] == rid
+
+
+def test_workflow_ro_crate_422_on_a_plain_run():
+    rid = _run()["receipt"]["id"]   # a notebook, not a workflow
+    r = client.get(f"/v1/workflows/{rid}/ro-crate", params={"project": "demo"}, headers=AUTH)
+    assert r.status_code == 422 and "not a workflow" in r.json()["detail"]
+
+
+def test_workflow_ro_crate_404_for_unknown():
+    _run()
+    assert client.get("/v1/workflows/sha256:nope/ro-crate", params={"project": "demo"},
+                      headers=AUTH).status_code == 404
+
+
 def test_build_unsigned_has_no_attestation():
     # a receipt with no signature → crate omits the attestation node (never faked)
     from compute_gateway.contract import Receipt
