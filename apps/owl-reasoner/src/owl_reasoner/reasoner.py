@@ -10,6 +10,8 @@ Pure (no HTTP) so it is trivially testable; the service wrapper + graph pull liv
 """
 from __future__ import annotations
 
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from rdflib import OWL, RDF, RDFS, Graph
@@ -31,19 +33,44 @@ except Exception:  # pragma: no cover
 # OWL2-RL is the profile owlrl's OWLRL_Semantics implements — expose the standard profile name as an alias.
 _PROFILE_ALIASES = {"owl2rl": "owlrl", "owl2-rl": "owlrl", "owl": "owlrl"}
 
+# The KKO upper ontology (KBpedia Knowledge Ontology), vendored as package data so it ships in the image.
+_KKO_PATH = Path(__file__).resolve().parent / "data" / "kko-2.10.n3"
+
+
+@lru_cache(maxsize=1)
+def _kko_tbox() -> Graph:
+    """The KKO TBox (168 classes / 167 rdfs:subClassOf), parsed once and cached. Returns an empty graph
+    if the vendored file is missing, so ``with_kko`` degrades to a no-op rather than failing."""
+    g = Graph()
+    try:
+        # the .n3 is Turtle-compatible; parse as turtle to avoid rdflib's noisy N3-parser deprecations.
+        g.parse(_KKO_PATH.as_posix(), format="turtle")
+    except Exception:  # pragma: no cover — missing/parse issue must never take reasoning down
+        pass
+    return g
+
 
 def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
-           limit: int = 100, explain: bool = False) -> dict[str, Any]:
+           limit: int = 100, explain: bool = False, with_kko: bool = False) -> dict[str, Any]:
     """Compute entailments (+ optional SHACL validation) over a Turtle graph.
 
     inference: 'rdfs' | 'owlrl'/'owl2rl' | 'both' | 'none'. Returns input/entailed counts, a sample of the
     NEW (derived) triples, optional per-triple JUSTIFICATIONS (SOUND proof trees grounded in asserted facts,
     plus honest coverage — not the "why" incumbents' opaque reasoners hide), and, with shapes, the SHACL report.
+
+    with_kko: merge the full KKO upper ontology (the vendored TBox) before closure, so data typed with
+    kko: classes gets subClassOf transitivity + type propagation WITHOUT the caller inlining the axioms.
     """
     inference = _PROFILE_ALIASES.get(inference, inference)
     g = Graph()
     g.parse(data=turtle, format="turtle")
-    baseline = set(g)  # to diff out the entailments
+    kko_tbox_triples = 0
+    if with_kko:
+        tbox = _kko_tbox()
+        for t in tbox:
+            g.add(t)
+        kko_tbox_triples = len(tbox)
+    baseline = set(g)  # to diff out the entailments (the KKO TBox is baseline — never counted as entailed)
     n_in = len(baseline)
 
     mode = inference if _HAVE_OWLRL else "unavailable"
@@ -60,6 +87,7 @@ def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
         "input_triples": n_in,
         "entailed_triples": len(entailed),
         "inference": mode,
+        "kko_tbox": {"loaded": with_kko, "triples": kko_tbox_triples},
         "profile": {"rdfs": "RDFS", "owlrl": "OWL 2 RL", "both": "OWL 2 RL + RDFS", "none": "none"}.get(mode, mode),
         # proof-carrying: each entailed triple is a derivation over stated facts + the ontology
         "entailments": [f"{_c(s)} {_c(p)} {_c(o)}" for (s, p, o) in entailed[:limit]],
