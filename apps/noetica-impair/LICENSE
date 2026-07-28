@@ -1,0 +1,12 @@
+Copyright (c) 2026 SocioProphet / Michael Heller. All rights reserved.
+
+This software and its accompanying documentation are proprietary and confidential.
+
+No licence, express or implied, is granted to any person to use, copy, modify, merge,
+publish, distribute, sublicense, or sell copies of this software, in whole or in part,
+except under a separate written agreement signed by the copyright holder.
+
+This repository contains interpretability research apparatus intended for use on
+model weights the operator lawfully holds. Nothing in this notice grants any right in
+third-party model weights, datasets, or artifacts referenced or loaded by this
+software; those remain governed by their own licences.
