@@ -11,4 +11,18 @@ metadata:
   labels: {{- include "svc.labels" . | nindent 4 }}
 spec:
   domains: {{- toYaml .Values.ingress.managedCertificate.domains | nindent 4 }}
+{{- range .Values.ingress.additionalManagedCertificates }}
+---
+# Additional cert as its OWN object (never appended to an existing one): a ManagedCertificate's
+# domain list is immutable and fail-closed — one unresolvable domain stalls the WHOLE cert. A
+# separate object lets a new domain (e.g. the apex, pre-DNS-cutover) provision independently
+# without risking the live cert. List it alongside in the managed-certificates annotation.
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: {{ .name | quote }}
+  labels: {{- include "svc.labels" $ | nindent 4 }}
+spec:
+  domains: {{- toYaml .domains | nindent 4 }}
+{{- end }}
 {{- end }}
