@@ -37,6 +37,23 @@ test('healthz is live', async () => {
   assert.equal(r.json.ok, true)
 })
 
+test('KKO ontology is live in the graph (census + subsumption via /api/graph/kko)', async () => {
+  const census = await req('GET', '/api/graph/kko')
+  assert.equal(census.status, 200)
+  assert.equal(census.json.ok, true)
+  assert.equal(census.json.classes, 168)
+  assert.equal(census.json.inGraph, 168) // loaded into the live graph at startup (label KkoClass)
+  assert.ok(census.json.roots.includes('kko:Monads'), 'Monads is a KKO root')
+  // subsumption via the type lattice: Suchness ⊂ FirstMonads ⊂ Monads
+  const q = await req('GET', '/api/graph/kko?class=kko:Suchness')
+  assert.equal(q.status, 200)
+  assert.equal(q.json.label, 'suchness')
+  assert.ok(q.json.ancestors.includes('kko:Monads'), 'Suchness ancestors include Monads')
+  // directed subsumption checks
+  assert.equal((await req('GET', '/api/graph/kko?isa=Suchness,Monads')).json.isA, true)
+  assert.equal((await req('GET', '/api/graph/kko?isa=Monads,Suchness')).json.isA, false)
+})
+
 test('subgraph returns nodes + only internal edges (induced, no dangling)', async () => {
   const L = `proj-test${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:a`, labels: [L, 'Entity'], properties: { name: 'A' } })
@@ -110,7 +127,9 @@ test('analytics: PageRank ranks a hub highest + reports the backend (Rust kernel
   // star: a,b,c all point at hub h → h has the highest PageRank
   for (const x of ['a', 'b', 'c', 'h']) await req('POST', '/api/graph/node', { id: `${L}:${x}`, labels: [L] })
   for (const x of ['a', 'b', 'c']) await req('POST', '/api/graph/edge', { label: 'to', from: `${L}:${x}`, to: `${L}:h` })
-  const r = await req('GET', `/api/graph/analytics?metric=pagerank&limit=10`)
+  // limit high enough to see this star's nodes: the graph also carries the KKO backbone (168 classes)
+  // loaded at startup, whose roots dominate the global top — so scope by fetching the full ranking.
+  const r = await req('GET', `/api/graph/analytics?metric=pagerank&limit=1000`)
   assert.equal(r.status, 200)
   assert.ok(typeof r.json.backend === 'string' && r.json.backend.length > 0)   // honest backend report
   assert.ok(r.json.nodes >= 4 && r.json.edges >= 3)
