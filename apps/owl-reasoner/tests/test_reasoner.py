@@ -158,6 +158,35 @@ def test_reason_endpoint_explain():
     assert isinstance(r.json()["justifications"], list) and len(r.json()["justifications"]) >= 1
 
 
+# ─── KKO TBox auto-load (with_kko) — entail over the real ontology, no inline axioms ─────────────
+KKO_LEAF_TTL = """@prefix kko: <http://kbpedia.org/ontologies/kko#> .
+@prefix ex: <http://ex/> .
+ex:x a kko:Suchness ."""   # asserts ONLY the leaf type — the subClassOf chain lives in the vendored TBox
+
+
+def test_with_kko_entails_ancestor_type_without_inline_axioms():
+    # Suchness ⊑ FirstMonads ⊑ Monads is in the KKO TBox, not the input, so these are DERIVATIONS.
+    out = reason(KKO_LEAF_TTL, inference="rdfs", with_kko=True, limit=20000)
+    assert out["kko_tbox"]["loaded"] is True
+    assert out["kko_tbox"]["triples"] > 3000            # the full KKO n3 (~3978 triples)
+    assert "x type Monads" in out["entailments"]        # ex:x a kko:Monads, via the KKO subClassOf chain
+    assert "x type FirstMonads" in out["entailments"]   # the intermediate ancestor too
+
+
+def test_without_kko_no_ancestor_entailment():
+    out = reason(KKO_LEAF_TTL, inference="rdfs")         # TBox NOT loaded
+    assert out["kko_tbox"] == {"loaded": False, "triples": 0}
+    assert not any("Monads" in e for e in out["entailments"])  # can't derive an ancestor with no axioms
+
+
+def test_with_kko_endpoint():
+    r = client.post("/reason", json={"turtle": KKO_LEAF_TTL, "inference": "rdfs", "with_kko": True})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["kko_tbox"]["loaded"] is True and j["kko_tbox"]["triples"] > 3000
+    assert j["entailed_triples"] > 1000                 # RDFS closure over data + the KKO TBox
+
+
 def test_tabular_rdf_maps_rows_with_class_and_predicates():
     from owl_reasoner.tabular_rdf import map_rows
     rows = [

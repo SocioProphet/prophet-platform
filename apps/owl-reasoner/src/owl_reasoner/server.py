@@ -33,6 +33,7 @@ class ReasonRequest(BaseModel):
     shapes: str | None = None
     inference: str = "rdfs"        # 'rdfs' | 'owlrl'/'owl2rl' | 'both' | 'none'
     explain: bool = False          # emit per-entailment justifications (rule + premises)
+    with_kko: bool = False         # merge the KKO upper-ontology TBox before closure (entail over KKO)
 
 
 @app.get("/healthz")
@@ -42,7 +43,7 @@ def healthz() -> dict[str, Any]:
 
 @app.post("/reason")
 def reason_endpoint(req: ReasonRequest) -> dict[str, Any]:
-    return reason(req.turtle, req.shapes, req.inference, explain=req.explain)
+    return reason(req.turtle, req.shapes, req.inference, explain=req.explain, with_kko=req.with_kko)
 
 
 @app.post("/reason/project")
