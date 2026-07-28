@@ -54,6 +54,22 @@ test('KKO ontology is live in the graph (census + subsumption via /api/graph/kko
   assert.equal((await req('GET', '/api/graph/kko?isa=Monads,Suchness')).json.isA, false)
 })
 
+test('enrich profiles a class + ranks new attributes via /api/graph/enrich', async () => {
+  const L = `enr-${process.pid}`
+  // class instances carrying a test-unique property key (so peers are only this test's nodes)
+  await req('POST', '/api/graph/node', { id: `${L}:p1`, labels: [L], properties: { enrKey: 'A' } })
+  await req('POST', '/api/graph/node', { id: `${L}:p2`, labels: [L], properties: { enrKey: 'B' } })
+  // a peer that shares enrKey and carries an extra attribute the class lacks
+  await req('POST', '/api/graph/node', { id: `${L}:e1`, labels: [`${L}-peer`], properties: { enrKey: 'C', enrExtra: 'x' } })
+
+  const r = await req('GET', `/api/graph/enrich?label=${encodeURIComponent(L)}`)
+  assert.equal(r.status, 200)
+  assert.equal(r.json.profile.instances, 2)
+  assert.ok(r.json.profile.attributes.some((a: any) => a.key === 'enrKey'), 'schema-in-use profiled')
+  assert.match(r.json.recommendation.hash, /^sha256:/)                       // proof-carrying
+  assert.ok(r.json.recommendation.recommendations.some((x: any) => x.key === 'enrExtra'), 'peer-common attr recommended')
+})
+
 test('subgraph returns nodes + only internal edges (induced, no dangling)', async () => {
   const L = `proj-test${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:a`, labels: [L, 'Entity'], properties: { name: 'A' } })
