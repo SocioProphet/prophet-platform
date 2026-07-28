@@ -191,6 +191,40 @@ def ro_crate_view(receipt_id: str, project: str = "default",
     return rocrate.build(match)
 
 
+def _workflow_step_receipts(composite_id: str, chain: list) -> list:
+    """Recover a workflow's ordered step receipts at export time. The composite's stored
+    output blob carries `steps[].receipt` (data lineage from artifacts), so no engine state
+    is needed — and with durable artifacts this survives a restart too."""
+    by_id = {r.id: r for r in chain}
+    for d in artifacts.for_receipt(composite_id):
+        blob = artifacts.get(d)
+        steps = blob.get("data", {}).get("steps") if isinstance(blob, dict) else None
+        if steps:
+            return [by_id[s["receipt"]] for s in steps
+                    if isinstance(s, dict) and s.get("receipt") in by_id]
+    return []
+
+
+@app.get("/v1/workflows/{receipt_id}/ro-crate")
+def workflow_ro_crate_view(receipt_id: str, project: str = "default",
+                           _: None = Depends(require_token)) -> dict:
+    """Export a WHOLE workflow run — the composite plus every step's receipt, I/O, and
+    signed attestation — as ONE RO-Crate 1.1 research object. The single portable,
+    self-verifying artifact that reconstructs the entire chain of custody; for a single
+    run use /v1/receipts/{id}/ro-crate instead."""
+    chain = receipts.chain(project)
+    composite = next((r for r in chain if r.id == receipt_id), None)
+    if composite is None:
+        raise HTTPException(status_code=404, detail=f"no receipt {receipt_id} in project {project}")
+    if composite.kind != "workflow":
+        raise HTTPException(
+            status_code=422,
+            detail=f"receipt {receipt_id} is kind '{composite.kind}', not a workflow — "
+                   f"use /v1/receipts/{receipt_id}/ro-crate")
+    steps = _workflow_step_receipts(composite.id, chain)
+    return rocrate.build_workflow(composite, steps)
+
+
 @app.get("/v1/receipts")
 def receipts_view(project: str = "default", _: None = Depends(require_token)) -> dict:
     ch = receipts.chain(project)
