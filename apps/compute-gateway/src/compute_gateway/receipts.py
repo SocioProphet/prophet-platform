@@ -12,11 +12,24 @@ import json
 import time
 from typing import Any
 
-from . import signing
+from . import persistence, signing
 from .contract import EpistemicStatus, Receipt
 
-# per-project hash chain
+# per-project hash chain — the in-memory index. When GATEWAY_STORE_DIR is set it is a
+# cache hydrated from durable storage on boot (see hydrate) and written through on seal,
+# so the chain survives a restart; unset, it is the whole store (ephemeral).
 _CHAINS: dict[str, list[Receipt]] = {}
+
+
+def hydrate() -> None:
+    """Rebuild the in-memory chains from durable storage. Idempotent; a no-op when
+    persistence is disabled. Called at import so a restarted process comes up with its
+    full, verifiable history already in hand."""
+    if not persistence.enabled():
+        return
+    _CHAINS.clear()
+    for project, bodies in persistence.load_receipts().items():
+        _CHAINS[project] = [Receipt(**b) for b in bodies]
 
 
 def sha(obj: Any) -> str:
@@ -39,6 +52,9 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
     # in-toto Statement v1 + Ed25519 signature (unsigned if no key configured).
     signing.attest(receipt, signing.load_signing_key())
     chain.append(receipt)
+    # write-through AFTER attestation so the durable copy carries the signature/statement,
+    # and at the receipt's chain position so the ordered prev-links reload intact.
+    persistence.save_receipt(project, len(chain) - 1, receipt.id, receipt.model_dump_json())
     return receipt
 
 
@@ -77,3 +93,7 @@ def verify(project: str) -> dict:
         prev = r.id
     return {"valid": True, "count": len(ch), "signed": signed,
             "broken_at": None, "reason": None}
+
+
+# Boot with whatever durable history exists (no-op when persistence is disabled).
+hydrate()

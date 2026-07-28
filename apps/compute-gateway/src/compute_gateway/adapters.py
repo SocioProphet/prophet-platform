@@ -492,7 +492,13 @@ async def _reconcile(req_spec: dict, project: str, session: str | None) -> Adapt
 
 
 # ── IFM: load reconciled facts into the structured SQL layer (the doc→SQL sink) ──
-SQL_LOAD_DSN = os.getenv("SQL_LOAD_DSN", "sqlite:////tmp/ifm_extract.db")
+# The doc→SQL sink. An explicit DSN always wins; otherwise it follows GATEWAY_STORE_DIR
+# (the durable data dir) so the reconciled facts land beside the receipts on the same
+# PVC — not on /tmp, where a pod restart would silently drop the reference table the AU
+# cross-document reconcile reads back. /tmp stays the last-resort default for ephemeral dev.
+_STORE_DIR = os.getenv("GATEWAY_STORE_DIR", "").strip()
+SQL_LOAD_DSN = os.getenv("SQL_LOAD_DSN") or (
+    f"sqlite:///{_STORE_DIR}/ifm_extract.db" if _STORE_DIR else "sqlite:////tmp/ifm_extract.db")
 
 
 def _sqlite_path(dsn: str) -> str:
