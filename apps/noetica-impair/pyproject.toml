@@ -1,0 +1,38 @@
+[project]
+name = "noetica-impair"
+version = "0.1.0"
+description = "Controlled, dose-scaled impairment rig for locally-held open-weights LLMs."
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "torch>=2.4",
+    "transformers>=5.0",
+    "numpy>=1.26",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+impair-run = "noetica_impair.experiments.run_matrix:main"
+impair-discover = "noetica_impair.experiments.discover_features:main"
+
+[project.optional-dependencies]
+# Heavy / accelerator-only extras. The core rig and the whole test suite run
+# without these: tests use tiny randomly-initialised configs on CPU.
+weights = ["accelerate>=1.0", "safetensors>=0.4", "sentencepiece>=0.2"]
+sae = ["sae-lens>=5.0"]
+dev = ["pytest>=8.0", "pytest-timeout>=2.3"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/noetica_impair"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "weights: requires real model weights on local disk (skipped by default)",
+    "slow: long-running",
+]

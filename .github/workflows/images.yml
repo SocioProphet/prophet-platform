@@ -68,6 +68,11 @@ jobs:
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }
           - { image: lattice-forge,         context: apps/lattice-forge,         dockerfile: Dockerfile }
           - { image: compute-gateway,       context: apps/compute-gateway,       dockerfile: Dockerfile }
+          # GPU batch JOB, not a service. It has no port and no /healthz, and it is not
+          # deployed by gitops-promote — the run planes reference the image directly, so
+          # pass an explicit sha- tag rather than relying on :latest (a moving tag with
+          # IfNotPresent means a fix never rolls out).
+          - { image: noetica-impair,        context: apps/noetica-impair,        dockerfile: Dockerfile }
           - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
           - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }
