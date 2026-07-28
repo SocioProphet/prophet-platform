@@ -28,6 +28,20 @@ def test_relevance_filter():
                               "headline": "Ceasing to be a substantial holder"})
 
 
+def test_advance_notice_is_not_relevant():
+    # regression: the advance notice lodges as PERIODIC REPORTS and echoes the results
+    # wording, so the bare type check waved it through and fired the pipeline on a
+    # document with no numbers. This is the exact live GYG headline (ASX feed 2026-07-28).
+    assert not main.relevant({"announcementType": "PERIODIC REPORTS",
+                              "headline": "Advance Notice - 2026 Full Year Results and Briefing"})
+    # sibling scheduling notices that also carry no financials
+    assert not main.relevant({"announcementType": "PERIODIC REPORTS", "headline": "Notice of Annual General Meeting"})
+    assert not main.relevant({"announcementType": "PERIODIC REPORTS", "headline": "Date of FY26 Results Release"})
+    # ...but the actual results pack that follows still fires
+    assert main.relevant({"announcementType": "PERIODIC REPORTS",
+                          "headline": "Appendix 4E and FY26 Full Year Results"})
+
+
 def test_statutory_forms_process_first():
     items = [{"headline": "FY26 Results Investor Presentation"},
              {"headline": "Appendix 4E and Full Year Statutory Accounts"}]

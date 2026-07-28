@@ -51,11 +51,26 @@ TARGET_SCHEMA = json.loads(os.getenv("TARGET_SCHEMA_JSON", "null")) or _DEFAULT_
 
 _RELEVANT = re.compile(r"appendix 4[de]|full year|half year|results|annual report|trading update", re.I)
 
+# Scheduling / heads-up releases that NAME a reporting event but carry none of its
+# numbers. These lodge under announcementType "PERIODIC REPORTS" (so the type check
+# alone waves them through) and often echo the results wording ("...Full Year
+# Results..."), yet firing the pipeline on them yields an empty extraction — and the
+# real GYG "Advance Notice - 2026 Full Year Results and Briefing" is one, live in the
+# feed now. Excluded before anything else. (Verified against the live ASX feed
+# 2026-07-28; the keyless index also caps at the 5 most recent, itemsPerPage notwithstanding.)
+_EXCLUDE = re.compile(
+    r"advance notice|notice of (meeting|agm|annual general)"
+    r"|date (of|for) .*(results|release|report|announcement)"
+    r"|(results|investor) briefing details", re.I)
+
 STATE: dict[str, Any] = {"seen": set(), "runs": [], "last_poll": None, "polls": 0, "errors": 0}
 
 
 def relevant(item: dict) -> bool:
-    return item.get("announcementType") == "PERIODIC REPORTS" or bool(_RELEVANT.search(item.get("headline", "")))
+    headline = item.get("headline", "")
+    if _EXCLUDE.search(headline):           # scheduling notice — no numbers to extract
+        return False
+    return item.get("announcementType") == "PERIODIC REPORTS" or bool(_RELEVANT.search(headline))
 
 
 def statutory_first(items: list[dict]) -> list[dict]:
