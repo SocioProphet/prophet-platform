@@ -169,6 +169,9 @@ validate-wallguard-professional-workroom-runtime:
 validate-svf-agent-contract:
 	python3 tools/validate_svf_agent_contract.py
 
+validate-retention-policy:
+	python3 tools/validate_retention_policy.py
+
 validate-live-sociosphere-svf-contract:
 	python3 tools/validate_live_sociosphere_svf_contract.py
 
