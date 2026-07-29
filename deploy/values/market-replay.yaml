@@ -1,0 +1,47 @@
+# market-replay — Seal-the-Walls W1.2: the first sourceos-spec-conformant event
+# producer on the platform log. A deterministic seeded random walk emits SYNTHETIC
+# MarketDataEvent objects (SourceOS-Linux/sourceos-spec schemas/MarketDataEvent.json,
+# vendored + sha256-pinned in apps/market-replay/src/market_replay/contract.py;
+# validated per event, fail-closed — an invalid event is counted on /healthz and NEVER
+# emitted). Events enter the log as hellgraph-service graph writes (POST
+# /api/graph/node + an aboutSymbol edge per event); prophet-materializer-clickhouse
+# (W1.1) tails GET /api/graph/log and lands them in ClickHouse. No real market data:
+# every event carries qualityFlags=["synthetic"] and venueRef=SYNTH.
+nameOverride: market-replay
+
+image:
+  repository: market-replay
+  # sha-pinned by gitops-promote after the first CI build (prophet-materializer-clickhouse
+  # precedent).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
+  # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  REPLAY_ENABLED: "on"
+  REPLAY_INTERVAL_SECONDS: "5"
+  REPLAY_SYMBOLS: "SP:AAA,SP:BBB,SP:CCC"
+  # The walk is a pure function of (seed, symbol, seq): same seed ⇒ the same replayable
+  # stream on every restart. Event URNs embed the per-symbol seq, so ClickHouse
+  # (ReplacingMergeTree keyed by event_id) collapses restart re-emissions to one row.
+  REPLAY_SEED: "42"
+
+# ONE writer for the seq stream: a second replica would race the same deterministic
+# URNs and interleave duplicate graph writes. No HPA; Recreate over RollingUpdate so
+# two emitters never overlap even during a rollout.
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # emitted count, last seq, validation failures (MUST be 0), hellgraph reachability
+
+# Honest floor for a 3-symbol/5s validate→POST loop: fastapi + jsonschema resident,
+# events are ~1KB and stream straight through.
+resources:
+  requests: { cpu: 25m,  memory: 128Mi }
+  limits:   { cpu: 200m, memory: 256Mi }

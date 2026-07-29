@@ -1,0 +1,13 @@
+[project]
+name = "market-replay"
+version = "0.1.0"
+description = "Seal-the-Walls W1.2: deterministic synthetic MarketDataEvent replay emitter — first sourceos-spec-conformant events into the HellGraph platform log (schema-validated per event, fail-closed)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn==0.30.6",
+  "httpx==0.27.2",
+  "jsonschema==4.26.0",
+]
+[tool.setuptools.packages.find]
+where = ["src"]
