@@ -13,6 +13,10 @@ import PlanTree from '../../components/warrant/PlanTree.vue';
 import VariantRail from '../../components/warrant/VariantRail.vue';
 import SenseMetricBadge from '../../components/warrant/SenseMetricBadge.vue';
 import Warrant from '../../components/warrant/Warrant.vue';
+import AnnotationOverlay from '../../components/warrant/AnnotationOverlay.vue';
+import DepthControl from '../../components/depth/DepthControl.vue';
+import { useSettings } from '../../stores/settings';
+import type { Expertise } from '../../features/depth/expertise';
 import { compileQuestion, verifyReceipt, type WarrantLoadMode } from '../../services/warrantApi';
 import {
   FIXTURE_QUESTION,
@@ -28,6 +32,9 @@ import type {
   SealOutcome,
   WarrantInput,
 } from '../../features/warrant/types';
+
+const settings = useSettings();
+const level = computed<Expertise>(() => settings.expertise as Expertise);
 
 const question = ref(FIXTURE_QUESTION);
 const compilation = ref<NlqCompilation | null>(null);
@@ -261,6 +268,28 @@ onMounted(run);
         that did not run cannot be rendered as proof, so the warrant above reads
         <b>unknown</b> until it does.
       </p>
+    </div>
+
+    <!-- W11.4 — the annotation overlay. Ambiguity is data, not noise. -->
+    <div v-if="compilation && selected" class="card">
+      <div class="wsurf-runhead">
+        <div>
+          <h3>Annotations · what each token could have meant</h3>
+          <p class="desc">
+            The compiler keeps every competing reading; the plan takes one. Hover or focus a lit
+            span to see the concepts that competed for it, and which one variant #{{ selected.rank }}
+            actually bound.
+          </p>
+        </div>
+        <DepthControl compact />
+      </div>
+      <AnnotationOverlay
+        :question="compilation.question"
+        :annotations="compilation.annotations"
+        :provenance="selected.provenance"
+        :plan="selected.plan"
+        :level="level"
+      />
     </div>
 
     <div v-if="compilation && selected" class="grid cols-2 wsurf-body">

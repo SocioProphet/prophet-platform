@@ -31,6 +31,9 @@ export const FIXTURE_QUESTION = 'how many suppliers in Germany are delayed';
 /** Character offsets are real offsets into FIXTURE_QUESTION — every span slices back exactly. */
 const SPAN = {
   howMany: { start: 0, end: 8, text: 'how many', tokenIndices: [0, 1] },
+  /** Sub-span of `howMany` — an OVERLAPPING annotation, kept to exercise the overlay's
+   *  overlap path. The engine emits these; a surface that drops them is the W11.4 bug. */
+  many: { start: 4, end: 8, text: 'many', tokenIndices: [1] },
   suppliers: { start: 9, end: 18, text: 'suppliers', tokenIndices: [2] },
   germany: { start: 22, end: 29, text: 'Germany', tokenIndices: [4] },
   delayed: { start: 34, end: 41, text: 'delayed', tokenIndices: [6] },
@@ -456,11 +459,33 @@ export const FIXTURE_COMPILATION: NlqCompilation = {
     sha256: 'sha256:4f1b9c2e8a7d6543210fedcba9876543210abcdef0123456789abcdef01234567',
   },
   tokens: FIXTURE_TOKENS,
+  /**
+   * The FULL annotation list — every competitor, exactly as the engine keeps it.
+   *
+   * `compileQuestion` (nlq.ts @ v0.4.45 :1160-1174) sorts the raw annotations by
+   * (start, end, conceptRef, source) and puts THAT list on the compilation, while handing the
+   * search a separate view deduped to one entry per (span, concept). This list is faithful to
+   * the first: sorted the same way, and carrying the competitors the search view collapses.
+   *
+   * Four kinds of ambiguity are represented, because W11.4 exists to render them:
+   *   • howMany   one concept, TWO annotators agreeing at different confidences.
+   *   • many      an OVERLAPPING sub-span of howMany that no plan node binds.
+   *   • suppliers two rival types (the entity vs. its contract).
+   *   • Germany   country vs. football team — consumed by a BINDING, not a node grounding.
+   *   • delayed   THE case: the plan binds DelayedStatus (0.88) while LateShipment (0.91)
+   *               scored higher and lost. Confidence order and the plan's choice disagree,
+   *               and before this surface existed nothing on screen said so.
+   */
   annotations: [
+    { tokenSpan: SPAN.howMany, conceptRef: 'urn:srcos:action:Count', source: 'kko-semantic', confidence: 0.9 },
     { tokenSpan: SPAN.howMany, conceptRef: 'urn:srcos:action:Count', source: 'lexicon', confidence: 0.94 },
+    { tokenSpan: SPAN.many, conceptRef: 'urn:srcos:concept:Quantity', source: 'kko-semantic', confidence: 0.55 },
     { tokenSpan: SPAN.suppliers, conceptRef: 'urn:srcos:type:Supplier', source: 'lexicon', confidence: 0.97 },
+    { tokenSpan: SPAN.suppliers, conceptRef: 'urn:srcos:type:SupplierContract', source: 'kko-semantic', confidence: 0.62 },
     { tokenSpan: SPAN.germany, conceptRef: 'urn:srcos:concept:Germany', source: 'kko-semantic', confidence: 0.81 },
+    { tokenSpan: SPAN.germany, conceptRef: 'urn:srcos:concept:GermanyNationalTeam', source: 'lexicon', confidence: 0.44 },
     { tokenSpan: SPAN.delayed, conceptRef: 'urn:srcos:concept:DelayedStatus', source: 'lexicon', confidence: 0.88 },
+    { tokenSpan: SPAN.delayed, conceptRef: 'urn:srcos:concept:LateShipment', source: 'kko-semantic', confidence: 0.91 },
   ],
   snapshot: { seq: 41207, nodes: 128_940, edges: 411_663 },
   weights: DEFAULT_SENSE_WEIGHTS,
