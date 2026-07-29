@@ -43,6 +43,15 @@ service:
   extraPorts: []
 
 # Plain env (non-secret). Rendered into a ConfigMap and injected.
+#
+# OTLP telemetry pattern (documented, deliberately NOT forced on all services):
+# the observability stack (deploy/argocd/observability-services.yaml) runs an
+# OTel collector that fans out to Prometheus/Tempo/Loki. A service that emits
+# OTLP opts in from its own deploy/values/<name>.yaml:
+#   config:
+#     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
+#     OTEL_SERVICE_NAME: "<name>"
+# (gRPC callers use otel-collector.observability.svc.cluster.local:4317.)
 config: {}
 #   TRITRPC_LISTEN_ADDR: "tcp://0.0.0.0:9000"
 
@@ -88,6 +97,22 @@ probes:
   httpGet: true
   initialDelaySeconds: 5
   periodSeconds: 10
+
+# Prometheus scraping (renders a ServiceMonitor for the observability stack's
+# Prometheus — deploy/argocd/observability-services.yaml). Default OFF, and
+# VERIFIED 2026-07-29 that it stays off for every current service: none exposes
+# a native /metrics endpoint yet (hellgraph-service serves /healthz +
+# /api/graph/*; compute-gateway serves /healthz + /v1/*). Enabling this for a
+# service without a real endpoint points Prometheus at a 404 and fires
+# TargetDown — flip it per-service in deploy/values/<name>.yaml only WHEN the
+# endpoint exists. (Until then, telemetry flows through the OTLP pattern
+# documented above `config`.)
+metrics:
+  enabled: false
+  path: /metrics
+  interval: 30s
+  # Scrape port name; "" = the main service.portName (http).
+  portName: ""
 
 autoscaling:
   enabled: false

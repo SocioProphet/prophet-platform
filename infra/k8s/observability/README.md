@@ -7,7 +7,8 @@ wave the estate had OTLP emitters but no backend to receive them.
 
 ## What deploys
 
-Installed as GitOps Argo Applications (`infra/argocd/observability-stack.yaml`),
+Installed as GitOps Argo Applications (`deploy/argocd/observability-services.yaml`
+— the tree the tofu root app-of-apps actually watches),
 sync-wave-ordered so CRDs exist before the resources that use them:
 
 | Wave | App | Gives |

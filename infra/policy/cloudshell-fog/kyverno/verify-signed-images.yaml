@@ -23,9 +23,15 @@ spec:
               kinds:
                 - Pod
       verifyImages:
+        # The registries the estate ACTUALLY publishes to (GAR via the
+        # build-image workflow, and the sovereign zot mirror). The previous
+        # ghcr.io/* globs matched nothing this platform deploys — the policy
+        # was a no-op even where installed. The policy itself remains
+        # uninstalled (no Kyverno controller is connected in this PR); this
+        # just stops the manifest from being wrong when it does land.
         - imageReferences:
-            - "ghcr.io/socioprophet/*"
-            - "ghcr.io/socios-linux/*"
+            - "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/*"
+            - "registry.socioprophet.ai/*"
           required: true
           mutateDigest: true
           verifyDigest: true
