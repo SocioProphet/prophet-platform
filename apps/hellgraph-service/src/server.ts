@@ -35,7 +35,6 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import * as zlib from 'node:zlib'
-import { fileURLToPath } from 'node:url'
 
 // Storage isolation: this service must NOT share Noetica's single-writer JSONL
 // store. Set a service-local store dir BEFORE the engine's lazy getAtomSpace()
@@ -494,7 +493,7 @@ function seedIfEmpty(): void {
     const g = getHellGraph()
     if (g.allNodes().length > 0) return
     const seedDir = process.env['HELLGRAPH_SEED_DIR'] ||
-      path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'seeds')
+      path.join(__dirname, '..', 'seeds')
     if (!fs.existsSync(seedDir)) return
     const files = fs.readdirSync(seedDir).filter((f) => f.endsWith('.json')).sort()
     let nodes = 0, edges = 0
@@ -540,7 +539,7 @@ function loadRcIfEnabled(): void {
   if (process.env['HELLGRAPH_LOAD_RC'] !== 'on') return
   try {
     const gzPath = process.env['HELLGRAPH_RC_PATH'] ||
-      path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'ontology', 'kbpedia-rc-2.10.n3.gz')
+      path.join(__dirname, '..', 'ontology', 'kbpedia-rc-2.10.n3.gz')
     if (!fs.existsSync(gzPath)) { console.error(`[hellgraph-service] RC load skipped: ${gzPath} not found`); return }
     const t0 = Date.now()
     const text = zlib.gunzipSync(fs.readFileSync(gzPath)).toString('utf8')
