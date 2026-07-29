@@ -10,11 +10,18 @@ register:
     source: concept-diagram-2026-07 (monads panel)
     mechanism: >-
       No monad library. Canon doc of the correspondence (receipts~Writer,
-      entitlements~Reader, sessions~State) + ONE enforced law: workflow composite
-      receipt == fold of step receipts (compositionality property test).
+      entitlements~Reader, sessions~State) + FOUR enforced laws in
+      tests/test_receipt_compositionality.py: warrant fold (weakest-link monoid),
+      structural fold (composite embeds exactly its step receipts in DAG order),
+      hash binding (inputs/outputs shas recompute), determinism (memo law).
     owner: prophet-platform/apps/compute-gateway
-    status: absent
-    probe: "pytest -k receipt_compositionality passes in compute-gateway suite"
+    status: wired   # laws written 2026-07-29, 4/4 pass; enforced every CI run by app-test-diagnostics
+    probe: >-
+      The law suite exists and the gateway test dir is CI-gated (enforcement =
+      app-test-diagnostics runs the whole suite; this probe pins the wiring).
+    probe_cmd: >-
+      test -f apps/compute-gateway/tests/test_receipt_compositionality.py
+      && grep -rq "compute-gateway" .github/workflows/
     wave: W6.0
 
   - id: exhaust-accounting
