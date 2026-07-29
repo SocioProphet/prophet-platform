@@ -1,6 +1,13 @@
 name: semantic-projection-contracts
 
-on: [push, pull_request]
+on:
+  pull_request:
+    paths:
+      - 'tools/validate_semantic_projection.py'
+      - 'contracts/semantic-projection/**'
+      - '.github/workflows/semantic-projection-contracts.yml'
+  push:
+    branches: [ main ]
 
 jobs:
   validate:

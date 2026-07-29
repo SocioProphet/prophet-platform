@@ -2,6 +2,13 @@ name: workspace-operation-runtime
 
 on:
   pull_request:
+    paths:
+      - 'tests/workspace_operations/**'
+      - 'src/**'
+      - 'infra/datastores/postgres/**'
+      - 'infra/k8s/**'
+      - 'infra/local/**'
+      - '.github/workflows/workspace-operation-runtime.yml'
   push:
     branches:
       - main
