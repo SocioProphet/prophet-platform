@@ -23,6 +23,12 @@
  *   POST /api/graph/gremlin        { query }  → Gremlin read-traversal subset (~14 read steps; no mutations)
  *   POST /api/graph/cypher         { query, params? } → Cypher read subset + queryHash (MATCH/RETURN/paths; no writes)
  *   POST /api/graph/shacl          { shapes } → SHACL validation (core constraints; complex shapes via pyshacl sidecar)
+ *   POST /api/membrane/decide      spec-valid EffectRequest wrapping an OrderIntent → policy kernel v0 →
+ *                                  EffectDecision node (idempotent by key), sealed via compute-gateway (membrane.ts)
+ *
+ * Wave 2 doors (auth.ts / membrane.ts, both flag-gated): AUTH_ENFORCE=on requires scoped HMAC bearer
+ * tokens on /api/graph/* + /api/membrane/*; MEMBRANE_ENFORCE=on makes ExecutionReport writes require
+ * an approved EffectDecision (B-after-A). Enforce-on with missing secret refuses startup (fail-closed).
  */
 import * as http from 'node:http'
 import * as os from 'node:os'
@@ -42,6 +48,8 @@ import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, run
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
 import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
+import { initAuth, authorize, type AuthState } from './auth.js'
+import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -63,9 +71,35 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 // The org super-peer (opt-in; see federation.ts). Initialized before listen() below.
 let federation: Federation | null = null
 
+// Wave 2 doors — governance init BEFORE the server exists. Fail-closed: AUTH_ENFORCE=on
+// without AUTH_HMAC_SECRET (or a drifted vendored contract) refuses startup rather than
+// serving an ungoverned surface; flags off announce themselves with one WARN each.
+function initGovernanceOrDie(): { auth: AuthState; membrane: MembraneState } {
+  try {
+    return { auth: initAuth(), membrane: initMembrane() }
+  } catch (e) {
+    console.error('[hellgraph-service] governance init FAILED (fail-closed):', e instanceof Error ? e.message : String(e))
+    return process.exit(1)
+  }
+}
+const { auth, membrane } = initGovernanceOrDie()
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   const g = getHellGraph()
+
+  // Scope gate first (auth.ts): with AUTH_ENFORCE=on, nothing under /api/graph/* or
+  // /api/membrane/* is reachable without a bearer token carrying the route's scope.
+  const authDenied = authorize(auth, req, url)
+  if (authDenied) return void json(res, authDenied.code, authDenied.body)
+
+  // Membrane governance surface (membrane.ts): POST /api/membrane/decide. Same port.
+  if (url.pathname.startsWith('/api/membrane/')) {
+    if (req.method === 'POST') {
+      return void readBody(req).then((b) => { if (!handleMembrane(g, req, res, url, b)) json(res, 404, { error: 'not_found' }) })
+    }
+    return void json(res, 404, { error: 'not_found' })
+  }
 
   // Federation governance surface (status open; admit scope-gated). Same port, nothing new exposed.
   if (url.pathname.startsWith('/api/federation/')) {
@@ -238,6 +272,10 @@ const server = http.createServer((req, res) => {
       try {
         const { id, labels, properties } = JSON.parse(b) as { id: string; labels: string[]; properties?: Record<string, unknown> }
         if (!id || !Array.isArray(labels)) throw new Error('id and labels[] required')
+        // Membrane B-after-A gate (membrane.ts): an ExecutionReport write REQUIRES an
+        // approved EffectDecision; EffectDecision nodes mint only via /api/membrane/decide.
+        const gate = membraneCheckNodeWrite(membrane, g, { id, labels, properties })
+        if (!gate.ok) return json(res, 403, gate.body)
         const node = g.addNode(id, labels, (properties ?? {}) as Record<string, never>)
         json(res, 200, { ok: true, node })
       } catch (e) { json(res, 400, { error: String(e) }) }

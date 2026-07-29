@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/OrderIntent.json",
+  "title": "OrderIntent",
+  "description": "A human or agent intent to create, amend, cancel, pause, or resume trading action. An intent is a proposal in the trading lane: it is not permission and not execution — approval flows through EffectRequest/EffectDecision, and venue reality arrives as ExecutionReport. Profile of the ConversationEvent envelope: shares the single MPCC identity/causality/governance vocabulary (specVersion, actorRef, workspaceRef, branchRef, visibilityScope, wallTime, logicalTime, causalParents, traceContext, provenanceLinks, policyLabels, riskLabels) — envelope parity is enforced by tools/validate_mpcc_event_examples.py. Provenance: SocioProphet/profit-mpcc schemas/order-intent-event.schema.json and docs/trading-order-lifecycle.md, hardened to the policy-integrity tranche-0001 strictness bar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "actorRef",
+    "wallTime",
+    "strategyRef",
+    "instrumentRef",
+    "intentKind",
+    "side",
+    "quantity"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:order-intent:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:order-intent:<local-id>. Invariant: event identity is stable and never reused."
+    },
+    "type": {
+      "const": "OrderIntent",
+      "description": "Discriminator constant — always \"OrderIntent\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "MPCC event-contract version, pinned per the profit-mpcc policy-integrity tranche-0001 discipline. This family is versioned independently of the v2 metadata-plane schemas; changing this const is a contract change."
+    },
+    "actorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that emitted this event (human subject, agent, service, or system). Subject or Agent Registry URNs are recommended; free-form identifiers are permitted in v0.1."
+    },
+    "workspaceRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace scope this event belongs to. Free-form stable reference in v0.1; a typed workspace URN may narrow this in a later minor version."
+    },
+    "branchRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Conversation-fabric branch this event was appended to. Free-form stable reference in v0.1, pending adoption of the profit-mpcc branch-id contract."
+    },
+    "visibilityScope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A visibility scope label such as private, shared, public, or an audience URN."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Visibility scopes governing who may observe this event (e.g. private, shared, public, or audience URNs)."
+    },
+    "wallTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 wall-clock time of the event as observed by the producer. Family profiles map their primary domain timestamp onto this field."
+    },
+    "logicalTime": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Producer-scoped logical clock: a non-negative integer for scalar (Lamport-style) clocks, or a non-empty string for encoded vector/hybrid clocks. Invariant: causalParents must never point forward in logical time."
+    },
+    "causalParents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+        "description": "URN of a causally preceding event in any MPCC event family."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Event URNs this event causally depends on. Cross-family parents are permitted (e.g. an OrderIntent caused by a MarketDataEvent). Invariant: parents must never point forward in logical time."
+    },
+    "traceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "traceId"
+      ],
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Distributed trace identifier."
+        },
+        "spanId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Span identifier within the trace."
+        },
+        "baggage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "String-valued trace baggage entries."
+        }
+      },
+      "description": "Optional distributed-tracing correlation context."
+    },
+    "provenanceLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rel",
+          "ref"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this event (e.g. derived_from, quotes, source_feed)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance links from this event to upstream artifacts, sources, or records."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this event by producers or the policy fabric."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this event by producers or risk controls."
+    },
+    "authorityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principal",
+        "delegationChain",
+        "capabilities",
+        "approvalState",
+        "policyContext"
+      ],
+      "properties": {
+        "principal": {
+          "type": "string",
+          "enum": [
+            "user",
+            "agent",
+            "system",
+            "tool"
+          ],
+          "description": "Class of principal exercising authority for this act."
+        },
+        "delegationChain": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Actor reference of one hop in the delegation chain."
+          },
+          "default": [],
+          "description": "Ordered delegation chain from the root principal to the acting principal; empty when the principal acts directly."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A capability identifier."
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Capability identifiers the actor claims for this act."
+        },
+        "approvalState": {
+          "type": "string",
+          "enum": [
+            "none",
+            "pending",
+            "approved",
+            "denied"
+          ],
+          "description": "Approval state of the authority under which this act was performed."
+        },
+        "policyContext": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A policy reference."
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Policy references in force when this act was performed."
+        }
+      },
+      "description": "Authority context under which this act was performed: principal class, delegation chain, claimed capabilities, approval state, and policy context. All five sub-fields are required when the context is present so that authority is never ambiguous."
+    },
+    "strategyRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Strategy or control-plane component whose decision produced this intent."
+    },
+    "instrumentRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Instrument identifier the intent targets (symbology per the venue/feed contract)."
+    },
+    "venueRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Intended venue, when the intent is venue-specific."
+    },
+    "intentKind": {
+      "type": "string",
+      "enum": [
+        "new",
+        "amend",
+        "cancel",
+        "pause",
+        "resume"
+      ],
+      "description": "Kind of intent: create a new order, amend or cancel an existing one, or pause/resume trading activity."
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "buy",
+        "sell",
+        "none"
+      ],
+      "description": "Order side; \"none\" for side-less intents such as pause/resume."
+    },
+    "orderType": {
+      "type": "string",
+      "enum": [
+        "market",
+        "limit",
+        "stop",
+        "other"
+      ],
+      "description": "Order type requested."
+    },
+    "quantity": {
+      "type": [
+        "number",
+        "string"
+      ],
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "Order quantity: a JSON number, or an unsigned decimal string for exact precision. Direction is carried by side, so quantity is non-negative."
+    },
+    "price": {
+      "type": [
+        "number",
+        "string",
+        "null"
+      ],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Limit/stop price: a JSON number, or a signed decimal string for exact precision; null for market orders."
+    },
+    "timeInForce": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Time-in-force instruction (e.g. day, ioc, fok, gtc)."
+    },
+    "requestedEffectRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:effect:[A-Za-z0-9._~-]+$",
+      "description": "EffectRequest URN when this intent is governed through the MPCC effect lifecycle (recommended for all side-effecting order flow)."
+    },
+    "signalRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Reference to a signal or evidence artifact motivating this intent."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "References to signals, market-data events, or other evidence motivating this intent."
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-form producer note."
+    }
+  }
+}

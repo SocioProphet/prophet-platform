@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/EffectDecision.json",
+  "title": "EffectDecision",
+  "description": "An authority-bearing decision over an EffectRequest: approved, denied, deferred, expired, or revoked — distinct states that must never be conflated. Carries who decided, under what authority context, on what policy basis, and (when approved) the exact effect shape approved, which may be a policy-narrowed rewrite of the request. Complements rather than duplicates PolicyDecision (referenced via policyDecisionRefs as the policy-evaluation basis) and ExecutionDecision (referenced via executionDecisionRef when an agent-session gate was involved): neither existing type carries the approved effect shape or the requested → approved → actual chain. Provenance: SocioProphet/profit-mpcc schemas/approval-event.schema.json, docs/effect-approval-semantics.md, and exports/policy-integrity/tranche-0001/decision.schema.snapshot.json, hardened to the tranche-0001 strictness bar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "effectRequestRef",
+    "decision",
+    "decidedByActorRef",
+    "authorityContext",
+    "rationale",
+    "evidenceRefs",
+    "policyLabels",
+    "riskLabels",
+    "decidedAt",
+    "decisionHash"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:effect-decision:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:effect-decision:<local-id>"
+    },
+    "type": {
+      "const": "EffectDecision",
+      "description": "Discriminator constant — always \"EffectDecision\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "MPCC event-contract version, pinned per the profit-mpcc policy-integrity tranche-0001 discipline. Changing this const is a contract change."
+    },
+    "effectRequestRef": {
+      "type": "string",
+      "pattern": "^urn:srcos:effect:[A-Za-z0-9._~-]+$",
+      "description": "EffectRequest URN this decision governs."
+    },
+    "subjectEventRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+      "description": "URN of the MPCC event that carried the request, when known (typically a ConversationEvent or OrderIntent)."
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "denied",
+        "deferred",
+        "expired",
+        "revoked"
+      ],
+      "description": "The decision outcome. Invariant: denial, expiration, and revocation are not the same state; deferral is a non-decision that keeps the request pending."
+    },
+    "decidedByActorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that made this decision. Approval must always carry who approved."
+    },
+    "authorityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "principal",
+        "delegationChain",
+        "capabilities",
+        "approvalState",
+        "policyContext"
+      ],
+      "properties": {
+        "principal": {
+          "type": "string",
+          "enum": [
+            "user",
+            "agent",
+            "system",
+            "tool"
+          ],
+          "description": "Class of principal exercising authority for this act."
+        },
+        "delegationChain": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Actor reference of one hop in the delegation chain."
+          },
+          "default": [],
+          "description": "Ordered delegation chain from the root principal to the acting principal; empty when the principal acts directly."
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A capability identifier."
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Capability identifiers the actor claims for this act."
+        },
+        "approvalState": {
+          "type": "string",
+          "enum": [
+            "none",
+            "pending",
+            "approved",
+            "denied"
+          ],
+          "description": "Approval state of the authority under which this act was performed."
+        },
+        "policyContext": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A policy reference."
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Policy references in force when this act was performed."
+        }
+      },
+      "description": "Authority context under which this act was performed: principal class, delegation chain, claimed capabilities, approval state, and policy context. All five sub-fields are required when the context is present so that authority is never ambiguous."
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable explanation of why this decision was reached. Required and non-empty per the tranche-0001 bar."
+    },
+    "ruleRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A rule reference."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "References to the specific rules applied in reaching this decision."
+    },
+    "policyDecisionRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^urn:srcos:decision:",
+        "description": "PolicyDecision URN."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "PolicyDecision URNs forming the policy-evaluation basis of this effect decision. References the existing PolicyDecision contract instead of duplicating it."
+    },
+    "executionDecisionRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:exec-decision:",
+      "description": "ExecutionDecision URN when an agent-session execution gate participated in this decision. References the existing ExecutionDecision contract instead of duplicating it."
+    },
+    "approvedEffect": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "effectKind",
+        "capability",
+        "target",
+        "parameters"
+      ],
+      "properties": {
+        "effectKind": {
+          "type": "string",
+          "enum": [
+            "create",
+            "update",
+            "delete",
+            "retrieve",
+            "transform",
+            "notify",
+            "schedule",
+            "route",
+            "publish",
+            "redact",
+            "label",
+            "archive",
+            "execute",
+            "no_op",
+            "verify"
+          ],
+          "description": "Kind of state transition approved."
+        },
+        "capability": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capability the approval covers."
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "identifier"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Kind of target the approved effect operates on."
+            },
+            "identifier": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Stable identifier of the target."
+            },
+            "location": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Optional location or partition of the target."
+            }
+          },
+          "description": "The object or surface the approved effect may act on."
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "The approved effect parameters — possibly narrowed from the request."
+        }
+      },
+      "description": "The exact effect shape approved — possibly a policy-narrowed rewrite of the request. Invariant: must be a subset of the request modulo explicit policy rewriting. Semantically required when decision is \"approved\"; null otherwise."
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "An evidence reference."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "References to the evidence considered in reaching this decision. Required (empty allowed) so deciders state their evidence posture explicitly, per the tranche-0001 bar."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this decision. Required (empty allowed) per the tranche-0001 bar."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this decision. Required (empty allowed) per the tranche-0001 bar."
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date-time when this decision was made."
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time",
+      "description": "ISO 8601 date-time after which an approval lapses. Invariant: expiration is a distinct state from denial and revocation."
+    },
+    "decisionHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "sha256: prefixed hash of the canonical decision payload for tamper-evidence, matching the PolicyDecision/ExecutionDecision convention."
+    }
+  }
+}
