@@ -19,11 +19,15 @@ spec:
     - matrix:
         generators:
           - list:
+              # serviceTier (NOT `tier` — that key is taken by the compliance matrix below)
+              # carries the foundation/reference doctrine annotation. Same classifications
+              # as platform-services.yaml: hellgraph-service is the graph-kernel spine;
+              # the other three are swappable implementations at the fog edge.
               elements:
-                - { name: search-orchestrator }
-                - { name: eval-fabric-api }
-                - { name: hellgraph-service }
-                - { name: reasoning-failure-runner }
+                - { name: search-orchestrator, serviceTier: reference }
+                - { name: eval-fabric-api, serviceTier: reference }
+                - { name: hellgraph-service, serviceTier: foundation }
+                - { name: reasoning-failure-runner, serviceTier: reference }
           - list:
               elements:
                 - { tier: standard }
@@ -34,6 +38,8 @@ spec:
       labels:
         app.kubernetes.io/part-of: fogstack
         socioprophet.ai/compliance-tier: '{{.tier}}'
+      annotations:
+        socioprophet.io/tier: '{{.serviceTier}}'
     spec:
       project: default
       sources:

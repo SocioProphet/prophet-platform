@@ -5,7 +5,7 @@ CI builds images. Nothing checked that the things we DEPLOY line up with the
 things we BUILD — so on 2026-07-15 the cluster had ~9 pods crashlooping for two
 days behind a 100% green pipeline. Every one of those failures passed CI.
 
-Four checks, all static (no registry credentials, runs anywhere):
+Six checks, all static (no registry credentials, runs anywhere):
 
   1. Every service in a deploy/argocd ApplicationSet has a deploy/values/<name>.yaml.
   2. Every FIRST-PARTY service is actually built by .github/workflows/images.yml.
@@ -19,6 +19,30 @@ Four checks, all static (no registry credentials, runs anywhere):
      inherits the chart's appVersion default, which the build never publishes, so the
      pod ImagePullBackOffs on a tag that does not exist. This slipped past check 3
      ("" is not a moving tag) and cost dashboard-bff 108 minutes (#743).
+
+  5. Every Application carries the FOUNDATION/REFERENCE tier (EdgeX doctrine —
+     REQUIRED INTEROPERABILITY FOUNDATION vs REPLACEABLE REFERENCE SERVICES).
+     Standalone Applications annotate socioprophet.io/tier directly; ApplicationSets
+     stamp it from a per-element `tier:` (fogstack uses `serviceTier:` because its
+     matrix already owns `tier` for compliance). Unannotated = FAIL. Nothing
+     distinguished contract services from swappable ones, which is how phantom
+     mesh services sat in an appset dressed like spine components.
+
+  6. tier=foundation means the image is REBUILDABLE: first-party foundation must be
+     built by images.yml, and a ghcr.io/socioprophet reference is never acceptable
+     for it — that org is not a registry this platform publishes to anymore, so such
+     an image cannot be rebuilt from source here. This is the phantom-deploy class
+     caught by the 2026-07-29 audit: agent-registry + model-governance-ledger were
+     deployed from ghcr.io/socioprophet/*:latest with no source, no Dockerfile and
+     no images.yml entry in this repo — a supply-chain hole shaped like a service.
+     Third-party foundation (clickhouse, socbase-auth/rest, minio) stays legal by
+     declaring an explicit foreign image.registry pin: that is the deliberate
+     "upstream builds this" statement, and checks 3/4 still govern its tags.
+
+  The tier gate proves its own teeth before checking the repo: a hermetic self-test
+  rebuilds both failure modes (an unannotated Application; a foundation service
+  nothing builds) in a temp fixture on every run and requires them to FAIL. A gate
+  that cannot fail is a comment with a green checkmark.
 
 First-party vs third-party is decided by image.registry: third-party values pin a
 foreign registry explicitly (socbase-auth -> docker.io/supabase/gotrue), while
@@ -81,6 +105,16 @@ OUR_REGISTRIES = ("us-central1-docker.pkg.dev/socioprophet-platform/", "registry
 # Entries must carry a reason. The list only ever shrinks: if an entry starts passing,
 # the gate FAILS and demands its removal, so it cannot rot into a permanent excuse.
 KNOWN_BROKEN = {
+    "workspace-mail:wrong-registry": (
+        "CAUGHT by the check-6 ghcr.io/socioprophet closure the moment it landed: the mail-backup "
+        "CronJob (infra/k8s/workspace-mail/base/backup-cronjob.yaml) pulls "
+        "ghcr.io/socioprophet/prophet-platform/workspace-backup:dev — an image never built by "
+        "anything, so the DAILY MAIL BACKUP HAS SILENTLY NEVER RUN (ImagePullBackOff since it was "
+        "authored). The job is a /bin/sh tar one-liner; the fix is choosing + pinning a real image "
+        "(stock busybox via zot, or a first-party backup image in images.yml) and VERIFYING a backup "
+        "artifact lands — a deliberate rollout in its own PR, not a drive-by edit inside the tier-"
+        "doctrine PR that found it. Ratchet demands removal once fixed."
+    ),
     # reasoning-failure-runner:moving-tag is RESOLVED — deploy/values/reasoning-failure-runner.yaml is now pinned
     # to a sha- tag (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md). The ratchet only
     # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
@@ -164,6 +198,85 @@ FOREIGN_REGISTRY_RE = re.compile(r"^(docker\.io|ghcr\.io|quay\.io|registry\.k8s\
 # (v2.164.0) which is immutable by convention — only `latest` is the trap.
 MOVING_TAGS = {"latest", "main", "master", "dev", "edge", "stable"}
 
+# ── Foundation/reference tier doctrine (check 5 + 6) ─────────────────────────
+# Annotation stamped on every generated/standalone Application. foundation =
+# required interoperability foundation (contract/spine); reference = replaceable
+# reference service (swappable implementation). See docstring checks 5-6.
+TIER_ANNOTATION = "socioprophet.io/tier"
+TIER_VALUES = {"foundation", "reference"}
+
+
+def _live_lines(text: str) -> str:
+    """Drop full-line comments so RETIRED/DEFERRED breadcrumbs never satisfy a gate.
+
+    A commented-out entry is a breadcrumb, not a deployment — the questdb lesson
+    ('a comment is a conclusion, not a gate') applied to the parser itself.
+    """
+    return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("#"))
+
+
+def tier_contract(argocd_dir: Path) -> tuple[list[tuple[str, str]], dict[str, str]]:
+    """Check 5: every Application under deploy/argocd declares its tier.
+
+    Walks every *.yaml recursively (the root app-of-apps recurses too, so the
+    fogstack/ subdirectory is just as deployed as the top level). For standalone
+    Applications the socioprophet.io/tier annotation must be literal foundation|
+    reference. For ApplicationSets the template must stamp the annotation and
+    EVERY list-generator element that names a service must carry tier:/serviceTier:
+    with a valid value. Returns (problems, tiers) where tiers maps each element
+    name to its declared tier for check 6.
+    """
+    problems: list[tuple[str, str]] = []
+    tiers: dict[str, str] = {}
+    for path in sorted(argocd_dir.rglob("*.yaml")):
+        rel = path.name
+        text = _live_lines(path.read_text(encoding="utf-8"))
+        for doc in re.split(r"^---\s*$", text, flags=re.M):
+            kind_m = re.search(r"^kind:\s*(ApplicationSet|Application)\s*$", doc, re.M)
+            if not kind_m:
+                continue
+            app_m = re.search(r"^metadata:.*?\bname:\s*([A-Za-z0-9.-]+)", doc, re.S | re.M)
+            app = app_m.group(1) if app_m else rel
+            if kind_m.group(1) == "Application":
+                ann = re.search(rf"{re.escape(TIER_ANNOTATION)}:\s*[\"']?([a-z]+)", doc)
+                if not ann or ann.group(1) not in TIER_VALUES:
+                    problems.append((f"{app}:untiered-application",
+                        f"{rel}: Application '{app}' has no {TIER_ANNOTATION} annotation "
+                        f"(foundation|reference). Undeclared tier = nobody can tell a contract "
+                        f"service from a swappable one — annotate it (docstring check 5)."
+                    ))
+                continue
+            # ApplicationSet: the template must stamp the annotation on generated apps…
+            if not re.search(rf"{re.escape(TIER_ANNOTATION)}:", doc):
+                problems.append((f"{app}:untiered-appset-template",
+                    f"{rel}: ApplicationSet '{app}' template does not stamp {TIER_ANNOTATION} — "
+                    f"generated Applications would carry no tier. Add the annotation to "
+                    f"template.metadata.annotations (from the element's tier/serviceTier var)."
+                ))
+            # …and every service-naming element must declare which tier it is.
+            for em in re.finditer(r"^\s*-\s*\{([^}]*)\}", doc, re.M):
+                body = em.group(1)
+                nm = re.search(r"\bname:\s*([a-z0-9][a-z0-9-]*)", body)
+                if not nm:
+                    continue  # matrix axis rows (e.g. fogstack's compliance tiers) name no service
+                name = nm.group(1)
+                tm = re.search(r"\b(?:serviceTier|tier):\s*([a-z]+)", body)
+                if not tm or tm.group(1) not in TIER_VALUES:
+                    problems.append((f"{name}:no-tier",
+                        f"{name}: element in {rel} declares no tier (foundation|reference). "
+                        f"Every deployed service states whether it is a contract (foundation) "
+                        f"or a swappable implementation (reference) — docstring check 5."
+                    ))
+                    continue
+                tier = tm.group(1)
+                if tiers.get(name, tier) != tier:
+                    problems.append((f"{name}:tier-conflict",
+                        f"{name}: declared '{tiers[name]}' elsewhere but '{tier}' in {rel} — "
+                        f"one service, one tier."
+                    ))
+                tiers[name] = tier
+    return problems, tiers
+
 
 def check_moving_tag(name: str, image: dict) -> str | None:
     tag = str(image.get("tag") or "").strip()
@@ -222,7 +335,7 @@ def built_images() -> set[str]:
     return set(re.findall(r"^\s*-\s*\{\s*image:\s*([a-z0-9][a-z0-9-]*)\s*,", text, re.M))
 
 
-def check_kustomize_images(name: str, built: set[str]) -> list[str]:
+def check_kustomize_images(name: str, built: set[str], tier: str | None = None) -> list[str]:
     """Image refs in a kustomize-deployed service must point at a registry we publish to.
 
     workspace-{mail,caldav,smtp} referenced ghcr.io/socioprophet/prophet-platform/*
@@ -257,63 +370,175 @@ def check_kustomize_images(name: str, built: set[str]) -> list[str]:
                     f"'{repo}' to {OUR_REGISTRIES[0]}… — the pods pull from a registry "
                     f"the image was never published to."
                 ))
+            elif ref.startswith("ghcr.io/socioprophet"):
+                # Previously a silent fall-through: ours-shaped, never built, never
+                # publishable — the exact phantom-deploy shape (docstring check 6).
+                check = "foundation-unbuilt" if tier == "foundation" else "wrong-registry"
+                problems.append((f"{name}:{check}",
+                    f"{name}: {manifest.relative_to(ROOT)} pulls '{ref}' — ghcr.io/socioprophet "
+                    f"is not a registry this platform publishes to and '{repo}' has no images.yml "
+                    f"build, so the image can never be rebuilt from source here. Vendor the source "
+                    f"and add it to the build matrix, or retire the manifest."
+                ))
     return problems
 
 
+def chart_service_problems(
+    name: str, values_path: Path, built: set[str], tier: str | None
+) -> tuple[list[tuple[str, str]], bool]:
+    """All values-file checks for one chart-deployed service.
+
+    Returns (problems, first_party_checked). Factored out of main() so the
+    self-test can drive the exact production code path against fixtures.
+    """
+    problems: list[tuple[str, str]] = []
+    if not values_path.exists():
+        return [(f"{name}:no-values", f"{name}: deployed by an ApplicationSet but deploy/values/{name}.yaml is missing")], False
+
+    data = yaml.safe_load(values_path.read_text(encoding="utf-8")) or {}
+    image = data.get("image") or {}
+    repository = image.get("repository")
+    registry = (image.get("registry") or "").strip()
+
+    if not repository:
+        return [(f"{name}:no-repository", f"{name}: values has no image.repository")], False
+
+    # A moving tag is wrong for anyone — ours or upstream's.
+    moving = check_moving_tag(name, image)
+    if moving:
+        problems.append((f"{name}:moving-tag", moving))
+
+    if registry and FOREIGN_REGISTRY_RE.match(registry):
+        # Foreign registry = the deliberate "upstream builds this" declaration —
+        # legal even for foundation (clickhouse, socbase-*). One exception:
+        # ghcr.io/socioprophet LOOKS foreign to the regex but is this platform's
+        # abandoned org — nothing publishes there, so a foundation service pinning
+        # it can never be rebuilt. That is the phantom-deploy class (check 6).
+        ours_shaped = "socioprophet" in registry or str(repository).startswith("socioprophet/")
+        if tier == "foundation" and registry.startswith("ghcr.io") and ours_shaped:
+            problems.append((f"{name}:foundation-unbuilt",
+                f"{name}: tier=foundation but pulls '{registry}/{repository}' — "
+                f"ghcr.io/socioprophet is not published to by this platform, so the image "
+                f"cannot be rebuilt from source. Vendor the source + add an images.yml "
+                f"entry, or pin a genuine third-party upstream (docstring check 6)."
+            ))
+        return problems, False
+
+    # First-party (past the foreign skip): an omitted tag is an ImagePullBackOff.
+    empty = check_empty_tag(name, image)
+    if empty:
+        problems.append((f"{name}:empty-tag", empty))
+    if repository not in built:
+        problems.append((f"{name}:not-built",
+            f"{name}: first-party image '{repository}' has NO entry in images.yml — "
+            f"it is deployed but never built, so it can only ImagePullBackOff. "
+            f"Add it to the build matrix, pin a foreign image.registry if it is "
+            f"third-party, or remove the service from the ApplicationSet."
+        ))
+        if tier == "foundation":
+            problems.append((f"{name}:foundation-unbuilt",
+                f"{name}: tier=foundation with NO images.yml build — a REQUIRED "
+                f"INTEROPERABILITY FOUNDATION service must be rebuildable from source "
+                f"in this repo (docstring check 6: foundation-without-build = FAIL). "
+                f"Add '{repository}' to the images.yml matrix or reclassify honestly."
+            ))
+    return problems, True
+
+
+def run_self_test() -> None:
+    """The gate proves it can FAIL before it certifies anything (docstring tail).
+
+    Rebuilds the two doctrine failure modes in a temp fixture and requires the
+    production check functions to reject them. Runs on every invocation — hermetic,
+    no repo state touched, so a broken state never needs committing to prove the
+    teeth exist.
+    """
+    import tempfile
+
+    with tempfile.TemporaryDirectory(prefix="preflight-selftest-") as td:
+        root = Path(td)
+        argocd = root / "argocd"
+        argocd.mkdir()
+
+        # Failure mode A — an Application/element with no tier annotation.
+        (argocd / "untiered.yaml").write_text(
+            "apiVersion: argoproj.io/v1alpha1\n"
+            "kind: ApplicationSet\n"
+            "metadata:\n"
+            "  name: selftest-untiered\n"
+            "spec:\n"
+            "  generators:\n"
+            "    - list:\n"
+            "        elements:\n"
+            "          - { name: ghost-svc }\n"
+            "  template:\n"
+            "    metadata:\n"
+            "      name: 'svc-{{.name}}'\n",
+            encoding="utf-8",
+        )
+        problems, _ = tier_contract(argocd)
+        keys = {k for k, _ in problems}
+        if "ghost-svc:no-tier" not in keys or "selftest-untiered:untiered-appset-template" not in keys:
+            print(
+                "preflight SELF-TEST FAIL: an unannotated Application no longer fails "
+                f"the tier gate (got {sorted(keys) or 'no problems'}) — the gate lost its teeth.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+        # Failure mode B — tier=foundation whose image nothing in images.yml builds.
+        values = root / "values"
+        values.mkdir()
+        phantom = values / "phantom-svc.yaml"
+        phantom.write_text("image: { repository: phantom-svc, tag: sha-deadbeef }\n", encoding="utf-8")
+        fb_problems, _ = chart_service_problems("phantom-svc", phantom, built=set(), tier="foundation")
+        fb_keys = {k for k, _ in fb_problems}
+        if "phantom-svc:foundation-unbuilt" not in fb_keys:
+            print(
+                "preflight SELF-TEST FAIL: a foundation-tier service with no images.yml build "
+                f"no longer fails (got {sorted(fb_keys) or 'no problems'}) — the gate lost its teeth.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+    print("self-test: both doctrine failure modes still FAIL (untiered app; foundation without build) — teeth verified")
+
+
 def main() -> int:
+    run_self_test()
+
     services = deployed_services()
     built = built_images()
     if not services:
         print("preflight: found no deployed services — check deploy/argocd/", file=sys.stderr)
         return 1
 
-    problems: list[str] = []
+    # Check 5: every Application/element declares foundation|reference.
+    problems, tiers = tier_contract(ARGOCD_DIR)
     checked = 0
 
     for name in sorted(services):
+        tier = tiers.get(name)
         if name in NON_CHART_SERVICES:
-            problems.extend(check_kustomize_images(name, built))
+            problems.extend(check_kustomize_images(name, built, tier))
             continue
-        values_path = VALUES_DIR / f"{name}.yaml"
-        if not values_path.exists():
-            problems.append((f"{name}:no-values", f"{name}: deployed by an ApplicationSet but deploy/values/{name}.yaml is missing"))
-            continue
-
-        data = yaml.safe_load(values_path.read_text(encoding="utf-8")) or {}
-        image = data.get("image") or {}
-        repository = image.get("repository")
-        registry = (image.get("registry") or "").strip()
-
-        if not repository:
-            problems.append((f"{name}:no-repository", f"{name}: values has no image.repository"))
-            continue
-
-        # A moving tag is wrong for anyone — ours or upstream's.
-        moving = check_moving_tag(name, image)
-        if moving:
-            problems.append((f"{name}:moving-tag", moving))
-
-        if registry and FOREIGN_REGISTRY_RE.match(registry):
-            continue  # third-party, we don't build it — legitimately out of scope
-
-        checked += 1
-        # First-party only (past the foreign skip): an omitted tag is an ImagePullBackOff.
-        empty = check_empty_tag(name, image)
-        if empty:
-            problems.append((f"{name}:empty-tag", empty))
-        if repository not in built:
-            problems.append((f"{name}:not-built",
-                f"{name}: first-party image '{repository}' has NO entry in images.yml — "
-                f"it is deployed but never built, so it can only ImagePullBackOff. "
-                f"Add it to the build matrix, pin a foreign image.registry if it is "
-                f"third-party, or remove the service from the ApplicationSet."
-            ))
+        svc_problems, first_party = chart_service_problems(
+            name, VALUES_DIR / f"{name}.yaml", built, tier
+        )
+        problems.extend(svc_problems)
+        if first_party:
+            checked += 1
 
     # Split real failures from ratcheted, already-known debt. Keyed by (service, check).
     blocking = [(k, m) for k, m in problems if k not in KNOWN_BROKEN]
     known = [(k, m) for k, m in problems if k in KNOWN_BROKEN]
 
-    print(f"preflight: {len(services)} deployed, {checked} first-party checked against {len(built)} built images")
+    n_foundation = sum(1 for t in tiers.values() if t == "foundation")
+    n_reference = sum(1 for t in tiers.values() if t == "reference")
+    print(
+        f"preflight: {len(services)} deployed ({n_foundation} foundation / {n_reference} reference), "
+        f"{checked} first-party checked against {len(built)} built images"
+    )
 
     if known:
         print("\nKNOWN BROKEN (ratcheted — tracked, not blocking):")

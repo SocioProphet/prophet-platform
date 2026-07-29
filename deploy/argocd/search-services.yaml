@@ -19,21 +19,26 @@ spec:
   generators:
     - list:
         elements:
-          - { name: searxng, path: infra/k8s/searxng/base }
+          # All reference tier: swappable search implementations and product edges — the
+          # platform's contracts survive replacing any of them (SearXNG is the canonical
+          # "replaceable reference service": it replaced Serper and can itself be replaced).
+          - { name: searxng, path: infra/k8s/searxng/base, tier: reference }
           # The open-chat commons aggregator — instances publish REDACTED open chats here (floor-gated on
           # ingest), and SearXNG's json_engine (see the searxng ConfigMap) searches the corpus. ClusterIP +
           # NetworkPolicy = internal-only; an authenticated external /publish ingress is a separate, deliberate
           # decision. Prereq (out of band, NOT in git): the `commons-search-secret` Secret (key: publish-token).
-          - { name: commons-search, path: infra/k8s/commons-search/base }
+          - { name: commons-search, path: infra/k8s/commons-search/base, tier: reference }
             # public HTTPS edge for search-gateway (read-only) → socioprophet.ai search surface
-          - { name: search-gateway-ingress, path: infra/k8s/search-gateway-ingress/base }
+          - { name: search-gateway-ingress, path: infra/k8s/search-gateway-ingress/base, tier: reference }
           # public HTTPS edge for the Studio BFF (reads open; /extract write is fail-closed) → studio.socioprophet.ai
-          - { name: studio-ingress, path: infra/k8s/studio-ingress/base }
+          - { name: studio-ingress, path: infra/k8s/studio-ingress/base, tier: reference }
   template:
     metadata:
       name: 'search-{{.name}}'
       labels:
         app.kubernetes.io/part-of: sovereign-search
+      annotations:
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       destination:
