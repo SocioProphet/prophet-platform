@@ -25,6 +25,14 @@ config:
   # LMDB inside the PVC; map_size caps the LMDB memory map and must stay under the PVC size.
   ARCTIC_URI: "lmdb:///data/arcticdb?map_size=8GB"
 
+# POST /v1/write is fail-closed: with no token configured it returns 503 rather than
+# accepting anonymous mutations. This secret is therefore a DEPLOY PREREQUISITE — without
+# it every write is refused (which is the correct failure, but it is a failure).
+# Provisioned by .github/workflows/provision-secrets.yml from the ARCTICDB_GATEWAY_TOKEN
+# repo secret. Reads are unaffected.
+secretEnv:
+  GATEWAY_TOKEN: { secretName: arcticdb-gateway-token, key: token }
+
 # LMDB is strictly single-writer: one replica, no HPA, Recreate (RWO PD would deadlock a
 # rolling update) — the exact pairing the chart's persistence comment prescribes.
 persistence:
