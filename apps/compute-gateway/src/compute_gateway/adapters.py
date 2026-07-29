@@ -615,6 +615,49 @@ async def _materialize(req_spec: dict, project: str, session: str | None) -> Ada
             "_no_provenance": True}
 
 
+async def _governance(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """L5 governance runs (lifecycle-warden) attested on THE receipt spine.
+
+    The warden calls this after each scheduler pass (dueTransitions →
+    Governor.runRetention → vendor-cache gc): the sealed receipt is the proof
+    "governance ran through audit head H", binding the run coordinates —
+    {run_id, dry_run, objects_scanned, due/applied/planned/gc counts, audit_seq,
+    audit_head} — into inputs_sha. In-process, like `materialize`: the pass already
+    ran in the warden; the gateway's job is the governed, hash-chained, Ed25519-
+    attested evidence. The warden keeps its OWN hash-chained audit log in MinIO
+    (append-only, unlike the engine's ring-buffer InMemoryAuditLog); `audit_head`
+    is that chain's head, so the spine receipt and the local chain cross-reference.
+
+    `_no_provenance`: a warden pass fires every WARDEN_INTERVAL_SECONDS (default 300 —
+    288 runs/day, forever). Writing each run's provenance subgraph into hellgraph would
+    accrete control-plane heartbeat nodes into the knowledge graph without bound. Its
+    provenance lives where it proves something: on the receipt chain and in the
+    warden's persisted audit chunks.
+    """
+    missing = [k for k in ("service", "run_id", "objects_scanned", "audit_head")
+               if req_spec.get(k) in (None, "")]
+    if missing:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"governance spec missing {missing} "
+                         f"(need service, run_id, objects_scanned, audit_head)",
+                "degraded": None, "_no_provenance": True}
+    data = {
+        "service": str(req_spec["service"]),
+        "run_id": str(req_spec["run_id"]),
+        "dry_run": bool(req_spec.get("dry_run", True)),
+        "objects_scanned": int(req_spec["objects_scanned"]),
+        "due_count": int(req_spec.get("due_count", 0)),
+        "applied_count": int(req_spec.get("applied_count", 0)),
+        "planned_count": int(req_spec.get("planned_count", 0)),
+        "gc_count": int(req_spec.get("gc_count", 0)),
+        "audit_seq": int(req_spec.get("audit_seq", -1)),
+        "audit_head": str(req_spec["audit_head"]),
+    }
+    return {"outputs": [ComputeOutput(type="result", data=data)],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "_no_provenance": True}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
@@ -625,6 +668,7 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "gateway:ingest": lambda spec, project, session: _ingest(spec, project, session),
     "gateway:parse": lambda spec, project, session: _parse(spec, project, session),
     "gateway:materialize": lambda spec, project, session: _materialize(spec, project, session),
+    "gateway:governance": lambda spec, project, session: _governance(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
     "open-data": lambda spec, project, session: _reconcile(spec, project, session),
     "sql": lambda spec, project, session: _sql_load(spec, project, session),

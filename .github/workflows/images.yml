@@ -98,6 +98,9 @@ jobs:
           # Seal-the-Walls W1.2: deterministic synthetic MarketDataEvent replay emitter —
           # the first sourceos-spec-conformant events INTO the log the materializer tails.
           - { image: market-replay,         context: apps/market-replay,         dockerfile: Dockerfile }
+          # L5 governance executor: runs the engine's lifecycle FSM + retention scheduler +
+          # vendor-cache gc (blueprint-audit: complete machinery, zero callers — until this).
+          - { image: lifecycle-warden,      context: apps/lifecycle-warden,      dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}

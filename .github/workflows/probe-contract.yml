@@ -39,6 +39,9 @@ jobs:
           - { service: evidence-console, context: apps/evidence-console, dockerfile: Dockerfile }
           - { service: evidence-receipts, context: apps/evidence-receipts, dockerfile: Dockerfile }
           - { service: compute-gateway,  context: apps/compute-gateway, dockerfile: Dockerfile }
+          # boots credential-less in dry-run memory mode (fail-closed only under ENFORCE),
+          # so /healthz answers unaided — exactly what this gate needs.
+          - { service: lifecycle-warden, context: apps/lifecycle-warden, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

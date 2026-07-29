@@ -102,6 +102,19 @@ KINDS: dict[str, dict] = {
         "capabilities": ["log-tail", "checkpoint-cut", "idempotent-batch", "clickhouse"],
         "epistemic": "derived", "executes_user_code": False, "status": "live",
     },
+    # ── L5 governance runs (lifecycle-warden) ──
+    # The lifecycle warden executes the engine's retention scheduler (dueTransitions →
+    # Governor.runRetention → vendor-cache gc) and attests each pass HERE, binding
+    # {run_id, objects_scanned, due/applied/planned/gc counts, dry_run, audit_head} into
+    # inputs_sha — so "retention ran, and this is its audit head" sits on THE receipt
+    # spine, same chain as everything else. `observed`: the receipt is the gateway's
+    # record of the executor's self-reported coordinates, not an independent verification.
+    "governance": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["lifecycle-fsm", "retention-scheduler", "legal-hold", "vendor-cache-gc",
+                        "hash-chained-audit", "dry-run"],
+        "epistemic": "observed", "executes_user_code": False, "status": "live",
+    },
 }
 
 
