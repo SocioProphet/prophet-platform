@@ -1,0 +1,28 @@
+name: design-register
+
+# The Metaphor→Mechanism gate (docs/METAPHOR_TO_MECHANISM_PROGRAM.md): the design
+# register may never claim more than its probes can prove. Runs on every push/PR
+# touching anything — cheap by construction (probes are file/grep/curl-grade), and
+# the point is precisely that it runs ALWAYS, so a design that rots turns the build
+# red instead of waiting for archaeology.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  register-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Setup Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5
+        with:
+          python-version: "3.12"
+      - name: Run the register gate
+        run: |
+          pip install --quiet pyyaml
+          python tools/design_register_gate.py
