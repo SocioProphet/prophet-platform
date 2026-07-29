@@ -54,7 +54,10 @@ spec:
           # files (like socbase-* below — never touched by the build-image/gitops-promote SHA
           # pipeline); arcticdb-gateway is first-party (images.yml matrix, sha-promoted).
           # clickhouse requires the clickhouse-admin Secret first — see deploy/values/clickhouse.yaml.
-          - { name: questdb }
+          # questdb is DEFERRED BY MEASUREMENT (design review 2026-07-29, Michael-approved):
+          # ClickHouse serves both hot-window and analytic queries at current scale; QuestDB joins
+          # when sustained ingest demands it — its values file stays as the ready seam. Uncomment to enable.
+          # - { name: questdb }
           - { name: clickhouse }
           - { name: arcticdb-gateway }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
