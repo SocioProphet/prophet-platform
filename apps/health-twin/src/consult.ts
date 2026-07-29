@@ -41,7 +41,11 @@ const consults = new Map<string, Consult>();
 // Open a blinded consult over the twin. Requires the patient's agreement (anonymous by default); the
 // agreed `disclosure` scope decides what the de-identified slice keeps. Returns the consult id + the
 // slice reviewers will see — identity is already gone before anyone reads it.
-export function openConsult(bundle: any, scope = 'whole twin', disclosure: DisclosureScope = 'standard', agreed = true): { consult_id?: string; slice?: DeidView; consent?: Consent; receipt?: { id: string }; error?: string } {
+// `agreed` defaults to FALSE. A consent parameter defaulting to granted means every
+// caller who forgets it opens a consult — and forgetting is the common case. The gate
+// should be something a caller has to assert, not something they must remember to
+// withhold.
+export function openConsult(bundle: any, scope = 'whole twin', disclosure: DisclosureScope = 'standard', agreed = false): { consult_id?: string; slice?: DeidView; consent?: Consent; receipt?: { id: string }; error?: string } {
   if (!agreed) return { error: 'patient must agree to the disclosure terms before a consult can open' };
   const salt = `${Date.now()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);

@@ -373,7 +373,10 @@ const server = http.createServer(async (req, res) => {
     try {
       const b = await readJson(req);
       const disclosure = b.disclosure === 'minimal' ? 'minimal' : 'standard';
-      const agreed = b.agreed !== false; // must explicitly agree; default true for the demo
+      // Must be EXPLICIT. `b.agreed !== false` read a missing flag as agreement, so a
+      // caller that never mentioned consent got a consult — which is the opposite of a
+      // gate. The comment beside it already said "must explicitly agree"; now it does.
+      const agreed = b.agreed === true;
       const r = openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin', disclosure, agreed);
       return send(res, (r as any).error ? 422 : 200, r);
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }

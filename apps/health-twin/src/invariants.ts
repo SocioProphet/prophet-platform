@@ -52,7 +52,18 @@ ok(allCards.every((c) => /non-diagnostic|not a diagnosis|clinician decides/i.tes
 ok(allCards.every((c) => !/\byou (have|are diagnosed)\b|\bdiagnosis:\s/i.test(c.detail)), 'no card asserts a diagnosis');
 
 console.log('\n▶ INVARIANT 3 — opinions are hypotheses, never asserted truth');
-const c = openConsult(sampleBundle, 'cardiovascular');
+// The gate itself, asserted rather than assumed. A consent check that has never been
+// observed refusing is indistinguishable from no check: the UI disabled a button, the
+// value was never sent, and the server read a missing flag as agreement.
+ok(!!openConsult(sampleBundle, 'cardiovascular', 'standard', false).error,
+   'a consult REFUSES to open without agreement');
+ok(!!(openConsult as any)(sampleBundle, 'cardiovascular', 'standard').error,
+   'an omitted agreement is refused, not treated as granted');
+ok(!openConsult(sampleBundle, 'cardiovascular', 'standard', true).error,
+   'a consult opens once agreement is given');
+
+// Consent is stated here rather than inherited from a default.
+const c = openConsult(sampleBundle, 'cardiovascular', 'standard', true);
 ok(identifierLeaks(c.slice).length === 0, 'the consult slice reviewers see is de-identified');
 const op = submitOpinion(c.consult_id, 'reviewer-A', 'Consistent with early hypertension; monitor.', 'moderate');
 ok('tier' in op && (op as any).tier === 'hypothesis', 'a submitted opinion attaches as tier=hypothesis (not verified/attested)');
