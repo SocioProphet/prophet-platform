@@ -242,10 +242,15 @@ def test_virtualize_400_without_subject_template():
 
 
 def test_kko_status_separates_requested_from_loaded():
-    from owl_reasoner.reasoner import kko_tbox_status
+    from owl_reasoner.reasoner import KKO_SHA256, kko_tbox_status
 
     assert kko_tbox_status(False, 0) == {"requested": False, "loaded": False, "triples": 0}
-    assert kko_tbox_status(True, 335) == {"requested": True, "loaded": True, "triples": 335}
+    # A LOADED TBox additionally carries the digest + source of the bytes the closure ran over,
+    # so an entailment set can be bound to the exact ontology that produced it (W12 provenance).
+    loaded = kko_tbox_status(True, 335)
+    assert {k: loaded[k] for k in ("requested", "loaded", "triples")} == {
+        "requested": True, "loaded": True, "triples": 335}
+    assert loaded["sha256"] == KKO_SHA256 and "SocioProphet/kbpedia" in loaded["source"]
 
 
 def test_kko_status_refuses_to_claim_loaded_with_no_triples():
