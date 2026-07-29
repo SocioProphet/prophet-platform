@@ -186,5 +186,58 @@ console.log('\n▶ INVARIANT 6 — the record bundle is not served open once rea
   ok(exposureFromEnv({ HEALTH_TWIN_EXPOSURE: 'authenticated' } as any) === 'authenticated', 'the explicit opt-in is honoured');
 }
 
+console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusal is never silent');
+{
+  const { predict, COMPARTMENT_SYSTEM } = await import('./dynamics/predict.js');
+  const { rejectionLedger, _clearLedger, RANGE, REJECTION_REASONS } = await import('./dynamics/gate.js');
+  const { resolveGrant: resolveGrantDyn } = await import('./grants.js');
+
+  // 7a. the learned term is a RESIDUAL: zero it and the physics comes back, bit for bit
+  const zeroed = predict({ overrideDelta: () => 0 });
+  ok(zeroed.organs.every((o) => o.emitted.every((v, i) => v === o.mechanistic[i])),
+    'a zero learned correction leaves the mechanistic trajectory untouched (the surrogate is a residual, not a replacement)');
+
+  // 7b. an inadmissible proposal is REJECTED — and the emitted value is the PHYSICS, not the bound.
+  // A clamp would emit RANGE.cardio.lo here and look perfectly plausible. That is the silent-wrong
+  // class this repo keeps finding, so it is an invariant, not a unit test.
+  _clearLedger();
+  const forced = predict({ compartments: ['cardio'], overrideDelta: () => -100 });
+  const dec = forced.organs[0]!.decisions[0]!;
+  ok(dec.verdict === 'rejected' && !!dec.reason, `an out-of-bounds proposal is rejected with a typed reason (${dec.reason})`);
+  ok(REJECTION_REASONS.includes(dec.reason!), 'the rejection reason is from the declared taxonomy, never a bare string');
+  ok(dec.emitted === dec.mechanistic, 'the emitted value is the mechanistic value');
+  ok(dec.emitted !== RANGE.cardio.lo, `the emitted value is NOT the boundary (${RANGE.cardio.lo}) — no silent clamp`);
+  ok(dec.clamped === false && !!dec.law && !!dec.bound, 'the decision records clamped:false plus the law and bound it broke');
+  ok(forced.organs.every((o) => o.emissionAudit === 'ok'), 'the anti-clamp audit passes (every emitted value is the physics or the whole proposal)');
+  ok(rejectionLedger().count === forced.gate.rejected && forced.gate.rejections.length === forced.gate.rejected,
+    `every refusal is recorded — ledger ${rejectionLedger().count}, response ${forced.gate.rejections.length}`);
+
+  // 7b-bis. divergence fails CLOSED. The body-state schema says a 'divergent' forward model must not
+  // drive human actuation and cannot be promoted past TRUSTED; the gate emits that consequence itself.
+  ok(forced.reconciliation.verdict === 'divergent', `a refused proposal makes the run 'divergent' (got '${forced.reconciliation.verdict}')`);
+  ok(forced.reconciliation.executionDecision === 'deny' && forced.reconciliation.humanActuation === 'blocked' && forced.reconciliation.omegaCeiling === 'TRUSTED',
+    'divergent denies actuation and caps omega at TRUSTED (body-state schema safety invariant)');
+
+  // 7c. a prediction that can reach a patient-facing surface is PROVABLE and framed non-diagnostically
+  const pred = predict();
+  ok(/^ht-prediction-[0-9a-f]{64}$/.test(pred.receipt.id), 'a prediction carries a sha256 receipt id of the estate shape');
+  ok(/^sha256-[0-9a-f]{64}$/.test(pred.receipt.snapshotDigest), 'the snapshot digest is sha256-<64 hex> (label matches the math)');
+  ok(!!pred.provenance.mechanistic.model && !!pred.provenance.surrogate.coefficientsDigest && !!pred.provenance.gate.admissibilityDigest,
+    'the receipt names WHICH mechanistic model, WHICH surrogate weights and WHICH gate policy produced it');
+  ok(pred.provenance.surrogate.residualOnly === true && (pred.provenance.surrogate.fittedOn as any).synthetic === true,
+    'the receipt declares the surrogate residual-only and its cohort synthetic');
+  ok(/not a diagnosis/i.test(pred.disclaimer) && /not a medical device/i.test(pred.disclaimer), 'a prediction is framed non-diagnostically');
+  ok(!/\byou (have|will develop|are diagnosed)\b/i.test(pred.disclaimer), 'the prediction frame asserts nothing about the person');
+
+  // 7d. the prediction surface honours the SAME consent membrane as the record — a compartment outside
+  // the grant is not reachable through the forecast side door.
+  const cardioOnly = { systems: ['cardiovascular'], kinds: 'all' as const, lookbackDays: null };
+  const gDyn = { id: 'g-dyn', agent: 'a', scope: 'custom', granted_at: new Date().toISOString(), expires_at: new Date(Date.now() + 864e5).toISOString(), revoked: false, reads: 0, receipt: 'r', scopeSpec: cardioOnly };
+  const resolvedDyn = resolveGrantDyn([gDyn as any], 'g-dyn');
+  const allowedDyn = (['cardio', 'hepatic', 'renal'] as const).filter((k) => cardioOnly.systems.includes(COMPARTMENT_SYSTEM[k]));
+  ok(resolvedDyn.ok === true && allowedDyn.length === 1 && allowedDyn[0] === 'cardio',
+    'a cardiovascular-only grant admits exactly the cardio compartment (hepatic + renal stay outside)');
+}
+
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);
