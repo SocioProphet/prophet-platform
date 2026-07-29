@@ -1,9 +1,14 @@
 name: SVF Validation
 
 on:
+  pull_request:
+    paths:
+      - 'tools/validate_svf_agent_contract.py'
+      - 'contracts/svf/**'
+      - 'Makefile'
+      - '.github/workflows/svf-validation.yml'
   push:
     branches: [main]
-  pull_request:
   workflow_dispatch:
 
 jobs:

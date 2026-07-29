@@ -2,6 +2,10 @@ name: proposal-safety-fixtures
 
 on:
   pull_request:
+    paths:
+      - 'tools/validate_scope_d_hardening_fixtures.py'
+      - 'fixtures/ops-fabric/**'
+      - '.github/workflows/scope-d-hardening-fixtures.yml'
   push:
     branches:
       - main

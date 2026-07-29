@@ -1,7 +1,19 @@
 name: cloudshell-fog structural conformance v2
 
 on:
-  pull_request: {}
+  pull_request:
+    paths:
+      - 'tools/validate-cloudshell-fog-*.sh'
+      - 'tools/attach_fogstack_manifest_signature.py'
+      - 'apps/cloudshell-fog/**'
+      - 'contracts/cloudshell-fog/**'
+      - 'infra/argocd/**'
+      - 'infra/k8s/**'
+      - 'infra/policy/**'
+      - 'releases/manifests/**'
+      - 'docs/CLOUDSHELL_FOG_*.md'
+      - 'docs/FOGSTACK_SIGNED_MANIFESTS.md'
+      - '.github/workflows/cloudshell-fog-structural-conformance-v2.yml'
   push:
     branches: [main]
   workflow_dispatch: {}

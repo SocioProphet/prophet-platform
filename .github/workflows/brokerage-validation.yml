@@ -1,8 +1,11 @@
 name: brokerage-validation
 on:
-  push:
-    branches: [ main ]
   pull_request:
+    paths:
+      - 'tools/validate_examples.py'
+      - 'specs/brokerage/**'
+      - '.github/workflows/brokerage-validation.yml'
+  push:
     branches: [ main ]
 
 jobs:
