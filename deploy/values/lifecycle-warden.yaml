@@ -14,7 +14,7 @@ image:
   # New service — no sha- tag exists until the first CI build; gitops-promote pins it
   # after merge (market-replay/arcticdb-gateway precedent; preflight ratchet entry
   # "lifecycle-warden:moving-tag" tracks this and demands its own removal once pinned).
-  tag: latest
+  tag: sha-9fd2454017895ff3a2b712bdff6eae312d4cdfff
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
   # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
   pullPolicy: Always
