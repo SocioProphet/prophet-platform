@@ -108,9 +108,24 @@ const ROUTE_SCOPES: Record<string, GraphScope> = {
   'GET /api/graph/enrich': 'graph:enrich',
 }
 
+// Prefixes this module gates. /api/organs is here because it discloses the mesh's
+// internal service endpoints with live health AND makes the server probe those members
+// on demand — so an unauthenticated caller both reads the topology and gets the service
+// to generate outbound requests on their behalf. It was reachable with AUTH_ENFORCE=on
+// purely because it sits outside /api/graph/ and /api/membrane/.
+const GATED_PREFIXES = ['/api/graph/', '/api/membrane/', '/api/organs'] as const
+
+/** Exact match, or a genuine subpath. A bare `startsWith` would also gate a sibling
+ *  like `/api/organs-public`, quietly capturing routes this list never named. */
+function underGatedPrefix(pathname: string): boolean {
+  return GATED_PREFIXES.some((p) =>
+    p.endsWith('/') ? pathname.startsWith(p) : pathname === p || pathname.startsWith(`${p}/`),
+  )
+}
+
 /** The scope a request needs, or null when the path is not gated by this module. */
 export function requiredScope(method: string, pathname: string): GraphScope | null {
-  if (!pathname.startsWith('/api/graph/') && !pathname.startsWith('/api/membrane/')) return null
+  if (!underGatedPrefix(pathname)) return null
   const mapped = ROUTE_SCOPES[`${method} ${pathname}`]
   if (mapped) return mapped
   // Fail-closed default for unmapped paths under the gated prefixes.
