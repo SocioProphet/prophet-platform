@@ -26,6 +26,10 @@ import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
 import { exposureDenial, exposureFromEnv } from './exposure.js';
+import { predict, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
+import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
+import { fitSurrogate } from './dynamics/surrogate.js';
+import { OBSERVABLE, type Compartment } from './dynamics/mechanistic.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -372,6 +376,71 @@ const server = http.createServer(async (req, res) => {
       ...view.systems.flatMap((s: any) => [...s.observations, ...s.conditions].map((x: any) => x.id)),
     ]);
     return send(res, 200, { ...grounded, items: grounded.items.filter((i) => keptIds.has(i.recordId)) });
+  }
+
+  // ── W10 TWIN DYNAMICS — the twin PREDICTS, under a gate. "Learned proposes, physics disposes."
+  // A mechanistic organ model runs first; a learned residual proposes a correction; the reconciliation
+  // gate accepts it only inside physiologically admissible bounds and otherwise REJECTS it with a typed
+  // reason, emitting the physics and recording the refusal. Every prediction is sealed with the model,
+  // the surrogate version and the gate policy it came from. Non-diagnostic; synthetic data. ──────────
+
+  // What the twin can predict, and the exact rules a learned correction has to satisfy. A surface shows
+  // this next to a prediction so "why was that refused?" is answerable without reading the code. This is
+  // policy, not record content, so it is not exposure-gated.
+  if (req.method === 'GET' && url.pathname === '/api/health/dynamics') {
+    const sur = fitSurrogate();
+    return send(res, 200, {
+      compartments: COMPARTMENTS.map((k) => ({ compartment: k, ...OBSERVABLE[k], system: COMPARTMENT_SYSTEM[k] })),
+      anchoredTo: currentObservations(),
+      surrogate: { id: sur.id, version: sur.version, coefficientsDigest: sur.coefficientsDigest, fittedOn: sur.fittedOn, residualOnly: true, organs: sur.organs },
+      gate: gatePolicy(),
+      disclaimer: 'Synthetic sample. A trajectory projection, not a diagnosis or a prognosis. A clinician decides.',
+    });
+  }
+
+  // Run the twin forward.
+  // Two membranes apply, for two different reasons:
+  //   • the EXPOSURE gate, because a trajectory is derived from the records and starts at the person's
+  //     actual measured values — the same reason /deident is gated, so the forecast is not the way real
+  //     records leave an openly-served twin;
+  //   • the GRANT scope, because a clinician holding a cardiovascular grant must not learn the renal
+  //     trajectory. Enforced SERVER-SIDE, so a prediction cannot become a side door around consent.
+  if (req.method === 'POST' && url.pathname === '/api/health/predict') {
+    try {
+      const denied = denyExposure(req);
+      if (denied) return send(res, denied.code, denied.body);
+      const b = await readJson(req);
+      // Fields are read one by one and never spread: the TEST-ONLY overrideDelta hook must stay
+      // unreachable from the network, or the gate could be steered by its own caller.
+      const horizonDays = b.horizonDays != null ? Number(b.horizonDays) : undefined;
+      const stepDays = b.stepDays != null ? Number(b.stepDays) : undefined;
+      let compartments = Array.isArray(b.compartments)
+        ? (b.compartments as unknown[]).map(String).filter((k): k is Compartment => (COMPARTMENTS as string[]).includes(k))
+        : COMPARTMENTS;
+      const covariates = b.covariates && typeof b.covariates === 'object' ? (b.covariates as Covariates) : undefined;
+
+      const gid = url.searchParams.get('grant');
+      let withheldSystems: string[] = [];
+      if (gid) {
+        const r = resolveGrant(grants, String(gid));
+        if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('predict-blocked', [String(gid), r.reason]) });
+        const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+        const allowed = compartments.filter((k) => scope.systems === 'all' || scope.systems.includes(COMPARTMENT_SYSTEM[k]));
+        withheldSystems = compartments.filter((k) => !allowed.includes(k)).map((k) => COMPARTMENT_SYSTEM[k]);
+        compartments = allowed;
+      }
+      if (compartments.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant\u2019s scope' });
+
+      const p = predict({ horizonDays, stepDays, compartments, covariates });
+      return send(res, 200, gid ? { ...p, grant: { id: gid, withheldSystems } } : p);
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'predict failed' }); }
+  }
+
+  // The rejection ledger. A refusal nobody can see may as well have been a silent clamp, so the refusals
+  // are a first-class readable surface — not a log line. Decisions and bounds only, never record content.
+  if (req.method === 'GET' && url.pathname === '/api/health/dynamics/rejections') {
+    const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') ?? 100)));
+    return send(res, 200, { ...rejectionLedger(limit), law: gatePolicy().doctrine });
   }
 
   // Provider directory + a provider's profile (the patient reviews who their doctors are).
