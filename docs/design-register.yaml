@@ -56,7 +56,14 @@ register:
       with promotion/decay, over agent-memory isolation routing + SRS. Literal
       spectral compression via the FNO operator sidecar = research gate, bench-arm only.
     owner: Noetica/agent-machine (memory), noetica-operator (research arm)
-    status: absent
+    status: declared
+    # declared 2026-07-29 (Noetica#567): memory-bands.ts — four bands with survival windows +
+    # reinforcement thresholds; promote on proven need, demote (never destroy) on silence, prune
+    # only a session memory nothing ever recalled, pins exempt, every verdict carries its reason.
+    # Wired as autoDream Phase 4b (absent = unchanged legacy path) + recallTopicBanded makes the
+    # READ path feed survival + GET /api/memory/bands (?sweep=1 = dry run). 12 tests.
+    # NOT `wired`: not in a shipped release, live probe not yet run.
+    # The literal-Fourier spectral arm remains research-gated behind a bench win.
     probe: "memory API reports per-band counts; a promotion event is observable"
     wave: W6.2
 
