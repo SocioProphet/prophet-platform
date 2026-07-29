@@ -121,3 +121,31 @@ test('authorize: multi-scope tokens work; ungated paths never challenge', () => 
   assert.equal(authorize(s, req('GET'), at('/healthz')), null)
   assert.equal(authorize(s, req('GET'), at('/api/federation/status')), null)
 })
+
+test('requiredScope: /api/organs is gated — it discloses topology and triggers probing', () => {
+  // It sat outside /api/graph/ and /api/membrane/, so it answered unauthenticated even
+  // with AUTH_ENFORCE=on. The endpoint returns internal service endpoints with live
+  // health AND makes the server probe those members, so an anonymous caller both reads
+  // the mesh's shape and gets the service to emit outbound requests for them.
+  assert.equal(requiredScope('GET', '/api/organs'), 'graph:read')
+  assert.equal(requiredScope('HEAD', '/api/organs'), 'graph:read')
+  assert.equal(requiredScope('POST', '/api/organs'), 'graph:write')
+  // a genuine subpath is gated too
+  assert.equal(requiredScope('GET', '/api/organs/memory'), 'graph:read')
+  // ...but a sibling that merely shares the prefix string is NOT silently captured
+  assert.equal(requiredScope('GET', '/api/organs-public'), null)
+  assert.equal(requiredScope('GET', '/api/organsomething'), null)
+})
+
+test('authorize: /api/organs refuses without a token under enforcement', () => {
+  const s = enforcing()
+  const denied = authorize(s, req('GET'), at('/api/organs'))
+  assert.ok(denied, 'unauthenticated /api/organs must be refused when enforcing')
+  assert.equal(denied!.code, 401)
+  assert.equal((denied!.body as any).requiredScope, 'graph:read')
+  // and proceeds with a scoped token
+  assert.equal(authorize(s, req('GET', tok(['graph:read'])), at('/api/organs')), null)
+  // a token without the scope is forbidden, not merely unauthorized
+  const wrong = authorize(s, req('GET', tok(['graph:enrich'])), at('/api/organs'))
+  assert.equal(wrong!.code, 403)
+})

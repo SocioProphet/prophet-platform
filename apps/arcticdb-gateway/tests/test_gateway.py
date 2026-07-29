@@ -12,9 +12,24 @@ from fastapi.testclient import TestClient
 from arcticdb_gateway.server import create_app
 
 
+TEST_TOKEN = "test-write-token"
+
+
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
+    # /v1/write is fail-closed: configure a token and present it, so these tests
+    # exercise the AUTHORIZED path. The refusals get their own tests below.
+    monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
     app = create_app(f"lmdb://{tmp_path}/arctic?map_size=256MB")  # small map for tests
+    with TestClient(app, headers={"Authorization": f"Bearer {TEST_TOKEN}"}) as c:
+        yield c
+
+
+@pytest.fixture()
+def unauthed_client(tmp_path, monkeypatch):
+    """Same app, no token configured and none presented."""
+    monkeypatch.delenv("GATEWAY_TOKEN", raising=False)
+    app = create_app(f"lmdb://{tmp_path}/arctic?map_size=256MB")
     with TestClient(app) as c:
         yield c
 
@@ -121,3 +136,57 @@ def test_writes_persist_across_store_handles(tmp_path):
         got = c2.get("/v1/read", params={"library": "dur", "symbol": "s"})
         assert got.status_code == 200
         assert got.json()["data"]["x"] == [7]
+
+
+# /v1/write mutated the LMDB-backed store with no authentication at all — anything that
+# could reach the pod could write versioned artifacts into it. These are the refusals;
+# a write gate never observed refusing is indistinguishable from no gate.
+
+
+def test_write_refuses_when_no_token_is_configured(unauthed_client):
+    # Fail-closed: an unconfigured gateway refuses rather than serving open.
+    r = unauthed_client.post("/v1/write", json={"library": "l", "symbol": "s", "data": {"x": [1]}})
+    assert r.status_code == 503
+    assert "fail-closed" in r.json()["detail"]
+
+
+def test_write_refuses_a_wrong_token(client):
+    r = client.post(
+        "/v1/write",
+        json={"library": "l", "symbol": "s", "data": {"x": [1]}},
+        headers={"Authorization": "Bearer not-the-token"},
+    )
+    assert r.status_code == 401
+
+
+def test_write_refuses_a_missing_header_when_a_token_is_configured(client):
+    r = client.post(
+        "/v1/write",
+        json={"library": "l", "symbol": "s", "data": {"x": [1]}},
+        headers={"Authorization": ""},
+    )
+    assert r.status_code == 401
+
+
+def test_write_accepts_the_configured_token(client):
+    r = client.post("/v1/write", json={"library": "l", "symbol": "s", "data": {"x": [1]}})
+    assert r.status_code == 200
+
+
+def test_only_the_write_route_is_token_gated(tmp_path):
+    """Structural: the auth dependency is attached to /v1/write and to nothing else.
+
+    Asserted against the route table rather than by issuing requests, so it holds
+    regardless of whether the storage backend can be opened in this environment.
+    The asymmetry is deliberate — this closes the MUTATION path. A read that cannot
+    cite a token is still a read; a write that cannot is an anonymous mutation.
+    """
+    from arcticdb_gateway.server import require_token
+
+    app = create_app(f"lmdb://{tmp_path}/arctic?map_size=256MB")
+    gated = {
+        r.path
+        for r in app.routes
+        if any(d.call is require_token for d in getattr(getattr(r, "dependant", None), "dependencies", []))
+    }
+    assert gated == {"/v1/write"}, f"expected only /v1/write to be gated, got {gated}"

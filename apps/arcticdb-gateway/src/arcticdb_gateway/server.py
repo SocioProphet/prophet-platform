@@ -18,12 +18,28 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from .store import BadRequest, GatewayStore, SymbolNotFound
 
 DEFAULT_URI = "lmdb:///data/arcticdb?map_size=8GB"
+
+
+def require_token(authorization: str = Header(default="")) -> None:
+    """Fail-closed write auth, matching compute-gateway.
+
+    /v1/write mutated the LMDB-backed store with no authentication at all, so anything
+    that could reach the pod could write versioned artifacts into it. The estate's
+    convention for a mutating endpoint is 503 when no token is configured — an
+    unconfigured gateway refuses rather than serving open — and 401 when one is wrong.
+    Reads stay open: this closes the mutation path, which is the asymmetry that matters.
+    """
+    token = os.getenv("GATEWAY_TOKEN", "")
+    if not token:
+        raise HTTPException(status_code=503, detail="gateway token not configured (fail-closed)")
+    if authorization.removeprefix("Bearer ").strip() != token:
+        raise HTTPException(status_code=401, detail="unauthorized")
 
 
 class WriteRequest(BaseModel):
@@ -50,7 +66,7 @@ def create_app(uri: str | None = None) -> FastAPI:
         return {"ok": True, "service": "arcticdb-gateway", "backend": store.uri.split("?")[0], **info}
 
     @app.post("/v1/write")
-    def write(req: WriteRequest) -> dict[str, Any]:
+    def write(req: WriteRequest, _: None = Depends(require_token)) -> dict[str, Any]:
         try:
             return store.write(
                 req.library, req.symbol, req.data, req.index, req.metadata, req.prune_previous
