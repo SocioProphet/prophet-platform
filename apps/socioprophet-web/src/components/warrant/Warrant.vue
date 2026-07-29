@@ -41,7 +41,11 @@
       </span>
       <span v-else class="wr-row">
         <b>Source span</b>
-        <span class="wr-nospan">none — model-generated</span>
+        <!-- Derived from the KIND, never assumed: a `computed` nugget with no span is missing
+             its span, which is a different fact from being model-generated. -->
+        <span class="wr-nospan">
+          none — {{ isModelGenerated(view.kind) ? view.kindLabel : 'no source span recorded' }}
+        </span>
       </span>
 
       <span v-if="view.admissibility" class="wr-row">
@@ -105,7 +109,12 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { WALK_STEP_MEANING, warrantView, type WarrantInput } from '../../features/warrant/types';
+import {
+  WALK_STEP_MEANING,
+  isModelGenerated,
+  warrantView,
+  type WarrantInput,
+} from '../../features/warrant/types';
 
 const props = withDefaults(defineProps<{ w: WarrantInput; compact?: boolean; defaultOpen?: boolean }>(), {
   compact: false,

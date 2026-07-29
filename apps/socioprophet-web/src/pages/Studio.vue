@@ -23,6 +23,7 @@ import StudioOps from './studio/StudioOps.vue';
 import StudioGovernance from './studio/StudioGovernance.vue';
 import StudioCommons from './studio/StudioCommons.vue';
 import StudioWarrant from './studio/StudioWarrant.vue';
+import StudioNuggets from './studio/StudioNuggets.vue';
 
 type Sec = { id: string; label: string; ic: string; comp: any; sub: string; project?: boolean };
 const GROUPS: { group: string; items: Sec[] }[] = [
@@ -37,6 +38,7 @@ const GROUPS: { group: string; items: Sec[] }[] = [
     { id: 'analytics', label: 'Analytics', ic: '📈', comp: markRaw(Analytics), sub: 'PageRank / components on the Rust kernel' },
     { id: 'graphrag', label: 'GraphRAG', ic: '✦', comp: markRaw(GraphRAG), sub: 'Ask the graph, cited answers' },
     { id: 'warrant', label: 'Warrant', ic: '⊨', comp: markRaw(StudioWarrant), sub: 'The plan, the alternatives, and the receipt walk — proof made visible' },
+    { id: 'nuggets', label: 'Nugget Feed', ic: '◇', comp: markRaw(StudioNuggets), sub: 'Warrant-typed knowledge grains — a direct quote never reads like a model guess' },
     { id: 'resource', label: 'Resource Browser', ic: '◈', comp: markRaw(ResourceBrowser), sub: 'Dereferenceable Linked Data' },
   ]},
   { group: 'Reason & Resolve', items: [

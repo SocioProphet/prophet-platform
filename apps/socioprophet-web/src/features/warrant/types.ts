@@ -323,8 +323,20 @@ export function sealFromSpine(spine: SpineResult): SealOutcome {
  */
 export type WarrantSealState = 'sealed' | 'unsealed' | 'unknown';
 
+/**
+ * KnowledgeNugget warrant taxonomy — sourceos-spec `KnowledgeNugget.json` @ 0.1.0, the
+ * `warrant.type` enum, closed at v0.1 (widening it is a contract bump).
+ *
+ * This is a SECOND, independent warrant vocabulary. It is kept separate from `GroundingKind`
+ * on purpose: a nugget's `computed` is not a plan node's `registry-default`, and folding one
+ * into the other to save a union member would be precisely the laundering the schema's
+ * normative rule forbids ("no downstream transform may launder a model-generated nugget into
+ * a source-warranted one"). Two vocabularies, both rendered natively, neither translated.
+ */
+export type NuggetWarrantType = 'direct-quote' | 'computed' | 'inferred' | 'model-generated';
+
 /** How a claim earned its place — the warrant TYPE, distinct from whether it is sealed. */
-export type WarrantKind = GroundingKind | 'receipt';
+export type WarrantKind = GroundingKind | 'receipt' | NuggetWarrantType;
 
 export interface WarrantInput {
   /** What is being asserted. */
@@ -337,6 +349,13 @@ export interface WarrantInput {
   walk?: ReceiptVerifyWalk;
   /** Receipt id, when known but not yet walked. */
   receiptRef?: string;
+  /**
+   * Explicit warrant kind, for claims that are not NLQ plan nodes (a KnowledgeNugget's
+   * `warrant.type`). When set it WINS over the grounding-derived kind. Omit for plan nodes.
+   */
+  kind?: WarrantKind;
+  /** Source span, for claims that carry one without a `PlanGrounding` (nuggets). */
+  span?: TokenSpan;
 }
 
 export interface WarrantView {
@@ -381,7 +400,58 @@ const KIND_META: Record<WarrantKind, { label: string; blurb: string; epistemic: 
     blurb: 'Warranted by a receipt on the gateway chain rather than by a plan node.',
     epistemic: 'attested',
   },
+
+  // ── KnowledgeNugget warrants (sourceos-spec KnowledgeNugget.json @ 0.1.0) ──
+  // The ramp descends with the warrant: you can SEE a direct quote in the source; a computed
+  // value is derived from cited ones; an inference is derived from stated premises; a
+  // model-generated statement is a hypothesis the source does not support. `model-generated`
+  // shares the `hypothesis` rung with `ungrounded` because they are the same epistemic fact.
+  'direct-quote': {
+    label: 'direct quote',
+    blurb: 'The exact source span, cut from the document — warranted by the source itself.',
+    epistemic: 'observed',
+  },
+  computed: {
+    label: 'computed',
+    blurb: 'Derived by deterministic computation over cited source values, under a declared normalization regime.',
+    epistemic: 'derived',
+  },
+  inferred: {
+    label: 'inferred',
+    blurb: 'Follows by stated inference from cited premises. The premises are warranted; this step is reasoning.',
+    epistemic: 'derived',
+  },
+  'model-generated': {
+    label: 'model-generated',
+    blurb:
+      'Produced by a model conditioned on the source window, and NOT warranted by it. Admissibility-discounted wherever it is used.',
+    epistemic: 'hypothesis',
+  },
 };
+
+/** Warrant kinds the source itself vouches for — mirrors contract.py SOURCE_WARRANTED. */
+const SOURCE_WARRANTED: ReadonlySet<WarrantKind> = new Set<WarrantKind>([
+  'direct-quote',
+  'computed',
+  'inferred',
+  'token-span',
+]);
+
+/**
+ * True when a warrant is model-produced rather than source-warranted.
+ *
+ * The KnowledgeNugget schema makes this NORMATIVE: "model-generated MUST remain visibly
+ * distinguishable on every downstream surface". Surfaces call this rather than string-matching
+ * a label, so the rule has exactly one implementation to audit.
+ */
+export function isModelGenerated(kind: WarrantKind): boolean {
+  return kind === 'model-generated' || kind === 'ungrounded';
+}
+
+/** True when the source vouches for the content. `unknown`/invented kinds are never included. */
+export function isSourceWarranted(kind: WarrantKind): boolean {
+  return SOURCE_WARRANTED.has(kind);
+}
 
 const SEAL_LABEL: Record<WarrantSealState, string> = {
   sealed: 'sealed',
@@ -422,8 +492,15 @@ export function resolveSeal(input: WarrantInput): {
 
 /** Build the full renderable view. The one normalization every W11 surface goes through. */
 export function warrantView(input: WarrantInput): WarrantView {
-  const kind: WarrantKind = input.grounding ? input.grounding.kind : 'receipt';
-  const meta = KIND_META[kind];
+  // An explicit kind wins (nuggets); otherwise the plan node's grounding decides; a claim with
+  // neither is riding a receipt. Unknown kinds fall back to the `unknown` ramp rather than
+  // crashing or, worse, borrowing a confident label they did not earn.
+  const kind: WarrantKind = input.kind ?? (input.grounding ? input.grounding.kind : 'receipt');
+  const meta = KIND_META[kind] ?? {
+    label: String(kind),
+    blurb: 'Unrecognized warrant kind — treated as unproven.',
+    epistemic: 'unknown' as const,
+  };
   const { state, detail } = resolveSeal(input);
   const g = input.grounding;
   return {
@@ -445,8 +522,14 @@ export function warrantView(input: WarrantInput): WarrantView {
     // paints `unsealed` in --fail while `unknown` takes the desaturated --epi-unknown. So
     // "could not check" reads as absence, "checked and failed" reads as alarm, and neither
     // reads as proof.
+    //
+    // W11.5 note: this is why NO KnowledgeNugget reaches a confident ramp mode. A nugget
+    // carries no receipt, so its seal is `unknown`, so its ramp is `unknown` — regardless of
+    // how strong its WARRANT is. Warrant kind and seal state are different axes, and the ramp
+    // answers the seal one. NuggetCard distinguishes the warrant axis by hue at reduced
+    // strength, deliberately never at full ramp intensity.
     epistemic: state === 'sealed' ? (kind === 'receipt' ? 'attested' : meta.epistemic) : 'unknown',
-    span: g?.tokenSpan ?? null,
+    span: g?.tokenSpan ?? input.span ?? null,
     receiptRef: input.receiptRef ?? input.walk?.receipt_id ?? input.seal?.receiptRef ?? null,
     walk: input.walk ?? null,
     admissibility: g?.admissibility ?? null,
