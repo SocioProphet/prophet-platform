@@ -25,6 +25,7 @@ import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
+import { exposureDenial, exposureFromEnv } from './exposure.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -34,8 +35,25 @@ const PORT = Number(process.env.PORT ?? 8097);
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
+// Parts are JSON-encoded, not joined on '|'. A separator that can appear inside a part is
+// not a separator: ['a|b','c'] and ['a','b|c'] join to the same string and so hash to the
+// same digest. A stronger hash over an ambiguous encoding is still ambiguous — two
+// different fact-sets producing one receipt id is exactly what tamper-evidence must exclude.
 function receipt(kind: string, parts: string[]): { id: string; verifier: 'health-twin'; at: string } {
-  return { id: `ht-${kind}-${sha256(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
+  return { id: `ht-${kind}-${sha256(JSON.stringify(parts))}`, verifier: 'health-twin', at: new Date().toISOString() };
+}
+
+// Exposure gate — see exposure.ts for why the condition is "is the data synthetic" rather
+// than a bearer token the browser would have to hold.
+const EXPOSURE = exposureFromEnv();
+
+function denyExposure(req: http.IncomingMessage) {
+  return exposureDenial({
+    mode: EXPOSURE,
+    token: process.env.HEALTH_TWIN_TOKEN ?? '',
+    authorization: String(req.headers['authorization'] ?? ''),
+    ingestedRecords: resultCounts(ingested).total,
+  });
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
@@ -163,7 +181,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, { ok: true, service: 'health-twin' });
 
   // The twin bundle (the surface's one read).
-  if (req.method === 'GET' && url.pathname === '/api/health/twin') return send(res, 200, bundle());
+  if (req.method === 'GET' && url.pathname === '/api/health/twin') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, bundle());
+  }
 
   // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
@@ -252,7 +273,13 @@ const server = http.createServer(async (req, res) => {
     try {
       await readJson(req); // hook context (patientId, prefetch) — skeleton reads the local twin
       const id = url.pathname.slice('/cds-services/'.length);
-      const base = process.env.SMART_APP_BASE ?? `http://${req.headers.host}`;
+      // SMART launch links go into CDS cards a clinician clicks. Falling back to
+      // req.headers.host let a caller choose that destination: Host is attacker-supplied
+      // on most deployments, so a crafted header pointed the "launch the twin" link at a
+      // domain of their choosing, inside a card the EHR presents as ours.
+      // Configured value only — no configuration means relative links, which resolve
+      // against whatever origin actually served the card rather than a claimed one.
+      const base = process.env.SMART_APP_BASE ?? '';
       if (id === 'health-twin-patient-summary') return send(res, 200, await patientSummaryCards(ingested, base));
       if (id === 'health-twin-medication-reconciliation') return send(res, 200, await medReconciliationCards(ingested, base));
       return send(res, 404, { error: `unknown cds-service: ${id}` });
@@ -365,7 +392,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
-  if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));
+  if (req.method === 'GET' && url.pathname === '/api/health/deident') {
+    // De-identified, but still derived from the same records — gated on the same condition.
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, deidentify(bundle()));
+  }
 
   // Open a blinded consult: requires the patient's agreement (anonymous by default). `disclosure` =
   // the agreed scope ('standard' keeps age-band + sex a doctor needs; 'minimal' = facts only).
@@ -373,7 +404,10 @@ const server = http.createServer(async (req, res) => {
     try {
       const b = await readJson(req);
       const disclosure = b.disclosure === 'minimal' ? 'minimal' : 'standard';
-      const agreed = b.agreed !== false; // must explicitly agree; default true for the demo
+      // Must be EXPLICIT. `b.agreed !== false` read a missing flag as agreement, so a
+      // caller that never mentioned consent got a consult — which is the opposite of a
+      // gate. The comment beside it already said "must explicitly agree"; now it does.
+      const agreed = b.agreed === true;
       const r = openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin', disclosure, agreed);
       return send(res, (r as any).error ? 422 : 200, r);
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }

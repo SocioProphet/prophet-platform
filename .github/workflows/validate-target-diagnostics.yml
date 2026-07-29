@@ -15,6 +15,7 @@ jobs:
       matrix:
         target:
           - validate-repo
+          - engine-guards
           - drift-check
           - standards-check
           - topology-check

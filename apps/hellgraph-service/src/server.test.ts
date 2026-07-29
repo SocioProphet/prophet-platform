@@ -7,6 +7,12 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { retrieveGroundingAuto } from './graphrag.js'
 
+// Per-test namespace. process.pid alone is NOT enough: under `tsx watch` the suite re-runs
+// in the SAME process, so labels collide across runs and row-count assertions go flaky. A
+// monotonic counter makes every test body its own namespace regardless of how it is invoked.
+let _n = 0
+const uniq = (p: string) => `${p}-${process.pid}-${++_n}`
+
 process.env.PORT = String(19091) // free test port, read at module import
 process.env.HELLGRAPH_STORE_DIR = `${process.env.TMPDIR ?? '/tmp'}/hgsvc-test-${process.pid}`
 process.env.HELLGRAPH_SEED = 'off' // tests build their own graphs — don't auto-seed the boot corpus
@@ -142,7 +148,7 @@ test('Gremlin parity: g.V() returns vertices', async () => {
 })
 
 test('Cypher parity: MATCH returns columns/rows + a proof-carrying queryHash', async () => {
-  const L = `cy-${process.pid}`
+  const L = uniq('cy')
   await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada' } })
   const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (n:Person) RETURN n LIMIT 5' })
   assert.equal(r.status, 200)
@@ -151,14 +157,50 @@ test('Cypher parity: MATCH returns columns/rows + a proof-carrying queryHash', a
   assert.equal((await req('POST', '/api/graph/cypher', {})).status, 400)   // query required
 })
 
-test('Cypher: unsupported node-property WHERE 400 loudly (was silently-wrong, engine 0.4.6)', async () => {
-  const L = `cyw-${process.pid}`
-  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada', age: '30' } })
+test('Cypher: node-property WHERE is now ANSWERED, and answered correctly (engine 0.4.45)', async () => {
+  // History: engine 0.4.6 mis-answered node-property WHERE, so the service refused it
+  // loudly (400 "unsupported") — a loud wrong-answer guard, not a capability.
+  // Engine 0.4.45 evaluates node properties for real (WHERE/ORDER BY/RETURN share one
+  // resolver), so the honest assertion is no longer "it refuses" but "it is RIGHT".
+  const L = uniq('cyw')
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada', age: 30 } })
   await req('POST', '/api/graph/node', { id: `${L}:2`, labels: ['Person', L], properties: { name: 'Al' } })
   await req('POST', '/api/graph/edge', { label: 'KNOWS', from: `${L}:1`, to: `${L}:2` })
   const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (a)-[:KNOWS]->(b) WHERE a.age > 10 RETURN b LIMIT 5' })
-  assert.equal(r.status, 400)                             // was a silently-wrong empty 200
-  assert.match(r.json.error, /unsupported/i)
+  assert.equal(r.status, 200)
+  // age is stored as a NUMBER, not '30': this test asserts NUMERIC comparison, and a
+  // string would instead be exercising the engine's coercion path — so a change in coercion
+  // rules could silently alter what this test means. Ada (age 30 > 10) KNOWS Al ⇒ exactly one row, and it must carry the real id —
+  // not '' (the 0.4.40 empty-projection signature) and not a spurious extra row.
+  assert.equal(r.json.rows.length, 1)
+  assert.equal(r.json.rows[0].b, `${L}:2`)
+})
+
+test('Cypher: property PROJECTION renders real values, not empty strings (0.4.45 silent-wrong fix)', async () => {
+  // The prod defect this engine bump exists to close: `MATCH (n:Label) RETURN n`
+  // answered ONE row of empty strings against 9,825 real events — a node-only
+  // pattern compiled to zero clauses, which findMatches satisfied with one EMPTY
+  // binding. A projected property must now be the STORED VALUE, never the node id.
+  const L = `cyp${process.pid}`  // valid Cypher identifier: no hyphen
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: [L], properties: { symbol: 'AAPL', price: '191.24' } })
+  await req('POST', '/api/graph/node', { id: `${L}:2`, labels: [L], properties: { symbol: 'MSFT', price: '402.11' } })
+  const r = await req('POST', '/api/graph/cypher', { query: `MATCH (n:${L}) RETURN n, n.symbol, n.price LIMIT 5` })
+  assert.equal(r.status, 200)
+  assert.equal(r.json.rows.length, 2)                       // was 1 empty row
+  const byId = Object.fromEntries(r.json.rows.map((x: any) => [x.n, x]))
+  assert.equal(byId[`${L}:1`]['n.symbol'], 'AAPL')           // real value…
+  assert.equal(byId[`${L}:1`]['n.price'], '191.24')
+  assert.equal(byId[`${L}:2`]['n.symbol'], 'MSFT')
+  assert.notEqual(byId[`${L}:1`]['n.symbol'], `${L}:1`)      // …not the node id rendered in its place
+})
+
+test('Cypher: genuinely unsupported syntax still 400s loudly, never silently drops', async () => {
+  // The "never silently wrong" contract the old test protected, kept alive against a
+  // form 0.4.45 made THROW: comma-separated patterns previously dropped everything
+  // after the comma and answered anyway.
+  const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (a:Person), (b:Person) RETURN a, b LIMIT 2' })
+  assert.equal(r.status, 400)
+  assert.match(r.json.error, /unsupported|comma-separated/i)
 })
 
 test('query endpoints 400 on missing query', async () => {

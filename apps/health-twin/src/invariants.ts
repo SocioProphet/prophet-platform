@@ -52,7 +52,20 @@ ok(allCards.every((c) => /non-diagnostic|not a diagnosis|clinician decides/i.tes
 ok(allCards.every((c) => !/\byou (have|are diagnosed)\b|\bdiagnosis:\s/i.test(c.detail)), 'no card asserts a diagnosis');
 
 console.log('\n▶ INVARIANT 3 — opinions are hypotheses, never asserted truth');
-const c = openConsult(sampleBundle, 'cardiovascular');
+// The gate itself, asserted rather than assumed. A consent check that has never been
+// observed refusing is indistinguishable from no check: the UI disabled a button, the
+// value was never sent, and the server read a missing flag as agreement.
+ok(!!openConsult(sampleBundle, 'cardiovascular', 'standard', false).error,
+   'a consult REFUSES to open without agreement');
+// No cast needed: every parameter after `bundle` has a default, so omitting `agreed` is
+// type-legal and exercises exactly the path a forgetful caller takes.
+ok(!!openConsult(sampleBundle, 'cardiovascular', 'standard').error,
+   'an omitted agreement is refused, not treated as granted');
+ok(!openConsult(sampleBundle, 'cardiovascular', 'standard', true).error,
+   'a consult opens once agreement is given');
+
+// Consent is stated here rather than inherited from a default.
+const c = openConsult(sampleBundle, 'cardiovascular', 'standard', true);
 ok(identifierLeaks(c.slice).length === 0, 'the consult slice reviewers see is de-identified');
 const op = submitOpinion(c.consult_id, 'reviewer-A', 'Consistent with early hypertension; monitor.', 'moderate');
 ok('tier' in op && (op as any).tier === 'hypothesis', 'a submitted opinion attaches as tier=hypothesis (not verified/attested)');
@@ -106,14 +119,71 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
 
 
 // cryptographic receipts: receipt ids + content addresses must be REAL sha256 (64 hex), never a
-// short non-cryptographic hash wearing a sha label (the djb2-as-"sha-" regression, fixed 2026-07-29)
+// short non-cryptographic hash wearing a sha label.
+//
+// The previous version of this block computed its OWN sha256, built its OWN string, and
+// asserted that the string it had just built matched a regex. It proved that node can hash,
+// and touched not one receipt this service emits — which is why it passed for the whole
+// period consult.ts was still minting 8-hex djb2 ids under the same comment claiming the
+// regression was fixed. An invariant that constructs its own subject cannot fail.
+//
+// These read the ids the code actually produces.
 {
-  const { createHash } = await import("node:crypto");
-  const h = createHash("sha256").update("probe").digest("hex");
-  ok(/^[0-9a-f]{64}$/.test(h), "sha256 available and 64-hex");
-  const rid = `ht-probe-${h}`;
-  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(rid), "receipt id shape is ht-<kind>-<sha256 64-hex>");
-  ok(/^sha256-[0-9a-f]{64}$/.test(`sha256-${h}`), "content addresses are sha256-<64-hex> — label matches the math");
+  const consult = openConsult(sampleBundle, 'receipt-probe', 'standard', true);
+  ok(/^consult-[0-9a-f]{64}$/.test(consult.consult_id ?? ''),
+     `consult id is a real sha256 (${(consult.consult_id ?? '').slice(0, 24)}…)`);
+  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(consult.receipt?.id ?? ''),
+     'consult-open receipt id is ht-<kind>-<sha256 64-hex>');
+  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(consult.consent?.receipt ?? ''),
+     'consent receipt id is ht-<kind>-<sha256 64-hex>');
+
+  const opinion = submitOpinion(consult.consult_id!, 'reviewer-probe', 'a read', 'moderate') as any;
+  ok(/^op-[0-9a-f]{64}$/.test(opinion.id ?? ''), 'opinion id is a real sha256');
+  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(opinion.receipt?.id ?? ''), 'opinion receipt id is a real sha256');
+
+  // No id anywhere may be the old 8-hex djb2 shape.
+  const ids = [consult.consult_id, consult.receipt?.id, consult.consent?.receipt, opinion.id, opinion.receipt?.id];
+  ok(ids.every((i) => !/-[0-9a-f]{8}$/.test(String(i))), 'no id ends in an 8-hex (djb2) digest');
+}
+
+
+console.log('\n▶ INVARIANT 6 — the record bundle is not served open once real records exist');
+{
+  const { exposureDenial, exposureFromEnv } = await import('./exposure.js');
+  const open = { mode: 'synthetic-only' as const, token: '', authorization: '' };
+
+  // The safety of the open endpoint rests entirely on the data being synthetic, so that is
+  // the condition enforced. A twin holding real records must stop serving them openly on its
+  // own, not when someone remembers to change a setting.
+  ok(exposureDenial({ ...open, ingestedRecords: 0 }) === null,
+     'synthetic twin (0 ingested records) serves the bundle');
+  const withRecords = exposureDenial({ ...open, ingestedRecords: 1 });
+  ok(withRecords?.code === 403,
+     'ONE real ingested record stops the open bundle (403)');
+  ok(String(JSON.stringify(withRecords?.body)).includes('remedy'),
+     'the refusal states how to serve records legitimately, not just that it refused');
+
+  // authenticated mode: the permissive state must be asserted, and asserting it without a
+  // secret must fail closed rather than silently serving.
+  const auth = { mode: 'authenticated' as const, ingestedRecords: 0 };
+  ok(exposureDenial({ ...auth, token: '', authorization: 'Bearer anything' })?.code === 503,
+     'authenticated mode with no token configured fails CLOSED (503), it does not serve');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: '' })?.code === 401,
+     'no Authorization header is refused');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer wrong' })?.code === 401,
+     'a wrong token is refused');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer s3cret' }) === null,
+     'the configured token is accepted');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer  s3cret  ' }) === null,
+     'surrounding whitespace does not defeat a correct token');
+  // and a real deployment still serves records under a token, which synthetic-only would refuse
+  ok(exposureDenial({ mode: 'authenticated', token: 's3cret', authorization: 'Bearer s3cret', ingestedRecords: 500 }) === null,
+     'authenticated mode serves real records — the gate is about governance, not about refusing work');
+
+  // default is the safe one: anything but the explicit opt-in is synthetic-only
+  ok(exposureFromEnv({} as NodeJS.ProcessEnv) === 'synthetic-only', 'default exposure is synthetic-only');
+  ok(exposureFromEnv({ HEALTH_TWIN_EXPOSURE: 'yes' } as any) === 'synthetic-only', 'an unrecognised value is NOT treated as authenticated');
+  ok(exposureFromEnv({ HEALTH_TWIN_EXPOSURE: 'authenticated' } as any) === 'authenticated', 'the explicit opt-in is honoured');
 }
 
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);

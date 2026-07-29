@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Engine version guard for hellgraph-service.
+ * Engine version guard for lifecycle-warden.
  *
  * ── Why this exists (root cause, 2026-07) ────────────────────────────────────────────
  * The product silently shipped a STALE, forked engine: the vendored tarball was 0.4.6,
@@ -21,9 +21,17 @@
  *   4. best-effort: if the engine repo is reachable, warn loudly when a newer release is
  *      tagged than what we vendor (a re-vendor is overdue). Non-fatal so CI never flakes.
  *
- * Engine consumers (this service + Noetica) MUST track the same release. When you cut a
- * new engine release: bump MIN_ENGINE **and** vendor the matching tarball in the SAME
- * change. The floor and the tarball move together or the build goes red.
+ * Engine consumers (this service, hellgraph-service, Noetica) MUST track the same release.
+ * When you cut a new engine release: bump MIN_ENGINE **and** vendor the matching tarball in
+ * the SAME change. The floor and the tarball move together or the build goes red.
+ *
+ * ── Why lifecycle-warden has its own copy (2026-07-29) ───────────────────────────────
+ * This app vendors its OWN tarball, separate from hellgraph-service, and until now had NO
+ * guard at all — so it silently sat five releases behind while the sibling was bumped.
+ * That is finding VFP-0001 in the vendor-freshness registry. A guard only helps if it
+ * RUNS: both copies are invoked by `make engine-guards`, which is in the
+ * validate-target-diagnostics matrix that feeds the required diagnostics-gate. An
+ * unwired guard is worse than none — it gets cited as authority while never executing.
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -72,4 +80,4 @@ try {
     console.warn(`⚠ engine repo has v${latest} tagged but we vendor ${version} — a re-vendor is overdue.`)
 } catch { /* offline / private / no git — the floor + integrity checks above still hold */ }
 
-console.log(`✓ hellgraph-service ships engine ${version} (floor ${MIN_ENGINE}; keep in sync with Noetica)`)
+console.log(`✓ lifecycle-warden ships engine ${version} (floor ${MIN_ENGINE}; keep in sync with Noetica)`)
