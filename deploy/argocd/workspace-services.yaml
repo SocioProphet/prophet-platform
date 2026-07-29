@@ -25,9 +25,13 @@ spec:
   generators:
     - list:
         elements:
-          - { name: workspace-minio,  path: infra/k8s/workspace-minio/overlays/p0-lab,  wave: "0" }
-          - { name: workspace-mail,   path: infra/k8s/workspace-mail/overlays/p0-lab,   wave: "2" }
-          - { name: workspace-caldav, path: infra/k8s/workspace-caldav/overlays/p0-lab, wave: "2" }
+          # workspace-minio is foundation: the object-storage substrate everything above it
+          # (mail, backups) depends on. Mail/CalDAV are reference: Dovecot and Radicale are
+          # swappable implementations of standard protocols (IMAP/SMTP/CalDAV) — the protocol,
+          # not the daemon, is the contract.
+          - { name: workspace-minio,  path: infra/k8s/workspace-minio/overlays/p0-lab,  wave: "0", tier: foundation }
+          - { name: workspace-mail,   path: infra/k8s/workspace-mail/overlays/p0-lab,   wave: "2", tier: reference }
+          - { name: workspace-caldav, path: infra/k8s/workspace-caldav/overlays/p0-lab, wave: "2", tier: reference }
   template:
     metadata:
       name: 'ws-{{.name}}'
@@ -35,6 +39,7 @@ spec:
         app.kubernetes.io/part-of: prophet-workspace
       annotations:
         argocd.argoproj.io/sync-wave: '{{.wave}}'
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       destination:

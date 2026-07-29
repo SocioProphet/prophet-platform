@@ -40,6 +40,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-3"
+    # foundation: observability core — the telemetry substrate the estate\'s
+    # SLOs, rollouts and chaos steady-state checks all read from.
+    socioprophet.io/tier: "foundation"
 spec:
   project: default
   destination:
@@ -144,6 +147,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
+    # foundation: observability core — the telemetry substrate the estate\'s
+    # SLOs, rollouts and chaos steady-state checks all read from.
+    socioprophet.io/tier: "foundation"
 spec:
   project: default
   destination:
@@ -235,6 +241,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "-2"
+    # foundation: observability core — the telemetry substrate the estate\'s
+    # SLOs, rollouts and chaos steady-state checks all read from.
+    socioprophet.io/tier: "foundation"
 spec:
   project: default
   destination:
@@ -280,6 +289,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    # foundation: observability core — the telemetry substrate the estate\'s
+    # SLOs, rollouts and chaos steady-state checks all read from.
+    socioprophet.io/tier: "foundation"
 spec:
   project: default
   destination:

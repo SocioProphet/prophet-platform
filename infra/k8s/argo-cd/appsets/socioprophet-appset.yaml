@@ -43,10 +43,14 @@ spec:
             bundle: mesh.vector-store
             wave: "0"
           # Tier 1 — Governance ledger (stateless)
-          - name: mesh-governance-ledger
-            path: infra/k8s/model-governance-ledger/overlays/p0-lab
-            bundle: mesh.governance
-            wave: "1"
+          # mesh-governance-ledger is RETIRED (phantom-deploy audit, 2026-07-29): its manifests
+          # pinned ghcr.io/socioprophet/model-governance-ledger:latest with NO server source, NO
+          # Dockerfile and NO images.yml entry in this repo — a deployed image the platform cannot
+          # rebuild is a supply-chain hole, not a service. The kustomize dir is deleted (same
+          # treatment as lattice-forge #840 / embeddings #803); local dev still builds the ledger
+          # from its sibling repo via infra/local/docker-compose.mesh.yml (MESH_REPOS_ROOT). It
+          # re-enters the desired state only by vendoring the server source, adding an images.yml
+          # build, and passing tools/preflight_deploy_contract.py's foundation/reference gate.
           # Tier 2 — Core services
           - name: mesh-memoryd
             path: infra/k8s/memoryd/overlays/p0-lab
@@ -61,10 +65,11 @@ spec:
             path: infra/k8s/model-router/overlays/p0-lab
             bundle: mesh.routing
             wave: "3"
-          - name: mesh-agent-registry
-            path: infra/k8s/agent-registry/overlays/p0-lab
-            bundle: mesh.registry
-            wave: "3"
+          # mesh-agent-registry is RETIRED (phantom-deploy audit, 2026-07-29): same class as
+          # mesh-governance-ledger above — ghcr.io/socioprophet/agent-registry:latest with no
+          # source, no Dockerfile, no images.yml entry in this repo. Kustomize dir deleted; the
+          # local compose seam remains. Re-entry requires vendored source + an images.yml build
+          # (tools/preflight_deploy_contract.py enforces foundation-without-build = FAIL).
           # Tier 4 — Execution plane
           - name: mesh-superconscious
             path: infra/k8s/superconscious/overlays/p0-lab
@@ -86,10 +91,20 @@ spec:
             wave: "6"
           # ── SocioSphere extended tiers ────────────────────────────────────
           # Tier 7 — Platform shell + workspace controller
-          - name: cloudshell-fog
-            path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
-            bundle: platform.shell
-            wave: "7"
+          # cloudshell-fog is DEFERRED BY MISSING PRODUCTION INPUT (phantom-deploy audit,
+          # 2026-07-29): its runtime-base pins
+          # ghcr.io/socioprophet/cloudshell-fog@sha256:REPLACE_WITH_PINNED_DIGEST — a placeholder
+          # digest no registry can serve, so this desired state could only ImagePullBackOff. No
+          # cloudshell-fog build exists in .github/workflows/images.yml and no real digest is
+          # recorded anywhere in repo/CI to substitute; docs/CLOUDSHELL_FOG_PRODUCTION_INPUTS_REQUIRED.md
+          # lists the pinned digest as a REQUIRED input that has never been provided. An unpullable
+          # pin is a lie in the desired state. The kustomize tree stays as the ready seam.
+          # Re-enable by pinning a real, rebuildable digest (then tools/validate-cloudshell-fog-placeholders.sh
+          # passes) and uncommenting:
+          # - name: cloudshell-fog
+          #   path: infra/k8s/cloudshell-fog/overlays/runtime-v2-standard
+          #   bundle: platform.shell
+          #   wave: "7"
           - name: sociosphere
             path: infra/k8s/sociosphere/overlays/p0-lab
             bundle: platform.controller

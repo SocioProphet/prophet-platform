@@ -19,7 +19,9 @@ spec:
   generators:
     - list:
         elements:
-          - { name: zot, path: infra/k8s/zot/overlays/p0-lab, wave: "1" }
+          # foundation: THE sovereign artifact registry — every image pull in the estate
+          # interoperates through it (replaces GHCR + GAR); losing it stops the platform.
+          - { name: zot, path: infra/k8s/zot/overlays/p0-lab, wave: "1", tier: foundation }
   template:
     metadata:
       name: 'registry-{{.name}}'
@@ -27,6 +29,7 @@ spec:
         app.kubernetes.io/part-of: sovereign-registry
       annotations:
         argocd.argoproj.io/sync-wave: '{{.wave}}'
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       destination:

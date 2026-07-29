@@ -8,6 +8,10 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: socioprophet
+  annotations:
+    # foundation: the isolation contract itself — guardrails that must exist before
+    # anything executing user code runs. Not swappable without rewriting the trust boundary.
+    socioprophet.io/tier: "foundation"
 spec:
   project: default
   source:
