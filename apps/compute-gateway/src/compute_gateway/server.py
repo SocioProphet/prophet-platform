@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import artifacts, engine, engine_receipts, grants, planner, receipts, registry, rocrate, zerotrust
+from . import artifacts, config_plane, engine, engine_receipts, grants, planner, receipts, registry, rocrate, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -274,6 +274,47 @@ def engine_receipt_verify(receipt_id: str, project: str = "default",
     never an HTTP error. Auth itself still refuses first: require_token raises 401
     (bad/absent token) or 503 (no GATEWAY_TOKEN configured — fail-closed)."""
     return engine_receipts.verify_walk(project, receipt_id)
+
+
+class ConfigSetBody(BaseModel):
+    name: str
+    value: bool | int | float | str
+    kind: str = "flag"          # "flag" | "model" (a per-model kill-switch)
+    actor: str = "operator"
+    app: str = "noetica"
+    model: str | None = None
+    org: str | None = None
+
+
+@app.get("/v1/config")
+def config_snapshot(app_name: str = "noetica", model: str | None = None,
+                    org: str | None = None) -> dict:
+    """The flag snapshot a client caches. Deliberately UNAUTHENTICATED: a client that
+    cannot reach the plane falls back to its last cached snapshot, so gating reads would
+    only make an outage worse. Mutation is the governed act, not observation."""
+    return config_plane.get_snapshot(app=app_name, model=model, org=org)
+
+
+@app.post("/v1/config/set")
+def config_set(body: ConfigSetBody, _: None = Depends(require_token)) -> dict:
+    """Change a flag or per-model kill-switch. The change is SEALED as a receipt before it
+    takes effect, so 'who turned this off, from what, and when' is provable rather than
+    merely logged. Unknown flags are refused: the plane's authority is explicit."""
+    try:
+        return config_plane.set_flag(
+            body.name, body.value, kind=body.kind, actor=body.actor,
+            app=body.app, model=body.model, org=body.org)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@app.get("/v1/config/history")
+def config_history(limit: int = 50, _: None = Depends(require_token)) -> dict:
+    """Current values with the receipt that set each one. The immutable change history is
+    the receipt chain itself — not duplicated here, so the two can never drift."""
+    return {"entries": config_plane.history(limit)}
 
 
 @app.get("/v1/receipts")
