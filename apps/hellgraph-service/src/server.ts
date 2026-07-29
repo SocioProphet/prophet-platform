@@ -105,16 +105,15 @@ const server = http.createServer((req, res) => {
   }
 
   // Enrichment surface — profile a class's schema-in-use + rank useful new attributes (proof-carrying).
-  //   GET /api/graph/enrich?label=X[&topK=N]  → { profile, recommendation }
-  // profile = property/relation coverage + cardinality; recommendation = RRF-fused (consistency, trust,
-  // PLN-probabilistic) candidate new attributes, each sealed with a hash over the graph snapshot.
+  //   GET /api/graph/enrich?label=X[&topK=N]  → { profile, recommendation, kkoCoherence }
+  // Runs the enrichClass orchestrator: profile (coverage+cardinality) + the RRF-fused recommender
+  // (consistency, PageRank-trust, PLN-probabilistic — and the KKO coherence ranker AUTO-ACTIVATES when
+  // KBpedia reference concepts are loaded in this graph). Each result is sealed over the graph snapshot.
   if (req.method === 'GET' && url.pathname === '/api/graph/enrich') {
     const label = url.searchParams.get('label')
     if (!label) return void json(res, 400, { ok: false, error: 'enrich requires ?label=' })
     const topK = Math.max(1, Math.min(100, Number(url.searchParams.get('topK') ?? 10) || 10))
-    const profile = engine.profileClass(g, label)
-    const recommendation = engine.rankAttributeRecommendations(g, label, { topK })
-    return void json(res, 200, { ok: true, profile, recommendation })
+    return void json(res, 200, { ok: true, ...engine.enrichClass(g, label, { topK }) })
   }
 
   // Guided exploration — from seed node id(s), rank what to explore next (proof-carrying).
