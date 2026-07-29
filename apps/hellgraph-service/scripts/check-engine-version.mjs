@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 // ── the estate's floor: the OLDEST engine we are allowed to ship. Bump on every release. ──
-const MIN_ENGINE = '0.4.37'
+const MIN_ENGINE = '0.4.40'
 const ENGINE_REMOTE = process.env.HELLGRAPH_ENGINE_REMOTE || 'https://github.com/SocioProphet/hellgraph.git'
 
 const die = (m) => { console.error(`✗ ${m}`); process.exit(1) }
