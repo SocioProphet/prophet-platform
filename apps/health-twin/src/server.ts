@@ -7,6 +7,7 @@
 // NOT a medical device. NOT diagnostic. Organises + retrieves + governs sharing of a person's own
 // records. Synthetic data only in this skeleton — no real PHI.
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, MEDICATIONS, ALLERGIES, IMMUNIZATIONS, ORGAN_IRI, OBSERVATION_CLASS, CONDITION_CLASS, HEALTH_NS, HDT_NS, type Grant, type Observation, type Condition } from './data.js';
 import { connectorCatalogue, runConnector } from './connectors/index.js';
 import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
@@ -27,13 +28,14 @@ import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } f
 
 const PORT = Number(process.env.PORT ?? 8097);
 
-function djb2(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff;
-  return (h >>> 0).toString(16).padStart(8, '0');
+// Real SHA-256 (node:crypto, no deps). Receipts and content addresses on a governance surface must be
+// cryptographic: the previous djb2 (32-bit, trivially collidable) was labeled "sha-", which made
+// "tamper-evident" a false claim. Now the label and the math agree.
+function sha256(s: string): string {
+  return createHash('sha256').update(s).digest('hex');
 }
 function receipt(kind: string, parts: string[]): { id: string; verifier: 'health-twin'; at: string } {
-  return { id: `ht-${kind}-${djb2(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
+  return { id: `ht-${kind}-${sha256(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
@@ -302,11 +304,12 @@ const server = http.createServer(async (req, res) => {
       const caption = String(b.caption ?? '').trim() || (kind === 'note' ? 'Note' : 'Capture');
       const text = b.text ? String(b.text) : undefined;
       const by = b.by === 'clinician' ? 'clinician' : 'patient';
-      const contentHash = djb2([kind, caption, text ?? '', String(b.contentHash ?? '')].join('|'));
+      // content-addressed with REAL sha256 — tamper-evident is now a true claim, not a label
+      const contentHash = sha256([kind, caption, text ?? '', String(b.contentHash ?? '')].join('|'));
       const rec: Captured = {
-        id: `cap-${contentHash}`, kind, caption, text,
+        id: `cap-${contentHash.slice(0, 16)}`, kind, caption, text,
         system: b.system ? String(b.system) : undefined, organ: b.organ ? String(b.organ) : undefined,
-        contentHash: `sha-${contentHash}`, tier: kind === 'note' && by === 'clinician' ? 'attested' : 'observed',
+        contentHash: `sha256-${contentHash}`, tier: kind === 'note' && by === 'clinician' ? 'attested' : 'observed',
         by, capturedAt: new Date().toISOString(), receipt: receipt('capture', [kind, caption, contentHash]).id,
         // clinically code the note text (conditions→SNOMED, meds→RxNorm, labs→LOINC) with negation
         coded: text ? codeText(text).entities : undefined,
@@ -411,7 +414,7 @@ const server = http.createServer(async (req, res) => {
       if (!agent) return send(res, 422, { error: 'agent required' });
       const now = new Date();
       const g: Grant = {
-        id: `grant-${djb2([agent, scope, String(now.getTime())].join('|'))}`,
+        id: `grant-${sha256([agent, scope, String(now.getTime())].join('|'))}`,
         agent, scope, granted_at: now.toISOString(),
         expires_at: new Date(now.getTime() + ttlDays * 86400000).toISOString(),
         revoked: false, reads: 0, receipt: receipt('grant', [agent, scope, String(ttlDays)]).id,

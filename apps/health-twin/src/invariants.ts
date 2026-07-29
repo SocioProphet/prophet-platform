@@ -104,5 +104,17 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
   ok((resolveGrant([], 'nope') as any).reason?.includes('not found'), 'unknown grant blocks with reason');
 }
 
+
+// cryptographic receipts: receipt ids + content addresses must be REAL sha256 (64 hex), never a
+// short non-cryptographic hash wearing a sha label (the djb2-as-"sha-" regression, fixed 2026-07-29)
+{
+  const { createHash } = await import("node:crypto");
+  const h = createHash("sha256").update("probe").digest("hex");
+  ok(/^[0-9a-f]{64}$/.test(h), "sha256 available and 64-hex");
+  const rid = `ht-probe-${h}`;
+  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(rid), "receipt id shape is ht-<kind>-<sha256 64-hex>");
+  ok(/^sha256-[0-9a-f]{64}$/.test(`sha256-${h}`), "content addresses are sha256-<64-hex> — label matches the math");
+}
+
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);

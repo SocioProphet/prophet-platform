@@ -4,13 +4,15 @@
 // concordance signal, and returned with an ATTESTATION (which code ran, over which inputs, producing
 // which output — as digests, never the raw data) + a receipt.
 //
-// HONEST: this is a walking skeleton. The attestation here is a hash-based stand-in for a real TEE quote
-// (AWS Nitro Enclave / Intel TDX-SGX / AMD SEV-SNP measurement). The pool is synthetic. What's REAL is
+// HONEST: this is a walking skeleton. The attestation here is a REAL sha256 digest stand-in for a TEE
+// quote (AWS Nitro Enclave / Intel TDX-SGX / AMD SEV-SNP measurement) — cryptographic, so the digests
+// are genuinely collision-resistant, but NOT hardware-backed. The pool is synthetic. What's REAL is
 // the CONTRACT — the enclave sees de-identified inputs only and emits digests + a result, never raw data
 // — and the shape a real enclave will fill. Non-diagnostic: it aggregates blinded opinions; a clinician
 // decides.
+import { createHash } from 'node:crypto';
 
-function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
+function sha256(s: string): string { return createHash('sha256').update(s).digest('hex'); }
 
 export interface Scope { region?: string; specialty?: string; evidenceTier?: string; practiceType?: string }
 
@@ -51,7 +53,7 @@ const matches = (c: PoolCase, s: Scope) =>
 export function communityAggregate(scope: Scope) {
   const cases = POOL.filter((c) => matches(c, scope));
   const n = cases.length;
-  const inputsDigest = `sha-${djb2(JSON.stringify(cases.map((c) => c.caseId).sort()))}`;
+  const inputsDigest = `sha256-${sha256(JSON.stringify(cases.map((c) => c.caseId).sort()))}`;
 
   // pool the blinded verdicts + reads into a community signal — no single case is identifiable
   const verdicts = { unanimous: 0, majority: 0, split: 0 } as Record<PoolCase['verdict'], number>;
@@ -69,15 +71,15 @@ export function communityAggregate(scope: Scope) {
       : `across ${n} blinded panels in this scope, reads are mixed — a case worth more independent review`,
   };
 
-  const outputDigest = `sha-${djb2(JSON.stringify({ verdicts, commonReads, n }))}`;
+  const outputDigest = `sha256-${sha256(JSON.stringify({ verdicts, commonReads, n }))}`;
   const attestation: Attestation = {
-    enclave: 'skeleton-tee', measurement: `sha-${djb2(CODE_ID)}`, inputsDigest, outputDigest, scope,
+    enclave: 'skeleton-tee', measurement: `sha256-${sha256(CODE_ID)}`, inputsDigest, outputDigest, scope,
     note: 'Skeleton attestation (hash stand-in for a real TEE quote). The enclave sees de-identified pooled inputs only and emits digests + the result — never the raw data. Real deployment: AWS Nitro Enclave / Intel TDX-SGX / AMD SEV-SNP.',
     at: new Date().toISOString(),
   };
   return {
     signal, attestation,
-    receipt: { id: `ht-community-${djb2([inputsDigest, outputDigest].join('|'))}`, verifier: 'health-twin-enclave', at: new Date().toISOString() },
+    receipt: { id: `ht-community-${sha256([inputsDigest, outputDigest].join('|'))}`, verifier: 'health-twin-enclave', at: new Date().toISOString() },
     disclaimer: 'A community concordance signal from blinded, de-identified panels — computed under attestation, not a diagnosis. A clinician decides.',
   };
 }
