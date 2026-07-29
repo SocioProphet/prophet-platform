@@ -100,7 +100,17 @@ register:
       v2 membership dynamics via admit/writer-key machinery. v3 differentiation =
       research gate.
     owner: hellgraph-service federation + agentplane + client-vue (card)
-    status: absent
+    status: declared
+    # declared 2026-07-29: spec Organ.json MERGED (sourceos-spec#211) with OR-I1 (never invents
+    # a member; undeterminable health = `unknown`, never optimistically healthy) + OR-I2 (organ
+    # health DERIVED from members; an unknown member blocks a healthy verdict). Implementation
+    # merged (prophet-platform#1021): apps/hellgraph-service/src/organs.ts declares four organs
+    # over REAL services (memory-mesh/hellgraph, zone-router/compute-gateway, ie-engine/
+    # entity-resolution/embeddings, identity-policy/evidence-receipts); prober distinguishes
+    # non-2xx (down) from unreachable (unknown); endpoints env-overridable for edge/air-gapped
+    # topologies; GET /api/organs wired. 13 tests.
+    # NOT `wired`: image not yet rolled + live /api/organs probe not yet run.
+    # v2 membership dynamics + v3 differentiation deliberately out of scope until v1 proves out.
     probe: "GET /api/organs returns >0 organs with live member health"
     wave: W6.4
 
