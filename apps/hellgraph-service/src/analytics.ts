@@ -13,6 +13,30 @@ export interface NodeLite { id: string }
 export interface EdgeLite { from: string; to: string }
 export interface GraphSource { allNodes(): NodeLite[]; allEdges(): EdgeLite[] }
 
+/** Node shape needed for label-scoping (the store's GraphNode satisfies it). */
+export interface LabeledNodeLite extends NodeLite { labels?: string[] }
+export interface LabeledGraphSource { allNodes(): LabeledNodeLite[]; allEdges(): EdgeLite[] }
+
+/** Labels that carry the ONTOLOGY (KKO upper classes + KBpedia reference concepts), not domain data. */
+export const ONTOLOGY_LABELS = ['KkoClass', 'KkoReferenceConcept'] as const
+
+/**
+ * A GraphSource view with ontology nodes (and their incident edges) filtered out — so analytics and
+ * exploration rank DOMAIN data, not the type system. The ontology stays fully queryable (SPARQL/Cypher/
+ * kko endpoints are unaffected); this only scopes the analytics projection. Lazily materialized per call.
+ */
+export function dataScope(g: LabeledGraphSource): GraphSource {
+  const isOntology = (n: LabeledNodeLite): boolean =>
+    (n.labels ?? []).some((l) => (ONTOLOGY_LABELS as readonly string[]).includes(l))
+  return {
+    allNodes(): NodeLite[] { return g.allNodes().filter((n) => !isOntology(n)) },
+    allEdges(): EdgeLite[] {
+      const keep = new Set(this.allNodes().map((n) => n.id))
+      return g.allEdges().filter((e) => keep.has(e.from) && keep.has(e.to))
+    },
+  }
+}
+
 interface NativeKernel {
   pagerank(n: number, from: number[], to: number[], damping: number, iters: number, tol: number): number[]
   connectedComponents(n: number, from: number[], to: number[]): number[]
