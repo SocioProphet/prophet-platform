@@ -146,3 +146,13 @@ def test_report_always_carries_the_counters_downstream_tooling_reads(repo: Path)
     _, out = audit(repo)
     for key in ('changed_files=', 'ahead=', 'behind=', 'hot_path_hits=', 'overlap=', 'hot_overlap='):
         assert any(line.startswith(key) for line in out), f'missing {key}'
+
+
+def test_strict_mode_fails_a_behind_branch_even_with_no_changes(repo: Path):
+    """Regression (review-found): the old gate failed on `behind > 0` regardless of whether
+    the branch changed anything. Strict mode must reproduce that exactly, so the no-op
+    early return cannot be allowed to short-circuit it."""
+    advance_main(repo, 'apps/other/thing.py', 'unrelated\n')
+    code, out = audit(repo, strict=True)      # feature has NO commits of its own
+    assert code == 1
+    assert any('PREMERGE_STRICT=1' in line for line in out)

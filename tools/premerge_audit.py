@@ -19,7 +19,8 @@ merge queue establishes by rebase-and-test, computed here in one cheap diff.
 
 DECISION MODEL
 --------------
-  overlap     = files this branch changed  n  files the base changed since our merge-base
+  overlap     = intersection of (files this branch changed) and (files the base changed
+                since our merge-base)
   hot overlap = overlap restricted to HOT_PREFIXES (build, CI, tooling, contracts, apps)
 
   1. hot overlap non-empty         -> FAIL. Both sides edited something load-bearing.
@@ -109,13 +110,17 @@ def audit(base_ref: str, head_ref: str, max_behind: int = DEFAULT_MAX_BEHIND,
         out.append('overlapping files (changed by BOTH this branch and the base):')
         out += [f' - {p}' for p in overlap]
 
-    if not changed:
-        out.append('no changed files detected; nothing to audit')
-        return 0, out
-
+    # STRICT is evaluated FIRST, before the no-op early return: the historical gate failed on
+    # `behind > 0` regardless of whether the branch changed anything, and "restores the old
+    # behaviour" has to mean exactly that. (Caught in review — the original ordering let a
+    # behind-but-empty branch pass under strict.)
     if strict and behind > 0:
         out.append(f'PREMERGE_STRICT=1 and branch is {behind} behind — refresh before merge')
         return 1, out
+
+    if not changed:
+        out.append('no changed files detected; nothing to audit')
+        return 0, out
 
     if hot_overlap:
         out.append(
