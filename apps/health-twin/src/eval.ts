@@ -5,10 +5,14 @@
 //   • NEGATION — accuracy (did we get present-vs-absent right?)
 //   • VALUE extraction — accuracy (did we pull "148" from "LDL 148"?)
 //   • GUIDELINE guidance — do the right guideline sources fire on the twin's numbers?
+//   • TWIN DYNAMICS — does the learned RESIDUAL beat the mechanistic model alone, on HELD-OUT subjects?
 // Run: `npx tsx src/eval.ts`. Exits non-zero if any metric falls below its floor — so quality is gated.
 import { codeText } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { ground } from './knowledge.js';
+import { buildCohort, mechanisticFor, SAMPLE_DAYS, HORIZON_DAYS } from './dynamics/cohort.js';
+import { fitSurrogate, proposeDelta } from './dynamics/surrogate.js';
+import { OBSERVABLE, type Compartment } from './dynamics/mechanistic.js';
 
 interface Gold { code: string; negated: boolean; value?: string }
 interface Case { text: string; gold: Gold[] }
@@ -80,10 +84,36 @@ function evalGrounding() {
   return { hit, total: cases.length, acc: hit / cases.length };
 }
 
+// twin dynamics: mechanistic-alone vs mechanistic + gated learned residual, on HELD-OUT synthetic
+// subjects the surrogate was never fitted on. 🔴 The cohort is SYNTHETIC and its ground truth is a
+// superset of the mechanistic model, so this measures that the residual machinery extracts real signal
+// from covariates the ODE does not consume. It is NOT clinical validation and must never be quoted as
+// such. Renal is expected NOT to improve — see the note by its floor.
+function evalDynamics() {
+  const sur = fitSurrogate();
+  const test = buildCohort().filter((s) => s.split === 'test');
+  const out: Record<string, { rmseM: number; rmseR: number; gain: number; n: number }> = {};
+  for (const k of ['cardio', 'hepatic', 'renal'] as Compartment[]) {
+    let seM = 0, seR = 0, n = 0;
+    for (const s of test) {
+      const mech = mechanisticFor(s)[k];
+      SAMPLE_DAYS.forEach((d, i) => {
+        const y = s.truth[k][i]!, m = mech[i]!;
+        const r = m + proposeDelta(sur, k, s.covariates, d / HORIZON_DAYS);
+        seM += (y - m) ** 2; seR += (y - r) ** 2; n++;
+      });
+    }
+    const rmseM = Math.sqrt(seM / n), rmseR = Math.sqrt(seR / n);
+    out[k] = { rmseM, rmseR, gain: 1 - rmseR / rmseM, n };
+  }
+  return out;
+}
+
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const cod = evalCoding();
 const gud = evalGuidance();
 const grd = evalGrounding();
+const dyn = evalDynamics();
 
 console.log('\n═══ prophet-health clinical eval (honest — NOT MedQA) ═══');
 console.log(`  Clinical coding   precision ${pct(cod.precision)} · recall ${pct(cod.recall)} · F1 ${pct(cod.f1)}   (tp ${cod.tp} fp ${cod.fp} fn ${cod.fn})`);
@@ -92,14 +122,27 @@ console.log(`  Value extraction  accuracy  ${pct(cod.valAcc)}`);
 console.log(`  Guideline firing  ${gud.hit}/${gud.want}  ${pct(gud.acc)}`);
 console.log(`  Grounding source  ${grd.hit}/${grd.total}  ${pct(grd.acc)}   (right authoritative source cited)`);
 console.log('  (measures OUR capabilities — coding/negation/values/guidance/grounding — not full clinical QA)');
+console.log('\n  Twin dynamics — held-out RMSE, mechanistic alone → mechanistic + gated learned residual');
+for (const k of ['cardio', 'hepatic', 'renal'] as Compartment[]) {
+  const d = dyn[k]!;
+  console.log(`    ${k.padEnd(8)} ${d.rmseM.toFixed(4)} → ${d.rmseR.toFixed(4)} ${OBSERVABLE[k].unit.padEnd(7)} ${d.gain >= 0 ? pct(d.gain) + ' better' : pct(-d.gain) + ' WORSE'}   (n=${d.n} held-out points)`);
+}
+console.log('    🔴 SYNTHETIC cohort — measures that the residual extracts signal the ODE ignores, NOT clinical validity.');
 
 // quality floors — the build fails if we regress below these
-const floors = { f1: 0.85, negAcc: 0.9, valAcc: 0.9, guidance: 1.0, grounding: 1.0 };
+const floors = { f1: 0.85, negAcc: 0.9, valAcc: 0.9, guidance: 1.0, grounding: 1.0, cardioGain: 0.20, hepaticGain: 0.15, renalNoHarm: -0.02 };
 const fails: string[] = [];
 if (cod.f1 < floors.f1) fails.push(`F1 ${pct(cod.f1)} < ${pct(floors.f1)}`);
 if (cod.negAcc < floors.negAcc) fails.push(`negation ${pct(cod.negAcc)} < ${pct(floors.negAcc)}`);
 if (cod.valAcc < floors.valAcc) fails.push(`values ${pct(cod.valAcc)} < ${pct(floors.valAcc)}`);
 if (gud.acc < floors.guidance) fails.push(`guidance ${pct(gud.acc)} < ${pct(floors.guidance)}`);
 if (grd.acc < floors.grounding) fails.push(`grounding ${pct(grd.acc)} < ${pct(floors.grounding)}`);
+if (dyn.cardio!.gain < floors.cardioGain) fails.push(`cardio residual gain ${pct(dyn.cardio!.gain)} < ${pct(floors.cardioGain)}`);
+if (dyn.hepatic!.gain < floors.hepaticGain) fails.push(`hepatic residual gain ${pct(dyn.hepatic!.gain)} < ${pct(floors.hepaticGain)}`);
+// Renal is floored at NO HARM, not at an improvement. Over a 90-day horizon the albuminuria-driven
+// divergence (< 0.5 mL/min) is far below the eGFR assay noise (1.6 mL/min 1σ), so there is nothing to
+// learn. That is a property of the observable, and the honest response is to say so in the floor rather
+// than to lengthen the horizon or shrink the noise until the number flatters us.
+if (dyn.renal!.gain < floors.renalNoHarm) fails.push(`renal residual DEGRADED fit by ${pct(-dyn.renal!.gain)}`);
 console.log(fails.length ? `\n✗ below floor: ${fails.join(' · ')}` : '\n✓ all metrics above floor');
 process.exit(fails.length ? 1 : 0);

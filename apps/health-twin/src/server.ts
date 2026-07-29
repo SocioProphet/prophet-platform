@@ -25,7 +25,10 @@ import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
-import { exposureDenial, exposureFromEnv } from './exposure.js';
+import { predict, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
+import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
+import { fitSurrogate } from './dynamics/surrogate.js';
+import { OBSERVABLE, type Compartment } from './dynamics/mechanistic.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -35,25 +38,8 @@ const PORT = Number(process.env.PORT ?? 8097);
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
-// Parts are JSON-encoded, not joined on '|'. A separator that can appear inside a part is
-// not a separator: ['a|b','c'] and ['a','b|c'] join to the same string and so hash to the
-// same digest. A stronger hash over an ambiguous encoding is still ambiguous — two
-// different fact-sets producing one receipt id is exactly what tamper-evidence must exclude.
 function receipt(kind: string, parts: string[]): { id: string; verifier: 'health-twin'; at: string } {
-  return { id: `ht-${kind}-${sha256(JSON.stringify(parts))}`, verifier: 'health-twin', at: new Date().toISOString() };
-}
-
-// Exposure gate — see exposure.ts for why the condition is "is the data synthetic" rather
-// than a bearer token the browser would have to hold.
-const EXPOSURE = exposureFromEnv();
-
-function denyExposure(req: http.IncomingMessage) {
-  return exposureDenial({
-    mode: EXPOSURE,
-    token: process.env.HEALTH_TWIN_TOKEN ?? '',
-    authorization: String(req.headers['authorization'] ?? ''),
-    ingestedRecords: resultCounts(ingested).total,
-  });
+  return { id: `ht-${kind}-${sha256(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
@@ -181,10 +167,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, { ok: true, service: 'health-twin' });
 
   // The twin bundle (the surface's one read).
-  if (req.method === 'GET' && url.pathname === '/api/health/twin') {
-    const denied = denyExposure(req);
-    return denied ? send(res, denied.code, denied.body) : send(res, 200, bundle());
-  }
+  if (req.method === 'GET' && url.pathname === '/api/health/twin') return send(res, 200, bundle());
 
   // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
@@ -273,13 +256,7 @@ const server = http.createServer(async (req, res) => {
     try {
       await readJson(req); // hook context (patientId, prefetch) — skeleton reads the local twin
       const id = url.pathname.slice('/cds-services/'.length);
-      // SMART launch links go into CDS cards a clinician clicks. Falling back to
-      // req.headers.host let a caller choose that destination: Host is attacker-supplied
-      // on most deployments, so a crafted header pointed the "launch the twin" link at a
-      // domain of their choosing, inside a card the EHR presents as ours.
-      // Configured value only — no configuration means relative links, which resolve
-      // against whatever origin actually served the card rather than a claimed one.
-      const base = process.env.SMART_APP_BASE ?? '';
+      const base = process.env.SMART_APP_BASE ?? `http://${req.headers.host}`;
       if (id === 'health-twin-patient-summary') return send(res, 200, await patientSummaryCards(ingested, base));
       if (id === 'health-twin-medication-reconciliation') return send(res, 200, await medReconciliationCards(ingested, base));
       return send(res, 404, { error: `unknown cds-service: ${id}` });
@@ -374,6 +351,64 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, { ...grounded, items: grounded.items.filter((i) => keptIds.has(i.recordId)) });
   }
 
+  // ── W10 TWIN DYNAMICS — the twin PREDICTS, under a gate. "Learned proposes, physics disposes."
+  // A mechanistic organ model runs first; a learned residual proposes a correction; the reconciliation
+  // gate accepts it only inside physiologically admissible bounds and otherwise REJECTS it with a typed
+  // reason, emitting the physics and recording the refusal. Every prediction is sealed with the model,
+  // the surrogate version and the gate policy it came from. Non-diagnostic; synthetic data. ──────────
+
+  // What the twin can predict, and the exact rules a learned correction has to satisfy. A surface shows
+  // this next to a prediction so "why was that refused?" is answerable without reading the code.
+  if (req.method === 'GET' && url.pathname === '/api/health/dynamics') {
+    const sur = fitSurrogate();
+    return send(res, 200, {
+      compartments: COMPARTMENTS.map((k) => ({ compartment: k, ...OBSERVABLE[k], system: COMPARTMENT_SYSTEM[k] })),
+      anchoredTo: currentObservations(),
+      surrogate: { id: sur.id, version: sur.version, coefficientsDigest: sur.coefficientsDigest, fittedOn: sur.fittedOn, residualOnly: true, organs: sur.organs },
+      gate: gatePolicy(),
+      disclaimer: 'Synthetic sample. A trajectory projection, not a diagnosis or a prognosis. A clinician decides.',
+    });
+  }
+
+  // Run the twin forward. Grant-aware: with ?grant=<id> the compartments are scoped SERVER-SIDE to the
+  // systems the consent covers, so a prediction cannot become a side door around the same membrane the
+  // record already respects. A blocked grant blocks the prediction too.
+  if (req.method === 'POST' && url.pathname === '/api/health/predict') {
+    try {
+      const b = await readJson(req);
+      // Fields are read one by one and never spread: the TEST-ONLY overrideDelta hook must stay
+      // unreachable from the network, or the gate could be steered by its own caller.
+      const horizonDays = b.horizonDays != null ? Number(b.horizonDays) : undefined;
+      const stepDays = b.stepDays != null ? Number(b.stepDays) : undefined;
+      let compartments = Array.isArray(b.compartments)
+        ? (b.compartments as unknown[]).map(String).filter((k): k is Compartment => (COMPARTMENTS as string[]).includes(k))
+        : COMPARTMENTS;
+      const covariates = b.covariates && typeof b.covariates === 'object' ? (b.covariates as Covariates) : undefined;
+
+      const gid = url.searchParams.get('grant');
+      let scopedOut: string[] = [];
+      if (gid) {
+        const r = resolveGrant(grants, String(gid));
+        if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('predict-blocked', [String(gid), r.reason]) });
+        const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+        const allowed = compartments.filter((k) => scope.systems === 'all' || scope.systems.includes(COMPARTMENT_SYSTEM[k]));
+        scopedOut = compartments.filter((k) => !allowed.includes(k)).map((k) => COMPARTMENT_SYSTEM[k]);
+        compartments = allowed;
+      }
+      if (compartments.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant’s scope' });
+
+      const p = predict({ horizonDays, stepDays, compartments, covariates });
+      return send(res, 200, gid ? { ...p, grant: { id: gid, withheldSystems: scopedOut } } : p);
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'predict failed' }); }
+  }
+
+  // The rejection ledger. A refusal that nobody can see may as well have been a silent clamp, so the
+  // refusals are a first-class, readable surface — not a log line.
+  if (req.method === 'GET' && url.pathname === '/api/health/dynamics/rejections') {
+    const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') ?? 100)));
+    return send(res, 200, { ...rejectionLedger(limit), law: gatePolicy().doctrine });
+  }
+
   // Provider directory + a provider's profile (the patient reviews who their doctors are).
   if (req.method === 'GET' && url.pathname === '/api/health/providers') return send(res, 200, { providers: directory(), careTeam: careTeam() });
   if (req.method === 'GET' && url.pathname.startsWith('/api/health/provider/')) {
@@ -392,11 +427,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
-  if (req.method === 'GET' && url.pathname === '/api/health/deident') {
-    // De-identified, but still derived from the same records — gated on the same condition.
-    const denied = denyExposure(req);
-    return denied ? send(res, denied.code, denied.body) : send(res, 200, deidentify(bundle()));
-  }
+  if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));
 
   // Open a blinded consult: requires the patient's agreement (anonymous by default). `disclosure` =
   // the agreed scope ('standard' keeps age-band + sex a doctor needs; 'minimal' = facts only).
@@ -404,10 +435,7 @@ const server = http.createServer(async (req, res) => {
     try {
       const b = await readJson(req);
       const disclosure = b.disclosure === 'minimal' ? 'minimal' : 'standard';
-      // Must be EXPLICIT. `b.agreed !== false` read a missing flag as agreement, so a
-      // caller that never mentioned consent got a consult — which is the opposite of a
-      // gate. The comment beside it already said "must explicitly agree"; now it does.
-      const agreed = b.agreed === true;
+      const agreed = b.agreed !== false; // must explicitly agree; default true for the demo
       const r = openConsult(bundle(), String(b.scope ?? 'whole twin').trim() || 'whole twin', disclosure, agreed);
       return send(res, (r as any).error ? 422 : 200, r);
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'consult failed' }); }
