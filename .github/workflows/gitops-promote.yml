@@ -160,8 +160,18 @@ jobs:
           # are byte-identical under pull_request and workflow_dispatch.
           # If you are tempted to "just push an empty commit to kick CI" — that is the
           # manual workaround this dispatch replaces. Don't re-add it.
-          if ! gh workflow run validate-target-diagnostics.yml --ref "$BRANCH"; then
-            echo "::warning::could not dispatch validate-target-diagnostics for $BRANCH; the PR will stay BLOCKED until diagnostics-gate is produced some other way"
+          # Retry: this job is unattended, and a dispatch that silently fails leaves the PR
+          # BLOCKED until a human happens to notice. A freshly-pushed ref can also take a
+          # moment to become dispatchable.
+          dispatched=""
+          for attempt in 1 2 3; do
+            if gh workflow run validate-target-diagnostics.yml --ref "$BRANCH"; then
+              dispatched=1; echo "dispatched diagnostics onto $BRANCH (attempt $attempt)"; break
+            fi
+            echo "dispatch attempt $attempt failed; retrying in 10s"; sleep 10
+          done
+          if [ -z "$dispatched" ]; then
+            echo "::warning::could not dispatch validate-target-diagnostics for $BRANCH after 3 attempts; the PR will stay BLOCKED until diagnostics-gate is produced some other way"
           fi
 
           gh pr merge "$BRANCH" --squash --auto --delete-branch
