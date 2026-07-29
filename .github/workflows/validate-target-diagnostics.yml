@@ -87,6 +87,19 @@ jobs:
             working-directory: apps/compute-gateway
             install: pip install -r requirements.txt pytest
             test: PYTHONPATH=src pytest -q tests
+          # The KnowledgeNugget conformance vectors — POSITIVE and NEGATIVE. This
+          # service's entire claim is "nothing non-conformant reaches the graph", and
+          # that claim is worth exactly what its negative vectors prove: over-long and
+          # under-long direct-quote spans, a quote the source does not contain, an
+          # evidence-free computed/inferred warrant, a missing sourceRef, a warrant
+          # outside the closed taxonomy, and the refusal to launder a model-generated
+          # nugget into source-warranted status. The sourceos-spec schema is VENDORED and
+          # sha256-asserted at import, so this leg also catches contract drift the moment
+          # the vendored copy is edited.
+          - name: nugget-extractor
+            working-directory: apps/nugget-extractor
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: PYTHONPATH=src pytest -q tests
           - name: tools-tests
             working-directory: .
             install: pip install pytest pyyaml jsonschema
