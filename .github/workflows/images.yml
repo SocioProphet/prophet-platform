@@ -95,6 +95,9 @@ jobs:
           - { image: arcticdb-gateway,      context: apps/arcticdb-gateway,      dockerfile: Dockerfile }
           # Seal-the-Walls W1.1: proof-carrying HellGraph-log → ClickHouse materializer.
           - { image: prophet-materializer-clickhouse, context: apps/prophet-materializer-clickhouse, dockerfile: Dockerfile }
+          # Seal-the-Walls W1.2: deterministic synthetic MarketDataEvent replay emitter —
+          # the first sourceos-spec-conformant events INTO the log the materializer tails.
+          - { image: market-replay,         context: apps/market-replay,         dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}

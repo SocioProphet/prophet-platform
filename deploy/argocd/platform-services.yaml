@@ -63,6 +63,9 @@ spec:
           # Seal-the-Walls W1.1: proof-carrying log→ClickHouse materializer (first-party;
           # tails hellgraph-service /api/graph/log, receipts via compute-gateway kind=materialize).
           - { name: prophet-materializer-clickhouse }
+          # Seal-the-Walls W1.2: synthetic MarketDataEvent replay emitter (first-party;
+          # schema-validated sourceos-spec events → hellgraph graph writes → the log above).
+          - { name: market-replay }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —

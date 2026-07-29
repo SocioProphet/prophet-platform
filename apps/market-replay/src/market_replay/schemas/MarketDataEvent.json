@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/MarketDataEvent.json",
+  "title": "MarketDataEvent",
+  "description": "A venue-originating or feed-originating market-data state change (quote, trade, book delta/snapshot, bar, venue status, heartbeat, or gap marker). Profile of the ConversationEvent envelope: shares the single MPCC identity/causality/governance vocabulary (specVersion, actorRef, workspaceRef, branchRef, visibilityScope, wallTime, logicalTime, causalParents, traceContext, provenanceLinks, policyLabels, riskLabels) — envelope parity is enforced by tools/validate_mpcc_event_examples.py. Provenance: SocioProphet/profit-mpcc schemas/market-data-event.schema.json and docs/trading-event-families.md, hardened to the policy-integrity tranche-0001 strictness bar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "wallTime",
+    "instrumentRef",
+    "venueRef",
+    "eventKind",
+    "rawPayload",
+    "canonicalPayload"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:market-data-event:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:market-data-event:<local-id>. Invariant: event identity is stable and never reused."
+    },
+    "type": {
+      "const": "MarketDataEvent",
+      "description": "Discriminator constant — always \"MarketDataEvent\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "MPCC event-contract version, pinned per the profit-mpcc policy-integrity tranche-0001 discipline. This family is versioned independently of the v2 metadata-plane schemas; changing this const is a contract change."
+    },
+    "actorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that emitted this event (human subject, agent, service, or system). Subject or Agent Registry URNs are recommended; free-form identifiers are permitted in v0.1."
+    },
+    "workspaceRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace scope this event belongs to. Free-form stable reference in v0.1; a typed workspace URN may narrow this in a later minor version."
+    },
+    "branchRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Conversation-fabric branch this event was appended to. Free-form stable reference in v0.1, pending adoption of the profit-mpcc branch-id contract."
+    },
+    "visibilityScope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A visibility scope label such as private, shared, public, or an audience URN."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Visibility scopes governing who may observe this event (e.g. private, shared, public, or audience URNs)."
+    },
+    "wallTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 wall-clock time of the event as observed by the producer. Family profiles map their primary domain timestamp onto this field."
+    },
+    "logicalTime": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Producer-scoped logical clock: a non-negative integer for scalar (Lamport-style) clocks, or a non-empty string for encoded vector/hybrid clocks. Invariant: causalParents must never point forward in logical time."
+    },
+    "causalParents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+        "description": "URN of a causally preceding event in any MPCC event family."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Event URNs this event causally depends on. Cross-family parents are permitted (e.g. an OrderIntent caused by a MarketDataEvent). Invariant: parents must never point forward in logical time."
+    },
+    "traceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "traceId"
+      ],
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Distributed trace identifier."
+        },
+        "spanId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Span identifier within the trace."
+        },
+        "baggage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "String-valued trace baggage entries."
+        }
+      },
+      "description": "Optional distributed-tracing correlation context."
+    },
+    "provenanceLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rel",
+          "ref"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this event (e.g. derived_from, quotes, source_feed)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance links from this event to upstream artifacts, sources, or records."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this event by producers or the policy fabric."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this event by producers or risk controls."
+    },
+    "instrumentRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Instrument identifier (symbology per the venue/feed contract, e.g. ACME.XNAS)."
+    },
+    "venueRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Venue identifier the event originates from or refers to (e.g. a MIC such as XNAS)."
+    },
+    "eventKind": {
+      "type": "string",
+      "enum": [
+        "quote",
+        "trade",
+        "book_delta",
+        "book_snapshot",
+        "bar",
+        "venue_status",
+        "heartbeat",
+        "gap_marker"
+      ],
+      "description": "Kind of market-data event: quote, trade, book delta, book snapshot, bar, venue status, heartbeat, or gap marker."
+    },
+    "sequenceRef": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Feed or venue sequence number (non-negative integer) or sequence token (non-empty string) used for ordering and gap detection."
+    },
+    "feedRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the concrete feed or subscription that delivered this event."
+    },
+    "rawPayload": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ],
+      "description": "The venue/feed payload exactly as received, before any normalization."
+    },
+    "canonicalPayload": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ],
+      "description": "The normalized payload. Invariant: the canonical form must declare the normalization regime used."
+    },
+    "nullAbsenceRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:null-absence:[A-Za-z0-9._~-]+$",
+      "description": "NullAbsenceRecord URN when this event marks a typed absence (heartbeat, gap_marker). Typed reference replacing the loose inline null_absence object of the source draft."
+    },
+    "qualityFlags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A data-quality flag."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Data-quality flags attached by the feed handler (e.g. stale, out_of_order, synthetic)."
+    }
+  }
+}

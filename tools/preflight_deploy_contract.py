@@ -86,14 +86,13 @@ KNOWN_BROKEN = {
     # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
     # owl-reasoner:moving-tag is RESOLVED — deploy/values/owl-reasoner.yaml was manually sha-pinned
     # (KKO-TBox build, #974). The ratchet only shrinks: fixed → removed so it can't regress silently.
-    "arcticdb-gateway:moving-tag": (
-        "New service — PHT-5 dataset/version store (apps/arcticdb-gateway) added to images.yml this PR. Pin "
-        "tag:latest -> the sha- tag after the first CI build; no sha exists until merge. Its values set "
-        "pullPolicy: Always as the interim guard against the moving-tag+IfNotPresent trap."
-    ),
-    "prophet-materializer-clickhouse:moving-tag": (
-        "New service — Seal-the-Walls W1.1 proof-carrying log→ClickHouse materializer "
-        "(apps/prophet-materializer-clickhouse) added to images.yml this PR. Pin tag:latest -> the sha- tag "
+    # arcticdb-gateway:moving-tag + prophet-materializer-clickhouse:moving-tag are RESOLVED —
+    # gitops-promote sha-pinned both values files after their first CI builds (arcticdb-gateway →
+    # sha-8fbda01e…, prophet-materializer-clickhouse → sha-4df9dcbd…). The ratchet only shrinks:
+    # fixed → removed so neither can silently regress to `:latest` again.
+    "market-replay:moving-tag": (
+        "New service — Seal-the-Walls W1.2 synthetic MarketDataEvent replay emitter "
+        "(apps/market-replay) added to images.yml this PR. Pin tag:latest -> the sha- tag "
         "after the first CI build; no sha exists until merge. Its values set pullPolicy: Always as the "
         "interim guard against the moving-tag+IfNotPresent trap."
     ),
