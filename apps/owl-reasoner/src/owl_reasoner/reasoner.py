@@ -50,6 +50,25 @@ def _kko_tbox() -> Graph:
     return g
 
 
+def kko_tbox_status(requested: bool, triples: int) -> dict[str, Any]:
+    """What the KKO TBox actually did on this call, as opposed to what was asked for.
+
+    Requested and loaded are separate facts. _kko_tbox() deliberately degrades rather than
+    raising — a missing or unparseable vendored file must not take reasoning down — but that
+    degradation has to be visible in the response, or `with_kko=true` reports success on a
+    deployment where the ontology contributed nothing. `unavailable_reason` is present only
+    when the two disagree, so a client never has to infer the difference from a zero.
+    """
+    loaded = requested and triples > 0
+    status: dict[str, Any] = {"requested": requested, "loaded": loaded, "triples": triples}
+    if requested and not loaded:
+        status["unavailable_reason"] = (
+            f"KKO TBox requested but no triples were parsed from {_KKO_PATH.name}; "
+            "with_kko had no effect on this result"
+        )
+    return status
+
+
 def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
            limit: int = 100, explain: bool = False, with_kko: bool = False) -> dict[str, Any]:
     """Compute entailments (+ optional SHACL validation) over a Turtle graph.
@@ -87,7 +106,11 @@ def reason(turtle: str, shapes: str | None = None, inference: str = "rdfs",
         "input_triples": n_in,
         "entailed_triples": len(entailed),
         "inference": mode,
-        "kko_tbox": {"loaded": with_kko, "triples": kko_tbox_triples},
+        # `loaded` used to be `with_kko` — the caller's REQUEST, not the outcome. _kko_tbox()
+        # swallows a missing or unparseable file and returns an empty graph, so a deployment
+        # without the TBox answered {"loaded": true, "triples": 0}: the response asserted the
+        # ontology was in play while with_kko was silently a no-op.
+        "kko_tbox": kko_tbox_status(with_kko, kko_tbox_triples),
         "profile": {"rdfs": "RDFS", "owlrl": "OWL 2 RL", "both": "OWL 2 RL + RDFS", "none": "none"}.get(mode, mode),
         # proof-carrying: each entailed triple is a derivation over stated facts + the ontology
         "entailments": [f"{_c(s)} {_c(p)} {_c(o)}" for (s, p, o) in entailed[:limit]],
