@@ -6,7 +6,7 @@
 # deployment is the walking-skeleton demo with SYNTHETIC data only — no real PHI.
 #
 # tag:latest → gitops-promote pins the sha- tag on the first successful build (new-service pattern).
-image: { repository: health-twin, tag: sha-3ac446e234a5701ee2156c32f5db8d21b030daec }
+image: { repository: health-twin, tag: sha-28298ff5f677fddb5c33fdcc9a8de2d07377caa6 }
 service: { port: 8097, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
@@ -20,11 +20,5 @@ config:
   HT_HELLGRAPH_URL: "http://hellgraph-service.socioprophet.svc.cluster.local:8090" # land + hybrid semantic search
   HT_OWL_URL: "http://owl-reasoner.socioprophet.svc.cluster.local:8080"            # TTL → entailments
   HT_EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
-  # The estate's medical BRAIN (Noetica agent-machine, 125k USMLE-textbook chunks): grounds Ask/Explain
-  # in cited medical texts via /api/study/retrieve. Degrades to the local sourced KB if unreachable.
-  NOETICA_AM_URL: "http://agent-machine.socioprophet.svc.cluster.local:8080"
-  # The agent-machine rejects no-Origin server-to-server callers without a bearer, so brain grounding
-  # in-cluster needs NOETICA_AM_TOKEN (= the AM's local-token). Inject it from a Secret via envFrom —
-  # do NOT put the token here. Absent → the twin degrades gracefully to the local sourced KB (no break).
   # SMART launch link base for CDS Hooks cards (the cockpit's /health surface).
   SMART_APP_BASE: "https://socioprophet.md"
