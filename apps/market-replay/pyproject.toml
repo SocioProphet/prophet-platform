@@ -8,6 +8,10 @@ dependencies = [
   "uvicorn==0.30.6",
   "httpx==0.27.2",
   "jsonschema==4.26.0",
+  # jsonschema treats `format` as an annotation unless a checker is supplied, and its
+  # date-time checker is a NO-OP without this package. Without it the "schema-validated,
+  # fail-closed" claim above silently excludes every timestamp in the schema.
+  "rfc3339-validator==0.1.4",
 ]
 [tool.setuptools.packages.find]
 where = ["src"]

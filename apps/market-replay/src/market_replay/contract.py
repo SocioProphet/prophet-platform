@@ -56,7 +56,24 @@ if _actual != SCHEMA_SHA256:  # tamper-evident vendoring — see module docstrin
         "re-vendor from sourceos-spec and update contract.py provenance")
 
 SCHEMA: dict[str, Any] = json.loads(_SCHEMA_BYTES)
-VALIDATOR = Draft202012Validator(SCHEMA)
+
+# jsonschema treats `format` as an ANNOTATION unless a checker is supplied, so
+# Draft202012Validator(SCHEMA) never validated the schema's "format": "date-time" —
+# a structurally-valid event carrying "not-a-timestamp" passed the gate this module
+# describes as "schema-validated per event, fail-closed".
+#
+# Passing the checker is not sufficient on its own: its date-time entry only exists when
+# rfc3339-validator is installed, so a missing dependency would turn the fix back into the
+# no-op it replaces — silently, and only in whichever environment lacked the package. The
+# assertion below makes that impossible: no timestamp checking means no import.
+_FORMAT_CHECKER = Draft202012Validator.FORMAT_CHECKER
+if "date-time" not in _FORMAT_CHECKER.checkers:  # pragma: no cover - guarded by test
+    raise RuntimeError(
+        "jsonschema's date-time format checker is unavailable (install rfc3339-validator). "
+        "Refusing to start: this module claims per-event schema validation, and without it "
+        "every `format: date-time` in MarketDataEvent.json would go unchecked."
+    )
+VALIDATOR = Draft202012Validator(SCHEMA, format_checker=_FORMAT_CHECKER)
 
 # URN local-id charset per the schema's id pattern: [A-Za-z0-9._~-]. Symbols like
 # "SP:AAA" carry a colon, so the local id sanitizes it ("SP-AAA") while the event's
