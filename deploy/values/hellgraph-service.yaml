@@ -3,7 +3,7 @@
 # Pinned manually: the image built fine, but the images matrix run failed on an UNRELATED service
 # (sherlock-engine), and gitops-promote only fires on a fully-green images run — so one unrelated build
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
-image: { repository: hellgraph-service, tag: sha-c841fc5e2f50b91ced40d9488521020f4add1fcf }
+image: { repository: hellgraph-service, tag: sha-1963fe81cecc4c839814e312e9ab53d826ea4ac9 }
 service: { port: 8090, portName: http }
 # Measured: 55k RC load peaks 560MB RSS (batched loader, engine 0.4.40) — 1Gi is the honest budget.
 resources:
