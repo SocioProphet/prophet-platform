@@ -77,6 +77,14 @@ spec:
           # Seal-the-Walls W1.2: synthetic MarketDataEvent replay emitter (first-party;
           # schema-validated sourceos-spec events → hellgraph graph writes → the log above).
           - { name: market-replay, tier: foundation }            # the MarketDataEvent contract emitter feeding the spine
+          # L5 governance executor (first-party; blueprint-audit remediation): runs the
+          # engine's lifecycle FSM + retention scheduler + vendor-cache gc on a loop,
+          # hash-chained audit in MinIO, runs sealed via compute-gateway kind=governance.
+          # DRY-RUN by default — enforcement is the two-lever flip in its values file.
+          # tier: foundation — retention/legal-hold enforcement is not optional; if the
+          # warden is absent, declared L5 governance silently stops running (the exact
+          # failure mode the blueprint audit found). Built from source in images.yml.
+          - { name: lifecycle-warden, tier: foundation }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —

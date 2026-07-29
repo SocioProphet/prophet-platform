@@ -15,7 +15,8 @@ config:
   # Tokens: "*" | "<kind>" | "<kind>:<backend>" | "<project>" | "<project>:<kind>" | "<project>:<kind>:<backend>".
   # `materialize` = the Seal-the-Walls W1.1 receipt door for materializer batches
   # (prophet-materializer-clickhouse) — explicit kind token, not reliant on project naming.
-  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting,materialize"
+  # `governance` = the L5 lifecycle-warden run-attestation door — same reasoning.
+  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting,materialize,governance"
   # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
   GATEWAY_WRITE_PROVENANCE: "true"
   # Durable proof store: receipts + content-addressed artifacts + the doc→SQL sink land on
