@@ -34,8 +34,12 @@ const PORT = Number(process.env.PORT ?? 8097);
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex');
 }
+// Parts are JSON-encoded, not joined on '|'. A separator that can appear inside a part is
+// not a separator: ['a|b','c'] and ['a','b|c'] join to the same string and so hash to the
+// same digest. A stronger hash over an ambiguous encoding is still ambiguous — two
+// different fact-sets producing one receipt id is exactly what tamper-evidence must exclude.
 function receipt(kind: string, parts: string[]): { id: string; verifier: 'health-twin'; at: string } {
-  return { id: `ht-${kind}-${sha256(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
+  return { id: `ht-${kind}-${sha256(JSON.stringify(parts))}`, verifier: 'health-twin', at: new Date().toISOString() };
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
@@ -252,7 +256,13 @@ const server = http.createServer(async (req, res) => {
     try {
       await readJson(req); // hook context (patientId, prefetch) — skeleton reads the local twin
       const id = url.pathname.slice('/cds-services/'.length);
-      const base = process.env.SMART_APP_BASE ?? `http://${req.headers.host}`;
+      // SMART launch links go into CDS cards a clinician clicks. Falling back to
+      // req.headers.host let a caller choose that destination: Host is attacker-supplied
+      // on most deployments, so a crafted header pointed the "launch the twin" link at a
+      // domain of their choosing, inside a card the EHR presents as ours.
+      // Configured value only — no configuration means relative links, which resolve
+      // against whatever origin actually served the card rather than a claimed one.
+      const base = process.env.SMART_APP_BASE ?? '';
       if (id === 'health-twin-patient-summary') return send(res, 200, await patientSummaryCards(ingested, base));
       if (id === 'health-twin-medication-reconciliation') return send(res, 200, await medReconciliationCards(ingested, base));
       return send(res, 404, { error: `unknown cds-service: ${id}` });
