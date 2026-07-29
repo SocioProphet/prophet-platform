@@ -20,8 +20,8 @@
 # useless in-cluster — so the password Secret is REQUIRED (fail-closed, not optional).
 # PREREQ (out of band — never commit secrets):
 #   Actions → provision-secrets → Run workflow   (mints it; nobody ever handles the value)
-# The password is MINTED IN CI, not typed by a human: the provision-secrets workflow generates 32
-# alphanumeric chars and applies the Secret over WIF. It is CREATE-IF-ABSENT — ClickHouse persists
+# The password is MINTED IN CI, not typed by a human: the provision-secrets workflow generates 48
+# hex chars (192 bits) and applies the Secret over WIF. It is CREATE-IF-ABSENT — ClickHouse persists
 # its admin password into the data volume on first init, so silently regenerating the Secret later
 # would leave the server and its clients disagreeing. Deliberate rotation = the `rotate` input PLUS
 # rotating the server's own password in the same window, then restarting clickhouse and
