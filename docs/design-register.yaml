@@ -32,14 +32,21 @@ register:
       compression ratio. Exhaust->intake loop: trace-dream job mines
       discarded-but-later-needed to tune retrieval + SRS.
     owner: agent-machine + compute-gateway (+ sourceos-spec fields)
-    status: declared
+    status: wired
     # declared 2026-07-29: ExhaustRecord schema MERGED (sourceos-spec #208); gateway emission
     # code-complete + tested (bytes on every receipt; _exhaust bound via content-addressed
     # exhaust_sha; pre-W6.1 persisted receipts still verify — fields ride outside the id-hash).
-    # `wired` requires: merged + gateway image rolled + live /v1/compute probe.
+    # wired 2026-07-29: gateway image rolled AND live-probed in prod — a real /v1/compute
+    # call on pod compute-gateway-68b88fdc69 returned bytes_in=2 bytes_out=89. The
+    # probe_cmd below is the CI-runnable half (CI has no cluster access); the live probe
+    # is re-run by hand on each roll.
     # `measured` still needs: agent-machine compaction/retrieval sources + trace-dream
     # discard-mining + compression-ratio on the Govern Proof act.
     probe: "sample /v1/compute receipt carries exhaust_sha and bytes_in/bytes_out"
+    probe_cmd: >-
+      test -f apps/compute-gateway/tests/test_exhaust_accounting.py
+      && grep -q exhaust_sha apps/compute-gateway/src/compute_gateway/contract.py
+      && grep -q canonical_size apps/compute-gateway/src/compute_gateway/receipts.py
     wave: W6.1
 
   - id: banded-memory
@@ -110,6 +117,12 @@ register:
       personalization — receipts already exist, but counters-for-adaptation do not.
       NO third-party flag SaaS (no GrowthBook) — the flag plane is ours.
     owner: Noetica/agent-machine (client cache + migrations) + prophet-platform admin API (flag service)
-    status: absent
+    status: declared
+    # declared 2026-07-29: CLIENT half merged (Noetica#564) — config-plane.ts (precedence
+    # local-override > env > remote > default, explain() names the decider, capability-surface
+    # guard so a snapshot cannot introduce an undeclared capability, offline-first refresh),
+    # local-state.ts (migrationVersion + named once-only migrations + usage ledger), routes
+    # /api/config{,/refresh,/usage} registered in server.ts, 13 tests. NOT yet in a shipped
+    # release and the SERVER half (admin flag endpoint) is unbuilt — hence not `wired`.
     probe: "agent-machine /api/config returns flags w/ fetchedAt; ~/.noetica carries a migrationVersion; a kill-switch flips a live capability without a release"
     wave: unassigned
