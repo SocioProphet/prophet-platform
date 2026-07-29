@@ -40,8 +40,13 @@ register:
     # call on pod compute-gateway-68b88fdc69 returned bytes_in=2 bytes_out=89. The
     # probe_cmd below is the CI-runnable half (CI has no cluster access); the live probe
     # is re-run by hand on each roll.
-    # `measured` still needs: agent-machine compaction/retrieval sources + trace-dream
-    # discard-mining + compression-ratio on the Govern Proof act.
+    # 2026-07-29 LOOP CLOSED (Noetica#569): lib/exhaust.ts records rejected retrieval
+    # candidates by hash only (EX-I2 negative-tested), notes what WAS used, and mines the two
+    # into DISCARD MISSES (discarded at T, needed after T) ranked by repeats — the retrieval
+    # cut's own error signal. Wired at a real cut (tieredGround) + GET /api/exhaust reporting
+    # compressionRatio and discardMissRate. Fail-soft: observability cannot fail a retrieval.
+    # `measured` still needs: a real discardMissRate/compression number observed from live
+    # traffic + surfacing on the Govern Proof act.
     probe: "sample /v1/compute receipt carries exhaust_sha and bytes_in/bytes_out"
     probe_cmd: >-
       test -f apps/compute-gateway/tests/test_exhaust_accounting.py
