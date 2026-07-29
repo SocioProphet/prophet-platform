@@ -1,0 +1,45 @@
+# arcticdb-gateway — PHT-5 dataset/version store (tritfabric fabric/docs/pht.md PHT-5;
+# atoms-catalog section 3.3: "gateway Deployment wrapping embedded ArcticDB"). First-party
+# service (apps/arcticdb-gateway): FastAPI over the embedded ArcticDB library on LMDB, so
+# training/backtesting artifacts get versioned, time-travelable storage behind an HTTP
+# contract instead of every consumer linking the library. Spec namespace is `data`; v0
+# co-locates in `socioprophet` (see questdb.yaml).
+#
+# LICENSE (audit in apps/arcticdb-gateway/requirements.txt): arcticdb pinned to 4.4.3,
+# released 2024-06-19 — its BSL 1.1 Change Date (2 years) passed 2026-06-19, so the pinned
+# version is Apache 2.0 today. Never bump past a release younger than two years without a
+# licensing decision.
+nameOverride: arcticdb-gateway
+
+image:
+  repository: arcticdb-gateway
+  # sha-pinned by gitops-promote after the first CI build (embeddings.yaml precedent).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
+  # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  # LMDB inside the PVC; map_size caps the LMDB memory map and must stay under the PVC size.
+  ARCTIC_URI: "lmdb:///data/arcticdb?map_size=8GB"
+
+# LMDB is strictly single-writer: one replica, no HPA, Recreate (RWO PD would deadlock a
+# rolling update) — the exact pairing the chart's persistence comment prescribes.
+persistence:
+  enabled: true
+  size: 10Gi
+  mountPath: /data
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+# /healthz opens LMDB on first call (fast, local) so readiness proves the store, not just uvicorn.
+probes:
+  path: /healthz
+
+# Honest floor: pandas/numpy runtime + LMDB page cache; artifact writes are bursty, not resident.
+resources:
+  requests: { cpu: 100m, memory: 512Mi }
+  limits:   { cpu: "1",  memory: 1Gi }

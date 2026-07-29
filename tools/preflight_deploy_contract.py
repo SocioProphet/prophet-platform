@@ -84,9 +84,12 @@ KNOWN_BROKEN = {
     # reasoning-failure-runner:moving-tag is RESOLVED — deploy/values/reasoning-failure-runner.yaml is now pinned
     # to a sha- tag (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md). The ratchet only
     # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
-    "owl-reasoner:moving-tag": (
-        "New service — Dockerfile + images.yml entry added this PR, so it BUILDS. Pin `tag: latest` → the sha- "
-        "tag after the first CI build (same chicken-and-egg as grlplus-service/grl-mesh): no sha exists until merge."
+    # owl-reasoner:moving-tag is RESOLVED — deploy/values/owl-reasoner.yaml was manually sha-pinned
+    # (KKO-TBox build, #974). The ratchet only shrinks: fixed → removed so it can't regress silently.
+    "arcticdb-gateway:moving-tag": (
+        "New service — PHT-5 dataset/version store (apps/arcticdb-gateway) added to images.yml this PR. Pin "
+        "tag:latest -> the sha- tag after the first CI build; no sha exists until merge. Its values set "
+        "pullPolicy: Always as the interim guard against the moving-tag+IfNotPresent trap."
     ),
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."

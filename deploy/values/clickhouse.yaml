@@ -1,0 +1,66 @@
+# ClickHouse — PHT-5 heavy-analytics engine (tritfabric fabric/docs/pht.md PHT-5; atoms-catalog
+# section 3.2: "long retention, big scans, joins, multi-tenant analytics serving"). Upstream
+# image, Apache 2.0. Spec namespace is `data`; v0 co-locates in `socioprophet` (see questdb.yaml).
+#
+# ── v0 vs the spec's deployment shape ────────────────────────────────────────────────────────
+# atoms-catalog 3.2 prescribes "Altinity operator + ClickHouseInstallation (CHI)". That route
+# installs cluster-wide CRDs + an operator, which this PR deliberately does NOT do (no
+# cluster-wide operators/CRDs ride along in a services PR). v0 is a plain single-node
+# clickhouse-server behind the shared chart — enough to land the contract and start
+# materializing. UPGRADE PATH: install the Altinity clickhouse-operator (its own ApplicationSet
+# entry + namespace, CRDs reviewed on their own), express this node as a ClickHouseInstallation
+# CR (replicas/shards/zookeeper-keeper managed there), migrate data, retire this values file.
+#
+# Digest-pinned (moving-tag+IfNotPresent trap — see questdb.yaml). 26.3 is the current LTS
+# line; tag = newest 26.3 patch. NOT touched by build-image/gitops-promote.
+#
+# Boot-verified under the chart's hardened defaults (runAsNonRoot 10001, readOnlyRootFilesystem):
+# needs the two writableDirs below + DO_NOT_CHOWN + an admin password, then /ping returns 200
+# and queries run. Without a password the entrypoint locks user `default` to localhost —
+# useless in-cluster — so the password Secret is REQUIRED (fail-closed, not optional).
+# PREREQ (out of band — never commit secrets):
+#   kubectl -n socioprophet create secret generic clickhouse-admin --from-literal=password="$(openssl rand -base64 24)"
+nameOverride: clickhouse
+
+image:
+  registry: docker.io          # third-party upstream image, not this platform's GAR
+  repository: clickhouse/clickhouse-server
+  # 26.3.17.56 = newest patch of the 26.3 LTS line (2026-07-20), manifest-list digest.
+  tag: "26.3.17.56@sha256:422be85ae7344058369cdd366ac0efea9daa8428b55c9cf50258e83a7d12fcb3"
+
+service:
+  port: 8123                   # HTTP interface (queries + /ping health)
+  portName: http
+  extraPorts:
+    - { name: native, port: 9000 }   # native TCP protocol (clickhouse-client, drivers)
+
+persistence:
+  enabled: true
+  size: 20Gi                   # long-retention store — first to grow; resize before Altinity move
+  mountPath: /var/lib/clickhouse
+
+# The entrypoint writes the generated user config into users.d, and the server logs to
+# /var/log/clickhouse-server — both must be writable under readOnlyRootFilesystem.
+writableDirs:
+  - /var/log/clickhouse-server
+  - /etc/clickhouse-server/users.d
+
+config:
+  CLICKHOUSE_DO_NOT_CHOWN: "1"   # running non-root; the entrypoint must not attempt chown
+  CLICKHOUSE_USER: "default"
+secretEnv:
+  # With a password set, the entrypoint grants user `default` network access (::/0) + this
+  # password instead of localhost-only. Missing Secret = pod won't start = loud, by design.
+  CLICKHOUSE_PASSWORD: { secretName: clickhouse-admin, key: password }
+
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /ping                  # built-in health endpoint on the HTTP port
+
+# Honest floor for a scan-heavy columnar engine (spec: big scans + joins — memory-bound).
+resources:
+  requests: { cpu: 500m, memory: 2Gi }
+  limits:   { cpu: "2",  memory: 4Gi }

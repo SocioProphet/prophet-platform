@@ -1,0 +1,16 @@
+[project]
+name = "arcticdb-gateway"
+version = "0.1.0"
+description = "PHT-5 dataset/version store: HTTP gateway over embedded ArcticDB (LMDB)"
+# arcticdb 4.4.3 (the newest Apache-2.0-converted release) ships cp311 wheels at most.
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "arcticdb==4.4.3",
+  "fastapi==0.115.0",
+  "uvicorn==0.30.6",
+  "pandas==2.2.2",
+  "numpy==1.26.4",
+  "pytz==2024.1",
+]
+[tool.setuptools.packages.find]
+where = ["src"]

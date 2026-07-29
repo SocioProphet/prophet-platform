@@ -1,0 +1,37 @@
+# Exact runtime closure (pip freeze of python:3.11-slim linux/amd64 — the image environment).
+#
+# ── ArcticDB LICENSE AUDIT (verified 2026-07-28) ─────────────────────────────────────────────
+# arcticdb is published under BSL 1.1 with, per LICENSE.txt at tag v4.4.3: "Change Date: ...
+# two years as of the release date of the respective version" and "Change License: Apache
+# License, version 2.0". arcticdb 4.4.3 was released to PyPI on 2024-06-19 (upload_time from
+# https://pypi.org/pypi/arcticdb/4.4.3/json). 2024-06-19 + 2 years = 2026-06-19 < today, so
+# THIS PINNED VERSION IS APACHE 2.0. It is the newest non-rc release inside the converted
+# window. DO NOT bump past a version younger than two years without a licensing decision.
+#
+# pandas is pinned to 2.2.2 (not 3.x): arcticdb 4.4.3 imports pytz transitively-by-era and
+# targets the pandas 2.x API; pandas 3 dropped the pytz dependency and broke `import arcticdb`
+# (verified empirically). numpy<2 and protobuf<5 are arcticdb 4.4.3's own declared bounds.
+arcticdb==4.4.3
+fastapi==0.115.0
+uvicorn==0.30.6
+pandas==2.2.2
+numpy==1.26.4
+pytz==2024.1
+annotated-types==0.8.0
+anyio==4.14.2
+attrs==26.1.0
+click==8.4.2
+h11==0.16.0
+idna==3.18
+msgpack==1.2.1
+packaging==26.2
+protobuf==4.25.9
+pydantic==2.13.4
+pydantic_core==2.46.4
+python-dateutil==2.9.0.post0
+PyYAML==6.0.3
+six==1.17.0
+starlette==0.38.6
+typing-inspection==0.4.2
+typing_extensions==4.16.0
+tzdata==2026.3
