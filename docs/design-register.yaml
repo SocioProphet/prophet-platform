@@ -56,7 +56,14 @@ register:
       with promotion/decay, over agent-memory isolation routing + SRS. Literal
       spectral compression via the FNO operator sidecar = research gate, bench-arm only.
     owner: Noetica/agent-machine (memory), noetica-operator (research arm)
-    status: absent
+    status: declared
+    # declared 2026-07-29 (Noetica#567): memory-bands.ts — four bands with survival windows +
+    # reinforcement thresholds; promote on proven need, demote (never destroy) on silence, prune
+    # only a session memory nothing ever recalled, pins exempt, every verdict carries its reason.
+    # Wired as autoDream Phase 4b (absent = unchanged legacy path) + recallTopicBanded makes the
+    # READ path feed survival + GET /api/memory/bands (?sweep=1 = dry run). 12 tests.
+    # NOT `wired`: not in a shipped release, live probe not yet run.
+    # The literal-Fourier spectral arm remains research-gated behind a bench win.
     probe: "memory API reports per-band counts; a promotion event is observable"
     wave: W6.2
 
@@ -69,7 +76,18 @@ register:
       expected-accuracy-per-token. Extends escalate-only-on-disagreement.
       L-function functional form = Heller-Winters-lane research gate.
     owner: Noetica/agent-machine (bench arm first, server routing second)
-    status: absent
+    status: declared
+    # declared 2026-07-29 (Noetica#568): logistic P(correct|signals), no deps, calibrated on
+    # 376 OWNED labelled rows (250/126 split, ECE 8.9%) at zero token cost. Honesty instruments:
+    # reliability()/ECE expose overconfidence, sparse features dropped, no-signal falls back to
+    # base rate, evaluatePolicy STATES its escalation-recovery assumption.
+    # 🔴 CALIBRATION FOUND A REAL FLAW: model never predicts >0.8, so the absolute default
+    # stopAbove=0.9 fired NEVER (0 stops, 83.3% escalation, 4.33x spend). Fixed via
+    # suggestPolicy (thresholds derived from the model's own distribution under a spend
+    # budget): 39.7% escalation, 2.59x spend, 16 stops. Weights: gate_conf .322,
+    # gate_reliability .268, gate_agree .250; brain_conf ~0; vote_share too sparse.
+    # NOT `measured`: projected accuracy rests on a STATED assumption — a live board
+    # emitting real cost-per-point is what replaces it (needs token budget).
     probe: "board run emits cost-per-point for the controller arm"
     wave: W6.3
 
