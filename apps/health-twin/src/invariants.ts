@@ -57,7 +57,9 @@ console.log('\n▶ INVARIANT 3 — opinions are hypotheses, never asserted truth
 // value was never sent, and the server read a missing flag as agreement.
 ok(!!openConsult(sampleBundle, 'cardiovascular', 'standard', false).error,
    'a consult REFUSES to open without agreement');
-ok(!!(openConsult as any)(sampleBundle, 'cardiovascular', 'standard').error,
+// No cast needed: every parameter after `bundle` has a default, so omitting `agreed` is
+// type-legal and exercises exactly the path a forgetful caller takes.
+ok(!!openConsult(sampleBundle, 'cardiovascular', 'standard').error,
    'an omitted agreement is refused, not treated as granted');
 ok(!openConsult(sampleBundle, 'cardiovascular', 'standard', true).error,
    'a consult opens once agreement is given');

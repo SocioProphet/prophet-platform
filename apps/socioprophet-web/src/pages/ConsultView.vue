@@ -54,25 +54,33 @@ const c = computed(() => agg.value?.concordance ?? null);
 const top = computed(() => c.value?.groups?.[0] ?? null);
 const rest = computed(() => c.value?.groups?.slice(1) ?? []);
 const lc = (s: string) => s.replace(/^./, (m) => m.toLowerCase());
-// `assessment` is free text a reviewer types into the Doctor tab, and this string is
-// rendered with v-html. Unescaped, a read containing markup executes in the patient's
-// browser — the one party here who never wrote any of it.
-const esc = (s: string) => s
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-const verdictHtml = computed(() => {
+// `assessment` is free text a reviewer types into the Doctor tab, and the verdict used to
+// be built as an HTML string rendered with v-html — so a read containing markup executed
+// in the patient's browser, the one party here who wrote none of it.
+//
+// Escaping the interpolation would close today's hole and leave the shape that caused it:
+// the next value someone interpolates has to remember to escape too. So the verdict is
+// structured data now, rendered through ordinary text bindings, and there is no v-html on
+// this page to reintroduce the problem.
+type Verdict =
+  | { kind: 'waiting' }
+  | { kind: 'split' }
+  | { kind: 'agreed'; headline: string; assessment: string };
+const verdict = computed<Verdict>(() => {
   const cc = c.value; const t = top.value;
-  if (!cc || cc.n < 2) return 'Waiting for at least two reviews to compare.';
+  if (!cc || cc.n < 2) return { kind: 'waiting' };
   // n >= 2 does not guarantee a group survived grouping; `t!` threw on an empty list.
-  if (!t) return 'Waiting for at least two reviews to compare.';
-  if (cc.verdict === 'unanimous') return `<span class="agree">All ${cc.n} doctors agree</span> — ${esc(lc(t.assessment))}.`;
-  if (cc.verdict === 'split') return `The doctors are <b>split</b> — no shared view yet.`;
-  return `<span class="agree">${t.count} of ${cc.n} doctors agree</span> — ${esc(lc(t.assessment))}.`;
+  if (!t) return { kind: 'waiting' };
+  if (cc.verdict === 'split') return { kind: 'split' };
+  const headline = cc.verdict === 'unanimous'
+    ? `All ${cc.n} doctors agree`
+    : `${t.count} of ${cc.n} doctors agree`;
+  return { kind: 'agreed', headline, assessment: lc(t.assessment) };
 });
 const dissentText = computed(() => {
   const cc = c.value; const t = top.value; const r = rest.value;
   if (!cc || cc.n < 2 || cc.verdict === 'unanimous') return '';
-  if (!t) return '';   // same empty-groups case as verdictHtml
+  if (!t) return '';   // same empty-groups case as the verdict above
   if (cc.verdict === 'split') return r.concat([t]).map((g) => `${g.count} say ${lc(g.assessment)}`).join('; ') + '.';
   const alt = r[0]; const d = cc.n - t.count;
   return alt ? `${d} ${d > 1 ? 'doctors' : 'doctor'} would instead ${lc(alt.assessment)}.` : '';
@@ -114,7 +122,7 @@ onMounted(() => { /* patient starts at the consent gate */ });
         <div class="cv-eyebrow">Your second opinion</div>
         <h2 class="cv-title">What the doctors thought</h2>
         <div v-if="c" class="cv-result">
-          <p class="cv-verdict" v-html="verdictHtml"></p>
+          <p class="cv-verdict"><template v-if="verdict.kind === 'waiting'">Waiting for at least two reviews to compare.</template><template v-else-if="verdict.kind === 'split'">The doctors are <b>split</b> — no shared view yet.</template><template v-else><span class="agree">{{ verdict.headline }}</span> — {{ verdict.assessment }}.</template></p>
           <p v-if="dissentText" class="cv-dissent">{{ dissentText }}</p>
           <p class="cv-status"><span class="cv-tally"><i v-for="(_, i) in c.n" :key="i" :class="i < (top?.count ?? 0) ? 'a' : 'd'"></i></span><span class="cv-rep">{{ c.n }} reviewed privately</span></p>
         </div>
@@ -153,7 +161,7 @@ onMounted(() => { /* patient starts at the consent gate */ });
       <div class="cv-eyebrow">Second opinions · double-blind</div>
       <h2 class="cv-title">{{ slice?.subject.pseudonym }} <span class="th">— everyone anonymous</span></h2>
       <div v-if="c" class="cv-result">
-        <p class="cv-verdict" v-html="verdictHtml"></p>
+        <p class="cv-verdict"><template v-if="verdict.kind === 'waiting'">Waiting for at least two reviews to compare.</template><template v-else-if="verdict.kind === 'split'">The doctors are <b>split</b> — no shared view yet.</template><template v-else><span class="agree">{{ verdict.headline }}</span> — {{ verdict.assessment }}.</template></p>
         <p v-if="dissentText" class="cv-dissent">{{ dissentText }}</p>
         <p class="cv-status"><span class="cv-tally"><i v-for="(_, i) in c.n" :key="i" :class="i < (top?.count ?? 0) ? 'a' : 'd'"></i></span><span class="cv-rep">{{ c.n }} replied · verdict: {{ c.verdict }}</span></p>
       </div>
