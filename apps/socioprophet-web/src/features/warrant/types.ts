@@ -267,7 +267,12 @@ export interface ReceiptVerifyWalk {
   valid: boolean;
   receipt_id: string;
   project: string;
-  /** Always length 3. */
+  /**
+   * Always length 3, in `RECEIPT_WALK_STEPS` order — and that is ENFORCED, not merely
+   * claimed: `warrantApi.ts::parseWalk` refuses any payload of another length, order or
+   * naming as an unrecognized shape rather than coercing it into a walk. A value of this
+   * type therefore only ever reaches a surface having satisfied the contract above.
+   */
   steps: ReceiptWalkStep[];
 }
 
@@ -429,9 +434,18 @@ export function warrantView(input: WarrantInput): WarrantView {
     seal: state,
     sealLabel: SEAL_LABEL[state],
     sealDetail: detail,
-    // An unsealed claim never gets to keep an attested/observed ramp colour — the ramp
-    // must degrade with the seal, or the colour lies about the proof.
-    epistemic: state === 'unsealed' ? 'unknown' : state === 'sealed' && kind === 'receipt' ? 'attested' : meta.epistemic,
+    // Colour can never outrank proof. ONLY a sealed claim keeps a confident ramp mode;
+    // everything else — `unsealed` (checked, failed) and `unknown` (could not check alike) —
+    // degrades to the `unknown` ramp. An unproven claim wearing "observed" blue is the exact
+    // dishonesty this component exists to prevent, and "we could not check" is not a licence
+    // to look confident.
+    //
+    // The two non-sealed states stay DISTINGUISHABLE, just not by borrowing confidence:
+    // `seal`/`sealLabel` separate them in text ("unknown" vs "UNSEALED"), and <Warrant>
+    // paints `unsealed` in --fail while `unknown` takes the desaturated --epi-unknown. So
+    // "could not check" reads as absence, "checked and failed" reads as alarm, and neither
+    // reads as proof.
+    epistemic: state === 'sealed' ? (kind === 'receipt' ? 'attested' : meta.epistemic) : 'unknown',
     span: g?.tokenSpan ?? null,
     receiptRef: input.receiptRef ?? input.walk?.receipt_id ?? input.seal?.receiptRef ?? null,
     walk: input.walk ?? null,

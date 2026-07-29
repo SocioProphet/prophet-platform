@@ -54,6 +54,12 @@
           </span>
         </p>
 
+        <!-- An invalid comparison is named, not quietly rendered as a valid one. -->
+        <p v-if="weightsDiffer(v)" class="vr-wmismatch">
+          scored under different weights than the winner — this gap is not a like-for-like
+          comparison, and the axis above is computed in the winner's weighting
+        </p>
+
         <div class="vr-actions">
           <button class="vr-rerun" type="button" @click="emit('rerun', v)">
             Re-run on #{{ v.rank }}
@@ -97,18 +103,45 @@ const weightsLabel = computed(() => {
  * The axis that cost this variant the most, in COMPOSITE POINTS — deficit × weight. A big
  * raw gap on a 0.2-weighted axis matters less than a small gap on a 0.5-weighted one, and
  * saying "lost on coverage" when similarity did the damage would be a nicer-sounding lie.
+ *
+ * The weights come from the WINNER, deliberately. A deficit is a statement about one
+ * comparison — "how many composite points behind the winner is this variant" — and a
+ * comparison has to be run under a single rubric or it is not a comparison at all. Scoring
+ * the loser's gap in the loser's own weights is apples-to-oranges: it can name an axis that
+ * contributed nothing to the ranking that actually happened, since the ranking is by
+ * composite and only one weighting produced that ordering. The winner's weighting is the one
+ * the field was ranked under, so it is the honest denominator.
+ *
+ * If the weights ever DO diverge across variants, the number is unsound however it is
+ * computed — so that case is surfaced rather than silently averaged over (`weightsDiffer`).
  */
 function lossOf(v: PlanVariant): { axis: string; delta: number; weight: number; cost: number } | null {
   const w = winnerMetric.value;
   if (!w || v.rank === 1) return null;
   const m = v.senseMetric;
+  const wt = w.weights;
   const rows = [
-    { axis: 'coverage', delta: m.coverage - w.coverage, weight: m.weights.coverage },
-    { axis: 'groundedness', delta: m.groundedness - w.groundedness, weight: m.weights.groundedness },
-    { axis: 'similarity', delta: m.similarity - w.similarity, weight: m.weights.similarity },
+    { axis: 'coverage', delta: m.coverage - w.coverage, weight: wt.coverage },
+    { axis: 'groundedness', delta: m.groundedness - w.groundedness, weight: wt.groundedness },
+    { axis: 'similarity', delta: m.similarity - w.similarity, weight: wt.similarity },
   ].map((r) => ({ ...r, cost: r.delta * r.weight }));
   const worst = rows.reduce((a, b) => (b.cost < a.cost ? b : a));
   return worst.cost < 0 ? worst : null;
+}
+
+/**
+ * Did this variant get scored under a different rubric than the winner? Then the "lost on X"
+ * line is comparing two things that were never on the same scale, and the rail says so
+ * instead of printing a confident number over an invalid comparison.
+ */
+function weightsDiffer(v: PlanVariant): boolean {
+  const w = winnerMetric.value;
+  if (!w || v.rank === 1) return false;
+  const a = v.senseMetric.weights;
+  const b = w.weights;
+  return (
+    a.coverage !== b.coverage || a.groundedness !== b.groundedness || a.similarity !== b.similarity
+  );
 }
 </script>
 
@@ -238,6 +271,12 @@ function lossOf(v: PlanVariant): { axis: string; delta: number; weight: number; 
   margin: 0;
   color: var(--warn, #d29922);
   font-size: 0.64rem;
+}
+.vr-wmismatch {
+  margin: 0;
+  color: var(--fail, #e5534b);
+  font-size: 0.62rem;
+  line-height: 1.45;
 }
 .vr-why b {
   font-weight: 700;
