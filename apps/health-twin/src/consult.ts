@@ -5,10 +5,20 @@
 //
 // Each opinion attaches to the consult as a TIER=hypothesis claim (an opinion, never asserted truth —
 // the anti-Watson rule). The aggregate is a signal, NOT a diagnosis; a clinician still decides.
+import { createHash } from 'node:crypto';
 import { deidentify, type DeidView, type DisclosureScope } from './deident.js';
 
-function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
-const receipt = (kind: string, parts: string[]) => ({ id: `ht-${kind}-${djb2(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() });
+// server.ts replaced djb2 with real SHA-256 and said so; this file was missed, so consult
+// ids and consult receipts stayed 32-bit djb2 — trivially collidable, and guessable enough
+// that an id which can be fetched and posted to is an enumeration surface.
+//
+// Parts are JSON-encoded rather than joined on '|'. A separator that can occur inside a part
+// is not a separator: ['a|b','c'] and ['a','b|c'] joined that way produce the same string and
+// therefore the same digest, so a stronger hash over an ambiguous encoding still collides.
+function sha256(parts: string[]): string {
+  return createHash('sha256').update(JSON.stringify(parts)).digest('hex');
+}
+const receipt = (kind: string, parts: string[]) => ({ id: `ht-${kind}-${sha256(parts)}`, verifier: 'health-twin', at: new Date().toISOString() });
 
 export type Confidence = 'low' | 'moderate' | 'high';
 export interface Opinion {
@@ -45,7 +55,7 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
   if (!agreed) return { error: 'patient must agree to the disclosure terms before a consult can open' };
   const salt = `${Date.now()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);
-  const id = `consult-${djb2([slice.receipt.pseudonym, scope, salt].join('|'))}`;
+  const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt])}`;
   const consent: Consent = { agreed: true, disclosure, at: new Date().toISOString(), receipt: receipt('consent', [id, disclosure]).id };
   consults.set(id, { id, createdAt: new Date().toISOString(), scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
   return { consult_id: id, slice, consent, receipt: receipt('consult-open', [id, scope]) };
@@ -56,7 +66,7 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
 export function requestMore(consultId: string, field: string, reason: string): MoreRequest | { error: string } {
   const c = consults.get(consultId);
   if (!c) return { error: 'consult not found' };
-  const r: MoreRequest = { id: `more-${djb2([consultId, field, String(Date.now())].join('|'))}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
+  const r: MoreRequest = { id: `more-${sha256([consultId, field, String(Date.now())])}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
   c.moreRequests.push(r);
   return r;
 }
@@ -75,7 +85,7 @@ export function submitOpinion(consultId: string, reviewer: string, assessment: s
   const rv = reviewer.trim(); const a = assessment.trim();
   if (!rv || !a) return { error: 'reviewer and assessment required' };
   const op: Opinion = {
-    id: `op-${djb2([consultId, rv, a, String(Date.now())].join('|'))}`,
+    id: `op-${sha256([consultId, rv, a, String(Date.now())])}`,
     reviewer: rv, assessment: a, confidence, tier: 'hypothesis',
     at: new Date().toISOString(), receipt: receipt('opinion', [consultId, rv]),
   };
