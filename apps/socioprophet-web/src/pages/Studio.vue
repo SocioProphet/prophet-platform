@@ -22,6 +22,7 @@ import StudioExperiments from './studio/StudioExperiments.vue';
 import StudioOps from './studio/StudioOps.vue';
 import StudioGovernance from './studio/StudioGovernance.vue';
 import StudioCommons from './studio/StudioCommons.vue';
+import StudioWarrant from './studio/StudioWarrant.vue';
 
 type Sec = { id: string; label: string; ic: string; comp: any; sub: string; project?: boolean };
 const GROUPS: { group: string; items: Sec[] }[] = [
@@ -35,6 +36,7 @@ const GROUPS: { group: string; items: Sec[] }[] = [
     { id: 'query', label: 'Query Console', ic: '⌘', comp: markRaw(QueryConsole), sub: 'SPARQL · Cypher · Gremlin over the live kernel' },
     { id: 'analytics', label: 'Analytics', ic: '📈', comp: markRaw(Analytics), sub: 'PageRank / components on the Rust kernel' },
     { id: 'graphrag', label: 'GraphRAG', ic: '✦', comp: markRaw(GraphRAG), sub: 'Ask the graph, cited answers' },
+    { id: 'warrant', label: 'Warrant', ic: '⊨', comp: markRaw(StudioWarrant), sub: 'The plan, the alternatives, and the receipt walk — proof made visible' },
     { id: 'resource', label: 'Resource Browser', ic: '◈', comp: markRaw(ResourceBrowser), sub: 'Dereferenceable Linked Data' },
   ]},
   { group: 'Reason & Resolve', items: [
