@@ -105,16 +105,12 @@ OUR_REGISTRIES = ("us-central1-docker.pkg.dev/socioprophet-platform/", "registry
 # Entries must carry a reason. The list only ever shrinks: if an entry starts passing,
 # the gate FAILS and demands its removal, so it cannot rot into a permanent excuse.
 KNOWN_BROKEN = {
-    "workspace-mail:wrong-registry": (
-        "CAUGHT by the check-6 ghcr.io/socioprophet closure the moment it landed: the mail-backup "
-        "CronJob (infra/k8s/workspace-mail/base/backup-cronjob.yaml) pulls "
-        "ghcr.io/socioprophet/prophet-platform/workspace-backup:dev — an image never built by "
-        "anything, so the DAILY MAIL BACKUP HAS SILENTLY NEVER RUN (ImagePullBackOff since it was "
-        "authored). The job is a /bin/sh tar one-liner; the fix is choosing + pinning a real image "
-        "(stock busybox via zot, or a first-party backup image in images.yml) and VERIFYING a backup "
-        "artifact lands — a deliberate rollout in its own PR, not a drive-by edit inside the tier-"
-        "doctrine PR that found it. Ratchet demands removal once fixed."
-    ),
+    # workspace-mail:wrong-registry is RESOLVED — the mail-backup CronJob now pulls stock
+    # alpine from our own zot, pinned by digest, with the zot-pull secret it always needed
+    # (infra/k8s/workspace-mail/base/backup-cronjob.yaml). The daily backup had never run
+    # once: the old ghcr.io/socioprophet/prophet-platform/workspace-backup:dev is built by
+    # nothing. The ratchet only shrinks: fixed → removed, so a backup job can never again
+    # sit in ImagePullBackOff behind a permanent excuse.
     # reasoning-failure-runner:moving-tag is RESOLVED — deploy/values/reasoning-failure-runner.yaml is now pinned
     # to a sha- tag (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md). The ratchet only
     # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
