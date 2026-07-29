@@ -38,8 +38,16 @@ def sha(obj: Any) -> str:
     ).hexdigest()
 
 
+def canonical_size(obj: Any) -> int:
+    """Byte size of the SAME canonical serialization sha() hashes — so bytes_in/bytes_out
+    (W6.1 exhaust accounting) measure exactly what the content hashes bind."""
+    return len(json.dumps(obj, sort_keys=True, default=str, ensure_ascii=False).encode())
+
+
 def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
-         outputs: Any, status: str, actor: str, epistemic_status: EpistemicStatus) -> Receipt:
+         outputs: Any, status: str, actor: str, epistemic_status: EpistemicStatus,
+         bytes_in: int | None = None, bytes_out: int | None = None,
+         exhaust_sha: str | None = None) -> Receipt:
     chain = _CHAINS.setdefault(project, [])
     prev = chain[-1].id if chain else None
     body = {
@@ -47,7 +55,10 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
         "inputs_sha": sha(inputs), "outputs_sha": sha(outputs), "status": status,
         "actor": actor, "epistemic_status": epistemic_status, "prev": prev, "ts": time.time(),
     }
-    receipt = Receipt(id=sha(body), **body)
+    # exhaust accounting (W6.1) rides OUTSIDE the id-hash body, like the attestation —
+    # pre-existing persisted receipts (no such fields) must keep verifying unchanged.
+    receipt = Receipt(id=sha(body), **body,
+                      bytes_in=bytes_in, bytes_out=bytes_out, exhaust_sha=exhaust_sha)
     # standards-based authenticity, layered on top of the chain's integrity:
     # in-toto Statement v1 + Ed25519 signature (unsigned if no key configured).
     signing.attest(receipt, signing.load_signing_key())

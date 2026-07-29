@@ -46,6 +46,11 @@ class Receipt(BaseModel):
     statement: dict[str, Any] | None = None     # in-toto Statement v1
     signature: str | None = None                # base64 Ed25519 sig over canonical statement bytes
     public_key: str | None = None               # base64 raw Ed25519 public key (None → unsigned)
+    # ── exhaust accounting (W6.1; observability, NOT part of the id-hash — receipts
+    #    persisted before these fields existed must keep verifying) ──
+    bytes_in: int | None = None                 # canonical-serialized size of the inputs
+    bytes_out: int | None = None                # canonical-serialized size of the outputs
+    exhaust_sha: str | None = None              # sha of the ExhaustRecord (sourceos-spec), when emitted
 
 
 class GraphNode(BaseModel):

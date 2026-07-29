@@ -32,7 +32,13 @@ register:
       compression ratio. Exhaust->intake loop: trace-dream job mines
       discarded-but-later-needed to tune retrieval + SRS.
     owner: agent-machine + compute-gateway (+ sourceos-spec fields)
-    status: absent
+    status: declared
+    # declared 2026-07-29: ExhaustRecord schema MERGED (sourceos-spec #208); gateway emission
+    # code-complete + tested (bytes on every receipt; _exhaust bound via content-addressed
+    # exhaust_sha; pre-W6.1 persisted receipts still verify — fields ride outside the id-hash).
+    # `wired` requires: merged + gateway image rolled + live /v1/compute probe.
+    # `measured` still needs: agent-machine compaction/retrieval sources + trace-dream
+    # discard-mining + compression-ratio on the Govern Proof act.
     probe: "sample /v1/compute receipt carries exhaust_sha and bytes_in/bytes_out"
     wave: W6.1
 
