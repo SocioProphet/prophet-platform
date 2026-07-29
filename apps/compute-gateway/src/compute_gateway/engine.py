@@ -186,10 +186,23 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
     # reconcile → verified only when every fact reconciled). Falls back to the kind default.
     epistemic = raw.get("epistemic", epistemic)
 
+    # ── exhaust accounting (W6.1) ──────────────────────────────────────────────
+    # Every receipt carries what the stage consumed vs produced (bytes_out/bytes_in
+    # is the v1 entropy proxy). An adapter that DISCARDS things reports them via
+    # `_exhaust` (an ExhaustRecord, sourceos-spec: counts + hash-only item refs) —
+    # content-addressed into the artifact store so the discard ledger is retrievable
+    # at /v1/artifacts/{exhaust_sha}, and bound to the receipt via exhaust_sha.
+    outputs_dump = [o.model_dump() for o in raw["outputs"]]
+    exhaust = raw.get("_exhaust")
+    exhaust_sha = artifacts.put(exhaust) if isinstance(exhaust, dict) else None
+
     receipt = receipts.seal(
         req.project, kind=kind, backend=backend, runtime=raw["runtime"],
-        inputs=req.spec, outputs=[o.model_dump() for o in raw["outputs"]],
-        status=status, actor=req.actor, epistemic_status=epistemic)
+        inputs=req.spec, outputs=outputs_dump,
+        status=status, actor=req.actor, epistemic_status=epistemic,
+        bytes_in=receipts.canonical_size(req.spec),
+        bytes_out=receipts.canonical_size(outputs_dump),
+        exhaust_sha=exhaust_sha)
 
     delta = adapters.build_delta(req.project, kind, backend, receipt.id, epistemic,
                                  inputs_sha=receipt.inputs_sha, outputs_sha=receipt.outputs_sha)

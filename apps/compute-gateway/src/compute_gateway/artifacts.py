@@ -112,6 +112,18 @@ def store_outputs(receipt_id: str, outputs: list[Any]) -> list[str]:
     return digests
 
 
+def put(obj: Any) -> str:
+    """Content-address a single blob (dedup'd; durable when persistence is enabled) and
+    return its digest. W6.1 uses this for ExhaustRecords so the receipt's exhaust_sha IS
+    the retrieval address (/v1/artifacts/{digest})."""
+    d = digest(obj)
+    newly = _backend.put(d, obj)
+    _stats["puts"] += 1
+    if not newly:
+        _stats["dedup_hits"] += 1
+    return d
+
+
 def get(d: str) -> Any | None:
     return _backend.get(d)
 
