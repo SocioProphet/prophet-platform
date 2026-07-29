@@ -18,6 +18,7 @@ from typing import Any, Awaitable, Callable
 
 import httpx
 
+from . import engine_receipts
 from .contract import ComputeOutput, GraphDelta, GraphEdge, GraphNode
 
 FORGE_URL = os.getenv("FORGE_URL", "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870").rstrip("/")
@@ -615,6 +616,67 @@ async def _materialize(req_spec: dict, project: str, session: str | None) -> Ada
             "_no_provenance": True}
 
 
+async def _engine_seal(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Seal-the-Walls W1.3 — receipt unification: chain an ENGINE sealed() receipt
+    into THE receipt spine.
+
+    hellgraph-service calls this after each /api/graph/enrich | /api/graph/explore
+    with {kind, engineReceipt, subject}. The engine receipt is already proof-carrying
+    (sealed sha256 over the ranked output + snapshot {seq,nodes,edges}); what it lacks
+    is the estate spine: hash-chain position, in-toto statement, Ed25519 signature.
+    The gateway VERIFIES before it attests — shape pinned to the engine's sealed()
+    output and the sealed hash RECOMPUTED byte-exactly (JS JSON.stringify semantics,
+    see engine_receipts.py). A receipt that does not recompute is refused loudly:
+    never claim sealed when it isn't. The sealed output binds {engine_hash, snapshot}
+    beside the full engine receipt, so verify_walk can later re-check signature →
+    engine hash → snapshot.seq binding end-to-end.
+
+    `_no_provenance`: like materialize, the receipt's provenance subgraph must NOT be
+    written back into hellgraph — the graph is the very substrate whose state (seq)
+    this receipt attests, so the write-back would bump the clock on every read and
+    feed the materializer log an event per enrich call. The proof lives on the chain.
+    """
+    kind = req_spec.get("kind")
+    if kind not in engine_receipts.ENGINE_KINDS:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"engine-seal spec.kind must be one of {list(engine_receipts.ENGINE_KINDS)}, "
+                         f"got {kind!r}",
+                "degraded": None, "_no_provenance": True, "epistemic": "unknown"}
+    subject = req_spec.get("subject") or {}
+    if not isinstance(subject, dict):
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "engine-seal subject must be a JSON object",
+                "degraded": None, "_no_provenance": True, "epistemic": "unknown"}
+    er = req_spec.get("engineReceipt")
+    errors = engine_receipts.validate(kind, er)
+    if errors:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"engine receipt shape invalid: {'; '.join(errors)}",
+                "degraded": None, "_no_provenance": True, "epistemic": "unknown"}
+    try:
+        recomputed = engine_receipts.sealed_hash(kind, er)
+    except engine_receipts.EngineReceiptError as e:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"engine receipt not canonicalizable: {e}",
+                "degraded": None, "_no_provenance": True, "epistemic": "unknown"}
+    if recomputed != er["hash"]:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"engine sealed hash does not recompute: sealed {er['hash']}, "
+                         f"recomputed {recomputed} — refusing to attest",
+                "degraded": None, "_no_provenance": True, "epistemic": "unknown"}
+    snap = er["snapshot"]
+    data = {
+        "kind": kind, "subject": subject, "engine_hash": er["hash"],
+        # the seal-time binding verify_walk step 3 checks the receipt against —
+        # covered by outputs_sha, which the SIGNED in-toto statement carries.
+        "snapshot": {"seq": int(snap["seq"]), "nodes": int(snap["nodes"]), "edges": int(snap["edges"])},
+        "engine_receipt": er,
+    }
+    return {"outputs": [ComputeOutput(type="result", data=data)],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "_no_provenance": True, "epistemic": "verified"}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
@@ -625,6 +687,7 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "gateway:ingest": lambda spec, project, session: _ingest(spec, project, session),
     "gateway:parse": lambda spec, project, session: _parse(spec, project, session),
     "gateway:materialize": lambda spec, project, session: _materialize(spec, project, session),
+    "gateway:engine-seal": lambda spec, project, session: _engine_seal(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
     "open-data": lambda spec, project, session: _reconcile(spec, project, session),
     "sql": lambda spec, project, session: _sql_load(spec, project, session),

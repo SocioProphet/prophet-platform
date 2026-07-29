@@ -15,7 +15,9 @@ config:
   # Tokens: "*" | "<kind>" | "<kind>:<backend>" | "<project>" | "<project>:<kind>" | "<project>:<kind>:<backend>".
   # `materialize` = the Seal-the-Walls W1.1 receipt door for materializer batches
   # (prophet-materializer-clickhouse) — explicit kind token, not reliant on project naming.
-  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting,materialize"
+  # `engine-seal` = the W1.3 receipt-unification door: hellgraph-service chains its engine
+  # sealed() enrich/explore receipts onto THE spine — explicit kind token, same rationale.
+  COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting,materialize,engine-seal"
   # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
   GATEWAY_WRITE_PROVENANCE: "true"
   # Durable proof store: receipts + content-addressed artifacts + the doc→SQL sink land on

@@ -23,6 +23,16 @@ config:
   # the image). Activates the KKO coherence ranker in /api/graph/enrich and gives semantic entity
   # typing its target vocabulary. Idempotent (content-addressed atoms).
   HELLGRAPH_LOAD_RC: "on"  # 0.4.40 batched loader: measured 560MB peak @55k under a 400MB heap cap
+  # ── W1.3 receipt unification: engine sealed() receipts → THE estate spine ──
+  # After each /api/graph/enrich|explore, the sealed engine receipt (sha256 over the ranked
+  # output + snapshot {seq,nodes,edges}) is POSTed to compute-gateway POST /v1/engine-receipts
+  # (kind=engine-seal, same namespace — materializer precedent) and the response carries
+  # spine:{ok, receiptId}; ONE gateway verify then walks signature → engine hash → snapshot.seq
+  # binding end-to-end. Honest degradation by design: gateway unreachable ⇒ the result still
+  # serves with spine:{ok:false, reason} and /healthz unsealedReceipts increments — the read
+  # NEVER fails because sealing failed, and we never claim sealed when it isn't.
+  GATEWAY_RECEIPTS: "on"
+  GATEWAY_URL: "http://compute-gateway:8080"
   # ── ORG SUPER-PEER (federation) — opt-in, OFF by default ──────────────────────────────────
   # The membership loop for local Noetica users: admit a user's writer key ONCE (signed
   # addWriter control op) and their local graph changes percolate to this org graph
@@ -35,5 +45,11 @@ config:
   # Admit tokens are minted operator-side from the same secret (HmacTokenVerifier.mint,
   # scope 'admit') — admission is the identity primitive until the login work lands.
   FEDERATION_ENABLED: "0"
+secretEnv:
+  # W1.3: the SAME compute-gateway-token Secret the materializer already mounts in this
+  # namespace — nothing new provisioned. `optional: true` so THE graph service never blocks
+  # on the receipts secret: absent token ⇒ gateway 401 ⇒ spine:{ok:false} + unsealedReceipts
+  # (honest degradation), enrich/explore still serve.
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token, optional: true }
 # secretEnv addition when activating federation (see comment above):
 #   FEDERATION_HMAC_SECRET: { secretName: hellgraph-federation-hmac, key: secret }

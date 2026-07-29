@@ -42,6 +42,7 @@ import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, run
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
 import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
+import { sealToSpine, spineEnabled, unsealedReceipts } from './spine.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -107,15 +108,21 @@ const server = http.createServer((req, res) => {
   }
 
   // Enrichment surface — profile a class's schema-in-use + rank useful new attributes (proof-carrying).
-  //   GET /api/graph/enrich?label=X[&topK=N]  → { profile, recommendation, kkoCoherence }
+  //   GET /api/graph/enrich?label=X[&topK=N]  → { profile, recommendation, kkoCoherence[, spine] }
   // Runs the enrichClass orchestrator: profile (coverage+cardinality) + the RRF-fused recommender
   // (consistency, PageRank-trust, PLN-probabilistic — and the KKO coherence ranker AUTO-ACTIVATES when
   // KBpedia reference concepts are loaded in this graph). Each result is sealed over the graph snapshot.
+  // W1.3: with GATEWAY_RECEIPTS=on the sealed engine receipt is chained onto the compute-gateway
+  // spine and the response carries spine:{ok,receiptId} — honest degradation on failure (spine.ts).
   if (req.method === 'GET' && url.pathname === '/api/graph/enrich') {
     const label = url.searchParams.get('label')
     if (!label) return void json(res, 400, { ok: false, error: 'enrich requires ?label=' })
     const topK = Math.max(1, Math.min(100, Number(url.searchParams.get('topK') ?? 10) || 10))
-    return void json(res, 200, { ok: true, ...engine.enrichClass(g, label, { topK }) })
+    const result = engine.enrichClass(g, label, { topK })
+    if (!spineEnabled()) return void json(res, 200, { ok: true, ...result })
+    return void sealToSpine('enrich', result.recommendation,
+      { service: 'hellgraph-service', endpoint: '/api/graph/enrich', label, topK })
+      .then((spine) => json(res, 200, { ok: true, ...result, spine }))
   }
 
   // Guided exploration — from seed node id(s), rank what to explore next (proof-carrying).
@@ -128,11 +135,19 @@ const server = http.createServer((req, res) => {
     const seeds = seedsParam.split(',').map((s) => s.trim()).filter(Boolean)
     if (seeds.length === 0) return void json(res, 400, { ok: false, error: 'explore requires at least one seed id' })
     const topK = Math.max(1, Math.min(100, Number(url.searchParams.get('topK') ?? 10) || 10))
-    return void json(res, 200, { ok: true, exploration: engine.exploreFrom(g, seeds, { topK }) })
+    const exploration = engine.exploreFrom(g, seeds, { topK })
+    if (!spineEnabled()) return void json(res, 200, { ok: true, exploration })
+    return void sealToSpine('explore', exploration,
+      { service: 'hellgraph-service', endpoint: '/api/graph/explore', seeds, topK })
+      .then((spine) => json(res, 200, { ok: true, exploration, spine }))
   }
 
   if (req.method === 'GET' && url.pathname === '/healthz') {
-    return json(res, 200, { ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length })
+    return json(res, 200, {
+      ok: true, service: 'hellgraph-service', engine_exports: Object.keys(engine).length,
+      // W1.3 honest-degradation counter: enrich/explore results served WITHOUT a spine receipt
+      unsealedReceipts: unsealedReceipts(),
+    })
   }
 
   if (req.method === 'GET' && url.pathname === '/api/graph/stats') {
