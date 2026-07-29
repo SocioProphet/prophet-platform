@@ -116,11 +116,40 @@ class Extraction:
     blocks: list[Block]
 
 
+# Magic bytes for binary formats this service cannot read. Sniffing MUST recognise these
+# rather than fall through to text/plain: a PNG decoded with errors="replace" yields
+# mojibake that extracts cleanly into perfectly well-formed nuggets quoting garbage — a
+# silent-wrong result, which is worse than a refusal.
+_BINARY_MAGIC: tuple[tuple[bytes, str], ...] = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"), (b"GIF89a", "image/gif"),
+    (b"BM", "image/bmp"),
+    (b"II*\x00", "image/tiff"), (b"MM\x00*", "image/tiff"),
+    (b"RIFF", "application/octet-stream"),      # webp/wav/avi container
+    (b"PK\x03\x04", "application/zip"),         # docx/pptx/xlsx and friends
+    (b"\x1f\x8b", "application/gzip"),
+    (b"%!PS", "application/postscript"),
+    (b"\x7fELF", "application/octet-stream"),
+)
+
+
 def sniff_media(filename: str, raw: bytes) -> str:
     """Magic bytes first (filenames lie), extension as the tiebreak — same order the
-    compute-gateway ingest adapter uses, so the two agree on what a document is."""
+    compute-gateway ingest adapter uses, so the two agree on what a document is.
+
+    Unlike that adapter, an UNRECOGNISED binary must not fall through to text/plain here:
+    this service's output is quoted text, and decoding arbitrary bytes with
+    errors="replace" would mint syntactically perfect nuggets quoting replacement
+    characters. So anything holding a NUL byte — which valid UTF-8 text never does
+    outside deliberate embedding — is declared binary and refused."""
     if raw[:5] == b"%PDF-":
         return PDF_MEDIA
+    for magic, media in _BINARY_MAGIC:
+        if raw.startswith(magic):
+            return media
+    if b"\x00" in raw[:8192]:
+        return "application/octet-stream"
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in ("md", "markdown"):
         return "text/markdown"

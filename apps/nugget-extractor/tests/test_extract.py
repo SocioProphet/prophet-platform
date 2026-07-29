@@ -85,6 +85,31 @@ def test_unsupported_media_is_refused():
         ex.extract(b"\x89PNG\r\n\x1a\n", filename="scan.png", media_type="image/png")
 
 
+@pytest.mark.parametrize("raw,label", [
+    (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR", "png"),
+    (b"\xff\xd8\xff\xe0\x00\x10JFIF", "jpeg"),
+    (b"GIF89a\x01\x00", "gif"),
+    (b"PK\x03\x04\x14\x00", "zip/docx"),
+    (b"\x1f\x8b\x08\x00", "gzip"),
+    (b"II*\x00\x08\x00", "tiff"),
+    (b"scan output\x00\x00binary tail", "nul-bearing"),
+])
+def test_binary_without_a_declared_media_type_is_refused_not_mojibake(raw, label):
+    """The silent-wrong case this guards. Sniffed as text and decoded with
+    errors="replace", a PNG produces syntactically PERFECT nuggets quoting replacement
+    characters — schema-valid, span-exact, and complete nonsense. Refusal is the only
+    honest answer, and it must not depend on the caller declaring the type."""
+    assert not ex.sniff_media(f"mystery-{label}", raw).startswith("text/")
+    with pytest.raises(ex.ExtractError):
+        ex.extract(raw, filename=f"mystery-{label}")     # no media_type given
+
+
+def test_ordinary_text_still_sniffs_as_text():
+    assert ex.sniff_media("notes.txt", b"Plain prose with 5% in it.") == "text/plain"
+    assert ex.sniff_media("notes.md", b"# Heading\n\nBody.") == "text/markdown"
+    assert ex.sniff_media("utf8.txt", "Naïve café — 22.6%".encode()) == "text/plain"
+
+
 def test_empty_and_whitespace_documents_are_refused():
     with pytest.raises(ex.ExtractError):
         ex.extract(b"", filename="empty.txt")
