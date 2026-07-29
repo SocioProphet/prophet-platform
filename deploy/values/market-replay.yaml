@@ -13,7 +13,7 @@ image:
   repository: market-replay
   # sha-pinned by gitops-promote after the first CI build (prophet-materializer-clickhouse
   # precedent).
-  tag: latest
+  tag: sha-6fd49d94a4b4f700fa9c080c47adc63e4d2f1f47
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
   # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
   pullPolicy: Always
