@@ -151,14 +151,48 @@ test('Cypher parity: MATCH returns columns/rows + a proof-carrying queryHash', a
   assert.equal((await req('POST', '/api/graph/cypher', {})).status, 400)   // query required
 })
 
-test('Cypher: unsupported node-property WHERE 400 loudly (was silently-wrong, engine 0.4.6)', async () => {
+test('Cypher: node-property WHERE is now ANSWERED, and answered correctly (engine 0.4.45)', async () => {
+  // History: engine 0.4.6 mis-answered node-property WHERE, so the service refused it
+  // loudly (400 "unsupported") — a loud wrong-answer guard, not a capability.
+  // Engine 0.4.45 evaluates node properties for real (WHERE/ORDER BY/RETURN share one
+  // resolver), so the honest assertion is no longer "it refuses" but "it is RIGHT".
   const L = `cyw-${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:1`, labels: ['Person', L], properties: { name: 'Ada', age: '30' } })
   await req('POST', '/api/graph/node', { id: `${L}:2`, labels: ['Person', L], properties: { name: 'Al' } })
   await req('POST', '/api/graph/edge', { label: 'KNOWS', from: `${L}:1`, to: `${L}:2` })
   const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (a)-[:KNOWS]->(b) WHERE a.age > 10 RETURN b LIMIT 5' })
-  assert.equal(r.status, 400)                             // was a silently-wrong empty 200
-  assert.match(r.json.error, /unsupported/i)
+  assert.equal(r.status, 200)
+  // Ada (age 30 > 10) KNOWS Al ⇒ exactly one row, and it must carry the real id —
+  // not '' (the 0.4.40 empty-projection signature) and not a spurious extra row.
+  assert.equal(r.json.rows.length, 1)
+  assert.equal(r.json.rows[0].b, `${L}:2`)
+})
+
+test('Cypher: property PROJECTION renders real values, not empty strings (0.4.45 silent-wrong fix)', async () => {
+  // The prod defect this engine bump exists to close: `MATCH (n:Label) RETURN n`
+  // answered ONE row of empty strings against 9,825 real events — a node-only
+  // pattern compiled to zero clauses, which findMatches satisfied with one EMPTY
+  // binding. A projected property must now be the STORED VALUE, never the node id.
+  const L = `cyp${process.pid}`  // valid Cypher identifier: no hyphen
+  await req('POST', '/api/graph/node', { id: `${L}:1`, labels: [L], properties: { symbol: 'AAPL', price: '191.24' } })
+  await req('POST', '/api/graph/node', { id: `${L}:2`, labels: [L], properties: { symbol: 'MSFT', price: '402.11' } })
+  const r = await req('POST', '/api/graph/cypher', { query: `MATCH (n:${L}) RETURN n, n.symbol, n.price LIMIT 5` })
+  assert.equal(r.status, 200)
+  assert.equal(r.json.rows.length, 2)                       // was 1 empty row
+  const byId = Object.fromEntries(r.json.rows.map((x: any) => [x.n, x]))
+  assert.equal(byId[`${L}:1`]['n.symbol'], 'AAPL')           // real value…
+  assert.equal(byId[`${L}:1`]['n.price'], '191.24')
+  assert.equal(byId[`${L}:2`]['n.symbol'], 'MSFT')
+  assert.notEqual(byId[`${L}:1`]['n.symbol'], `${L}:1`)      // …not the node id rendered in its place
+})
+
+test('Cypher: genuinely unsupported syntax still 400s loudly, never silently drops', async () => {
+  // The "never silently wrong" contract the old test protected, kept alive against a
+  // form 0.4.45 made THROW: comma-separated patterns previously dropped everything
+  // after the comma and answered anyway.
+  const r = await req('POST', '/api/graph/cypher', { query: 'MATCH (a:Person), (b:Person) RETURN a, b LIMIT 2' })
+  assert.equal(r.status, 400)
+  assert.match(r.json.error, /unsupported|comma-separated/i)
 })
 
 test('query endpoints 400 on missing query', async () => {
