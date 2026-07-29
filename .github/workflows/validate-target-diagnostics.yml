@@ -45,10 +45,26 @@ jobs:
             echo "empty diff — running everything"
             echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          echo "changed files:"; echo "$CHANGED" | sed 's/^/  /'
+          # printf, not echo: a filename beginning with -n/-e is legal in git and
+          # echo would eat it as a flag.
+          echo "changed files:"; printf '%s\n' "$CHANGED" | sed 's/^/  /'
           # The rule lives in tools/ci_docs_only.py so it is unit-tested; a skip rule that
           # only exists in YAML is a skip rule nobody can test.
-          RESULT="$(echo "$CHANGED" | python3 tools/ci_docs_only.py)"
+          #
+          # The detector is NOT allowed to fail this job. Skipping tests must require a
+          # positive "true"; anything else — a crash, a missing interpreter, an
+          # unrecognised answer — falls back to running the full matrix. Letting the job
+          # fail instead would still be safe for coverage (the dependents run on an empty
+          # output), but it paints the workflow red while the required gate stays green,
+          # which teaches people to ignore red.
+          if ! RESULT="$(printf '%s\n' "$CHANGED" | python3 tools/ci_docs_only.py 2>&1)"; then
+            echo "detector failed, running everything. output: $RESULT"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$RESULT" != "true" ] && [ "$RESULT" != "false" ]; then
+            echo "detector said '$RESULT', which is neither true nor false — running everything"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           echo "docs_only=$RESULT" >> "$GITHUB_OUTPUT"
           echo "decision: docs_only=$RESULT (false => full matrix)"
 
