@@ -11,7 +11,7 @@ nameOverride: prophet-materializer-clickhouse
 image:
   repository: prophet-materializer-clickhouse
   # sha-pinned by gitops-promote after the first CI build (arcticdb-gateway precedent).
-  tag: latest
+  tag: sha-4df9dcbdccb826d35852da38294069b551b2e01a
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
   # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
   pullPolicy: Always
