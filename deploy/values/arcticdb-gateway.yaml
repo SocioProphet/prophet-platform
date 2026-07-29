@@ -14,7 +14,7 @@ nameOverride: arcticdb-gateway
 image:
   repository: arcticdb-gateway
   # sha-pinned by gitops-promote after the first CI build (embeddings.yaml precedent).
-  tag: latest
+  tag: sha-8fbda01e49fb5d5927cf43f6ae80f26027123b89
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
   # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
   pullPolicy: Always
