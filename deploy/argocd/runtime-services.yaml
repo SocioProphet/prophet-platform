@@ -14,14 +14,18 @@ spec:
   generators:
     - list:
         elements:
-          - { name: lattice-forge }
-          - { name: spark-runner }
+          # reference: execution backends BEHIND the governed compute door (compute-gateway
+          # is the foundation contract; these executors are swappable implementations).
+          - { name: lattice-forge, tier: reference }
+          - { name: spark-runner, tier: reference }
   template:
     metadata:
       name: 'svc-{{.name}}'
       labels:
         app.kubernetes.io/part-of: socioprophet
         socioprophet.dev/trust-boundary: executes-user-code
+      annotations:
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       sources:

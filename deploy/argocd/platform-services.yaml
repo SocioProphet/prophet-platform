@@ -2,6 +2,17 @@
 # Each entry renders the reusable socioprophet-service chart with its
 # deploy/values/<name>.yaml. The image tag (commit SHA) is promoted by the
 # build-image workflow / gitops-promote, overriding image.tag per release.
+#
+# TIER DOCTRINE (EdgeX-style, enforced by tools/preflight_deploy_contract.py):
+# every element declares `tier: foundation` or `tier: reference`, stamped on the
+# generated Application as the socioprophet.io/tier annotation.
+#   foundation — REQUIRED INTEROPERABILITY FOUNDATION: contract/spine services
+#     (doors, ledgers, stores-of-record, identity/auth, substrate). A foundation
+#     image must be rebuildable: first-party ⇒ built by images.yml; third-party ⇒
+#     an explicit foreign image.registry pin in its values file. Anything else is
+#     the phantom-deploy class (deployed images nobody can rebuild).
+#   reference — REPLACEABLE REFERENCE SERVICES: swappable implementations at the
+#     edge of those contracts (product surfaces, dashboards, engines, bridges).
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -13,42 +24,42 @@ spec:
   generators:
     - list:
         elements:
-          - { name: api }
-          - { name: gateway }
-          - { name: socioprophet-web }
-          - { name: evidence-console }
-          - { name: evidence-receipts }
-          - { name: eval-fabric-api }
-          - { name: agentic-os-api }
-          - { name: hellgraph-service }
-          - { name: osm-map-api }
-          - { name: dashboard-bff }
-          - { name: reasoning-failure-runner }
-          - { name: search-orchestrator }
-          - { name: search-gateway }
-          - { name: sherlock-engine }
-          - { name: lattice-studio }
-          - { name: grlplus-service }
-          - { name: grl-mesh }
-          - { name: owl-reasoner }
-          - { name: entity-resolution }
-          - { name: algo-engine }
-          - { name: ie-engine }
-          - { name: synapse-bridge }
-          - { name: holmes }
-          - { name: portfolio-agent }
-          - { name: academy-board }
-          - { name: health-twin }
-          - { name: memoryd }
-          - { name: embeddings }
-          - { name: regis-acr-api }
-          - { name: node-commander }
-          - { name: liberty-stack-readout }
-          - { name: tritfabric-consumption-api }
-          - { name: agora }
-          - { name: compute-gateway }
+          - { name: api, tier: foundation }                      # tritRPC core API — the platform's primary service contract
+          - { name: gateway, tier: foundation }                  # the edge door in front of api/web — routing contract
+          - { name: socioprophet-web, tier: reference }          # web shell — swappable product surface
+          - { name: evidence-console, tier: reference }          # console UI over the receipt spine
+          - { name: evidence-receipts, tier: foundation }        # receipt spine — the system of record for proof
+          - { name: eval-fabric-api, tier: reference }           # eval surface consuming platform contracts
+          - { name: agentic-os-api, tier: reference }            # agent product surface
+          - { name: hellgraph-service, tier: foundation }        # graph kernel — the spine every graph consumer speaks to
+          - { name: osm-map-api, tier: reference }               # geo tiles/lookup — swappable impl
+          - { name: dashboard-bff, tier: reference }             # dashboard backend-for-frontend
+          - { name: reasoning-failure-runner, tier: reference }  # chaos/resilience orchestrator
+          - { name: search-orchestrator, tier: reference }       # search orchestration impl
+          - { name: search-gateway, tier: reference }            # public search edge for the search product
+          - { name: sherlock-engine, tier: reference }           # evidence-search engine impl
+          - { name: lattice-studio, tier: reference }            # Studio BFF — product surface
+          - { name: grlplus-service, tier: reference }           # GRL+ reasoning impl
+          - { name: grl-mesh, tier: reference }                  # reasoning mesh impl
+          - { name: owl-reasoner, tier: reference }              # swappable OWL reasoner
+          - { name: entity-resolution, tier: foundation }        # identity/ER plane — the spine identity resolves through
+          - { name: algo-engine, tier: reference }               # algo impl
+          - { name: ie-engine, tier: reference }                 # information-extraction impl
+          - { name: synapse-bridge, tier: reference }            # SynapseIQ bridge impl
+          - { name: holmes, tier: reference }                    # language-intelligence impl
+          - { name: portfolio-agent, tier: reference }           # product agent
+          - { name: academy-board, tier: reference }             # academy courseware surface
+          - { name: health-twin, tier: reference }               # health-twin product surface
+          - { name: memoryd, tier: foundation }                  # memory-plane daemon — contract other services call
+          - { name: embeddings, tier: reference }                # swappable embedder (fogstack literally swaps it out)
+          - { name: regis-acr-api, tier: reference }             # registry ACR product API
+          - { name: node-commander, tier: foundation }           # node runtime command door — compute-doctrine control contract
+          - { name: liberty-stack-readout, tier: reference }     # readout/reporting surface
+          - { name: tritfabric-consumption-api, tier: reference } # consumption/usage surface over tritfabric
+          - { name: agora, tier: reference }                     # work+knowledge plane product
+          - { name: compute-gateway, tier: foundation }          # THE governed proof-carrying compute door (#848)
           # the IFM cadence trigger: ASX reporting events → governed doc→SQL runs
-          - { name: reporting-watcher }
+          - { name: reporting-watcher, tier: reference }
           # PHT-5 timeseries substrate (tritfabric fabric/docs/pht.md + atoms-catalog section 3):
           # questdb + clickhouse are third-party upstream images DIGEST-pinned in their values
           # files (like socbase-* below — never touched by the build-image/gitops-promote SHA
@@ -57,15 +68,15 @@ spec:
           # questdb is DEFERRED BY MEASUREMENT (design review 2026-07-29, Michael-approved):
           # ClickHouse serves both hot-window and analytic queries at current scale; QuestDB joins
           # when sustained ingest demands it — its values file stays as the ready seam. Uncomment to enable.
-          # - { name: questdb }
-          - { name: clickhouse }
-          - { name: arcticdb-gateway }
+          # - { name: questdb, tier: foundation }
+          - { name: clickhouse, tier: foundation }               # analytic + hot-window store of record (third-party, digest-pinned)
+          - { name: arcticdb-gateway, tier: foundation }         # PHT timeseries substrate gateway (contract #204)
           # Seal-the-Walls W1.1: proof-carrying log→ClickHouse materializer (first-party;
           # tails hellgraph-service /api/graph/log, receipts via compute-gateway kind=materialize).
-          - { name: prophet-materializer-clickhouse }
+          - { name: prophet-materializer-clickhouse, tier: foundation }  # the log→store spine leg
           # Seal-the-Walls W1.2: synthetic MarketDataEvent replay emitter (first-party;
           # schema-validated sourceos-spec events → hellgraph graph writes → the log above).
-          - { name: market-replay }
+          - { name: market-replay, tier: foundation }            # the MarketDataEvent contract emitter feeding the spine
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —
@@ -73,13 +84,15 @@ spec:
           # we don't build them. Install the charts/socbase-schema Job (separately;
           # it isn't part of this ApplicationSet — see its NOTES.txt) AFTER
           # socbase-auth is live, since it waits on GoTrue's auth schema.
-          - { name: socbase-auth }
-          - { name: socbase-rest }
+          - { name: socbase-auth, tier: foundation }             # sovereign auth (GoTrue) — the identity door
+          - { name: socbase-rest, tier: foundation }             # sovereign data surface (PostgREST) — the data door
   template:
     metadata:
       name: 'svc-{{.name}}'
       labels:
         app.kubernetes.io/part-of: socioprophet
+      annotations:
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       sources:

@@ -21,11 +21,14 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 
 MESH_SERVICES = [
-    "model-governance-ledger",
+    # model-governance-ledger + agent-registry RETIRED from k8s (phantom-deploy audit,
+    # 2026-07-29): their manifests pinned ghcr.io/socioprophet/*:latest with no source, no
+    # Dockerfile and no images.yml entry in this repo — unbuildable desired state. The k8s
+    # dirs are deleted; both still run LOCALLY via docker-compose.mesh.yml (sibling-repo
+    # build contexts), so they stay in COMPOSE_SERVICES / MESH_PORTS below.
     "memoryd",
     "policy-fabric",
     "model-router",
-    "agent-registry",
     "superconscious",
     "agentplane",
     "tritfabric",
@@ -57,6 +60,9 @@ MESH_SERVICES = [
 CLOUDSHELL_OVERLAY = "infra/k8s/cloudshell-fog/overlays/runtime-v2-standard"
 
 MESH_PORTS = {
+    # agent-registry (8720) + model-governance-ledger (8760) stay reserved here even though
+    # their k8s dirs are retired: local docker-compose.mesh.yml still runs both, and the
+    # port-collision guard must keep guarding the local mesh.
     "memoryd": 8787,
     "policy-fabric": 8700,
     "model-router": 8710,
@@ -149,12 +155,12 @@ def check_k8s_manifests() -> None:
 
 APPSET_BUNDLE_EXPECTATIONS = {
     # Mesh tiers 0-6
+    # mesh.governance + mesh.registry RETIRED (phantom-deploy audit, 2026-07-29) — see the
+    # breadcrumbs in the appset itself; unbuildable ghcr.io images with no in-repo source.
     "mesh.vector-store",
-    "mesh.governance",
     "mesh.memory",
     "mesh.policy",
     "mesh.routing",
-    "mesh.registry",
     "mesh.cognition",
     "mesh.execution",
     "mesh.ml",
@@ -193,11 +199,14 @@ def check_appset() -> None:
         else:
             fail(f"appset MISSING bundle: {bundle}")
 
-    # cloudshell-fog uses its existing runtime-v2-standard overlay
+    # cloudshell-fog uses its existing runtime-v2-standard overlay. Its appset entry is
+    # DEFERRED (commented out with a breadcrumb) until a real pinned digest replaces
+    # REPLACE_WITH_PINNED_DIGEST in runtime-base — either state must keep the overlay
+    # path on record so the seam stays discoverable.
     if CLOUDSHELL_OVERLAY in text:
-        ok("appset includes cloudshell-fog (runtime-v2-standard overlay)")
+        ok("appset records cloudshell-fog (active entry or DEFERRED breadcrumb)")
     else:
-        fail(f"appset MISSING cloudshell-fog entry pointing to {CLOUDSHELL_OVERLAY}")
+        fail(f"appset lost track of cloudshell-fog — no reference to {CLOUDSHELL_OVERLAY}")
 
 
 # ── 3. docker-compose service coverage ───────────────────────────────────────

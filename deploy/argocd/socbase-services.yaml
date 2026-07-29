@@ -36,7 +36,9 @@ spec:
   generators:
     - list:
         elements:
-          - { name: gateway, path: infra/k8s/socbase-gateway/base, wave: "2" }
+          # foundation: the ONE base URL contract @supabase/supabase-js requires
+          # (/auth/v1 + /rest/v1) — the auth/data door in front of socbase-auth/rest.
+          - { name: gateway, path: infra/k8s/socbase-gateway/base, wave: "2", tier: foundation }
   template:
     metadata:
       name: 'socbase-{{.name}}'
@@ -44,6 +46,7 @@ spec:
         app.kubernetes.io/part-of: socbase
       annotations:
         argocd.argoproj.io/sync-wave: '{{.wave}}'
+        socioprophet.io/tier: '{{.tier}}'
     spec:
       project: default
       destination:
