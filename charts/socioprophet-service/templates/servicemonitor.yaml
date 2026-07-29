@@ -1,0 +1,42 @@
+{{- /*
+Optional ServiceMonitor — the seam between a service and the observability
+stack's Prometheus (deploy/argocd/observability-services.yaml).
+
+Default OFF (values: metrics.enabled). VERIFIED 2026-07-29: no chart-deployed
+service exposes a native /metrics endpoint yet, so nothing flips this on today —
+enabling it for a service without a real endpoint points Prometheus at a 404 and
+fires TargetDown. Flip per-service in deploy/values/<name>.yaml when the
+endpoint exists.
+
+Discovery: the installed kube-prometheus-stack sets
+serviceMonitorSelectorNilUsesHelmValues: false (adopts ServiceMonitors in every
+namespace regardless of labels), but we ALSO carry the
+release: kube-prometheus-stack label — same convention as
+infra/k8s/observability/base — so discovery survives anyone reverting that
+selector to the chart default.
+*/ -}}
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "svc.fullname" . }}
+  labels:
+    {{- include "svc.labels" . | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  # The Service lives in this release's namespace; Prometheus itself runs in
+  # observability and discovers across namespaces.
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    # Match THIS release's Service: name alone would match every service
+    # rendered from this shared chart — instance disambiguates.
+    matchLabels:
+      app.kubernetes.io/name: {{ include "svc.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  endpoints:
+    - port: {{ .Values.metrics.portName | default .Values.service.portName }}
+      path: {{ .Values.metrics.path }}
+      interval: {{ .Values.metrics.interval }}
+{{- end }}

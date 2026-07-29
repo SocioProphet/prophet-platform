@@ -158,7 +158,7 @@ spec:
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
             wave: "10"
-          # Observability is deployed via infra/argocd/observability-stack.yaml (Wave 1 keystone),
+          # Observability is deployed via deploy/argocd/observability-services.yaml (Wave 1 keystone),
           # not through this appset — #674's duplicate observability entry dropped on merge.
           # ── Sovereign Identity Broker ────────────────────────────────────
           # Tier 11 — Identity plane

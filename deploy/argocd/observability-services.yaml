@@ -1,0 +1,296 @@
+# The observability keystone (#27) — Wave 0-3 stack, CONNECTED into the watched tree.
+#
+# The tofu root app-of-apps watches deploy/argocd (recurse) — nothing under
+# infra/argocd/ ever reached the cluster. This file moves the authored Wave 0-3
+# observability Applications (formerly infra/argocd/observability-stack.yaml) into
+# the watched tree, so the stack actually deploys. The kustomize base stays where
+# it was authored (infra/k8s/observability/base) — an Application here referencing
+# an infra/ path is fine; the root app only needs the Application manifests
+# themselves to live under deploy/argocd.
+#
+# Sync order (argocd.argoproj.io/sync-wave), preserved from the authored corpus:
+# the kube-prometheus-stack lands FIRST (wave -3) so its CRDs
+# (ServiceMonitor/PrometheusRule) exist before the collector base (wave 0) that
+# references them; Loki/Tempo (wave -2) come up before the collector exports to
+# them. Chart versions are pinned — bump deliberately.
+#
+# Backends installed:
+#   kube-prometheus-stack → Prometheus (Operator) + Grafana + Alertmanager
+#   loki                  → logs (OTLP ingest, single-binary)
+#   tempo                 → traces (OTLP ingest)
+#   observability (this repo) → OTel collector + ServiceMonitors + SLO rules
+#
+# DELIBERATELY NOT CONNECTED here (they stay in infra/argocd until Prometheus is
+# live and measured): chaos-stack (Chaos Mesh steady-state reads these metrics),
+# progressive-delivery (Argo Rollouts analysis reads the Wave-1 SLO rules; Cilium
+# is a cluster-surgery decision), autoscaling-stack (KEDA scalers query
+# Prometheus). Connecting consumers before their metric source exists just
+# manufactures degraded apps.
+#
+# RESOURCE BUDGET: this is a small GKE Autopilot cluster and the estate has
+# already paid the 512Mi-OOM tuition (hellgraph RC load, #991). Every helm
+# override below that touches resources/retention states its reasoning inline.
+# Autopilot rounds tiny requests up to its per-container minimums on admission —
+# the requests here are written at or above those floors so what you read is
+# what schedules.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 65.5.0
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        crds:
+          enabled: true
+        # ── GKE managed control plane: these scrape targets are unreachable by
+        # design (no etcd/scheduler/controller-manager/kube-proxy endpoints on
+        # Autopilot). Left enabled they are permanent TargetDown noise that
+        # poisons the very SLO alerts the corpus ships — so they are OFF, and
+        # the chart drops their bundled rules with them. coreDns is off for the
+        # same reason (GKE runs kube-dns).
+        kubeControllerManager:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        coreDns:
+          enabled: false
+        # ── Grafana: KEPT (the estate's dashboard surface) but small. 256Mi is
+        # enough for a single-user Grafana with the bundled dashboards; no PVC —
+        # dashboards/datasources are provisioned from the chart, so a restart
+        # loses nothing that git doesn't have.
+        grafana:
+          enabled: true
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+        # ── Alertmanager: KEPT minimal — one replica, idle footprint. It only
+        # routes the corpus's SLO alerts; no receivers are configured yet, so it
+        # gets a floor-sized budget until a paging integration earns it more.
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            replicas: 1
+            resources:
+              requests: { cpu: 50m, memory: 64Mi }
+              limits: { cpu: 200m, memory: 128Mi }
+        # ── Operator + exporters: kept (kube-state-metrics and node-exporter
+        # ARE the cluster-health signal) at floor budgets. If Autopilot's
+        # admission refuses node-exporter's host access on this cluster
+        # version, the documented fallback is nodeExporter.enabled: false —
+        # a one-line, deliberate change, not a silent one.
+        prometheusOperator:
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+        kube-state-metrics:
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+        prometheus-node-exporter:
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+        prometheus:
+          prometheusSpec:
+            # Adopt ServiceMonitors/PrometheusRules across namespaces (ours carry
+            # the release: kube-prometheus-stack label). Preserved from the
+            # authored corpus — the base's PrometheusRule + the chart-level
+            # ServiceMonitors depend on it.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            # BUDGET: retention 3d (corpus said 15d — that was written for a
+            # bigger cluster). 3d covers a weekend incident window; the system
+            # of record for proof is the receipt spine, not Prometheus.
+            retention: 3d
+            # Second bound: cap the TSDB on disk so a label-cardinality accident
+            # can't eat the node. Whichever bound hits first wins.
+            retentionSize: 8GiB
+            # BUDGET: 500m/1Gi requested, 2Gi hard ceiling — sized against the
+            # estate's 512Mi-OOM lesson: Prometheus gets headroom, but a bounded
+            # ceiling so a scrape-explosion OOMs Prometheus, not the node.
+            resources:
+              requests: { cpu: 500m, memory: 1Gi }
+              limits: { cpu: "1", memory: 2Gi }
+            # Storage stays on emptyDir (chart default) DELIBERATELY: with 3d
+            # retention the loss window on a reschedule is small, and receipts —
+            # not metrics — are the estate's durable truth. Moving to a PD is a
+            # later, measured decision once scrape volume is known.
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 6.18.0
+    helm:
+      releaseName: loki
+      values: |
+        deploymentMode: SingleBinary
+        loki:
+          auth_enabled: false
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
+          # REQUIRED by chart 6.x validation (the stranded corpus omitted it and
+          # would have failed its first real sync): the current single-store
+          # schema, TSDB on filesystem.
+          schemaConfig:
+            configs:
+              - from: "2024-04-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: loki_index_
+                  period: 24h
+          limits_config:
+            allow_structured_metadata: true
+            # BUDGET: keep ~72h of logs. Same reasoning as Prometheus retention:
+            # logs here are an incident window, not an archive.
+            retention_period: 72h
+          # Retention is only enforced when the compactor runs with it enabled
+          # (it runs inside the single binary); delete_request_store must be set
+          # for retention on Loki 3.x.
+          compactor:
+            retention_enabled: true
+            delete_request_store: filesystem
+        # BUDGET: one single-binary replica at a 512Mi ceiling; 10Gi PVC (the
+        # chart default size, stated here so the budget is explicit) bounds the
+        # on-disk corpus alongside the 72h retention.
+        singleBinary:
+          replicas: 1
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          persistence:
+            enabled: true
+            size: 10Gi
+        # Disable the multi-target components for the single-binary profile.
+        backend:
+          replicas: 0
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        # BUDGET (the big one): chart 6.x defaults deploy memcached chunk/result
+        # caches sized for ~8Gi+ of allocated memory — more than this whole
+        # cluster budgets for observability. Filesystem single-binary at estate
+        # volume does not need them. OFF.
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+        # No canary DaemonSet (a per-node pod tax on Autopilot for a
+        # self-test we don't run) and no nginx gateway hop — the OTel collector
+        # writes straight to loki:3100 in-namespace. helm test depends on the
+        # canary, so it is off with it.
+        lokiCanary:
+          enabled: false
+        gateway:
+          enabled: false
+        test:
+          enabled: false
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: 1.10.3
+    helm:
+      releaseName: tempo
+      values: |
+        tempo:
+          # BUDGET: 24h of traces (the chart default, stated explicitly so the
+          # decision is visible). Traces are debugging exhaust — shortest
+          # retention of the three backends.
+          retention: 24h
+          # BUDGET: 512Mi ceiling, floor requests — the monolithic binary at
+          # estate trace volume idles far below this; the ceiling exists so an
+          # instrumentation mistake OOMs Tempo, not the node.
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+        # Traces stay on emptyDir (chart default persistence: off) DELIBERATELY:
+        # 24h retention makes the reschedule loss window trivial. A PVC is a
+        # later, measured decision.
+        persistence:
+          enabled: false
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+# Wave 0 — the repo's own kustomize base: OTel collector (OTLP in on
+# :4317/:4318, fan-out to Prometheus :8889 / Tempo / Loki), the collector +
+# legacy-hellgraph ServiceMonitors, and the starter SLO PrometheusRules that
+# Rollouts/Chaos will consume in their own, later PRs.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/observability/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
