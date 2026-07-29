@@ -15,6 +15,10 @@ config:
   # to "" in the appset so a sovereign tier never reaches this socioprophet-namespace service.
   EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
+  # Load the ~55k KBpedia reference concepts at startup (the RC ABox under KKO, vendored gzipped in
+  # the image). Activates the KKO coherence ranker in /api/graph/enrich and gives semantic entity
+  # typing its target vocabulary. Idempotent (content-addressed atoms).
+  HELLGRAPH_LOAD_RC: "on"
   # ── ORG SUPER-PEER (federation) — opt-in, OFF by default ──────────────────────────────────
   # The membership loop for local Noetica users: admit a user's writer key ONCE (signed
   # addWriter control op) and their local graph changes percolate to this org graph

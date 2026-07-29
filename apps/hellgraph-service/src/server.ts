@@ -27,6 +27,7 @@ import * as http from 'node:http'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
+import * as zlib from 'node:zlib'
 import { fileURLToPath } from 'node:url'
 
 // Storage isolation: this service must NOT share Noetica's single-writer JSONL
@@ -391,10 +392,31 @@ function loadKkoIfEnabled(): void {
   }
 }
 
-// Bring the graph up to a coherent baseline: seed the demo corpus (if empty) + load the KKO backbone.
+// Load the ~55k KBpedia reference concepts (the RC ABox under KKO) from the vendored gzipped N3.
+// Opt-in via HELLGRAPH_LOAD_RC=on: it adds ~55k nodes / ~75k edges to the persisted store (a real data
+// load, idempotent via content-addressed atoms). With RCs present, /api/graph/enrich auto-activates the
+// KKO coherence ranker and semantic entity typing has a target vocabulary.
+function loadRcIfEnabled(): void {
+  if (process.env['HELLGRAPH_LOAD_RC'] !== 'on') return
+  try {
+    const gzPath = process.env['HELLGRAPH_RC_PATH'] ||
+      path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'ontology', 'kbpedia-rc-2.10.n3.gz')
+    if (!fs.existsSync(gzPath)) { console.error(`[hellgraph-service] RC load skipped: ${gzPath} not found`); return }
+    const t0 = Date.now()
+    const text = zlib.gunzipSync(fs.readFileSync(gzPath)).toString('utf8')
+    const stats = engine.loadReferenceConcepts(getHellGraph(), text)
+    console.log(`[hellgraph-service] KBpedia RCs loaded — ${stats.concepts} concepts / ${stats.subClassOfEdges} subClassOf edges in ${((Date.now() - t0) / 1000).toFixed(1)}s (label 'KkoReferenceConcept')`)
+  } catch (e) {
+    console.error('[hellgraph-service] RC load skipped (error):', e instanceof Error ? e.message : String(e))
+  }
+}
+
+// Bring the graph up to a coherent baseline: seed the demo corpus (if empty) + load the KKO backbone
+// (+ the RC ABox when enabled).
 function bootstrap(): void {
   seedIfEmpty()
   loadKkoIfEnabled()
+  loadRcIfEnabled()
 }
 
 function startLocalService(): void {
