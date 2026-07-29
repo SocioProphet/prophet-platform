@@ -87,6 +87,17 @@ test('explore suggests graph-proximal nodes via /api/graph/explore', async () =>
   assert.equal((await req('GET', '/api/graph/explore')).status, 400)          // no-seeds guard
 })
 
+test('analytics scope=data hides the ontology; scope=all includes it', async () => {
+  // KKO is loaded at startup (168 KkoClass nodes). Under the default data scope they must not appear.
+  const d = await req('GET', '/api/graph/analytics?metric=pagerank&limit=1000')
+  assert.equal(d.json.scope, 'data')
+  assert.ok(!d.json.top.some((t: any) => String(t.id).includes('kbpedia.org')), 'no KKO nodes under scope=data')
+  const a = await req('GET', '/api/graph/analytics?metric=pagerank&limit=1000&scope=all')
+  assert.equal(a.json.scope, 'all')
+  assert.ok(a.json.top.some((t: any) => String(t.id).includes('kbpedia.org')), 'KKO visible under scope=all')
+  assert.ok(a.json.nodes > d.json.nodes, 'scope=all sees more nodes than scope=data')
+})
+
 test('subgraph returns nodes + only internal edges (induced, no dangling)', async () => {
   const L = `proj-test${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:a`, labels: [L, 'Entity'], properties: { name: 'A' } })

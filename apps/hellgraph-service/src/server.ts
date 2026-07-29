@@ -39,7 +39,7 @@ import { startFederation, handleFederation, type Federation } from './federation
 import { getHellGraph, getAtomSpace, attachRocksDB, forwardChain, runSparql, runGremlin, runCypher, shaclValidate } from '@socioprophet/hellgraph'
 import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resource.js'
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
-import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend } from './analytics.js'
+import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -145,15 +145,19 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/graph/analytics') {
     const metric = url.searchParams.get('metric') ?? 'pagerank'
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 20), 500)
-    if (metric === 'components') return json(res, 200, connectedComponents(g))
-    if (metric === 'pagerank') return json(res, 200, { metric, ...pagerank(g, limit) })
+    // scope=data (default) filters ontology nodes (KkoClass / KkoReferenceConcept) out of the analytics
+    // projection so metrics rank DOMAIN data, not the type system. scope=all analyzes everything.
+    const scope = url.searchParams.get('scope') ?? 'data'
+    const ga = scope === 'all' ? g : dataScope(g)
+    if (metric === 'components') return json(res, 200, { scope, ...connectedComponents(ga) })
+    if (metric === 'pagerank') return json(res, 200, { metric, scope, ...pagerank(ga, limit) })
     try {
-      if (metric === 'cdlp') return json(res, 200, { metric, ...cdlp(g, Math.min(Number(url.searchParams.get('iters') ?? 10), 100)) })
-      if (metric === 'lcc') return json(res, 200, { metric, ...lcc(g) })
+      if (metric === 'cdlp') return json(res, 200, { metric, scope, ...cdlp(ga, Math.min(Number(url.searchParams.get('iters') ?? 10), 100)) })
+      if (metric === 'lcc') return json(res, 200, { metric, scope, ...lcc(ga) })
       if (metric === 'bfs' || metric === 'sssp') {
         const source = url.searchParams.get('source')
         if (!source) return json(res, 400, { error: `metric '${metric}' needs ?source=<nodeId>` })
-        return json(res, 200, { metric, ...(metric === 'bfs' ? bfs(g, source) : sssp(g, source)) })
+        return json(res, 200, { metric, scope, ...(metric === 'bfs' ? bfs(ga, source) : sssp(ga, source)) })
       }
     } catch (e) { return json(res, 500, { error: String(e) }) }
     return json(res, 400, { error: `unknown metric '${metric}' (use pagerank | components | bfs | sssp | cdlp | lcc)` })
