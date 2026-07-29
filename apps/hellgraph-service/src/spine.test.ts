@@ -1,3 +1,10 @@
+// PORT ALLOCATION (node:test runs test FILES in parallel — every bound port must be
+// unique across this directory, or files race and the loser gets EADDRINUSE + undefined
+// responses; found exactly that way when W1.3 and W2 were reconciled):
+//   19091 server.test  ·  19093 membrane.test  ·  19094 membrane-off.test
+//   19095 auth.integration  ·  19096 auth.integration spawn  ·  19097 membrane stub gateway
+//   19101 spine.test  ·  19102 spine.test mock gateway
+//   dead ports (nothing may ever bind these): 19108 membrane, 19109 spine
 /**
  * W1.3 receipt unification — hellgraph-service side: the sealed engine receipt is
  * chained onto the compute-gateway spine and the enrich/explore response carries
@@ -14,11 +21,11 @@ import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import * as http from 'node:http'
 
-process.env.PORT = String(19093) // free test port, read at module import
+process.env.PORT = String(19101) // free test port (see PORT ALLOCATION below), read at module import
 process.env.HELLGRAPH_STORE_DIR = `${process.env.TMPDIR ?? '/tmp'}/hgsvc-spine-test-${process.pid}`
 process.env.HELLGRAPH_SEED = 'off' // tests build their own graphs — don't auto-seed the boot corpus
 process.env.GATEWAY_RECEIPTS = 'on'
-process.env.GATEWAY_URL = 'http://127.0.0.1:19094'
+process.env.GATEWAY_URL = 'http://127.0.0.1:19102'
 process.env.GATEWAY_TOKEN = 'spine-test-token'
 process.env.GATEWAY_TIMEOUT_MS = '900'
 
@@ -47,7 +54,7 @@ const mockGateway = http.createServer((req, res) => {
 let srv: { close: (cb?: () => void) => void }
 
 before(async () => {
-  await new Promise<void>((r) => mockGateway.listen(19094, r))
+  await new Promise<void>((r) => mockGateway.listen(19102, r))
   const mod = await import('./server')
   srv = mod.server as unknown as typeof srv
   await new Promise((r) => setTimeout(r, 150)) // give the listener a tick
@@ -111,7 +118,7 @@ test('gateway unreachable ⇒ honest degradation: result serves, spine:{ok:false
   const L = `sp-deg-${process.pid}`
   await req('POST', '/api/graph/node', { id: `${L}:s`, labels: [L] })
   const before = await unsealedCount()
-  process.env.GATEWAY_URL = 'http://127.0.0.1:19099' // nothing listens here (read per call)
+  process.env.GATEWAY_URL = 'http://127.0.0.1:19109' // nothing listens here (read per call)
   try {
     const r = await req('GET', `/api/graph/explore?seeds=${encodeURIComponent(`${L}:s`)}`)
     assert.equal(r.status, 200)                                     // availability: the read never fails
@@ -120,7 +127,7 @@ test('gateway unreachable ⇒ honest degradation: result serves, spine:{ok:false
     assert.match(r.json.spine.reason, /unreachable/)
     assert.equal(await unsealedCount(), before + 1)                  // /healthz counts every unsealed serve
   } finally {
-    process.env.GATEWAY_URL = 'http://127.0.0.1:19094'
+    process.env.GATEWAY_URL = 'http://127.0.0.1:19102'
   }
 })
 

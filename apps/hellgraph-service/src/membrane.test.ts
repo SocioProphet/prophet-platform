@@ -267,7 +267,7 @@ test('seal degradation is honest: gateway down/erroring ⇒ decision lands with 
   } finally { gatewayMode = 'ok' }
   // gateway unreachable
   const prev = process.env.COMPUTE_GATEWAY_URL
-  process.env.COMPUTE_GATEWAY_URL = 'http://127.0.0.1:19099' // nothing listens here
+  process.env.COMPUTE_GATEWAY_URL = 'http://127.0.0.1:19108' // nothing listens here
   try {
     const d = await post('/api/membrane/decide', effectRequest('seal-down'))
     assert.equal(d.status, 200)

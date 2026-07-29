@@ -124,7 +124,7 @@ test('fail-closed startup: AUTH_ENFORCE=on without AUTH_HMAC_SECRET refuses to b
       ...process.env,
       AUTH_ENFORCE: 'on',
       AUTH_HMAC_SECRET: '',
-      PORT: '19099',
+      PORT: '19096',
       HELLGRAPH_SEED: 'off',
       HELLGRAPH_LOAD_KKO: 'off',
       HELLGRAPH_STORE_DIR: `${process.env.TMPDIR ?? '/tmp'}/hgsvc-failclosed-${process.pid}`,
