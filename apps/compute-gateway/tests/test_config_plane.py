@@ -100,7 +100,41 @@ def test_a_more_specific_scope_overrides_the_app_default():
         client.post("/v1/config/set", headers=AUTH,
                     json={"name": "memory.banded", "value": True, "org": "kyroga"})
         assert client.get("/v1/config").json()["flags"]["memory.banded"] is False
-        assert client.get("/v1/config", params={"org": "kyroga"}).json()["flags"]["memory.banded"] is True
+        scoped = client.get("/v1/config", params={"org": "kyroga"}, headers=AUTH).json()
+        assert scoped["flags"]["memory.banded"] is True
+
+
+def test_scoped_reads_require_a_token_so_tenants_cannot_be_enumerated():
+    """Raised in review: the open read also accepted org/model selectors, so any caller
+    could fish for another tenant's snapshot by guessing identifiers."""
+    with durable():
+        assert client.get("/v1/config").status_code == 200, "the default scope stays open"
+        assert client.get("/v1/config", params={"org": "someone-else"}).status_code == 401
+        assert client.get("/v1/config", params={"model": "qwen2.5:7b"}).status_code == 401
+
+
+def test_a_model_kill_switch_must_be_a_real_boolean():
+    """bool("false") is True — coercing a string here could flip a switch the wrong way."""
+    with durable():
+        r = client.post("/v1/config/set", headers=AUTH,
+                        json={"name": "qwen2.5:7b", "value": "false", "kind": "model"})
+        assert r.status_code == 422
+
+
+def test_concurrent_mutations_cannot_seal_contradictory_receipts():
+    """The read of `previous` and the write are one transaction (BEGIN IMMEDIATE); without
+    it two writers both read the same prior value and the chain disagrees with itself."""
+    with durable():
+        first = client.post("/v1/config/set", headers=AUTH,
+                            json={"name": "memory.banded", "value": True}).json()
+        second = client.post("/v1/config/set", headers=AUTH,
+                             json={"name": "memory.banded", "value": False}).json()
+        assert first["previous"] is None and second["previous"] is True
+        chain = client.get("/v1/receipts", params={"project": "config-plane"}, headers=AUTH).json()
+        changes = [c for c in chain["receipts"] if c["kind"] == "config-change"]
+        assert len(changes) == 2, "every change is sealed exactly once"
+        assert client.get("/v1/receipts/verify", params={"project": "config-plane"},
+                          headers=AUTH).json()["valid"]
 
 
 def test_state_survives_a_restart_so_a_kill_switch_cannot_silently_revert():

@@ -287,12 +287,20 @@ class ConfigSetBody(BaseModel):
 
 
 @app.get("/v1/config")
-def config_snapshot(app_name: str = "noetica", model: str | None = None,
-                    org: str | None = None) -> dict:
-    """The flag snapshot a client caches. Deliberately UNAUTHENTICATED: a client that
-    cannot reach the plane falls back to its last cached snapshot, so gating reads would
-    only make an outage worse. Mutation is the governed act, not observation."""
-    return config_plane.get_snapshot(app=app_name, model=model, org=org)
+def config_snapshot(app: str = "noetica", model: str | None = None,
+                    org: str | None = None,
+                    authorization: str = Header(default="")) -> dict:
+    """The flag snapshot a client caches.
+
+    The DEFAULT scope is deliberately unauthenticated: a client that cannot reach the plane
+    falls back to its last cached snapshot, so gating the common read would only deepen an
+    outage. But org/model SELECTORS are a different matter — leaving them open let any
+    caller enumerate other tenants' snapshots by guessing identifiers (raised in review), so
+    a scoped read requires the token. Open where openness helps, closed where it leaks.
+    """
+    if (model or org) and authorization.removeprefix("Bearer ").strip() != GATEWAY_TOKEN:
+        raise HTTPException(status_code=401, detail="scoped config reads require a token")
+    return config_plane.get_snapshot(app=app, model=model, org=org)
 
 
 @app.post("/v1/config/set")

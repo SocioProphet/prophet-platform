@@ -92,7 +92,11 @@ def get_snapshot(app: str = "noetica", model: str | None = None, org: str | None
         ).fetchall():
             value = json.loads(raw)
             if kind == "model":
-                models[name] = bool(value)
+                # Only a real boolean may drive a kill-switch. bool("false") is True, so
+                # coercing here could flip a switch the wrong way on malformed state; a
+                # non-boolean is ignored rather than guessed at.
+                if isinstance(value, bool):
+                    models[name] = value
             elif name in KNOWN_FLAGS:
                 flags[name] = value
     return {"flags": flags, "models": models,
@@ -120,28 +124,52 @@ def set_flag(
     if not persistence.enabled():
         raise RuntimeError("config plane requires durable storage (GATEWAY_STORE_DIR)")
 
+    if kind == "model" and not isinstance(value, bool):
+        raise ValueError("a model kill-switch must be a boolean")
+
     scope = scope_key(app, model if kind == "flag" else None, org)
     conn = _conn()
-    row = conn.execute(
-        f"SELECT value FROM {_TABLE} WHERE scope=? AND name=? AND kind=?", (scope, name, kind)
-    ).fetchone()
-    previous = json.loads(row[0]) if row else None
 
-    # Seal FIRST: a change that could not be receipted must not take effect. The receipt is
-    # the authority for the change, not a description of it.
-    receipt = receipts.seal(
-        project,
-        kind="config-change", backend="config-plane", runtime="gateway",
-        inputs={"scope": scope, "name": name, "kind": kind, "previous": previous},
-        outputs={"value": value},
-        status="ok", actor=actor, epistemic_status="attested",
-    )
-    conn.execute(
-        f"INSERT OR REPLACE INTO {_TABLE} (scope, name, kind, value, actor, ts, receipt_id) "
-        "VALUES (?,?,?,?,?,?,?)",
-        (scope, name, kind, json.dumps(value), actor, time.time(), receipt.id),
-    )
-    conn.commit()
+    # BEGIN IMMEDIATE takes the write lock BEFORE we read `previous`. Without it two
+    # concurrent mutations of the same key both read the same prior value and seal
+    # contradictory receipts — the chain would then disagree with itself about what the
+    # value changed from. Read, seal, and write are one unit or none of them happen.
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        row = conn.execute(
+            f"SELECT value FROM {_TABLE} WHERE scope=? AND name=? AND kind=?", (scope, name, kind)
+        ).fetchone()
+        previous = json.loads(row[0]) if row else None
+
+        # Seal FIRST: a change that could not be receipted must not take effect. The receipt
+        # is the authority for the change, not a description of it.
+        receipt = receipts.seal(
+            project,
+            kind="config-change", backend="config-plane", runtime="gateway",
+            inputs={"scope": scope, "name": name, "kind": kind, "previous": previous},
+            outputs={"value": value},
+            status="ok", actor=actor, epistemic_status="attested",
+        )
+        conn.execute(
+            f"INSERT OR REPLACE INTO {_TABLE} (scope, name, kind, value, actor, ts, receipt_id) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (scope, name, kind, json.dumps(value), actor, time.time(), receipt.id),
+        )
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        # The "ok" receipt is already in the chain and receipts are immutable by design, so
+        # the only honest repair is to APPEND the contradiction rather than pretend it away:
+        # a failed change that left an unqualified "ok" behind would make the chain lie.
+        receipts.seal(
+            project,
+            kind="config-change", backend="config-plane", runtime="gateway",
+            inputs={"scope": scope, "name": name, "kind": kind, "reverts": True},
+            outputs={"error": str(exc)},
+            status="error", actor=actor, epistemic_status="observed",
+        )
+        raise
+
     return {"name": name, "kind": kind, "scope": scope, "previous": previous,
             "value": value, "receipt": receipt.id, "actor": actor}
 
