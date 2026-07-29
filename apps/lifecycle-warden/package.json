@@ -11,7 +11,7 @@
     "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
-    "@socioprophet/hellgraph": "file:vendor/socioprophet-hellgraph-0.4.40.tgz",
+    "@socioprophet/hellgraph": "file:vendor/socioprophet-hellgraph-0.4.45.tgz",
     "minio": "8.0.7"
   },
   "devDependencies": {
