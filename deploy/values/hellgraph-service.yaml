@@ -18,7 +18,7 @@ config:
   # Load the ~55k KBpedia reference concepts at startup (the RC ABox under KKO, vendored gzipped in
   # the image). Activates the KKO coherence ranker in /api/graph/enrich and gives semantic entity
   # typing its target vocabulary. Idempotent (content-addressed atoms).
-  HELLGRAPH_LOAD_RC: "on"
+  HELLGRAPH_LOAD_RC: "off"  # OOM at 512Mi (exit 134): 55k load needs streaming loader + memory-limit work — re-enable then
   # ── ORG SUPER-PEER (federation) — opt-in, OFF by default ──────────────────────────────────
   # The membership loop for local Noetica users: admit a user's writer key ONCE (signed
   # addWriter control op) and their local graph changes percolate to this org graph
