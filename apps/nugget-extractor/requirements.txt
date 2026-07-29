@@ -1,0 +1,35 @@
+# Exact runtime closure (pip freeze of the five top-level pins in pyproject.toml).
+# Identical to apps/market-replay/requirements.txt plus pypdf — same base image, same
+# fastapi/uvicorn/httpx line, same jsonschema Draft 2020-12 validation gate against the
+# VENDORED sourceos-spec schema (hermetic: no network, no spec checkout; provenance +
+# sha256 pinned in src/nugget_extractor/contract.py). httpcore 1.0.9 + h11 0.16.0 are the
+# post-CVE-2025-43859 pairing.
+#
+# pypdf==6.13.1 is the PDF TEXT LAYER, and it is the whole document-parsing dependency:
+# it is pure Python, pulls nothing native, and is the same library the compute-gateway
+# parse adapter already uses (apps/compute-gateway/requirements.txt: pypdf>=5.1) — pinned
+# exactly here because this service validates spans against the text it returns.
+# There is deliberately NO OCR dependency: see src/nugget_extractor/extract.py for the
+# seam and the sizing argument. Scanned documents are REJECTED, never silently emptied.
+fastapi==0.115.0
+uvicorn==0.30.6
+httpx==0.27.2
+jsonschema==4.26.0
+pypdf==6.13.1
+annotated-types==0.8.0
+anyio==4.14.2
+attrs==26.1.0
+certifi==2026.7.22
+click==8.4.2
+h11==0.16.0
+httpcore==1.0.9
+idna==3.18
+jsonschema-specifications==2025.9.1
+pydantic==2.13.4
+pydantic_core==2.46.4
+referencing==0.37.0
+rpds-py==2026.6.3
+sniffio==1.3.1
+starlette==0.38.6
+typing-inspection==0.4.2
+typing_extensions==4.16.0

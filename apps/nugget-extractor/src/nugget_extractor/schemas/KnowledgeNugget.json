@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/KnowledgeNugget.json",
+  "title": "KnowledgeNugget",
+  "description": "The estate's L2 content grain: one warrant-typed fragment of knowledge lifted from a governed source, generalizing the production IFM warrant-typed extraction (document → typed values) into a universal contract. Every nugget states WHERE it came from (sourceRef: document URN + span + content hash), HOW it is warranted (direct-quote | computed | inferred | model-generated, with evidence refs and confidence), and WHAT it says (text, plus optional canonicalPayload and ontology type refs). Design rule (normative): warrant.type = model-generated MUST remain visibly distinguishable on every downstream surface — retrieval, ranking, rendering, and admissibility weighting all discount model-generated nuggets relative to source-warranted ones, and no downstream transform may launder a model-generated nugget into a source-warranted one. The time vocabulary (wallTime, logicalTime) is carried verbatim from the MPCC ConversationEvent envelope; parity is machine-enforced by tools/validate_knowledge_nugget_examples.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "sourceRef",
+    "warrant",
+    "text",
+    "createdBy",
+    "policyLabels",
+    "wallTime",
+    "logicalTime"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:knowledge-nugget:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier of the nugget. Pattern: urn:srcos:knowledge-nugget:<local-id>. Invariant: nugget identity is stable and never reused; supersession is expressed through provenance links, never by rewriting an existing id."
+    },
+    "type": {
+      "const": "KnowledgeNugget",
+      "description": "Discriminator constant — always \"KnowledgeNugget\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "KnowledgeNugget contract version, pinned per the policy-integrity tranche-0001 discipline. This family is versioned independently of the v2 metadata-plane schemas; changing this const is a contract change."
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "docRef",
+        "span",
+        "contentHash"
+      ],
+      "properties": {
+        "docRef": {
+          "type": "string",
+          "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+          "description": "URN of the governed source document or corpus object this nugget was lifted from (e.g. a Dataset, ArtifactManifest, or content-addressed document object)."
+        },
+        "span": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "0-based inclusive character offset of the span start within the hashed source text."
+            },
+            "end": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "0-based exclusive character offset of the span end within the hashed source text. Invariant: end >= start; for warrant.type = direct-quote, end - start must equal the length of text (both enforced by the family validator across examples)."
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Optional 1-based page number of the span within the source document, for paginated sources."
+            }
+          },
+          "description": "The character span within the hashed source text that this nugget was lifted from. For warrant.type = model-generated this is the conditioning window the generation was given — it does NOT warrant the text (that is the point of the warrant type)."
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256-[0-9a-f]{64}$",
+          "description": "Content hash of the exact source text the span offsets index into, in the form sha256-<64 lowercase hex>. Pins the nugget to an immutable source state so span offsets can never silently drift."
+        }
+      },
+      "description": "Where this nugget came from: source document URN, character span, and the content hash of the source state the span was read from. Required for every warrant type — even a model-generated nugget must pin the source context it was conditioned on."
+    },
+    "warrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "evidence",
+        "confidence"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "direct-quote",
+            "computed",
+            "inferred",
+            "model-generated"
+          ],
+          "description": "How this nugget's text is warranted. direct-quote: text is the exact source span, warranted by sourceRef itself. computed: text/payload derived by deterministic computation over cited source values. inferred: text follows by stated inference from cited premises. model-generated: text was produced by a model conditioned on the source window and is NOT warranted by it. Normative: model-generated MUST be visibly distinguishable on every downstream surface (admissibility discounting); the taxonomy is closed at v0.1 and widening it is a contract bump."
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "A stable reference (URN recommended; run- or step-scoped references permitted in v0.1) to evidence grounding this warrant — e.g. a ProvenanceRecord, RunRecord, ReasoningEvent, or a prior KnowledgeNugget."
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "Evidence references grounding this warrant. Invariant (schema-enforced): computed and inferred warrants must cite at least one evidence ref — a derivation with no cited inputs is not a derivation. direct-quote is grounded by sourceRef itself; model-generated may be evidence-free, which is exactly why it is admissibility-discounted."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Producer-stated confidence in this warrant, 0..1. Not admissibility: downstream admissibility weighting is a function of warrant.type first (model-generated is discounted regardless of stated confidence) and confidence second."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "computed",
+                  "inferred"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "evidence": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "The warrant typing how this nugget's content is justified: warrant kind, grounding evidence refs, and producer confidence. All three sub-fields are required so the epistemic status of a nugget is never ambiguous."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The human-readable content of the nugget. For warrant.type = direct-quote this MUST be the exact source span text; for computed/inferred/model-generated it is the produced statement."
+    },
+    "kkoTypeRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "minLength": 1,
+        "description": "An ontology concept URI (KKO reference concepts recommended, e.g. http://kbpedia.org/kko/rc/...)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Ontology concept URIs typing this nugget's content, so typed retrieval and the plan compiler can bind nuggets by type (SemanticAction inputs/outputs use the same URI vocabulary)."
+    },
+    "canonicalPayload": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ],
+      "description": "The normalized, machine-readable form of this nugget's content (e.g. a value-with-unit record for a computed metric, a typed row for an extracted table entry). Invariant: the canonical form must declare the normalization regime used, and any lossy derivation from text must carry provenance links."
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rel",
+          "ref"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this nugget (e.g. derived_from, extracted_by, supersedes)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance chain links from this nugget to upstream artifacts: the extraction run, the parent document, prior nuggets it supersedes, and any ProvenanceRecord that carries the full W3C PROV chain. Same link shape as the MPCC envelope's provenanceLinks."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this nugget by producers or the policy fabric. Required (empty allowed) so producers state the policy posture explicitly, per the tranche-0001 bar."
+    },
+    "createdBy": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that created this nugget (human subject, agent, service, or system). Subject or Agent Registry URNs are recommended; free-form identifiers are permitted in v0.1."
+    },
+    "wallTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 wall-clock time of the event as observed by the producer. Family profiles map their primary domain timestamp onto this field."
+    },
+    "logicalTime": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Producer-scoped logical clock: a non-negative integer for scalar (Lamport-style) clocks, or a non-empty string for encoded vector/hybrid clocks. Invariant: causalParents must never point forward in logical time."
+    }
+  }
+}

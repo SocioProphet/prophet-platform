@@ -1,0 +1,16 @@
+[project]
+name = "nugget-extractor"
+version = "0.1.0"
+description = "Seal-the-Walls W6.2: the extraction spine — documents become warrant-typed KnowledgeNuggets (sourceos-spec v0.1.0, vendored + sha256-pinned), validated fail-closed, written to the HellGraph log KKO-typed, and sealed on the compute-gateway receipt spine"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn==0.30.6",
+  "httpx==0.27.2",
+  "jsonschema==4.26.0",
+  "pypdf==6.13.1",
+]
+[tool.setuptools.packages.find]
+where = ["src"]
+[tool.setuptools.package-data]
+nugget_extractor = ["schemas/*.json"]

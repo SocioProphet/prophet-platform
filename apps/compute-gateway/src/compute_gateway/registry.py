@@ -116,6 +116,24 @@ KINDS: dict[str, dict] = {
         "epistemic": "observed", "executes_user_code": False, "status": "live",
     },
 
+    # ── Seal-the-Walls W6.2: the extraction spine — KnowledgeNugget emission ──
+    # nugget-extractor calls this after writing one document's nuggets to the HellGraph
+    # log and BEFORE counting them emitted: the sealed receipt is the proof "these N
+    # warrant-typed nuggets, this batch hash, from this content-addressed source". The
+    # spec IS the receipt's inputs, so inputs_sha binds {doc_ref, content_hash,
+    # raw_sha256, nugget_count, warrant_counts, validation_failures, batch_hash} — the
+    # REJECTED count included, so a silent collapse in extraction quality is on the chain
+    # and not only in a /healthz gauge. In-process: the extraction already ran in the
+    # producer; the gateway's job is the governed, hash-chained, Ed25519-attested
+    # evidence. `observed` — the gateway records the producer's stated coordinates over a
+    # content-addressed source; it does not re-extract the document.
+    "nugget-emit": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["knowledge-nugget", "warrant-typed", "content-addressed-source",
+                         "batch-seal"],
+        "epistemic": "observed", "executes_user_code": False, "status": "live",
+    },
+
     # ── Seal-the-Walls W1.3: receipt unification — engine sealed() receipts on THE spine ──
     # hellgraph-service POSTs each enrich/explore ENGINE receipt (sealed sha256 over the
     # ranked output + snapshot {seq,nodes,edges}) here; the gateway recomputes that seal
