@@ -130,6 +130,11 @@ KNOWN_BROKEN = {
         "after the first CI build; no sha exists until merge. Its values set pullPolicy: Always as the "
         "interim guard against the moving-tag+IfNotPresent trap."
     ),
+    "lifecycle-warden:moving-tag": (
+        "New service — L5 governance executor (apps/lifecycle-warden) added to images.yml this PR. "
+        "Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge. Its "
+        "values set pullPolicy: Always as the interim guard against the moving-tag+IfNotPresent trap."
+    ),
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),

@@ -1,0 +1,62 @@
+# lifecycle-warden — the L5 governance EXECUTOR (apps/lifecycle-warden).
+# Blueprint-audit remediation: the engine's lifecycle FSM (10 states IngestedRaw…Deleted),
+# policy engine + retention scheduler (Governor/dueTransitions), canonical object store
+# (S3ObjectBackend seam), and vendor-cache gc were complete libraries with ZERO production
+# callers. This service runs them on a WARDEN_INTERVAL_SECONDS loop: dueTransitions →
+# Governor.runRetention → vendor-cache gc, every decision/transition on a hash-chained
+# append-only audit (chunks persisted to MinIO), every run sealed on THE receipt spine via
+# compute-gateway kind=governance (gateway down = honest degradation, healthz counts
+# unsealed runs — never a parallel receipt lineage).
+nameOverride: lifecycle-warden
+
+image:
+  repository: lifecycle-warden
+  # New service — no sha- tag exists until the first CI build; gitops-promote pins it
+  # after merge (market-replay/arcticdb-gateway precedent; preflight ratchet entry
+  # "lifecycle-warden:moving-tag" tracks this and demands its own removal once pinned).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
+  # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8095, portName: http }
+
+config:
+  # One governance pass every 5 minutes (dueTransitions → runRetention → vendor gc).
+  WARDEN_INTERVAL_SECONDS: "300"
+  # SAFE BY DEFAULT: dry-run — the warden audits + seals what WOULD happen, mutates nothing.
+  # Enforcement is a two-lever, deliberate act: set WARDEN_ENFORCE=on AND WARDEN_DRY_RUN=off.
+  # With ENFORCE=on and no MinIO credentials the service refuses to start (fail-closed).
+  WARDEN_DRY_RUN: "on"
+  WARDEN_ENFORCE: "off"
+  # In-cluster MinIO (infra/k8s/workspace-minio, this namespace, S3 port 9000): canonical
+  # object bytes (content-addressed under objects/), audit chain chunks (audit/), and the
+  # governed-object registry (state/) all land in this bucket (created if absent).
+  MINIO_ENDPOINT: "workspace-minio:9000"
+  MINIO_BUCKET: "lifecycle-warden"
+  # THE receipt spine — each run is attested via POST /v1/compute kind=governance.
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+secretEnv:
+  # the same Secrets already present in this namespace — nothing new is provisioned:
+  # minio-credentials backs MinIO itself + zot's S3 backend; compute-gateway-token is
+  # the spine token every proof-carrying executor presents (materializer precedent).
+  MINIO_ACCESS_KEY: { secretName: minio-credentials, key: access-key }
+  MINIO_SECRET_KEY: { secretName: minio-credentials, key: secret-key }
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+
+# One warden: the governed-object registry + audit chain head are single-writer state in
+# MinIO. Recreate (not surge) so two wardens never chain concurrently; a brief gap between
+# pods just delays the next 5-minute pass — the loop is restart-safe (chain resumes from
+# audit/head.json, registry from state/objects.json).
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # truth: lastRun, dueCounts, auditHead, dryRun/enforce, unsealedRuns
+
+# Small control-plane loop: tsx + engine resident, objects are metadata (bytes stream to
+# MinIO), audit chunks flush per run.
+resources:
+  requests: { cpu: 50m,  memory: 128Mi }
+  limits:   { cpu: 500m, memory: 256Mi }

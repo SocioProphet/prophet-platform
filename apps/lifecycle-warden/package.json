@@ -1,0 +1,22 @@
+{
+  "name": "@socioprophet/lifecycle-warden",
+  "version": "0.1.0",
+  "private": true,
+  "description": "L5 governance EXECUTOR: the running, receipted service that drives the engine's content-object lifecycle FSM (lifecycle.ts), policy engine + retention scheduler (policy.ts Governor), canonical object store over MinIO (object-store.ts S3ObjectBackend), and vendor-cache GC (vendor-cache.ts) — machinery that was complete but had zero production callers.",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@socioprophet/hellgraph": "file:vendor/socioprophet-hellgraph-0.4.40.tgz",
+    "minio": "8.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
