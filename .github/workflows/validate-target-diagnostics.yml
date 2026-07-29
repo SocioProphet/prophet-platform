@@ -163,6 +163,18 @@ jobs:
             working-directory: apps/nugget-extractor
             install: pip install -r requirements.txt -r requirements-test.txt
             test: PYTHONPATH=src pytest -q tests
+          # device-service (W8.7 southbound device plane). This leg gates the attribution
+          # invariant — a reading must resolve to its device, its profile, the exact
+          # profile REVISION (digest) and the declared physical channel, or it is refused
+          # and counted. It also covers the gapless-retry and seal-then-count semantics,
+          # the BLE GATT decoders (including the sint16 signedness trap that silently
+          # turns -5 degC into +650 degC), and the refusal to start on a protocol with no
+          # driver. The sourceos-spec schemas are VENDORED and sha256-asserted at import,
+          # so this leg also catches contract drift the moment a vendored copy is edited.
+          - name: device-service
+            working-directory: apps/device-service
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: PYTHONPATH=src pytest -q tests
           - name: tools-tests
             working-directory: .
             install: pip install pytest pyyaml jsonschema

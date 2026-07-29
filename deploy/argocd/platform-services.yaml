@@ -95,6 +95,18 @@ spec:
           # warden is absent, declared L5 governance silently stops running (the exact
           # failure mode the blueprint audit found). Built from source in images.yml.
           - { name: lifecycle-warden, tier: foundation }
+          # FOG & CITIZEN PLANE W8.7: the southbound device plane (first-party; the estate
+          # had NO device abstraction anywhere). Devices declared by DeviceProfile,
+          # observed as DeviceReading, validated fail-closed against BOTH the schema and
+          # the profile the reading cites → hellgraph graph writes, KKO-typed and
+          # quality-labelled → one receipt per batch via compute-gateway kind=materialize.
+          # tier: foundation — DeviceReading IS the estate's southbound CONTRACT: it is
+          # the single interface every protocol driver and every twin/consumer exchanges,
+          # and the normative rule that a reading is attributable-or-nothing is enforced
+          # at this producer. A driver is swappable (only `virtual` ships today, and it
+          # SIMULATES — see the values file); the contract is not. Built from source in
+          # images.yml.
+          - { name: device-service, tier: foundation }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —

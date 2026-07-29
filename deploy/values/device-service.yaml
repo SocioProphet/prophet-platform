@@ -1,0 +1,74 @@
+# device-service — FOG & CITIZEN PLANE W8.7: the estate's southbound device plane.
+# ONE southbound interface, N protocol drivers (EdgeX Foundry's lesson). Devices are
+# declared by DeviceProfile and observed as DeviceReading (SourceOS-Linux/sourceos-spec
+# v0.1.0, vendored + sha256-pinned in apps/device-service/src/device_service/contract.py;
+# validated per reading, fail-closed, against BOTH the schema and the profile the reading
+# cites — an inadmissible reading is counted on /healthz and NEVER emitted). Readings
+# enter the log as hellgraph-service graph writes (KKO-typed, quality-labelled), and each
+# batch is sealed on the estate spine via compute-gateway POST /v1/compute
+# kind=materialize (the membrane precedent — reuse the door, never a fifth lineage).
+#
+# EVERY READING THIS DEPLOYMENT PRODUCES IS SIMULATED. One driver ships (`virtual`), and
+# the simulation is marked at every layer: protocol=virtual on the profile,
+# synthetic:simulated-device + not-a-measurement on every reading, simulated=true on the
+# graph node, and simulated_devices on /healthz. The real-BLE seam is
+# apps/device-service/src/device_service/ble.py — the GATT decoders are real and tested,
+# the transport is the one missing class, and the service REFUSES to start on a ble-gatt
+# profile rather than polling nothing behind a green pod.
+nameOverride: device-service
+
+image:
+  repository: device-service
+  # sha-pinned by gitops-promote after the first CI build (nugget-extractor precedent).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
+  # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+  # `default` is an entitled project token on compute-gateway (COMPUTE_ENTITLEMENTS), and
+  # `materialize` is entitled by kind as well — nothing new is provisioned for this service.
+  DEVICE_PROJECT: "default"
+  DEVICE_POLL_ENABLED: "on"
+  DEVICE_POLL_INTERVAL_SECONDS: "5"
+  DEVICE_WORKSPACE_REF: "urn:srcos:workspace:citizen_home_demo"
+  DEVICE_BRANCH_REF: "urn:srcos:branch:home_main"
+  # The commissioned-device table: <deviceRef>=<profile-name>, resolving to
+  # src/device_service/profiles/<name>.json. In v0.1 the instance -> profile binding lives
+  # here; every reading carries both refs plus the profile digest, so the binding stays
+  # auditable from the graph until the typed Device registry contract lands.
+  DEVICE_COMMISSIONED: "urn:srcos:device:room_sensor_01=virtual-room-sensor,urn:srcos:device:room_sensor_02=virtual-room-sensor"
+  # The walk is a pure function of (seed, device, metric, tick): same seed ⇒ the same
+  # replayable stream on every restart. Reading URNs embed the per-device seq, so a
+  # re-emitted batch upserts the same nodes instead of minting drifted duplicates.
+  DEVICE_VIRTUAL_SEED: "42"
+  # 0 = never. Non-zero makes the virtual driver report a TYPED absence (a
+  # NullAbsenceRecord, not a re-reported stale value) every Nth tick, so the unavailable
+  # path is exercisable on a live deployment and not only in tests.
+  DEVICE_VIRTUAL_DROP_EVERY_N: "0"
+secretEnv:
+  # the same Secret every proof-carrying producer on this spine already presents
+  # (materializer / lifecycle-warden / nugget-extractor precedent) — already provisioned
+  # in this namespace, nothing new is minted for the device plane.
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+
+# ONE poller per device set: a second replica would race the same deterministic reading
+# URNs and interleave duplicate graph writes on the same seq stream. No HPA; Recreate over
+# RollingUpdate so two pollers never overlap even during a rollout.
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # emitted, per-quality counts, pending, receipts, hellgraph/gateway reachability, contract sha256s, simulated_devices, and validation_failures (MUST be 0)
+
+# Honest floor for a 2-device/3-metric/5s poll→validate→POST→seal loop: fastapi +
+# jsonschema resident, readings are ~1KB and stream straight through. No radio stack, no
+# model weights, no native toolchain.
+resources:
+  requests: { cpu: 25m,  memory: 128Mi }
+  limits:   { cpu: 200m, memory: 256Mi }

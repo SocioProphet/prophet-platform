@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/DeviceReading.json",
+  "title": "DeviceReading",
+  "description": "One observation from one southbound device: a single metric's value, in a declared unit, at a declared instant, with a declared quality. Profile of the ConversationEvent envelope: shares the single MPCC identity/causality/governance vocabulary (actorRef, workspaceRef, branchRef, visibilityScope, wallTime, logicalTime, causalParents, traceContext, provenanceLinks, policyLabels, riskLabels) with byte-identical sub-schemas — parity is enforced by tools/validate_device_service_examples.py. Normative: a reading is ATTRIBUTABLE OR IT IS NOTHING. deviceRef, deviceProfileRef, profileDigest, metric, sourceAddress and unit are all required, so every value resolves to the physical thing that produced it, the exact declared-capability revision it was admitted against, and the protocol-native channel it came off. An unattributable reading is the silent-wrong this contract exists to make impossible.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "deviceRef",
+    "deviceProfileRef",
+    "profileDigest",
+    "metric",
+    "sourceAddress",
+    "value",
+    "unit",
+    "quality",
+    "observedAt",
+    "wallTime"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:device-reading:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:device-reading:<local-id>. Invariant: reading identity is stable and never reused."
+    },
+    "type": {
+      "const": "DeviceReading",
+      "description": "Discriminator constant — always \"DeviceReading\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "DeviceService contract version, pinned per the policy-integrity tranche-0001 discipline. This family is versioned independently of the v2 metadata-plane schemas; changing this const is a contract change."
+    },
+    "actorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that emitted this event (human subject, agent, service, or system). Subject or Agent Registry URNs are recommended; free-form identifiers are permitted in v0.1."
+    },
+    "workspaceRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace scope this event belongs to. Free-form stable reference in v0.1; a typed workspace URN may narrow this in a later minor version."
+    },
+    "branchRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Conversation-fabric branch this event was appended to. Free-form stable reference in v0.1, pending adoption of the profit-mpcc branch-id contract."
+    },
+    "visibilityScope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A visibility scope label such as private, shared, public, or an audience URN."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Visibility scopes governing who may observe this event (e.g. private, shared, public, or audience URNs)."
+    },
+    "wallTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 wall-clock time of the event as observed by the producer. Family profiles map their primary domain timestamp onto this field."
+    },
+    "logicalTime": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Producer-scoped logical clock: a non-negative integer for scalar (Lamport-style) clocks, or a non-empty string for encoded vector/hybrid clocks. Invariant: causalParents must never point forward in logical time."
+    },
+    "causalParents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+        "description": "URN of a causally preceding event in any MPCC event family."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Event URNs this event causally depends on. Cross-family parents are permitted (e.g. an OrderIntent caused by a MarketDataEvent). Invariant: parents must never point forward in logical time."
+    },
+    "traceContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "traceId"
+      ],
+      "properties": {
+        "traceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Distributed trace identifier."
+        },
+        "spanId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Span identifier within the trace."
+        },
+        "baggage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "String-valued trace baggage entries."
+        }
+      },
+      "description": "Optional distributed-tracing correlation context."
+    },
+    "provenanceLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rel",
+          "ref"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this event (e.g. derived_from, quotes, source_feed)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance links from this event to upstream artifacts, sources, or records."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this event by producers or the policy fabric."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this event by producers or risk controls."
+    },
+    "deviceRef": {
+      "type": "string",
+      "pattern": "^urn:srcos:device:[A-Za-z0-9._~-]+$",
+      "description": "URN of the device INSTANCE that produced this reading — the individual physical thing, stable across profile revisions and across its own re-commissioning. Required: a reading that cannot name its device is unattributable."
+    },
+    "deviceProfileRef": {
+      "type": "string",
+      "pattern": "^urn:srcos:device-profile:[A-Za-z0-9._~-]+$",
+      "description": "DeviceProfile URN this reading is admissible against. Required: the profile is what makes a bare number mean something."
+    },
+    "profileDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "The referenced profile's definitionDigest at the instant this reading was admitted. Pins the exact declared-capability revision: if the profile is later widened, this reading still records which contract it actually passed, and a mismatch is detectable rather than silently forgiven."
+    },
+    "metric": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "description": "Name of the metric observed. Must be declared in the referenced profile's metrics set."
+    },
+    "sourceAddress": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Protocol-native address this value was actually read from. Must equal the sourceAddress the profile declares for this metric — that equality is what proves the value came off the declared physical channel and not from an adjacent characteristic, register, or topic."
+    },
+    "value": {
+      "type": [
+        "number",
+        "boolean",
+        "string",
+        "null"
+      ],
+      "description": "The observed value, in the declared unit, of the type the profile declares for this metric. null is legal ONLY for quality \"unavailable\", where it must be accompanied by nullAbsenceRef — a typed absence, never an untyped hole."
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unit symbol of value, repeated verbatim from the profile's declaration for this metric. Deliberately redundant: consumers read readings, not profiles, and a value whose unit must be looked up elsewhere is a unit-confusion incident waiting to happen. The validator enforces the equality."
+    },
+    "quality": {
+      "type": "string",
+      "enum": [
+        "ok",
+        "degraded",
+        "stale",
+        "substituted",
+        "unavailable"
+      ],
+      "description": "Observation quality, closed at v0.1: ok (measured, within specification); degraded (measured, but the driver has cause to doubt it); stale (a cached prior value re-reported because the device did not answer in time); substituted (a value supplied by something other than the device, e.g. a default or an interpolation); unavailable (no value — the device produced nothing). Invariant: stale and substituted are NOT ok, and substituted is NOT measured. Conflating them is how a smart-home twin comes to believe a default is a measurement."
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 instant the device observed the value, as close to the sensor as the protocol permits. Distinct from wallTime (the producer's event time) and receivedAt (arrival at the DeviceService): observedAt -> receivedAt is the southbound latency a twin's sync budget is actually spent on, and collapsing them hides it."
+    },
+    "receivedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 instant the DeviceService received this value from the driver. Invariant: never earlier than observedAt."
+    },
+    "sequenceRef": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "minimum": 0,
+      "minLength": 1,
+      "description": "Driver-scoped monotonic sequence number (non-negative integer) or sequence token (non-empty string) for this device+metric stream, used for gap detection. A gap is reported as a typed absence, not inferred from silence."
+    },
+    "nullAbsenceRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:null-absence:[A-Za-z0-9._~-]+$",
+      "description": "NullAbsenceRecord URN typing the absence when quality is \"unavailable\". Reuses the existing 12-kind MPCC absence taxonomy rather than inventing a device-local one, so a transport failure is never conflated with a device that intentionally reported nothing."
+    },
+    "qualityFlags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A data-quality flag."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Driver-attached data-quality flags (e.g. out_of_order, recovered_after_gap, low_battery). Advisory detail beneath the closed quality enum, never a substitute for it."
+    },
+    "kkoTypeRef": {
+      "type": "string",
+      "format": "uri",
+      "description": "Ontology class URI of the observed quantity, carried verbatim from the profile's metric declaration so a reading is graph-typed on arrival without a profile lookup. Kept at the granularity the estate can actually resolve (see DeviceProfile.metrics[].kkoTypeRef); the metric name and unit carry the specificity the vendored ontology does not."
+    },
+    "rawPayload": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "boolean",
+        "null"
+      ],
+      "description": "The driver payload exactly as received from the device, before decoding or normalization (e.g. the BLE characteristic notification as a hex string). Keeping the pre-decode form is what makes a decode bug provable after the fact."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "quality": {
+            "const": "unavailable"
+          }
+        },
+        "required": [
+          "quality"
+        ]
+      },
+      "then": {
+        "properties": {
+          "value": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "nullAbsenceRef"
+        ],
+        "not": {
+          "properties": {
+            "nullAbsenceRef": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "nullAbsenceRef"
+          ]
+        }
+      },
+      "else": {
+        "properties": {
+          "value": {
+            "not": {
+              "type": "null"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

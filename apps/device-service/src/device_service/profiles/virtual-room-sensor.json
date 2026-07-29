@@ -1,0 +1,77 @@
+{
+  "id": "urn:srcos:device-profile:srcos_virtual_room_sensor_v1",
+  "type": "DeviceProfile",
+  "specVersion": "0.1.0",
+  "actorRef": "urn:srcos:agent:device_service",
+  "workspaceRef": "urn:srcos:workspace:citizen_home_demo",
+  "visibilityScope": [
+    "private"
+  ],
+  "provenanceLinks": [
+    {
+      "rel": "declared_from",
+      "ref": "prophet-platform:apps/device-service/profiles/virtual-room-sensor.json"
+    }
+  ],
+  "policyLabels": [
+    "synthetic:simulated-device"
+  ],
+  "riskLabels": [
+    "not-a-measurement"
+  ],
+  "deviceClass": "srcos-virtual-room-sensor",
+  "manufacturer": "SourceOS",
+  "model": "virtual-room-sensor",
+  "protocol": "virtual",
+  "protocolBinding": {
+    "endpoint": "virtual://room-sensor",
+    "securityMode": "none",
+    "parameters": {
+      "seed": 20260729,
+      "samplePeriodMs": 1000
+    }
+  },
+  "metrics": [
+    {
+      "metric": "temperature",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#Quantity",
+      "valueType": "number",
+      "unit": "Cel",
+      "minimum": 5.0,
+      "maximum": 40.0,
+      "resolution": 0.01,
+      "samplePeriodMs": 1000,
+      "sourceAddress": "virtual://room-sensor/temperature",
+      "access": "read"
+    },
+    {
+      "metric": "humidity.relative",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#Quantity",
+      "valueType": "number",
+      "unit": "%",
+      "minimum": 10.0,
+      "maximum": 90.0,
+      "resolution": 0.01,
+      "samplePeriodMs": 1000,
+      "sourceAddress": "virtual://room-sensor/humidity.relative",
+      "access": "read"
+    },
+    {
+      "metric": "occupancy.detected",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#States",
+      "valueType": "boolean",
+      "unit": "{bool}",
+      "minimum": null,
+      "maximum": null,
+      "resolution": null,
+      "samplePeriodMs": 1000,
+      "sourceAddress": "virtual://room-sensor/occupancy.detected",
+      "access": "read"
+    }
+  ],
+  "declaredAt": "2026-07-29T08:00:00.000Z",
+  "identityRef": "urn:srcos:device-identity:home_edge_node_01",
+  "adminState": "enabled",
+  "supersedesRef": null,
+  "definitionDigest": "sha256:55d51880fb7d938c7d87f0a8190b6d1499ba2c00291dbe55b710be5fc93e6666"
+}

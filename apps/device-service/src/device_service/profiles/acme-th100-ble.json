@@ -1,0 +1,81 @@
+{
+  "id": "urn:srcos:device-profile:acme_th100_room_sensor_v1",
+  "type": "DeviceProfile",
+  "specVersion": "0.1.0",
+  "actorRef": "urn:srcos:agent:device_service",
+  "workspaceRef": "urn:srcos:workspace:citizen_home_demo",
+  "visibilityScope": [
+    "private"
+  ],
+  "provenanceLinks": [
+    {
+      "rel": "declared_from",
+      "ref": "datasheet:acme-th-100-rev-c"
+    },
+    {
+      "rel": "conforms_to",
+      "ref": "org.bluetooth.service.environmental_sensing"
+    }
+  ],
+  "policyLabels": [
+    "residence:interior",
+    "pii:none"
+  ],
+  "riskLabels": [],
+  "deviceClass": "acme-th-100-room-sensor",
+  "manufacturer": "Acme Instruments",
+  "model": "TH-100",
+  "protocol": "ble-gatt",
+  "protocolBinding": {
+    "endpoint": "ble://C4:2F:90:11:8A:3D",
+    "securityMode": "pairing-bonded",
+    "parameters": {
+      "connectionIntervalMs": 1000,
+      "notifyOnly": true,
+      "gattService": "0000181a-0000-1000-8000-00805f9b34fb"
+    }
+  },
+  "metrics": [
+    {
+      "metric": "temperature",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#Quantity",
+      "valueType": "number",
+      "unit": "Cel",
+      "minimum": -40.0,
+      "maximum": 85.0,
+      "resolution": 0.01,
+      "samplePeriodMs": 1000,
+      "sourceAddress": "gatt://0000181a-0000-1000-8000-00805f9b34fb/00002a6e-0000-1000-8000-00805f9b34fb",
+      "access": "read"
+    },
+    {
+      "metric": "humidity.relative",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#Quantity",
+      "valueType": "number",
+      "unit": "%",
+      "minimum": 0.0,
+      "maximum": 100.0,
+      "resolution": 0.01,
+      "samplePeriodMs": 1000,
+      "sourceAddress": "gatt://0000181a-0000-1000-8000-00805f9b34fb/00002a6f-0000-1000-8000-00805f9b34fb",
+      "access": "read"
+    },
+    {
+      "metric": "battery.level",
+      "kkoTypeRef": "http://kbpedia.org/ontologies/kko#Quantity",
+      "valueType": "integer",
+      "unit": "%",
+      "minimum": 0,
+      "maximum": 100,
+      "resolution": 1,
+      "samplePeriodMs": 300000,
+      "sourceAddress": "gatt://0000180f-0000-1000-8000-00805f9b34fb/00002a19-0000-1000-8000-00805f9b34fb",
+      "access": "read"
+    }
+  ],
+  "declaredAt": "2026-07-29T08:00:00.000Z",
+  "identityRef": "urn:srcos:device-identity:home_edge_node_01",
+  "adminState": "enabled",
+  "supersedesRef": null,
+  "definitionDigest": "sha256:24dfe44e340bc684c2c5618cfad534717c6b1f218b6bf7e94aa809afecab2813"
+}
