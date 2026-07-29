@@ -23,10 +23,13 @@ import {
   FIXTURE_SEAL_DEGRADED,
   FIXTURE_WALK_VALID,
 } from '../data/warrantFixture';
+import { RECEIPT_WALK_STEPS } from '../features/warrant/types';
 import type {
   NlqCompilation,
   ReceiptVerifyWalk,
   ReceiptWalkStatus,
+  ReceiptWalkStep,
+  ReceiptWalkStepName,
   SealOutcome,
 } from '../features/warrant/types';
 
@@ -56,9 +59,38 @@ export interface VerifyResult {
 const WALK_STATUSES: ReceiptWalkStatus[] = ['ok', 'fail', 'skipped'];
 
 /**
+ * Parse one step, against the name the pinned walk expects in that position.
+ *
+ * Strict on purpose. Every earlier version of this coerced — an unrecognized status became
+ * `fail`, a missing name became `unknown-step` — and that quietly converts one fact into a
+ * very different one: "we could not understand the gateway" turned into "the proof is bad".
+ * The surface downstream renders the second as UNSEALED, an accusation the gateway never
+ * made. Anything unrecognized returns null and the whole payload is refused.
+ */
+function parseStep(raw: unknown, expected: ReceiptWalkStepName): ReceiptWalkStep | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const st = raw as Record<string, unknown>;
+  if (st['step'] !== expected) return null;
+  const status = st['status'];
+  if (!WALK_STATUSES.includes(status as ReceiptWalkStatus)) return null;
+  const detail = st['detail'];
+  if (detail !== null && detail !== undefined && typeof detail !== 'string') return null;
+  return {
+    step: expected,
+    status: status as ReceiptWalkStatus,
+    detail: typeof detail === 'string' ? detail : null,
+  };
+}
+
+/**
  * Validate the gateway's payload before trusting it. A verify walk that does not parse is
- * NOT a pass — it is an error, and gets reported as one. This is the same posture the
- * server takes: never let an unverifiable thing read as verified.
+ * NOT a pass — and it is NOT a failure either. It is an unrecognized shape, reported as
+ * `unavailable`, because "we could not check" and "we checked and it failed" are different
+ * facts and this whole module exists to keep them apart.
+ *
+ * This is also where the `steps` contract stops being a comment: `_WALK` is exactly three
+ * steps in a pinned order (engine_receipts.py :262), so a payload of any other length, order
+ * or naming is a contract change we have not been taught to read — refused, not guessed at.
  */
 function parseWalk(raw: unknown): ReceiptVerifyWalk | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -66,17 +98,15 @@ function parseWalk(raw: unknown): ReceiptVerifyWalk | null {
   if (typeof o['valid'] !== 'boolean') return null;
   if (typeof o['receipt_id'] !== 'string' || typeof o['project'] !== 'string') return null;
   if (!Array.isArray(o['steps'])) return null;
-  const steps = o['steps'].map((s) => {
-    const st = (s ?? {}) as Record<string, unknown>;
-    const status = st['status'];
-    return {
-      step: typeof st['step'] === 'string' ? st['step'] : 'unknown-step',
-      status: WALK_STATUSES.includes(status as ReceiptWalkStatus)
-        ? (status as ReceiptWalkStatus)
-        : 'fail',
-      detail: typeof st['detail'] === 'string' ? st['detail'] : null,
-    };
-  });
+  if (o['steps'].length !== RECEIPT_WALK_STEPS.length) return null;
+
+  const steps: ReceiptWalkStep[] = [];
+  for (let i = 0; i < RECEIPT_WALK_STEPS.length; i += 1) {
+    const step = parseStep(o['steps'][i], RECEIPT_WALK_STEPS[i]);
+    if (!step) return null;
+    steps.push(step);
+  }
+
   return {
     valid: o['valid'] as boolean,
     receipt_id: o['receipt_id'] as string,

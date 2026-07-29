@@ -16,7 +16,6 @@ import Warrant from '../../components/warrant/Warrant.vue';
 import { compileQuestion, verifyReceipt, type WarrantLoadMode } from '../../services/warrantApi';
 import {
   FIXTURE_QUESTION,
-  FIXTURE_RECEIPT_ID,
   FIXTURE_SEAL_DEGRADED,
   FIXTURE_SEAL_OK,
   FIXTURE_WALK_TAMPERED,
@@ -27,6 +26,7 @@ import type {
   PlanVariant,
   ReceiptVerifyWalk,
   SealOutcome,
+  WarrantInput,
 } from '../../features/warrant/types';
 
 const question = ref(FIXTURE_QUESTION);
@@ -46,11 +46,39 @@ const proofState = ref<ProofState>('sealed');
 const liveWalk = ref<ReceiptVerifyWalk | null>(null);
 const walkError = ref<string | null>(null);
 
-const seal = computed<SealOutcome>(() =>
-  proofState.value === 'degraded' ? FIXTURE_SEAL_DEGRADED : FIXTURE_SEAL_OK,
+/**
+ * Whether a LIVE verification has been asked for, and how it went. This is the line between
+ * the two lanes: fixture data may back the PLAN surfaces all day — it is labelled, and a plan
+ * is not a proof — but it may never back a proof RESULT. Once a live check has been attempted
+ * and did not succeed, falling back to the fixture walk would render a verification that
+ * failed as a green "sealed", which is the one thing this surface exists to make impossible.
+ */
+type LiveStatus = 'idle' | 'pending' | 'ok' | 'failed';
+const liveStatus = ref<LiveStatus>('idle');
+const liveFailed = computed(() => liveStatus.value === 'failed');
+
+/**
+ * The receipt id, which is a fact we hold independently of whether we could verify it. The
+ * degraded fixture was never sealed, so it genuinely has none — and the code has to agree
+ * with the copy that says "nothing to walk" rather than handing out a receipt anyway.
+ */
+const receiptRef = computed<string | null>(
+  () =>
+    liveWalk.value?.receipt_id ??
+    (proofState.value === 'degraded' ? FIXTURE_SEAL_DEGRADED.receiptRef : FIXTURE_SEAL_OK.receiptRef),
 );
+
+/** A seal is a CLAIM about proof, so a failed live check retracts it rather than restating it. */
+const seal = computed<SealOutcome | null>(() => {
+  if (liveFailed.value) return null;
+  return proofState.value === 'degraded' ? FIXTURE_SEAL_DEGRADED : FIXTURE_SEAL_OK;
+});
+
 const walk = computed<ReceiptVerifyWalk | null>(() => {
   if (liveWalk.value) return liveWalk.value;
+  // A live walk that failed or was unavailable leaves NOTHING behind — not the fixture's
+  // valid walk, and not its INVALID one either, since a fixture verdict is still a verdict.
+  if (liveFailed.value) return null;
   if (proofState.value === 'sealed') return FIXTURE_WALK_VALID;
   if (proofState.value === 'tampered') return FIXTURE_WALK_TAMPERED;
   return null; // degraded — never sealed, so there is nothing to walk
@@ -65,13 +93,16 @@ const winnerMetric = computed(
 );
 
 /** The compilation-level warrant: the whole run's claim, and whether it is sealed. */
-const runWarrant = computed(() => ({
+const runWarrant = computed<WarrantInput>(() => ({
   claim: compilation.value
     ? `Compiled “${compilation.value.question}” into ${compilation.value.variants.length} typed plan variant(s) against snapshot seq ${compilation.value.snapshot.seq}`
     : 'No compilation',
-  seal: seal.value,
+  seal: seal.value ?? undefined,
   walk: walk.value ?? undefined,
-  receiptRef: FIXTURE_RECEIPT_ID,
+  // Sourced from the seal that actually reports one, never stamped on unconditionally: the
+  // degraded fixture has `receiptRef: null` and says "nothing to walk", so it must not hand
+  // <Warrant> a receipt that would make the badge offer a walk anyway.
+  receiptRef: receiptRef.value ?? undefined,
 }));
 
 async function run() {
@@ -87,12 +118,42 @@ async function run() {
   }
 }
 
-/** Ask the gateway to walk the receipt for real. Reports unavailability as unavailability. */
-async function walkReceipt(receiptRef: string) {
+/**
+ * Ask the gateway to walk the receipt for real. Reports unavailability as unavailability —
+ * which means recording the FAILURE, not just the error string, because `liveFailed` is what
+ * stops the fixture walk from quietly taking the answer's place.
+ */
+async function walkReceipt(id: string) {
   walkError.value = null;
-  const r = await verifyReceipt(receiptRef);
-  if (r.data) liveWalk.value = r.data;
-  else walkError.value = r.error ?? 'verify walk unavailable';
+  liveStatus.value = 'pending';
+  const r = await verifyReceipt(id);
+  if (r.data) {
+    liveWalk.value = r.data;
+    liveStatus.value = 'ok';
+  } else {
+    liveWalk.value = null;
+    liveStatus.value = 'failed';
+    walkError.value = r.error ?? 'verify walk unavailable';
+  }
+}
+
+/** The explicit live door. Disabled when there is no receipt to walk. */
+function verifyLive() {
+  const id = receiptRef.value;
+  if (!id) return;
+  void walkReceipt(id);
+}
+
+/**
+ * Switching the fixture proof-state is a deliberate "show me the fixture story" action, so it
+ * resets the live lane — leaving a stale live failure on screen next to a fresh fixture badge
+ * would be its own kind of lie.
+ */
+function selectState(s: ProofState) {
+  proofState.value = s;
+  liveWalk.value = null;
+  liveStatus.value = 'idle';
+  walkError.value = null;
 }
 
 function rerun(v: PlanVariant) {
@@ -153,9 +214,9 @@ onMounted(run);
           :key="s"
           class="wsurf-state"
           type="button"
-          :class="{ on: proofState === s }"
-          :aria-pressed="proofState === s"
-          @click="proofState = s; liveWalk = null"
+          :class="{ on: proofState === s && liveStatus === 'idle' }"
+          :aria-pressed="proofState === s && liveStatus === 'idle'"
+          @click="selectState(s)"
         >
           {{ s }}
         </button>
@@ -169,7 +230,37 @@ onMounted(run);
           }}
         </span>
       </div>
-      <p v-if="walkError" class="err">{{ walkError }}</p>
+
+      <!-- The live door, stated separately from the fixture switch, because the two lanes
+           must never be mistaken for one another. -->
+      <div class="wsurf-states">
+        <span class="wsurf-states-l">live proof</span>
+        <button
+          class="wsurf-live"
+          type="button"
+          :disabled="!receiptRef || liveStatus === 'pending'"
+          @click="verifyLive"
+        >
+          {{ liveStatus === 'pending' ? 'Verifying…' : 'Verify live' }}
+        </button>
+        <span class="wsurf-states-hint">
+          {{
+            !receiptRef
+              ? 'no receipt on this claim — there is nothing to walk'
+              : liveStatus === 'ok'
+                ? 'walked against the gateway for real'
+                : liveStatus === 'failed'
+                  ? 'the live walk did not run — the fixture walk is NOT shown in its place'
+                  : 'walks this receipt against GET /v1/engine-receipts/{id}/verify'
+          }}
+        </span>
+      </div>
+
+      <p v-if="walkError" class="err">
+        Live receipt walk unavailable — {{ walkError }}. Nothing is standing in for it: a check
+        that did not run cannot be rendered as proof, so the warrant above reads
+        <b>unknown</b> until it does.
+      </p>
     </div>
 
     <div v-if="compilation && selected" class="grid cols-2 wsurf-body">
@@ -296,6 +387,25 @@ onMounted(run);
   background: var(--accent-wash);
 }
 .wsurf-state:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.wsurf-live {
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-1);
+  padding: 1px 8px;
+  font-size: 0.66rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.wsurf-live:disabled {
+  color: var(--faint);
+  border-color: var(--border-2);
+  cursor: default;
+}
+.wsurf-live:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

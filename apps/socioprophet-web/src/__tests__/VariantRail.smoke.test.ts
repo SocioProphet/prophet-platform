@@ -71,3 +71,42 @@ describe('<VariantRail> (ranked alternatives)', () => {
     expect(w.findAll('.vr-item').length).toBe(0);
   });
 });
+
+/**
+ * A deficit is one comparison, so it has to be run under one rubric. Scoring the gap in the
+ * LOSER's weights lets a variant carrying a different weighting name an axis that played no
+ * part in the ranking that actually happened — the ordering is by composite, and only the
+ * winner's weighting produced it.
+ */
+describe('<VariantRail> — the deficit is measured in the winner\'s weights', () => {
+  /** Same scores as the fixture's #1/#3 pair, but the loser carries an inverted rubric. */
+  function skewed() {
+    const winner = structuredClone(variants[0]);
+    const loser = structuredClone(variants[2]);
+    winner.senseMetric.weights = { coverage: 0.5, groundedness: 0.3, similarity: 0.2 };
+    // Under the LOSER's own weights, coverage (0.2 × 0.9 = 0.18) would outrank groundedness
+    // (0.75 × 0.05 = 0.0375) and the rail would say "lost on coverage".
+    loser.senseMetric.weights = { coverage: 0.9, groundedness: 0.05, similarity: 0.05 };
+    return [winner, loser];
+  }
+
+  it('names the axis the WINNER\'s weighting blames, not the loser\'s', () => {
+    const w = mount(VariantRail, { props: { variants: skewed() } });
+    const why = w.find('.vr-why').text();
+    // winner's rubric: groundedness 0.75 × 0.3 = 0.225 > coverage 0.2 × 0.5 = 0.10
+    expect(why).toContain('groundedness');
+    expect(why).not.toContain('lost on coverage');
+    // and the weight printed is the winner's, not the loser's 0.05
+    expect(why).toContain('w0.30');
+  });
+
+  it('says out loud that the two were scored under different rubrics', () => {
+    const w = mount(VariantRail, { props: { variants: skewed() } });
+    expect(w.find('.vr-wmismatch').text()).toContain('different weights than the winner');
+  });
+
+  it('stays quiet when every variant shares the winner\'s weights', () => {
+    const w = mount(VariantRail, { props: { variants } });
+    expect(w.find('.vr-wmismatch').exists()).toBe(false);
+  });
+});
