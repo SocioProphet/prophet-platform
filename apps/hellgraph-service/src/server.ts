@@ -49,6 +49,7 @@ import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resou
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
 import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
 import { initAuth, authorize, type AuthState } from './auth.js'
+import { assembleOrgans } from './organs.js'
 import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
 import { sealToSpine, spineEnabled, unsealedReceipts } from './spine.js'
 
@@ -182,6 +183,23 @@ const server = http.createServer((req, res) => {
       // W1.3 honest-degradation counter: enrich/explore results served WITHOUT a spine receipt
       unsealedReceipts: unsealedReceipts(),
     })
+  }
+
+  // GET /api/organs — the mesh's functional groups (memory/routing/perception/policy) as
+  // typed Organs with LIVE member health, per sourceos-spec Organ.json. v1 organs are
+  // DECLARED over services that already exist, not grown: this makes the mesh's capabilities
+  // inspectable instead of implicit. Health is derived from members only (OR-I2), and an
+  // unprobeable member reports `unknown` rather than an optimistic `healthy` (OR-I1).
+  if (req.method === 'GET' && url.pathname === '/api/organs') {
+    return void assembleOrgans()
+      .then((organs) => json(res, 200, {
+        organs,
+        counts: organs.reduce<Record<string, number>>((acc, o) => {
+          acc[o.health] = (acc[o.health] ?? 0) + 1
+          return acc
+        }, {}),
+      }))
+      .catch((e: Error) => json(res, 500, { error: e.message }))
   }
 
   if (req.method === 'GET' && url.pathname === '/api/graph/stats') {
