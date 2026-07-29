@@ -7,9 +7,22 @@ validates against SHACL shapes. That is Protégé/Stardog-class reasoning, made 
 entailed triple is a derivation over stated facts + the KKO upper ontology, not an assertion.
 
 Pure (no HTTP) so it is trivially testable; the service wrapper + graph pull live in server.py.
+
+VENDORED KKO TBox — provenance and integrity (see data/PROVENANCE.md):
+    repo    SocioProphet/kbpedia @ 3f888b397255b69d1439fd95823e97011ed9440b (fork of KBpedia/kbpedia)
+    path    versions/2.10/kko-demo.n3
+    sha256  d907919fb40f20ed39a7fde0e8d114027449d9354a1976ce8248db5634cb7b07  (327,797 bytes)
+    licence CC-BY-4.0 — (c) Michael K. Bergman & Fred Giasson (Cognonto / KBpedia)
+The sha256 is ASSERTED AT IMPORT (nugget-extractor contract.py precedent). This copy is the
+THIRD in the estate — the HellGraph engine vendors the same bytes at ontology/kko/kko-2.10.n3,
+and hellgraph-sprint carries a checkout of it — so "byte-identical" was previously true only by
+luck. KKO_SHA256 is the shared constant that makes it true BY ASSERTION: all copies pin the same
+digest, so a drift in any one of them is caught where it is loaded rather than discovered as a
+changed answer. A drifted TBox does not fail — it silently reclassifies, which is worse.
 """
 from __future__ import annotations
 
+import hashlib
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -36,16 +49,72 @@ _PROFILE_ALIASES = {"owl2rl": "owlrl", "owl2-rl": "owlrl", "owl": "owlrl"}
 # The KKO upper ontology (KBpedia Knowledge Ontology), vendored as package data so it ships in the image.
 _KKO_PATH = Path(__file__).resolve().parent / "data" / "kko-2.10.n3"
 
+# The pinned digest of the vendored TBox. Shared, byte-for-byte, with the HellGraph engine's copy
+# (hellgraph ontology/kko/PROVENANCE.md) — that is the whole point: one constant, three copies.
+KKO_SHA256 = "d907919fb40f20ed39a7fde0e8d114027449d9354a1976ce8248db5634cb7b07"
+KKO_SOURCE = ("SocioProphet/kbpedia@3f888b397255b69d1439fd95823e97011ed9440b"
+              " versions/2.10/kko-demo.n3 (CC-BY-4.0)")
+
+
+def kko_file_digest(path: Path | None = None) -> str | None:
+    """sha256 of a vendored KKO TBox file, or None when the file is absent.
+
+    Separated from the import-time assertion so the integrity rule is exercisable against an
+    arbitrary path in tests — the gate itself stays at import, where it cannot be skipped.
+    """
+    p = _KKO_PATH if path is None else path
+    try:
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return None
+
+
+def verify_kko_integrity(path: Path | None = None) -> str:
+    """Fail-closed integrity gate for the vendored TBox. Returns 'verified' or 'absent'.
+
+    Raises RuntimeError when the file is PRESENT but its bytes are not the pinned ones. The two
+    failure modes are deliberately NOT treated alike:
+
+      absent   — a packaging condition this module has always degraded on (pyproject's
+                 package-data rule exists precisely because an absent TBox once made `with_kko`
+                 a silent no-op). It stays a degradation, and stays VISIBLE via
+                 kko_tbox_status()'s unavailable_reason.
+      drifted  — a supply-chain event. Reasoning over an ontology that is not the one we
+                 declare does not fail, it returns DIFFERENT ENTAILMENTS, and every downstream
+                 consumer of those entailments inherits the drift silently. There is no honest
+                 degraded mode for "wrong axioms", so this is loud and terminal at import.
+    """
+    actual = kko_file_digest(path)
+    if actual is None:
+        return "absent"
+    if actual != KKO_SHA256:
+        p = _KKO_PATH if path is None else path
+        raise RuntimeError(
+            f"vendored KKO TBox drifted: sha256 {actual} != pinned {KKO_SHA256} ({p}); "
+            f"re-vendor from {KKO_SOURCE} and update data/PROVENANCE.md. Refusing to reason "
+            "over an ontology that is not the one this service declares.")
+    return "verified"
+
+
+# THE GATE. Asserted at import, not merely recorded in PROVENANCE.md — a provenance file that
+# nothing verifies is decoration.
+KKO_INTEGRITY = verify_kko_integrity()
+
 
 @lru_cache(maxsize=1)
 def _kko_tbox() -> Graph:
     """The KKO TBox (168 classes / 167 rdfs:subClassOf), parsed once and cached. Returns an empty graph
-    if the vendored file is missing, so ``with_kko`` degrades to a no-op rather than failing."""
+    if the vendored file is missing, so ``with_kko`` degrades to a no-op rather than failing.
+
+    The bytes are already digest-verified at import (KKO_INTEGRITY), so anything parsed here is
+    provably the declared ontology; only the absent case can reach the empty-graph path."""
     g = Graph()
+    if KKO_INTEGRITY != "verified":  # pragma: no cover — absent package data
+        return g
     try:
         # the .n3 is Turtle-compatible; parse as turtle to avoid rdflib's noisy N3-parser deprecations.
         g.parse(_KKO_PATH.as_posix(), format="turtle")
-    except Exception:  # pragma: no cover — missing/parse issue must never take reasoning down
+    except Exception:  # pragma: no cover — a parse issue must never take reasoning down
         pass
     return g
 
@@ -58,13 +127,19 @@ def kko_tbox_status(requested: bool, triples: int) -> dict[str, Any]:
     degradation has to be visible in the response, or `with_kko=true` reports success on a
     deployment where the ontology contributed nothing. `unavailable_reason` is present only
     when the two disagree, so a client never has to infer the difference from a zero.
+
+    When the TBox IS loaded the response also carries the digest it was loaded under, so a
+    caller can bind an entailment set to the exact ontology bytes that produced it.
     """
     loaded = requested and triples > 0
     status: dict[str, Any] = {"requested": requested, "loaded": loaded, "triples": triples}
+    if loaded:
+        status["sha256"] = KKO_SHA256
+        status["source"] = KKO_SOURCE
     if requested and not loaded:
         status["unavailable_reason"] = (
-            f"KKO TBox requested but no triples were parsed from {_KKO_PATH.name}; "
-            "with_kko had no effect on this result"
+            f"KKO TBox requested but no triples were parsed from {_KKO_PATH.name} "
+            f"(vendored-artifact integrity: {KKO_INTEGRITY}); with_kko had no effect on this result"
         )
     return status
 

@@ -14,6 +14,11 @@ validate-repo:
 engine-guards:
 	node apps/hellgraph-service/scripts/check-engine-version.mjs
 	node apps/lifecycle-warden/scripts/check-engine-version.mjs
+	# Same question, different vendored input: is the ONTOLOGY we ship the one we declare?
+	# The 55k KBpedia RC ABox is the vocabulary enrich + semantic typing resolve against, so a
+	# drifted copy changes ANSWERS rather than failing (W12). Runtime refuses to load it;
+	# this fails the BUILD, so a mismatched artifact never reaches an image.
+	node apps/hellgraph-service/scripts/check-ontology-digest.mjs
 
 docs-check:
 	python3 tools/validate_repo.py

@@ -18,9 +18,33 @@ PROVIDER inside that kernel:
     attestation (cosign_valid), with the receipt id as the attested-unit digest.
 
 The full grant DECISION + ledger + quorum live in the kernel/agentplane; the
-gateway performs the CHECK and emits conforming evidence. Schemas are VENDORED
-(apps/compute-gateway/schemas/) — sovereign, self-contained, validated at runtime
-and in tests against the exact kernel contract (pinned mcp-a2a-zero-trust 0399e8a).
+gateway performs the CHECK and emits conforming evidence.
+
+── VENDORED SCHEMAS: provenance and integrity (see schemas/PROVENANCE.md) ────
+Six schemas are VENDORED into this package (`src/compute_gateway/schemas/`, so
+they ship in the image the Dockerfile builds from `COPY src`) — sovereign,
+self-contained, validated at runtime and in tests against the exact kernel
+contract:
+
+    repo    SocioProphet/mcp-a2a-zero-trust
+    commit  0399e8ae84f0be8194ce57e56b14ba4bbb807f47  (2026-05-21, "Bind MCP/A2A
+            interop to Operation Plane trust boundaries")
+    files   mcp/registry/capability_registry.schema.json
+            schemas/canonical/{attestation_bundle,grant,policy_decision,quorum_proof}.schema.json
+            schemas/interop/tool_grant_check.schema.json
+
+All six are byte-identical to that commit (re-verified against upstream
+2026-07-29, and still byte-identical to the kernel's `main` — the pin is current,
+not merely recorded). The per-file sha256 table below is ASSERTED AT IMPORT
+(nugget-extractor contract.py precedent), together with the exact FILE SET: an
+unexpected schema appearing in this directory is refused too, because
+`_registry()` globs the directory and would otherwise hand an unvendored
+document authority over what this gateway accepts.
+
+The prior version of this docstring named the vendored path as
+`apps/compute-gateway/schemas/`, which does not exist — the real location is
+`src/compute_gateway/schemas/`. A provenance note pointing at the wrong
+directory is how "vendored from nowhere identifiable" starts.
 """
 from __future__ import annotations
 
@@ -41,6 +65,85 @@ TRUST_BOUNDARY_ID = os.getenv("ZEROTRUST_BOUNDARY_ID", "tb-compute-gateway")
 TRUST_DOMAIN = os.getenv("ZEROTRUST_TRUST_DOMAIN", "socioprophet.dev")
 
 _SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"   # ships inside the package (src/)
+
+# ── vendored kernel schemas: the pinned manifest ──────────────────────────────
+# The authority kernel the compute plane conforms to. A branch name would be a moving
+# reference; this is the commit the bytes came from.
+KERNEL_REPO = "SocioProphet/mcp-a2a-zero-trust"
+KERNEL_COMMIT = "0399e8ae84f0be8194ce57e56b14ba4bbb807f47"
+KERNEL_REF = f"{KERNEL_REPO}@{KERNEL_COMMIT}"
+
+# vendored filename -> (upstream path at KERNEL_COMMIT, sha256 of the bytes)
+# The upstream path matters as much as the digest: it is what makes a re-vendor mechanical
+# instead of a search, and it is precisely what was missing when these six were described as
+# "vendored" from nowhere identifiable.
+SCHEMA_PROVENANCE: dict[str, tuple[str, str]] = {
+    "capability_registry.schema.json": (
+        "mcp/registry/capability_registry.schema.json",
+        "f3e793394baee2c4782762de565e988b4fc527639b41839aa859d2f9cbb3d73d"),
+    "attestation_bundle.schema.json": (
+        "schemas/canonical/attestation_bundle.schema.json",
+        "485d0ed689cc1b3184a18d555bb3eba75c4110f7087d0c3c6c54c575447a4272"),
+    "grant.schema.json": (
+        "schemas/canonical/grant.schema.json",
+        "2aac20b5fc9ce2ef72c0609bc1687f2b4b17a2167ef3148fa8ad3c4c1494f0b1"),
+    "policy_decision.schema.json": (
+        "schemas/canonical/policy_decision.schema.json",
+        "fa836113aeda2b1d65b9a3868cb692e266fa51d516bb3a3f248e58e74d6dfc89"),
+    "quorum_proof.schema.json": (
+        "schemas/canonical/quorum_proof.schema.json",
+        "d3ceec20d3268c30c1f0fda17f0981654a850ad39073ac5b1ff4aff62a0b2bb2"),
+    "tool_grant_check.schema.json": (
+        "schemas/interop/tool_grant_check.schema.json",
+        "360c5c98c43742aa7f930a472fd8662eff28bba32eca9b20dd8e76d3077c923c"),
+}
+
+
+def verify_vendored_schemas(schema_dir: Path | None = None) -> dict[str, str]:
+    """Fail-closed integrity gate over the vendored kernel schemas. Returns {file: sha256}.
+
+    Three ways to fail, all raising RuntimeError, because all three mean this gateway would be
+    enforcing a contract other than the one it declares:
+
+      missing   — a pinned schema is absent; validation would raise at first use, deep inside a
+                  request, rather than at boot.
+      drifted   — a pinned schema's bytes changed. These documents decide what a ToolGrantCheck
+                  and an AttestationBundle ARE; a loosened `required` or a widened enum silently
+                  admits evidence the kernel would reject, and nothing downstream can tell.
+      unpinned  — an EXTRA *.schema.json in the directory. `_registry()` globs this directory and
+                  registers every document it finds by $id, so an unvendored file can satisfy a
+                  canonical $ref and quietly become the contract. Vendoring is a closed set or it
+                  is not vendoring.
+    """
+    d = _SCHEMA_DIR if schema_dir is None else schema_dir
+    found = {p.name for p in d.glob("*.schema.json")}
+    pinned = set(SCHEMA_PROVENANCE)
+
+    if missing := sorted(pinned - found):
+        raise RuntimeError(
+            f"vendored kernel schemas MISSING: {', '.join(missing)} (expected in {d}); "
+            f"re-vendor from {KERNEL_REF}")
+    if extra := sorted(found - pinned):
+        raise RuntimeError(
+            f"UNPINNED schema(s) in the vendored kernel directory: {', '.join(extra)}. Every "
+            f"schema here is registered by $id and can satisfy a canonical $ref, so an unvendored "
+            f"document would silently become part of the contract. Add it to SCHEMA_PROVENANCE "
+            f"with its upstream path + sha256, or remove it.")
+
+    digests: dict[str, str] = {}
+    for name, (upstream_path, expected) in sorted(SCHEMA_PROVENANCE.items()):
+        actual = hashlib.sha256((d / name).read_bytes()).hexdigest()
+        if actual != expected:
+            raise RuntimeError(
+                f"vendored kernel schema DRIFTED: {name} sha256 {actual} != pinned {expected}; "
+                f"re-vendor from {KERNEL_REF} ({upstream_path}) and update SCHEMA_PROVENANCE + "
+                f"schemas/PROVENANCE.md. Refusing to enforce a contract this gateway cannot name.")
+        digests[name] = actual
+    return digests
+
+
+# THE GATE. Asserted at import — a provenance table nothing verifies is decoration.
+SCHEMA_DIGESTS = verify_vendored_schemas()
 
 # compute kind → capability effect (kernel enum: read|write|compute|exec|egress)
 _EFFECT = {"notebook": "exec", "spark": "exec", "graph-query": "read",

@@ -51,6 +51,7 @@ import { initAuth, authorize, type AuthState } from './auth.js'
 import { assembleOrgans } from './organs.js'
 import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
 import { sealToSpine, spineEnabled, unsealedReceipts } from './spine.js'
+import { verifyRcArtifact, expectedDigestFor, RC_SOURCE } from './ontology-provenance.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -535,14 +536,42 @@ function loadKkoIfEnabled(): void {
 // Opt-in via HELLGRAPH_LOAD_RC=on: it adds ~55k nodes / ~75k edges to the persisted store (a real data
 // load, idempotent via content-addressed atoms). With RCs present, /api/graph/enrich auto-activates the
 // KKO coherence ranker and semantic entity typing has a target vocabulary.
+//
+// FAIL-CLOSED ON INTEGRITY (W12): the artifact's sha256 is asserted before a single concept reaches
+// the store — see src/ontology-provenance.ts and ontology/PROVENANCE.md for the provenance chain and
+// the reasoning. This is the one load path in this file that refuses rather than degrades, because
+// these concepts are the vocabulary enrich/typing RESOLVE AGAINST: a drifted copy does not fail, it
+// answers differently, and the answers persist as content-addressed atoms. Refusing leaves the
+// service up with an empty RC set (a state enrich already handles); loading unverified bytes would
+// poison every downstream answer invisibly.
 function loadRcIfEnabled(): void {
   if (process.env['HELLGRAPH_LOAD_RC'] !== 'on') return
   try {
-    const gzPath = process.env['HELLGRAPH_RC_PATH'] ||
-      path.join(__dirname, '..', 'ontology', 'kbpedia-rc-2.10.n3.gz')
+    const override = process.env['HELLGRAPH_RC_PATH']
+    const gzPath = override || path.join(__dirname, '..', 'ontology', 'kbpedia-rc-2.10.n3.gz')
     if (!fs.existsSync(gzPath)) { console.error(`[hellgraph-service] RC load skipped: ${gzPath} not found`); return }
+
+    // A path override must state the digest of what it points at — there is no unverified load.
+    const expected = expectedDigestFor(Boolean(override), process.env['HELLGRAPH_RC_SHA256'])
+    if (expected.error) {
+      console.error(`[hellgraph-service] RC load REFUSED: ${expected.error}`)
+      return
+    }
+
     const t0 = Date.now()
-    const text = zlib.gunzipSync(fs.readFileSync(gzPath)).toString('utf8')
+    const gz = fs.readFileSync(gzPath)
+    const v = verifyRcArtifact(gz, zlib.gunzipSync, expected.sha as string)
+    if (!v.ok) {
+      // Loud and specific: an integrity refusal must never read like a transient skip.
+      console.error(`[hellgraph-service] RC load REFUSED — vendored-artifact integrity check failed. ${v.reason}`)
+      return
+    }
+    console.log(`[hellgraph-service] RC artifact verified — gz sha256 ${v.gzSha256}` +
+      (v.upstreamVerified ? ` / inflated ${v.n3Sha256} == ${RC_SOURCE}`
+                          : ' (operator-supplied corpus; upstream equivalence NOT claimed)'))
+
+    // The VERIFIED buffer, not a re-read — loading bytes the check did not cover is not a check.
+    const text = (v.n3 as Buffer).toString('utf8')
     const stats = engine.loadReferenceConcepts(getHellGraph(), text)
     console.log(`[hellgraph-service] KBpedia RCs loaded — ${stats.concepts} concepts / ${stats.subClassOfEdges} subClassOf edges in ${((Date.now() - t0) / 1000).toFixed(1)}s (label 'KkoReferenceConcept')`)
   } catch (e) {
