@@ -5,6 +5,10 @@
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
 image: { repository: hellgraph-service, tag: sha-c841fc5e2f50b91ced40d9488521020f4add1fcf }
 service: { port: 8090, portName: http }
+# Measured: 55k RC load peaks 560MB RSS (batched loader, engine 0.4.40) — 1Gi is the honest budget.
+resources:
+  requests: { cpu: 250m, memory: 768Mi }
+  limits:   { cpu: "2", memory: 1Gi }
 config:
   # Estate sovereign embeddings contract (matches memoryd + prophet-platform #799): the engine
   # (semantic.embedText, ≥0.4.23) speaks EMBEDDINGS_URL → the in-cluster Ollama pod's OpenAI-
@@ -18,7 +22,7 @@ config:
   # Load the ~55k KBpedia reference concepts at startup (the RC ABox under KKO, vendored gzipped in
   # the image). Activates the KKO coherence ranker in /api/graph/enrich and gives semantic entity
   # typing its target vocabulary. Idempotent (content-addressed atoms).
-  HELLGRAPH_LOAD_RC: "off"  # OOM at 512Mi (exit 134): 55k load needs streaming loader + memory-limit work — re-enable then
+  HELLGRAPH_LOAD_RC: "on"  # 0.4.40 batched loader: measured 560MB peak @55k under a 400MB heap cap
   # ── ORG SUPER-PEER (federation) — opt-in, OFF by default ──────────────────────────────────
   # The membership loop for local Noetica users: admit a user's writer key ONCE (signed
   # addWriter control op) and their local graph changes percolate to this org graph
