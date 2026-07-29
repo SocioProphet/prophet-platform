@@ -90,6 +90,9 @@ jobs:
           - { image: tritfabric-consumption-api, context: ., dockerfile: apps/tritfabric-consumption-api/Dockerfile }
           - { image: agora,                 context: apps/agora,                 dockerfile: Dockerfile }
           - { image: spark-runner,          context: apps/spark-runner,          dockerfile: Dockerfile }
+          # PHT-5 dataset/version store (embedded ArcticDB gateway). QuestDB + ClickHouse are
+          # upstream images digest-pinned in deploy/values — no build entry for them.
+          - { image: arcticdb-gateway,      context: apps/arcticdb-gateway,      dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}

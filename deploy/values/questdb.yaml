@@ -1,0 +1,48 @@
+# QuestDB — PHT-5 hot time-series engine (tritfabric fabric/docs/pht.md PHT-5; atoms-catalog
+# section 3.1: "hot ingest + short retention + edge-local queries"). Upstream image, Apache 2.0.
+# The spec's target namespace is `data`; v0 co-locates in `socioprophet` beside the estate's
+# self-hosted postgres (deploy/datastores) until a data-namespace split is worth its cost.
+#
+# Digest-pinned (estate rule: a moving tag + IfNotPresent means a fix never rolls out). The tag
+# is documentation; the digest is what deploys. IfNotPresent is SAFE here because the digest is
+# immutable. Bumping = update tag AND digest together (docker buildx imagetools inspect, or the
+# Hub API). NOT touched by build-image/gitops-promote — we don't build this image.
+#
+# QuestDB OSS has no native replication/failover — the platform owns HA/DR (atoms-catalog 3.1
+# note) — so: single writer on a PVC, Recreate (a rolling update would deadlock on the RWO PD),
+# no autoscaling. Everything QuestDB owns (conf/ db/ log/) lives under /var/lib/questdb = the PVC.
+# Boot-verified under the chart's hardened defaults (runAsNonRoot 10001 + readOnlyRootFilesystem
+# + writable /tmp emptyDir): 9.4.3 starts clean and serves HTTP with only the PVC writable.
+nameOverride: questdb
+
+image:
+  registry: docker.io          # third-party upstream image, not this platform's GAR
+  repository: questdb/questdb
+  # 9.4.3 = latest stable (2026-06-15), multi-arch manifest-list digest (amd64+arm64).
+  tag: "9.4.3@sha256:3fd139f9f16015afc1b064fe4591b271be26cdec10315415e5511e9d80a5919e"
+
+service:
+  port: 9000                   # HTTP: REST query + web console + ILP-over-HTTP ingest
+  portName: http
+  extraPorts:
+    - { name: pgwire, port: 8812 }   # Postgres wire protocol (SELECT surface)
+    - { name: ilp,    port: 9009 }   # InfluxDB line protocol (TCP ingest)
+
+persistence:
+  enabled: true
+  size: 10Gi
+  mountPath: /var/lib/questdb  # QuestDB root: conf/ db/ log/ all live here
+
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  # The main HTTP port serves the console at / (200). QuestDB's dedicated health endpoint
+  # lives on the separate min-server port (9003) — not exposed in v0 to keep the surface small.
+  path: /
+
+# Honest floor for a hot-ingest JVM store (spec: short-retention hot windows, not bulk scans).
+resources:
+  requests: { cpu: 250m, memory: 1Gi }
+  limits:   { cpu: "2",  memory: 2Gi }

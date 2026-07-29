@@ -49,6 +49,14 @@ spec:
           - { name: compute-gateway }
           # the IFM cadence trigger: ASX reporting events → governed doc→SQL runs
           - { name: reporting-watcher }
+          # PHT-5 timeseries substrate (tritfabric fabric/docs/pht.md + atoms-catalog section 3):
+          # questdb + clickhouse are third-party upstream images DIGEST-pinned in their values
+          # files (like socbase-* below — never touched by the build-image/gitops-promote SHA
+          # pipeline); arcticdb-gateway is first-party (images.yml matrix, sha-promoted).
+          # clickhouse requires the clickhouse-admin Secret first — see deploy/values/clickhouse.yaml.
+          - { name: questdb }
+          - { name: clickhouse }
+          - { name: arcticdb-gateway }
           # spark-runner MOVED to runtime-services → sovereign-runtime (executes user Spark jobs).
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —
