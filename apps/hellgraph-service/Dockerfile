@@ -28,6 +28,7 @@ COPY src ./src
 # Seed corpus for auto-seed-on-boot (server.ts seedIfEmpty): populates an empty graph so the cockpit's
 # knowledge surfaces aren't blank. Resolved relative to the module → /app/seeds.
 COPY seeds ./seeds
+COPY ontology ./ontology
 # the compiled benchmarked analytics kernel (native/hg_napi.node) — analytics.ts loads it, TS fallback if absent
 COPY --from=native /native/hg_napi.node ./native/hg_napi.node
 
