@@ -1,0 +1,51 @@
+# prophet-materializer-clickhouse — Seal-the-Walls W1.1: the first proof-carrying
+# materializer (tritfabric fabric/docs/pht.md, "Design commitments 2026-07-29" #3).
+# Tails hellgraph-service GET /api/graph/log (HellGraph IS the log — commitment 1),
+# INSERTs the hellgraph.events derived view into ClickHouse (ReplacingMergeTree keyed
+# by event_id, versioned by seq → idempotent replay), checkpoints by the log's logical
+# clock in hellgraph.materializer_checkpoint, and seals ONE receipt per batch on the
+# estate spine via compute-gateway POST /v1/compute kind=materialize (never a parallel
+# receipt lineage). Fail-closed: no receipt ⇒ no checkpoint ⇒ the batch retries.
+nameOverride: prophet-materializer-clickhouse
+
+image:
+  repository: prophet-materializer-clickhouse
+  # sha-pinned by gitops-promote after the first CI build (arcticdb-gateway precedent).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
+  # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  # the shared chart names the Service after the release/nameOverride → `clickhouse`
+  # (deploy/values/clickhouse.yaml nameOverride), HTTP interface port 8123.
+  CLICKHOUSE_URL: "http://clickhouse:8123"
+  CLICKHOUSE_USER: "default"
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+  MATERIALIZER_PROJECT: "default"
+  POLL_INTERVAL_SECONDS: "5"
+  BATCH_LIMIT: "500"
+secretEnv:
+  # the same Secrets the source services already require in this namespace — nothing new
+  # is provisioned for the materializer (see clickhouse.yaml PREREQ + provision-secrets).
+  CLICKHOUSE_PASSWORD: { secretName: clickhouse-admin, key: password }
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+
+# One materializer per sink: the checkpoint row is a single-writer cursor. No HPA; a
+# brief gap during Recreate just means the next poll drains a slightly larger batch —
+# the whole design is restart-safe (idempotent replay from the last committed cut).
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # reports last committed cursor + lag vs the log's clock (honest liveness)
+
+# Honest floor for a poll→map→INSERT loop: httpx + fastapi resident, batches are small
+# (BATCH_LIMIT 500 events) and stream straight through.
+resources:
+  requests: { cpu: 50m,  memory: 256Mi }
+  limits:   { cpu: 500m, memory: 512Mi }

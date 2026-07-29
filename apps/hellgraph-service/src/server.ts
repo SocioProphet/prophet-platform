@@ -7,6 +7,7 @@
  * Routes:
  *   GET  /healthz                  liveness + engine export count
  *   GET  /api/graph/stats          node / edge counts
+ *   GET  /api/graph/log?since=&limit=  log-tail for materializers: creation events > since (seq asc) + cursor
  *   GET  /api/graph/analytics?metric=pagerank|components  the BENCHMARKED Rust CSR kernel (native, TS fallback)
  *   POST /api/graph/node           { id, labels[], properties? } → upsert node
  *   POST /api/graph/edge           { label, from, to, properties? } → add edge
@@ -136,6 +137,74 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/api/graph/stats') {
     return json(res, 200, { nodes: g.allNodes().length, edges: g.allEdges().length })
+  }
+
+  // Log-tail surface — the materializer contract (Seal-the-Walls W1.1). HellGraph IS the platform
+  // log (tritfabric fabric/docs/pht.md, "Design commitments 2026-07-29"): derived stores (ClickHouse,
+  // ArcticDB, QuestDB) tail THIS endpoint and materialize, checkpointing by `cursor`.
+  //   GET /api/graph/log?since=<seq>&limit=N → { events: [{seq, kind, …}], cursor, version }
+  // since-EXCLUSIVE, ordered by seq ascending, bounded by limit (max 1000). `cursor` = seq of the
+  // last returned event (== since when the page is empty) — feed it back as the next `since`.
+  //
+  // WHY atoms, not AtomSpace.logTail(): the engine's public logTail() reads the IN-MEMORY op log,
+  // which the JSONL restore path does NOT rebuild (applyLogEntry re-indexes atoms but never
+  // re-pushes log entries) — after a pod restart it only covers the current process, so a
+  // materializer resuming an older checkpoint would silently miss history. atom.createdAtSeq IS
+  // rehydrated from the persisted log on restore, so deriving events from atoms stays correct
+  // across restarts. Consequence (the documented contract): this surface emits CREATION events
+  // ordered by the logical clock, each carrying the atom's CURRENT labels/properties
+  // (materialized-view semantics — the ReplacingMergeTree row downstream is latest-wins anyway);
+  // a later property write on an already-emitted atom does not re-emit it.
+  if (req.method === 'GET' && url.pathname === '/api/graph/log') {
+    const since = Math.max(0, Number(url.searchParams.get('since') ?? 0) || 0)
+    const limit = Math.max(1, Math.min(1000, Number(url.searchParams.get('limit') ?? 500) || 500))
+    const as = getAtomSpace()
+    // decode a stored Value the way the store facade does (float | 'true'/'false' | string)
+    const decode = (v: { kind: string; value: (string | number)[] } | undefined): unknown => {
+      if (!v) return null
+      if (v.kind === 'float') return v.value[0] ?? null
+      const s = String(v.value[0] ?? '')
+      return s === 'true' ? true : s === 'false' ? false : s
+    }
+    const props = (values: Record<string, { kind: string; value: (string | number)[] }>): Record<string, unknown> => {
+      const out: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(values)) if (k.startsWith('prop:')) out[k.slice(5)] = decode(v)
+      return out
+    }
+    type LogEvent =
+      | { seq: number; kind: 'node'; id: string; labels: string[]; properties: Record<string, unknown>; wallTime: string }
+      | { seq: number; kind: 'edge'; id: string; label: string; from: string; to: string; properties: Record<string, unknown>; wallTime: string }
+    const events: LogEvent[] = []
+    // graph nodes = ConceptNode atoms (the store's ENTITY type; labels under the graph:labels value)
+    for (const a of as.getByType('ConceptNode', false)) {
+      if (a.createdAtSeq <= since) continue
+      const labelsVal = a.values['graph:labels']
+      events.push({
+        seq: a.createdAtSeq, kind: 'node', id: a.name ?? a.handle,
+        labels: labelsVal?.kind === 'string' ? labelsVal.value : [],
+        properties: props(a.values), wallTime: a.createdAt,
+      })
+    }
+    // graph edges = EvaluationLink(PredicateNode(label), ListLink(from, to)) — mirror the store's
+    // projectEdge: skip malformed links rather than emitting a partial event.
+    for (const a of as.getByType('EvaluationLink', false)) {
+      if (a.createdAtSeq <= since) continue
+      const [predH, listH] = a.outgoing ?? []
+      const pred = predH ? as.getAtom(predH) : undefined
+      const list = listH ? as.getAtom(listH) : undefined
+      const [fromH, toH] = list?.outgoing ?? []
+      const from = fromH ? as.getAtom(fromH) : undefined
+      const to = toH ? as.getAtom(toH) : undefined
+      if (!pred?.name || !from?.name || !to?.name) continue
+      events.push({
+        seq: a.createdAtSeq, kind: 'edge', id: a.handle, label: pred.name,
+        from: from.name, to: to.name, properties: props(a.values), wallTime: a.createdAt,
+      })
+    }
+    events.sort((x, y) => x.seq - y.seq)
+    const page = events.slice(0, limit)
+    const cursor = page.length > 0 ? page[page.length - 1]!.seq : since
+    return json(res, 200, { events: page, cursor, version: g.version() })
   }
 
   // Graph analytics over the BENCHMARKED Rust CSR kernel (hg_analytics via N-API) — the same code

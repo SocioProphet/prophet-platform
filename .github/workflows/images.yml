@@ -93,6 +93,8 @@ jobs:
           # PHT-5 dataset/version store (embedded ArcticDB gateway). QuestDB + ClickHouse are
           # upstream images digest-pinned in deploy/values — no build entry for them.
           - { image: arcticdb-gateway,      context: apps/arcticdb-gateway,      dockerfile: Dockerfile }
+          # Seal-the-Walls W1.1: proof-carrying HellGraph-log → ClickHouse materializer.
+          - { image: prophet-materializer-clickhouse, context: apps/prophet-materializer-clickhouse, dockerfile: Dockerfile }
     uses: SocioProphet/.github/.github/workflows/build-image.yml@main
     with:
       image: ${{ matrix.image }}

@@ -201,7 +201,11 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
             step_run = f"proj-{req.project}:compute:{short}"
             delta.edges.append(GraphEdge.model_validate({"label": "HAS_STEP", "from": run_id, "to": step_run}))
             delta.edges.append(GraphEdge.model_validate({"label": "prov:wasInformedBy", "from": step_run, "to": run_id}))
-    if WRITE_PROVENANCE and status == "ok":
+    # an adapter may veto the provenance write-back (`_no_provenance`): a materialize run's
+    # provenance subgraph would land in the very graph whose log the materializer tails —
+    # each receipt would emit new log events and feed itself forever. The receipt chain
+    # still carries the run; only the graph write-back is suppressed.
+    if WRITE_PROVENANCE and status == "ok" and not raw.get("_no_provenance"):
         delta.written = await adapters.write_provenance(delta)
 
     attestation = zerotrust.attestation_bundle(receipt)

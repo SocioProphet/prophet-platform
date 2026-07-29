@@ -305,6 +305,62 @@ test('graphrag: HYBRID retrieval (HNSW+BM25 RRF) seeds by embedding, not substri
   } finally { delete process.env.EMBEDDINGS_URL }
 })
 
+test('log-tail: /api/graph/log streams creation events since a cursor (materializer contract)', async () => {
+  const L = `logtail-${process.pid}`
+  // the shared test graph already carries KKO + earlier tests' writes — anchor on the
+  // CURRENT version (logical clock) so only THIS test's events are after the cursor.
+  const v0 = (await req('GET', '/api/graph/log?limit=1')).json.version as number
+  await req('POST', '/api/graph/node', { id: `${L}:a`, labels: [L], properties: { name: 'A', n: 1 } })
+  await req('POST', '/api/graph/node', { id: `${L}:b`, labels: [L] })
+  await req('POST', '/api/graph/edge', { label: 'links', from: `${L}:a`, to: `${L}:b`, properties: { w: 2 } })
+
+  const r = await req('GET', `/api/graph/log?since=${v0}&limit=1000`)
+  assert.equal(r.status, 200)
+  // exactly this test's graph events (PredicateNode/ListLink encoding atoms are NOT events)
+  assert.equal(r.json.events.length, 3)
+  assert.deepEqual(r.json.events.map((e: any) => e.kind), ['node', 'node', 'edge'])
+  // ordered by seq ascending, strictly monotonic
+  const seqs = r.json.events.map((e: any) => e.seq)
+  assert.ok(seqs[0] > v0 && seqs[0] < seqs[1] && seqs[1] < seqs[2], 'seq ascending, since-exclusive')
+  const [na, nb, ed] = r.json.events
+  assert.equal(na.id, `${L}:a`)
+  assert.deepEqual(na.labels, [L])
+  assert.deepEqual(na.properties, { name: 'A', n: 1 })            // float decode keeps the number
+  assert.ok(typeof na.wallTime === 'string' && na.wallTime.length > 0)
+  assert.equal(nb.id, `${L}:b`)
+  assert.equal(ed.label, 'links')
+  assert.equal(ed.from, `${L}:a`)
+  assert.equal(ed.to, `${L}:b`)
+  assert.deepEqual(ed.properties, { w: 2 })
+  assert.ok(typeof ed.id === 'string' && ed.id.length > 0)        // edge id = link handle (stable)
+  // cursor = seq of the last returned event; version = the store's logical clock
+  assert.equal(r.json.cursor, seqs[2])
+  assert.ok(r.json.version >= r.json.cursor)
+})
+
+test('log-tail: since is exclusive and an empty page keeps the cursor', async () => {
+  const tip = (await req('GET', '/api/graph/log?limit=1')).json.version as number
+  const r = await req('GET', `/api/graph/log?since=${tip}`)
+  assert.equal(r.status, 200)
+  assert.deepEqual(r.json.events, [])
+  assert.equal(r.json.cursor, tip)                                 // unchanged — safe to re-poll
+})
+
+test('log-tail: limit pages the stream and the cursor resumes it losslessly', async () => {
+  const L = `logpage-${process.pid}`
+  const v0 = (await req('GET', '/api/graph/log?limit=1')).json.version as number
+  for (const x of ['p', 'q', 'r']) await req('POST', '/api/graph/node', { id: `${L}:${x}`, labels: [L] })
+
+  const p1 = await req('GET', `/api/graph/log?since=${v0}&limit=2`)
+  assert.equal(p1.json.events.length, 2)
+  assert.deepEqual(p1.json.events.map((e: any) => e.id), [`${L}:p`, `${L}:q`])
+  const p2 = await req('GET', `/api/graph/log?since=${p1.json.cursor}&limit=2`)
+  assert.equal(p2.json.events.length, 1)                           // resume exactly after page 1
+  assert.equal(p2.json.events[0].id, `${L}:r`)
+  const p3 = await req('GET', `/api/graph/log?since=${p2.json.cursor}&limit=2`)
+  assert.deepEqual(p3.json.events, [])                             // caught up
+})
+
 test('graphrag: multi-hop grounding reaches beyond 1 hop (?hops=2)', async () => {
   const S = `hop-${process.pid}`
   await req('POST', '/api/graph/node', { id: `${S}:a`, labels: ['N'], properties: { name: 'Alpha' } })

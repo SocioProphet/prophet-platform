@@ -17,6 +17,7 @@ npm run typecheck
 |---|---|---|
 | GET | `/healthz` | liveness + engine export count |
 | GET | `/api/graph/stats` | node / edge counts |
+| GET | `/api/graph/log?since=&limit=` | log-tail for materializers: creation events after `since` (seq asc, ≤1000) + `cursor` + `version` |
 | POST | `/api/graph/node` | `{ id, labels[], properties? }` → upsert node |
 | POST | `/api/graph/edge` | `{ label, from, to, properties? }` → add edge |
 | GET | `/api/graph/query?label=X` | nodes carrying a label |

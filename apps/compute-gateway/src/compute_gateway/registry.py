@@ -91,6 +91,17 @@ KINDS: dict[str, dict] = {
         "capabilities": ["upsert", "sqlite", "keyed-by-entity-period", "warrant-tagged"],
         "epistemic": "derived", "executes_user_code": False, "status": "live",
     },
+    # ── Seal-the-Walls W1.1: proof-carrying materializers ──
+    # A materializer (prophet-materializer-clickhouse et al.) tails the HellGraph log and
+    # writes a derived view; after each batch it attests "materialized through cut X" HERE,
+    # so the receipt lands on THE estate receipt spine (pht.md Design commitment 3 — never a
+    # parallel receipt lineage). In-process: the gateway seals over the batch coordinates
+    # {sink, table, from_cursor, to_cursor, row_count, batch_hash}; it runs no user code.
+    "materialize": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["log-tail", "checkpoint-cut", "idempotent-batch", "clickhouse"],
+        "epistemic": "derived", "executes_user_code": False, "status": "live",
+    },
 }
 
 
