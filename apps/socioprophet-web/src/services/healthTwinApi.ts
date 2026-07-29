@@ -124,7 +124,11 @@ export interface OpinionOut { reviewer: string; assessment: string; confidence: 
 export interface Concordance { n: number; verdict: 'insufficient' | 'unanimous' | 'majority' | 'split'; agreement: number; groups: { assessment: string; count: number; reviewers: string[] }[]; flag: string }
 export interface ConsultAgg { consult_id: string; scope: string; blind: boolean; opinions: OpinionOut[]; concordance: Concordance; disclaimer: string; error?: string }
 
-export async function openConsult(scope: string, disclosure = 'standard', agreed = true): Promise<OpenConsult> {
+// `agreed` defaults to FALSE for the same reason it does server-side: a consent parameter
+// that defaults to granted means any caller who forgets it opens a consult. The server
+// refuses an un-agreed consult, so the honest client default is the one that makes a
+// forgetful caller get refused rather than quietly succeed.
+export async function openConsult(scope: string, disclosure = 'standard', agreed = false): Promise<OpenConsult> {
   const res = await fetch(`${BASE}/api/health/consult`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope, disclosure, agreed }) });
   return await res.json();
 }
