@@ -9,12 +9,13 @@ the walking skeleton of "any compute, one contract".
 from __future__ import annotations
 
 import os
+from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import artifacts, engine, grants, planner, receipts, registry, rocrate, zerotrust
+from . import artifacts, engine, engine_receipts, grants, planner, receipts, registry, rocrate, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -223,6 +224,51 @@ def workflow_ro_crate_view(receipt_id: str, project: str = "default",
                    f"use /v1/receipts/{receipt_id}/ro-crate")
     steps = _workflow_step_receipts(composite.id, chain)
     return rocrate.build_workflow(composite, steps)
+
+
+class EngineSealBody(BaseModel):
+    """W1.3 receipt unification — an ENGINE sealed() receipt presented for chaining."""
+    kind: Literal["enrich", "explore"]
+    engineReceipt: dict[str, Any]
+    subject: dict[str, Any] = {}
+    project: str = "default"
+    actor: str = "hellgraph-service"
+    entitlement: str | None = None
+
+
+@app.post("/v1/engine-receipts")
+async def engine_receipt_seal(body: EngineSealBody, _: None = Depends(require_token)) -> dict:
+    """Chain a HellGraph ENGINE sealed() receipt (enrich | explore) into THE receipt
+    spine. Runs through the exact same governed path as every compute (the
+    `engine-seal` kind): entitle → memo → validate + RECOMPUTE the engine's sealed
+    sha256 byte-exactly → seal → Ed25519-attest. Identical receipt re-presented ⇒
+    the memo returns the SAME receipt (idempotent retry, materialize precedent).
+    A receipt whose seal does not recompute is refused (422) — the spine never
+    attests what it cannot verify."""
+    req = ComputeRequest(
+        kind="engine-seal", project=body.project, actor=body.actor,
+        entitlement=body.entitlement,
+        spec={"kind": body.kind, "engineReceipt": body.engineReceipt, "subject": body.subject})
+    result = await engine.execute(req)
+    if result.status in ("entitlement_required", "grant_required"):
+        raise HTTPException(status_code=403, detail=result.message or result.status)
+    if result.status != "ok" or result.receipt is None:
+        raise HTTPException(status_code=422, detail=result.error or result.message or "engine-seal refused")
+    return {
+        "receiptId": result.receipt.id,
+        "envelope": {"receipt": result.receipt.model_dump(), "attestation": result.attestation},
+        "memoized": result.memoized,
+    }
+
+
+@app.get("/v1/engine-receipts/{receipt_id}/verify")
+def engine_receipt_verify(receipt_id: str, project: str = "default",
+                          _: None = Depends(require_token)) -> dict:
+    """ONE verify() that walks an engine receipt end-to-end: gateway Ed25519
+    signature → engine sealed-hash recomputation → snapshot.seq binding. Always
+    200 with {valid, steps:[{step, status, detail}]} — the typed trace IS the
+    result; a missing receipt is simply valid:false at the first step."""
+    return engine_receipts.verify_walk(project, receipt_id)
 
 
 @app.get("/v1/receipts")

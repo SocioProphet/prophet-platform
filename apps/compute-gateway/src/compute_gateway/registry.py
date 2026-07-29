@@ -115,6 +115,20 @@ KINDS: dict[str, dict] = {
                         "hash-chained-audit", "dry-run"],
         "epistemic": "observed", "executes_user_code": False, "status": "live",
     },
+
+    # ── Seal-the-Walls W1.3: receipt unification — engine sealed() receipts on THE spine ──
+    # hellgraph-service POSTs each enrich/explore ENGINE receipt (sealed sha256 over the
+    # ranked output + snapshot {seq,nodes,edges}) here; the gateway recomputes that seal
+    # byte-exactly (V8 JSON.stringify semantics — engine_receipts.py), wraps it in the
+    # signed in-toto envelope, and chains it on the ONE spine — so a single verify walk
+    # covers gateway signature → engine hash → snapshot.seq binding end-to-end. In-process,
+    # runs no user code. Warrant `verified`: the seal is independently RECOMPUTED, not
+    # trusted (error receipts carry `unknown` — the adapter types them explicitly).
+    "engine-seal": {
+        "backends": ["gateway"], "default": "gateway",
+        "capabilities": ["enrich", "explore", "sealed-hash-recompute", "snapshot-seq-binding"],
+        "epistemic": "verified", "executes_user_code": False, "status": "live",
+    },
 }
 
 
