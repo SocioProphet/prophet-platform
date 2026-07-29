@@ -77,6 +77,16 @@ spec:
           # Seal-the-Walls W1.2: synthetic MarketDataEvent replay emitter (first-party;
           # schema-validated sourceos-spec events → hellgraph graph writes → the log above).
           - { name: market-replay, tier: foundation }            # the MarketDataEvent contract emitter feeding the spine
+          # Seal-the-Walls W6.2: THE extraction spine (first-party; documents →
+          # warrant-typed KnowledgeNuggets, validated against the vendored sourceos-spec
+          # schema fail-closed → hellgraph graph writes, KKO-typed → one receipt per
+          # document via compute-gateway kind=nugget-emit).
+          # tier: foundation — the KnowledgeNugget IS the estate's L2 content-grain
+          # CONTRACT: retrieval, ranking, planning and rendering all exchange this shape,
+          # and the normative rule that model-generated content stays distinguishable is
+          # enforced at this producer. A swappable extractor could replace the parsing;
+          # nothing may replace the contract. Built from source in images.yml.
+          - { name: nugget-extractor, tier: foundation }
           # L5 governance executor (first-party; blueprint-audit remediation): runs the
           # engine's lifecycle FSM + retention scheduler + vendor-cache gc on a loop,
           # hash-chained audit in MinIO, runs sealed via compute-gateway kind=governance.

@@ -42,6 +42,10 @@ jobs:
           # boots credential-less in dry-run memory mode (fail-closed only under ENFORCE),
           # so /healthz answers unaided — exactly what this gate needs.
           - { service: lifecycle-warden, context: apps/lifecycle-warden, dockerfile: Dockerfile }
+          # boots with no dependencies at all: the contract self-check at startup is
+          # in-process (vendored schema + probe nuggets), and the drain loop is a no-op
+          # with nothing pending — so /healthz answers unaided on the values file's port.
+          - { service: nugget-extractor, context: apps/nugget-extractor, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

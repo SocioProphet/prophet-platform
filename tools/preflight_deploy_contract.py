@@ -163,6 +163,11 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
+    "nugget-extractor:moving-tag": (
+        "New service — Seal-the-Walls W6.2 extraction spine (apps/nugget-extractor: documents -> warrant-typed "
+        "KnowledgeNuggets) added to CI this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha "
+        "exists until merge."
+    ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,

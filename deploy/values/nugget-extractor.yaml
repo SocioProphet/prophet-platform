@@ -1,0 +1,84 @@
+# nugget-extractor — Seal-the-Walls W6.2: THE extraction spine. Two independent audits
+# named the same hole (the estate blueprint audit found no extraction anywhere; the DARPA
+# TA-B lesson named the missing content grain), and this fills it: documents become
+# warrant-typed KnowledgeNuggets — the estate's L2 content grain
+# (SourceOS-Linux/sourceos-spec schemas/KnowledgeNugget.json v0.1.0, VENDORED and
+# sha256-asserted at import in apps/nugget-extractor/src/nugget_extractor/contract.py, so
+# contract drift aborts startup instead of surfacing at emit time).
+#
+# THE PATH: POST /v1/extract → text layer → spanned blocks → nuggets → validate EVERY one
+# fail-closed → hellgraph-service graph writes (KnowledgeNugget nodes labelled
+# `warrant:<type>`, a SourceDocument node, KkoType nodes + kkoType edges, and warrantedBy
+# edges from each computed value back to the quote it came from) → ONE receipt per
+# document sealed on the estate spine via compute-gateway POST /v1/compute
+# kind=nugget-emit. Never a fourth receipt lineage. prophet-materializer-clickhouse tails
+# the same log and lands the nuggets in ClickHouse; this service never touches ClickHouse.
+#
+# FAIL-CLOSED: an invalid nugget is counted, logged and NEVER emitted; the count is bound
+# into the document's sealed receipt as well as reported on /healthz, where its
+# steady-state MUST be 0. Nothing is counted as emitted until it is BOTH on the graph and
+# attested (the materializer's "no receipt ⇒ no checkpoint" rule).
+#
+# NO OCR IS SHIPPED, deliberately. Scanned/image-only PDFs are REJECTED with a 422 that
+# names the gap and counted on /healthz as `ocr_required` — never a silent empty
+# extraction, never a stub dressed as OCR. The seam is one registry in extract.py; adding
+# a backend means pinning the dependency and sizing the image (tesseract/Paddle add
+# 300 MB–1.5 GB of native layers and weights to a 130 MB base), which is a deliberate
+# decision, not a side effect of this deploy.
+nameOverride: nugget-extractor
+
+image:
+  repository: nugget-extractor
+  # New service: no sha- tag exists until the first CI build. gitops-promote sha-pins this
+  # on merge (market-replay / prophet-materializer-clickhouse precedent), and the
+  # moving-tag ratchet entry in tools/preflight_deploy_contract.py is deleted then.
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`;
+  # harmless once promotion pins an immutable sha- tag (kubelet re-checks, digests match).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+  NUGGET_PROJECT: "default"
+  # paragraph | sentence. Paragraph is the default grain: a paragraph is the smallest unit
+  # that reliably carries a complete claim, and every quote is cut from the source either
+  # way, so the grain changes granularity, never fidelity.
+  NUGGET_GRAIN: "paragraph"
+  NUGGET_MAX_BYTES: "16777216"
+  DRAIN_INTERVAL_SECONDS: "5"
+  # The ONLY registered OCR backend. Any other value aborts the process at import rather
+  # than letting a deployment believe it has OCR that this image does not contain.
+  OCR_BACKEND: "none"
+
+secretEnv:
+  # OUTBOUND: the spine token every proof-carrying producer presents (materializer +
+  # lifecycle-warden precedent) — already provisioned in this namespace.
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+  # INBOUND: the bearer for POST /v1/extract. `optional: true` so the pod still starts and
+  # /healthz still answers before the Secret exists; the ENDPOINT fails closed with 503
+  # ("ingest token not configured") until it does — the compute-gateway pattern. Minted by
+  # the provision-secrets workflow (create-if-absent; the value exists nowhere else).
+  NUGGET_INGEST_TOKEN: { secretName: nugget-extractor-token, key: token, optional: true }
+
+# ONE writer while pending batches live in memory: a second replica would hold its own
+# un-drained batches, and a rollout that overlapped two pods could re-POST edges the other
+# had already written. No HPA; Recreate over RollingUpdate so two extractors never overlap.
+# Restart safety comes from CONTENT ADDRESSING, not from durable state: nugget URNs are a
+# pure function of (docRef, source content hash, ordinal), so re-submitting a document
+# mints the same identities and the graph nodes upsert in place.
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # extracted / emitted / validation_failures (MUST be 0) / pending / gateway_ok
+
+# Honest floor for a parse→validate→POST service: fastapi + jsonschema + pypdf resident,
+# documents stream through and are capped at NUGGET_MAX_BYTES. pypdf holds a whole PDF in
+# memory while extracting, so the limit is sized for a 16 MB filing, not a corpus.
+resources:
+  requests: { cpu: 50m,  memory: 256Mi }
+  limits:   { cpu: "1",  memory: 768Mi }

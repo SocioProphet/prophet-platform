@@ -658,6 +658,80 @@ async def _governance(req_spec: dict, project: str, session: str | None) -> Adap
             "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
             "_no_provenance": True}
 
+_WARRANT_KINDS = ("direct-quote", "computed", "inferred", "model-generated")
+
+
+async def _nugget_emit(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Seal-the-Walls W6.2 — attest one document's KnowledgeNugget emission on THE spine.
+
+    nugget-extractor calls this after writing a document's nuggets into the HellGraph log
+    and BEFORE counting them emitted, so "no receipt ⇒ nothing emitted" mirrors the
+    materializer's "no receipt ⇒ no checkpoint". In-process: the extraction already ran in
+    the producer; the gateway's job is the governed, hash-chained, Ed25519-attested
+    evidence over the batch coordinates. The spec IS the receipt's inputs, so inputs_sha
+    binds {doc_ref, content_hash, raw_sha256, nugget_count, warrant_counts,
+    validation_failures, batch_hash} into the chain.
+
+    Two things this refuses, because the KnowledgeNugget contract's whole value is that
+    warrant status cannot be fudged:
+    - a warrant key outside the CLOSED v0.1 taxonomy (direct-quote | computed | inferred |
+      model-generated). An unrecognised warrant must not be sealed into a receipt that
+      downstream admissibility weighting will then trust.
+    - warrant_counts that do not sum to nugget_count. The seal would otherwise attest a
+      batch whose own composition does not add up — and it is exactly the model-generated
+      share that a miscount would hide.
+
+    `_no_provenance`: like materialize, the receipt's provenance subgraph must NOT be
+    written back into hellgraph. The nuggets, their source document, their KKO type nodes
+    and their warrantedBy edges are ALREADY in that graph — written by the producer, with
+    richer structure. A write-back would add a second, weaker copy of the same lineage and
+    mint log events on every document, forever. The proof lives on the receipt chain.
+    """
+    missing = [k for k in ("doc_ref", "content_hash", "nugget_count", "batch_hash")
+               if req_spec.get(k) in (None, "")]
+    if missing:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"nugget-emit spec missing {missing} "
+                         f"(need doc_ref, content_hash, nugget_count, batch_hash)",
+                "degraded": None, "_no_provenance": True}
+    counts_in = req_spec.get("warrant_counts") or {}
+    if not isinstance(counts_in, dict):
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": "nugget-emit warrant_counts must be a JSON object",
+                "degraded": None, "_no_provenance": True}
+    unknown = [k for k in counts_in if k not in _WARRANT_KINDS]
+    if unknown:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"nugget-emit warrant_counts has warrants outside the closed v0.1 "
+                         f"taxonomy {list(_WARRANT_KINDS)}: {unknown} — refusing to attest",
+                "degraded": None, "_no_provenance": True}
+    counts = {k: int(v) for k, v in counts_in.items()}
+    nugget_count = int(req_spec["nugget_count"])
+    if sum(counts.values()) != nugget_count:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"nugget-emit warrant_counts sum to {sum(counts.values())} but "
+                         f"nugget_count is {nugget_count} — refusing to attest a batch "
+                         "whose composition does not add up",
+                "degraded": None, "_no_provenance": True}
+    data = {
+        "doc_ref": str(req_spec["doc_ref"]),
+        "content_hash": str(req_spec["content_hash"]),
+        "raw_sha256": str(req_spec.get("raw_sha256", "")),
+        "media_type": str(req_spec.get("media_type", "")),
+        "spec_version": str(req_spec.get("spec_version", "0.1.0")),
+        "nugget_count": nugget_count,
+        "warrant_counts": {k: counts.get(k, 0) for k in _WARRANT_KINDS},
+        # The admissibility-relevant split, computed HERE so no consumer has to re-derive
+        # it: model-generated content stays visibly distinguishable on the receipt too.
+        "model_generated_count": counts.get("model-generated", 0),
+        "validation_failures": int(req_spec.get("validation_failures", 0)),
+        "batch_hash": str(req_spec["batch_hash"]),
+    }
+    return {"outputs": [ComputeOutput(type="result", data=data)],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "_no_provenance": True}
+
+
 async def _engine_seal(req_spec: dict, project: str, session: str | None) -> AdapterResult:
     """Seal-the-Walls W1.3 — receipt unification: chain an ENGINE sealed() receipt
     into THE receipt spine.
@@ -730,6 +804,7 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "gateway:parse": lambda spec, project, session: _parse(spec, project, session),
     "gateway:materialize": lambda spec, project, session: _materialize(spec, project, session),
     "gateway:governance": lambda spec, project, session: _governance(spec, project, session),
+    "gateway:nugget-emit": lambda spec, project, session: _nugget_emit(spec, project, session),
 
     "gateway:engine-seal": lambda spec, project, session: _engine_seal(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
