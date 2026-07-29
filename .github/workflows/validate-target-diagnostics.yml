@@ -8,6 +8,50 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Cheap gatekeeper: decide whether this PR can possibly affect application code or service
+  # behaviour. Runs in seconds, no toolchain, so it costs far less than the legs it can save.
+  #
+  # SAFETY PROPERTIES (each one deliberate — see the PR for the adversarial review):
+  #   * FAIL-SAFE. Any doubt -> docs_only=false -> everything runs. An empty diff, a detection
+  #     error, or a push to main all fall through to "run everything". Skipping requires
+  #     positive proof of inertness, never absence of evidence.
+  #   * NARROW. Only docs/** and root *.md count as inert. Everything else (apps, tools, infra,
+  #     .github, contracts) forces the full matrix.
+  #   * COVERAGE-PRESERVING. validate-target-diagnostics is NEVER skipped, because its
+  #     `validate-repo` leg runs tools/validate_repo.py, which asserts REQUIRED_FILES like
+  #     docs/ARCHITECTURE.md exist and scans for TODO/PLACEHOLDER. Docs are NOT inert to that
+  #     check, so it keeps running on docs-only PRs. Only the app-test and smoke legs — which
+  #     exercise application code and service behaviour — are skipped.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: detect
+        name: Is this diff provably inert for app/service tests?
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "not a pull_request (${{ github.event_name }}) — main is never validated by inference"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          BASE="${{ github.base_ref }}"
+          git fetch --no-tags --quiet origin "$BASE"
+          CHANGED="$(git diff --name-only "origin/$BASE...HEAD" || true)"
+          if [ -z "$CHANGED" ]; then
+            echo "empty diff — running everything"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "changed files:"; echo "$CHANGED" | sed 's/^/  /'
+          # The rule lives in tools/ci_docs_only.py so it is unit-tested; a skip rule that
+          # only exists in YAML is a skip rule nobody can test.
+          RESULT="$(echo "$CHANGED" | python3 tools/ci_docs_only.py)"
+          echo "docs_only=$RESULT" >> "$GITHUB_OUTPUT"
+          echo "decision: docs_only=$RESULT (false => full matrix)"
+
   validate-target-diagnostics:
     runs-on: ubuntu-latest
     strategy:
@@ -59,6 +103,8 @@ jobs:
         run: make ${{ matrix.target }}
 
   app-test-diagnostics:
+    needs: changes
+    if: always() && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -147,6 +193,8 @@ jobs:
           path: diagnostic-logs/${{ matrix.name }}.log
 
   smoke-target-diagnostics:
+    needs: changes
+    if: always() && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
