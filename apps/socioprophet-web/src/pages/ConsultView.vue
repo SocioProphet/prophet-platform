@@ -18,9 +18,13 @@ const err = ref('');
 
 // The patient's agreement is the gate — nothing opens until they accept the terms.
 async function agree() {
+  // The checkbox only disabled a button. Its value was never sent, so the gate held in
+  // the UI and nowhere else — any direct call to the API opened a consult without it.
+  // Send what the patient actually ticked, and refuse locally as well.
+  if (!accepted.value) { err.value = 'agreement is required before a consult can open'; return; }
   busy.value = true; err.value = '';
   try {
-    const r = await openConsult('Cardiovascular', 'standard', true);
+    const r = await openConsult('Cardiovascular', 'standard', accepted.value);
     if (r.error || !r.consult_id) { err.value = r.error || 'could not open consult'; return; }
     consultId.value = r.consult_id; slice.value = r.slice ?? null; agreed.value = true;
     // seed two independent reads so the result has something to show; the Doctor tab adds more live
@@ -50,18 +54,35 @@ const c = computed(() => agg.value?.concordance ?? null);
 const top = computed(() => c.value?.groups?.[0] ?? null);
 const rest = computed(() => c.value?.groups?.slice(1) ?? []);
 const lc = (s: string) => s.replace(/^./, (m) => m.toLowerCase());
-const verdictHtml = computed(() => {
+// `assessment` is free text a reviewer types into the Doctor tab, and the verdict used to
+// be built as an HTML string rendered with v-html — so a read containing markup executed
+// in the patient's browser, the one party here who wrote none of it.
+//
+// Escaping the interpolation would close today's hole and leave the shape that caused it:
+// the next value someone interpolates has to remember to escape too. So the verdict is
+// structured data now, rendered through ordinary text bindings, and there is no v-html on
+// this page to reintroduce the problem.
+type Verdict =
+  | { kind: 'waiting' }
+  | { kind: 'split' }
+  | { kind: 'agreed'; headline: string; assessment: string };
+const verdict = computed<Verdict>(() => {
   const cc = c.value; const t = top.value;
-  if (!cc || cc.n < 2) return 'Waiting for at least two reviews to compare.';
-  if (cc.verdict === 'unanimous') return `<span class="agree">All ${cc.n} doctors agree</span> — ${lc(t!.assessment)}.`;
-  if (cc.verdict === 'split') return `The doctors are <b>split</b> — no shared view yet.`;
-  return `<span class="agree">${t!.count} of ${cc.n} doctors agree</span> — ${lc(t!.assessment)}.`;
+  if (!cc || cc.n < 2) return { kind: 'waiting' };
+  // n >= 2 does not guarantee a group survived grouping; `t!` threw on an empty list.
+  if (!t) return { kind: 'waiting' };
+  if (cc.verdict === 'split') return { kind: 'split' };
+  const headline = cc.verdict === 'unanimous'
+    ? `All ${cc.n} doctors agree`
+    : `${t.count} of ${cc.n} doctors agree`;
+  return { kind: 'agreed', headline, assessment: lc(t.assessment) };
 });
 const dissentText = computed(() => {
   const cc = c.value; const t = top.value; const r = rest.value;
   if (!cc || cc.n < 2 || cc.verdict === 'unanimous') return '';
-  if (cc.verdict === 'split') return r.concat([t!]).map((g) => `${g.count} say ${lc(g.assessment)}`).join('; ') + '.';
-  const alt = r[0]; const d = cc.n - t!.count;
+  if (!t) return '';   // same empty-groups case as the verdict above
+  if (cc.verdict === 'split') return r.concat([t]).map((g) => `${g.count} say ${lc(g.assessment)}`).join('; ') + '.';
+  const alt = r[0]; const d = cc.n - t.count;
   return alt ? `${d} ${d > 1 ? 'doctors' : 'doctor'} would instead ${lc(alt.assessment)}.` : '';
 });
 function spark(t?: number[]): string {
@@ -101,7 +122,7 @@ onMounted(() => { /* patient starts at the consent gate */ });
         <div class="cv-eyebrow">Your second opinion</div>
         <h2 class="cv-title">What the doctors thought</h2>
         <div v-if="c" class="cv-result">
-          <p class="cv-verdict" v-html="verdictHtml"></p>
+          <p class="cv-verdict"><template v-if="verdict.kind === 'waiting'">Waiting for at least two reviews to compare.</template><template v-else-if="verdict.kind === 'split'">The doctors are <b>split</b> — no shared view yet.</template><template v-else><span class="agree">{{ verdict.headline }}</span> — {{ verdict.assessment }}.</template></p>
           <p v-if="dissentText" class="cv-dissent">{{ dissentText }}</p>
           <p class="cv-status"><span class="cv-tally"><i v-for="(_, i) in c.n" :key="i" :class="i < (top?.count ?? 0) ? 'a' : 'd'"></i></span><span class="cv-rep">{{ c.n }} reviewed privately</span></p>
         </div>
@@ -140,7 +161,7 @@ onMounted(() => { /* patient starts at the consent gate */ });
       <div class="cv-eyebrow">Second opinions · double-blind</div>
       <h2 class="cv-title">{{ slice?.subject.pseudonym }} <span class="th">— everyone anonymous</span></h2>
       <div v-if="c" class="cv-result">
-        <p class="cv-verdict" v-html="verdictHtml"></p>
+        <p class="cv-verdict"><template v-if="verdict.kind === 'waiting'">Waiting for at least two reviews to compare.</template><template v-else-if="verdict.kind === 'split'">The doctors are <b>split</b> — no shared view yet.</template><template v-else><span class="agree">{{ verdict.headline }}</span> — {{ verdict.assessment }}.</template></p>
         <p v-if="dissentText" class="cv-dissent">{{ dissentText }}</p>
         <p class="cv-status"><span class="cv-tally"><i v-for="(_, i) in c.n" :key="i" :class="i < (top?.count ?? 0) ? 'a' : 'd'"></i></span><span class="cv-rep">{{ c.n }} replied · verdict: {{ c.verdict }}</span></p>
       </div>
