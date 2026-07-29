@@ -175,7 +175,14 @@ def test_with_kko_entails_ancestor_type_without_inline_axioms():
 
 def test_without_kko_no_ancestor_entailment():
     out = reason(KKO_LEAF_TTL, inference="rdfs")         # TBox NOT loaded
-    assert out["kko_tbox"] == {"loaded": False, "triples": 0}
+    # Asserted by property rather than exact dict equality: the status gained a `requested`
+    # field so a request can no longer be reported as an outcome, and a frozen literal here
+    # would fail on any future addition without saying anything about behaviour.
+    assert out["kko_tbox"]["requested"] is False
+    assert out["kko_tbox"]["loaded"] is False
+    assert out["kko_tbox"]["triples"] == 0
+    # not requested is not a failure, so no reason is attached
+    assert "unavailable_reason" not in out["kko_tbox"]
     assert not any("Monads" in e for e in out["entailments"])  # can't derive an ancestor with no axioms
 
 
@@ -225,3 +232,69 @@ def test_virtualize_endpoint_json_and_turtle():
 def test_virtualize_400_without_subject_template():
     r = client.post("/virtualize", json={"rows": [{"id": "1"}], "mapping": {"base": "http://ex/"}})
     assert r.status_code == 400
+
+
+# `kko_tbox.loaded` used to be the caller's REQUEST flag. _kko_tbox() degrades to an empty
+# graph when the vendored .n3 is missing or unparseable — correct, so a bad file cannot take
+# reasoning down — but with `loaded: with_kko` the response then claimed the ontology was in
+# play while `with_kko` was silently a no-op. pyproject declared no package-data, so that was
+# the state of every installed wheel while a source checkout passed.
+
+
+def test_kko_status_separates_requested_from_loaded():
+    from owl_reasoner.reasoner import kko_tbox_status
+
+    assert kko_tbox_status(False, 0) == {"requested": False, "loaded": False, "triples": 0}
+    assert kko_tbox_status(True, 335) == {"requested": True, "loaded": True, "triples": 335}
+
+
+def test_kko_status_refuses_to_claim_loaded_with_no_triples():
+    from owl_reasoner.reasoner import kko_tbox_status
+
+    s = kko_tbox_status(True, 0)
+    assert s["requested"] is True
+    assert s["loaded"] is False, "a request must never be reported as an outcome"
+    assert "unavailable_reason" in s, "the response must say why, not leave a client to infer it from a zero"
+
+
+def test_kko_reports_not_loaded_when_the_tbox_file_is_absent(monkeypatch):
+    """The wheel scenario, exercised rather than assumed.
+
+    Point _KKO_PATH at a file that does not exist, clear the lru_cache, and confirm the
+    reasoner reports loaded=False instead of echoing the request.
+    """
+    from owl_reasoner import reasoner as R
+    from pathlib import Path
+
+    R._kko_tbox.cache_clear()
+    monkeypatch.setattr(R, "_KKO_PATH", Path("/nonexistent/kko-missing.n3"))
+    try:
+        out = R.reason("<urn:a> a <urn:B> .", with_kko=True)
+        assert out["kko_tbox"]["requested"] is True
+        assert out["kko_tbox"]["loaded"] is False
+        assert out["kko_tbox"]["triples"] == 0
+        assert "unavailable_reason" in out["kko_tbox"]
+    finally:
+        R._kko_tbox.cache_clear()
+
+
+def test_kko_actually_loads_from_the_repo_checkout():
+    from owl_reasoner import reasoner as R
+
+    R._kko_tbox.cache_clear()
+    out = R.reason("<urn:a> a <urn:B> .", with_kko=True)
+    assert out["kko_tbox"]["loaded"] is True
+    assert out["kko_tbox"]["triples"] > 0, "the vendored TBox must actually parse"
+    assert "unavailable_reason" not in out["kko_tbox"]
+
+
+def test_kko_tbox_is_declared_as_package_data():
+    """Without this the .n3 is absent from a built wheel and with_kko is a no-op in every
+    installed deployment — the condition that made the reporting bug invisible."""
+    import tomllib
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    cfg = tomllib.loads((root / "pyproject.toml").read_text())
+    patterns = cfg["tool"]["setuptools"]["package-data"]["owl_reasoner"]
+    assert any(p.endswith(".n3") for p in patterns), f"the TBox must ship in the wheel; got {patterns}"
