@@ -21,6 +21,10 @@ on:
 permissions:
   contents: write
   pull-requests: write   # promote merges via auto-merged PR (see push step) — no direct-push bypass needed
+  actions: write         # REQUIRED to `gh workflow run` the required-check workflow onto the promote
+                         # branch (see the long note in the push step). The repo default workflow
+                         # permission is read-only, so without this the dispatch 403s and every
+                         # promote PR sits BLOCKED forever waiting for diagnostics-gate.
 
 concurrency:
   group: gitops-promote
@@ -119,5 +123,56 @@ jobs:
           gh pr create --base main --head "$BRANCH" \
             --title "gitops: promote${bumped} → sha-${SHA:0:12}" \
             --body "Automated image-pin promotion (values-only). Auto-merges when diagnostics-gate passes."
+
+          # ── Why the explicit dispatch below is REQUIRED (measured 2026-07-29) ──────────
+          # A PR opened by this job never gets its required check on its own. Two distinct
+          # failure modes were observed on real promote PRs, both ending in BLOCKED:
+          #   • #1007/#1013 — ZERO pull_request runs created. The GITHUB_TOKEN no-recursion
+          #     rule: events caused by GITHUB_TOKEN do not start workflow runs.
+          #   • #1017/#1018 — 18 pull_request runs ARE created, but every one lands at
+          #     conclusion=action_required (parked awaiting approval), and a run parked at
+          #     action_required publishes NO check-runs. Measured alongside it:
+          #     GET /repos/:r/actions/permissions/fork-pr-contributor-approval reports
+          #     approval_policy=first_time_contributors, and these runs' triggering_actor
+          #     is github-actions[bot] (on runs that DID work — #981/#983 — it was a human).
+          #     The policy is the likeliest cause; the parked state is the measured fact.
+          # Either way `diagnostics-gate` — the ONE context required by the
+          # `main-required-checks` ruleset — is absent, so the PR can never merge.
+          # The 7-8 checks that DO appear on these PRs (CodeQL `Analyze (*)`, `CodeQL`,
+          # `GitGuardian Security Checks`) are GitHub-App/`dynamic`-event products, exempt
+          # from the GITHUB_TOKEN rule — none of them is required, so a green rollup of
+          # those alone is a mirage. Do NOT read "7 checks passing" as "ready to merge".
+          #
+          # workflow_dispatch is the documented exception to the no-recursion rule: an
+          # EXPLICIT dispatch does create a run even under GITHUB_TOKEN, and because it is
+          # not a pull_request event it is not subject to the contributor-approval gate.
+          # The run attaches its check-runs to the branch-head SHA, which is the PR head,
+          # so `diagnostics-gate` lands on the PR rollup and the ruleset is satisfied.
+          # This is the CI-native fix: no PAT, no GitHub App token, no new secrets.
+          # NOTE: this needs `actions: write` (see the permissions block at the top) —
+          # the repo default workflow permission is read-only.
+          #
+          # validate-target-diagnostics.yml is safe to dispatch: it already declares
+          # workflow_dispatch, it has NO paths: filter (so a values-only diff still runs
+          # it — verified on #1008, which changed only deploy/values/compute-gateway.yaml
+          # and still produced diagnostics-gate=success), and it contains no
+          # github.event.pull_request.* expressions, so the job graph and every check NAME
+          # are byte-identical under pull_request and workflow_dispatch.
+          # If you are tempted to "just push an empty commit to kick CI" — that is the
+          # manual workaround this dispatch replaces. Don't re-add it.
+          # Retry: this job is unattended, and a dispatch that silently fails leaves the PR
+          # BLOCKED until a human happens to notice. A freshly-pushed ref can also take a
+          # moment to become dispatchable.
+          dispatched=""
+          for attempt in 1 2 3; do
+            if gh workflow run validate-target-diagnostics.yml --ref "$BRANCH"; then
+              dispatched=1; echo "dispatched diagnostics onto $BRANCH (attempt $attempt)"; break
+            fi
+            echo "dispatch attempt $attempt failed; retrying in 10s"; sleep 10
+          done
+          if [ -z "$dispatched" ]; then
+            echo "::warning::could not dispatch validate-target-diagnostics for $BRANCH after 3 attempts; the PR will stay BLOCKED until diagnostics-gate is produced some other way"
+          fi
+
           gh pr merge "$BRANCH" --squash --auto --delete-branch
           echo "promoted via auto-merge PR:${bumped}"
