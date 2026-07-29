@@ -1,0 +1,12 @@
+[project]
+name = "prophet-materializer-clickhouse"
+version = "0.1.0"
+description = "Seal-the-Walls W1.1: proof-carrying HellGraph log -> ClickHouse materializer (checkpoint by logical clock, idempotent by event_id, receipts on the compute-gateway spine)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn==0.30.6",
+  "httpx==0.27.2",
+]
+[tool.setuptools.packages.find]
+where = ["src"]
