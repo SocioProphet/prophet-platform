@@ -26,7 +26,9 @@ config:
   # ── W1.3 receipt unification: engine sealed() receipts → THE estate spine ──
   # After each /api/graph/enrich|explore, the sealed engine receipt (sha256 over the ranked
   # output + snapshot {seq,nodes,edges}) is POSTed to compute-gateway POST /v1/engine-receipts
-  # (kind=engine-seal, same namespace — materializer precedent) and the response carries
+  # (body kind=enrich|explore — which of the two engine receipts this is; the gateway then runs
+  # it through its own COMPUTE kind engine-seal, same namespace — materializer precedent)
+  # and the response carries
   # spine:{ok, receiptId}; ONE gateway verify then walks signature → engine hash → snapshot.seq
   # binding end-to-end. Honest degradation by design: gateway unreachable ⇒ the result still
   # serves with spine:{ok:false, reason} and /healthz unsealedReceipts increments — the read

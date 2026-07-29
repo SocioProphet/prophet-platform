@@ -20,6 +20,7 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import * as http from 'node:http'
+import { sealToSpine, unsealedReceipts, suppressedSpineWarns } from './spine.js'
 
 process.env.PORT = String(19101) // free test port (see PORT ALLOCATION below), read at module import
 process.env.HELLGRAPH_STORE_DIR = `${process.env.TMPDIR ?? '/tmp'}/hgsvc-spine-test-${process.pid}`
@@ -160,6 +161,49 @@ test('GATEWAY_RECEIPTS off ⇒ no spine field at all (exact pre-W1.3 response sh
   } finally {
     process.env.GATEWAY_RECEIPTS = 'on'
   }
+})
+
+test('degrade warnings are THROTTLED, the unsealed COUNTER is not (outage stays visible)', async () => {
+  // A gateway outage under load warned once per enrich/explore, burying the incident
+  // it was reporting. Only the log line is rate-limited; the counter — which is what
+  // /healthz surfaces and what an alert fires on — still moves on every degradation.
+  const prevUrl = process.env.GATEWAY_URL
+  const prevInterval = process.env.SPINE_WARN_INTERVAL_MS
+  const realWarn = console.warn
+  const lines: string[] = []
+  console.warn = (...a: unknown[]): void => { lines.push(a.map(String).join(' ')) }
+  const before = unsealedReceipts()
+  try {
+    process.env.GATEWAY_URL = 'http://127.0.0.1:19109' // dead port (see PORT ALLOCATION)
+
+    // interval 0 = no throttle: every degradation speaks. Establishes the baseline
+    // AND pins lastWarnAt so the throttled phase below is deterministic.
+    process.env.SPINE_WARN_INTERVAL_MS = '0'
+    for (let i = 0; i < 3; i++) await sealToSpine('explore', { hash: `sha256:${i}` }, {})
+    assert.equal(lines.length, 3, 'unthrottled: one line per degradation')
+
+    // now throttle hard: 25 more failures, not one extra line
+    process.env.SPINE_WARN_INTERVAL_MS = '60000'
+    lines.length = 0
+    for (let i = 0; i < 25; i++) await sealToSpine('enrich', { hash: `sha256:x${i}` }, {})
+    assert.equal(lines.length, 0, `throttled window must stay quiet, got: ${JSON.stringify(lines)}`)
+    assert.equal(suppressedSpineWarns(), 25, 'every suppressed line is still counted')
+
+    // …and the next line that DOES get emitted admits how many it swallowed, so the
+    // log never implies the outage was smaller than it was.
+    process.env.SPINE_WARN_INTERVAL_MS = '0'
+    await sealToSpine('enrich', { hash: 'sha256:last' }, {})
+    assert.equal(lines.length, 1)
+    assert.match(lines[0]!, /\+25 similar warning\(s\) suppressed/)
+    assert.equal(suppressedSpineWarns(), 0, 'the suppressed tally resets once reported')
+  } finally {
+    console.warn = realWarn
+    process.env.GATEWAY_URL = prevUrl
+    if (prevInterval === undefined) delete process.env.SPINE_WARN_INTERVAL_MS
+    else process.env.SPINE_WARN_INTERVAL_MS = prevInterval
+  }
+  // 3 + 25 + 1 degradations, every single one counted
+  assert.equal(unsealedReceipts(), before + 29, 'the counter is never sampled')
 })
 
 test('healthz reports the unsealedReceipts counter', async () => {

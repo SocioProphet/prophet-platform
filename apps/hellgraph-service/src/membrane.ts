@@ -116,8 +116,20 @@ export function evaluatePolicy(kernel: PolicyKernelV0, request: Dict, intent: Di
   const qty = asNumber(intent['quantity'])
   if (qty === null || qty <= 0) reasons.push('quantity_not_positive')
   else if (qty > kernel.maxQuantity) reasons.push(`quantity_exceeds_limit:${kernel.maxQuantity}`)
+  // SIGN IS A GATE, NOT A DETAIL. The vendored OrderIntent schema types price as
+  // number | signed-decimal-string | null (null = market order) with no `minimum`,
+  // so a NEGATIVE or ZERO price is spec-valid and arrives here. Unchecked, it made
+  // notional = qty × price negative, which trivially slipped under maxNotional —
+  // an approval bypass on the whole B-after-A gate (qty × -20000 "costs" nothing).
+  // A declared price must therefore be strictly positive; absent/null stays legal
+  // for market orders and is caught for limit orders by limit_price_required above.
+  const priceDeclared = intent['price'] !== undefined && intent['price'] !== null
   const price = asNumber(intent['price'])
-  if (qty !== null && price !== null && qty * price > kernel.maxNotional) {
+  if (priceDeclared && (price === null || price <= 0)) reasons.push('price_not_positive')
+  // Defence in depth: cap the MAGNITUDE. Even if a sign check were ever removed or
+  // a future intent kind carried a signed price legitimately, the notional limit
+  // must still bound exposure rather than be satisfied by a minus sign.
+  if (qty !== null && price !== null && Math.abs(qty * price) > kernel.maxNotional) {
     reasons.push(`notional_exceeds_limit:${kernel.maxNotional}`)
   }
   return reasons.length === 0 ? { decision: 'approved', reasons: [] } : { decision: 'denied', reasons }
@@ -239,6 +251,17 @@ function decisionResponse(node: GraphNode, idempotent: boolean): Dict {
   }
 }
 
+// ── single-flight: one decision per idempotencyKey, even under concurrency ─────────────
+// The decision node is written BEFORE the seal is awaited, so a second request for the
+// same key arriving inside the seal window used to find the node and answer from it —
+// same decision, but sealed:false/receiptRef:null while the seal was still in flight.
+// "same key twice = the SAME decision, sealed once" is a claim about the ANSWER, not
+// only about node and receipt counts, so concurrent callers now await the ONE decision
+// already being made. Checked BEFORE the stored-node lookup, which is what closes the
+// window: the entry outlives the node write and is cleared only once sealing settles.
+type DecideOutcome = { ok: true; node: GraphNode } | { ok: false; code: number; body: Dict }
+const inFlightDecisions = new Map<string, Promise<DecideOutcome>>()
+
 /** Handle /api/membrane/* on the main port. Returns true when the request was handled. */
 export function handleMembrane(g: MembraneGraph, req: http.IncomingMessage, res: http.ServerResponse, url: URL, body: string): boolean {
   if (!(req.method === 'POST' && url.pathname === '/api/membrane/decide')) return false
@@ -268,6 +291,16 @@ export function handleMembrane(g: MembraneGraph, req: http.IncomingMessage, res:
     // 4) Idempotency by key: same key twice = the SAME decision, never re-evaluated.
     const idempotencyKey = String(request['idempotencyKey'])
     const decisionId = decisionIdFor(idempotencyKey)
+    // 4a) A decision for this key is being made RIGHT NOW: await that one and answer
+    //     from its settled result — never race it, never observe it mid-seal.
+    const pending = inFlightDecisions.get(idempotencyKey)
+    if (pending) {
+      const outcome = await pending
+      return outcome.ok
+        ? respond(res, 200, decisionResponse(outcome.node, true))
+        : respond(res, outcome.code, outcome.body)
+    }
+    // 4b) Already decided and settled: return the stored decision verbatim.
     const existing = g.getNode(decisionId)
     if (existing) {
       if (existing.properties['idempotencyKey'] !== idempotencyKey) {
@@ -275,46 +308,67 @@ export function handleMembrane(g: MembraneGraph, req: http.IncomingMessage, res:
       }
       return respond(res, 200, decisionResponse(existing, true))
     }
-    // 5) Policy kernel v0 (deny-by-default). A deny IS a decision: recorded + sealed like an approve.
-    const verdict = evaluatePolicy(policyKernelV0(), request, intent)
-    const decidedAt = new Date().toISOString()
-    const decision = buildDecision(request, intent, verdict, decidedAt)
-    const selfCheck = validateAgainst('EffectDecision', decision)
-    if (selfCheck.length > 0) { // unreachable if the boot probe passed; belt-and-suspenders
-      return respond(res, 500, { ok: false, error: 'decision_nonconformant', errors: selfCheck })
+    // 4c) We are the single flight for this key. Everything from policy evaluation to
+    //     the sealed write happens inside ONE registered promise.
+    const work = (async (): Promise<DecideOutcome> => {
+      // 5) Policy kernel v0 (deny-by-default). A deny IS a decision: recorded + sealed like an approve.
+      const verdict = evaluatePolicy(policyKernelV0(), request, intent)
+      const decidedAt = new Date().toISOString()
+      const decision = buildDecision(request, intent, verdict, decidedAt)
+      const selfCheck = validateAgainst('EffectDecision', decision)
+      if (selfCheck.length > 0) { // unreachable if the boot probe passed; belt-and-suspenders
+        return { ok: false, code: 500, body: { ok: false, error: 'decision_nonconformant', errors: selfCheck } }
+      }
+      // 6) Structural write: the EffectDecision node (scalar projection + the full
+      //    spec-conformant object as canonical JSON — the log carries the OBJECT, not
+      //    just a lossy projection; market-replay flatten() discipline).
+      const props: Record<string, PropertyValue> = {
+        decision: verdict.decision,
+        effectRequestRef: String(request['id']),
+        intentRef: String(intent['id']),
+        idempotencyKey,
+        decidedAt,
+        decidedByActorRef: MEMBRANE_ACTOR,
+        capability: String(request['capability']),
+        effectKind: String(request['effectKind']),
+        specVersion: SPEC_VERSION,
+        decisionHash: String(decision['decisionHash']),
+        rationale: String(decision['rationale']),
+        reasons: JSON.stringify(verdict.reasons),
+        decisionEvent: canonicalJson(decision as Json),
+        sealed: false,
+        receiptRef: null,
+        sealError: null,
+      }
+      const vBefore = g.version()
+      g.addNode(decisionId, ['EffectDecision'], props)
+      const vAfter = g.version()
+      // 7) Seal on the estate receipt spine; record the outcome HONESTLY either way.
+      const seal = await sealDecision(String(decision['decisionHash']), vBefore, vAfter, process.env)
+      const sealedProps: Record<string, PropertyValue> = {
+        ...props, sealed: seal.sealed, receiptRef: seal.receiptRef, sealError: seal.sealError,
+      }
+      return { ok: true, node: g.addNode(decisionId, ['EffectDecision'], sealedProps) }
+    })()
+    inFlightDecisions.set(idempotencyKey, work)
+    try {
+      const outcome = await work
+      return outcome.ok
+        ? respond(res, 200, decisionResponse(outcome.node, false))
+        : respond(res, outcome.code, outcome.body)
+    } catch (e) {
+      // The flight itself blew up. Followers awaiting `work` see the same rejection
+      // and answer identically — one failure, one story.
+      return respond(res, 500, { ok: false, error: 'decision_failed', errors: [e instanceof Error ? e.message : String(e)] })
+    } finally {
+      // Cleared only after sealing settled, so the NEXT caller either joins a live
+      // flight or reads a fully sealed node — never the mid-flight snapshot.
+      inFlightDecisions.delete(idempotencyKey)
     }
-    // 6) Structural write: the EffectDecision node (scalar projection + the full
-    //    spec-conformant object as canonical JSON — the log carries the OBJECT, not
-    //    just a lossy projection; market-replay flatten() discipline).
-    const props: Record<string, PropertyValue> = {
-      decision: verdict.decision,
-      effectRequestRef: String(request['id']),
-      intentRef: String(intent['id']),
-      idempotencyKey,
-      decidedAt,
-      decidedByActorRef: MEMBRANE_ACTOR,
-      capability: String(request['capability']),
-      effectKind: String(request['effectKind']),
-      specVersion: SPEC_VERSION,
-      decisionHash: String(decision['decisionHash']),
-      rationale: String(decision['rationale']),
-      reasons: JSON.stringify(verdict.reasons),
-      decisionEvent: canonicalJson(decision as Json),
-      sealed: false,
-      receiptRef: null,
-      sealError: null,
-    }
-    const vBefore = g.version()
-    g.addNode(decisionId, ['EffectDecision'], props)
-    const vAfter = g.version()
-    // 7) Seal on the estate receipt spine; record the outcome HONESTLY either way.
-    const seal = await sealDecision(String(decision['decisionHash']), vBefore, vAfter, process.env)
-    const sealedProps: Record<string, PropertyValue> = {
-      ...props, sealed: seal.sealed, receiptRef: seal.receiptRef, sealError: seal.sealError,
-    }
-    const node = g.addNode(decisionId, ['EffectDecision'], sealedProps)
-    return respond(res, 200, decisionResponse(node, false))
-  })()
+  })().catch((e: unknown) => {
+    // Never leave an awaiting client hanging on an unexpected throw.
+    if (!res.writableEnded) respond(res, 500, { ok: false, error: 'decision_failed', errors: [e instanceof Error ? e.message : String(e)] })
+  })
   return true
 }
 

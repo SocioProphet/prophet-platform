@@ -12,7 +12,7 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
-          # REQUIRED for the zot ref above: zot refuses anonymous pulls (401 UNAUTHORIZED).
+          # REQUIRED for the zot image ref below: zot refuses anonymous pulls (401 UNAUTHORIZED).
           # The workspace-mail + workspace-smtp Deployments in this namespace already pull
           # through this same secret; the CronJob never had one because its ghcr ref was
           # never pullable in the first place. Without this line the image fix alone is

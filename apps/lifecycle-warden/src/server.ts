@@ -23,8 +23,10 @@
  *   GET  /v1/audit/verify            walk + re-hash every persisted chunk; reports tamper seq
  *
  * Mode: DRY-RUN by default. Enforcement requires BOTH levers — WARDEN_ENFORCE=on AND
- * WARDEN_DRY_RUN=off — and refuses to boot without MinIO credentials (fail-closed:
- * an enforcing warden with amnesia would re-plan deletes it can't account for).
+ * WARDEN_DRY_RUN=off — and an ENFORCING warden refuses to boot without MinIO
+ * credentials (fail-closed: an enforcing warden with amnesia would re-plan deletes it
+ * can't account for). WARDEN_ENFORCE=on while dry-run still wins is NOT a refusal:
+ * it boots, applies nothing, and warns loudly that it is declared-but-unenforced.
  */
 import * as http from 'node:http'
 import { Warden } from './warden.js'
@@ -35,6 +37,13 @@ import { S3ObjectBackend, type ObjectBackend, type Trigger } from '@socioprophet
 
 const PORT = Number(process.env.PORT ?? 8095)
 const INTERVAL_S = Number(process.env.WARDEN_INTERVAL_SECONDS ?? 300)
+/** Hard cap on a request body. Over it the read is refused with 413, not hung. */
+export const MAX_BODY_BYTES = 5_000_000
+
+/** Typed so the request handler answers 413 rather than a generic 500. */
+export class PayloadTooLarge extends Error {
+  readonly statusCode = 413
+}
 
 export interface BootConfig {
   dryRun: boolean
@@ -47,8 +56,19 @@ export interface BootConfig {
 /**
  * Resolve + validate boot config. Throws on the fail-closed cases so both the process
  * (exit 1) and the tests can assert refusal without spawning.
+ *
+ * The refusal tracks ACTUAL enforcement, not the intent to enforce. Refusing whenever
+ * WARDEN_ENFORCE=on — dry-run or not — contradicted the two-lever contract this service
+ * documents: with dry-run still winning, nothing is ever applied, so there is no delete
+ * to be amnesiac about, and the "dry-run wins" warning could never be reached in the
+ * credential-less case. Worse, it was inconsistent: the same ENFORCE=on + DRY_RUN=on
+ * combination booted happily the moment creds happened to be present. So:
+ *   both levers thrown + no creds  → REFUSE (the real fail-closed case, unchanged)
+ *   ENFORCE=on but dry-run wins    → boot, and WARN loudly that nothing is enforced
+ * `warn` is injectable so the declared-but-unenforced warning is TESTABLE rather than
+ * stranded in the process entrypoint (the membrane's initMembrane pattern).
  */
-export function resolveBootConfig(env: NodeJS.ProcessEnv): BootConfig {
+export function resolveBootConfig(env: NodeJS.ProcessEnv, warn: (msg: string) => void = console.warn): BootConfig {
   const enforceFlag = (env.WARDEN_ENFORCE ?? 'off').toLowerCase() === 'on'
   const dryRunFlag = (env.WARDEN_DRY_RUN ?? 'on').toLowerCase() !== 'off'
   const enforce = enforceFlag && !dryRunFlag
@@ -62,9 +82,17 @@ export function resolveBootConfig(env: NodeJS.ProcessEnv): BootConfig {
     }
     minio = { ...parseEndpoint(endpoint), accessKey, secretKey, bucket: (env.MINIO_BUCKET ?? 'lifecycle-warden').trim() }
   }
-  if (enforceFlag && !minio) {
-    // FAIL-CLOSED: enforcement without durable storage/credentials is refused outright.
-    throw new Error('WARDEN_ENFORCE=on but MinIO credentials are missing — refusing to start (fail-closed). Provide MINIO_ENDPOINT + MINIO_ACCESS_KEY/MINIO_SECRET_KEY via secretEnv.')
+  if (enforce && !minio) {
+    // FAIL-CLOSED: ENFORCING without durable storage/credentials is refused outright —
+    // an enforcing warden with amnesia would re-plan deletes it cannot account for.
+    throw new Error('WARDEN_ENFORCE=on and WARDEN_DRY_RUN=off but MinIO credentials are missing — refusing to start (fail-closed). Provide MINIO_ENDPOINT + MINIO_ACCESS_KEY/MINIO_SECRET_KEY via secretEnv.')
+  }
+  if (enforceFlag && !enforce) {
+    // Declared-but-unenforced, said out loud: the operator asked for enforcement and
+    // is NOT getting it. Silence here is how a governance service ends up believed.
+    warn('[lifecycle-warden] WARN WARDEN_ENFORCE=on but WARDEN_DRY_RUN is not "off" — DRY-RUN WINS: ' +
+      'retention transitions are PLANNED and audited, never applied. Throw BOTH levers to enforce' +
+      (minio ? '' : ' (and provide MinIO credentials — enforcement is refused without them)'))
   }
   return {
     dryRun: !enforce,
@@ -175,12 +203,49 @@ export async function start(cfg: BootConfig, port = PORT, intervalSeconds = INTE
     res.end(s)
   }
 
+  /**
+   * Read a request body, bounded, and ALWAYS settle.
+   *
+   * The bug this replaces: over the cap it called req.destroy(), which emits neither
+   * 'end' nor (necessarily) 'error' — so the promise never settled, the awaiting
+   * handler hung forever, and the client waited on a response that would never come.
+   * Meanwhile 'data' kept concatenating, so the process went on buying memory for a
+   * request it had already given up on. A client abort hung identically.
+   *
+   * Now: settle EXACTLY once, stop accumulating the instant we give up, and treat
+   * 'close'/'aborted' as terminal — a socket that closed without 'end' is a failed
+   * read, not a pending one. Chunks are concatenated as Buffers and decoded once, so
+   * a multi-byte UTF-8 character split across two chunks survives (per-chunk
+   * toString() silently mangled it).
+   */
   function readBody(req: http.IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
-      let d = ''
-      req.on('data', (c: Buffer) => { d += c.toString(); if (d.length > 5_000_000) req.destroy() })
-      req.on('end', () => resolve(d))
-      req.on('error', reject)
+      const chunks: Buffer[] = []
+      let size = 0
+      let settled = false
+      const finish = (fn: () => void): void => { if (settled) return; settled = true; fn() }
+      const fail = (err: Error): void => finish(() => reject(err))
+
+      req.on('data', (c: Buffer) => {
+        if (settled) return // already given up — do not keep buying memory
+        size += c.length
+        if (size > MAX_BODY_BYTES) {
+          // Stop reading and stop buffering, but do NOT destroy here: the handler
+          // still has to put a 413 on the wire, and a destroyed socket cannot carry
+          // one. The catch below answers, then closes.
+          chunks.length = 0
+          req.pause()
+          fail(new PayloadTooLarge(`request body exceeds ${MAX_BODY_BYTES} bytes`))
+          return
+        }
+        chunks.push(c)
+      })
+      req.on('end', () => finish(() => resolve(Buffer.concat(chunks).toString('utf8'))))
+      req.on('error', fail)
+      req.on('aborted', () => fail(new Error('request aborted before the body completed')))
+      // Terminal backstop: after a normal 'end' this is a no-op (already settled);
+      // after destroy() or an abort it is the ONLY event that still fires.
+      req.on('close', () => fail(new Error('request closed before the body completed')))
     })
   }
 
@@ -276,8 +341,20 @@ export async function start(cfg: BootConfig, port = PORT, intervalSeconds = INTE
 
       return json(res, 404, { ok: false, error: `no route: ${req.method} ${p}` })
     })().catch((err: Error) => {
-      res.writeHead(500, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ ok: false, error: err.message }))
+      // An oversized body is the client's error (413), not the server's. And if the
+      // socket is already gone — the abort/close path — there is nothing to answer to:
+      // writing would throw and mask the original failure.
+      if (res.writableEnded || res.headersSent || !res.socket) return
+      const tooLarge = err instanceof PayloadTooLarge
+      res.writeHead(tooLarge ? err.statusCode : 500, {
+        'content-type': 'application/json',
+        // the client is mid-upload of a body we refuse to read; keeping the
+        // connection alive would only invite the rest of it
+        ...(tooLarge ? { connection: 'close' } : {}),
+      })
+      res.end(JSON.stringify({ ok: false, error: err.message }), () => {
+        if (tooLarge) req.destroy() // answered first, THEN hang up
+      })
     })
   })
 
@@ -316,9 +393,8 @@ if (require.main === module) {
   start(cfg)
     .then((svc) => {
       console.log(`[lifecycle-warden] listening on :${PORT} — mode=${cfg.enforce ? 'ENFORCE' : 'dry-run'} storage=${cfg.minio ? 'minio' : 'memory'} interval=${INTERVAL_S}s`)
-      if ((process.env.WARDEN_ENFORCE ?? 'off').toLowerCase() === 'on' && !cfg.enforce) {
-        console.warn('[lifecycle-warden] WARDEN_ENFORCE=on but WARDEN_DRY_RUN is not "off" — dry-run wins; throw BOTH levers to enforce')
-      }
+      // (the declared-but-unenforced warning is emitted by resolveBootConfig, where
+      //  it is reachable in every configuration and covered by a test)
       // First pass shortly after boot, so healthz shows real lastRun/dueCounts quickly.
       setTimeout(() => { void svc.runNow() }, 3_000).unref()
     })

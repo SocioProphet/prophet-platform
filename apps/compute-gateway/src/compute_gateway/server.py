@@ -264,10 +264,15 @@ async def engine_receipt_seal(body: EngineSealBody, _: None = Depends(require_to
 @app.get("/v1/engine-receipts/{receipt_id}/verify")
 def engine_receipt_verify(receipt_id: str, project: str = "default",
                           _: None = Depends(require_token)) -> dict:
-    """ONE verify() that walks an engine receipt end-to-end: gateway Ed25519
-    signature → engine sealed-hash recomputation → snapshot.seq binding. Always
-    200 with {valid, steps:[{step, status, detail}]} — the typed trace IS the
-    result; a missing receipt is simply valid:false at the first step."""
+    """ONE verify() that walks an engine receipt end-to-end: chain position (every
+    id-hash + prev-link from genesis) and gateway Ed25519 signature → engine
+    sealed-hash recomputation → snapshot.seq binding.
+
+    Once past auth this ALWAYS answers 200 with {valid, steps:[{step, status,
+    detail}]} — the typed trace IS the result, so a missing receipt, a tampered
+    chain and a broken seal are all valid:false at the step that owns the failure,
+    never an HTTP error. Auth itself still refuses first: require_token raises 401
+    (bad/absent token) or 503 (no GATEWAY_TOKEN configured — fail-closed)."""
     return engine_receipts.verify_walk(project, receipt_id)
 
 

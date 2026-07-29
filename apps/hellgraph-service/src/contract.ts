@@ -135,7 +135,16 @@ function check(schema: SchemaObj, v: unknown, at: string, errors: string[]): voi
     const items = schema['items']
     if (items && typeof items === 'object') v.forEach((x, i) => check(items as SchemaObj, x, `${at}[${i}]`, errors))
     if (schema['uniqueItems'] === true) {
-      const seen = new Set(v.map((x) => JSON.stringify(x)))
+      // JSON Schema uniqueness is by VALUE, and object equality is key-order
+      // independent. Comparing raw JSON.stringify output made {rel,ref} and
+      // {ref,rel} two different items, so a duplicate provenance link passed
+      // merely by being typed in the other order — and the schemas that need
+      // this are real: ExecutionReport.provenanceLinks and
+      // OrderIntent.provenanceLinks are both uniqueItems arrays OF OBJECTS.
+      // canonicalJson sorts keys at every depth, which is exactly the identity
+      // decisionHash already seals over — one notion of "the same value" in
+      // this file, not two.
+      const seen = new Set(v.map((x) => canonicalJson(x as Json)))
       if (seen.size !== v.length) errors.push(`${at}: items must be unique`)
     }
   }

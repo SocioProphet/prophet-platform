@@ -25,9 +25,15 @@ attest (an engine shape change lands here as a fail-loud diff, never a silent
 mis-hash).
 
 The verify walk (`verify_walk`) is the ONE end-to-end check the wall demands:
-  1. gateway-signature    — the receipt is on the project chain, its id-hash
-                            recomputes, and the Ed25519 signature over the
-                            in-toto statement verifies (spine authenticity).
+  1. gateway-signature    — the receipt is genuinely ON the project chain: every
+                            predecessor's id-hash recomputes and every prev-link
+                            from genesis up to this receipt holds, so its POSITION
+                            is proved rather than assumed; then the Ed25519
+                            signature over the in-toto statement verifies (spine
+                            authenticity). Membership alone was the old, weaker
+                            claim — it passed a reordered chain and a broken
+                            earlier prev-link, which is precisely what "chained"
+                            is supposed to exclude.
   2. engine-seal-hash     — the stored engine receipt's sealed sha256 recomputes
                             byte-exactly (engine-output integrity).
   3. snapshot-seq-binding — the stored envelope matches the SIGNED outputs_sha
@@ -263,6 +269,30 @@ def _receipt_body_hash_ok(r: Any) -> bool:
     return receipts.sha(body) == r.id
 
 
+def _chain_prefix_problem(chain: list, index: int) -> str | None:
+    """Verify the hash chain from GENESIS up to and including `index`.
+
+    "On the chain" is a claim about ORDER, not about membership. Checking only that
+    the target receipt exists in the list and that its own body re-hashes proved
+    neither: a reordered chain, or a broken prev-link in an earlier receipt, left the
+    target intact and the step still said ok. Since the receipt's position is the
+    whole point of a hash chain, the walk now re-derives it — every predecessor's
+    id-hash recomputed and every prev-link followed — before claiming the target is
+    chained at all. Returns None when the prefix is intact, else the reason.
+    """
+    prev: str | None = None
+    for i, x in enumerate(chain[: index + 1]):
+        if not _receipt_body_hash_ok(x):
+            where = "this receipt" if i == index else f"predecessor #{i}"
+            return f"{where} ({x.id}) id-hash does not recompute (chain tampered)"
+        if x.prev != prev:
+            where = "this receipt" if i == index else f"predecessor #{i}"
+            return (f"prev-link broken at {where} ({x.id}): prev={x.prev!r}, "
+                    f"expected {prev!r} — the chain order does not hold up to this receipt")
+        prev = x.id
+    return None
+
+
 def verify_walk(project: str, receipt_id: str) -> dict[str, Any]:
     """Walk an engine-seal receipt end-to-end: gateway signature → engine sealed
     hash recomputation → snapshot.seq binding. Returns {valid, receipt_id,
@@ -279,20 +309,26 @@ def verify_walk(project: str, receipt_id: str) -> dict[str, Any]:
     def ok(step: str, detail: str | None = None) -> None:
         steps.append({"step": step, "status": "ok", "detail": detail})
 
-    # 1 — gateway-signature: on the chain, id-hash intact, Ed25519 verifies.
-    r = next((x for x in receipts.chain(project) if x.id == receipt_id), None)
-    if r is None:
+    # 1 — gateway-signature: genuinely ON the chain (every prev-link from genesis to
+    #     here re-derived), id-hash intact, Ed25519 verifies.
+    ch = receipts.chain(project)
+    index = next((i for i, x in enumerate(ch) if x.id == receipt_id), None)
+    if index is None:
         return fail("gateway-signature", f"no receipt {receipt_id} in project {project}")
+    r = ch[index]
     if r.kind != "engine-seal":
         return fail("gateway-signature", f"receipt kind {r.kind!r} is not engine-seal")
-    if not _receipt_body_hash_ok(r):
-        return fail("gateway-signature", "receipt id-hash does not recompute (chain tampered)")
+    broken = _chain_prefix_problem(ch, index)
+    if broken:
+        return fail("gateway-signature", broken)
     if r.signature is None:
         return fail("gateway-signature",
                     "receipt is unsigned (no GATEWAY_SIGNING_KEY at seal time) — spine authenticity unprovable")
     if r.statement is None or not signing.verify_signature(r.statement, r.signature, r.public_key):
         return fail("gateway-signature", "gateway Ed25519 signature does not verify over the in-toto statement")
-    ok("gateway-signature", "chained + Ed25519 over in-toto statement verified")
+    ok("gateway-signature",
+       f"chain position {index} re-derived: every id-hash and prev-link from genesis to this "
+       f"receipt verified, + Ed25519 over the in-toto statement")
 
     # 2 — engine-seal-hash: the stored engine receipt's sealed sha256 recomputes.
     digests = artifacts.for_receipt(receipt_id)

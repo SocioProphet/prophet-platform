@@ -24,15 +24,23 @@ let srv: { close: (cb?: () => void) => void }
 interface SealCall { path: string; authorization: string; body: any }
 const sealCalls: SealCall[] = []
 let gatewayMode: 'ok' | 'error' = 'ok'
+// Widens the seal window on demand so the single-flight test exercises a REAL
+// concurrent overlap rather than hoping the event loop interleaves.
+let gatewayDelayMs = 0
 const stubGateway = http.createServer((req, res) => {
   let d = ''
   req.on('data', (c) => { d += c })
   req.on('end', () => {
     sealCalls.push({ path: req.url ?? '', authorization: String(req.headers['authorization'] ?? ''), body: JSON.parse(d || '{}') })
-    res.writeHead(gatewayMode === 'ok' ? 200 : 500, { 'content-type': 'application/json' })
-    res.end(JSON.stringify(gatewayMode === 'ok'
-      ? { status: 'ok', kind: 'materialize', backend: 'gateway', receipt: { id: `sha256:stub-receipt-${sealCalls.length}` } }
-      : { status: 'error', error: 'stub-induced failure' }))
+    const n = sealCalls.length
+    const reply = (): void => {
+      res.writeHead(gatewayMode === 'ok' ? 200 : 500, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(gatewayMode === 'ok'
+        ? { status: 'ok', kind: 'materialize', backend: 'gateway', receipt: { id: `sha256:stub-receipt-${n}` } }
+        : { status: 'error', error: 'stub-induced failure' }))
+    }
+    if (gatewayDelayMs > 0) setTimeout(reply, gatewayDelayMs).unref()
+    else reply()
   })
 })
 
@@ -167,6 +175,47 @@ test('policy kernel v0 denies over-limit + human-approval requests; B on a denie
   assert.ok(k.json.reasons.includes('intent_kind_not_allowed:pause'))
 })
 
+test('SIGN IS A GATE: non-positive price/quantity is denied and cannot buy its way under maxNotional', async () => {
+  // The bypass this closes: OrderIntent.price is spec-valid as a NEGATIVE number
+  // (type number|string|null, no `minimum`), so qty × price went negative and sailed
+  // under MEMBRANE_MAX_NOTIONAL — an approval on a trade with no size limit at all.
+  const neg = await post('/api/membrane/decide', effectRequest('price-neg', { price: -10 }))
+  assert.equal(neg.status, 200)
+  assert.equal(neg.json.decision, 'denied')
+  assert.ok(neg.json.reasons.includes('price_not_positive'), `reasons: ${JSON.stringify(neg.json.reasons)}`)
+
+  // zero price: a "free" limit order is not a limit order
+  const zero = await post('/api/membrane/decide', effectRequest('price-zero', { price: 0 }))
+  assert.equal(zero.json.decision, 'denied')
+  assert.ok(zero.json.reasons.includes('price_not_positive'))
+
+  // negative quantity (already covered by quantity_not_positive — asserted so it stays covered)
+  const negQty = await post('/api/membrane/decide', effectRequest('qty-neg', { quantity: -100 }))
+  assert.equal(negQty.json.decision, 'denied')
+  assert.ok(negQty.json.reasons.includes('quantity_not_positive'))
+
+  // THE bypass, exactly: 9,999 × -1,000,000 = -9.999e9 notional. Under the old
+  // signed comparison this was "below" the 1,000,000 cap and APPROVED. It must now
+  // be denied for the sign AND for the magnitude — belt and suspenders, both named.
+  const huge = await post('/api/membrane/decide', effectRequest('notional-neg', { quantity: 9_999, price: -1_000_000 }))
+  assert.equal(huge.json.decision, 'denied')
+  assert.ok(huge.json.reasons.includes('price_not_positive'))
+  assert.ok(huge.json.reasons.includes('notional_exceeds_limit:1000000'),
+    `magnitude must still bind: ${JSON.stringify(huge.json.reasons)}`)
+
+  // and B cannot land on any of them
+  const b = await post('/api/graph/node', {
+    id: 'urn:srcos:execution-report:t-notional-neg', labels: ['ExecutionReport'],
+    properties: { decisionRef: huge.json.decisionRef, intentRef: 'urn:srcos:order-intent:t-notional-neg', reportKind: 'fill' },
+  })
+  assert.equal(b.status, 403)
+  assert.equal(b.json.reason, 'decision_not_approved')
+
+  // a market order (price null) is still legal — the gate is on DECLARED prices
+  const mkt = await post('/api/membrane/decide', effectRequest('price-null', { orderType: 'market', price: null }))
+  assert.equal(mkt.json.decision, 'approved', `reasons: ${JSON.stringify(mkt.json.reasons)}`)
+})
+
 test('intentRef mismatch is a typed 403 — the approval is FOR an intent, not a bearer chip', async () => {
   const d = await post('/api/membrane/decide', effectRequest('match-a'))
   assert.equal(d.json.decision, 'approved')
@@ -200,6 +249,48 @@ test('decide is idempotent by key: same key twice = the SAME decision, sealed on
   // exactly one EffectDecision node exists for the key
   const q = await get('/api/graph/query?label=EffectDecision')
   assert.equal(q.json.nodes.filter((n: any) => n.id === first.json.decisionRef).length, 1)
+})
+
+test('CONCURRENT decides with one key single-flight: one node, one seal, IDENTICAL responses', async () => {
+  // The pre-fix hole: the existence check saw the node written before the seal
+  // await, so a caller arriving inside the seal window got idempotent:true with
+  // sealed:false/receiptRef:null — the SAME decision, but NOT the same answer.
+  // "same key twice = the SAME decision, sealed once" is a statement about the
+  // RESPONSE too, so concurrent callers now await the one in-flight decision.
+  const sealsBefore = sealCalls.length
+  gatewayDelayMs = 120 // hold the seal open so all N genuinely overlap
+  let responses: any[]
+  try {
+    responses = await Promise.all(
+      Array.from({ length: 8 }, () => post('/api/membrane/decide', effectRequest('race'))),
+    )
+  } finally { gatewayDelayMs = 0 }
+
+  assert.equal(sealCalls.length, sealsBefore + 1, 'exactly ONE seal for 8 concurrent decides on one key')
+  const q = await get('/api/graph/query?label=EffectDecision')
+  const ref = responses[0]!.json.decisionRef
+  assert.equal(q.json.nodes.filter((n: any) => n.id === ref).length, 1, 'exactly ONE EffectDecision node')
+
+  for (const r of responses) {
+    assert.equal(r.status, 200)
+    assert.equal(r.json.decision, 'approved')
+    assert.equal(r.json.decisionRef, ref)
+    // every concurrent caller sees the SEALED decision — none observes the
+    // mid-flight sealed:false snapshot.
+    assert.equal(r.json.sealed, true, `concurrent response reported sealed:${r.json.sealed}`)
+    assert.equal(r.json.receiptRef, responses[0]!.json.receiptRef)
+    assert.equal(r.json.decisionHash, responses[0]!.json.decisionHash)
+  }
+  // The winner announces the fresh decision; the followers are marked idempotent.
+  assert.equal(responses.filter((r) => r.json.idempotent === false).length, 1,
+    'exactly one caller is credited with MAKING the decision')
+
+  // A later replay still returns the same sealed decision, unchanged.
+  const replay = await post('/api/membrane/decide', effectRequest('race'))
+  assert.equal(replay.json.idempotent, true)
+  assert.equal(replay.json.decisionRef, ref)
+  assert.equal(replay.json.sealed, true)
+  assert.equal(sealCalls.length, sealsBefore + 1)
 })
 
 test('spec-validation rejects malformed requests (vendored schemas, loud errors)', async () => {
