@@ -95,3 +95,21 @@ register:
     status: absent
     probe: "gate decision observable on a sample swarm dispatch"
     wave: unassigned
+
+  - id: sovereign-config-plane
+    source: peer-artifact audit 2026-07-29 (~/.claude.json — Anthropic's client state file)
+    mechanism: >-
+      The sovereign equivalent of Claude Code's remote-config machinery, over EXISTING
+      estate planes: (a) flags/kill-switches served from prophet-platform admin API and
+      cached client-side WITH timestamps (every cache entry stamped, scoped per
+      app+model+org — the clientDataCacheSlots pattern); (b) per-feature and per-MODEL
+      off-switches (their tengu-off-switch / tengu-fable-off-switch pattern — our
+      :latest/IfNotPresent rollout trap is exactly what this kills); (c) a
+      migrationVersion for ~/.noetica local state with explicit one-time migrations;
+      (d) a local usage ledger (their pluginUsage/skillUsage) feeding SRS and
+      personalization — receipts already exist, but counters-for-adaptation do not.
+      NO third-party flag SaaS (no GrowthBook) — the flag plane is ours.
+    owner: Noetica/agent-machine (client cache + migrations) + prophet-platform admin API (flag service)
+    status: absent
+    probe: "agent-machine /api/config returns flags w/ fetchedAt; ~/.noetica carries a migrationVersion; a kill-switch flips a live capability without a release"
+    wave: unassigned
