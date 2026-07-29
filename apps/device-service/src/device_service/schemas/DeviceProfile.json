@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/DeviceProfile.json",
+  "title": "DeviceProfile",
+  "description": "What a southbound device IS: the typed, digest-pinned declaration of one class of physical device — its protocol, its protocol binding, and the exact set of readings it produces with units, value types, specified ranges, and protocol-native source addresses. This is the single southbound abstraction the fog-and-citizen plane reads devices through (EdgeX Foundry's lesson: ONE southbound interface, N protocol drivers); a driver implements a protocol, it does not invent a vocabulary. A DeviceReading is admissible only against a profile, and definitionDigest pins the exact revision it was admitted against so a range cannot be widened after the fact to legalise a reading that already failed. Distinct from DeviceIdentity, which governs admission and trust for a SourceOS operator workstation, not the metrology of a sensor; the two bind via identityRef rather than competing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "deviceClass",
+    "protocol",
+    "protocolBinding",
+    "metrics",
+    "definitionDigest",
+    "declaredAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:device-profile:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:device-profile:<local-id>. Invariant: profile identity is stable and never reused; a changed declaration is a new profile that names its predecessor via supersedesRef."
+    },
+    "type": {
+      "const": "DeviceProfile",
+      "description": "Discriminator constant — always \"DeviceProfile\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "DeviceService contract version, pinned per the policy-integrity tranche-0001 discipline. This family is versioned independently of the v2 metadata-plane schemas; changing this const is a contract change."
+    },
+    "actorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that emitted this event (human subject, agent, service, or system). Subject or Agent Registry URNs are recommended; free-form identifiers are permitted in v0.1."
+    },
+    "workspaceRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace scope this event belongs to. Free-form stable reference in v0.1; a typed workspace URN may narrow this in a later minor version."
+    },
+    "visibilityScope": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A visibility scope label such as private, shared, public, or an audience URN."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Visibility scopes governing who may observe this event (e.g. private, shared, public, or audience URNs)."
+    },
+    "provenanceLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rel",
+          "ref"
+        ],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this event (e.g. derived_from, quotes, source_feed)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance links from this event to upstream artifacts, sources, or records."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this event by producers or the policy fabric."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this event by producers or risk controls."
+    },
+    "deviceClass": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable slug for the class of device this profile describes (e.g. acme-th-100-thermostat). Profiles describe a device MODEL; instances cite the profile by URN in every reading."
+    },
+    "manufacturer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Device manufacturer, as printed on the device or its datasheet."
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Manufacturer's model designation."
+    },
+    "protocol": {
+      "type": "string",
+      "enum": [
+        "ble-gatt",
+        "zigbee",
+        "z-wave",
+        "matter",
+        "modbus-tcp",
+        "mqtt",
+        "coap",
+        "snmp",
+        "http-poll",
+        "virtual"
+      ],
+      "description": "Southbound protocol a driver must speak to reach this device. \"virtual\" denotes a simulated device with no physical counterpart — it is a first-class, visibly distinguishable member of the taxonomy precisely so that simulated readings can never be mistaken for measured ones downstream."
+    },
+    "protocolBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "endpoint",
+        "securityMode"
+      ],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Protocol-native endpoint of the device as a whole: BLE peripheral address, Modbus host:port, MQTT broker URL, or virtual:// authority. Per-metric addressing lives in metrics[].sourceAddress."
+        },
+        "securityMode": {
+          "type": "string",
+          "enum": [
+            "none",
+            "psk",
+            "certificate",
+            "pairing-bonded",
+            "token"
+          ],
+          "description": "Transport security posture of the southbound link. \"none\" is legal and must stay visible: an unauthenticated sensor link is a stated risk, not an omission."
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean"
+            ],
+            "description": "A scalar binding parameter value."
+          },
+          "description": "Scalar protocol parameters the driver needs (e.g. unitId for Modbus, connectionIntervalMs for BLE). Scalars only: a nested blob here would be an untyped escape hatch."
+        }
+      },
+      "description": "How a driver reaches this device: endpoint, transport security posture, and scalar protocol parameters."
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metric",
+          "valueType",
+          "unit",
+          "sourceAddress"
+        ],
+        "properties": {
+          "metric": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "description": "Metric name, unique within this profile. Lowercase dot-separated segments (e.g. temperature, air.pm2_5). This is the name a DeviceReading cites."
+          },
+          "kkoTypeRef": {
+            "type": "string",
+            "format": "uri",
+            "description": "Ontology class URI of the observed quantity. Shares the URI vocabulary of KnowledgeNugget.kkoTypeRefs and SemanticAction slot types, so a reading binds as a typed graph value without a second ontology mapping. Producers SHOULD cite a class they can verify exists in the ontology the estate actually vendors: the KKO upper ontology (http://kbpedia.org/ontologies/kko#, 169 terms) is vendored; the ~58k KBpedia reference-concept layer that would carry a concept as specific as \"temperature\" is NOT, and citing an unvendored URI is an unresolvable type ref wearing the appearance of one."
+          },
+          "valueType": {
+            "type": "string",
+            "enum": [
+              "number",
+              "integer",
+              "boolean",
+              "string"
+            ],
+            "description": "JSON type of DeviceReading.value for this metric. A reading whose value type disagrees with this declaration is inadmissible."
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unit symbol of the reading value (UCUM symbol recommended, e.g. Cel, %, ug/m3). Use \"1\" for a dimensionless ratio and \"{bool}\" for a boolean state. A reading MUST repeat this unit verbatim so it is self-describing at the point of consumption."
+          },
+          "minimum": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Inclusive lower bound of the device's specified operating range for this metric. Required for number/integer metrics: a numeric metric with no declared range cannot distinguish a real excursion from a decode error."
+          },
+          "maximum": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Inclusive upper bound of the device's specified operating range for this metric. Required for number/integer metrics."
+          },
+          "resolution": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "description": "Smallest reportable increment of this metric in declared units, when the device specifies one."
+          },
+          "samplePeriodMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Nominal sampling period in milliseconds. Consumers use it to distinguish an overdue reading from an absent device; it is a declaration, not a guarantee."
+          },
+          "sourceAddress": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Protocol-native address this metric is read from — the BLE GATT characteristic UUID, Modbus register, MQTT topic, or virtual:// path. A DeviceReading MUST repeat it verbatim, which is what proves the value came from the declared physical channel of the declared metric rather than from somewhere else."
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "read"
+            ],
+            "default": "read",
+            "description": "Access mode. Closed to \"read\" at v0.1: this contract is a southbound READ abstraction. Commanding a device is a world-changing effect and must travel the MPCC EffectRequest -> EffectDecision lifecycle, not a widened enum here."
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "valueType": {
+                  "enum": [
+                    "number",
+                    "integer"
+                  ]
+                }
+              },
+              "required": [
+                "valueType"
+              ]
+            },
+            "then": {
+              "required": [
+                "minimum",
+                "maximum"
+              ],
+              "properties": {
+                "minimum": {
+                  "type": "number"
+                },
+                "maximum": {
+                  "type": "number"
+                }
+              },
+              "description": "A numeric metric MUST declare a real (non-null) operating range. Without one there is no way to tell a genuine excursion from a decode error, and every out-of-range value becomes admissible by default."
+            }
+          }
+        ],
+        "description": "One metric this device produces: its name, ontology type, value type, unit, specified range, and the protocol-native address it is read from."
+      },
+      "description": "The complete set of readings this device produces. A profile that declares no metric describes nothing; a reading citing a metric absent from this set is inadmissible."
+    },
+    "definitionDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "sha256 over the canonical JSON (sorted keys, no whitespace) of the declared-capability projection {deviceClass, protocol, metrics}. Recomputed — never merely read back — by tools/validate_device_service_examples.py. Every DeviceReading pins this value, so widening a range after the fact produces a new digest and orphans the readings it was meant to legalise instead of silently admitting them."
+    },
+    "declaredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 time this profile revision was declared."
+    },
+    "identityRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:device-identity:[A-Za-z0-9._~-]+$",
+      "description": "DeviceIdentity URN of the SourceOS host that owns the southbound link to this device (the gateway workstation or edge node), when one is registered. Binds sensor metrology to the existing admission/attestation family instead of duplicating trust vocabulary."
+    },
+    "adminState": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled"
+      ],
+      "default": "enabled",
+      "description": "Operator intent for devices of this class. \"disabled\" means readings are not to be ingested; it is an authorisation state, not a liveness observation."
+    },
+    "supersedesRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:device-profile:[A-Za-z0-9._~-]+$",
+      "description": "DeviceProfile URN this revision supersedes, so a declaration change is an auditable chain rather than an in-place edit."
+    }
+  }
+}

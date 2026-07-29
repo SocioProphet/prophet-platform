@@ -168,6 +168,11 @@ KNOWN_BROKEN = {
         "KnowledgeNuggets) added to CI this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha "
         "exists until merge."
     ),
+    "device-service:moving-tag": (
+        "New service — FOG & CITIZEN PLANE W8.7 southbound device plane (apps/device-service: DeviceProfile "
+        "declarations -> fail-closed-validated DeviceReadings) added to CI this PR. Pin tag:latest -> the sha- "
+        "tag after the first CI build; no sha exists until merge."
+    ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,

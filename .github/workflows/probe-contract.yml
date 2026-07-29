@@ -46,6 +46,12 @@ jobs:
           # in-process (vendored schema + probe nuggets), and the drain loop is a no-op
           # with nothing pending — so /healthz answers unaided on the values file's port.
           - { service: nugget-extractor, context: apps/nugget-extractor, dockerfile: Dockerfile }
+          # boots with no dependencies at all: the profiles are packaged in the image and
+          # the boot gate (vendored schemas + recomputed profile digests + a probe reading)
+          # is entirely in-process. The poll loop finds no hellgraph and keeps the batch
+          # pending, which is exactly what /healthz is there to report — so it answers
+          # unaided on the values file's port.
+          - { service: device-service, context: apps/device-service, dockerfile: Dockerfile }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

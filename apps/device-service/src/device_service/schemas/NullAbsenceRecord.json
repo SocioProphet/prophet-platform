@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/NullAbsenceRecord.json",
+  "title": "NullAbsenceRecord",
+  "description": "A first-class record of an observed absence, typed by the 12-kind MPCC null/absence taxonomy so that event semantics, merge logic, provenance, policy, and effect handling never silently conflate materially different kinds of \"nothing\". Working invariants: no_event_observed is not empty_payload; transport_failure is not intentional_silence; refusal is not abstention. Provenance: SocioProphet/profit-mpcc schemas/null-absence.schema.json and docs/null-absence-taxonomy.md, hardened to the policy-integrity tranche-0001 strictness bar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "kind",
+    "observedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:null-absence:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier. Pattern: urn:srcos:null-absence:<local-id>"
+    },
+    "type": {
+      "const": "NullAbsenceRecord",
+      "description": "Discriminator constant — always \"NullAbsenceRecord\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "MPCC event-contract version, pinned per the profit-mpcc policy-integrity tranche-0001 discipline. Changing this const is a contract change."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "no_event_observed",
+        "empty_payload",
+        "heartbeat",
+        "acknowledgment",
+        "timeout",
+        "transport_failure",
+        "intentional_silence",
+        "abstention",
+        "refusal",
+        "withheld_redacted",
+        "tombstone",
+        "explicit_noop"
+      ],
+      "description": "The kind of absence observed. no_event_observed: no event is known to exist for the interval or scope. empty_payload: an event exists but its payload is intentionally or structurally empty. heartbeat: a liveness signal with minimal semantic content. acknowledgment: a bounded acknowledgment referencing prior state or receipt. timeout: an expected response did not arrive within the governing temporal boundary. transport_failure: the absence arises from channel failure rather than communicative intent. intentional_silence: an actor intentionally emits nothing within scope. abstention: an actor declines to decide or endorse while remaining inside the protocol. refusal: an actor explicitly declines a request, command, delegation, or effect. withheld_redacted: content exists but is withheld or masked under policy or privacy constraints. tombstone: a deletion marker preserving identity and history while negating payload visibility. explicit_noop: a first-class no-op event recording deliberate non-action."
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date-time when the absence was observed or established."
+    },
+    "relatedEventRef": {
+      "type": ["string", "null"],
+      "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+      "description": "URN of the MPCC event this absence relates to (e.g. the last event before a gap, or the event whose reply never arrived)."
+    },
+    "relatedBranchRef": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Conversation-fabric branch scope of the absence, when applicable."
+    },
+    "relatedWorkspaceRef": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Workspace scope of the absence, when applicable."
+    },
+    "causalNotes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable note on the causal interpretation of the absence."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this absence record."
+    },
+    "provenanceLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rel", "ref"],
+        "properties": {
+          "rel": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Relation of the linked artifact to this event (e.g. derived_from, quotes, source_feed)."
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "description": "URN or stable reference of the linked artifact."
+          }
+        },
+        "description": "A single provenance link (relation + reference)."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Typed provenance links from this event to upstream artifacts, sources, or records."
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Bounded kind-specific detail payload (e.g. expected sequence numbers for a gap). Keep minimal; recurring keys should be promoted to typed fields in a later minor version."
+    }
+  }
+}
