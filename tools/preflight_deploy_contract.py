@@ -39,10 +39,19 @@ Six checks, all static (no registry credentials, runs anywhere):
      declaring an explicit foreign image.registry pin: that is the deliberate
      "upstream builds this" statement, and checks 3/4 still govern its tags.
 
-  The tier gate proves its own teeth before checking the repo: a hermetic self-test
-  rebuilds both failure modes (an unannotated Application; a foundation service
-  nothing builds) in a temp fixture on every run and requires them to FAIL. A gate
-  that cannot fail is a comment with a green checkmark.
+SCOPE: every check walks deploy/argocd RECURSIVELY. The root app-of-apps recurses,
+so an ApplicationSet in a subdirectory (deploy/argocd/fogstack/) is exactly as
+deployed as a top-level one. Service discovery used to glob only the top level while
+the tier gate walked the whole tree — so a subdirectory-only service was counted and
+tiered by check 5 but silently exempt from checks 1-4 and 6, and the printed tier
+line described a population the value checks never ran over. A hole in the very gate
+that exists to prove there are no phantom deploys.
+
+  The gate proves its own teeth before checking the repo: a hermetic self-test
+  rebuilds all three failure modes (an unannotated Application; a foundation service
+  nothing builds; a service declared only in a subdirectory) in a temp fixture on
+  every run and requires them to FAIL. A gate that cannot fail is a comment with a
+  green checkmark.
 
 First-party vs third-party is decided by image.registry: third-party values pin a
 foreign registry explicitly (socbase-auth -> docker.io/supabase/gotrue), while
@@ -123,11 +132,10 @@ KNOWN_BROKEN = {
     # RESOLVED 2026-07-29: market-replay likewise — gitops-promote pinned it to
     # sha-6fd49d94… on merge of #1005 (first light: the emitter is live and sha-pinned),
     # so its moving-tag entry now passes and the ratchet requires its deletion.
-        "lifecycle-warden:moving-tag": (
-        "New service — L5 governance executor (apps/lifecycle-warden) added to images.yml this PR. "
-        "Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge. Its "
-        "values set pullPolicy: Always as the interim guard against the moving-tag+IfNotPresent trap."
-    ),
+    # RESOLVED 2026-07-29: lifecycle-warden — gitops-promote sha-pinned it to
+    # sha-9fd245401789 (#1017) after its first CI build, exactly as this entry predicted.
+    # The ratchet only shrinks, and it had already begun FAILING the gate on main for
+    # this reason: fixed → removed, so the warden can never silently regress to `:latest`.
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),
@@ -227,7 +235,10 @@ def tier_contract(argocd_dir: Path) -> tuple[list[tuple[str, str]], dict[str, st
     problems: list[tuple[str, str]] = []
     tiers: dict[str, str] = {}
     for path in sorted(argocd_dir.rglob("*.yaml")):
-        rel = path.name
+        # Path RELATIVE to deploy/argocd, not just the basename: the walk is
+        # recursive, so "fogstack-appset.yaml" alone cannot tell you which
+        # directory the offending element lives in.
+        rel = path.relative_to(argocd_dir).as_posix()
         text = _live_lines(path.read_text(encoding="utf-8"))
         for doc in re.split(r"^---\s*$", text, flags=re.M):
             kind_m = re.search(r"^kind:\s*(ApplicationSet|Application)\s*$", doc, re.M)
@@ -315,12 +326,26 @@ def check_empty_tag(name: str, image: dict) -> str | None:
     return None
 
 
-def deployed_services() -> set[str]:
-    """Service names from every ApplicationSet list generator under deploy/argocd."""
+def deployed_services(argocd_dir: Path | None = None) -> set[str]:
+    """Service names from every ApplicationSet list generator under deploy/argocd.
+
+    RECURSIVE, and that is the point. Check 5 (tier_contract) has always walked
+    rglob, but this — the set checks 1-4 and 6 actually run over — globbed only the
+    top level, so an ApplicationSet in a subdirectory (deploy/argocd/fogstack/) was
+    silently exempt from the values, build, moving-tag, empty-tag and foundation
+    checks while still being counted and tiered. The root app-of-apps recurses, so
+    a subdirectory ApplicationSet is exactly as deployed as a top-level one: a hole
+    in the very gate that exists to prove there are no phantom deploys.
+
+    Comment-stripped for the same reason tier_contract is: a commented-out element
+    is a breadcrumb, not a deployment, and the two discovery paths must agree on
+    the set — otherwise the printed tier counts describe a different population
+    from the one that was checked.
+    """
     names: set[str] = set()
-    for path in sorted(ARGOCD_DIR.glob("*.yaml")):
-        text = path.read_text(encoding="utf-8")
+    for path in sorted((argocd_dir or ARGOCD_DIR).rglob("*.yaml")):
         # Parse loosely: these files are Go-templated, so yaml.safe_load can choke.
+        text = _live_lines(path.read_text(encoding="utf-8"))
         names |= set(re.findall(r"^\s*-\s*\{\s*name:\s*([a-z0-9][a-z0-9-]*)", text, re.M))
     return names
 
@@ -499,7 +524,44 @@ def run_self_test() -> None:
             )
             raise SystemExit(1)
 
-    print("self-test: both doctrine failure modes still FAIL (untiered app; foundation without build) — teeth verified")
+        # Failure mode C — SCOPE. A service declared only in a SUBDIRECTORY
+        # ApplicationSet must be discovered, or checks 1-4 and 6 silently skip it
+        # while check 5 still counts and tiers it. That was the live hole: the tier
+        # line printed a population the value checks never ran over. A commented-out
+        # element must NOT be discovered — a breadcrumb is not a deployment.
+        (argocd / "sub").mkdir()
+        (argocd / "sub" / "nested-appset.yaml").write_text(
+            "apiVersion: argoproj.io/v1alpha1\n"
+            "kind: ApplicationSet\n"
+            "metadata:\n"
+            "  name: selftest-nested\n"
+            "spec:\n"
+            "  generators:\n"
+            "    - list:\n"
+            "        elements:\n"
+            "          - { name: nested-svc, tier: reference }\n"
+            "          # - { name: retired-svc, tier: reference }\n",
+            encoding="utf-8",
+        )
+        found = deployed_services(argocd)
+        if "nested-svc" not in found:
+            print(
+                "preflight SELF-TEST FAIL: a service declared only in a deploy/argocd "
+                f"SUBDIRECTORY is not discovered (got {sorted(found) or 'nothing'}) — checks 1-4/6 "
+                "would skip it while check 5 still tiers it (the scope hole is back).",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        if "retired-svc" in found:
+            print(
+                "preflight SELF-TEST FAIL: a COMMENTED-OUT element counts as deployed — "
+                "a breadcrumb is not a deployment (_live_lines regression).",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+
+    print("self-test: all three doctrine failure modes still FAIL (untiered app; foundation "
+          "without build; subdirectory service out of scope) — teeth verified")
 
 
 def main() -> int:

@@ -245,6 +245,48 @@ def test_tamper_whole_envelope_cannot_outrun_the_signed_outputs_sha():
     assert "outputs_sha" in walk["steps"][2]["detail"]
 
 
+def test_reordered_chain_fails_at_gateway_signature():
+    # "on the chain" is a claim about ORDER. Membership + own-hash said ok even when
+    # the chain had been shuffled underneath the receipt — so a receipt could be
+    # moved to a different position in history and still verify. It cannot now.
+    first = _seal("enrich", _enrich_receipt()).json()["receiptId"]
+    second = _seal("explore", _explore_receipt()).json()["receiptId"]
+    chain = receipts._CHAINS["demo"]
+    assert [c.id for c in chain] == [first, second]
+
+    chain.reverse()                                    # same receipts, forged order
+    walk = _verify(second)                             # now sitting at position 0
+    assert walk["valid"] is False
+    assert _statuses(walk) == [("gateway-signature", "fail"), ("engine-seal-hash", "skipped"),
+                               ("snapshot-seq-binding", "skipped")]
+    assert "prev-link" in walk["steps"][0]["detail"]
+
+
+def test_broken_earlier_prev_link_fails_the_receipt_that_depends_on_it():
+    # Tamper with a PREDECESSOR, not the target. The target's own body still
+    # re-hashes perfectly — the old step 1 passed it and attested a receipt whose
+    # history had been rewritten beneath it.
+    first = _seal("enrich", _enrich_receipt()).json()["receiptId"]
+    second = _seal("explore", _explore_receipt()).json()["receiptId"]
+    chain = receipts._CHAINS["demo"]
+
+    chain[0].actor = "someone-else"                    # predecessor body altered
+    assert engine_receipts._receipt_body_hash_ok(chain[1]) is True   # target itself intact
+    walk = _verify(second)
+    assert walk["valid"] is False
+    assert walk["steps"][0]["step"] == "gateway-signature"
+    assert walk["steps"][0]["status"] == "fail"
+    detail = walk["steps"][0]["detail"]
+    assert "predecessor #0" in detail and first in detail
+    assert "id-hash does not recompute" in detail
+
+    # a receipt EARLIER than the tampering is unaffected — the walk verifies the
+    # prefix each receipt actually depends on, not the whole chain indiscriminately.
+    receipts._CHAINS["demo"] = [chain[0]]
+    chain[0].actor = "hellgraph-service"               # restore: genesis is sound again
+    assert _verify(first)["steps"][0]["status"] == "ok"
+
+
 def test_verify_walk_missing_receipt_is_invalid_at_step_one():
     walk = _verify("sha256:" + "ee" * 32)
     assert walk["valid"] is False
