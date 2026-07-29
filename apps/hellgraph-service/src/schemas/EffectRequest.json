@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/EffectRequest.json",
+  "title": "EffectRequest",
+  "description": "A proposed side effect (state transition) requested by an MPCC event. A requested effect is a proposal only: it is not permission, not execution, and not evidence that anything happened. Lifecycle: EffectRequest (requested) → EffectDecision (approved / denied / deferred / expired / revoked) → EffectRecord (what actually happened, including compensation). Provenance: SocioProphet/profit-mpcc schemas/effect-request.schema.json, docs/effect-approval-semantics.md, and exports/policy-integrity/tranche-0001/effect.schema.snapshot.json, hardened to the tranche-0001 strictness bar.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "requestedByEventRef",
+    "effectKind",
+    "capability",
+    "target",
+    "parameters",
+    "idempotencyKey",
+    "requiresHumanApproval",
+    "policyLabels",
+    "riskLabels",
+    "requestedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:effect:[A-Za-z0-9._~-]+$",
+      "description": "Stable URN identifier of the requested effect. Pattern: urn:srcos:effect:<local-id>. The same effect identity is carried through decision and record stages by reference."
+    },
+    "type": {
+      "const": "EffectRequest",
+      "description": "Discriminator constant — always \"EffectRequest\"."
+    },
+    "specVersion": {
+      "const": "0.1.0",
+      "description": "MPCC event-contract version, pinned per the profit-mpcc policy-integrity tranche-0001 discipline. Changing this const is a contract change."
+    },
+    "requestedByEventRef": {
+      "type": "string",
+      "pattern": "^urn:srcos:[a-z0-9-]+:[A-Za-z0-9._~-]+$",
+      "description": "URN of the MPCC event that proposed this effect (typically a ConversationEvent; trading profiles such as OrderIntent may also request effects)."
+    },
+    "requestedByActorRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Authority reference of the actor that made the request, when distinct from the requesting event's actor."
+    },
+    "workspaceRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Workspace scope the requested effect applies to. Free-form stable reference in v0.1."
+    },
+    "branchRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Conversation-fabric branch the requested effect applies to. Free-form stable reference in v0.1."
+    },
+    "effectKind": {
+      "type": "string",
+      "enum": [
+        "create",
+        "update",
+        "delete",
+        "retrieve",
+        "transform",
+        "notify",
+        "schedule",
+        "route",
+        "publish",
+        "redact",
+        "label",
+        "archive",
+        "execute",
+        "no_op",
+        "verify"
+      ],
+      "description": "Kind of state transition proposed. Vocabulary imported verbatim from the tranche-0001 effect snapshot."
+    },
+    "capability": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Capability identifier this request would exercise (e.g. trading.order.place). The decision stage evaluates authority against this capability."
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Kind of target the effect operates on (e.g. venue_order_gateway, document, channel)."
+        },
+        "identifier": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier of the target."
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional location or partition of the target."
+        }
+      },
+      "description": "The object or surface the proposed effect would act on."
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Effect parameters. Open by design at v0.1 (mirrors the tranche-0001 snapshot); producers should keep parameters minimal and typed by capability."
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Replay guard. Invariant: every side-effecting path must be idempotent under this key; the executing EffectRecord must carry the same key."
+    },
+    "requiresHumanApproval": {
+      "type": "boolean",
+      "description": "Whether policy requires an explicit human decision before this effect may execute."
+    },
+    "policyLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A policy label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Policy labels attached to this request. Required (empty allowed) so producers state the policy posture explicitly, per the tranche-0001 bar."
+    },
+    "riskLabels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "A risk label."
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Risk labels attached to this request. Required (empty allowed) so producers state the risk posture explicitly, per the tranche-0001 bar."
+    },
+    "requestedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 date-time when the effect was requested."
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Free-form producer note."
+    }
+  }
+}

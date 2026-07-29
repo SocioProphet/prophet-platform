@@ -22,6 +22,17 @@ npm run typecheck
 | POST | `/api/graph/edge` | `{ label, from, to, properties? }` → add edge |
 | GET | `/api/graph/query?label=X` | nodes carrying a label |
 | POST | `/api/graph/reason` | run PLN forward-chaining |
+| POST | `/api/membrane/decide` | spec-valid `EffectRequest` wrapping an `OrderIntent` → policy kernel v0 → `EffectDecision` node (idempotent by `idempotencyKey`), sealed via compute-gateway |
+
+## Wave 2 doors (flag-gated governance)
+- **AUTH_ENFORCE** (default `off`): `on` requires HMAC bearer tokens on `/api/graph/*` +
+  `/api/membrane/*` — scopes `graph:read` / `graph:write` / `graph:enrich` (`src/auth.ts`;
+  mint with `mintGraphToken`). `on` without `AUTH_HMAC_SECRET` refuses startup (fail-closed).
+- **MEMBRANE_ENFORCE** (default `off`): `on` = the B-after-A gate — a node write labeled
+  `ExecutionReport` requires `properties.decisionRef` → an existing **approved**
+  `EffectDecision` with matching `intentRef`, else a typed 403; `EffectDecision` nodes mint
+  only via `POST /api/membrane/decide` (`src/membrane.ts`; vendored sha-asserted
+  sourceos-spec schemas in `src/contract.ts` + `src/schemas/`).
 
 ## Why a service (not a library import)
 The engine uses Node built-ins (`node:crypto`, `fs`) and cannot run in the browser

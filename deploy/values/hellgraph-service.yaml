@@ -35,5 +35,29 @@ config:
   # Admit tokens are minted operator-side from the same secret (HmacTokenVerifier.mint,
   # scope 'admit') — admission is the identity primitive until the login work lands.
   FEDERATION_ENABLED: "0"
-# secretEnv addition when activating federation (see comment above):
+  # ── WAVE 2 DOORS: governance on the graph surface (src/auth.ts + src/membrane.ts) ──────────
+  # AUTH: scoped HMAC bearer tokens on /api/graph/* + /api/membrane/* (graph:read /
+  # graph:write / graph:enrich). Flagged rollout — "off" is passthrough with a startup WARN;
+  # FLIPPING TO "on" IS AN OPS DECISION (every caller needs a token first). Fail-closed:
+  # "on" without the secret refuses startup. TO ACTIVATE:
+  #   kubectl -n socioprophet create secret generic hellgraph-auth-hmac --from-literal=secret=<random>
+  #   flip AUTH_ENFORCE to "on", uncomment the AUTH_HMAC_SECRET secretEnv entry below, commit.
+  # Tokens are minted operator-side from the same secret (auth.ts mintGraphToken — the same
+  # HMAC token format federation admit tokens use).
+  AUTH_ENFORCE: "off"
+  # MEMBRANE: the B-after-A gate is ON — a node write labeled ExecutionReport REQUIRES
+  # properties.decisionRef → an approved EffectDecision (minted only via POST
+  # /api/membrane/decide, policy kernel v0, idempotent by idempotencyKey) whose intentRef
+  # matches the report's. Structural, not advisory; typed 403s. Decisions are sealed on the
+  # estate receipt spine via compute-gateway kind=materialize (the W1.1 attestation door —
+  # never a parallel receipt lineage); an unreachable gateway degrades the attestation
+  # honestly (sealed:false + sealError on the decision node), never the gate itself.
+  MEMBRANE_ENFORCE: "on"
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+secretEnv:
+  # Same Secret compute-gateway + prophet-materializer-clickhouse already require in this
+  # namespace — nothing new is provisioned for the membrane's seal calls.
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+# secretEnv additions when activating federation / auth enforcement (see comments above):
 #   FEDERATION_HMAC_SECRET: { secretName: hellgraph-federation-hmac, key: secret }
+#   AUTH_HMAC_SECRET: { secretName: hellgraph-auth-hmac, key: secret }
