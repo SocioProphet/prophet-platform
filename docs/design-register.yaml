@@ -1,0 +1,84 @@
+# Design Register v0 — every design concept as machine-checkable state.
+# Doctrine: docs/METAPHOR_TO_MECHANISM_PROGRAM.md
+# Status ladder: absent -> declared (spec merged) -> wired (callers>0, probe passes live)
+#                -> measured (metric/bench number exists) -> sealed (number is receipted).
+# RULE: nothing is described above its probe-verified status — in memory, retros, or to Gus.
+# Schema note: formalize this file's shape in sourceos-spec as part of W6.0 (spec-first).
+
+register:
+  - id: effect-discipline
+    source: concept-diagram-2026-07 (monads panel)
+    mechanism: >-
+      No monad library. Canon doc of the correspondence (receipts~Writer,
+      entitlements~Reader, sessions~State) + ONE enforced law: workflow composite
+      receipt == fold of step receipts (compositionality property test).
+    owner: prophet-platform/apps/compute-gateway
+    status: absent
+    probe: "pytest -k receipt_compositionality passes in compute-gateway suite"
+    wave: W6.0
+
+  - id: exhaust-accounting
+    source: concept-diagram-2026-07 (thermodynamics panel)
+    mechanism: >-
+      ExhaustRecord on every compute/compaction (counts + hashes of discarded
+      context); Receipt gains optional exhaust_sha/bytes_in/bytes_out; v1 entropy =
+      compression ratio. Exhaust->intake loop: trace-dream job mines
+      discarded-but-later-needed to tune retrieval + SRS.
+    owner: agent-machine + compute-gateway (+ sourceos-spec fields)
+    status: absent
+    probe: "sample /v1/compute receipt carries exhaust_sha and bytes_in/bytes_out"
+    wave: W6.1
+
+  - id: banded-memory
+    source: concept-diagram-2026-07 (Fourier memory panel)
+    mechanism: >-
+      v1 multi-timescale bands L0 session -> L1 daily -> L2 weekly -> L3 permanent
+      with promotion/decay, over agent-memory isolation routing + SRS. Literal
+      spectral compression via the FNO operator sidecar = research gate, bench-arm only.
+    owner: Noetica/agent-machine (memory), noetica-operator (research arm)
+    status: absent
+    probe: "memory API reports per-band counts; a promotion event is observable"
+    wave: W6.2
+
+  - id: deliberation-value-controller
+    source: concept-diagram-2026-07 (L-function / planning-value panels)
+    mechanism: >-
+      DeliberationController estimating P(correct|features) from harness signals
+      (sample agreement, operator-fire, retrieval-gate scores), calibrated on the
+      owned 686-board transcripts; stop/escalate on marginal
+      expected-accuracy-per-token. Extends escalate-only-on-disagreement.
+      L-function functional form = Heller-Winters-lane research gate.
+    owner: Noetica/agent-machine (bench arm first, server routing second)
+    status: absent
+    probe: "board run emits cost-per-point for the controller arm"
+    wave: W6.3
+
+  - id: declared-organs
+    source: concept-diagram-2026-07 (organogenesis panels) + twin program (organs design-only)
+    mechanism: >-
+      v1 Organ{kind, members, capabilities, health} as a sourceos-spec type over
+      EXISTING services (memory-mesh, zone/model-router, ingest/ie-engine,
+      capability membrane), served from the federation plane + Govern Posture card.
+      v2 membership dynamics via admit/writer-key machinery. v3 differentiation =
+      research gate.
+    owner: hellgraph-service federation + agentplane + client-vue (card)
+    status: absent
+    probe: "GET /api/organs returns >0 organs with live member health"
+    wave: W6.4
+
+  # ── Pre-existing convictions imported so the register is honest from birth ──
+  - id: l5-governance-lifecycle
+    source: blueprint audit 2026-07 ("libraries nobody calls")
+    mechanism: "lifecycle.ts FSM actually invoked on the governed path"
+    owner: prophet-platform
+    status: declared      # library complete, ZERO callers — the canonical RC2 case
+    probe: "callers-grep of lifecycle FSM entrypoints > 0 outside tests"
+    wave: unassigned
+
+  - id: swarm-holography-gate
+    source: agentic-swarm-holography-fabric design (3-layer gate)
+    mechanism: "holography gate enforced in the swarm plane"
+    owner: prophet-mesh / agentplane
+    status: absent
+    probe: "gate decision observable on a sample swarm dispatch"
+    wave: unassigned
