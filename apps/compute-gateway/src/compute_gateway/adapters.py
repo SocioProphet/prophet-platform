@@ -578,6 +578,43 @@ async def _sql_load(req_spec: dict, project: str, session: str | None) -> Adapte
             "runtime": "sql", "status": "ok", "error": None, "degraded": None, "epistemic": weakest}
 
 
+async def _materialize(req_spec: dict, project: str, session: str | None) -> AdapterResult:
+    """Seal-the-Walls W1.1 — attest one materializer batch on THE receipt spine.
+
+    A materializer (log → derived view, e.g. prophet-materializer-clickhouse) calls this
+    after inserting a batch and BEFORE writing its checkpoint: the sealed receipt is the
+    proof "materialized through cut [from_cursor, to_cursor]" (pht.md Design commitment 3).
+    In-process — the batch itself already ran in the materializer; the gateway's job is the
+    governed, hash-chained, Ed25519-attested evidence. The spec IS the receipt's inputs, so
+    inputs_sha binds {from_cursor, to_cursor, row_count, batch_hash} into the chain.
+
+    `_no_provenance`: a materialize receipt must NOT write its provenance subgraph back into
+    hellgraph — the graph is the very log being materialized, so the write-back would emit
+    new log events, which the materializer would materialize, which would mint a receipt,
+    which would write provenance… an unbounded self-feeding loop (~4 nodes + 5 edges per
+    poll interval, forever). Its provenance lives where it proves something: on the receipt
+    chain and in the sink's checkpoint row.
+    """
+    missing = [k for k in ("sink", "table", "to_cursor", "row_count", "batch_hash")
+               if req_spec.get(k) in (None, "")]
+    if missing:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": f"materialize spec missing {missing} "
+                         f"(need sink, table, to_cursor, row_count, batch_hash)",
+                "degraded": None, "_no_provenance": True}
+    data = {
+        "source": req_spec.get("source", "hellgraph"),
+        "sink": req_spec["sink"], "table": req_spec["table"],
+        "from_cursor": int(req_spec.get("from_cursor", 0)),
+        "to_cursor": int(req_spec["to_cursor"]),
+        "row_count": int(req_spec["row_count"]),
+        "batch_hash": str(req_spec["batch_hash"]),
+    }
+    return {"outputs": [ComputeOutput(type="result", data=data)],
+            "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
+            "_no_provenance": True}
+
+
 # kind → adapter coroutine. Overridable in tests.
 _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "forge": lambda spec, project, session: _forge(spec, project, session),
@@ -587,6 +624,7 @@ _BACKENDS: dict[str, Callable[..., Awaitable[AdapterResult]]] = {
     "model-server": lambda spec, project, session: _inference(spec, project, session),
     "gateway:ingest": lambda spec, project, session: _ingest(spec, project, session),
     "gateway:parse": lambda spec, project, session: _parse(spec, project, session),
+    "gateway:materialize": lambda spec, project, session: _materialize(spec, project, session),
     "holmes": lambda spec, project, session: _extraction(spec, project, session),
     "open-data": lambda spec, project, session: _reconcile(spec, project, session),
     "sql": lambda spec, project, session: _sql_load(spec, project, session),
