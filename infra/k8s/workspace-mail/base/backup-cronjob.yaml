@@ -12,6 +12,13 @@ spec:
       template:
         spec:
           restartPolicy: OnFailure
+          # REQUIRED for the zot ref above: zot refuses anonymous pulls (401 UNAUTHORIZED).
+          # The workspace-mail + workspace-smtp Deployments in this namespace already pull
+          # through this same secret; the CronJob never had one because its ghcr ref was
+          # never pullable in the first place. Without this line the image fix alone is
+          # cosmetic — the job keeps ImagePullBackOff'ing.
+          imagePullSecrets:
+            - name: zot-pull
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -19,7 +26,18 @@ spec:
               type: RuntimeDefault
           containers:
             - name: mail-backup
-              image: ghcr.io/socioprophet/prophet-platform/workspace-backup:dev
+              # Stock alpine, mirrored in our sovereign zot and pinned BY DIGEST.
+              # Was ghcr.io/socioprophet/prophet-platform/workspace-backup:dev — an image
+              # NOTHING in this repo builds (no images.yml entry, no Dockerfile), so this
+              # CronJob has ImagePullBackOff'd every night since it was authored: the daily
+              # mail backup has never once run. The payload is a /bin/sh + date + tar
+              # one-liner, so it needs no first-party image at all — only a shell and tar.
+              # Digest, not tag: zot carries library/alpine as :latest only, and a moving
+              # tag on a backup job means the backup silently changes underfoot.
+              # Probe-verified in-cluster before this change (socioprophet namespace, this
+              # exact digest, uid 1000, caps dropped, seccomp RuntimeDefault): the pull
+              # succeeds and the one-liner produces a real, listable .tar.gz.
+              image: registry.socioprophet.ai/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
               command:
                 - /bin/sh
                 - -c
