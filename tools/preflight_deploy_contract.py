@@ -124,13 +124,10 @@ KNOWN_BROKEN = {
     # gitops-promote sha-pinned both values files after their first CI builds (arcticdb-gateway →
     # sha-8fbda01e…, prophet-materializer-clickhouse → sha-4df9dcbd…). The ratchet only shrinks:
     # fixed → removed so neither can silently regress to `:latest` again.
-    "market-replay:moving-tag": (
-        "New service — Seal-the-Walls W1.2 synthetic MarketDataEvent replay emitter "
-        "(apps/market-replay) added to images.yml this PR. Pin tag:latest -> the sha- tag "
-        "after the first CI build; no sha exists until merge. Its values set pullPolicy: Always as the "
-        "interim guard against the moving-tag+IfNotPresent trap."
-    ),
-    "lifecycle-warden:moving-tag": (
+    # RESOLVED 2026-07-29: market-replay likewise — gitops-promote pinned it to
+    # sha-6fd49d94… on merge of #1005 (first light: the emitter is live and sha-pinned),
+    # so its moving-tag entry now passes and the ratchet requires its deletion.
+        "lifecycle-warden:moving-tag": (
         "New service — L5 governance executor (apps/lifecycle-warden) added to images.yml this PR. "
         "Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge. Its "
         "values set pullPolicy: Always as the interim guard against the moving-tag+IfNotPresent trap."
