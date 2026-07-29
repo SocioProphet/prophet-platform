@@ -116,5 +116,45 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
   ok(/^sha256-[0-9a-f]{64}$/.test(`sha256-${h}`), "content addresses are sha256-<64-hex> — label matches the math");
 }
 
+
+console.log('\n▶ INVARIANT 6 — the record bundle is not served open once real records exist');
+{
+  const { exposureDenial, exposureFromEnv } = await import('./exposure.js');
+  const open = { mode: 'synthetic-only' as const, token: '', authorization: '' };
+
+  // The safety of the open endpoint rests entirely on the data being synthetic, so that is
+  // the condition enforced. A twin holding real records must stop serving them openly on its
+  // own, not when someone remembers to change a setting.
+  ok(exposureDenial({ ...open, ingestedRecords: 0 }) === null,
+     'synthetic twin (0 ingested records) serves the bundle');
+  const withRecords = exposureDenial({ ...open, ingestedRecords: 1 });
+  ok(withRecords?.code === 403,
+     'ONE real ingested record stops the open bundle (403)');
+  ok(String(JSON.stringify(withRecords?.body)).includes('remedy'),
+     'the refusal states how to serve records legitimately, not just that it refused');
+
+  // authenticated mode: the permissive state must be asserted, and asserting it without a
+  // secret must fail closed rather than silently serving.
+  const auth = { mode: 'authenticated' as const, ingestedRecords: 0 };
+  ok(exposureDenial({ ...auth, token: '', authorization: 'Bearer anything' })?.code === 503,
+     'authenticated mode with no token configured fails CLOSED (503), it does not serve');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: '' })?.code === 401,
+     'no Authorization header is refused');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer wrong' })?.code === 401,
+     'a wrong token is refused');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer s3cret' }) === null,
+     'the configured token is accepted');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer  s3cret  ' }) === null,
+     'surrounding whitespace does not defeat a correct token');
+  // and a real deployment still serves records under a token, which synthetic-only would refuse
+  ok(exposureDenial({ mode: 'authenticated', token: 's3cret', authorization: 'Bearer s3cret', ingestedRecords: 500 }) === null,
+     'authenticated mode serves real records — the gate is about governance, not about refusing work');
+
+  // default is the safe one: anything but the explicit opt-in is synthetic-only
+  ok(exposureFromEnv({} as NodeJS.ProcessEnv) === 'synthetic-only', 'default exposure is synthetic-only');
+  ok(exposureFromEnv({ HEALTH_TWIN_EXPOSURE: 'yes' } as any) === 'synthetic-only', 'an unrecognised value is NOT treated as authenticated');
+  ok(exposureFromEnv({ HEALTH_TWIN_EXPOSURE: 'authenticated' } as any) === 'authenticated', 'the explicit opt-in is honoured');
+}
+
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);

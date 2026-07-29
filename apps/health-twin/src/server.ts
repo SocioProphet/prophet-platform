@@ -25,6 +25,7 @@ import { codeText, type CodedEntity } from './clinical.js';
 import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
+import { exposureDenial, exposureFromEnv } from './exposure.js';
 
 const PORT = Number(process.env.PORT ?? 8097);
 
@@ -36,6 +37,19 @@ function sha256(s: string): string {
 }
 function receipt(kind: string, parts: string[]): { id: string; verifier: 'health-twin'; at: string } {
   return { id: `ht-${kind}-${sha256(parts.join('|'))}`, verifier: 'health-twin', at: new Date().toISOString() };
+}
+
+// Exposure gate — see exposure.ts for why the condition is "is the data synthetic" rather
+// than a bearer token the browser would have to hold.
+const EXPOSURE = exposureFromEnv();
+
+function denyExposure(req: http.IncomingMessage) {
+  return exposureDenial({
+    mode: EXPOSURE,
+    token: process.env.HEALTH_TWIN_TOKEN ?? '',
+    authorization: String(req.headers['authorization'] ?? ''),
+    ingestedRecords: resultCounts(ingested).total,
+  });
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
@@ -163,7 +177,10 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, { ok: true, service: 'health-twin' });
 
   // The twin bundle (the surface's one read).
-  if (req.method === 'GET' && url.pathname === '/api/health/twin') return send(res, 200, bundle());
+  if (req.method === 'GET' && url.pathname === '/api/health/twin') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, bundle());
+  }
 
   // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
@@ -365,7 +382,11 @@ const server = http.createServer(async (req, res) => {
   }
 
   // A de-identified view of the twin (Safe-Harbor + date-shift) — proof identity is gone.
-  if (req.method === 'GET' && url.pathname === '/api/health/deident') return send(res, 200, deidentify(bundle()));
+  if (req.method === 'GET' && url.pathname === '/api/health/deident') {
+    // De-identified, but still derived from the same records — gated on the same condition.
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, deidentify(bundle()));
+  }
 
   // Open a blinded consult: requires the patient's agreement (anonymous by default). `disclosure` =
   // the agreed scope ('standard' keeps age-band + sex a doctor needs; 'minimal' = facts only).
