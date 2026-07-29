@@ -112,10 +112,29 @@ register:
   # ── Pre-existing convictions imported so the register is honest from birth ──
   - id: l5-governance-lifecycle
     source: blueprint audit 2026-07 ("libraries nobody calls")
-    mechanism: "lifecycle.ts FSM actually invoked on the governed path"
+    mechanism: >-
+      The engine lifecycle FSM + Governor + object store are invoked on the governed
+      path by apps/lifecycle-warden, which runs dueTransitions → runRetention → gc every
+      WARDEN_INTERVAL_SECONDS and seals each pass on THE receipt spine via compute-gateway
+      kind=governance (adapters._governance). No longer a library with zero callers.
     owner: prophet-platform
-    status: declared      # library complete, ZERO callers — the canonical RC2 case
-    probe: "callers-grep of lifecycle FSM entrypoints > 0 outside tests"
+    status: wired
+    # declared→wired 2026-07-29 on LIVE PROBE (not inference): deployment lifecycle-warden
+    # 1/1 in ns socioprophet; GET /healthz 200; GET /v1/audit/head seq 59; and 44 kind=governance
+    # receipts on the gateway chain (/data/gateway.db) — the warden IS the caller and the
+    # evidence is on the spine. CI has no cluster access, so probe_cmd below is the static
+    # wiring proxy; the runtime probe is re-run by hand on each roll.
+    # 🔴 CANNOT reach `measured` until objects_scanned > 0: the warden governs an EMPTY set
+    # (POST /v1/objects had no caller — issue #1048). PR #1054 adds the enrolment producer +
+    # Sovereign Retention Doctrine; the first LIVE enrolment is a deliberate bounded write to
+    # the append-only prod chain, held for go-ahead. Until then: it runs, it is receipted, it
+    # governs nothing — do not describe above `wired`.
+    probe: "warden is the live caller: healthz 200 + 44 kind=governance receipts on the spine"
+    probe_cmd: >-
+      grep -q "_governance" apps/compute-gateway/src/compute_gateway/adapters.py
+      && grep -q '"governance"' apps/compute-gateway/src/compute_gateway/registry.py
+      && test -f deploy/values/lifecycle-warden.yaml
+      && grep -rq "lifecycle-warden" deploy/argocd/
     wave: unassigned
 
   - id: swarm-holography-gate
