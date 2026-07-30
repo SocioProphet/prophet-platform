@@ -55,6 +55,7 @@ is stated rather than papered over with a queue this service has no store for.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -67,6 +68,15 @@ from .clients import EmitError, GatewayError
 from .extract import Extraction
 
 log = logging.getLogger("nugget-extractor")
+
+# Ceiling on _pending batches. A hellgraph outage stalls drain() at the FIRST failing
+# op (batch.cursor never advances past it) while /v1/extract keeps admitting new
+# documents — every call adds one batch to _pending and NUGGET_EXTRACTOR_MAX_PENDING
+# batches later the pod is OOM'd. The cap makes that surface as a 503-shaped result
+# (see BatchResult.status == 'degraded') that the caller can back-pressure on,
+# instead of a pod bounce. Match the device-service `run_once` skip-with-reason
+# pattern: no partial batch, no counted work, an explicit reason string.
+MAX_PENDING = int(os.environ.get("NUGGET_EXTRACTOR_MAX_PENDING", "1000"))
 
 NUGGET_LABEL = "KnowledgeNugget"
 DOCUMENT_LABEL = "SourceDocument"
@@ -119,6 +129,12 @@ class BatchResult:
     attempted: bool = False
     hellgraph_ok: bool = True
     gateway_ok: bool = True
+    # Back-pressure signal: 'ok' | 'degraded'. Set when submit() refused to admit the
+    # batch (because _pending is at MAX_PENDING) so the HTTP layer can translate to 503
+    # instead of letting the pod balloon toward OOM. A `reason` explains which
+    # dependency is stalled — the caller sees WHY it's being back-pressured.
+    status: str = "ok"
+    reason: str | None = None
 
 
 @dataclass
@@ -163,6 +179,25 @@ class NuggetEmitter:
     def _submit(self, extraction: Extraction, *, doc_ref: str, run_ref: str,
                 policy_labels: list[str] | None = None,
                 extra_kko_type_refs: list[str] | None = None) -> BatchResult:
+        # BACK-PRESSURE gate — enforced BEFORE we build nuggets or advance the logical
+        # clock, so a refused submit is a pure no-op the caller can safely retry. The
+        # pending queue only fills when drain() is stalled (hellgraph or gateway is
+        # down); admitting more work while both sides are wedged is what turns an
+        # upstream outage into an OOM crash. Match device-service's skip-with-reason
+        # posture — no partial batch, no counted work, an explicit reason string.
+        if len(self._pending) >= MAX_PENDING:
+            reason = (
+                "nugget-extractor pending queue full "
+                f"({len(self._pending)}/{MAX_PENDING}) — hellgraph downstream may be "
+                "unavailable; retry after drain")
+            log.warning("submit REFUSED — %s (doc=%s)", reason, doc_ref)
+            return BatchResult(
+                documents=0, extracted=0, emitted=0, validation_failures=0,
+                pending=sum(len(b.nuggets) for b in self._pending),
+                status="degraded", reason=reason,
+                hellgraph_ok=False,   # the cap only trips when drain is stalled
+                gateway_ok=False,
+            )
         built = nugget_builder.build(
             extraction, doc_ref=doc_ref, run_ref=run_ref, clock=self.clock,
             logical_start=self._logical, policy_labels=policy_labels or [],

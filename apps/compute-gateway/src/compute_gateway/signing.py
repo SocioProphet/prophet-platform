@@ -42,7 +42,11 @@ def load_signing_key() -> Ed25519PrivateKey | None:
     """Ed25519 private key from `GATEWAY_SIGNING_KEY` (base64 32-byte seed).
 
     Absent or malformed → None (the caller emits an *unsigned* receipt; we never
-    fabricate a signature).
+    fabricate a signature). Callers who need to distinguish "no key configured"
+    from "key present but bad" should use `signing_state()` — quietly downgrading a
+    misconfigured key to unsigned was masking a real operational fault (Copilot #TBD:
+    a bad key silently produced unsigned receipts whose `verify()` reported
+    `valid: True` because verify only fails on a *present-but-invalid* signature).
     """
     raw = os.getenv("GATEWAY_SIGNING_KEY", "").strip()
     if not raw:
@@ -54,6 +58,35 @@ def load_signing_key() -> Ed25519PrivateKey | None:
         return Ed25519PrivateKey.from_private_bytes(seed)
     except Exception:  # noqa: BLE001 — a bad key is treated as "no key", never faked
         return None
+
+
+def signing_state() -> str:
+    """Report the observable state of the signing config, from the same env var
+    `load_signing_key()` inspects, without mutating anything:
+
+      * 'signed'   — a valid Ed25519 seed is configured; new receipts get signatures.
+      * 'unsigned' — no key is configured (env unset or blank); receipts are unsigned
+                     by design (dev/tests). This is deliberate, not a fault.
+      * 'error'    — `GATEWAY_SIGNING_KEY` IS set, but decoding fails (bad base64,
+                     wrong length, corrupt seed). Receipts silently ride as unsigned,
+                     and `verify()` cannot notice because it only rejects a
+                     present-but-invalid signature — the failure mode this state
+                     exists to make loud on `/healthz` (see server.py).
+    """
+    raw = os.getenv("GATEWAY_SIGNING_KEY", "").strip()
+    if not raw:
+        return "unsigned"
+    try:
+        seed = base64.b64decode(raw)
+    except Exception:  # noqa: BLE001
+        return "error"
+    if len(seed) != 32:
+        return "error"
+    try:
+        Ed25519PrivateKey.from_private_bytes(seed)
+    except Exception:  # noqa: BLE001
+        return "error"
+    return "signed"
 
 
 def _pub_b64(pub: Ed25519PublicKey) -> str:
