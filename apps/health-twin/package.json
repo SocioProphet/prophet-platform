@@ -8,7 +8,10 @@
     "tsx": "^4.19.2"
   },
   "scripts": {
-    "test": "node --import tsx --test src/*.test.ts"
+    "test": "node --import tsx --test src/*.test.ts",
+    "invariants": "tsx src/invariants.ts",
+    "eval": "tsx src/eval.ts",
+    "smoke:ledger-scope": "tsx src/dynamics/ledger-scope.smoke.ts"
   },
   "devDependencies": {}
 }
