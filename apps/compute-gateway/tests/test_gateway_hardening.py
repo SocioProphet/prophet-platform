@@ -191,7 +191,11 @@ def test_exhaust_guard_still_accepts_reasonable_urn_refs():
 def test_exhaust_guard_rejects_payload_smuggled_as_specversion():
     """`specVersion` was type-checked but not length-bounded — a string field
     on the top-level allowlist with no ceiling is an open exfil door."""
-    payload = "SSN 123-45-6789 alice@example.com " * 300_000  # ~10 MB
+    # 96 KB is ample: it is 1500x the 64-char specVersion bound and still well under
+    # the 2 MiB backstop, so the reason assertion below proves the per-field bound
+    # fired. The live bypass measured 10.2 MB; reproducing that volume in CI buys no
+    # extra coverage, only allocation.
+    payload = "SSN 123-45-6789 alice@example.com " * 3_000  # ~96 KB
     smuggled = {"type": "ExhaustRecord", "specVersion": payload, "counts": {"x": 1}}
     out = engine._guard_exhaust(smuggled)
     assert out is not None
@@ -222,8 +226,9 @@ def test_exhaust_guard_accepts_a_real_spec_version_string():
 def test_exhaust_guard_rejects_payload_smuggled_as_counts_keys():
     """`counts` bounded each key to 256 chars but never bounded how MANY keys.
     50 000 x 246-char keys = ~12 MB of attacker-chosen text, all label."""
+    # 400 keys clears the 256-key bound; the live bypass used 50 000 (~12.7 MB).
     smuggled = {"type": "ExhaustRecord",
-                "counts": {f"k{i:06d}" + "x" * 240: 1 for i in range(50_000)}}
+                "counts": {f"k{i:06d}" + "x" * 240: 1 for i in range(400)}}
     out = engine._guard_exhaust(smuggled)
     assert out is not None
     assert len(out.get("counts", {})) <= 1, "counts payload survived the guard"
@@ -255,8 +260,11 @@ def test_exhaust_guard_total_size_backstop_catches_unenumerated_dimensions():
     512-char URN ref clears every per-field bound, yet totals ~5 MB."""
     ref = "urn:x:" + "a" * 500
     assert not engine._bad_ref(ref), "each ref must be individually LEGAL for this test to mean anything"
+    # 2 600 items x two 512-char URNs is ~2.7 MiB — over the 2 MiB backstop, under
+    # the 10 000-item cap, every field individually legal. The smallest construction
+    # that can only be caught by the aggregate check.
     smuggled = {"type": "ExhaustRecord",
-                "items": [{"kind": "candidate", "sha256": ref, "ref": ref} for _ in range(10_000)]}
+                "items": [{"kind": "candidate", "sha256": ref, "ref": ref} for _ in range(2_600)]}
     out = engine._guard_exhaust(smuggled)
     assert out is not None
     assert "items" not in out, "per-field-legal payload still totalling megabytes survived"

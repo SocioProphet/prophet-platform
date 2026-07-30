@@ -116,7 +116,7 @@ def _validate_exhaust(exhaust) -> str | None:
         if not isinstance(c, dict):
             return "counts must be a mapping"
         if len(c) > _MAX_COUNT_KEYS:
-            return f"counts has {len(c)} keys > {_MAX_COUNT_KEYS} — a tally, not a payload"
+            return f"counts has {len(c)} entries (max {_MAX_COUNT_KEYS}) — a tally, not a payload"
         for k, v in c.items():
             if not isinstance(k, str) or len(k) > _MAX_LABEL_LEN:
                 return f"counts.{k!r} label out of range"
@@ -145,10 +145,18 @@ def _validate_exhaust(exhaust) -> str | None:
     # Aggregate backstop — last, so it catches whatever the per-field checks
     # above did not think to bound. Everything reaching here is JSON-safe
     # (str/int/dict/list only), but fail closed if serialisation surprises us.
+    #
+    # Deliberately WITHOUT default=str, even though artifacts.digest uses it. A
+    # default= handler is the opposite of failing closed: it stops json.dumps
+    # raising on an unknown type by silently stringifying it, so the except branch
+    # below could never fire and an object the per-field checks never anticipated
+    # would be measured, accepted, and stored. Since nothing that reaches here
+    # should be anything but str/int/dict/list, a TypeError is exactly the signal
+    # wanted — it means the validation above regressed.
     try:
-        total = len(_json.dumps(exhaust, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8"))
-    except Exception as exc:  # pragma: no cover - defensive
-        return f"exhaust is not serialisable: {type(exc).__name__}"
+        total = len(_json.dumps(exhaust, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))
+    except (TypeError, ValueError) as exc:
+        return f"exhaust is not serialisable ({type(exc).__name__}: {exc}) — refusing to store it"
     if total > _MAX_EXHAUST_BYTES:
         return f"exhaust serialises to {total} bytes > {_MAX_EXHAUST_BYTES} — a ledger, not a payload"
     return None
