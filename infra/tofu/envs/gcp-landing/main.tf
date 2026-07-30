@@ -212,14 +212,21 @@ resource "google_billing_budget" "platform" {
     }
   }
 
-  threshold_rules { threshold_percent = 0.8  spend_basis = "FORECASTED_SPEND" }
-  threshold_rules { threshold_percent = 1.0  spend_basis = "FORECASTED_SPEND" }
+  threshold_rules {
+    threshold_percent = 0.8
+    spend_basis       = "FORECASTED_SPEND"
+  }
 
-  notifications_rule {
+  threshold_rules {
+    threshold_percent = 1.0
+    spend_basis       = "FORECASTED_SPEND"
+  }
+
+  all_updates_rule {
     monitoring_notification_channels = []
-    pubsub_topic                      = google_pubsub_topic.budget_alerts.id
-    schema_version                    = "1.0"
-    enable_project_level_recipients   = true
+    pubsub_topic                     = google_pubsub_topic.budget_alerts.id
+    schema_version                   = "1.0"
+    enable_project_level_recipients  = true
   }
 }
 
