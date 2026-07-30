@@ -5,9 +5,29 @@ commonLabels:
   app: zot
   app.kubernetes.io/part-of: sovereign-registry
 resources:
-  - configmap.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
   - networkpolicy.yaml
+
+# zot registry config. Blobs live in MinIO (S3 driver → the running workspace-minio); a small local
+# PVC holds zot's boltdb metadata cache. Login-walled: only authenticated users in accessControl may
+# read/write, no anonymous access. `sync` provides on-demand pull-through of upstream registries so the
+# cluster pulls docker.io/ghcr/gcr/k8s images THROUGH zot (the de-Google lever). S3 credentials are NOT
+# in config.json — they come from env (AWS_ACCESS_KEY_ID/SECRET) sourced from the minio-credentials secret.
+#
+# GENERATED, not a hand-written ConfigMap, deliberately: zot reads config.json ONCE at startup and does
+# NOT hot-reload. As a plain ConfigMap, editing the config changed the mounted file but left the running
+# process on its old in-memory policy until someone remembered `kubectl rollout restart deploy/zot` — a
+# config that is declared but never read. The generator's name hash (zot-config-<hash>) changes the
+# Deployment pod spec on every config edit, so Kubernetes rolls the pod and the new config is actually
+# loaded. Validate an edit against the real binary before merging (exit 0 = valid, exit 1 + the offending
+# key path = invalid):
+#   kubectl -n socioprophet create configmap zot-cfg-verify --from-file=config.json=config.json
+#   kubectl -n socioprophet run zot-verify --restart=Never --image=ghcr.io/project-zot/zot-linux-amd64:v2.1.2 \
+#     --overrides='{"spec":{"containers":[{"name":"zot","image":"ghcr.io/project-zot/zot-linux-amd64:v2.1.2","args":["verify","/etc/zot/config.json"],"volumeMounts":[{"name":"c","mountPath":"/etc/zot"}]}],"volumes":[{"name":"c","configMap":{"name":"zot-cfg-verify"}}]}}'
+configMapGenerator:
+  - name: zot-config
+    files:
+      - config.json

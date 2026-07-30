@@ -1,12 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# p0-lab used to shrink the MinIO PVC from the base's 100Gi to 20Gi, back when this MinIO served only
+# the workspace. It no longer does: the sovereign registry (zot) uses the SAME MinIO as its S3 blob
+# store, so every estate image push lands on this volume. 20Gi filled completely — MinIO then answers
+# blob commits with `XMinioStorageFull` (HTTP 507), zot tears down the in-flight `.uploads/` staging
+# files, and the pushing client sees `unknown: blob upload unknown to registry`. That took out every
+# image build targeting registry.socioprophet.ai (socioprophet-web, workspace-{mail,smtp,caldav}).
+#
+# The lab-sized cap is therefore dropped and the base's 100Gi is the operative size. Headroom alone is
+# not the fix — see infra/k8s/zot/base/config.json, which adds the retention policy that stops the
+# registry growing without bound in the first place. This just stops a lab cap from being the ceiling
+# on the estate's registry.
 bases:
   - ../../base
-patches:
-  - target:
-      kind: PersistentVolumeClaim
-      name: workspace-minio-pvc
-    patch: |-
-      - op: replace
-        path: /spec/resources/requests/storage
-        value: 20Gi
