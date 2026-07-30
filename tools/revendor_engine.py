@@ -290,11 +290,55 @@ def _seal(receipt: dict) -> dict:
     return receipt
 
 
+def _capture_pre_state(plan: RevendorPlan, root: Path) -> dict:
+    """Snapshot every file the mutation steps (place_tarball, bump_floor) can touch, so a
+    failure AFTER a mutation — including verify_guard, which runs against applied files —
+    can be rolled back to leave nothing half-applied. Copilot #1062: verify_guard failing
+    used to leave the copied tarball, the unlinked old tarball, the bumped package.json and
+    the bumped guard on disk while reporting status=failed."""
+    files: dict[str, bytes] = {}
+    vendor_dirs: list[Path] = []
+    pre_vendor: dict[str, set[str]] = {}
+    for consumer in plan.consumers:
+        vendor_dir = root / "apps" / consumer / "vendor"
+        vendor_dirs.append(vendor_dir)
+        present = set()
+        if vendor_dir.is_dir():
+            for f in vendor_dir.iterdir():
+                if f.is_file():
+                    files[str(f)] = f.read_bytes()
+                    present.add(f.name)
+        pre_vendor[str(vendor_dir)] = present
+        for p in (_pkg_path(root, consumer), _guard_path(root, consumer)):
+            if p.exists():
+                files[str(p)] = p.read_bytes()
+    return {"files": files, "vendor_dirs": [str(d) for d in vendor_dirs], "pre_vendor": pre_vendor}
+
+
+def _rollback(state: dict) -> None:
+    """Restore the captured pre-mutation state: rewrite every snapshotted file (reverting
+    package.json/guard and recreating any unlinked old tarball) and delete any vendor file
+    the run created (the new tarball). Idempotent."""
+    for path_str, data in state["files"].items():
+        p = Path(path_str)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+    for d_str in state["vendor_dirs"]:
+        d = Path(d_str)
+        if not d.is_dir():
+            continue
+        keep = state["pre_vendor"].get(d_str, set())
+        for f in d.iterdir():
+            if f.is_file() and f.name not in keep:
+                f.unlink()
+
+
 def execute(plan: RevendorPlan, root: Path, apply: bool = False) -> dict:
-    """Run the disciplined re-vendor. Returns a sealed receipt. Fail-closed: the first
-    step that cannot be proven stops the run with status=failed and nothing half-applied
-    beyond what already succeeded (steps are ordered so a failed proof precedes mutation
-    of that concern). In dry-run (apply=False) no file is touched."""
+    """Run the disciplined re-vendor. Returns a sealed receipt. Fail-closed AND atomic under
+    apply: read-only proofs (marker, precheck) run before any mutation, and if a later step
+    fails — including verify_guard, which necessarily runs against the mutated files — every
+    mutation is rolled back, so a failed run leaves NOTHING half-applied. In dry-run
+    (apply=False) no file is touched."""
     receipt: dict = {
         "tool": "prophet-platform.revendor_engine.v1",
         "idempotency_key": plan.idempotency_key,
@@ -329,20 +373,27 @@ def execute(plan: RevendorPlan, root: Path, apply: bool = False) -> dict:
         receipt["status"] = "failed"
         return _seal(receipt)
 
+    # Capture the pre-mutation state so any failure below rolls back to it (apply only).
+    pre_state = _capture_pre_state(plan, root) if apply else None
     for step_fn, name in ((step_place_tarball, "place_tarball"), (step_bump_floor, "bump_floor")):
         try:
             record(name, True, step_fn(plan, root, apply))
         except RevendorAbort as abort:
-            record(abort.step, False, {"reason": abort.reason, **abort.evidence})
+            if apply:
+                _rollback(pre_state)
+            record(abort.step, False,
+                   {"reason": abort.reason, "rolled_back": bool(apply), **abort.evidence})
             receipt["status"] = "failed"
             return _seal(receipt)
 
-    # The guard only means something against applied files.
+    # The guard only means something against applied files — and it runs AFTER the
+    # mutations, so its failure must undo them too, or the tree is left half-applied.
     if apply:
         try:
             record("verify_guard", True, step_verify_guard(plan, root))
         except RevendorAbort as abort:
-            record(abort.step, False, {"reason": abort.reason, **abort.evidence})
+            _rollback(pre_state)
+            record(abort.step, False, {"reason": abort.reason, "rolled_back": True, **abort.evidence})
             receipt["status"] = "failed"
             return _seal(receipt)
 

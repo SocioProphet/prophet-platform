@@ -221,3 +221,93 @@ def test_open_pr_failure_still_prints_a_sealed_receipt_and_exits_nonzero(
     assert open_pr_step["evidence"]["returncode"] == 1
     # And the receipt was re-sealed after the failure was recorded.
     assert receipt["receipt_digest"].startswith("sha256:")
+# ── open_pr stages the new tarball; a post-mutation failure rolls back ────────────────
+
+def _git(root: Path, *args: str):
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True, text=True)
+
+
+def _snapshot_tree(root: Path) -> dict:
+    """Byte-level snapshot of everything the re-vendor can touch, for an exact-equality
+    'nothing changed' assertion."""
+    out: dict[str, object] = {}
+    for consumer in CONSUMERS:
+        app = root / "apps" / consumer
+        out[str(app / "package.json")] = (app / "package.json").read_bytes()
+        out[str(app / "scripts" / "check-engine-version.mjs")] = \
+            (app / "scripts" / "check-engine-version.mjs").read_bytes()
+        vd = app / "vendor"
+        out[str(vd) + ":listing"] = sorted(f.name for f in vd.iterdir())
+        for f in vd.iterdir():
+            if f.is_file():
+                out[str(f)] = f.read_bytes()
+    return out
+
+
+def test_open_pr_commit_contains_the_new_tarball(tmp_path, monkeypatch):
+    """Copilot #1062: `git commit -a` does NOT stage the freshly-copied (untracked) tgz, so
+    the opened PR deleted the old tarball and bumped package.json but never carried the new
+    bytes it points at. Inspect the COMMIT (not the working tree) — the tool checks the file
+    on disk, so only the commit itself proves the artifact ships."""
+    root = _fixture(tmp_path)
+    _git(root, "init", "-q")
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "t")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "seed")
+
+    plan = _plan()
+    receipt = eng.execute(plan, root, apply=True)
+    assert receipt["status"] == "applied"
+
+    real_run = subprocess.run
+
+    def fake_run(cmd, *a, **k):
+        # Run local git for real (switch/add/commit); stub the remote-facing calls so the
+        # test needs no network, no origin remote and no gh auth.
+        if isinstance(cmd, list) and cmd:
+            if cmd[0] == "gh":
+                return subprocess.CompletedProcess(cmd, 0, "", "")
+            if "ls-remote" in cmd:
+                return subprocess.CompletedProcess(cmd, 0, "", "")   # branch does not exist remotely
+            if "push" in cmd:
+                return subprocess.CompletedProcess(cmd, 0, "", "")
+        return real_run(cmd, *a, **k)
+    monkeypatch.setattr(eng.subprocess, "run", fake_run)
+
+    result = eng.open_pr(plan, receipt, root)
+    assert result["opened"] is True
+
+    committed = real_run(["git", "-C", str(root), "show", "--name-only", "--format=", "HEAD"],
+                         capture_output=True, text=True).stdout.split()
+    for consumer in CONSUMERS:
+        newtgz = f"apps/{consumer}/vendor/socioprophet-hellgraph-0.4.45.tgz"
+        assert newtgz in committed, f"new tarball missing from the commit for {consumer}: {committed}"
+        # It is a real, non-empty blob in the committed tree, not just a deletion of the old one.
+        size = real_run(["git", "-C", str(root), "cat-file", "-s", f"HEAD:{newtgz}"],
+                        capture_output=True, text=True)
+        assert size.returncode == 0 and int(size.stdout.strip()) > 0, f"empty/absent tgz blob for {consumer}"
+
+
+def test_a_failed_verify_guard_rolls_back_all_mutations(tmp_path, monkeypatch):
+    """Copilot #1062: verify_guard runs AFTER place_tarball/bump_floor mutate, so its failure
+    must undo them — otherwise the receipt says 'failed' while the tree is left half-applied
+    (new tarball copied, old one deleted, package.json + guard bumped). Force the guard to
+    reject and assert the tree is byte-identical to before the run."""
+    root = _fixture(tmp_path)
+    before = _snapshot_tree(root)
+
+    def boom(plan, root):
+        raise eng.RevendorAbort("verify_guard", "forced guard rejection")
+    monkeypatch.setattr(eng, "step_verify_guard", boom)
+
+    receipt = eng.execute(_plan(), root, apply=True)
+    assert receipt["status"] == "failed"
+    assert receipt["steps"][-1]["step"] == "verify_guard"
+    assert receipt["steps"][-1]["evidence"].get("rolled_back") is True
+
+    assert _snapshot_tree(root) == before, "a post-mutation failure left the tree half-applied"
+    for consumer in CONSUMERS:
+        vd = root / "apps" / consumer / "vendor"
+        assert not (vd / "socioprophet-hellgraph-0.4.45.tgz").exists(), "new tarball not removed on rollback"
+        assert (vd / "socioprophet-hellgraph-0.4.40.tgz").exists(), "old tarball not restored on rollback"
