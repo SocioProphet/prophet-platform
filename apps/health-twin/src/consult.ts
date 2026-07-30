@@ -45,8 +45,27 @@ export interface Consult {
   moreRequests: MoreRequest[];
 }
 
-// in-memory consult ledger (local-first store in production)
+// in-memory consult ledger (local-first store in production).
+//
+// #942: bounded to HEALTH_TWIN_CONSULT_MAX (default 10 000) — an unbounded
+// Map is a slow-burn DoS surface (memory grows without ceiling) and a live
+// operational risk on long-lived deployments. openConsult FAIL-CLOSES at the
+// cap: it returns an explicit error rather than silently evicting the oldest
+// consult. Silent LRU eviction of a consult with attached medical opinions
+// would destroy real work, and 'lost state' is the class of failure this
+// codebase removes as a matter of doctrine. Explicit pruning is closeConsult.
+const _envMax = Number.parseInt(process.env.HEALTH_TWIN_CONSULT_MAX ?? '', 10);
+export const CONSULT_MAX = Number.isFinite(_envMax) && _envMax > 0 ? _envMax : 10_000;
 const consults = new Map<string, Consult>();
+
+/** Explicit pruning — the caller decides what to drop. Returns true when a
+ *  consult was removed, false when the id wasn\'t known. */
+export function closeConsult(consultId: string): boolean {
+  return consults.delete(consultId);
+}
+
+/** Introspection for operators and tests. */
+export function consultCount(): number { return consults.size; }
 
 // Open a blinded consult over the twin. Requires the patient's agreement (anonymous by default); the
 // agreed `disclosure` scope decides what the de-identified slice keeps. Returns the consult id + the
@@ -57,6 +76,9 @@ const consults = new Map<string, Consult>();
 // withhold.
 export function openConsult(bundle: any, scope = 'whole twin', disclosure: DisclosureScope = 'standard', agreed = false): { consult_id?: string; slice?: DeidView; consent?: Consent; receipt?: { id: string }; error?: string } {
   if (!agreed) return { error: 'patient must agree to the disclosure terms before a consult can open' };
+  if (consults.size >= CONSULT_MAX) {
+    return { error: `consult ledger full (${consults.size}/${CONSULT_MAX}) — close finished consults with closeConsult() or raise HEALTH_TWIN_CONSULT_MAX; refusing to silently evict a consult with attached opinions` };
+  }
   const salt = `${Date.now()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);
   const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt])}`;
