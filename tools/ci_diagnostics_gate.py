@@ -273,10 +273,16 @@ def wiring_verdict(text: str | None) -> tuple[bool, list[str]]:
 
 
 def workflow_wiring() -> tuple[bool, list[str]]:
-    """`wiring_verdict` against the real file on disk, failing closed if absent."""
+    """`wiring_verdict` against the real file on disk, failing closed if the file is
+    absent OR does not decode as UTF-8."""
+    # Strict decode on purpose: errors='replace' would swap invalid bytes for U+FFFD
+    # and hand wiring_verdict a parseable-but-corrupted string, silently vouching for
+    # a file it could not actually read. A workflow that will not decode is
+    # unverifiable, and this module fails closed on the unverifiable — so treat
+    # UnicodeDecodeError exactly like an unreadable file: text=None -> RED.
     try:
-        text = WORKFLOW.read_text(encoding='utf-8', errors='replace')
-    except OSError:
+        text = WORKFLOW.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError):
         text = None
     return wiring_verdict(text)
 
