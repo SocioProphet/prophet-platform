@@ -1,8 +1,17 @@
 # prophet-workspace mail — deploy + cutover runbook
 
 Goal: stand up self-hosted mail (Postfix + Dovecot + Radicale) on GKE and migrate `socioprophet.ai` off Google
-Workspace **without losing deliverability or dropping mail**. The Helm chart (`charts/prophet-workspace`) packages
-the containers; the steps below are the parts that live outside k8s (DNS, IPs, certs, reputation) and the safe cutover.
+Workspace **without losing deliverability or dropping mail**. The steps below are the parts that live outside k8s
+(DNS, IPs, certs, reputation) and the safe cutover.
+
+> ⚠️ **Canonical deploy = kustomize via ArgoCD, NOT the Helm chart.** The mail/cal/drive daemons run **live today**
+> in namespace **`socioprophet`**, deployed by the ArgoCD ApplicationSet `workspace-services` from
+> `infra/k8s/workspace-*/overlays/p0-lab`, pulling images from **`registry.socioprophet.ai`** (sovereign zot).
+> `charts/prophet-workspace` is a richer **design reference** (it carries the opt-in TLS/DKIM/relay/LB wiring), but it
+> is **deployed by nothing**. **Do NOT `helm install` it** — that stands up a *second*, GHCR-imaged stack in `ns/workspace`
+> alongside the live one. The provisioning steps here (static IPs, PTR, TLS, DKIM, DNS, relay) still apply; the chart's
+> value keys are being ported into the kustomize base as opt-in components. Until that lands, treat this runbook's
+> `values.yaml`/`helm` references as the *design intent*, and apply the equivalent config through the kustomize overlays.
 
 ## 0. Prereqs
 - GKE cluster + `kubectl`/`helm`; the platform Postgres reachable in-cluster as `postgres` with secret `postgres-credentials`.
@@ -45,11 +54,13 @@ Keep the **Google MX in place** during setup (lower priority test on a subdomain
   Job applies `mail-schema.sql` + seeds `mail_domains`/`mail_users` (idempotent).
 
 ## 6. Outbound deliverability — use a relay until the IP is warm
-A brand-new cloud IP has near-zero sending reputation; direct-to-MX mail will be junked or rejected. Two options:
-- **Recommended:** `relay.enabled: true`, `relay.host: smtp.sendgrid.net:587` (or SES/Postmark; or Google's SMTP relay
-  during transition), `relay.existingSecret` with username/password. Postfix `relayhost` + SASL. Warm your own IP in
-  parallel, then drop the relay later.
-- Direct (only after IP warm-up + clean RBL checks).
+A brand-new cloud IP has near-zero sending reputation; direct-to-MX mail will be junked or rejected. Sovereign-default
+policy: **stay decoupled, local-first, and treat any external smarthost as opt-in only.**
+- **Default (sovereign):** direct-to-MX from our own IP, after PTR is set + IP warm-up + clean RBL checks. No third
+  party sees our mail. Ramp send volume gradually to build reputation.
+- **Opt-in crutch (temporary):** if early deliverability is unacceptable, `relay.enabled: true` with an external
+  smarthost (SES/Postmark, or Google's SMTP relay during transition) + `relay.existingSecret`. Explicitly opt-in,
+  time-boxed to the warm-up window, then dropped. Not the default — it hands mail to a third party.
 
 ## 7. Deploy + verify BEFORE cutover
 ```
