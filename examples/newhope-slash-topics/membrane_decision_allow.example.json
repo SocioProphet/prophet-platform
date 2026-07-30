@@ -1,0 +1,15 @@
+{
+  "decision": "ALLOW",
+  "audit": {
+    "policy_ref": "hash://blake3/<policy-bundle-hash>",
+    "ts": "2026-02-11T00:00:00Z",
+    "reasons": ["topic:/science default allow"],
+    "redactions": [],
+    "required_signers": [],
+    "egress": {
+      "attempted": false,
+      "allowed_domains": [],
+      "blocked_domains": []
+    }
+  }
+}

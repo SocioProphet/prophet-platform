@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "slash-topics.membrane-decision.v0.2",
+  "title": "Membrane Decision Schema v0.2",
+  "type": "object",
+  "required": ["decision", "audit", "model_family", "scope"],
+  "properties": {
+    "decision": {
+      "type": "string",
+      "enum": ["ALLOW", "DENY", "QUARANTINE", "REDACT", "REQUIRE_SIGNATURE"]
+    },
+    "audit": {
+      "type": "object",
+      "required": ["policy_ref", "ts", "reasons"],
+      "properties": {
+        "policy_ref": {
+          "description": "Content hash of the policy bundle",
+          "type": "string"
+        },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ts": {
+          "description": "ISO-8601 timestamp",
+          "type": "string"
+        },
+        "redactions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "required_signers": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "model_family": {
+      "type": "string",
+      "enum": ["lsa", "lsi", "lda"]
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["user_local", "global_platform"]
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "input_hash": { "type": "string" },
+        "output_hash": { "type": "string" },
+        "receipt_ref": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

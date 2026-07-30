@@ -1,0 +1,33 @@
+{
+  "carrier_version": "1",
+  "protocol_ref": "hash://blake3/<protocol-hash-message-v0>",
+  "signal": {
+    "type": "MessagePosted",
+    "ts": "2026-02-11T22:00:00Z",
+    "id": "hash://blake3/<signal-hash>",
+    "parents": [],
+    "thread_root": "hash://blake3/<thread-root>",
+    "derived_from": ["hash://blake3/<source-social-id>"]
+  },
+  "payload": {
+    "text": "NASA announces a new public dataset release.",
+    "links": ["https://example.invalid/nasa"],
+    "language": "en",
+    "visibility": "public",
+    "source": {"platform": "social:x", "post_id": "<id>"}
+  },
+  "provenance": {
+    "emitter": {"kind": "service", "id": "did:key:<ingestor>"},
+    "signatures": [
+      {"alg": "ed25519", "sig": "base64...", "covers": "hash://blake3/<canonical-carrier-hash>"}
+    ],
+    "inputs": [],
+    "transforms": []
+  },
+  "policy_context": {
+    "tenant": "commons",
+    "community": "topic:/science",
+    "ruleset_ref": "hash://blake3/<ruleset-hash>",
+    "labels": ["public", "contains_pii:false", "source:social:x", "egress:blocked"]
+  }
+}

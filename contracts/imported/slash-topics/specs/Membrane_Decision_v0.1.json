@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "audit": {
+      "properties": {
+        "egress": {
+          "properties": {
+            "allowed_domains": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "attempted": {
+              "type": "boolean"
+            },
+            "blocked_domains": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "policy_ref": {
+          "description": "content hash of the policy bundle",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "redactions": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "required_signers": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "ts": {
+          "description": "ISO-8601 timestamp",
+          "type": "string"
+        }
+      },
+      "required": [
+        "policy_ref",
+        "ts",
+        "reasons"
+      ],
+      "type": "object"
+    },
+    "decision": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "QUARANTINE",
+        "REDACT",
+        "REQUIRE_SIGNATURE"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "decision",
+    "audit"
+  ],
+  "title": "MembraneDecision",
+  "type": "object"
+}
