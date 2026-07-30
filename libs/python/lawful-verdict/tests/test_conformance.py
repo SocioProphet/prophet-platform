@@ -80,7 +80,24 @@ def _vectors() -> dict:
 
 
 def test_vendored_vectors_match_upstream() -> None:
-    """The drift check. Vendoring buys availability; only this buys freshness."""
+    """The drift check. Vendoring buys availability; only this buys freshness.
+
+    This is the ONLY check in the suite that compares the vendored bytes to anything
+    outside this directory, and it SKIPS in CI (cross-org token — the spec lives in
+    SourceOS-Linux, this repo in SocioProphet).
+
+    The consequence is worth stating plainly rather than leaving implied. The workflow's
+    digest step compares each vendored file to a digest recorded in _provenance.json,
+    which sits in the same directory and is editable in the same commit. Measured:
+
+        tamper a vector only            -> digest step RED
+        tamper a vector AND its digest  -> digest step GREEN, suite 21 passed / 1 skipped
+
+    So in CI a co-edited vector is undetectable and the run is fully green. That is a real
+    residual, not a solved problem. Do not read a green run here as "agrees with the spec";
+    read it as "self-consistent with the vendored copy". Closing it needs cross-org read
+    access so this test can run in CI.
+    """
     prov = json.loads(_vendored("_provenance.json").read_text(encoding="utf-8"))
     roots = _upstream_roots()
     root = next((r for r in roots if (r / "conformance" / "lawful-verdict-vectors.json").exists()), None)

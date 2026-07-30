@@ -45,11 +45,34 @@ jobs:
       # Covers the algebra, receipt derivation, tamper-evidence, AND conformance against the
       # vendored vectors + the sealed cross-language example + all 9 cells against the schema.
       - name: Tests and conformance (vendored vectors — cannot skip)
-        run: cd libs/python/lawful-verdict && pytest -q
+        # -rs so any skip is NAMED in the log. A conformance job whose skips are invisible is
+        # how "green" and "verified" drift apart.
+        run: cd libs/python/lawful-verdict && pytest -q -rs
 
-      # The vendored copies must be byte-identical to what _provenance.json pins. This guards
-      # the one thing vendoring cannot: someone editing a vendored vector to make a failing
-      # implementation pass.
+      # Say out loud, on every run, which property this job did NOT establish. The drift check
+      # against upstream sourceos-spec cannot run here, so the job is green on the vendored
+      # copy being self-consistent — not on it being the spec. Stating that as an annotation
+      # keeps the gap in front of whoever reads the run, instead of only in a comment.
+      - name: Declare what this run did not verify
+        run: |
+          echo "::warning title=Conformance scope::Vectors verified against the VENDORED copy only. Freshness vs upstream SourceOS-Linux/sourceos-spec is NOT checked in CI (cross-org token); test_vendored_vectors_match_upstream skips here and runs only in a dev tree."
+
+      # The vendored copies must be byte-identical to what _provenance.json pins.
+      #
+      # Be precise about what that does and does not buy, because the previous version of this
+      # comment claimed it "guards the one thing vendoring cannot: someone editing a vendored
+      # vector to make a failing implementation pass" — and it does NOT. The digest lives in
+      # _provenance.json, in the same directory as the files it pins, editable in the same
+      # commit. Measured: tampering a vector alone turns this step red; tampering a vector AND
+      # updating its digest here leaves the whole job green (21 passed, 1 skipped).
+      #
+      #   catches:        accidental corruption, a bad merge, a half-finished re-vendor
+      #   cannot catch:   a deliberate or careless co-edit of file + digest
+      #
+      # Only comparison against upstream sourceos-spec catches that, and that is precisely the
+      # check that cannot run here (cross-org GITHUB_TOKEN):
+      # test_vendored_vectors_match_upstream runs in a dev tree and SKIPS in CI. That is a real
+      # residual, not a solved problem — tracked for cross-org conformance access.
       - name: Vendored conformance artefacts match their recorded digests
         run: |
           cd libs/python/lawful-verdict
