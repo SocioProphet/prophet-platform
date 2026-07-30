@@ -87,7 +87,19 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
     # committed by the time it runs. Do NOT hold across arbitrary caller code — the
     # window is bounded to hash + attest + persist, all pure/local.
     with _project_lock(project):
-        chain = _CHAINS.setdefault(project, [])
+        # Copilot #1106 round 2: the setdefault below GROWS _CHAINS the first time
+        # a project is sealed, and snapshot_all() iterates its keyset. The prior
+        # revision leaned on the incidental fact that _project_lock() briefly holds
+        # _LOCKS_LOCK on the create-path — but that lock is already RELEASED by
+        # the time we get here, so a concurrent snapshot_all() could still catch
+        # the dict mid-mutation and raise `RuntimeError: dictionary changed size
+        # during iteration`. Hold _LOCKS_LOCK for the mutation itself so the
+        # keyset snapshot and the new-project insert are properly serialized. The
+        # window is a single dict lookup — no risk of contention starvation, and
+        # snapshot_all() only takes _LOCKS_LOCK to snapshot keys (not per-project
+        # locks), so there is no reversed-order lock cycle.
+        with _LOCKS_LOCK:
+            chain = _CHAINS.setdefault(project, [])
         prev = chain[-1].id if chain else None
         body = {
             "project": project, "kind": kind, "backend": backend, "runtime": runtime,
