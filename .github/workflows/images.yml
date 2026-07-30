@@ -107,7 +107,7 @@ jobs:
           # FOG & CITIZEN PLANE W8.7: the southbound device plane — the estate's first.
           # ONE southbound interface (DeviceProfile/DeviceReading), N protocol drivers.
           - { image: device-service,        context: apps/device-service,        dockerfile: Dockerfile }
-    uses: SocioProphet/.github/.github/workflows/build-image.yml@main
+    uses: SocioProphet/.github/.github/workflows/build-image.yml@ab2d7063cb27802e4b7b875b8330e8129eb03ac5 # main @ 2026-07-30
     with:
       image: ${{ matrix.image }}
       context: ${{ matrix.context }}
