@@ -215,8 +215,10 @@ def test_a_valid_credential_is_still_accepted(monkeypatch):
     monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
     assert _refusal(f"Bearer {TEST_TOKEN}") is None
     assert _refusal(f"Bearer  {TEST_TOKEN} ") is None, "surrounding whitespace is not part of it"
+    assert _refusal(f"Bearer\t{TEST_TOKEN}") is None, "HTAB separator is tolerated, not a 401"
     assert _refusal("Bearer wrong") == 401
     assert _refusal("") == 401
+    assert _refusal("Bearer") == 401, "a scheme with no credential is not a credential"
 
 
 def test_an_unconfigured_gateway_still_fails_closed(monkeypatch):
@@ -225,17 +227,37 @@ def test_an_unconfigured_gateway_still_fails_closed(monkeypatch):
     assert _refusal("") == 503, "no token configured must never authenticate an empty header"
 
 
-def test_the_token_comparison_is_constant_time():
-    """Structural: `!=` on a secret short-circuits at the first differing byte, which makes
-    latency a function of how much of the token the caller already holds. Asserted on the
-    source because a timing difference is not reliably observable in a unit test."""
-    import inspect
+def test_the_token_comparison_is_constant_time(monkeypatch):
+    """`!=` on a secret short-circuits at the first differing byte, which makes latency a
+    function of how much of the token the caller already holds.
+
+    Asserted by observing that the comparison actually runs through
+    secrets.compare_digest — not by grepping the source, which a harmless rename or
+    helper extraction would break without changing behaviour, and not by measuring time,
+    which is not reliably observable in a unit test.
+    """
+    import secrets as secrets_mod
 
     from arcticdb_gateway import server
 
-    src = inspect.getsource(server.require_token)
-    assert "compare_digest" in src, "the token comparison must be constant-time"
-    assert "!= token" not in src, "a short-circuiting comparison leaks the token byte by byte"
+    monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
+    seen: list[tuple[str, str]] = []
+    real = secrets_mod.compare_digest
+
+    def spy(a, b):
+        seen.append((a, b))
+        return real(a, b)
+
+    monkeypatch.setattr(server.secrets, "compare_digest", spy)
+
+    assert _refusal(f"Bearer {TEST_TOKEN}") is None
+    assert seen == [(TEST_TOKEN, TEST_TOKEN)], \
+        f"the presented token must be compared via compare_digest, saw {seen}"
+
+    seen.clear()
+    assert _refusal("Bearer wrong") == 401
+    assert seen == [("wrong", TEST_TOKEN)], \
+        f"a wrong token must ALSO go through compare_digest, saw {seen}"
 
 
 def test_only_the_write_route_is_token_gated(tmp_path):

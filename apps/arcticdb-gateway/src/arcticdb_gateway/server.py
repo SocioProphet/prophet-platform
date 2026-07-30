@@ -34,11 +34,15 @@ def _bearer(authorization: str) -> str:
     `Bearer x`; `removeprefix("Bearer ")` matched one casing and silently passed the
     whole header through as the token for every other input, which meant a header
     carrying a different scheme was compared as though it were a credential.
+
+    Split on any run of whitespace rather than a literal space: RFC 7235 spells the
+    separator `1*SP`, so HTAB is not strictly conformant, but rejecting `Bearer<TAB>token`
+    buys no safety and costs a confusing 401.
     """
-    scheme, _, credential = authorization.strip().partition(" ")
-    if scheme.lower() != "bearer":
+    parts = authorization.strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
         return ""
-    return credential.strip()
+    return parts[1].strip()
 
 
 def require_token(authorization: str = Header(default="")) -> None:

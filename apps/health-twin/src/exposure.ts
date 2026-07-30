@@ -18,7 +18,22 @@
 // Pure and parameterised so it is testable without standing up a server; server.ts binds a
 // port at import time, which would otherwise make the gate provable only by running it.
 
+import { timingSafeEqual } from 'node:crypto';
+
 export type Exposure = 'synthetic-only' | 'authenticated';
+
+/** Constant-time string compare. timingSafeEqual throws on a length mismatch, which would
+ *  itself leak the length, so unequal lengths are compared against a same-length decoy and
+ *  always answer false. */
+function timingSafeEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) {
+    timingSafeEqual(ab, ab);
+    return false;
+  }
+  return timingSafeEqual(ab, bb);
+}
 
 export interface ExposureDenial {
   code: 401 | 403 | 503;
@@ -61,9 +76,13 @@ export function exposureDenial(input: ExposureInputs): ExposureDenial | null {
     // from accepting the wrong one. Match the scheme, then take the rest as the token.
     const match = /^Bearer[ \t]+(.+)$/i.exec(input.authorization.trim());
     const presented = match ? match[1].trim() : '';
-    // Length-independent compare is not the concern here (the token is a deployment secret,
-    // not a per-user credential); an empty presented value must simply never match.
-    if (!presented || presented !== input.token) {
+    // Constant-time. The previous note here argued a length-independent compare was not the
+    // concern because the token is a deployment secret rather than a per-user credential.
+    // That reasoning is weaker than it looks on THIS endpoint: it is externally reachable
+    // (deploy/values routes it through the cockpit's nginx at /svc/health) and it guards
+    // PHI, so an attacker gets unlimited free attempts against a single long-lived secret —
+    // exactly the case where a byte-at-a-time oracle is worth having. Cheap to remove.
+    if (!presented || !timingSafeEquals(presented, input.token)) {
       return { code: 401, body: { error: 'unauthorized' } };
     }
     return null;
