@@ -1,0 +1,53 @@
+{
+  "$schema": "https://socioprophet.id/schemas/governance/retention-policy/v0",
+  "version": "0.1.0",
+  "title": "Sovereign Retention Doctrine",
+  "doctrine": {
+    "principle": "The receipt is the asset; the content is the liability.",
+    "rationale": [
+      "We keep PROOF forever: hash-chained receipts are tiny, immutable, and are the moat.",
+      "We keep BYTES only as long as they earn their keep. Retention is not the default -- it is an exception each object justifies with a finite TTL.",
+      "Un-TTL'd retention is the exact failure mode L5 governance exists to prevent, so no auto-classed object may be kept forever by omission.",
+      "Retention window is a function of EPISTEMIC CLASS: reproducible/derived bytes decay fast because the proof survives and the content regenerates; asserted source of truth is protected."
+    ]
+  },
+  "universal_invariants": {
+    "residency": "sovereign",
+    "vendor_opt_in": false,
+    "_notes": {
+      "residency": "Governed bytes never leave our infrastructure. Non-negotiable.",
+      "vendor_opt_in": "Egress is OPT-IN and default-deny. We ENFORCE what others merely declare. A per-object opt-in must still pass the engine policy gate; false here means the object can never be a vendor-cache candidate.",
+      "retention_delete_required": "Every class whose disposition is 'auto' MUST declare a finite retention_delete_days. Only 'legal_hold' disposition may omit it, and only by explicit act."
+    }
+  },
+  "classes": {
+    "derived": {
+      "epistemic_status": "derived",
+      "meaning": "Reproducible from the graph (e.g. materialize outputs). Pure cache -- deleting the bytes is safe because the receipt still verifies and the content regenerates.",
+      "disposition": "auto",
+      "ttl_days": 14,
+      "retention_delete_days": 90,
+      "sensitive_by_default": false
+    },
+    "observed": {
+      "epistemic_status": "observed",
+      "meaning": "A record of what a real executor self-reported (governance runs, telemetry). Not independently re-derivable, so kept longer than derived, but still bounded.",
+      "disposition": "auto",
+      "ttl_days": 30,
+      "retention_delete_days": 365,
+      "sensitive_by_default": true
+    },
+    "asserted": {
+      "epistemic_status": "asserted",
+      "meaning": "Canonical source or a first-party claim. The truth other artifacts are derived FROM -- losing it is unrecoverable.",
+      "disposition": "legal_hold",
+      "ttl_days": null,
+      "retention_delete_days": null,
+      "sensitive_by_default": true
+    }
+  },
+  "fallback": {
+    "unknown_epistemic_status": "observed",
+    "_note": "An object whose producing receipt has no recognised epistemic_status is treated as 'observed' (bounded retention), never as 'derived' (short) or 'asserted' (never-delete). Doubt resolves toward keeping longer and treating as sensitive -- never toward aggressive deletion or unbounded retention."
+  }
+}
