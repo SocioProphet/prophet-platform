@@ -6,6 +6,7 @@ resources:
   - deployment.yaml
   - deployment-smtp.yaml
   - service.yaml
+  - service-lb.yaml
   - pvc.yaml
   - backup-cronjob.yaml
 namespace: socioprophet
