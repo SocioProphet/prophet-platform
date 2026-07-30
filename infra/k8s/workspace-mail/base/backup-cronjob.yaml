@@ -107,6 +107,13 @@ spec:
                 # Refuse to start a backup that cannot fit. See below.
                 - name: MIN_FREE_MB
                   value: "3000"
+                # Floor for a NON-TRIVIAL archive, in bytes. An empty maildir tars
+                # to ~130 bytes and lists fine, so "readable" (step 5) is not
+                # enough to call it a backup. Below this the job FAILS instead of
+                # recording a meaningless green run. Raise once the maildir has a
+                # known floor of real mail.
+                - name: MIN_BACKUP_BYTES
+                  value: "1024"
               command:
                 - /bin/sh
                 - -c
@@ -168,7 +175,14 @@ spec:
                   fi
 
                   # --- 4. write ----------------------------------------------
-                  if ! tar czf "${OUT}" /maildata; then
+                  # Archive the maildir contents from inside the mount and skip
+                  # ext4's lost+found (root:root 0700 on a fresh PD). Excluding it
+                  # means the job never needs group access to the mount root just
+                  # to traverse lost+found, so the write does not lean on volume
+                  # ownership to READ the source -- only the destination needs the
+                  # initContainer chown to WRITE. `-C /maildata .` also drops the
+                  # /maildata/ prefix so a restore lands straight in the maildir root.
+                  if ! tar czf "${OUT}" -C /maildata --exclude=./lost+found .; then
                     log "FAILED: tar returned non-zero"
                     rm -f "${OUT}"
                     RC=1
@@ -182,6 +196,23 @@ spec:
                     log "FAILED: ${OUT} is not a readable gzip archive — removing"
                     rm -f "${OUT}"
                     RC=1
+                  fi
+
+                  # --- 5b. non-triviality gate -------------------------------
+                  # A readable archive can still be an EMPTY one. The maildir is
+                  # currently empty, and an empty maildir tars to ~130 bytes that
+                  # step 5 lists happily -- a green backup of nothing. Treat a
+                  # trivially small archive as a FAILURE so "the check that cannot
+                  # fail" cannot pass here either. Byte-precise (wc -c), unlike the
+                  # receipt's du -m which rounds a 130-byte file to 1MB.
+                  if [ "${RC}" -eq 0 ]; then
+                    BYTES=$(wc -c < "${OUT}" | tr -d ' ')
+                    log "size-gate: ${OUT} is ${BYTES} bytes, floor MIN_BACKUP_BYTES=${MIN_BACKUP_BYTES}"
+                    if [ "${BYTES}" -lt "${MIN_BACKUP_BYTES}" ]; then
+                      log "FAILED: ${OUT} is ${BYTES} bytes (< ${MIN_BACKUP_BYTES}) -- empty/near-empty maildir, refusing to record a trivial backup"
+                      rm -f "${OUT}"
+                      RC=1
+                    fi
                   fi
 
                   # --- 6. receipt --------------------------------------------
