@@ -164,6 +164,11 @@ INVERTED_PAIRS_THAT_SORT_FORWARD = [
     ("2026-07-29T20:00:00+00:00", "2026-07-29T21:00:00+05:00", "4h"),
 ]
 
+# Test ids that carry the gap (Copilot #1069): a failure line reads
+# "test_inverted_pair_is_refused_even_when_it_sorts_forward[fractional-precision-gap=0.5s]"
+# rather than an opaque tuple hash, without deforming the fixture the other tests reuse.
+_INVERTED_IDS = ["fractional-precision-gap=0.5s", "offset-inversion-gap=4h"]
+
 # Positive controls: genuinely well-ordered pairs, written across offsets and
 # precisions, that MUST still be admitted. A stricter gate that refuses good readings
 # has just moved the bug.
@@ -182,13 +187,15 @@ ORDERED_PAIRS_ACROSS_OFFSETS_AND_PRECISIONS = [
 STRING_COMPARE_FALSE_ALARM = ("2026-07-29T09:15:00Z", "2026-07-29T09:15:00.042Z")
 
 
-@pytest.mark.parametrize("observed,received,gap", INVERTED_PAIRS_THAT_SORT_FORWARD)
+@pytest.mark.parametrize(
+    "observed,received,gap", INVERTED_PAIRS_THAT_SORT_FORWARD, ids=_INVERTED_IDS,
+)
 def test_inverted_pair_is_refused_even_when_it_sorts_forward(
     reading, virtual_profile, mutate, observed, received, gap
 ):
-    """THE regression. receivedAt is genuinely earlier by {gap}; the old
-    `reading["receivedAt"] < reading["observedAt"]` string compare said otherwise and
-    admitted the reading."""
+    """THE regression. receivedAt is genuinely earlier by `gap` (visible in the test id);
+    the old `reading["receivedAt"] < reading["observedAt"]` string compare said otherwise
+    and admitted the reading."""
     with pytest.raises(contract.ContractError, match="receivedAt precedes observedAt"):
         contract.validate_reading(
             mutate(reading, observedAt=observed, receivedAt=received, wallTime=received),
@@ -271,6 +278,21 @@ def test_an_unorderable_pair_is_refused_not_waved_through(
             mutate(reading, observedAt="2026-07-29T09:15:00", receivedAt="2026-07-29T09:15:01"),
             virtual_profile,
         )
+
+
+def test_empty_string_receivedAt_is_refused_not_treated_as_absent(
+    reading, virtual_profile, mutate, monkeypatch
+):
+    """Copilot #1069: `if received:` treated '' as absent and skipped the gate. Same
+    degraded-validator scenario as the pair test — the format checker is bypassed, so a
+    naive gate that keys on truthiness lets the payload through. The whole point of
+    this PR is that unorderable inputs fail closed, not silently pass under the
+    truthiness check that admits well-formed ones."""
+    monkeypatch.setattr(
+        contract, "READING_VALIDATOR", Draft202012Validator(contract.READING_SCHEMA)
+    )
+    with pytest.raises(contract.ContractError, match="unorderable pair"):
+        contract.validate_reading(mutate(reading, receivedAt=""), virtual_profile)
 
 
 def test_schema_violations_are_refused(reading, virtual_profile, mutate):

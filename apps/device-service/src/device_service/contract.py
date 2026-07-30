@@ -320,8 +320,12 @@ def validate_reading(reading: dict[str, Any], profile: dict[str, Any]) -> None:
     # checker is the first line and rejects most malformed stamps, but it does not make
     # two well-formed stamps comparable — that is this parse. An unorderable pair is
     # refused rather than waved through: a check that cannot be performed has not passed.
+    # Copilot #1069: `if received:` treated '' as absent and skipped the gate. The
+    # whole point of this PR is that malformed timestamps must fail closed, not
+    # slip through under the same truthiness check that admitted the good ones.
+    # Explicit presence check; let instant('') drive the fail-closed refusal.
     received = reading.get("receivedAt")
-    if received:
+    if received is not None:
         observed_at, received_at = instant(reading["observedAt"]), instant(received)
         if observed_at is None or received_at is None:
             raise ContractError(
