@@ -94,7 +94,16 @@ def main() -> int:
     data = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     if not expect_mapping(data, "manifest"):
         return 2
-    assert isinstance(data, dict)
+    # `data` is a mapping from here on, and that is enforced above rather than
+    # asserted. expect_mapping() is a plain isinstance test that prints ERR and
+    # returns False, so `python -O` cannot strip it -- unlike the bare
+    # `assert isinstance(data, dict)` that used to sit on this line. That assert
+    # was a narrowing hint for a type checker this repo does not run, and it
+    # could never fire: a non-mapping manifest has already returned 2 one line
+    # up. Removing it closes the "assert evaporates under -O" finding here
+    # without changing behaviour on any input. The -O behaviour of all three
+    # shape guards in this function is now pinned by
+    # tools/tests/test_professional_intelligence_manifest_shape.py.
 
     bad = 0
     for key in REQUIRED_TOP_LEVEL:
@@ -116,13 +125,19 @@ def main() -> int:
     if not expect_mapping(capabilities, "capabilities"):
         bad += 1
         capabilities = {}
-    assert isinstance(capabilities, dict)
+    # Both branches leave a dict behind -- expect_mapping() proved one, the
+    # fallback assigned the other -- so the removed `assert isinstance(...)`
+    # here was unreachable-with-a-false-condition, not a check. The real
+    # rejection is the `bad += 1` above, which survives -O. Normalising to {}
+    # rather than returning is deliberate: it lets the run keep accumulating
+    # every downstream error instead of stopping at the first one.
 
     workspace_os = capabilities.get("workspaceOS")
     if not expect_mapping(workspace_os, "capabilities.workspaceOS"):
         bad += 1
         workspace_os = {}
-    assert isinstance(workspace_os, dict)
+    # Same shape as the capabilities guard above: enforced by expect_mapping()
+    # plus the {} fallback, so the removed assert added nothing at runtime.
 
     for key in REQUIRED_WORKSPACE_OS_KEYS:
         if key not in workspace_os:
