@@ -35,11 +35,15 @@ def _bearer(authorization: str) -> str:
     `Bearer x`; `removeprefix("Bearer ")` matched one casing and silently treated the
     whole header as the token for every other input. Returning "" for a malformed
     header keeps the "no credential" and "wrong credential" paths identical.
+
+    Split on any run of whitespace rather than a literal space: RFC 7235 spells the
+    separator `1*SP`, so HTAB is not strictly conformant, but rejecting `Bearer<TAB>token`
+    buys no safety and costs a confusing 401.
     """
-    scheme, _, credential = authorization.strip().partition(" ")
-    if scheme.lower() != "bearer":
+    parts = authorization.strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
         return ""
-    return credential.strip()
+    return parts[1].strip()
 
 
 def require_token(authorization: str = Header(default="")) -> None:
@@ -325,8 +329,13 @@ def config_snapshot(app: str = DEFAULT_APP, model: str | None = None,
     fail-OPEN when GATEWAY_TOKEN was unset (`"" != ""` is False, so an absent header
     authenticated against an unconfigured service) — the exact inverse of the 503 every
     other route answers. One parsing path, one failure mode.
+
+    The test is `is not None`, not truthiness: `?model=` arrives as "", which is falsy.
+    Today that collapses to the default scope anyway (scope_key does `model or "*"`), so
+    it discloses nothing — but the gate would be relying on a falsiness convention in a
+    different module to stay closed. Gate on presence and the two stay independent.
     """
-    if model or org or app != DEFAULT_APP:
+    if model is not None or org is not None or app != DEFAULT_APP:
         require_token(authorization)
     return config_plane.get_snapshot(app=app, model=model, org=org)
 

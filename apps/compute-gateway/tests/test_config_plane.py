@@ -151,6 +151,22 @@ def test_the_bearer_scheme_is_matched_case_insensitively():
         assert client.get("/v1/config", params={"org": "kyroga"},
                           headers={"Authorization": "Basic t"}).status_code == 401, \
             "a non-Bearer scheme is not a credential"
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "t"}).status_code == 401, \
+            "a raw token with no scheme is not a credential — removeprefix() accepted this"
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "Bearer\tt"}).status_code == 200, \
+            "HTAB between scheme and credential is tolerated, not a confusing 401"
+
+
+def test_an_empty_selector_is_still_a_selector():
+    """`?model=` arrives as "" and is falsy. It collapses to the default scope today, so
+    nothing leaks — but gating on truthiness would make this endpoint's security depend on
+    a falsiness convention in config_plane. Gate on presence instead (Copilot on #1085)."""
+    with durable():
+        assert client.get("/v1/config", params={"model": ""}).status_code == 401
+        assert client.get("/v1/config", params={"org": ""}).status_code == 401
+        assert client.get("/v1/config", params={"model": ""}, headers=AUTH).status_code == 200
 
 
 def test_a_model_kill_switch_must_be_a_real_boolean():
