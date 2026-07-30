@@ -336,6 +336,25 @@ def execute(plan: RevendorPlan, root: Path, apply: bool = False) -> dict:
 
 # ── PR emission (idempotent) ─────────────────────────────────────────────────────────
 
+def _paths_this_revendor_mutates(plan: RevendorPlan, root: Path) -> list[Path]:
+    """The EXACT files a successful re-vendor of `plan` touches — the new tgz (untracked),
+    any old tgz(s) unlinked, package.json and the guard for each consumer. Enumerating them
+    is what lets us `git add` them explicitly rather than `git commit -a` (Copilot #1062:
+    -a misses the untracked new tgz entirely — the PR would delete the old tgz + bump
+    package.json but never carry the new bytes it points at — and risks sweeping in
+    unrelated tracked changes)."""
+    paths: list[Path] = []
+    for consumer in plan.consumers:
+        vendor_dir = root / "apps" / consumer / "vendor"
+        paths.append(vendor_dir / f"socioprophet-hellgraph-{plan.to_version}.tgz")
+        # Any other tgz in vendor/ was unlinked by step_place_tarball; adding the whole
+        # directory (post-mutation state) captures both the new file and the deletions.
+        paths.append(vendor_dir)
+        paths.append(_pkg_path(root, consumer))
+        paths.append(_guard_path(root, consumer))
+    return paths
+
+
 def open_pr(plan: RevendorPlan, receipt: dict, root: Path) -> dict:
     """Open the re-vendor PR whose body is the receipt. Idempotent on the branch name
     (derived from the idempotency key): if the branch already exists, do not open a second
@@ -349,11 +368,16 @@ def open_pr(plan: RevendorPlan, receipt: dict, root: Path) -> dict:
         return {"opened": False, "reason": "branch already exists — idempotent no-op", "branch": branch}
     body = "```json\n" + json.dumps(receipt, indent=2) + "\n```"
     subprocess.run(["git", "-C", str(root), "switch", "-c", branch], check=True)
-    subprocess.run(["git", "-C", str(root), "commit", "-aqm",
+    # Copilot #1062: `git commit -a` (a) does NOT stage new files, so the freshly-copied
+    # tarball would be committed-around, and (b) sweeps in any unrelated tracked change
+    # in the working tree. Stage the exact paths this run mutated, then commit without -a.
+    mutated = [str(p.relative_to(root)) for p in _paths_this_revendor_mutates(plan, root)]
+    subprocess.run(["git", "-C", str(root), "add", "--", *mutated], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-qm",
                     f"chore(revendor): engine → {plan.to_version} (marker-proven, guard-verified)"], check=True)
     subprocess.run(["git", "-C", str(root), "push", "-u", "origin", branch], check=True)
     subprocess.run(["gh", "pr", "create", "--fill-first", "--body", body, "--head", branch], check=True, cwd=root)
-    return {"opened": True, "branch": branch}
+    return {"opened": True, "branch": branch, "staged_paths": mutated}
 
 
 def main(argv: list[str] | None = None) -> int:
