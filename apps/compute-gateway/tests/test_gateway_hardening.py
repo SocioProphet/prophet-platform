@@ -128,3 +128,48 @@ def test_exhaust_guard_returns_none_for_none_and_non_dict():
     assert engine._guard_exhaust(None) is None
     assert engine._guard_exhaust("some string") is None
     assert engine._guard_exhaust(["a", "b"]) is None
+
+
+# ── Copilot round-1 follow-up: bypass hardening ───────────────────────────
+
+def test_parse_accepts_matching_caller_sha256_with_sha256_prefix():
+    """Copilot round-1: strict-string compare rejected caller's 'sha256:<hex>'
+    form even when correct. Normalise before comparing."""
+    import asyncio, hashlib
+    pack = _text_pack("hello world")
+    pack["sha256"] = "sha256:" + hashlib.sha256(b"hello world").hexdigest()
+    out = asyncio.run(adapters._parse(pack, project="p", session=None))
+    assert out["status"] == "ok"
+
+
+def test_parse_accepts_matching_caller_sha256_in_uppercase():
+    """Same: hex is case-insensitive. UPPERCASE must not be treated as mismatch."""
+    import asyncio, hashlib
+    pack = _text_pack("hello world")
+    pack["sha256"] = hashlib.sha256(b"hello world").hexdigest().upper()
+    out = asyncio.run(adapters._parse(pack, project="p", session=None))
+    assert out["status"] == "ok"
+
+
+def test_exhaust_guard_rejects_a_huge_urn_as_a_ref():
+    """Copilot round-1: an adapter could smuggle payload as a huge urn: string
+    in items[].sha256. Ref length is now capped at 512."""
+    huge_urn = "urn:x:" + "a" * 10_000
+    smuggled = {
+        "type": "ExhaustRecord",
+        "items": [{"sha256": huge_urn}],
+    }
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "items" not in out
+    assert "exhaust rejected" in out["reason"]
+
+
+def test_exhaust_guard_still_accepts_reasonable_urn_refs():
+    """The cap must not break legitimate URN refs."""
+    good = {
+        "type": "ExhaustRecord",
+        "items": [{"kind": "candidate", "sha256": "urn:srcos:evidence:atom_x_2026"}],
+    }
+    out = engine._guard_exhaust(good)
+    assert out == good

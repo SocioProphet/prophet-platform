@@ -49,13 +49,21 @@ _EXHAUST_TOP_KEYS = frozenset({
 _EXHAUST_ITEM_KEYS = frozenset({"kind", "sha256", "size", "ref"})
 _DIGEST_HEX_RE = _re.compile(r"^[a-f0-9]{64}$")
 _DIGEST_OR_URN_RE = _re.compile(r"^(sha256:[a-f0-9]{64}|urn:[A-Za-z0-9._~:/-]+)$")
+# Cap ref-string length so an adapter cannot smuggle payload as a huge URN.
+# 512 chars comfortably covers real digest and URN shapes; longer inputs are
+# not references — they are content. Copilot round-1 caught this bypass.
+_MAX_REF_LEN = 512
 _MAX_LABEL_LEN = 256          # kind, source, adapter, etc. — labels, not blobs
 _MAX_REASON_LEN = 512         # bounded free-text
 _MAX_ITEMS = 10_000           # DoS safeguard on the ledger
 
 
 def _bad_ref(v) -> bool:
-    return not (isinstance(v, str) and (_DIGEST_HEX_RE.match(v) or _DIGEST_OR_URN_RE.match(v)))
+    if not isinstance(v, str):
+        return True
+    if len(v) > _MAX_REF_LEN:
+        return True
+    return not (_DIGEST_HEX_RE.match(v) or _DIGEST_OR_URN_RE.match(v))
 
 
 def _bad_nonneg_int(v) -> bool:
