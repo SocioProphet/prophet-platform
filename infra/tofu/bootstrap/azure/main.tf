@@ -1,12 +1,7 @@
 # Azure state bootstrap — run once before any other Azure tofu envs.
 # Creates the Storage Account + container that backs the azurerm backend.
 # Never destroy without migrating state first.
-
-terraform {
-  required_providers {
-    azurerm = { source = "hashicorp/azurerm", version = "~> 3.0" }
-  }
-}
+# Version pins live in versions.tf.
 
 provider "azurerm" {
   features {}

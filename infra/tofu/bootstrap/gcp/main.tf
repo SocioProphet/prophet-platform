@@ -2,14 +2,7 @@
 # Creates the GCS bucket that backs all gcp-* backend blocks.
 # Uses a local backend here; migrate to GCS after first apply if desired.
 # Never destroy without migrating state first.
-
-terraform {
-  required_providers {
-    google = { source = "hashicorp/google", version = "~> 5.0" }
-  }
-  # Intentional: this bootstrap itself uses a local state file.
-  # Once applied, all OTHER envs use the GCS bucket we create here.
-}
+# Version pins live in versions.tf.
 
 provider "google" {
   project = var.project_id
