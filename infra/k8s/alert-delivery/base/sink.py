@@ -58,6 +58,13 @@ RING_MAX = int(os.environ.get("RECENT_RING", "50"))
 CLUSTER = os.environ.get("CLUSTER_NAME", "unknown")
 
 _lock = threading.Lock()
+# Dedicated stdout lock, separate from _lock (which guards the counters/ring). This
+# server is a ThreadingHTTPServer, so multiple request threads reach emit() at once;
+# an unguarded write+flush can interleave two receipts into one corrupt line and break
+# the JSONL contract the whole sink exists to uphold. A separate lock keeps this off
+# the counter critical section and cannot deadlock against it (emit() is never called
+# while _lock is held).
+_emit_lock = threading.Lock()
 _counters = {
     "notifications_total": 0,
     "alerts_total": 0,
@@ -85,9 +92,17 @@ def digest(payload) -> str:
 
 
 def emit(obj: dict) -> None:
-    """One JSON object per line to stdout -> fluentbit-gke -> Cloud Logging."""
-    sys.stdout.write(canonical(obj) + "\n")
-    sys.stdout.flush()
+    """One JSON object per line to stdout -> fluentbit-gke -> Cloud Logging.
+
+    The write+flush is atomic under _emit_lock: ThreadingHTTPServer can call emit()
+    from several request threads at once, and an unguarded pair of writes interleaves
+    two receipts into one unparseable line — the exact silent corruption a receipt
+    stream must not have. Serialise the line first, hold the lock only for the I/O.
+    """
+    line = canonical(obj) + "\n"
+    with _emit_lock:
+        sys.stdout.write(line)
+        sys.stdout.flush()
 
 
 def receipt(action: str, status: str, subject_ref: str, body: dict, **extra) -> dict:

@@ -7,6 +7,11 @@ resources:
   - service.yaml
   - servicemonitor.yaml
   - prometheusrule-delivery.yaml
+  # The namespace-scoped receiver route. Was authored but never listed here, so the
+  # Argo app that syncs this base never applied it — the CR shipped orphaned and the
+  # immediate observability-namespace delivery path did not exist. Wiring it in is the
+  # whole point of the file existing.
+  - alertmanagerconfig.yaml
 
 configMapGenerator:
   - name: alert-sink
