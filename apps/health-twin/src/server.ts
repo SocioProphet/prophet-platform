@@ -121,9 +121,16 @@ if (SEED.seed) {
     holderDigest: holderDigest(SEED.secret!),
   }, 'tail');
   console.log(`health-twin: DEV SEED GRANT active (${SEED.why}). Synthetic subject only.`);
-  // Printed once, to the operator who asked for it, because the alternative is a literal in source.
+  // The seed grant's holder SECRET is never written to a log. A credential in a log is precisely the
+  // leak channel this PR exists to close (access logs, proxy logs, browser history, `Referer`), so the
+  // seed is no exception: printing `grant-dev-seed-cardiology.<secret>` here would re-open it on the
+  // operator's stdout. CI proves the positive path by supplying the secret out of band
+  // (HEALTH_TWIN_SEED_GRANT_SECRET), never by scraping this line — see the invariant on seedGrantDecision.
   if (SEED.minted) {
-    console.log(`health-twin: seed holder token (shown once) — ${HOLDER_HEADER}: ${holderToken('grant-dev-seed-cardiology', SEED.secret!)}`);
+    console.log(
+      `health-twin: DEV SEED GRANT holder secret was minted this boot and is NOT logged (a credential in a ` +
+      `log is the defect this service refuses). It is unrecoverable; to drive the seed grant set ` +
+      `HEALTH_TWIN_SEED_GRANT_SECRET to a holder secret you choose and reboot — the id alone is not a credential.`);
   } else {
     console.log(`health-twin: seed holder secret taken from HEALTH_TWIN_SEED_GRANT_SECRET (not printed)`);
   }
@@ -330,7 +337,9 @@ function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, requir
         headers: { warning: LEGACY_QUERY_WARNING },
       };
     }
-    console.warn(`health-twin: DEPRECATED unauthenticated bare-id read on ${who} (${bareId})`);
+    // `bareId` is caller-supplied; strip CR/LF before it reaches the log so a crafted id cannot forge
+    // or split log lines (log-injection). `who` is a fixed route name, not user input.
+    console.warn(`health-twin: DEPRECATED unauthenticated bare-id read on ${who} (${String(bareId).replace(/[\r\n]/g, ' ')})`);
     return { ok: true, grant: r.grant, holder: 'unauthenticated:legacy-bare-id', legacy: true };
   }
 
@@ -784,7 +793,12 @@ const server = http.createServer(async (req, res) => {
         grantorAuth: EXPOSURE === 'authenticated'
           ? { authenticatedAs: 'deployment operator (HEALTH_TWIN_TOKEN)', isThePatient: false, note: 'no patient identity plane exists here — consent is issued by whoever operates the node' }
           : { authenticatedAs: null, isThePatient: false, note: 'synthetic-only deployment: minting is ungated because the data is synthetic, and refuses the moment real records land' },
-        receipt: grantUseReceipt('grant-issued', [g.id, g.holderDigest!, agent, scope], { grant: g.id, boundTo: g.holderDigest }),
+        // `boundTo: true`, not the digest itself. The holder verifier binds the receipt (it is in the
+        // hashed parts above, so a changed digest changes the receipt id), but it must not appear
+        // verbatim in the response: this file strips it everywhere else (publicGrant, bundle), and
+        // publishing a verifier is how an offline guessing target is handed out for free. A boolean says
+        // "this grant is holder-bound" without leaking what it is bound to.
+        receipt: grantUseReceipt('grant-issued', [g.id, g.holderDigest!, agent, scope], { grant: g.id, boundTo: true }),
       });
     } catch { return send(res, 400, { error: 'bad json' }); }
   }

@@ -19,7 +19,7 @@
 //      grantauth.ts fixed), but an id that a stranger can derive is still an offline guessing target
 //      handed out for free, and it is the input to revocation, which is id-only by design.
 //
-// THE DECISION: an identifier is MINTED, not DERIVED. 128 bits from the CSPRNG, hex. Nothing about
+// THE DECISION: an identifier is MINTED, not DERIVED. 256 bits from the CSPRNG, hex. Nothing about
 // the record is recoverable from it, nothing about it is predictable from the record, and the
 // collision probability over any ledger this service could hold is not a number worth writing down.
 //
