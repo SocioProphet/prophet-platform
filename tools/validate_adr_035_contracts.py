@@ -88,7 +88,7 @@ fixture_paths = sorted((CONTRACTS / "examples").glob("adr-035-*.json"))
 if len(fixture_paths) < MIN_FIXTURES:
     print(
         f"ERR: expected at least {MIN_FIXTURES} adr-035-*.json fixtures under "
-        f"{(CONTRACTS / "examples").relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
+        f"{(CONTRACTS / 'examples').relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
         f"silently disables this validator",
         file=sys.stderr,
     )
