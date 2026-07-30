@@ -1,0 +1,592 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/LawfulDispatchReceipt.json",
+  "title": "LawfulDispatchReceipt",
+  "description": "Estate-wide contract for a governed dispatch: Truth = Law × Evidence. `×` is the meet in the chain NEG < ZERO < POS (strong-Kleene conjunction, i.e. min) — which, a three-element chain being a category, is the categorical product. The equation is an identity, NOT sign multiplication in {-1,0,+1}: that reading gives NEG × NEG = POS, certifying a refused gate with a refuted outcome as true. Any app on the mesh (Noetica, prophet-workspace, prophet-mesh, agora, ops-fabric) emits this shape, so a verdict means the same thing everywhere and is checkable by a validator in any language rather than by trusting each implementation. The four invariants below are the governance. Two bind the product to its factors and the tier to their provenance; two bind each FACTOR to the record it is derived from — without those, an emitter could declare POS on a refused gate and the product would faithfully multiply the lie: a receipt whose verdict does not equal the product of its factors, or which claims T1 on a declared factor, is INVALID BY SHAPE.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "dispatchId",
+    "ts",
+    "law",
+    "evidence",
+    "verdict",
+    "evidenceTier",
+    "seal"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "kind": {
+      "const": "LawfulDispatchReceipt"
+    },
+    "dispatchId": {
+      "type": "string",
+      "pattern": "^urn:srcos:dispatch:",
+      "description": "Stable URN of this dispatch."
+    },
+    "emitter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Which app/service emitted this receipt, e.g. noetica/agent-machine or prophet-workspace/drive. Present so a mesh-wide audit can attribute a verdict without out-of-band knowledge."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$",
+      "description": "RFC-3339. The pattern accompanies format because jsonschema treats format as annotation-only by default, so format alone would let yesterday validate silently."
+    },
+    "law": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factor",
+        "barCleared",
+        "residual",
+        "source"
+      ],
+      "description": "The Law factor: did the fidelity bar clear, carrying what residual. Derived from the gate decision — never asserted by a caller. The factor is a FUNCTION of barCleared and residual, enforced in both directions by allOf: an emitter cannot declare POS while its gate refused, which the product invariant alone did not prevent — it faithfully multiplied whatever factors it was handed.",
+      "properties": {
+        "factor": {
+          "type": "string",
+          "enum": [
+            "NEG",
+            "ZERO",
+            "POS"
+          ],
+          "description": "POS established, NEG refuted, ZERO unestablished. ZERO is not a failure state — it is the honest report that a factor was not checked."
+        },
+        "barCleared": {
+          "type": "boolean"
+        },
+        "residual": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Constraints that could not be discharged. Non-empty with barCleared true means the bar DEFERRED rather than established, which is factor ZERO, not POS."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "measured",
+            "declared"
+          ],
+          "description": "Whether this factor was instrumented or asserted. A declared factor forces evidenceTier T2: claiming T1 for a value no instrument produced is the defect this contract exists to make unrepresentable."
+        }
+      },
+      "allOf": [
+        {
+          "title": "barCleared=false ⇒ NEG",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          }
+        },
+        {
+          "title": "NEG ⇒ barCleared=false (a refusal cannot be claimed without one)",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "barCleared": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "title": "cleared with empty residual ⇒ POS",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": true
+              },
+              "residual": {
+                "maxItems": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          }
+        },
+        {
+          "title": "cleared with undischarged residual ⇒ ZERO (deferred, not established)",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": true
+              },
+              "residual": {
+                "minItems": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "ZERO"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "factor",
+        "source"
+      ],
+      "description": "The Evidence factor: what the record actually contains. Absent or malformed digests are ZERO (nothing shown, nothing refuted); NEG requires an actual refutation. The factor is a FUNCTION of the digests, grounded and refuted, enforced in both directions: POS requires both well-formed digests AND grounded AND not refuted, NEG requires an actual refutation, and everything else is ZERO. Absent digests cannot be dressed as POS.",
+      "properties": {
+        "factor": {
+          "type": "string",
+          "enum": [
+            "NEG",
+            "ZERO",
+            "POS"
+          ],
+          "description": "POS established, NEG refuted, ZERO unestablished. ZERO is not a failure state — it is the honest report that a factor was not checked."
+        },
+        "requestHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "answerHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "grounded": {
+          "type": "boolean"
+        },
+        "refuted": {
+          "type": "boolean",
+          "description": "Set only by a verifier that CONTRADICTED the outcome. The one factor input a caller may legitimately supply."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "measured",
+            "declared"
+          ],
+          "description": "Whether this factor was instrumented or asserted. A declared factor forces evidenceTier T2: claiming T1 for a value no instrument produced is the defect this contract exists to make unrepresentable."
+        }
+      },
+      "allOf": [
+        {
+          "title": "refuted ⇒ NEG",
+          "if": {
+            "required": [
+              "refuted"
+            ],
+            "properties": {
+              "refuted": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          }
+        },
+        {
+          "title": "NEG ⇒ refuted (only an actual refutation yields NEG)",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "refuted"
+            ],
+            "properties": {
+              "refuted": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "title": "POS ⇒ both digests present, grounded, not refuted",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "requestHash",
+              "answerHash",
+              "grounded"
+            ],
+            "properties": {
+              "grounded": {
+                "const": true
+              },
+              "refuted": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "title": "both digests present + grounded + not refuted ⇒ POS (ZERO cannot be under-claimed)",
+          "if": {
+            "required": [
+              "requestHash",
+              "answerHash",
+              "grounded"
+            ],
+            "properties": {
+              "grounded": {
+                "const": true
+              },
+              "refuted": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "NEG",
+        "ZERO",
+        "POS"
+      ],
+      "description": "POS established, NEG refuted, ZERO unestablished. ZERO is not a failure state — it is the honest report that a factor was not checked."
+    },
+    "evidenceTier": {
+      "type": "string",
+      "enum": [
+        "T1",
+        "T2"
+      ],
+      "description": "T1 instrumented/replayed; T2 asserted/derived. Constrained below: T1 is unavailable when either factor is declared."
+    },
+    "seal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq",
+        "prev",
+        "attestation"
+      ],
+      "description": "Hash-chain position. attestation is the canonical-JSON SHA-256 over the receipt body including seq/ts/prev, so an entry cannot be re-ordered or re-dated without breaking its own seal.",
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "prev": {
+          "oneOf": [
+            {
+              "const": "genesis"
+            },
+            {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          ],
+          "description": "Predecessor attestation, or genesis for the first entry."
+        },
+        "attestation": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "title": "INVARIANT 1 — verdict = law × evidence (the meet, generated from min())",
+      "anyOf": [
+        {
+          "title": "NEG × NEG = NEG",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "verdict": {
+              "const": "NEG"
+            }
+          }
+        },
+        {
+          "title": "NEG × ZERO = NEG",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "verdict": {
+              "const": "NEG"
+            }
+          }
+        },
+        {
+          "title": "NEG × POS = NEG",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "verdict": {
+              "const": "NEG"
+            }
+          }
+        },
+        {
+          "title": "ZERO × NEG = NEG",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "verdict": {
+              "const": "NEG"
+            }
+          }
+        },
+        {
+          "title": "ZERO × ZERO = ZERO",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "verdict": {
+              "const": "ZERO"
+            }
+          }
+        },
+        {
+          "title": "ZERO × POS = ZERO",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "verdict": {
+              "const": "ZERO"
+            }
+          }
+        },
+        {
+          "title": "POS × NEG = NEG",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "NEG"
+                }
+              }
+            },
+            "verdict": {
+              "const": "NEG"
+            }
+          }
+        },
+        {
+          "title": "POS × ZERO = ZERO",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "ZERO"
+                }
+              }
+            },
+            "verdict": {
+              "const": "ZERO"
+            }
+          }
+        },
+        {
+          "title": "POS × POS = POS",
+          "properties": {
+            "law": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "evidence": {
+              "properties": {
+                "factor": {
+                  "const": "POS"
+                }
+              }
+            },
+            "verdict": {
+              "const": "POS"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "INVARIANT 2 — a declared factor cannot claim instrumented tier",
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "law": {
+                "properties": {
+                  "source": {
+                    "const": "declared"
+                  }
+                }
+              }
+            },
+            "required": [
+              "law"
+            ]
+          },
+          {
+            "properties": {
+              "evidence": {
+                "properties": {
+                  "source": {
+                    "const": "declared"
+                  }
+                }
+              }
+            },
+            "required": [
+              "evidence"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidenceTier": {
+            "const": "T2"
+          }
+        }
+      }
+    }
+  ]
+}

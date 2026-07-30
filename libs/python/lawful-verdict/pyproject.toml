@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prophet-lawful-verdict"
+version = "0.1.0"
+description = "Truth = Law × Evidence: the estate's verdict algebra and sealed dispatch receipts, for any Python service on the mesh"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "jsonschema>=4.21"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

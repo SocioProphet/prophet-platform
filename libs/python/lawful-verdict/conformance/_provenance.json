@@ -1,0 +1,20 @@
+{
+  "artifact": "vendored-conformance-provenance",
+  "specVersion": "0.1.0",
+  "sourceRepo": "SourceOS-Linux/sourceos-spec",
+  "files": {
+    "lawful-verdict-vectors.json": {
+      "sourcePath": "conformance/lawful-verdict-vectors.json",
+      "sha256": "sha256:6d5c2973e4a09825fcf069bedaeee0684fde569c0d1598e5ab6b84b35d1c2286"
+    },
+    "lawful-dispatch-receipt.example.json": {
+      "sourcePath": "examples/lawful-dispatch-receipt.example.json",
+      "sha256": "sha256:ca34a4fdf40c4079bef7f10d38967339f6651271f5de6cbe3d8223a9bb38988d"
+    },
+    "LawfulDispatchReceipt.json": {
+      "sourcePath": "schemas/LawfulDispatchReceipt.json",
+      "sha256": "sha256:c8ecfc18c2d8046690c0b21672932165fa6b2762a65a25c7f13449868a8290b9"
+    }
+  },
+  "why": "Vendored, not fetched. prophet-platform (SocioProphet) and sourceos-spec (SourceOS-Linux) are in different orgs, so CI's GITHUB_TOKEN cannot read the spec: a cross-repo checkout fails and the conformance job can only report UNVERIFIED. A gate that depends on network access it does not have is not a gate. So the vectors are vendored with their upstream digests recorded here, and the conformance tests run against the vendored copy unconditionally \u2014 they can never skip. When the real spec IS present (a dev tree, or CI with cross-org access) the tests ADDITIONALLY assert the vendored copy still matches these digests, which is what catches drift. Never-skipping conformance, plus drift detection wherever it is actually possible."
+}

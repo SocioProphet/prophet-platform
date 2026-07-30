@@ -1,0 +1,244 @@
+{
+  "artifact": "lawful-verdict-conformance-vectors",
+  "specVersion": "0.1.0",
+  "schemaRef": "https://schemas.srcos.ai/v2/LawfulDispatchReceipt.json",
+  "purpose": "Language-agnostic vectors for Truth = Law × Evidence. EVERY implementation on the mesh must reproduce these exactly. Two implementations that each pass their own unit tests can still disagree with each other; only a shared vector set makes cross-language drift detectable. Consumed by Noetica (TypeScript) and prophet-platform libs/python/lawful-verdict.",
+  "sealDefinition": "attestation = \"sha256:\" + sha256(canonicalJson(receipt with seal.attestation removed)). canonicalJson = JSON with object keys sorted recursively, no whitespace. evidenceTier IS inside the seal: it carries governance meaning (T1 = instrumented), so it must not be flippable without breaking the attestation.",
+  "product": {
+    "note": "× is the meet in the chain NEG < ZERO < POS. NOT sign multiplication in {-1,0,+1}, which yields NEG × NEG = POS.",
+    "table": [
+      {
+        "law": "NEG",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "NEG",
+        "evidence": "ZERO",
+        "verdict": "NEG"
+      },
+      {
+        "law": "NEG",
+        "evidence": "POS",
+        "verdict": "NEG"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "ZERO",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "POS",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "POS",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "POS",
+        "evidence": "ZERO",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "POS",
+        "evidence": "POS",
+        "verdict": "POS"
+      }
+    ],
+    "mustNotHold": [
+      {
+        "law": "NEG",
+        "evidence": "NEG",
+        "verdict": "POS",
+        "why": "the sign-multiplication trap: a refused gate and a refuted outcome cannot certify as true"
+      }
+    ]
+  },
+  "lawFactor": [
+    {
+      "barCleared": true,
+      "residual": [],
+      "expect": "POS",
+      "why": "cleared clean"
+    },
+    {
+      "barCleared": true,
+      "residual": [
+        "citation.resolves"
+      ],
+      "expect": "ZERO",
+      "why": "a bar that cleared carrying undischarged constraints has deferred, not established"
+    },
+    {
+      "barCleared": false,
+      "residual": [],
+      "expect": "NEG",
+      "why": "the gate refused"
+    },
+    {
+      "barCleared": false,
+      "residual": [
+        "consent.granted"
+      ],
+      "expect": "NEG",
+      "why": "a refusal stands regardless of residual"
+    }
+  ],
+  "evidenceFactor": [
+    {
+      "requestHash": "sha256:90edba1c9d0bb14ec514a96ca800a95448adb82f1adced02b66c15b4091777d2",
+      "answerHash": "sha256:ac8d8342bbb2362d13f0a559a3621bb407011368895164b628a54f7fc33fc43c",
+      "grounded": true,
+      "expect": "POS",
+      "why": "both digests well-formed and grounded"
+    },
+    {
+      "requestHash": "sha256:90edba1c9d0bb14ec514a96ca800a95448adb82f1adced02b66c15b4091777d2",
+      "answerHash": "sha256:ac8d8342bbb2362d13f0a559a3621bb407011368895164b628a54f7fc33fc43c",
+      "grounded": false,
+      "expect": "ZERO",
+      "why": "ungrounded is unevidenced, not false"
+    },
+    {
+      "requestHash": "sha256:90edba1c9d0bb14ec514a96ca800a95448adb82f1adced02b66c15b4091777d2",
+      "answerHash": "",
+      "grounded": true,
+      "expect": "ZERO",
+      "why": "nothing captured"
+    },
+    {
+      "requestHash": "sha256:90edba1c9d0bb14ec514a96ca800a95448adb82f1adced02b66c15b4091777d2",
+      "answerHash": "deadbeef",
+      "grounded": true,
+      "expect": "ZERO",
+      "why": "a malformed digest proves nothing; must be sha256:<64 hex>"
+    },
+    {
+      "requestHash": "sha256:90edba1c9d0bb14ec514a96ca800a95448adb82f1adced02b66c15b4091777d2",
+      "answerHash": "sha256:ac8d8342bbb2362d13f0a559a3621bb407011368895164b628a54f7fc33fc43c",
+      "grounded": true,
+      "refuted": true,
+      "expect": "NEG",
+      "why": "a verifier contradicted the outcome"
+    }
+  ],
+  "tier": [
+    {
+      "lawSource": "measured",
+      "evidenceSource": "measured",
+      "expect": "T1",
+      "why": "both instrumented"
+    },
+    {
+      "lawSource": "declared",
+      "evidenceSource": "measured",
+      "expect": "T2",
+      "why": "a declared factor cannot claim instrumented tier"
+    },
+    {
+      "lawSource": "measured",
+      "evidenceSource": "declared",
+      "expect": "T2",
+      "why": "either declared is enough to demote"
+    },
+    {
+      "lawSource": "declared",
+      "evidenceSource": "declared",
+      "expect": "T2",
+      "why": "neither instrumented"
+    }
+  ],
+  "canonicalJson": {
+    "note": "canonicalJson is JSON with object keys sorted recursively and no whitespace. Non-ASCII characters are emitted RAW, never \\uXXXX-escaped — Python must pass ensure_ascii=False or every seal over non-ASCII content diverges from TypeScript. Found by Copilot on prophet-platform#1065; the seal test had passed only because the example receipt is pure ASCII.",
+    "cases": [
+      {
+        "input": {
+          "b": 1,
+          "a": 2
+        },
+        "expected": "{\"a\":2,\"b\":1}",
+        "why": "keys sorted"
+      },
+      {
+        "input": {
+          "k": "café"
+        },
+        "expected": "{\"k\":\"café\"}",
+        "why": "NON-ASCII EMITTED RAW — the ensure_ascii trap"
+      },
+      {
+        "input": {
+          "z": {
+            "y": 1,
+            "x": 2
+          }
+        },
+        "expected": "{\"z\":{\"x\":2,\"y\":1}}",
+        "why": "sort is recursive"
+      },
+      {
+        "input": {
+          "a": [
+            3,
+            {
+              "d": 1,
+              "c": 2
+            }
+          ]
+        },
+        "expected": "{\"a\":[3,{\"c\":2,\"d\":1}]}",
+        "why": "array order preserved, objects inside sorted"
+      },
+      {
+        "input": "hello",
+        "expected": "\"hello\"",
+        "why": "a bare string canonicalises to a QUOTED JSON string"
+      },
+      {
+        "input": {
+          "s": "中文",
+          "e": "🔒"
+        },
+        "expected": "{\"e\":\"🔒\",\"s\":\"中文\"}",
+        "why": "CJK and astral-plane emoji raw"
+      }
+    ]
+  },
+  "contentHash": {
+    "note": "contentHash(s) = sha256(canonicalJson(s)), i.e. the digest is over the QUOTED JSON encoding of the string, not the raw bytes. This tripped the Python implementation, which hashed raw bytes and so disagreed with TypeScript on every input. The pattern check in evidenceFactor could not catch it — a wrong digest is still a well-formed digest — so the function itself is pinned here.",
+    "cases": [
+      {
+        "input": "hello",
+        "expected": "sha256:5aa762ae383fbb727af3c7a36d4940a5b8c40a989452d2304fc958ff3f354e7a"
+      },
+      {
+        "input": "",
+        "expected": "sha256:12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "why": "empty string is not the empty digest"
+      },
+      {
+        "input": "café",
+        "expected": "sha256:28380feb8724d669bc8d4cf5b5a5bb1adbdc61b81ebd06f3fabc567b4f3b0fc5",
+        "why": "non-ASCII must agree across languages"
+      },
+      {
+        "input": "line1\nline2",
+        "expected": "sha256:f743ae45891e890166374840ae63895ba05ac7fdc6f3344efa8b7b7b634cf360",
+        "why": "newlines are JSON-escaped inside the quotes"
+      },
+      {
+        "input": "quote\"and\\backslash",
+        "expected": "sha256:24b91cbbccbb8e5a8128070fa9e24b1591d2dd1d4ec9627fa7fd601bc15678cc",
+        "why": "JSON escaping is part of the digest"
+      }
+    ]
+  }
+}
