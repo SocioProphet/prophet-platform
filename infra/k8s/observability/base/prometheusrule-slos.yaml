@@ -20,12 +20,28 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "Target {{ $labels.job }} / {{ $labels.instance }} is down"
+        # WAS `up{job=~".*hellgraph.*"} == 0`, which matched ZERO series and so
+        # could never fire while reporting health=ok — the same defect as
+        # KubePersistentVolumeFillingUp. Two independent causes:
+        #   1. the `hellgraph` ServiceMonitor selects `app: hellgraph`, but the
+        #      Service is rendered by the shared socioprophet-service chart and
+        #      carries only app.kubernetes.io/* labels, so it matched nothing;
+        #   2. hellgraph-service does not serve /metrics at all — probing
+        #      http://hellgraph-service:8090/metrics returns HTTP 404.
+        # Fixing (1) alone would have produced a permanently-firing false alarm,
+        # which is not an improvement on a permanently-silent one.
+        # So this now reads kube-state-metrics, which genuinely observes the
+        # deployment (3 live series today, one per namespace). Giving hellgraph a
+        # real /metrics endpoint is app work and is NOT in this lane.
         - alert: HellGraphDown
-          expr: up{job=~".*hellgraph.*"} == 0
+          expr: |
+            kube_deployment_status_replicas_available{deployment="hellgraph-service"} == 0
+            and on (namespace, deployment)
+            kube_deployment_spec_replicas{deployment="hellgraph-service"} > 0
           for: 2m
           labels: { severity: critical }
           annotations:
-            summary: "HellGraph managed graph service is down — person-graph reads/writes fail"
+            summary: "HellGraph managed graph service has no available replicas in {{ $labels.namespace }} — person-graph reads/writes fail"
     - name: socioprophet.request-slo
       rules:
         # 5xx error ratio per service — the canary gate metric.
@@ -44,3 +60,33 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "{{ $labels.job }} 5xx ratio > 5% (SLO breach) — blocks canary promotion"
+
+        # ── The canary gate must not be able to pass by knowing nothing.
+        #
+        # infra/k8s/rollouts/base/analysistemplate-slo.yaml gates every canary
+        # promotion on job:request_error_ratio:rate5m and job:request_latency_p99:5m.
+        # Both recording rules derive from http_server_request_duration_seconds_*
+        # (OTel HTTP semconv, via the collector). That source metric currently has
+        # ZERO series — no service emits it — so both recording rules produce
+        # nothing and the AnalysisTemplate queries an empty vector.
+        #
+        # An SLO gate with no input is not a gate. Whether Argo Rollouts treats the
+        # empty result as an error or as a pass is not something this estate should
+        # be discovering during a bad deploy. So the missing input is itself an
+        # alert, at critical, and it is deliberately built on absent() — the one
+        # construct whose whole purpose is to react to emptiness.
+        - alert: CanaryGateBlind
+          expr: absent(http_server_request_duration_seconds_count)
+          for: 15m
+          labels: { severity: critical }
+          annotations:
+            summary: "Canary SLO gate has no input — http_server_request_duration_seconds_count has zero series"
+            description: >-
+              job:request_error_ratio:rate5m and job:request_latency_p99:5m both
+              derive from this metric, and the Argo Rollouts slo-gate
+              AnalysisTemplate reads both. With no source series the gate cannot
+              evaluate the SLO it exists to enforce. Either services are not
+              exporting OTel HTTP metrics through the collector, or the collector
+              pipeline is broken. Until this clears, treat canary promotions as
+              ungated.
+            runbook: infra/k8s/rule-liveness-guard/README.md

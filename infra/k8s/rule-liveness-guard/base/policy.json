@@ -1,0 +1,123 @@
+{
+  "_comment": [
+    "Declared exemptions for alert rules that legitimately have no series.",
+    "",
+    "Every entry needs `rule`, `reason` and `expires` (YYYY-MM-DD). Entries whose",
+    "underlying RISK still exists must also name a `compensating_control` -- the",
+    "thing that actually covers the hazard now that this rule cannot.",
+    "",
+    "An expired exemption raises AlertRuleExemptionExpired. That is deliberate:",
+    "the failure this whole guard exists to fix was a control everyone assumed",
+    "was working, so an allowlist that never expires would just relocate the",
+    "problem. Expiries are staggered so they do not all come due in one week.",
+    "",
+    "NOT exempted, on purpose: HellGraphDown and HighErrorRatio. Both are this",
+    "estate's own rules, both are dead, and both are fixable rather than",
+    "acceptable. They are left alerting until they are fixed."
+  ],
+
+  "expected_absent": [
+    {
+      "rule": "KubePersistentVolumeFillingUp",
+      "reason": "GKE Autopilot's Warden denies nodes/proxy cluster-wide, so the in-cluster Prometheus has no kubelet scrape job and kubelet_volume_stats_* can never exist here. Structural, not a misconfiguration.",
+      "compensating_control": "infra/k8s/pvc-capacity-guard (PR #1105) reads the same kubelet_volume_stats_* metrics from Google Managed Prometheus, which does scrape kubelet, and alerts PvcGuardExpanded/AtMaximum/CannotExpand/NoData.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubePersistentVolumeInodesFillingUp",
+      "reason": "Same structural cause: no kubelet job in the in-cluster Prometheus.",
+      "compensating_control": "PENDING. pvc-capacity-guard tracks bytes, not inodes. Inode exhaustion on these volumes is currently UNCOVERED — tracked for Wave 0.",
+      "expires": "2026-10-31"
+    },
+    {
+      "rule": "KubeletClientCertificateExpiration",
+      "reason": "No kubelet scrape job on Autopilot. Node certificates are managed by Google as part of the Autopilot control plane.",
+      "compensating_control": "GKE Autopilot node auto-repair and Google-managed node lifecycle.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubeletServerCertificateExpiration",
+      "reason": "No kubelet scrape job on Autopilot. Node certificates are Google-managed.",
+      "compensating_control": "GKE Autopilot node auto-repair and Google-managed node lifecycle.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubeletClientCertificateRenewalErrors",
+      "reason": "No kubelet scrape job on Autopilot.",
+      "compensating_control": "GKE Autopilot node auto-repair.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubeletServerCertificateRenewalErrors",
+      "reason": "No kubelet scrape job on Autopilot.",
+      "compensating_control": "GKE Autopilot node auto-repair.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubeletPlegDurationHigh",
+      "reason": "No kubelet scrape job on Autopilot. Kubelet internals are not our operational surface on a managed node pool.",
+      "compensating_control": "GKE Autopilot node auto-repair; pod-level symptoms are covered by KubePodNotReady and KubeContainerWaiting, which are live.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "KubeletPodStartUpLatencyHigh",
+      "reason": "No kubelet scrape job on Autopilot.",
+      "compensating_control": "KubePodNotReady (live) covers the user-visible symptom.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "CPUThrottlingHigh",
+      "reason": "Reads container_cpu_cfs_throttled_periods_total from cAdvisor, which is exposed via the kubelet — unreachable on Autopilot for the same Warden reason.",
+      "compensating_control": "PENDING. CPU throttling is currently UNOBSERVED in-cluster. GMP does publish container/cpu metrics; wiring an equivalent is Wave 0 work.",
+      "expires": "2026-10-31"
+    },
+    {
+      "rule": "NodeRAIDDegraded",
+      "reason": "Autopilot nodes are single-disk COS VMs with no md RAID arrays. node_md_* will never exist on this platform.",
+      "expires": "2027-06-30"
+    },
+    {
+      "rule": "NodeRAIDDiskFailure",
+      "reason": "No md RAID arrays on Autopilot nodes.",
+      "expires": "2027-06-30"
+    },
+    {
+      "rule": "NodeBondingDegraded",
+      "reason": "No bonded network interfaces on Autopilot nodes.",
+      "expires": "2027-06-30"
+    },
+    {
+      "rule": "NodeSystemdServiceFailed",
+      "reason": "node-exporter runs unprivileged in a container on Autopilot and cannot read the host systemd D-Bus socket, so the systemd collector reports nothing.",
+      "compensating_control": "GKE Autopilot node auto-repair owns node-level service health.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "PrometheusRemoteStorageFailures",
+      "reason": "No remote_write configured on this Prometheus, so prometheus_remote_storage_* is never registered.",
+      "compensating_control": "N/A — there is no remote storage to fail. If remote_write is ever configured this exemption must be removed.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "PrometheusRemoteWriteBehind",
+      "reason": "No remote_write configured.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "PrometheusRemoteWriteDesiredShards",
+      "reason": "No remote_write configured.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "AlertmanagerClusterFailedToSendAlerts",
+      "reason": "Single-replica Alertmanager, so alertmanager_cluster_* gossip metrics do not exist.",
+      "compensating_control": "AlertmanagerFailedToSendAlerts (live, non-cluster variant) covers delivery failure for this topology, and AlertDeliveryDead in infra/k8s/alert-delivery covers the whole path.",
+      "expires": "2027-01-31"
+    },
+    {
+      "rule": "AlertmanagerMembersInconsistent",
+      "reason": "Single-replica Alertmanager: no cluster members to be inconsistent.",
+      "expires": "2027-01-31"
+    }
+  ]
+}
