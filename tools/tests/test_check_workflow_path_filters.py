@@ -127,10 +127,27 @@ def test_multiline_run_block_scripts_are_seen():
 @pytest.mark.parametrize("branches,expected", [
     ("[main]", True),
     ("[ main, dev ]", True),
+    ('["main"]', True),
     ("[maintenance]", False),   # substring 'main' must NOT count as the main safety net
     ("[main-release]", False),
+    ("[main/foo]", False),      # a slashed ref is a different branch, not `main`
+    ("[main.*]", False),        # a glob is not the exact main-push safety net
+    ("[dev, feature/main]", False),
 ])
 def test_main_is_matched_as_a_whole_branch_token(branches, expected):
     wf = (f"name: y\non:\n  push:\n    branches: {branches}\n"
           f"  pull_request:\n    paths: ['x/**']\njobs: {{}}\n")
+    assert cwpf.has_main_push(wf) is expected
+
+
+@pytest.mark.parametrize("push_filter,expected", [
+    ("", True),
+    ("    paths: ['src/**']\n", False),
+    ("    paths-ignore: ['docs/**']\n", False),   # paths-ignore still filters the push
+])
+def test_paths_ignore_push_is_not_an_unfiltered_safety_net(push_filter, expected):
+    # A `paths-ignore:` push skips runs for the ignored set, so it cannot be the
+    # unfiltered net that turns a wrong filter into merge-time detection.
+    wf = (f"name: z\non:\n  push:\n    branches: [main]\n{push_filter}"
+          f"jobs: {{}}\n")
     assert cwpf.has_main_push(wf) is expected

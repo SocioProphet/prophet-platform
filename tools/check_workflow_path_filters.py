@@ -56,12 +56,18 @@ def has_main_push(text: str) -> bool:
     if not m:
         return False
     push = re.search(r'^  push:\s*$(.*?)(?=^  \w|\Z)', m.group(0), re.M | re.S)
-    if not push or "paths:" in push.group(1):
+    # `paths:` OR `paths-ignore:` under push means the trigger is filtered, not the
+    # unfiltered safety net: `paths-ignore` still skips the run for the ignored set,
+    # so it cannot be relied on to catch a wrong filter at merge time. `"paths:" in`
+    # missed `paths-ignore:` (no `paths:` substring in it), wrongly accepting it.
+    if not push or re.search(r'^\s+paths(?:-ignore)?:', push.group(1), re.M):
         return False
-    # Match `main` as a whole branch token, not a substring: a push filtered to
-    # `maintenance` or `main-release` is NOT the unfiltered main-branch safety net,
-    # and `"main" in ...` would wrongly accept it.
-    return re.search(r'(?<![\w-])main(?![\w-])', push.group(1)) is not None
+    # Match `main` as a whole branch token, not a substring: `maintenance`,
+    # `main-release`, `main/foo` and globs like `main.*` are different refs, NOT the
+    # unfiltered main-branch safety net. The boundary excludes every ref-name
+    # character (`[\w./*+-]`), so only an exact `main` token counts — `(?![\w-])`
+    # alone let `/`, `.` and `*` through.
+    return re.search(r'(?<![\w./*+-])main(?![\w./*+-])', push.group(1)) is not None
 
 
 def make_target_scripts(target: str) -> set[str]:
