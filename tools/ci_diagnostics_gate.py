@@ -75,11 +75,20 @@ def verdict(needs: dict) -> tuple[bool, list[str]]:
 
     # A job wired into `needs:` that this rule has never heard of is unverified
     # coverage: the gate would pass on it by silence. Fail until it is classified.
+    # Copilot #1080: surface the reported result + whether outputs are present, so
+    # the operator does not have to re-read the JSON payload to decide which
+    # bucket the new job belongs in (a success goes to MUST_SUCCEED; a skip
+    # that authorises via outputs goes to DOCS_ONLY_SKIPPABLE).
     for job in sorted(set(needs) - set(KNOWN_JOBS)):
         ok = False
+        entry = needs.get(job)
+        result = entry.get('result') if isinstance(entry, dict) else None
+        has_outputs = isinstance(entry, dict) and bool(entry.get('outputs'))
         findings.append(
-            f'{job}: wired into the gate but not classified here — add it to '
-            f'MUST_SUCCEED or DOCS_ONLY_SKIPPABLE in tools/ci_diagnostics_gate.py'
+            f'{job}: wired into the gate but not classified here (reported '
+            f'result={result!r}, outputs {"present" if has_outputs else "absent"}) — '
+            f'add it to MUST_SUCCEED or DOCS_ONLY_SKIPPABLE in '
+            f'tools/ci_diagnostics_gate.py'
         )
 
     # A job this rule expects but that is absent from the payload means someone

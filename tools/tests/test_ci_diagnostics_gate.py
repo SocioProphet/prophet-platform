@@ -146,6 +146,28 @@ def test_an_unclassified_job_added_to_needs_is_red():
     assert ok is False
 
 
+def test_unclassified_job_finding_surfaces_reported_result_and_outputs_presence():
+    """Copilot #1080: the finding for an unclassified job must include the reported
+    `result` and whether `outputs` was present, so the operator picking a bucket
+    does not need to re-open the JSON payload. A `success` with `outputs` present
+    hints MUST_SUCCEED-with-authorising-output; a bare `skipped` hints the leg is
+    absent from an expected fan-out."""
+    payload = needs()
+    payload['brand-new-diagnostics'] = {'result': 'success', 'outputs': {'x': 'y'}}
+    ok, findings = verdict(payload)
+    assert ok is False
+    hit = next(f for f in findings if f.startswith('brand-new-diagnostics:'))
+    assert "reported result='success'" in hit
+    assert 'outputs present' in hit
+    # And the mirror case: no outputs.
+    payload['another-new'] = {'result': 'skipped'}
+    ok, findings = verdict(payload)
+    assert ok is False
+    hit = next(f for f in findings if f.startswith('another-new:'))
+    assert "reported result='skipped'" in hit
+    assert 'outputs absent' in hit
+
+
 def test_an_empty_payload_is_red():
     ok, _ = verdict({})
     assert ok is False
