@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timezone
 from importlib import resources
 from typing import Any
 
@@ -123,6 +124,44 @@ def definition_digest(profile: dict[str, Any]) -> str:
     core = {field: profile[field] for field in DIGEST_FIELDS}
     canonical = json.dumps(core, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def instant(value: str) -> datetime | None:
+    """Parse an RFC3339 `date-time` to an absolute instant, or None if it is not one.
+
+    MUST stay behaviourally identical to sourceos-spec
+    tools/validate_device_service_examples.py instant() — the spec tool and this gate
+    have to agree on what "receivedAt >= observedAt" means, or a reading the estate
+    conformance tool refuses would still be emitted here.
+
+    Comparing these as STRINGS is wrong and silently so: DeviceReading pins
+    `format: date-time` with NO `pattern`, so schema-valid values vary in both UTC
+    offset and fractional-second precision. Two proven counterexamples the string
+    compare misses (tests/test_contract.py holds both):
+
+        observedAt 2026-07-29T09:15:00.500Z / receivedAt 2026-07-29T09:15:00Z
+            receivedAt is 500ms EARLIER, but '.' (0x2E) < 'Z' (0x5A), so it sorts later;
+        observedAt 2026-07-29T20:00:00+00:00 / receivedAt 2026-07-29T21:00:00+05:00
+            receivedAt is 4h EARLIER, but "21" > "20" lexicographically.
+
+    An ordering check built on string compare is a check that cannot fail for exactly
+    the documents most likely to be wrong. Normative in specs/device-service-contract.md
+    §6: the ordering is over instants, not strings.
+    """
+    text = value.strip()
+    if len(text) > 10 and text[10] in "tT":  # RFC3339 permits a lowercase separator
+        text = text[:10] + "T" + text[11:]
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        # RFC3339 requires an offset. A naive stamp is not an instant; refuse it rather
+        # than assume UTC and compare two different clocks.
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def load_profile(raw: dict[str, Any]) -> dict[str, Any]:
@@ -277,8 +316,25 @@ def validate_reading(reading: dict[str, Any], profile: dict[str, Any]) -> None:
     if declared.get("kkoTypeRef") and reading.get("kkoTypeRef") != declared["kkoTypeRef"]:
         raise ContractError(f"kkoTypeRef disagrees with the declaration for {reading['metric']}")
 
-    if reading["receivedAt"] and reading["receivedAt"] < reading["observedAt"]:
-        raise ContractError("receivedAt precedes observedAt")
+    # Compare INSTANTS, never strings (see instant()). The schema's date-time format
+    # checker is the first line and rejects most malformed stamps, but it does not make
+    # two well-formed stamps comparable — that is this parse. An unorderable pair is
+    # refused rather than waved through: a check that cannot be performed has not passed.
+    received = reading.get("receivedAt")
+    if received:
+        observed_at, received_at = instant(reading["observedAt"]), instant(received)
+        if observed_at is None or received_at is None:
+            raise ContractError(
+                f"observedAt/receivedAt must be RFC3339 instants with an offset "
+                f"({reading['observedAt']!r} -> {received!r}) — an unorderable pair "
+                f"cannot be checked, so the reading is not admissible"
+            )
+        if received_at < observed_at:
+            raise ContractError(
+                f"receivedAt precedes observedAt by "
+                f"{(observed_at - received_at).total_seconds()}s — the reading arrived "
+                f"before it was observed"
+            )
 
     simulated = is_simulated(profile)
     labelled = SIMULATED_LABEL in reading["policyLabels"]

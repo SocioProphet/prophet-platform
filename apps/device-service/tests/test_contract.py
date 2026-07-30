@@ -149,6 +149,130 @@ def test_received_before_observed_is_refused(reading, virtual_profile, mutate):
         )
 
 
+# ------------------------------------------------- instants, not strings (§6)
+#
+# DeviceReading pins `format: date-time` with NO `pattern`, so schema-valid stamps vary
+# in UTC offset AND fractional-second precision. The pairs below are the ones a
+# string comparison gets WRONG. They are not hypothetical: both were verified against
+# the identical check in sourceos-spec before this fix landed.
+#
+# (observedAt, receivedAt, how much earlier receivedAt actually is)
+INVERTED_PAIRS_THAT_SORT_FORWARD = [
+    # '.' (0x2E) < 'Z' (0x5A): the more precise stamp sorts FIRST while being later.
+    ("2026-07-29T09:15:00.500Z", "2026-07-29T09:15:00Z", "0.5s"),
+    # "21" > "20" as text, but +05:00 puts 21:00 at 16:00Z — four hours before.
+    ("2026-07-29T20:00:00+00:00", "2026-07-29T21:00:00+05:00", "4h"),
+]
+
+# Positive controls: genuinely well-ordered pairs, written across offsets and
+# precisions, that MUST still be admitted. A stricter gate that refuses good readings
+# has just moved the bug.
+ORDERED_PAIRS_ACROSS_OFFSETS_AND_PRECISIONS = [
+    # Same instant, two spellings. Equal is admissible (the invariant is >=).
+    ("2026-07-29T09:15:00Z", "2026-07-29T11:15:00+02:00"),
+    # 42ms of real latency; '.042Z' sorts BEFORE 'Z', so string compare false-alarms.
+    ("2026-07-29T09:15:00Z", "2026-07-29T09:15:00.042Z"),
+    # 1s of real latency across a +02:00 offset.
+    ("2026-07-29T20:00:00+00:00", "2026-07-29T22:00:01+02:00"),
+]
+
+# The one positive control that a string comparison actively REJECTS. Teeth have to
+# point both ways: a gate that only false-negatives is blind, one that false-positives
+# throws away good readings. This pair proves the fix fixes the second failure too.
+STRING_COMPARE_FALSE_ALARM = ("2026-07-29T09:15:00Z", "2026-07-29T09:15:00.042Z")
+
+
+@pytest.mark.parametrize("observed,received,gap", INVERTED_PAIRS_THAT_SORT_FORWARD)
+def test_inverted_pair_is_refused_even_when_it_sorts_forward(
+    reading, virtual_profile, mutate, observed, received, gap
+):
+    """THE regression. receivedAt is genuinely earlier by {gap}; the old
+    `reading["receivedAt"] < reading["observedAt"]` string compare said otherwise and
+    admitted the reading."""
+    with pytest.raises(contract.ContractError, match="receivedAt precedes observedAt"):
+        contract.validate_reading(
+            mutate(reading, observedAt=observed, receivedAt=received, wallTime=received),
+            virtual_profile,
+        )
+
+
+@pytest.mark.parametrize("observed,received", ORDERED_PAIRS_ACROSS_OFFSETS_AND_PRECISIONS)
+def test_equivalent_instants_written_differently_are_admitted(
+    reading, virtual_profile, mutate, observed, received
+):
+    """Positive control: correctly-ordered pairs across offsets and precisions must
+    still PASS. A gate that refuses these has moved the bug, not fixed it."""
+    contract.validate_reading(
+        mutate(reading, observedAt=observed, receivedAt=received, wallTime=received),
+        virtual_profile,
+    )
+
+
+def test_the_counterexamples_are_actually_adversarial():
+    """Guards the guard. If a future edit weakened these fixtures into pairs a string
+    compare already handles, the tests above would still be green while testing
+    nothing. This asserts, explicitly, that naive `<` gets them wrong — so the cases
+    keep their teeth even if the fix is reverted and re-derived."""
+    for observed, received, _gap in INVERTED_PAIRS_THAT_SORT_FORWARD:
+        assert contract.instant(received) < contract.instant(observed), "not inverted"
+        assert not (received < observed), "a string compare would already catch this"
+    for observed, received in ORDERED_PAIRS_ACROSS_OFFSETS_AND_PRECISIONS:
+        assert contract.instant(received) >= contract.instant(observed), "not ordered"
+
+    observed, received = STRING_COMPARE_FALSE_ALARM
+    assert (observed, received) in ORDERED_PAIRS_ACROSS_OFFSETS_AND_PRECISIONS
+    assert received < observed, "this control no longer false-alarms a string compare"
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2026-07-29T09:15:00Z", "2026-07-29 09:15:00+00:00"),
+    ("2026-07-29T09:15:00.500Z", "2026-07-29 09:15:00.500000+00:00"),
+    ("2026-07-29t09:15:00z", "2026-07-29 09:15:00+00:00"),      # RFC3339 lowercase
+    ("2026-07-29T11:15:00+02:00", "2026-07-29 09:15:00+00:00"),  # normalised to UTC
+    ("2026-07-29T21:00:00+05:00", "2026-07-29 16:00:00+00:00"),
+])
+def test_instant_normalises_to_utc(text, expected):
+    assert str(contract.instant(text)) == expected
+
+
+@pytest.mark.parametrize("text", [
+    "2026-07-29T09:15:00",   # naive: RFC3339 requires an offset
+    "2026-07-29",            # a date is not an instant
+    "yesterday",
+    "",
+])
+def test_instant_fails_closed_on_anything_that_is_not_an_instant(text):
+    """A naive stamp carries no offset, so it is not an instant — refuse it rather than
+    assume UTC and silently compare two different clocks."""
+    assert contract.instant(text) is None
+
+
+def test_a_reading_with_no_receivedAt_is_admitted(reading, virtual_profile):
+    """receivedAt is optional in DeviceReading.json (not in `required`). The check now
+    reads it with .get() like the spec tool does; the old `reading["receivedAt"]` raised
+    a bare KeyError — not a ContractError — on a schema-valid reading that omits it, so
+    the caller's `except ContractError` would not have counted it as a validation
+    failure. There is nothing to order here, and nothing to fail."""
+    without = {k: v for k, v in reading.items() if k != "receivedAt"}
+    contract.validate_reading(without, virtual_profile)
+
+
+def test_an_unorderable_pair_is_refused_not_waved_through(
+    reading, virtual_profile, mutate, monkeypatch
+):
+    """Defence in depth. The schema's date-time format checker normally rejects a naive
+    stamp first (contract.py refuses to import without it). If that layer ever degraded,
+    the ordering gate must still refuse the pair it cannot order — never pass it."""
+    monkeypatch.setattr(
+        contract, "READING_VALIDATOR", Draft202012Validator(contract.READING_SCHEMA)
+    )
+    with pytest.raises(contract.ContractError, match="unorderable pair"):
+        contract.validate_reading(
+            mutate(reading, observedAt="2026-07-29T09:15:00", receivedAt="2026-07-29T09:15:01"),
+            virtual_profile,
+        )
+
+
 def test_schema_violations_are_refused(reading, virtual_profile, mutate):
     with pytest.raises(contract.ContractError, match="schema"):
         contract.validate_reading(mutate(reading, specVersion="0.2.0"), virtual_profile)
