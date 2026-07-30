@@ -1,0 +1,69 @@
+name: lawful-verdict
+
+# Truth = Law × Evidence, the estate's verdict algebra, as a SERVICE-LEVEL library any
+# Python service on the mesh can import (prophet-workspace, agora, ops-fabric-api,
+# prophet-mesh agents). Governance that lives inside one app is governance one app can
+# quietly drop, which is exactly what happened when this algebra lived only in Noetica.
+#
+# The conformance job checks out sourceos-spec so the SHARED vectors are actually present,
+# and sets LAWFUL_VERDICT_REQUIRE_VECTORS=1 so a missing vector file FAILS rather than
+# skipping. A skipped anti-drift test is not a weaker guarantee, it is no guarantee.
+
+on:
+  push:
+    paths:
+      - 'libs/python/lawful-verdict/**'
+      - '.github/workflows/lawful-verdict.yml'
+  pull_request:
+    paths:
+      - 'libs/python/lawful-verdict/**'
+      - '.github/workflows/lawful-verdict.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-conform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Into a SUBDIRECTORY, not a sibling: actions/checkout refuses paths outside
+      # $GITHUB_WORKSPACE, so the tests are pointed at it via SOURCEOS_SPEC_DIR instead of
+      # relying on the dev tree's sibling layout.
+      - name: Checkout sourceos-spec (shared conformance vectors)
+        uses: actions/checkout@v4
+        with:
+          repository: SocioProphet/sourceos-spec
+          path: _sourceos-spec
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+        id: spec
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libs/python/lawful-verdict/requirements-test.txt -e libs/python/lawful-verdict
+
+      - name: Unit tests (algebra, receipts, ledger, tamper-evidence)
+        run: cd libs/python/lawful-verdict && pytest -q
+
+      # Fails loudly if the spec checkout did not land, rather than reporting a green
+      # conformance run that never loaded a vector.
+      - name: Cross-language conformance against sourceos-spec vectors (STRICT)
+        if: steps.spec.outcome == 'success'
+        env:
+          LAWFUL_VERDICT_REQUIRE_VECTORS: '1'
+          SOURCEOS_SPEC_DIR: ${{ github.workspace }}/_sourceos-spec
+        run: cd libs/python/lawful-verdict && pytest -q
+
+      - name: Report if conformance could not be verified
+        if: steps.spec.outcome != 'success'
+        run: |
+          echo "::error::sourceos-spec checkout failed — cross-language conformance is UNVERIFIED."
+          echo "The unit tests above passed, but agreement with the shared vectors was not checked."
+          exit 1
