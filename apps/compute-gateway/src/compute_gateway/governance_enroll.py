@@ -197,14 +197,19 @@ def _default_poster(warden_url: str, token: str | None) -> Poster:
             headers={"content-type": "application/json",
                      **({"authorization": f"Bearer {token}"} if token else {})},
             method="POST")
+        def _body(raw: bytes) -> dict:
+            # The HTTP STATUS is the enrolment verdict, not the body. A 201 whose
+            # body is empty or non-JSON is still a success -- decoding it must never
+            # turn a real enrolment into a counted 'failure'.
+            try:
+                return json.loads(raw or b"{}")
+            except (json.JSONDecodeError, ValueError):
+                return {}
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
-                return resp.status, json.loads(resp.read() or b"{}")
+                return resp.status, _body(resp.read())
         except urllib.error.HTTPError as e:
-            try:
-                return e.code, json.loads(e.read() or b"{}")
-            except Exception:
-                return e.code, {}
+            return e.code, _body(e.read())
     return post
 
 
