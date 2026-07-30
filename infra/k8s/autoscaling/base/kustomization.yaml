@@ -1,7 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# The vLLM scale-to-zero ScaledObject deploys (targets the real serving
-# Deployment). The HPA and ScaledJob are adoption examples (target-specific) and
-# are not included here.
-resources:
-  - keda-scaledobject-vllm.yaml
+# Nothing here deploys yet, and that is now stated rather than implied.
+#
+# This previously shipped keda-scaledobject-vllm.yaml as the one "real" resource.
+# It was unwired on 2026-07-30: its trigger read a metric with zero emitters, so
+# the empty result sat below activationThreshold and the ScaledObject could only
+# ever hold the GPU Deployment at zero replicas — a cost control whose sole
+# reachable output was "off". It is now keda-scaledobject-vllm.example.yaml,
+# alongside the other two, with its three blocking preconditions written down.
+#
+# Note this whole directory is reached only by infra/argocd/autoscaling-stack.yaml,
+# which the root app-of-apps does not watch — so none of it has ever deployed
+# regardless. Wiring a resource back in here means moving that Application into
+# deploy/argocd/ too.
+resources: []

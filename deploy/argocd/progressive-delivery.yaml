@@ -1,0 +1,83 @@
+# Progressive delivery, moved into the tree the root app-of-apps actually watches.
+#
+# These two Applications were authored in infra/argocd/progressive-delivery.yaml.
+# The root app (infra/tofu/environments/gcp-gke/argocd.tf) watches `deploy/argocd`
+# with directory.recurse, so nothing there ever reached the cluster — confirmed by
+# the header of deploy/argocd/observability-services.yaml, which names
+# progressive-delivery as one of the three deliberately stranded stacks.
+#
+# The consequence was not merely "canary is unconfigured". It was worse and
+# quieter: the AnalysisTemplate at infra/k8s/rollouts/base *was* documented as the
+# canary gate, the SLO recording rules *were* deployed, and both were referenced in
+# READMEs as live — while `kubectl get analysistemplates` returned
+# `the server doesn't have a resource type "analysistemplates"`. There was no
+# controller. The gate was YAML nobody read.
+#
+# Cilium is NOT moved. It stays in infra/argocd/ deliberately: its own annotation
+# says not to install it on GKE Autopilot, whose dataplane is already Cilium
+# (Dataplane V2). Relocating it into the watched tree would install a second CNI
+# on the live cluster. Moving a stranded app is only correct when the app is
+# supposed to run here.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: progressive-delivery
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    # reference: a swappable implementation of progressive delivery (Flagger is
+    # the alternative), not part of the interoperability spine.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: 2.37.7
+    helm:
+      releaseName: argo-rollouts
+      values: |
+        controller:
+          metrics:
+            enabled: true
+        dashboard:
+          enabled: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: progressive-delivery-base
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: progressive-delivery
+  annotations:
+    # Wave 0: after the controller's CRDs exist, or the AnalysisTemplate has no
+    # kind to be.
+    argocd.argoproj.io/sync-wave: "0"
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  source:
+    # No .git suffix — the convention in this tree.
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/rollouts/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

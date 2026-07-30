@@ -16,22 +16,19 @@ spec:
   endpoints:
     - port: metrics
       interval: 15s
----
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: hellgraph
-  namespace: socioprophet
-  labels:
-    bundle: observability
-    release: kube-prometheus-stack
-spec:
-  namespaceSelector:
-    matchNames: [socioprophet]
-  selector:
-    matchLabels:
-      app: hellgraph
-  endpoints:
-    - port: http          # HellGraph exposes Prometheus metrics on its http port
-      path: /metrics
-      interval: 30s
+
+# REMOVED (2026-07-30): the `hellgraph` ServiceMonitor. It was inert twice over.
+#
+#   1. Its selector was `app: hellgraph`. No Service in the estate carries that
+#      label — the Service is named hellgraph-service and the chart labels it
+#      app.kubernetes.io/{name,instance}. `kubectl get svc -A -l app=hellgraph`
+#      returns nothing, so the Operator generated no scrape target at all: the
+#      job never appeared in Prometheus, and no target ever showed as failing.
+#   2. Even had it matched, hellgraph-service has no /metrics route. Probed
+#      in-cluster: `GET http://hellgraph-service:8090/metrics` -> HTTP 404. Its
+#      package.json has no prometheus module despite the README claiming one.
+#
+# Restoring it means giving hellgraph-service a real /metrics endpoint first.
+# Until then a ServiceMonitor here is a control that reports configured and
+# collects nothing — the failure this whole change is about. The HellGraphDown
+# alert now reads kube-state-metrics instead (see prometheusrule-slos.yaml).

@@ -1,0 +1,53 @@
+# EXAMPLE ONLY — deliberately NOT in kustomization.yaml. Renamed from
+# keda-scaledobject-vllm.yaml on 2026-07-30.
+#
+# As written and "deployed", this was a scale-to-zero autoscaler that could only
+# ever produce zero. Its trigger queried
+# `http_server_request_duration_seconds_count{job="mesh-vllm"}` — a metric with no
+# emitter anywhere in the estate (see infra/k8s/observability/base/prometheusrule-slos.yaml
+# for the full finding). An empty query result sits below `activationThreshold`,
+# so KEDA would hold the GPU Deployment at 0 replicas permanently and mesh-vllm
+# could never wake. A cost control whose only reachable output is "off" looks
+# indistinguishable from one that is working.
+#
+# Three preconditions, none of which hold today. Do not wire this into
+# kustomization.yaml until all three are true and each has been observed:
+#
+#   1. KEDA is installed. `kubectl get crd | grep keda` returns nothing; the
+#      autoscaling Argo app that would install it still lives in infra/argocd/,
+#      which the root app-of-apps does not watch.
+#   2. Something scrapes mesh-vllm. There is no ServiceMonitor, PodMonitor or GMP
+#      PodMonitoring for the serving namespace.
+#   3. The query names a metric vLLM actually publishes. vllm/vllm-openai exposes
+#      `vllm:num_requests_running` and `vllm:num_requests_waiting`, NOT the OTel
+#      HTTP semconv name. The query below has been corrected to the real name, but
+#      it is still unverified — mesh-vllm is scaled to 0/0 replicas, so the series
+#      cannot be confirmed to exist until it runs.
+#
+# Whatever revives this must apply the same floor the canary gate now uses: a
+# trigger that cannot distinguish "no load" from "no data" is not a trigger.
+# See infra/k8s/rollouts/base/analysistemplate-slo.yaml.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: mesh-vllm
+  namespace: serving
+spec:
+  scaleTargetRef:
+    name: mesh-vllm
+  minReplicaCount: 0          # scale-to-zero when idle → no GPU bill
+  maxReplicaCount: 4
+  cooldownPeriod: 300         # 5m of no load before scaling back to zero
+  pollingInterval: 30
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+        # Requests in flight to the serving job; >0 wakes it from zero.
+        # Was `sum(rate(http_server_request_duration_seconds_count{job="mesh-vllm"}[2m]))`
+        # — zero emitters, so permanently below activationThreshold. This is the
+        # metric vLLM actually publishes on its OpenAI server port. Still requires
+        # precondition 2 above (nothing scrapes it yet).
+        query: sum(vllm:num_requests_running{job="mesh-vllm"}) + sum(vllm:num_requests_waiting{job="mesh-vllm"})
+        threshold: "5"        # ~5 req/s per replica target
+        activationThreshold: "0.1"

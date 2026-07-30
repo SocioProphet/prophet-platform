@@ -1,7 +1,43 @@
-# The canary gate. Argo Rollouts runs this analysis at each canary step and aborts
-# the rollout if the SLOs breach — reading the exact recording rules shipped in
-# Wave 1 (infra/k8s/observability). This is what makes promotion metric-gated
-# rather than time-based.
+# The canary gate.
+#
+# WHAT WAS WRONG (2026-07-30)
+#
+# This template gated on `job:request_error_ratio:rate5m` and
+# `job:request_latency_p99:5m`, two recording rules over
+# `http_server_request_duration_seconds_*` — a metric with zero emitters. It was
+# ungated three times over:
+#
+#   1. No data. Nothing in the estate emits that metric and nothing ever has (no
+#      OTel SDK, no prometheus_client; /metrics is 404 on every service probed).
+#   2. No successCondition. Only `failureCondition` was set. In Argo Rollouts a
+#      measurement that does not satisfy a failureCondition is recorded
+#      Successful — so the polarity was "pass unless proven failing", which is
+#      exactly backwards for a metric that does not exist.
+#   3. The error-ratio recording rule wrapped its denominator in
+#      `clamp_min(..., 1)`, so no-data resolved to a numerically healthy 0.0
+#      rather than to an empty vector. Even a correct threshold could not trip.
+#
+# Net effect: every canary analysis succeeded, unconditionally. Those recording
+# rules are now deleted — see infra/k8s/observability/base/prometheusrule-slos.yaml.
+#
+# THE RULE THIS NOW FOLLOWS
+#
+# Every metric below carries a `successCondition` that requires the series to
+# EXIST before it can pass:
+#
+#     successCondition: len(result) == 1 && ...
+#
+# `&&` short-circuits, so an empty result never reaches the threshold term: it
+# fails the condition outright and fails the analysis. A missing metric now
+# aborts the rollout instead of promoting it. That is the whole difference from
+# the file this replaces, which read "I cannot see" as "all clear".
+#
+# The queries read kube-state-metrics, which is scraped and has series today
+# (504 kube_pod_status_ready, 250 restart counters), rather than a request-rate
+# metric nothing produces. This gate cannot see a 5xx ratio. It can see a canary
+# that never became ready, crashlooped, failed its image pull, or got evicted —
+# which is what actually breaks deploys here. When a real HTTP emitter exists,
+# add the ratio back as a THIRD metric carrying the same len(result) floor.
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -9,27 +45,49 @@ metadata:
   namespace: socioprophet
 spec:
   args:
-    - name: service        # the Rollout passes its job/service label in
+    # The Rollout's name — canary pods are named <rollout>-<hash>-<suffix>.
+    - name: service
+    - name: namespace
+      value: socioprophet
+    # Argo Rollouts injects the canary ReplicaSet's pod-template-hash, so these
+    # queries scope to the NEW pods only and never average the stable ones in.
+    # Without it the gate would be diluted by healthy stable replicas — a second
+    # way to pass a bad canary.
+    - name: canary-hash
+      valueFrom:
+        podTemplateHashValue: Latest
   metrics:
-    - name: error-ratio
-      interval: 1m
+    - name: canary-available
+      # The primary gate. Empty result => no canary pod is Ready => FAIL.
+      initialDelay: 30s
+      interval: 20s
       count: 5
-      # Fail the canary if the 5xx ratio exceeds 5% (matches HighErrorRatio SLO).
-      failureCondition: result[0] >= 0.05
       failureLimit: 1
+      consecutiveErrorLimit: 2
+      successCondition: len(result) == 1 && result[0] >= 1
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
           query: |
-            job:request_error_ratio:rate5m{job="{{args.service}}"}
-    - name: latency-p99
-      interval: 1m
+            sum(kube_pod_status_ready{
+              namespace="{{args.namespace}}",
+              condition="true",
+              pod=~"{{args.service}}-{{args.canary-hash}}-.*"
+            })
+    - name: canary-not-restarting
+      # Catches a canary that comes up, serves, then crashes — readiness alone can
+      # flap too slowly to catch that inside one analysis window.
+      initialDelay: 30s
+      interval: 20s
       count: 5
-      # Fail if p99 latency exceeds 1.5s.
-      failureCondition: result[0] >= 1.5
       failureLimit: 1
+      consecutiveErrorLimit: 2
+      successCondition: len(result) == 1 && result[0] <= 2
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
           query: |
-            job:request_latency_p99:5m{job="{{args.service}}"}
+            sum(kube_pod_container_status_restarts_total{
+              namespace="{{args.namespace}}",
+              pod=~"{{args.service}}-{{args.canary-hash}}-.*"
+            })

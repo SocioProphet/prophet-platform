@@ -1,39 +1,15 @@
-# Wave 2 — progressive delivery + mesh, as GitOps Argo Applications.
+# Wave 2 — the mesh half. MOVED OUT on 2026-07-30: `argo-rollouts` and
+# `progressive-delivery-base` now live in deploy/argocd/progressive-delivery.yaml,
+# the tree the root app-of-apps actually watches. Nothing in infra/argocd/ has
+# ever reached the cluster, which is why `kubectl get analysistemplates` returned
+# "the server doesn't have a resource type" while the canary gate was documented
+# as live.
 #
-# Argo Rollouts gives metric-gated canary/blue-green (A-B); its analysis reads the
-# Wave-1 SLO recording rules. Cilium provides the mesh: mTLS (WireGuard), L3/L4 +
-# L7 network policy, Hubble flow visibility, and the Gateway API used for
-# traffic-shaped canaries.
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: argo-rollouts
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-2"
-spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: argo-rollouts
-  source:
-    repoURL: https://argoproj.github.io/argo-helm
-    chart: argo-rollouts
-    targetRevision: 2.37.7
-    helm:
-      releaseName: argo-rollouts
-      values: |
-        controller:
-          metrics:
-            enabled: true
-        dashboard:
-          enabled: true
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
----
+# Cilium stays here ON PURPOSE — see its own note below. GKE Autopilot already
+# runs Cilium as its dataplane (Dataplane V2); installing this one on the live
+# cluster would mean a second CNI. It belongs in the watched tree only on a
+# self-managed or edge (k3s) cluster, where it is the CNI. Do not "finish the
+# job" by relocating it without checking which cluster it is going to.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -73,24 +49,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: progressive-delivery-base
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
-spec:
-  project: default
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: socioprophet
-  source:
-    repoURL: https://github.com/SocioProphet/prophet-platform.git
-    targetRevision: main
-    path: infra/k8s/rollouts/base
-  syncPolicy:
-    automated: { prune: true, selfHeal: true }
-    syncOptions:
-      - CreateNamespace=true

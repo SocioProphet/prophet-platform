@@ -1,7 +1,40 @@
-# Starter SLOs + recording rules. These are the metric contract that Argo
-# Rollouts (canary AnalysisTemplate) and Chaos Mesh (steady-state hypothesis)
-# consume. Request-rate rules use OTel HTTP semconv metrics (emitted by services
-# through the collector's prometheus exporter); availability rules use `up`.
+# SLOs + alerts for the estate. EVERY expression here was run against the live
+# `observability` Prometheus before being committed, and every one returns series.
+# That is the whole point of this file's current shape — see below.
+#
+# WHAT WAS REMOVED (2026-07-30) AND WHY
+#
+# This file used to carry a `socioprophet.request-slo` group: two recording rules
+# over `http_server_request_duration_seconds_*` plus a `HighErrorRatio` alert. All
+# three were deleted because the metric has ZERO emitters and never had any:
+#
+#   * no OpenTelemetry SDK, no prometheus_client, no promhttp, no client_golang
+#     anywhere in the estate — not in any requirements.txt, not in any of the four
+#     go.mod files;
+#   * `GET /metrics` returns 404 on every service probed in-cluster
+#     (compute-gateway, gateway, dashboard-bff, hellgraph-service, health-twin,
+#     eval-fabric-api) and connection-refused on api;
+#   * `count(http_server_request_duration_seconds_count)` = 0 series, and had been
+#     since the rules were authored.
+#
+# The rules therefore evaluated an empty vector forever, and reported
+# `health=ok state=inactive` while doing it — indistinguishable on every dashboard
+# from "the services are healthy". The `clamp_min(..., 1)` denominator guard made
+# it worse: it turned no-data into a *numerically healthy* 0.0 rather than a gap.
+#
+# The alternative was to enable the metric instead. Rejected: `metrics.enabled` in
+# charts/socioprophet-service gates only the ServiceMonitor — a scrape-side toggle
+# that never reaches application code. Turning it on points Prometheus at that
+# confirmed 404 and fires TargetDown; it manufactures a new false signal rather
+# than a real one. A real emitter means writing HTTP middleware in both Python and
+# Go, adding an OTel SDK to ~47 services, and rebuilding every image — none of
+# which can be built or verified while Actions is at its spend cap. Shipping
+# "enabled" unverified would have rebuilt the exact defect being removed.
+#
+# Coverage lost: none that ever existed. These rules produced no signal from the
+# day they were written. What replaces them is per-workload health from
+# kube-state-metrics, which is scraped, has series today, and is proven below to
+# fire on a real broken workload.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -14,33 +47,74 @@ spec:
   groups:
     - name: socioprophet.availability
       rules:
+        # `up` is real: 14 series across 9 scrape jobs.
         - alert: TargetDown
           expr: up == 0
           for: 5m
           labels: { severity: warning }
           annotations:
             summary: "Target {{ $labels.job }} / {{ $labels.instance }} is down"
+        # Was `up{job=~".*hellgraph.*"} == 0`. Also dead, for a second reason: there
+        # is no hellgraph scrape job. The ServiceMonitor that was supposed to create
+        # one selected `app: hellgraph`, a label no Service in the estate carries
+        # (the Service is `hellgraph-service`, labelled by the Helm chart with
+        # app.kubernetes.io/*), so it produced no target at all — not even a failing
+        # one. `up{...} == 0` over an empty vector never fires. Re-expressed over
+        # kube-state-metrics, which does report this Deployment.
         - alert: HellGraphDown
-          expr: up{job=~".*hellgraph.*"} == 0
+          expr: kube_deployment_status_replicas_available{namespace="socioprophet", deployment="hellgraph-service"} == 0
           for: 2m
           labels: { severity: critical }
           annotations:
-            summary: "HellGraph managed graph service is down — person-graph reads/writes fail"
-    - name: socioprophet.request-slo
+            summary: "HellGraph managed graph service has no available replica — person-graph reads/writes fail"
+
+    - name: socioprophet.workload-health
+      # The replacement for the request-SLO group. Not a like-for-like swap — it
+      # cannot tell you a 5xx ratio — but it detects the failure modes that
+      # actually take services down here (crashloop, unschedulable, config error,
+      # bad image), and unlike its predecessor it can fire.
       rules:
-        # 5xx error ratio per service — the canary gate metric.
-        - record: job:request_error_ratio:rate5m
+        - alert: WorkloadUnavailable
           expr: |
-            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
-            /
-            clamp_min(sum by (job) (rate(http_server_request_duration_seconds_count[5m])), 1)
-        # p99 latency per service — the second canary gate metric.
-        - record: job:request_latency_p99:5m
-          expr: |
-            histogram_quantile(0.99, sum by (job, le) (rate(http_server_request_duration_seconds_bucket[5m])))
-        - alert: HighErrorRatio
-          expr: job:request_error_ratio:rate5m > 0.05
+            kube_deployment_status_replicas_available{namespace="socioprophet"} == 0
+              and on (namespace, deployment)
+            kube_deployment_spec_replicas{namespace="socioprophet"} > 0
           for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: "{{ $labels.deployment }} has 0/{{ $labels.spec_replicas }} available replicas for 10m"
+        - alert: WorkloadCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~"socioprophet|observability|serving"}[15m]) > 3
+          for: 5m
           labels: { severity: warning }
           annotations:
-            summary: "{{ $labels.job }} 5xx ratio > 5% (SLO breach) — blocks canary promotion"
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} container {{ $labels.container }} restarted {{ $value | printf \"%.0f\" }}x in 15m"
+
+    - name: socioprophet.rule-inputs
+      # THE META-GUARD, and the reason this file was rewritten rather than trimmed.
+      #
+      # Every alert above is a claim about data. If the data stops arriving, a
+      # threshold alert goes quiet and reports healthy — which is how
+      # HighErrorRatio, HellGraphDown and KubePersistentVolumeFillingUp all sat at
+      # `health=ok` over zero series. `absent()` is the PromQL primitive for exactly
+      # this and was used nowhere in the estate.
+      #
+      # Verified both directions on the live server:
+      #   absent(kube_deployment_status_replicas_available{namespace="socioprophet"})
+      #     -> 0 series  (input present, no alert)
+      #   absent(http_server_request_duration_seconds_count)
+      #     -> 1         (input missing, alert fires)
+      rules:
+        - alert: AlertInputSeriesMissing
+          expr: |
+            absent(up)
+            or absent(kube_deployment_status_replicas_available{namespace="socioprophet"})
+            or absent(kube_pod_container_status_restarts_total{namespace="socioprophet"})
+          for: 10m
+          labels: { severity: critical }
+          annotations:
+            summary: "An input series every socioprophet alert depends on has disappeared — the alerts above are now blind, not quiet"
+            description: >-
+              kube-state-metrics or the scrape path has stopped producing. Until this
+              clears, treat WorkloadUnavailable / WorkloadCrashLooping / HellGraphDown
+              as UNKNOWN rather than OK.
