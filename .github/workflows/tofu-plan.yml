@@ -8,10 +8,18 @@ on:
     branches: [main]
     paths:
       - "infra/tofu/**"
+      - ".github/workflows/tofu-plan.yml"
+      - "scripts/ci/install-opentofu.sh"
   pull_request:
     branches: [main]
     paths:
       - "infra/tofu/**"
+      # So a change to this workflow, or to the installer it now depends on, is
+      # exercised before it merges. Between 2026-06-23 and this commit every run
+      # was a startup_failure, and nothing triggered on the workflow file itself,
+      # so no PR could have revealed that.
+      - ".github/workflows/tofu-plan.yml"
+      - "scripts/ci/install-opentofu.sh"
 
 env:
   TOFU_VERSION: "1.8.3"
@@ -23,9 +31,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: ${{ env.TOFU_VERSION }}
+      # opentofu/setup-opentofu cannot run here: this repo restricts actions to
+      # github-owned + verified-Marketplace + an explicit pattern allowlist, and
+      # setup-opentofu is on none of those (it is not Marketplace-listed at all).
+      # The run was rejected before any job started, which is why every run since
+      # 2026-06-23 was a startup_failure with nothing in the logs.
+      # See scripts/ci/install-opentofu.sh for the checksum pinning that replaces it.
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
 
       - name: fmt check
         run: tofu fmt -check -recursive infra/tofu/
@@ -92,9 +105,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: ${{ env.TOFU_VERSION }}
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
 
       - name: Authenticate to GCP via WIF
         uses: google-github-actions/auth@v2
