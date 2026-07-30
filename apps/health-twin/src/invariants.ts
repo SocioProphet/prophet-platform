@@ -4,7 +4,7 @@
 // truth, leaking what should be blinded) become impossible to merge.
 import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING } from './data.js';
 import { deidentify, identifierLeaks } from './deident.js';
-import { openConsult, submitOpinion, aggregate } from './consult.js';
+import { openConsult, submitOpinion, aggregate, requestMore } from './consult.js';
 import { patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { emptyResult } from './ingest.js';
 
@@ -128,6 +128,7 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
 // regression was fixed. An invariant that constructs its own subject cannot fail.
 //
 // These read the ids the code actually produces.
+console.log('\n▶ INVARIANT 5 — receipts EMITTED by the real code paths are cryptographic');
 {
   const consult = openConsult(sampleBundle, 'receipt-probe', 'standard', true);
   ok(/^consult-[0-9a-f]{64}$/.test(consult.consult_id ?? ''),
@@ -141,9 +142,99 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
   ok(/^op-[0-9a-f]{64}$/.test(opinion.id ?? ''), 'opinion id is a real sha256');
   ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(opinion.receipt?.id ?? ''), 'opinion receipt id is a real sha256');
 
-  // No id anywhere may be the old 8-hex djb2 shape.
-  const ids = [consult.consult_id, consult.receipt?.id, consult.consent?.receipt, opinion.id, opinion.receipt?.id];
-  ok(ids.every((i) => !/-[0-9a-f]{8}$/.test(String(i))), 'no id ends in an 8-hex (djb2) digest');
+  const more = requestMore(consult.consult_id!, 'medication list', 'need the full list') as any;
+  ok(/^more-[0-9a-f]{64}$/.test(more.id ?? ''), 'more-request id is a real sha256');
+
+  // aggregate() mints its own receipt and re-publishes every opinion's receipt id; both are checked
+  // on the value the function returns, not on a reconstruction of it.
+  const probeAgg = aggregate(consult.consult_id!) as any;
+  ok(/^ht-[a-z-]+-[0-9a-f]{64}$/.test(probeAgg.receipt?.id ?? ''),
+     'consult-aggregate receipt id is a real sha256');
+  ok(probeAgg.opinions.length > 0 && probeAgg.opinions.every((o: any) => /^ht-[a-z-]+-[0-9a-f]{64}$/.test(o.receipt)),
+     'every opinion receipt republished by aggregate is a real sha256');
+
+  // No id anywhere may be the old 8-hex djb2 shape. This is the check that would have caught
+  // the miss: it runs over EMITTED ids, so a djb2 call site cannot hide behind a passing suite.
+  const ids = [
+    consult.consult_id, consult.receipt?.id, consult.consent?.receipt,
+    opinion.id, opinion.receipt?.id, more.id, probeAgg.receipt?.id,
+    ...probeAgg.opinions.map((o: any) => o.receipt),
+  ];
+  ok(ids.every((i) => !/-[0-9a-f]{8}$/.test(String(i))), 'no emitted id ends in an 8-hex (djb2) digest');
+  ok(ids.every((i) => /-[0-9a-f]{64}$/.test(String(i))), `all ${ids.length} emitted ids carry a full 64-hex digest`);
+}
+
+console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptographic AND honestly labelled');
+// deident.ts derived the pseudonym over PHI with 32-bit djb2 — the same regression as the consult
+// receipts, but a re-identification risk rather than a receipt-integrity one, and it survived the
+// sweep because this file never wore a "sha-" label. Asserted on real deidentify() output.
+{
+  const v = deidentify(sampleBundle, 'deid-probe');
+  ok(/^anon:[0-9a-f]{32}$/.test(v.receipt.pseudonym),
+     `pseudonym is anon: + 32 hex / 128 bits (${v.receipt.pseudonym})`);
+  ok(!/^anon:[0-9a-f]{8}$/.test(v.receipt.pseudonym), 'pseudonym is NOT the old 8-hex djb2 token');
+  ok(v.subject.pseudonym === v.receipt.pseudonym, 'the view and its receipt carry the same pseudonym');
+
+  ok(deidentify(sampleBundle, 'deid-probe').receipt.pseudonym === v.receipt.pseudonym,
+     'same subject + same salt → same pseudonym (stable within a consult)');
+  ok(deidentify(sampleBundle, 'other-scope').receipt.pseudonym !== v.receipt.pseudonym,
+     'a different salt → a different pseudonym (consults stay unlinkable)');
+
+  // parseInt over >13 hex digits silently rounds past 2^53 and collapses the low bits the modulus
+  // consumes, so a broken derivation reaches only a few distinct values instead of the window.
+  const shifts = Array.from({ length: 400 }, (_, i) => deidentify(sampleBundle, `s${i}`).receipt.dateShiftDays);
+  ok(shifts.every((d) => Number.isInteger(d) && d >= -183 && d <= 182), 'every date shift is an integer in [-183, +182]');
+  ok(new Set(shifts).size > 200, `date shift spreads across the window (${new Set(shifts).size} distinct over 400 salts — a parseInt precision loss collapses this)`);
+
+  // domain separation: if both derivations shared one digest, deriving the shift FROM the pseudonym
+  // would reproduce it every time; with separation, all 8 agreeing is a (1/366)^8 event.
+  const allMatch = Array.from({ length: 8 }, (_, i) => `sep${i}`).every((salt) => {
+    const view = deidentify(sampleBundle, salt);
+    const fromPseudonym = Number(BigInt(`0x${view.receipt.pseudonym.slice(5, 21)}`) % 366n) - 183;
+    return fromPseudonym === view.receipt.dateShiftDays;
+  });
+  ok(!allMatch, 'date shift is domain-separated from the pseudonym (not derivable from it)');
+
+  // The receipt must not claim a protection the run did not have. Both branches are exercised so a
+  // receipt hard-coded to keyed:true — the failure mode that matters — cannot pass.
+  const KEY = 'HEALTH_TWIN_DEID_KEY';
+  const saved = process.env[KEY];
+  // try/finally: this block mutates a process-wide variable that changes how PHI is de-identified.
+  // Restoring it only on the happy path would leave every later invariant running under a key state
+  // it did not choose, and a de-id failure would then be attributed to the wrong cause.
+  try {
+    delete process.env[KEY];
+    const unkeyed = deidentify(sampleBundle, 'deid-probe');
+    ok(unkeyed.receipt.keyed === false && unkeyed.receipt.derivation === 'sha256',
+       'with no key configured the receipt declares keyed:false / sha256 — it does not overstate');
+    process.env[KEY] = 'invariant-test-key-32-bytes-long';
+    const keyed = deidentify(sampleBundle, 'deid-probe');
+    ok(keyed.receipt.keyed === true && keyed.receipt.derivation === 'hmac-sha256',
+       'with a key configured the receipt declares keyed:true / hmac-sha256');
+    ok(keyed.receipt.pseudonym !== unkeyed.receipt.pseudonym,
+       'the key actually enters the derivation (keyed pseudonym ≠ unkeyed pseudonym)');
+
+    // A DEGENERATE KEY MUST NOT BUY THE keyed:true LABEL.
+    // The receipt's only job is to never overstate protection. The key is there to close the
+    // guessing attack; a one-character or whitespace key does not close it, so stamping
+    // keyed:true / hmac-sha256 for one would tell a reader the view is protected when it is not.
+    // Such a key is refused and the run falls back to the honest unkeyed path.
+    for (const weak of [' ', 'x', 'short', '\t\n', 'fifteen-bytes!']) {
+      process.env[KEY] = weak;
+      const r = deidentify(sampleBundle, 'deid-probe').receipt;
+      ok(r.keyed === false && r.derivation === 'sha256',
+         `a ${Buffer.byteLength(weak)}-byte key is refused, not reported as protection (${JSON.stringify(weak)} → keyed:${r.keyed})`);
+      ok(r.pseudonym === unkeyed.receipt.pseudonym,
+         `a refused key really is unused — the pseudonym is the unkeyed one (${JSON.stringify(weak)})`);
+    }
+    // and the boundary is where it says it is: 16 bytes is accepted
+    process.env[KEY] = 'sixteen-bytes-16';
+    const atMin = deidentify(sampleBundle, 'deid-probe').receipt;
+    ok(Buffer.byteLength('sixteen-bytes-16') === 16 && atMin.keyed === true && atMin.derivation === 'hmac-sha256',
+       'a key at the 16-byte minimum IS accepted (the floor is a floor, not a moving refusal)');
+  } finally {
+    if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
+  }
 }
 
 
