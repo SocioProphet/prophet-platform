@@ -113,7 +113,25 @@ export interface HolderAuthInput {
   onUnbound?: (grantId: string) => void;
 }
 
-/** Fails closed: every path that is not a proven digest match is a refusal. */
+/**
+ * A digest that matches nothing, minted once per process from the CSPRNG. The refusal path compares
+ * against THIS when the grant is unknown or unbound, so that an unknown id costs the same sha256 and
+ * the same timingSafeEqual as a real one. See authenticateHolder(): the body of a refusal was already
+ * uniform, and the CLOCK was the remaining oracle.
+ */
+const NO_SUCH_GRANT_DIGEST = holderDigest(mintHolderSecret());
+
+/**
+ * Fails closed: every path that is not a proven digest match is a refusal.
+ *
+ * CONSTANT WORK ON THE REFUSAL PATH. Every reachable outcome below computes the presented secret's
+ * digest and runs exactly one timingSafeEqual, whether or not the grant exists and whether or not it
+ * is bound. Returning early on `!g` made the RESPONSE TIME an id-enumeration oracle even though the
+ * response BODY was uniform — the caller learns "this id exists" from the clock instead of the JSON.
+ * (Measured against `grants.find()` over a 2,000-grant ledger: an unknown id cost 37× a known one,
+ * because the miss also paid for a full scan. server.ts now indexes the ledger by id, which removes
+ * the scan; this removes what is left.)
+ */
 export function authenticateHolder(input: HolderAuthInput): HolderAuth {
   if (!input.presented) {
     return {
@@ -129,6 +147,9 @@ export function authenticateHolder(input: HolderAuthInput): HolderAuth {
     };
   }
   const g = input.find(parsed.grantId);
+  // Computed BEFORE any branch on whether the grant was found, and compared unconditionally.
+  const expected = g?.holderDigest ?? NO_SUCH_GRANT_DIGEST;
+  const matches = constantTimeEqual(expected, holderDigest(parsed.secret));
   if (!g) return { ok: false, code: 401, reason: HOLDER_FAILED };
   if (!g.holderDigest) {
     // A grant minted before holder binding existed authenticates nobody. It does not get a pass for
@@ -136,9 +157,7 @@ export function authenticateHolder(input: HolderAuthInput): HolderAuth {
     input.onUnbound?.(parsed.grantId);
     return { ok: false, code: 401, reason: HOLDER_FAILED };
   }
-  if (!constantTimeEqual(g.holderDigest, holderDigest(parsed.secret))) {
-    return { ok: false, code: 401, reason: HOLDER_FAILED };
-  }
+  if (!matches) return { ok: false, code: 401, reason: HOLDER_FAILED };
   return { ok: true, grantId: parsed.grantId, holderDigest: g.holderDigest };
 }
 
@@ -230,3 +249,53 @@ export const LEGACY_QUERY_DETAIL =
 export const LEGACY_QUERY_WARNING =
   `299 - "deprecated: grant id in query string; use the ${HOLDER_HEADER} header. This form is unauthenticated ` +
   `and is refused unless HEALTH_TWIN_LEGACY_GRANT_QUERY=1 on a synthetic-only deployment."`;
+
+export const BODY_ID_REFUSAL = 'a bare grant id in the request body is not a credential';
+export const BODY_ID_DETAIL =
+  `a JSON body is not written to the access log, but possession of the id is still the whole ` +
+  `authorization — present the grant as \`${HOLDER_HEADER}: <grant-id>.<secret>\` instead`;
+export const BOTH_FORMS_REFUSAL = 'a bare grant id was presented alongside a holder credential';
+export const BOTH_FORMS_DETAIL =
+  `two different answers to "which grant is this" on one request is how a service ends up checking ` +
+  `one and believing it checked the other — send only \`${HOLDER_HEADER}\``;
+
+/**
+ * WHAT TO DO WITH A BARE GRANT ID, wherever it arrived.
+ *
+ * 🔴 THE BUG THIS REPLACES. The refusal was guarded by `bareId !== null && !presented`: a request
+ * carrying BOTH a `?grant=<id>` and a valid `x-health-grant` header skipped the refusal entirely and
+ * was served 200. So the id still went into the access log, the proxy log, the browser history and
+ * the `Referer` of every outbound link — and the deprecation `Warning` was suppressed on exactly the
+ * requests that were normalising the channel. The leak is not caused by the id being the credential;
+ * it is caused by the id being IN THE URL. Adding a second, better credential does not un-log it.
+ *
+ * So the query form is refused WHENEVER IT IS PRESENT, whatever else the request carries. The one
+ * exception is the explicit synthetic-only opt-in, and even then only when the caller presents
+ * nothing better: a request that has a real credential has no business also naming a grant in the URL.
+ *
+ * Pure, so the rule is provable without a socket, and shared by both channels so they cannot drift.
+ */
+export interface BareIdDecision {
+  refuse: boolean;
+  /** Present when refusing. */
+  reason?: string;
+  detail?: string;
+  /** Present when NOT refusing: the legacy path is live and must be loud on every single use. */
+  warn?: boolean;
+}
+
+export function bareIdPolicy(input: {
+  channel: 'query' | 'body';
+  /** Did the request also present a holder credential? */
+  presented: boolean;
+  /** HEALTH_TWIN_LEGACY_GRANT_QUERY=1 on a synthetic-only deployment. */
+  legacyAllowed: boolean;
+}): BareIdDecision {
+  if (!input.legacyAllowed) {
+    return input.channel === 'query'
+      ? { refuse: true, reason: LEGACY_QUERY_REFUSAL, detail: LEGACY_QUERY_DETAIL }
+      : { refuse: true, reason: BODY_ID_REFUSAL, detail: BODY_ID_DETAIL };
+  }
+  if (input.presented) return { refuse: true, reason: BOTH_FORMS_REFUSAL, detail: BOTH_FORMS_DETAIL };
+  return { refuse: false, warn: true };
+}

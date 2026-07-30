@@ -424,7 +424,7 @@ console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusa
     'a cardiovascular-only grant admits exactly the cardio compartment (hepatic + renal stay outside)');
 }
 
-console.log('\n▶ INVARIANT 8 — a grant id is not a credential: the holder is authenticated, both ways');
+console.log('\n▶ INVARIANT 9 — a grant id is not a credential: the holder is authenticated, both ways');
 {
   const {
     authenticateHolder, holderDigest, holderToken, mintHolderSecret, parseHolderToken,
@@ -507,6 +507,142 @@ console.log('\n▶ INVARIANT 8 — a grant id is not a credential: the holder is
   ok(!serverSrc.includes('grant-seed-rivera'), 'the hard-coded grant-seed-rivera id is gone from server.ts');
   ok(!/holderDigest:\s*['"`]/.test(serverSrc) && !/HEALTH_TWIN_SEED_GRANT_SECRET\s*=\s*['"`][^'"`]/.test(serverSrc),
      'no holder secret or digest is a literal in server.ts');
+}
+
+console.log('\n▶ INVARIANT 10 — the credential is not usable from anywhere: origins, ids, and the bare-id rule');
+{
+  const { corsHeaders, corsPolicyFromEnv, isOrigin, originAllowed, DEV_ORIGINS } = await import('./cors.js');
+  const { mintId, ID_PATTERN } = await import('./ids.js');
+  const {
+    bareIdPolicy, authenticateHolder, holderDigest, holderToken, mintHolderSecret,
+    LEGACY_QUERY_REFUSAL, BODY_ID_REFUSAL, BOTH_FORMS_REFUSAL,
+  } = await import('./grantauth.js');
+
+  // ── CORS: `*` is not a value this service emits, and not one an operator can ask for ────────────
+  // `access-control-allow-origin: *` alongside an allowed `x-health-grant` header let ANY page mint a
+  // grant and read the chart cross-origin — the PR that introduced the credential also made it
+  // usable by an attacker page. The allowlist is the fix; these prove it BOTH ways.
+  const allowed = new Set(['https://cockpit.example']);
+  const hit = corsHeaders('https://cockpit.example', allowed);
+  const miss = corsHeaders('https://evil.example', allowed);
+  const none = corsHeaders(undefined, allowed);
+  ok(hit['access-control-allow-origin'] === 'https://cockpit.example',
+     'an allowlisted origin is echoed EXACTLY (a gate that refuses everyone is equally broken)');
+  ok(miss['access-control-allow-origin'] === undefined && none['access-control-allow-origin'] === undefined,
+     'a foreign origin — and a caller with no Origin at all — gets no access-control-allow-origin');
+  ok(!Object.values({ ...hit, ...miss, ...none }).includes('*'),
+     'no response carries a wildcard origin, on a hit or a miss');
+  ok(hit['vary'] === 'origin' && miss['vary'] === 'origin' && none['vary'] === 'origin',
+     'every response varies on Origin — the reply depends on it, and a cache that does not know that leaks one origin’s allowance to another');
+  ok(hit['access-control-allow-credentials'] === undefined,
+     'credentials mode is never enabled: the holder credential is an explicit header, never ambient browser authority');
+  ok(miss['access-control-allow-headers'] === undefined,
+     `a refused origin is not even told it could have set the credential header`);
+  ok(originAllowed('https://cockpit.example', allowed) && !originAllowed('', allowed) && !originAllowed('https://evil.example', allowed),
+     'originAllowed() is true only for a named origin — an absent Origin is not a browser and is not "allowed"');
+
+  const wildcard = corsPolicyFromEnv({ HEALTH_TWIN_ALLOWED_ORIGINS: 'https://ok.example,*' } as any, 'synthetic-only');
+  ok(wildcard.origins.length === 0 && !!wildcard.fatal,
+     'asking for `*` in HEALTH_TWIN_ALLOWED_ORIGINS is FATAL at boot — the defect cannot move from a line of code to a line of YAML');
+  ok(!!corsPolicyFromEnv({ HEALTH_TWIN_ALLOWED_ORIGINS: 'https://ok.example/path' } as any, 'synthetic-only').fatal,
+     'a value that is not an origin is fatal too — an allowlist entry that can never match is a silent outage');
+  ok(corsPolicyFromEnv({} as NodeJS.ProcessEnv, 'authenticated').origins.length === 0,
+     'an authenticated deployment allows NO browser origin unless one is named (the cockpit reaches it same-origin through nginx)');
+  ok(corsPolicyFromEnv({} as NodeJS.ProcessEnv, 'synthetic-only').origins.every((o) => DEV_ORIGINS.includes(o)),
+     'the synthetic-only default is the loopback dev origins and nothing wider');
+  ok(corsPolicyFromEnv({ HEALTH_TWIN_ALLOWED_ORIGINS: 'https://a.example, https://b.example' } as any, 'authenticated').origins.length === 2,
+     'a named allowlist is authoritative, in either mode');
+  ok(corsPolicyFromEnv({ HEALTH_TWIN_ALLOWED_ORIGINS: '' } as any, 'synthetic-only').origins.length === 0,
+     'an EMPTY HEALTH_TWIN_ALLOWED_ORIGINS means none — "no browser at all" has to be sayable, or the dev defaults come back on the deployment that just asked for none');
+  ok(isOrigin('https://a.example') && isOrigin('http://127.0.0.1:5174')
+     && !isOrigin('*') && !isOrigin('https://a.example/') && !isOrigin('a.example') && !isOrigin('https://*.example'),
+     'an origin is `scheme://host[:port]` — no wildcard, no path, no trailing slash, no bare hostname');
+
+  // ── ids are MINTED, not derived from their own published inputs ────────────────────────────────
+  const ids = Array.from({ length: 5_000 }, () => mintId('grant'));
+  ok(new Set(ids).size === ids.length,
+     '5,000 ids minted in one tight loop are all distinct — the old sha256(agent|scope|ms) collided on 79% of 200 concurrent issues');
+  ok(ids.every((i) => ID_PATTERN.test(i)) && ids[0]!.length === 'grant-'.length + 64,
+     'every id is <prefix>-<64 hex> — 256 CSPRNG bits, the width the estate’s no-djb2 id ratchet already demands');
+  {
+    // The whole point: the published fields no longer determine the id.
+    const { createHash } = await import('node:crypto');
+    // Every millisecond a mint could plausibly have happened in, derived both ways the old code
+    // might have joined its parts. None of them may hit a minted id. (The widths now match — a
+    // 256-bit mint is 64 hex, same as a sha256 — so this compares VALUES, which is the actual claim.)
+    const now = Date.now();
+    const derived = new Set<string>();
+    for (let t = now - 5_000; t <= now + 5_000; t++) {
+      const parts = ['Dr. X', 'cardiometabolic', String(t)];
+      derived.add(`grant-${createHash('sha256').update(parts.join('|')).digest('hex')}`);
+      derived.add(`grant-${createHash('sha256').update(JSON.stringify(parts)).digest('hex')}`);
+    }
+    ok(ids.every((i) => !derived.has(i)),
+       `an id is not recomputable from (agent, scope, granted_at) — ${derived.size.toLocaleString()} candidate derivations over a 10s window hit none of ${ids.length.toLocaleString()} minted ids; a grant listing is no longer a way to derive every id in it`);
+  }
+
+  // ── a bare id is refused wherever it arrives, and whatever else the request carries ────────────
+  ok(bareIdPolicy({ channel: 'query', presented: false, legacyAllowed: false }).reason === LEGACY_QUERY_REFUSAL,
+     '?grant=<id> alone is refused');
+  ok(bareIdPolicy({ channel: 'query', presented: true, legacyAllowed: false }).refuse === true,
+     '🔴 ?grant=<id> is refused EVEN WITH a valid holder credential — `bareId !== null && !presented` served those 200, left the id in the URL, and suppressed the deprecation warning');
+  ok(bareIdPolicy({ channel: 'body', presented: false, legacyAllowed: false }).reason === BODY_ID_REFUSAL,
+     'a bare id in the JSON body is refused too, and told why in its own words (a body is not logged; possession is still the whole authorization)');
+  ok(bareIdPolicy({ channel: 'body', presented: true, legacyAllowed: false }).refuse === true,
+     'a bare body id plus a credential is refused as well — one request, one answer to "which grant is this"');
+  ok(bareIdPolicy({ channel: 'query', presented: false, legacyAllowed: true }).refuse === false
+     && bareIdPolicy({ channel: 'query', presented: false, legacyAllowed: true }).warn === true,
+     'the synthetic-only opt-in still works, and is warned on every use (a gate that refuses everyone is equally broken)');
+  ok(bareIdPolicy({ channel: 'query', presented: true, legacyAllowed: true }).reason === BOTH_FORMS_REFUSAL,
+     'even with the opt-in on, presenting BOTH forms is refused rather than silently preferring one');
+
+  // ── the refusal costs the same whether or not the id exists ────────────────────────────────────
+  // The body was already uniform; the CLOCK was the remaining oracle. Both halves are asserted: the
+  // ledger is indexed (no scan) and the compare runs on every path (no early return on a miss).
+  {
+    // The two ids are the SAME LENGTH on purpose: an attacker picks the id, so a length difference
+    // measures strlen on their own input and tells them nothing about the ledger. What must not vary
+    // is the cost of the LOOKUP and the COMPARE. Interleaved runs, minimum taken — the minimum is the
+    // run least disturbed by the scheduler, and a real oracle survives it.
+    const KNOWN = 'grant-known-000000000000000000000000';
+    const UNKNOWN = 'grant-nope--000000000000000000000000';
+    const index = new Map([[KNOWN, { id: KNOWN, holderDigest: holderDigest(mintHolderSecret()) }]]);
+    const find = (id: string) => index.get(id);
+    const bench = (id: string, iters: number) => {
+      for (let i = 0; i < 5_000; i++) authenticateHolder({ presented: `${id}.wrong-secret`, find });
+      const t0 = process.hrtime.bigint();
+      for (let i = 0; i < iters; i++) authenticateHolder({ presented: `${id}.wrong-secret`, find });
+      return Number(process.hrtime.bigint() - t0);
+    };
+    //
+    // SELF-CALIBRATING, because a shared CI runner's noise floor is not knowable in advance and a
+    // fixed threshold is either flaky or meaningless. The same workload is benched twice to measure
+    // what this machine's repeat-measurement error IS, and the known-vs-unknown difference then has
+    // to sit inside that. This detects an ORDER-OF-MAGNITUDE tell — the array scan was 3,682% — and
+    // is not claimed as a formal constant-time proof, which a JIT and a shared runner cannot give.
+    const a: number[] = [], b: number[] = [], c: number[] = [];
+    for (let r = 0; r < 5; r++) {
+      a.push(bench(KNOWN, 20_000)); b.push(bench(UNKNOWN, 20_000)); c.push(bench(KNOWN, 20_000));
+    }
+    const exists = Math.min(...a), unknown = Math.min(...b), again = Math.min(...c);
+    const rel = (x: number, y: number) => Math.abs(x - y) / Math.max(x, y);
+    const noise = rel(exists, again);           // the same work, twice — pure measurement error
+    const skew = rel(exists, unknown);          // the signal an attacker would be reading
+    const budget = Math.max(0.25, noise * 2);
+    ok(skew <= budget,
+       `refusing a KNOWN id and an UNKNOWN id cost the same to within this machine's own noise ` +
+       `(skew ${(skew * 100).toFixed(1)}%, noise floor ${(noise * 100).toFixed(1)}%, budget ${(budget * 100).toFixed(1)}%) — ` +
+       `the response time is not an id-enumeration oracle (the ledger scan it replaced measured 3,682%)`);
+
+    // Both halves of that, asserted in the source so a refactor cannot quietly reinstate either.
+    // Comments are stripped first: this file's own prose names the thing it is forbidding.
+    const src = (await import('node:fs')).readFileSync(new URL('./server.ts', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    ok(!/grants\.find\(/.test(src) && /grantIndex\.get\(/.test(src),
+       'server.ts looks a grant up by index, not by walking the ledger (a scan costs a full pass on a miss and one comparison on a head hit: 54µs vs 1.4µs over 2,000 grants)');
+    ok(!/['"`]access-control-allow-origin['"`]/.test(src),
+       'server.ts sets no access-control-allow-origin of its own — cors.ts holds the only copy of the policy');
+  }
 }
 
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);

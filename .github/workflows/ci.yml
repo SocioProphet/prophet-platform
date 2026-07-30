@@ -60,6 +60,10 @@ jobs:
           # refuses to boot.
           HEALTH_TWIN_SEED_GRANT: '1'
           HEALTH_TWIN_SEED_GRANT_SECRET: ci-holder-secret-not-a-production-value
+          # An explicit allowlist, because the default on a synthetic-only deployment is the loopback
+          # dev origins and this proves the configured path too. `*` is not expressible — asking for
+          # it is fatal at boot, asserted below.
+          HEALTH_TWIN_ALLOWED_ORIGINS: http://localhost:5174
         run: |
           SEED_GRANT=grant-dev-seed-cardiology
           SEED_TOKEN="$SEED_GRANT.$HEALTH_TWIN_SEED_GRANT_SECRET"
@@ -70,19 +74,96 @@ jobs:
           # holds what used to be sufficient to open a chart. It is refused before any lookup happens.
           test "$(curl -s -o /dev/null -w '%{http_code}' "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT")" = 401
           curl -s "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT" | grep -q 'not accepted in the query string'
+          # 🔴 NEGATIVE: …and refused WITH a valid holder credential too. The guard used to be
+          # `bareId !== null && !presented`, so a request carrying both was served 200: the id still
+          # went into the access log, the proxy log, the history and the `Referer`, and the
+          # deprecation Warning was suppressed on exactly those requests. What leaks the id is the
+          # URL, not the absence of a better credential.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $SEED_TOKEN" "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT")" = 401
+          curl -sD - -o /dev/null -H "x-health-grant: $SEED_TOKEN" "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT" | grep -qi '^warning:'
+          # …and the same for a bare id in the JSON body, which is the same capability by a channel
+          # that merely happens not to be logged.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8097/api/health/agent-read -H 'content-type: application/json' -H "x-health-grant: $SEED_TOKEN" -d "{\"grant\":\"$SEED_GRANT\"}")" = 401
           # NEGATIVE: the id in the header with no secret; a guessed secret; no credential at all.
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $SEED_GRANT" localhost:8097/api/health/doctor-view)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $SEED_GRANT.wrong-secret" localhost:8097/api/health/doctor-view)" = 401
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8097/api/health/doctor-view)" = 401
           # NEGATIVE: no enumeration oracle — an unknown id and a wrong secret are indistinguishable.
-          diff <(curl -s -H "x-health-grant: grant-nope.wrong-secret" localhost:8097/api/health/doctor-view | grep -o '"reason":"[^"]*"') \
-               <(curl -s -H "x-health-grant: $SEED_GRANT.also-wrong" localhost:8097/api/health/doctor-view | grep -o '"reason":"[^"]*"')
+          #
+          # 🔴 The previous form of this check COULD NOT FAIL. It was:
+          #     diff <(curl … | grep -o '"reason":"[^"]*"') <(curl … | grep -o '"reason":"[^"]*"')
+          # which compares one grepped substring and ignores every other field in the body — an
+          # oracle hiding in `detail`, in the receipt, or in the shape sails straight through
+          # (demonstrated). And `grep -o` prints NOTHING when it does not match, so two empty
+          # responses — server down, route renamed, body reshaped — diff clean and the step goes
+          # green having compared nothing at all. A check that passes on two empty strings is not a
+          # check. Whole body, non-emptiness asserted, and only the receipt's clock normalised.
+          norm() {
+            node -e '
+              let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
+                if(!s.trim()){console.error("EMPTY refusal body — nothing was compared");process.exit(9);}
+                let o; try{o=JSON.parse(s);}catch{console.error("NON-JSON refusal body: "+s.slice(0,200));process.exit(9);}
+                if(o&&o.receipt&&o.receipt.at)o.receipt.at="<clock>";
+                process.stdout.write(JSON.stringify(o));});'
+          }
+          # assert_identical_refusals <label> <bodyA> <bodyB> <expected-substring>
+          assert_identical_refusals() {
+            local label="$1" na nb
+            na="$(printf '%s' "$2" | norm)" || { echo "FAIL [$label]: first refusal body unusable" >&2; return 1; }
+            nb="$(printf '%s' "$3" | norm)" || { echo "FAIL [$label]: second refusal body unusable" >&2; return 1; }
+            # positive control: this must be the refusal we think it is, not two matching non-refusals
+            printf '%s' "$na" | grep -q -- "$4" || { echo "FAIL [$label]: body is not the refusal under test (want: $4)" >&2; printf '  got: %s\n' "$na" >&2; return 1; }
+            [ "$na" = "$nb" ] || { echo "FAIL [$label]: id-enumeration oracle — unknown id and wrong secret give DIFFERENT refusals" >&2; diff <(printf '%s\n' "$na") <(printf '%s\n' "$nb") >&2 || true; return 1; }
+            echo "ok [$label]: refusals byte-identical"
+          }
+          # PROVE THE CHECK HAS TEETH, in CI, before trusting its verdict. A scanner that has never
+          # been seen to fail is a scanner nobody has tested.
+          UNIFORM='grant holder authentication failed'
+          if assert_identical_refusals self-test/differ '{"reason":"grant holder authentication failed","x":1}' '{"reason":"grant holder authentication failed","x":2}' "$UNIFORM" 2>/dev/null; then
+            echo "FAIL: the enumeration check passed two DIFFERENT bodies — it cannot fail" >&2; exit 1; fi
+          if assert_identical_refusals self-test/empty '' '' "$UNIFORM" 2>/dev/null; then
+            echo "FAIL: the enumeration check passed two EMPTY bodies — the old bug is back" >&2; exit 1; fi
+          if assert_identical_refusals self-test/not-a-refusal '{"ok":true}' '{"ok":true}' "$UNIFORM" 2>/dev/null; then
+            echo "FAIL: the enumeration check passed two matching NON-refusals" >&2; exit 1; fi
+          # …and only now, the real thing.
+          assert_identical_refusals unknown-id-vs-wrong-secret \
+            "$(curl -s -H "x-health-grant: grant-nope.wrong-secret" localhost:8097/api/health/doctor-view)" \
+            "$(curl -s -H "x-health-grant: $SEED_GRANT.also-wrong"  localhost:8097/api/health/doctor-view)" \
+            "$UNIFORM"
           # NEGATIVE: nothing in the refusal leaks the chart, the agent or the scope.
           if curl -s -H "x-health-grant: $SEED_GRANT.wrong-secret" localhost:8097/api/health/doctor-view | grep -qE 'Rivera|cardiometabolic|withheld|observations'; then
             echo "FAIL: a refused grant read leaked chart, agent or scope detail" >&2; exit 1
           fi
+          # 🔴 NEGATIVE: the CREDENTIAL IS NOT USABLE FROM ANYWHERE. `send()` put
+          # `access-control-allow-origin: *` on every response, and this change added
+          # `x-health-grant` to the allowed request headers — together, an invitation for any page in
+          # any tab to mint a grant and read the chart cross-origin. Verified end to end in a real
+          # browser before the fix. Proved both ways here, on the routes that take the credential.
+          for R in /api/health/doctor-view /api/health/evidence /api/health/grant /api/health/twin /api/health/twin.ttl; do
+            if curl -sD - -o /dev/null -H 'Origin: https://evil.example' "localhost:8097$R" | grep -qi 'access-control-allow-origin'; then
+              echo "FAIL: $R handed an allowance to an origin that is not on the list" >&2; exit 1; fi
+            curl -sD - -o /dev/null -H 'Origin: https://evil.example' "localhost:8097$R" | grep -qi '^vary: origin'
+          done
+          if curl -sD - -o /dev/null localhost:8097/api/health/doctor-view -H "x-health-grant: $SEED_TOKEN" | grep -qi 'access-control-allow-origin: \*'; then
+            echo "FAIL: a wildcard origin is still being emitted" >&2; exit 1; fi
+          # …and the legitimate cockpit origin still works, header for header.
+          curl -sD - -o /dev/null -H 'Origin: http://localhost:5174' localhost:8097/api/health/doctor-view | grep -qi 'access-control-allow-origin: http://localhost:5174'
+          curl -sD - -o /dev/null -H 'Origin: http://localhost:5174' localhost:8097/api/health/doctor-view | grep -qi 'access-control-allow-headers:.*x-health-grant'
+          # the preflight — where a browser asks whether it may send the credential from this origin
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: https://evil.example' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: x-health-grant' localhost:8097/api/health/grant)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS -H 'Origin: http://localhost:5174' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: x-health-grant' localhost:8097/api/health/grant)" = 204
+          # 🔴 NEGATIVE: /evidence carried NO credential requirement — `required:false` meant "no
+          # grant, no narrowing", i.e. the widest read the service can do, for free. groundTwin()
+          # returns every out-of-range observation and every condition with its value, unit and
+          # reference range, plus the patient's age band, sex and comorbidity list as retrieval
+          # context: the content of the records a scope withholds. That is the side door the route's
+          # own comment claims to close, and prophet-platform#1083's tests already assert the 401.
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8097/api/health/evidence)" = 401
+          if curl -s localhost:8097/api/health/evidence | grep -qE '"finding"|"context"'; then
+            echo "FAIL: unauthenticated /evidence returned findings or patient context" >&2; exit 1; fi
           # POSITIVE: the actual holder still reads. A gate that refuses everyone is equally broken.
           curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"withheld"'
+          curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/evidence | grep -q '"presentedBy":"sha256-'
           # the read is receipted with WHO presented WHAT against WHICH subject, and does not overstate
           curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
           curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"subject":"synthetic-subject-0"'
@@ -95,6 +176,23 @@ jobs:
           # a freshly issued grant hands back its secret ONCE, and that secret works
           NEW=$(curl -fsS -X POST localhost:8097/api/health/grant -H 'content-type: application/json' -d '{"agent":"Dr. CI","scope":"cardiometabolic"}')
           echo "$NEW" | grep -q '"shownOnce":true'
+          # 🔴 NEGATIVE: grant ids are MINTED, not derived. `grant-<sha256(agent|scope|ms)>` collided
+          # on 79% of 200 concurrent issues to the same agent and scope — two rows under one identity,
+          # one holder silently unable to authenticate, revocation hitting one of them, and every
+          # receipt naming that id ambiguous. And `granted_at` is published at millisecond precision
+          # beside the agent and the scope, so the id was recomputable offline from a grant listing.
+          node --input-type=module -e '
+            const N=300, body=JSON.stringify({agent:"Dr. Concurrent",scope:"cardiometabolic"});
+            const rs=await Promise.all(Array.from({length:N},()=>fetch("http://localhost:8097/api/health/grant",
+              {method:"POST",headers:{"content-type":"application/json"},body}).then(r=>r.json())));
+            const ids=rs.map(r=>r.grant.id), u=new Set(ids);
+            if(u.size!==N){console.error(`FAIL: ${N-u.size}/${N} grant ids collided under concurrency`);process.exit(1);}
+            const {createHash}=await import("node:crypto"); const g=rs[0].grant, ms=new Date(g.granted_at).getTime();
+            for(const j of [["Dr. Concurrent","cardiometabolic",String(ms)].join("|"), JSON.stringify(["Dr. Concurrent","cardiometabolic",String(ms)])])
+              if("grant-"+createHash("sha256").update(j).digest("hex")===g.id){console.error("FAIL: the id is recomputable from its published inputs");process.exit(1);}
+            if(!/^grant-[0-9a-f]{64}$/.test(g.id)){console.error("FAIL: id is not 256 minted bits: "+g.id);process.exit(1);}
+            console.log(`ok: ${N} concurrent grants, ${u.size} distinct ids, none derivable from (agent, scope, granted_at)`);
+          '
           NEW_TOKEN=$(echo "$NEW" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
           curl -fsS -H "x-health-grant: $NEW_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"withheld"'
           # revoke it, and the SAME authenticated holder is now refused on grant STATE (403, not 401)
@@ -128,6 +226,12 @@ jobs:
             echo "FAIL: the server booted with grant ids accepted in the query string, in an authenticated deployment" >&2; exit 1
           fi
           grep -q 'Refusing to boot' /tmp/legacy-refusal.log
+          # nor can a wildcard origin be configured — on a service that accepts the credential header,
+          # `*` is the difference between "a clinician may read this chart" and "any page may".
+          if HEALTH_TWIN_ALLOWED_ORIGINS='*' PORT=8098 npx tsx src/server.ts > /tmp/cors-refusal.log 2>&1; then
+            echo "FAIL: the server booted with a wildcard CORS origin on a credential-bearing service" >&2; exit 1
+          fi
+          grep -q 'Refusing to boot' /tmp/cors-refusal.log
 
           PORT=8098 npx tsx src/server.ts & sleep 3
           curl -fsS localhost:8098/healthz
@@ -147,6 +251,11 @@ jobs:
           # rather than an exposure refusal this code does not make.
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401
           curl -fsS -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
+          # An authenticated deployment allows NO browser origin unless one is named. The cockpit
+          # reaches this service same-origin through the nginx /svc/health proxy and never needs one;
+          # a deployment that does need one says so, rather than inheriting a wildcard by default.
+          if curl -sD - -o /dev/null -H 'Origin: http://localhost:5174' localhost:8098/api/health/doctor-view | grep -qi 'access-control-allow-origin'; then
+            echo "FAIL: an authenticated deployment handed out a CORS allowance it was never configured with" >&2; exit 1; fi
 
   orchestration-fixtures:
     runs-on: ubuntu-latest

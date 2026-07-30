@@ -27,10 +27,12 @@ import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type 
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
 import { exposureDenial, exposureFromEnv } from './exposure.js';
 import {
-  HOLDER_HEADER, HOLDER_AUTH_DISCLOSURE, LEGACY_QUERY_REFUSAL, LEGACY_QUERY_DETAIL, LEGACY_QUERY_WARNING,
-  authenticateHolder, holderDigest, holderToken, legacyQueryDecision, mintHolderSecret,
+  HOLDER_HEADER, HOLDER_AUTH_DISCLOSURE, LEGACY_QUERY_WARNING,
+  authenticateHolder, bareIdPolicy, holderDigest, holderToken, legacyQueryDecision, mintHolderSecret,
   presentedHolderToken, seedGrantDecision,
 } from './grantauth.js';
+import { corsHeaders, corsPolicyFromEnv, originAllowed } from './cors.js';
+import { mintId } from './ids.js';
 import { predict, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
 import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
 import { fitSurrogate } from './dynamics/surrogate.js';
@@ -66,8 +68,23 @@ function denyExposure(req: http.IncomingMessage) {
 }
 
 // In-memory grant ledger (skeleton). Local-first store in production.
+//
+// Indexed by id, and the index is not a micro-optimisation. `grants.find((g) => g.id === id)` walks
+// the ledger, so a MISS costs a full scan and a HIT near the head costs one comparison — which makes
+// the response time an answer to "does this grant id exist?" for a caller who has, by definition,
+// just failed to authenticate. Measured over a 2,000-grant ledger: an unknown id took 54µs against
+// 1.4µs for a known one, a 37× tell through a refusal body that is otherwise byte-identical.
+// grantauth.ts closes the rest of the gap by doing the same digest work on every refusal.
+//
+// The array stays: it is the ORDER the patient's control panel is listed in. The two are written
+// together in addGrant(), which is the only way a grant enters the ledger.
 const grants: Grant[] = [];
-const findGrant = (id: string) => grants.find((g) => g.id === id);
+const grantIndex = new Map<string, Grant>();
+const findGrant = (id: string) => grantIndex.get(id);
+function addGrant(g: Grant, where: 'head' | 'tail' = 'head') {
+  if (where === 'head') grants.unshift(g); else grants.push(g);
+  grantIndex.set(g.id, g);
+}
 
 // ── the demo cardiologist grant, and the two boot-time policies around it ───────────────────────
 //
@@ -82,13 +99,18 @@ const findGrant = (id: string) => grants.find((g) => g.id === id);
 // be the thing nobody remembered to turn off.
 const SEED = seedGrantDecision(process.env, EXPOSURE);
 const LEGACY_QUERY = legacyQueryDecision(process.env, EXPOSURE);
-for (const fatal of [SEED.fatal, LEGACY_QUERY.fatal]) {
+// Which browser origins may drive this engine. `*` is neither emitted nor configurable — see cors.ts
+// for why a wildcard stopped being survivable in the same change that made a credential presentable.
+const CORS = corsPolicyFromEnv(process.env, EXPOSURE);
+const ALLOWED_ORIGINS: ReadonlySet<string> = new Set(CORS.origins);
+for (const fatal of [SEED.fatal, LEGACY_QUERY.fatal, CORS.fatal]) {
   if (fatal) { console.error(`health-twin: ${fatal}`); process.exit(1); }
 }
+console.log(`health-twin: CORS — ${CORS.why}${CORS.origins.length ? ` [${CORS.origins.join(' ')}]` : ''}`);
 if (SEED.seed) {
   // The scope is the cardiometabolic wedge, so the doctor chart still demos scoping on a fresh boot
   // (the childhood knee history is OUTSIDE it — it shows up as withheld counts).
-  grants.push({
+  addGrant({
     id: 'grant-dev-seed-cardiology',
     agent: 'Dr. A. Rivera (Cardiology) — DEV SEED, synthetic subject only',
     scope: 'cardiometabolic',
@@ -97,7 +119,7 @@ if (SEED.seed) {
     expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     revoked: false, reads: 0, receipt: 'ht-grant-dev-seed',
     holderDigest: holderDigest(SEED.secret!),
-  });
+  }, 'tail');
   console.log(`health-twin: DEV SEED GRANT active (${SEED.why}). Synthetic subject only.`);
   // Printed once, to the operator who asked for it, because the alternative is a literal in source.
   if (SEED.minted) {
@@ -209,13 +231,26 @@ function twinTtl(): string {
   return head.concat(out).join('\n') + '\n';
 }
 
+/**
+ * 🔴 THIS IS THE SHARED CORS SURFACE. Every route answers through here, so the wildcard that used to
+ * sit on this line was on every response the service made — including the ones that accept and act
+ * on the holder credential. `access-control-allow-origin: *` plus `access-control-allow-headers:
+ * … x-health-grant` is an invitation: any page in any tab may call this engine, set the credential,
+ * and read the reply. Minting is ungated on a synthetic-only deployment, so a page could issue itself
+ * a grant, take the one-shot secret from a response it was allowed to read, and pull the chart —
+ * cross-origin, with no leaked id at all. The credential this PR introduced was usable by an attacker
+ * page the moment it existed.
+ *
+ * Now the origin is matched against an explicit allowlist (cors.ts) and echoed only on a hit; a
+ * caller with no `Origin` — same-origin browser requests through the nginx /svc/health proxy, curl,
+ * every server-to-server client — gets no CORS headers, because it never looks at them. `res.req` is
+ * the request this response belongs to, so no call site had to change: a per-route flag would have
+ * been the thing someone forgets on the one route that matters.
+ */
 function send(res: http.ServerResponse, code: number, body: unknown, extra: Record<string, string> = {}) {
   res.writeHead(code, {
     'content-type': 'application/json',
-    'access-control-allow-origin': '*',
-    // the holder credential rides a request header, so a cross-origin caller has to be allowed to set it
-    'access-control-allow-headers': `content-type, authorization, ${HOLDER_HEADER}`,
-    'access-control-allow-methods': 'POST, GET, OPTIONS',
+    ...corsHeaders(res.req?.headers?.origin as string | undefined, ALLOWED_ORIGINS),
     ...extra,
   });
   res.end(JSON.stringify(body));
@@ -261,27 +296,37 @@ type GrantAuthz =
 function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, required: boolean, legacyBodyId?: string): GrantAuthz | null {
   // The two channels a bare id used to arrive on: `?grant=` (logged everywhere) and a JSON body
   // field (not logged, but still possession-is-authorization). Neither is a credential.
-  const bareId = url.searchParams.get('grant') ?? (legacyBodyId ? String(legacyBodyId) : null);
+  const queryId = url.searchParams.get('grant');
+  const bodyId = legacyBodyId != null && String(legacyBodyId).trim() ? String(legacyBodyId) : null;
+  const channel: 'query' | 'body' | null = queryId !== null ? 'query' : bodyId !== null ? 'body' : null;
+  const bareId = queryId ?? bodyId;
   const presented = presentedHolderToken(req.headers as Record<string, string | string[] | undefined>);
 
-  if (bareId !== null && !presented) {
-    if (!LEGACY_QUERY.allowed) {
+  // 🔴 THE GUARD USED TO BE `bareId !== null && !presented`, which meant a request carrying BOTH a
+  // `?grant=<id>` and a valid header skipped the refusal and was served 200: the id still landed in
+  // the access log, the proxy log, the history and the `Referer`, and the deprecation `Warning` was
+  // suppressed on precisely the requests that were teaching callers the channel still works. What
+  // leaks the id is the URL, not the absence of a better credential. So the bare form is refused
+  // WHENEVER IT IS PRESENT — see bareIdPolicy(), which is pure and covered by the invariants.
+  if (channel !== null) {
+    const policy = bareIdPolicy({ channel, presented: !!presented, legacyAllowed: LEGACY_QUERY.allowed });
+    if (policy.refuse) {
       return {
         ok: false, code: 401,
         body: {
           blocked: true, authenticated: false,
-          reason: LEGACY_QUERY_REFUSAL, detail: LEGACY_QUERY_DETAIL,
-          receipt: grantUseReceipt('grant-auth-denied', [who, LEGACY_QUERY_REFUSAL], { route: who, authenticated: false }),
+          reason: policy.reason, detail: policy.detail,
+          receipt: grantUseReceipt('grant-auth-denied', [who, policy.reason!], { route: who, authenticated: false }),
         },
         headers: { warning: LEGACY_QUERY_WARNING },
       };
     }
     // Enabled only on a synthetic-only deployment, and loud on every single use.
-    const r = resolveGrant(grants, bareId);
+    const r = resolveGrant(grantIndex, bareId!);
     if (!r.ok) {
       return {
         ok: false, code: 403,
-        body: { blocked: true, authenticated: false, reason: r.reason, receipt: grantUseReceipt(`${who}-blocked`, [bareId, r.reason], { route: who, authenticated: false }) },
+        body: { blocked: true, authenticated: false, reason: r.reason, receipt: grantUseReceipt(`${who}-blocked`, [bareId!, r.reason], { route: who, authenticated: false }) },
         headers: { warning: LEGACY_QUERY_WARNING },
       };
     }
@@ -303,7 +348,7 @@ function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, requir
     };
   }
   // The holder is proved. Now, and only now, the grant's own state answers.
-  const r = resolveGrant(grants, auth.grantId);
+  const r = resolveGrant(grantIndex, auth.grantId);
   if (!r.ok) {
     return {
       ok: false, code: 403,
@@ -329,7 +374,15 @@ const authenticatedAs = (a: Extract<GrantAuthz, { ok: true }>) => (a.legacy
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
-  if (req.method === 'OPTIONS') return send(res, 204, {});
+  // The preflight is where a browser asks whether it may send `x-health-grant` from this origin. An
+  // origin that is not on the list is told no, out loud, rather than being handed a 204 with no
+  // allowance in it — the browser blocks either way, but only one of them is debuggable.
+  if (req.method === 'OPTIONS') {
+    const o = String(req.headers.origin ?? '');
+    return o && !originAllowed(o, ALLOWED_ORIGINS)
+      ? send(res, 403, { error: 'origin not allowed', detail: 'name it in HEALTH_TWIN_ALLOWED_ORIGINS' })
+      : send(res, 204, {});
+  }
   if (req.method === 'GET' && url.pathname === '/healthz') return send(res, 200, { ok: true, service: 'health-twin' });
 
   // The twin bundle (the surface's one read).
@@ -340,7 +393,12 @@ const server = http.createServer(async (req, res) => {
 
   // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
-    res.writeHead(200, { 'content-type': 'text/turtle; charset=utf-8', 'access-control-allow-origin': '*' });
+    // Turtle, so it does not go through send() — and so it had its own hand-rolled `*`. Same policy,
+    // written once: a second CORS surface is a second thing to forget.
+    res.writeHead(200, {
+      'content-type': 'text/turtle; charset=utf-8',
+      ...corsHeaders(req.headers.origin, ALLOWED_ORIGINS),
+    });
     return res.end(twinTtl());
   }
 
@@ -509,14 +567,26 @@ const server = http.createServer(async (req, res) => {
 
   // Evidence grounded ON the twin — the brain lookup contextualized by the patient's own record and
   // bound evidentiarily to each finding. The clinician chart shows the literature behind each number.
-  // Grant-aware: with ?grant=<id> the evidence is scoped SERVER-SIDE to records inside the grant, so
-  // withheld findings can't leak to the clinician through the evidence side door. Enforced here, not
-  // in the client. A blocked grant blocks evidence too.
+  // The evidence is scoped SERVER-SIDE to records inside the grant, so withheld findings can't leak
+  // to the clinician through the evidence side door. Enforced here, not in the client. A blocked
+  // grant blocks evidence too.
+  //
+  // 🔴 THE GRANT IS REQUIRED HERE, and it was not. `required: false` means "no grant = no narrowing",
+  // which on this route is "no credential = the WIDEST read the service can perform": groundTwin()
+  // walks every out-of-range observation and every condition and returns each one's display, value,
+  // unit and reference range, plus the patient's age band, sex and full comorbidity list as the
+  // retrieval context. That is the content of the records a scope withholds, reachable with nothing
+  // presented at all — the exact side door the sentence above says this route closes.
+  //
+  // "No narrowing" is the right default on a route where a grant only trims an otherwise-permitted
+  // read (predict, which is exposure-gated, so an unauthenticated caller is stopped by the deployment
+  // membrane first). /evidence is not exposure-gated in this mirror, so nothing else stands in front
+  // of it. The cockpit agrees: prophet-platform#1083 calls this only from the clinician chart and
+  // only after a token is entered, and its tests assert the 401. Nothing reads it unauthenticated.
   if (req.method === 'GET' && url.pathname === '/api/health/evidence') {
-    const a = authorizeGrant(req, url, 'evidence', false);
-    const grounded = await groundTwin();
-    if (a === null) return send(res, 200, grounded); // no grant offered → no narrowing
+    const a = authorizeGrant(req, url, 'evidence', true)!;
     if (!a.ok) return send(res, a.code, a.body, a.headers);
+    const grounded = await groundTwin();
     const scope = a.grant.scopeSpec ?? resolveScope(a.grant.scope);
     const { view } = applyScope(bundle(), scope);
     const keptIds = new Set<string>([
@@ -685,7 +755,14 @@ const server = http.createServer(async (req, res) => {
       // Minted here, hashed immediately, returned once, never stored and never logged.
       const secret = mintHolderSecret();
       const g: Grant = {
-        id: `grant-${sha256([agent, scope, String(now.getTime())].join('|'))}`,
+        // 🔴 WAS `grant-<sha256(agent|scope|ms)>` — a hash of its own published inputs. Two grants to
+        // the same agent with the same scope in the same millisecond collided (measured: 79% over 200
+        // concurrent issues), which puts two rows in the ledger under one identity: one holder stops
+        // authenticating with no error, revoking the id revokes one of them, and every receipt naming
+        // it is ambiguous about which grant it recorded. And `granted_at` is published at millisecond
+        // precision beside the agent and the scope, so anyone with a grant listing could recompute
+        // every id in it offline. Minted from the CSPRNG now — see ids.ts for why not a salted hash.
+        id: mintId('grant'),
         agent, scope, granted_at: now.toISOString(),
         expires_at: new Date(now.getTime() + ttlDays * 86400000).toISOString(),
         revoked: false, reads: 0, receipt: receipt('grant', [agent, scope, String(ttlDays)]).id,
@@ -693,7 +770,7 @@ const server = http.createServer(async (req, res) => {
         scopeSpec: resolveScope(String(b.preset ?? scope), b.scopeSpec),
         holderDigest: holderDigest(secret),
       };
-      grants.unshift(g);
+      addGrant(g);
       return send(res, 200, {
         grant: { ...publicGrant(g), scopeSummary: scopeSummary(g.scopeSpec!) },
         holder: {
