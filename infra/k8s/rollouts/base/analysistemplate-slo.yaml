@@ -49,13 +49,20 @@ spec:
     - name: service
     - name: namespace
       value: socioprophet
-    # Argo Rollouts injects the canary ReplicaSet's pod-template-hash, so these
-    # queries scope to the NEW pods only and never average the stable ones in.
-    # Without it the gate would be diluted by healthy stable replicas — a second
-    # way to pass a bad canary.
+    # The canary ReplicaSet's pod-template-hash, so these queries scope to the NEW
+    # pods only and never average the stable ones in. Without it the gate would be
+    # diluted by healthy stable replicas — a second way to pass a bad canary.
+    #
+    # Declared bare here and SUPPLIED BY THE ROLLOUT, which must pass:
+    #     analysis:
+    #       args:
+    #         - name: canary-hash
+    #           valueFrom: { podTemplateHashValue: Latest }
+    # `valueFrom.podTemplateHashValue` is only schema-valid on the Rollout's
+    # analysis args, not on an AnalysisTemplate arg — putting it here makes the
+    # apply fail with "field not declared in schema". See
+    # rollout-hellgraph-service.example.yaml for the matching half.
     - name: canary-hash
-      valueFrom:
-        podTemplateHashValue: Latest
   metrics:
     - name: canary-available
       # The primary gate. Empty result => no canary pod is Ready => FAIL.

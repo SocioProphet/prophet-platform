@@ -33,6 +33,15 @@ spec:
         args:
           - name: service
             value: hellgraph-service
+          # REQUIRED. The gate scopes its queries to the canary ReplicaSet's pods
+          # via this hash; the template declares the arg but cannot source it —
+          # valueFrom.podTemplateHashValue is schema-valid only here, on the
+          # Rollout. Omit it and the AnalysisRun fails to start with
+          # "args.canary-hash was not resolved", which is the correct direction to
+          # fail but an annoying way to find out.
+          - name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
         startingStep: 1   # begin analysis after the first weight step
       steps:
         - setWeight: 10
