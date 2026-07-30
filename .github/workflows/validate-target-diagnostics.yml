@@ -34,6 +34,10 @@ jobs:
         name: Is this diff provably inert for app/service tests?
         run: |
           set -euo pipefail
+          # PROBE ONLY - not for merge. Forces the docs-only verdict so the
+          # skip path is exercised even though this diff touches .github/.
+          echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          echo "PROBE: forcing docs_only=true"; exit 0
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "not a pull_request (${{ github.event_name }}) — main is never validated by inference"
             echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
