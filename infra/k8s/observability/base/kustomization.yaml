@@ -7,3 +7,4 @@ resources:
   - otel-collector-service.yaml
   - servicemonitor.yaml
   - prometheusrule-slos.yaml
+  - prometheusrule-cronjob-staleness.yaml
