@@ -1,0 +1,17 @@
+{
+  "_comment": [
+    "Named, SHRINKING quarantine for the node-app-suites diagnostics leg.",
+    "run-node-app-tests.sh asserts len(apps) <= ceiling on every PR, so this list",
+    "can only get SMALLER: the ceiling may be lowered when an app is fixed and",
+    "removed, never raised without a reviewer explicitly arguing the case.",
+    "A quarantined app is NOT run — but it is NAMED here with a reason and a fix,",
+    "which is the difference between a quarantine and a silent skip.",
+    "Each entry must correspond to a real app that still declares a test script;",
+    "a stale entry fails the leg, forcing it to be pruned (more shrink pressure)."
+  ],
+  "ceiling": 2,
+  "apps": {
+    "commons-search": "src/server.test.ts HANGS at teardown (exit 124). All 9 assertions pass, then the process cannot exit: several tests do `await fetch(...)` (e.g. the DELETE calls and the rate-cap loops) without consuming the response body, so undici keeps those HTTP/1.1 keep-alive sockets open and after(() => server.close()) never completes. FIX (one line, owned by the commons-search lane): add `server.closeAllConnections()` before server.close() in the after() hook, or read every response body. When fixed, remove this entry AND lower the ceiling to 1.",
+    "search-gateway": "src/server.test.ts HANGS at teardown (exit 124), identical root cause to commons-search: `await fetch(...)` responses left unconsumed keep undici keep-alive sockets open, so after(() => server.close()) never resolves and the suite cannot exit. FIX: same closeAllConnections()/consume-body fix in the search-gateway lane. When fixed, remove this entry AND lower the ceiling to 0."
+  }
+}
