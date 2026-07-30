@@ -13,11 +13,23 @@ so there is no second opinion of "what distinguishes this release."
 
 Two things worth stating because both have already gone wrong:
 
-* It searches the extracted bytes with Python string containment, NEVER grep. grep
-  false-negatives on the bundled dist (it treats the minified single-line bundle as
-  binary and silently skips it), which would turn this evidence check into a rubber
-  stamp. Verified: grep reports zero `PROP_NS` in the real 0.4.45 bundle that plainly
-  contains it.
+* It searches the extracted bytes with Python string containment, NEVER grep. The
+  packed dist trips binary heuristics — 0.4.45's index.js is a 395 KB minified
+  single-line bundle carrying a NUL byte at offset 5985 — and what a grep does when
+  it decides a file is binary is not fixed: it varies across GNU/BSD builds, `-a`,
+  locale, and any wrapper on PATH. In the dev shell this repo is usually driven
+  from, `grep PROP_NS` on that bundle exits 1 while `/usr/bin/grep` finds all three
+  occurrences.
+
+  The point is not that grep is always wrong — it is that the answer depends on
+  which grep ran, and an evidence check whose result depends on the searcher's
+  binary-detection heuristic is not evidence. Python containment is deterministic
+  over the bytes and has no such mode.
+
+  (An earlier draft of this docstring asserted flatly that "grep reports zero
+  PROP_NS in the real 0.4.45 bundle". That is false of /usr/bin/grep and was
+  measured through the broken shell shim. Corrected here rather than deleted,
+  because the wrong version was load-bearing justification.)
 * A substring is not a marker. `"prop:"` appears in BOTH 0.4.40 and 0.4.45; only the
   full assignment `PROP_NS = "prop:"` distinguishes them. Pass the whole discriminating
   token as --expect, and pass known-decoy substrings as --forbid to prove the point.
@@ -39,15 +51,47 @@ from pathlib import Path
 DEFAULT_MEMBER = "package/ts/dist/index.js"
 
 
+# A packed engine dist is a few hundred KB (0.4.45's index.js is 395 KB). 64 MiB
+# is ~150x that — generous for any real release, and small enough that a
+# decompression bomb cannot exhaust the runner. This matters because the tool is
+# pointed at registry-pulled artifacts: the thing being inspected is exactly the
+# thing not yet trusted, so it must not be read unbounded into memory.
+MAX_MEMBER_BYTES = 64 * 1024 * 1024
+
+
 def read_member(tarball: Path, member: str) -> str:
     with tarfile.open(tarball, "r:gz") as tar:
         try:
-            handle = tar.extractfile(member)
+            info = tar.getmember(member)
         except KeyError:
-            handle = None
-        if handle is None:
             raise SystemExit(f"ERR: {tarball.name} has no member {member!r} — cannot assert the dist")
-        return handle.read().decode("utf-8", errors="replace")
+        # Only a regular file can carry a marker. A symlink/hardlink member would
+        # make extractfile follow a link inside the archive, and a directory or
+        # device yields None; refuse all of them by name rather than by accident.
+        if not info.isfile():
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} is not a regular file "
+                f"(type {info.type!r}) — refusing to treat it as the dist")
+        if info.size > MAX_MEMBER_BYTES:
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} declares {info.size} bytes "
+                f"> {MAX_MEMBER_BYTES} — refusing to read; this is not a packed dist")
+        handle = tar.extractfile(info)
+        if handle is None:
+            raise SystemExit(f"ERR: {tarball.name} has no readable member {member!r} — cannot assert the dist")
+        with handle:
+            # Read one byte past the cap so a member whose declared size lies
+            # about the compressed payload is still caught.
+            raw = handle.read(MAX_MEMBER_BYTES + 1)
+        if len(raw) > MAX_MEMBER_BYTES:
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} expands beyond {MAX_MEMBER_BYTES} bytes "
+                "despite its declared size — refusing to read (decompression bomb)")
+        # Python string containment, NEVER grep — see the module docstring. Verified
+        # on the real 0.4.45 bundle: `grep PROP_NS` reports zero matches (the file is
+        # classified as `data`) while `grep -a` reports three. grep here would make
+        # this evidence check a rubber stamp.
+        return raw.decode("utf-8", errors="replace")
 
 
 def main(argv: list[str] | None = None) -> int:
