@@ -288,18 +288,45 @@ class DispatchLedger:
         other while being worthless."""
         prev = GENESIS
         for i, e in enumerate(self.entries):
-            if e["seal"]["prev"] != prev:
-                return False, i, f"prev-link mismatch at seq {e['seal']['seq']}"
-            body = {k: v for k, v in e.items() if k != "seal"}
-            body["seal"] = {"seq": e["seal"]["seq"], "prev": e["seal"]["prev"]}
-            if _seal(body) != e["seal"]["attestation"]:
-                return False, i, f"attestation mismatch (tampered) at seq {e['seal']['seq']}"
-            derived = truth_product(e["law"]["factor"], e["evidence"]["factor"])
-            if e["verdict"] != derived:
-                return False, i, (f"verdict {e['verdict']} does not follow from "
-                                  f"{e['law']['factor']} × {e['evidence']['factor']} = {derived}")
-            want_tier = evidence_tier(e["law"]["source"], e["evidence"]["source"])
-            if e["evidenceTier"] == "T1" and want_tier == "T2":
-                return False, i, f"seq {e['seal']['seq']} claims T1 on a declared factor"
+            # replay() validates data that is by assumption UNTRUSTED — catching a forger
+            # is the whole job. So every structural surprise must come back as
+            # (False, i, reason), never as an exception. A tamper-evidence routine that
+            # raises on a malformed entry hands the caller a crash where it promised a
+            # verdict, and any caller that wrapped replay() in a bare `except` would read
+            # that crash as "not my problem" rather than "this ledger is bad".
+            try:
+                ok, reason = self._replay_entry(e, prev)
+            except Exception as exc:  # noqa: BLE001 — malformed input is a finding, not a bug
+                return False, i, f"malformed entry at index {i}: {type(exc).__name__}: {exc}"
+            if not ok:
+                return False, i, reason
             prev = e["seal"]["attestation"]
         return True, len(self.entries), None
+
+    @staticmethod
+    def _replay_entry(e: dict, prev: str) -> tuple[bool, str | None]:
+        """One entry's checks. May raise on a malformed entry; replay() converts that into
+        a finding. Split out so the fail-closed boundary is one obvious place."""
+        seq = e["seal"]["seq"]
+        if e["seal"]["prev"] != prev:
+            return False, f"prev-link mismatch at seq {seq}"
+        body = {k: v for k, v in e.items() if k != "seal"}
+        body["seal"] = {"seq": seq, "prev": e["seal"]["prev"]}
+        if _seal(body) != e["seal"]["attestation"]:
+            return False, f"attestation mismatch (tampered) at seq {seq}"
+        derived = truth_product(e["law"]["factor"], e["evidence"]["factor"])
+        if e["verdict"] != derived:
+            return False, (f"verdict {e['verdict']} does not follow from "
+                           f"{e['law']['factor']} × {e['evidence']['factor']} = {derived}")
+        # A tier must BE a tier before it can be compared to one. The previous check only
+        # rejected T1-claimed-where-T2-is-owed, so any unrecognised value — "T0", "", a
+        # number — sailed straight through: forge the tier to something outside the
+        # vocabulary and the entry validated. An unreadable governance claim is not a
+        # weaker claim than an over-claim; it is a worse one.
+        tier = e["evidenceTier"]
+        if tier not in ("T1", "T2"):
+            return False, f"seq {seq} carries an unknown evidenceTier {tier!r}; expected 'T1' or 'T2'"
+        # Under-claiming (T2 where T1 was earned) remains allowed; over-claiming does not.
+        if tier == "T1" and evidence_tier(e["law"]["source"], e["evidence"]["source"]) == "T2":
+            return False, f"seq {seq} claims T1 on a declared factor"
+        return True, None

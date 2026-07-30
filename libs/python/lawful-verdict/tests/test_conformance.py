@@ -7,16 +7,27 @@ disagree with each other; only a shared vector set makes cross-language drift de
 which is the entire reason the file exists rather than each repo asserting its own table.
 
 The vectors are VENDORED into `conformance/` with their upstream digests recorded in
-`conformance/_provenance.json`, so these tests run unconditionally and can never skip.
-That is deliberate: prophet-platform (SocioProphet) and sourceos-spec (SourceOS-Linux) are in
-different orgs, so CI's GITHUB_TOKEN cannot check the spec out — the first version of this
-suite duly reported UNVERIFIED and failed the build. A conformance gate that depends on
+`conformance/_provenance.json`, so the assertions that READ THE VENDORED ARTEFACTS -- the
+vector suite, the sealed cross-language example, and the schema checks -- run
+unconditionally and cannot skip.
+
+That claim is scoped on purpose. Two tests in this file DO skip, and saying "these tests
+can never skip" flatly would be false: `test_vendored_vectors_match_upstream` skips when
+the real spec is unreachable (always, in CI), and the schema tests `importorskip`
+jsonschema. The never-skip guarantee covers conformance against the vendored copy; it does
+not cover freshness against upstream. Those are different properties and the difference is
+the point.
+
+Vendoring is deliberate: prophet-platform (SocioProphet) and sourceos-spec (SourceOS-Linux)
+are in different orgs, so CI's GITHUB_TOKEN cannot check the spec out — the first version of
+this suite duly reported UNVERIFIED and failed the build. A conformance gate that depends on
 network access it does not have is not a gate.
 
 Drift is caught separately. When the real spec IS present — a dev tree, or CI with cross-org
 access — `test_vendored_vectors_match_upstream` asserts the vendored bytes still hash to the
-recorded digests. So: never-skipping conformance, plus drift detection wherever it is
-actually possible, and an honest distinction between the two.
+recorded digests. So: non-skipping conformance against the vendored copy, drift detection
+wherever it is actually possible, and an honest line between the two rather than one claim
+covering both.
 """
 
 from __future__ import annotations
@@ -46,6 +57,7 @@ from lawful_verdict import (
     DispatchLedger, EvidenceFactor, LawFactor, Receipt, canonical_json, content_hash,
     evidence_tier, evidence_verdict, law_verdict, truth_product,
 )
+from lawful_verdict import _seal  # forging tests must re-seal, as a real forger would
 
 VERDICTS = ["NEG", "ZERO", "POS"]
 
@@ -373,3 +385,112 @@ def test_truth_product_raises_a_useful_error_not_a_bare_KeyError() -> None:
         with pytest.raises(ValueError, match="not a verdict"):
             truth_product(law, ev)  # type: ignore[arg-type]
     assert truth_product("POS", "POS") == "POS", "and still works on real input"
+
+
+# ── Copilot (suppressed, low-confidence — but correct): replay() must fail closed ──
+#
+# These were not inline comments; they were folded into a "Comments suppressed due to
+# low confidence" block on the review body, which /pulls/N/comments does not return.
+# Both were right.
+#
+# replay() exists to validate a ledger that may have been tampered with. Its contract is
+# (ok, validated_count, reason). Before this, a malformed entry produced a KeyError or
+# TypeError instead — a crash where the contract promised a verdict.
+
+
+def _sealed_ledger() -> DispatchLedger:
+    led = DispatchLedger()
+    led.append("urn:srcos:dispatch:0", "2026-07-29T00:00:00Z", _law(),
+               EvidenceFactor(request_hash=content_hash("q"), answer_hash=content_hash("a"),
+                              grounded=True),
+               emitter="test")
+    ok, n, reason = led.replay()
+    assert ok and n == 1, f"fixture must start valid: {reason}"
+    return led
+
+
+def _reseal(e: dict) -> None:
+    """Re-seal an entry after damaging it, exactly as a capable forger would.
+
+    Load-bearing, not ceremony. The first version of the test below damaged the entry
+    and stopped there — but a structural edit changes the sealed body, so the
+    attestation check caught every case BEFORE execution ever reached the malformed
+    field. The tests passed while exercising the wrong branch entirely: with the
+    exception handler narrowed to a type that never fires, all of them stayed green.
+    Re-sealing is what forces replay() past the hash check and into the code path the
+    fail-closed boundary actually protects.
+    """
+    body = {k: v for k, v in e.items() if k != "seal"}
+    body["seal"] = {"seq": e["seal"]["seq"], "prev": e["seal"]["prev"]}
+    e["seal"]["attestation"] = _seal(body)
+
+
+@pytest.mark.parametrize("damage,label", [
+    (lambda e: e.pop("law"),                            "missing law"),
+    (lambda e: e.pop("evidence"),                       "missing evidence"),
+    (lambda e: e.pop("verdict"),                        "missing verdict"),
+    (lambda e: e.pop("evidenceTier"),                   "missing evidenceTier"),
+    (lambda e: e["law"].pop("factor"),                  "missing law.factor"),
+    (lambda e: e["law"].pop("source"),                  "missing law.source"),
+    (lambda e: e.__setitem__("law", "not a mapping"),   "law is a string"),
+    (lambda e: e.__setitem__("law", None),              "law is null"),
+    (lambda e: e["law"].__setitem__("factor", "MAYBE"), "unknown factor value"),
+    (lambda e: e["law"].__setitem__("factor", None),    "null factor (legacy row)"),
+])
+def test_replay_returns_a_finding_rather_than_raising(damage, label) -> None:
+    """The forger is maximally capable: they damage the entry AND re-seal, so the chain
+    verifies and only replay()'s own robustness stands between them and a crash."""
+    led = _sealed_ledger()
+    damage(led.entries[0])
+    _reseal(led.entries[0])
+    ok, i, reason = led.replay()          # must not raise
+    assert ok is False, f"{label}: replay ACCEPTED a malformed entry"
+    assert i == 0 and reason, f"{label}: no reason given"
+
+
+def test_the_malformed_entry_tests_really_reach_the_fail_closed_path() -> None:
+    """Guards the guard. If _reseal ever stopped working, the cases above would go back
+    to being caught by the attestation check and would silently stop testing anything.
+    Here the reason must NOT be an attestation mismatch."""
+    led = _sealed_ledger()
+    led.entries[0]["law"].pop("factor")
+    _reseal(led.entries[0])
+    ok, _, reason = led.replay()
+    assert ok is False
+    assert "attestation" not in (reason or ""), (
+        f"still being caught by the hash check, not the malformed-entry path: {reason}")
+    assert "malformed entry" in (reason or ""), f"unexpected reason: {reason}"
+
+
+def test_replay_rejects_an_evidence_tier_outside_the_vocabulary() -> None:
+    """Copilot: "can let invalid tiers like T0 pass as OK". Correct — the old check only
+    rejected T1-where-T2-is-owed, so any UNRECOGNISED tier validated. A forger who cannot
+    over-claim T1 could instead write a tier nothing understands.
+
+    The forger here is maximally capable: they edit the field AND re-seal, so the hash
+    chain verifies and only the semantic check can catch it.
+    """
+    for bogus in ("T0", "T3", "", "t1", 1, None):
+        led = _sealed_ledger()
+        e = led.entries[0]
+        e["evidenceTier"] = bogus
+        body = {k: v for k, v in e.items() if k != "seal"}
+        body["seal"] = {"seq": e["seal"]["seq"], "prev": e["seal"]["prev"]}
+        e["seal"]["attestation"] = _seal(body)      # re-seal: the chain now verifies
+        ok, i, reason = led.replay()
+        assert ok is False, f"tier {bogus!r} was ACCEPTED"
+        assert "evidenceTier" in (reason or ""), f"tier {bogus!r}: wrong reason {reason!r}"
+
+
+def test_replay_still_allows_honest_under_claiming() -> None:
+    """T2 where T1 was earned is deliberately legal — the fix must not turn conservatism
+    into a violation."""
+    led = _sealed_ledger()
+    e = led.entries[0]
+    assert e["evidenceTier"] == "T1", "fixture should have earned T1"
+    e["evidenceTier"] = "T2"
+    body = {k: v for k, v in e.items() if k != "seal"}
+    body["seal"] = {"seq": e["seal"]["seq"], "prev": e["seal"]["prev"]}
+    e["seal"]["attestation"] = _seal(body)
+    ok, _, reason = led.replay()
+    assert ok, f"under-claiming must remain valid, got: {reason}"
