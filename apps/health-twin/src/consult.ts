@@ -6,6 +6,7 @@
 // Each opinion attaches to the consult as a TIER=hypothesis claim (an opinion, never asserted truth —
 // the anti-Watson rule). The aggregate is a signal, NOT a diagnosis; a clinician still decides.
 import { createHash } from 'node:crypto';
+import { mintId } from './ids.js';
 import { deidentify, type DeidView, type DisclosureScope } from './deident.js';
 
 // server.ts replaced djb2 with real SHA-256 and said so; this file was missed, so consult
@@ -108,11 +109,29 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
   if (consults.size >= CONSULT_MAX) {
     return { error: `consult ledger full (${consults.size}/${CONSULT_MAX}) — close finished consults with closeConsult() or raise HEALTH_TWIN_CONSULT_MAX; refusing to silently evict a consult with attached opinions` };
   }
-  const salt = `${Date.now()}-${scope}`;
+  // Timestamp captured ONCE per call and reused for salt / consent.at /
+  // createdAt. Copilot round-1 caught that Date.now() and
+  // new Date().toISOString() computed independently can diverge by a
+  // millisecond, which makes correlation and audit debugging harder.
+  const now = new Date();
+  const nowISO = now.toISOString();
+  const salt = `${now.getTime()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);
-  const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt])}`;
-  const consent: Consent = { agreed: true, disclosure, at: new Date().toISOString(), receipt: receipt('consent', [id, disclosure]).id };
-  consults.set(id, { id, createdAt: new Date().toISOString(), scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
+  // #1068 follow-up: without a random nonce, two openConsult calls in the
+  // same millisecond with the same scope produced the same id and silently
+  // overwrote each other in the ledger.
+  //
+  // The id is MINTED, not derived — the same decision the grant ledger takes in
+  // prophet-platform#1081, from the same ids.ts (byte-identical on both branches,
+  // so whichever lands first the other merges clean). Hashing the record's own
+  // inputs WITH a random nonce would also stop the collision, but the output is
+  // then random anyway: the deterministic parts contribute nothing an attacker
+  // cannot already read off the consult, and the sha256 contributes nothing but
+  // the appearance of a content address. Receipts stay derived — being
+  // recomputable from the facts they seal is their whole job. Identifiers do not.
+  const id = mintId('consult');
+  const consent: Consent = { agreed: true, disclosure, at: nowISO, receipt: receipt('consent', [id, disclosure]).id };
+  consults.set(id, { id, createdAt: nowISO, scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
   return { consult_id: id, slice, consent, receipt: receipt('consult-open', [id, scope]) };
 }
 
@@ -121,7 +140,18 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
 export function requestMore(consultId: string, field: string, reason: string): MoreRequest | { error: string } {
   const c = consults.get(consultId);
   if (!c) return { error: 'consult not found' };
-  const r: MoreRequest = { id: `more-${sha256([consultId, field, String(Date.now())])}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
+  // Trimmed once, and what is STORED is the trimmed value — the Copilot round-1
+  // point about a whitespace variant and its record disagreeing. (The id no
+  // longer derives from the field at all, so the two can no longer disagree by
+  // construction; the trim stays because the stored field should be canonical.)
+  // Timestamp captured once.
+  const trimmedField = field.trim();
+  const trimmedReason = reason.trim();
+  const now = new Date();
+  const r: MoreRequest = {
+    id: mintId('more'),
+    field: trimmedField, reason: trimmedReason, status: 'pending', at: now.toISOString(),
+  };
   c.moreRequests.push(r);
   return r;
 }
@@ -139,10 +169,11 @@ export function submitOpinion(consultId: string, reviewer: string, assessment: s
   if (!c) return { error: 'consult not found' };
   const rv = reviewer.trim(); const a = assessment.trim();
   if (!rv || !a) return { error: 'reviewer and assessment required' };
+  const now = new Date();
   const op: Opinion = {
-    id: `op-${sha256([consultId, rv, a, String(Date.now())])}`,
+    id: mintId('op'),
     reviewer: rv, assessment: a, confidence, tier: 'hypothesis',
-    at: new Date().toISOString(), receipt: receipt('opinion', [consultId, rv]),
+    at: now.toISOString(), receipt: receipt('opinion', [consultId, rv]),
   };
   c.opinions.push(op);
   return op;

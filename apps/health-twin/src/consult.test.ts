@@ -21,11 +21,12 @@ async function freshModule(env: Record<string, string> = {}) {
 }
 
 function agree(m: typeof import('./consult.js'), n: number) {
-  // NB: openConsult mints id from sha256([pseudonym, scope, `${Date.now()}-${scope}`]).
-  // Two calls in the same millisecond with the same scope collide on id and one
-  // silently overwrites the other in the Map. That is a preexisting bug in the
-  // codebase (see PR body — separate follow-up). We pass a unique scope per call
-  // here so the cap test measures the cap and not the collision.
+  // Historical NB: pre-fix, openConsult minted its id from
+  // sha256([pseudonym, scope, `${Date.now()}-${scope}`]) — two calls in the
+  // same ms with the same scope silently overwrote each other in the ledger.
+  // This PR closes that by adding randomUUID() to the id inputs, so the
+  // unique-scope-per-call precaution below is now belt-and-braces rather than
+  // essential. Kept anyway so the cap test remains readable.
   const opened: string[] = [];
   for (let i = 0; i < n; i++) {
     const r = m.openConsult({ patient: `p${i}` }, `scope-${i}`, 'standard', true);
@@ -141,5 +142,80 @@ test('a well-formed cap is still honoured', async () => {
   ] as const) {
     const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: value });
     assert.equal(m.CONSULT_MAX, expected, `${JSON.stringify(value)} must be honoured`);
+  }
+});
+
+// ── #1068 body / #1070: id-collision fix ──────────────────────────────────
+// Composed on top of #1068's CONSULT_MAX parsing hardening above: the earlier
+// PR bounded the LEDGER (memory-safety of the container), this PR bounds the
+// IDs (uniqueness of the identifiers inside it). Both are load-bearing and
+// together they close the "consult container can silently lose entries" door.
+
+test('openConsult mints unique ids even when N calls hit the same ms + scope', async () => {
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '100' });
+  // Tight loop: many calls will land in the same millisecond, and the scope is
+  // fixed. Pre-fix, all but one collided and silently overwrote each other.
+  const ids = new Set<string>();
+  for (let i = 0; i < 50; i++) {
+    const r = m.openConsult({ patient: 'p' }, 'shared-scope', 'standard', true);
+    if (r.consult_id) ids.add(r.consult_id);
+  }
+  assert.equal(ids.size, 50, 'every open must produce a unique id even under contention');
+  assert.equal(m.consultCount(), 50, 'the ledger must hold every consult, not overwrite');
+});
+
+test('submitOpinion mints unique opinion ids in a tight loop', async () => {
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
+  const [id] = agree(m, 1);
+  const opIds = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    const op = m.submitOpinion(id!, 'reviewer-x', 'assessment-x', 'moderate');
+    if ('id' in op) opIds.add(op.id);
+  }
+  assert.equal(opIds.size, 20, 'every opinion id must be unique');
+});
+
+test('requestMore mints unique request ids in a tight loop', async () => {
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
+  const [id] = agree(m, 1);
+  const rIds = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    const r = m.requestMore(id!, 'labs.a1c', 'need it');
+    if ('id' in r) rIds.add(r.id);
+  }
+  assert.equal(rIds.size, 20, 'every more-request id must be unique');
+});
+
+
+test('requestMore stores the trimmed field, and the id does not derive from it at all', async () => {
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
+  const [cid] = agree(m, 1);
+  // Copilot round-1 asked that the hashed value match the stored one. The id is
+  // MINTED now (ids.ts), so the two cannot disagree by construction — the thing
+  // left to assert is that the STORED field is canonical, and that two requests
+  // naming the same field still get distinct ids.
+  const r1 = m.requestMore(cid!, '  labs.a1c  ', 'need it');
+  const r2 = m.requestMore(cid!, 'labs.a1c', 'need it');
+  assert.ok('id' in r1 && 'id' in r2);
+  assert.equal(r1.field, 'labs.a1c');
+  assert.equal(r1.field, r2.field, 'whitespace is normalised out of the stored field');
+  assert.notEqual(r1.id, r2.id, 'identical inputs still get distinct ids — an id names an event, not its content');
+  for (const r of [r1, r2]) assert.match(r.id, /^more-[0-9a-f]{64}$/, 'the id is 256 minted bits');
+});
+
+test('a minted id is not recomputable from the values the consult publishes', async () => {
+  const { createHash } = await import('node:crypto');
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
+  const r = m.openConsult({ patient: 'p' }, 'derivable-scope', 'standard', true);
+  assert.ok(r.consult_id);
+  // Everything the old id was built from is published on the response. Sweep every
+  // millisecond it could plausibly have been minted in, both join shapes.
+  const at = new Date(r.consent.at).getTime();
+  const pseudonym = r.slice.receipt.pseudonym;
+  for (let t = at - 2000; t <= at + 2000; t++) {
+    const parts = [pseudonym, 'derivable-scope', `${t}-derivable-scope`];
+    for (const j of [parts.join('|'), JSON.stringify(parts)]) {
+      assert.notEqual(`consult-${createHash('sha256').update(j).digest('hex')}`, r.consult_id);
+    }
   }
 });
