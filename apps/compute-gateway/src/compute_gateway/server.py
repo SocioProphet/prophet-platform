@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from pydantic import BaseModel
 
-from . import artifacts, config_plane, engine, engine_receipts, grants, planner, receipts, registry, rocrate, zerotrust
+from . import artifacts, config_plane, engine, engine_receipts, grants, planner, receipts, registry, rocrate, signing, zerotrust
 from .contract import ComputeRequest, ComputeResult
 
 app = FastAPI(title="compute-gateway", version="0.1.0")
@@ -32,7 +32,38 @@ def require_token(authorization: str = Header(default="")) -> None:
 
 @app.get("/healthz")
 def healthz() -> dict:
-    return {"ok": True, "service": "compute-gateway", "kinds": list(registry.KINDS)}
+    """Liveness + attestation posture. The signing block is the alarm: a misconfigured
+    `GATEWAY_SIGNING_KEY` (bad base64, wrong length, corrupt seed) used to be silently
+    downgraded to unsigned by `signing.load_signing_key()`, and `receipts.verify()`
+    couldn't notice because it only rejects a present-but-invalid signature — so an
+    operator lost signatures across the fleet with a green health check. `signing.state`
+    surfaces that fault as 'error' here; `signed_ratio` reports the observed share of
+    receipts in memory carrying a verifying signature (all projects, all chains)."""
+    # Copilot #1106: iterate a consistent snapshot instead of `receipts._CHAINS.values()`
+    # directly. A concurrent seal() on a *new* project calls _CHAINS.setdefault(project, [])
+    # which mutates the dict — bare iteration would raise `RuntimeError: dictionary changed
+    # size during iteration` and break /healthz under load. snapshot_all() takes the keys
+    # snapshot under the receipts-module lock, then copies each per-project chain under its
+    # own seal lock, so a seal in flight cannot make us observe a chain mid-append either.
+    total = 0
+    signed = 0
+    for _project, chain in receipts.snapshot_all():
+        for r in chain:
+            total += 1
+            if r.signature is not None and r.statement is not None and signing.verify_signature(
+                    r.statement, r.signature, r.public_key):
+                signed += 1
+    return {
+        "ok": True,
+        "service": "compute-gateway",
+        "kinds": list(registry.KINDS),
+        "signing": {
+            "state": signing.signing_state(),
+            "signed": signed,
+            "count": total,
+            "signed_ratio": (signed / total) if total else None,
+        },
+    }
 
 
 @app.get("/v1/contract")

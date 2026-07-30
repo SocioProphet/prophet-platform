@@ -232,6 +232,23 @@ def extract_endpoint(req: ExtractRequest, _: None = Depends(require_token)) -> d
             STATE["last_error_at"] = time.time()
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
+    # Back-pressure: submit() refused to admit because _pending is at the cap. Surface
+    # as 503 so the caller retries rather than the pod balloons to OOM. Nothing was
+    # counted, nothing was extracted, no state was mutated below this point.
+    if result.status == "degraded":
+        with _LOCK:
+            STATE["hellgraph_ok"] = result.hellgraph_ok
+            STATE["gateway_ok"] = result.gateway_ok
+            STATE["last_error"] = result.reason or "pending queue full"
+            STATE["last_error_at"] = time.time()
+        raise HTTPException(status_code=503, detail={
+            "status": "degraded",
+            "reason": result.reason,
+            "pending": result.pending,
+            "hellgraph_ok": result.hellgraph_ok,
+            "gateway_ok": result.gateway_ok,
+        })
+
     with _LOCK:
         STATE["documents"] += result.documents
         STATE["extracted"] += result.extracted
