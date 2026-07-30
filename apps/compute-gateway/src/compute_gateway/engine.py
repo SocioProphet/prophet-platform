@@ -155,10 +155,23 @@ def _validate_exhaust(exhaust) -> str | None:
 
 
 def _guard_exhaust(exhaust):
-    """Return the exhaust dict if it passes the ExhaustRecord shape check,
-    otherwise return a stripped-safe dict recording ONLY that the exhaust was
-    rejected + why. Never raises — a shape violation is a receipt annotation,
-    not a run-time failure."""
+    """Return the exhaust dict if it passes the ExhaustRecord shape check.
+
+    Three outcomes, because callers branch on them:
+
+    * passes            -> the dict itself, unchanged
+    * a dict that fails -> a stripped-safe dict recording ONLY that the exhaust
+                           was rejected and why. The offending content never
+                           reaches the artifact store.
+    * None, or anything  -> ``None``. There is nothing to annotate: the caller
+      that is not a dict     stores exhaust only ``if isinstance(exhaust, dict)``,
+                             so a string or list simply produces no exhaust
+                             record rather than an empty one.
+
+    Never raises — a shape violation is a receipt annotation, not a run-time
+    failure. Copilot flagged the earlier docstring for promising the second
+    outcome in all failing cases; the third was already the behaviour and is the
+    right one, so the docstring moved rather than the code."""
     if exhaust is None:
         return None
     why = _validate_exhaust(exhaust)
