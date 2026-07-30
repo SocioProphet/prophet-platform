@@ -11,17 +11,22 @@
 # Invariants it enforces (each one turns the required diagnostics-gate RED):
 #   1. ZERO-MATCH IS A FAILURE. If no app declares a `node --test` script, coverage
 #      has been silently dropped (harness renamed / discovery broken). Refuse to pass.
+#      A present-but-unparseable package.json is likewise fatal, never a silent skip.
 #   2. QUARANTINE ONLY SHRINKS. .github/app-ci/quarantine.json carries a ceiling;
-#      len(quarantined) must be <= ceiling. The ceiling may only ever be lowered.
+#      len(quarantined) must be <= ceiling AND, vs the origin/main baseline, the
+#      ceiling may not rise and no new app may be added — a mechanical ratchet, not
+#      reviewer friction. A newly-failing suite must be FIXED, not quarantined.
 #   3. NO STALE QUARANTINE. A quarantined app must still exist and still declare a
 #      test script, or the entry must be pruned (and the ceiling lowered).
 #   4. SOMETHING MUST RUN. If every discovered app is quarantined, the leg would pass
 #      without testing anything — that is a failure, not a green.
 #
 # Env seams (used by local red/green proofs; defaults are the CI values):
-#   PER_APP_TIMEOUT  hard per-app timeout in seconds            (default 180)
-#   APPS_GLOB        package.json glob to discover              (default apps/*/package.json)
-#   QUARANTINE_FILE  path to the quarantine allowlist           (default .github/app-ci/quarantine.json)
+#   PER_APP_TIMEOUT           hard per-app timeout in seconds   (default 180)
+#   APPS_GLOB                 package.json glob to discover      (default apps/*/package.json)
+#   QUARANTINE_FILE           path to the quarantine allowlist   (default .github/app-ci/quarantine.json)
+#   QUARANTINE_BASELINE_REF   git ref the ratchet diffs against  (default origin/main)
+#   QUARANTINE_BASELINE_FILE  baseline quarantine from a file    (local ratchet proofs)
 #
 set -uo pipefail
 
@@ -32,14 +37,21 @@ PER_APP_TIMEOUT="${PER_APP_TIMEOUT:-180}"
 APPS_GLOB="${APPS_GLOB:-apps/*/package.json}"
 QUARANTINE_FILE="${QUARANTINE_FILE:-$REPO_ROOT/.github/app-ci/quarantine.json}"
 
-# Read a package.json's test script (absolute path in, script text out; empty if none).
+# Read a package.json's test script (absolute path in, script text out; empty when
+# the manifest is VALID but declares no test). A missing or UNPARSEABLE manifest is
+# not "no tests": it exits non-zero (3) with a reason on stderr, so the caller fails
+# RED instead of silently dropping the app's coverage — the exact silent omission
+# this leg exists to stop.
 read_test_script() {
   node -e '
     const fs=require("fs"), path=require("path");
-    try {
-      const p=JSON.parse(fs.readFileSync(path.resolve(process.argv[1]),"utf8"));
-      process.stdout.write(((p.scripts&&p.scripts.test)||""));
-    } catch(e) { process.stdout.write(""); }
+    let raw;
+    try { raw = fs.readFileSync(path.resolve(process.argv[1]),"utf8"); }
+    catch(e) { process.stderr.write("unreadable: "+e.message); process.exit(3); }
+    let p;
+    try { p = JSON.parse(raw); }
+    catch(e) { process.stderr.write("invalid JSON: "+e.message); process.exit(3); }
+    process.stdout.write(((p&&p.scripts&&p.scripts.test)||""));
   ' "$1"
 }
 
@@ -52,7 +64,13 @@ shopt -s nullglob
 for pj in $APPS_GLOB; do
   [ -f "$pj" ] || continue
   app="$(basename "$(dirname "$pj")")"
-  script="$(read_test_script "$pj")"
+  script="$(read_test_script "$pj")"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "FATAL: apps/$app/package.json is present but unreadable/unparseable, so its"
+    echo "       test coverage cannot be determined. This leg refuses to treat a broken"
+    echo "       manifest as 'no tests' and silently drop the app. Fix the manifest."
+    exit 1
+  fi
   [ -z "$script" ] && continue
   if [[ "$script" == *"node "*"--test"* || "$script" == *"node --test"* ]]; then
     NODE_APPS+=("$app")
@@ -86,18 +104,78 @@ if ! [[ "$CEILING" =~ ^[0-9]+$ ]]; then
   echo "FATAL: quarantine ceiling is not a number: '$CEILING'"; exit 1
 fi
 
-# Invariant 2: quarantine may only shrink. The ceiling is a ratchet that only goes down.
+# Invariant 2: len(quarantined) must be within the ceiling declared in the file.
 if [ "${#Q_APPS[@]}" -gt "$CEILING" ]; then
   echo "FATAL: quarantine holds ${#Q_APPS[@]} app(s) but the ceiling is $CEILING."
-  echo "       The ceiling may ONLY be lowered. Adding an app means raising it, which"
-  echo "       a reviewer must consciously approve — that friction is the point."
+  echo "       len(apps) must be <= ceiling. Remove an app and/or lower the ceiling."
   exit 1
+fi
+
+# Invariant 2b: the ratchet may only SHRINK versus the baseline. len<=ceiling within
+# one file cannot stop a PR that adds an app AND raises the ceiling in the same diff —
+# both edits land together and pass. Compare against the baseline (origin/main by
+# default): the ceiling may not rise and no new app key may appear. A newly-failing
+# suite must be FIXED, not quarantined. When the baseline carries no quarantine file
+# yet (this leg's introduction), there is nothing to ratchet against and only the
+# checks above apply — the state is printed either way, never silently skipped.
+#   QUARANTINE_BASELINE_REF   git ref to diff against     (default origin/main)
+#   QUARANTINE_BASELINE_FILE  read the baseline from a file (local red/green proofs)
+BASELINE_REF="${QUARANTINE_BASELINE_REF:-origin/main}"
+BASELINE_JSON=""
+if [ -n "${QUARANTINE_BASELINE_FILE:-}" ]; then
+  [ -f "$QUARANTINE_BASELINE_FILE" ] && BASELINE_JSON="$(cat "$QUARANTINE_BASELINE_FILE")"
+else
+  # Shallow PR checkouts don't carry origin/main; fetch it best-effort before reading.
+  if ! git cat-file -e "$BASELINE_REF:.github/app-ci/quarantine.json" 2>/dev/null; then
+    git fetch --no-tags --depth=1 origin main >/dev/null 2>&1 || true
+  fi
+  BASELINE_JSON="$(git show "$BASELINE_REF:.github/app-ci/quarantine.json" 2>/dev/null || true)"
+fi
+
+if [ -n "$BASELINE_JSON" ]; then
+  BASELINE_TMP="$(mktemp)"; printf '%s' "$BASELINE_JSON" > "$BASELINE_TMP"
+  node -e '
+    const fs=require("fs");
+    const cur =JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+    const base=JSON.parse(fs.readFileSync(process.argv[2],"utf8"));
+    const curKeys =new Set(Object.keys(cur.apps ||{}));
+    const baseKeys=new Set(Object.keys(base.apps||{}));
+    const added=[...curKeys].filter(k=>!baseKeys.has(k));
+    const problems=[];
+    if (Number(cur.ceiling) > Number(base.ceiling))
+      problems.push("ceiling raised "+base.ceiling+" -> "+cur.ceiling);
+    if (added.length) problems.push("new quarantined app(s): "+added.join(", "));
+    if (problems.length){ process.stderr.write(problems.join("; ")); process.exit(7); }
+  ' "$QUARANTINE_FILE" "$BASELINE_TMP"
+  ratchet_rc=$?
+  rm -f "$BASELINE_TMP"
+  if [ "$ratchet_rc" -ne 0 ]; then
+    echo "FATAL: the quarantine ratchet only shrinks vs $BASELINE_REF, but this change"
+    echo "       widens it (reason above). Raising the ceiling or adding an app is refused"
+    echo "       mechanically: a newly-failing suite must be FIXED, not quarantined."
+    exit 1
+  fi
+  echo "quarantine ratchet: OK vs $BASELINE_REF (ceiling not raised, no new apps)."
+else
+  echo "quarantine ratchet: no baseline quarantine at $BASELINE_REF (introduction); len<=ceiling only."
 fi
 
 # Invariant 3: no stale quarantine entries.
 for qa in "${Q_APPS[@]}"; do
-  if [ ! -f "apps/$qa/package.json" ] || [ -z "$(read_test_script "apps/$qa/package.json")" ]; then
-    echo "FATAL: quarantined app '$qa' no longer exists or no longer declares a test script."
+  qpj="apps/$qa/package.json"
+  if [ ! -f "$qpj" ]; then
+    echo "FATAL: quarantined app '$qa' no longer exists ($qpj is missing)."
+    echo "       Remove it from $QUARANTINE_FILE AND lower the ceiling."
+    exit 1
+  fi
+  qscript="$(read_test_script "$qpj")"; qrc=$?
+  if [ "$qrc" -ne 0 ]; then
+    echo "FATAL: quarantined app '$qa' has an unreadable/unparseable $qpj."
+    echo "       A broken quarantined app must be fixed, not waved through."
+    exit 1
+  fi
+  if [ -z "$qscript" ]; then
+    echo "FATAL: quarantined app '$qa' no longer declares a test script."
     echo "       Remove it from $QUARANTINE_FILE AND lower the ceiling."
     exit 1
   fi
