@@ -260,9 +260,26 @@ async def _parse(req_spec: dict, project: str, session: str | None) -> AdapterRe
         return {"outputs": [], "runtime": "gateway", "status": "error",
                 "error": "parse: no extractable content (image-only/scanned documents need OCR)",
                 "degraded": None}
+    # #958: sha256 is RECOMPUTED over the bytes we actually parsed. Trusting a
+    # caller-supplied digest here would let a request bind the output blocks to a
+    # hash of something other than the parsed document, breaking content-addressing
+    # for every downstream consumer that thinks the reported sha256 is a receipt.
+    #
+    # If the caller ALSO supplied a sha256 (thread from an ingest step, per the
+    # docstring), verify it matches and fail-closed on mismatch. That turns the
+    # caller's integrity assertion into a falsifiable claim rather than a
+    # rubber-stamped input.
+    computed_sha256 = hashlib.sha256(raw).hexdigest()
+    caller_sha256 = req_spec.get("sha256")
+    if caller_sha256 is not None and caller_sha256 != computed_sha256:
+        return {"outputs": [], "runtime": "gateway", "status": "error",
+                "error": (f"parse: caller-supplied sha256 {caller_sha256!r} "
+                          f"does not match parsed-bytes sha256 {computed_sha256!r} — "
+                          "refusing to bind blocks to a mismatched integrity claim"),
+                "degraded": None}
     return {"outputs": [ComputeOutput(type="blocks", data={
                 "blocks": blocks, "pages": pages, "media_type": media,
-                "sha256": req_spec.get("sha256"), "filename": filename})],
+                "sha256": computed_sha256, "filename": filename})],
             "runtime": "gateway", "status": "ok", "error": None, "degraded": None,
             "epistemic": "observed"}
 

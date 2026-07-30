@@ -29,6 +29,114 @@ _MEMO_MAX = int(os.getenv("GATEWAY_MEMO_MAX", "2048"))
 _LADDER = ["unknown", "hypothesis", "simulated", "observed", "derived", "verified", "attested"]
 
 
+# ─── #1006 exhaust-shape guard ─────────────────────────────────────────────
+# ExhaustRecord is counts + hash-only item refs, not raw payloads. An adapter
+# that packs verbatim text/bytes into `_exhaust` would make
+# /v1/artifacts/{exhaust_sha} an exfil channel: the endpoint is token-gated
+# but any token holder becomes a consumer. Enforce the shape here so an
+# adapter cannot smuggle raw content through the discard ledger.
+#
+# Shape matches the ExhaustRecord already in use across compute-gateway (see
+# tests/test_exhaust_accounting.py:28 for the canonical example).
+
+import re as _re
+
+_EXHAUST_TOP_KEYS = frozenset({
+    "type", "specVersion", "source", "counts", "bytesIn", "bytesOut", "items",
+    # Short-label metadata; bounded lengths enforced below.
+    "reason", "policy", "policy_ref", "adapter", "stage",
+})
+_EXHAUST_ITEM_KEYS = frozenset({"kind", "sha256", "size", "ref"})
+_DIGEST_HEX_RE = _re.compile(r"^[a-f0-9]{64}$")
+_DIGEST_OR_URN_RE = _re.compile(r"^(sha256:[a-f0-9]{64}|urn:[A-Za-z0-9._~:/-]+)$")
+_MAX_LABEL_LEN = 256          # kind, source, adapter, etc. — labels, not blobs
+_MAX_REASON_LEN = 512         # bounded free-text
+_MAX_ITEMS = 10_000           # DoS safeguard on the ledger
+
+
+def _bad_ref(v) -> bool:
+    return not (isinstance(v, str) and (_DIGEST_HEX_RE.match(v) or _DIGEST_OR_URN_RE.match(v)))
+
+
+def _bad_nonneg_int(v) -> bool:
+    return isinstance(v, bool) or not isinstance(v, int) or v < 0
+
+
+def _validate_exhaust(exhaust) -> str | None:
+    """Return None if `exhaust` matches ExhaustRecord shape; else a short reason."""
+    if not isinstance(exhaust, dict):
+        return f"not a mapping: {type(exhaust).__name__}"
+    for k in exhaust:
+        if k not in _EXHAUST_TOP_KEYS:
+            return f"unknown top-level key {k!r}"
+    if "type" in exhaust and exhaust["type"] != "ExhaustRecord":
+        return f"type must be 'ExhaustRecord', got {exhaust['type']!r}"
+    for lbl in ("source", "adapter", "stage", "policy", "policy_ref"):
+        if lbl in exhaust and not (isinstance(exhaust[lbl], str) and 0 < len(exhaust[lbl]) <= _MAX_LABEL_LEN):
+            return f"{lbl} must be a short label string (<= {_MAX_LABEL_LEN} chars)"
+    if "reason" in exhaust and not (isinstance(exhaust["reason"], str) and len(exhaust["reason"]) <= _MAX_REASON_LEN):
+        return f"reason must be a bounded string (<= {_MAX_REASON_LEN} chars)"
+    if "specVersion" in exhaust and not isinstance(exhaust["specVersion"], str):
+        return "specVersion must be a string"
+    for count_key in ("bytesIn", "bytesOut"):
+        if count_key in exhaust and _bad_nonneg_int(exhaust[count_key]):
+            return f"{count_key} must be a non-negative int"
+    if "counts" in exhaust:
+        c = exhaust["counts"]
+        if not isinstance(c, dict):
+            return "counts must be a mapping"
+        for k, v in c.items():
+            if not isinstance(k, str) or len(k) > _MAX_LABEL_LEN:
+                return f"counts.{k!r} label out of range"
+            if _bad_nonneg_int(v):
+                return f"counts.{k} must be a non-negative int"
+    if "items" in exhaust:
+        items = exhaust["items"]
+        if not isinstance(items, list):
+            return "items must be a list"
+        if len(items) > _MAX_ITEMS:
+            return f"items length {len(items)} > {_MAX_ITEMS}"
+        for i, it in enumerate(items):
+            if not isinstance(it, dict):
+                return f"items[{i}] not a mapping"
+            for k in it:
+                if k not in _EXHAUST_ITEM_KEYS:
+                    return f"items[{i}] unknown key {k!r}"
+            if "kind" in it and not (isinstance(it["kind"], str) and 0 < len(it["kind"]) <= _MAX_LABEL_LEN):
+                return f"items[{i}].kind must be a short label"
+            if "sha256" in it and _bad_ref(it["sha256"]):
+                return f"items[{i}].sha256 must be a 64-hex digest or sha256:/urn: ref"
+            if "size" in it and _bad_nonneg_int(it["size"]):
+                return f"items[{i}].size must be a non-negative int"
+            if "ref" in it and _bad_ref(it["ref"]):
+                return f"items[{i}].ref must be a digest/URN reference"
+    return None
+
+
+def _guard_exhaust(exhaust):
+    """Return the exhaust dict if it passes the ExhaustRecord shape check,
+    otherwise return a stripped-safe dict recording ONLY that the exhaust was
+    rejected + why. Never raises — a shape violation is a receipt annotation,
+    not a run-time failure."""
+    if exhaust is None:
+        return None
+    why = _validate_exhaust(exhaust)
+    if why is None:
+        return exhaust
+    if not isinstance(exhaust, dict):
+        return None
+    return {
+        "type": "ExhaustRecord",
+        "source": "compute-gateway",
+        "adapter": "compute-gateway",
+        "stage": "engine._guard_exhaust",
+        "reason": f"exhaust rejected: {why[:_MAX_REASON_LEN - 32]}",
+        "counts": {"rejectedFields": 1},
+    }
+
+
+
+
 def memo_key(project: str, kind: str, backend: str, spec: dict) -> str:
     return receipts.sha({"project": project, "kind": kind, "backend": backend, "spec": spec})
 
@@ -193,7 +301,7 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
     # content-addressed into the artifact store so the discard ledger is retrievable
     # at /v1/artifacts/{exhaust_sha}, and bound to the receipt via exhaust_sha.
     outputs_dump = [o.model_dump() for o in raw["outputs"]]
-    exhaust = raw.get("_exhaust")
+    exhaust = _guard_exhaust(raw.get("_exhaust"))
     exhaust_sha = artifacts.put(exhaust) if isinstance(exhaust, dict) else None
 
     receipt = receipts.seal(
