@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""Assert a vendored engine tarball is really the release it claims to be.
+
+The load-bearing step of the re-vendor discipline (vendor-freshness-plane.md § Re-vendor
+discipline, step 2): a `version` field is NOT evidence. `package.json` says whatever it
+says regardless of what the bundle contains — a previous release shipped a stale `dist`
+with a fresh version string in exactly this way. The only evidence is a discriminating
+marker INSIDE the packed dist.
+
+This tool is the generic mechanism; the marker VALUES come from the caller (the
+vendor-freshness register's `version_marker`, carried into the re-vendor EffectRequest),
+so there is no second opinion of "what distinguishes this release."
+
+Two things worth stating because both have already gone wrong:
+
+* It searches the extracted bytes with Python string containment, NEVER grep. The
+  packed dist trips binary heuristics — 0.4.45's index.js is a 395 KB minified
+  single-line bundle carrying a NUL byte at offset 5985 — and what a grep does when
+  it decides a file is binary is not fixed: it varies across GNU/BSD builds, `-a`,
+  locale, and any wrapper on PATH. In the dev shell this repo is usually driven
+  from, `grep PROP_NS` on that bundle exits 1 while `/usr/bin/grep` finds all three
+  occurrences.
+
+  The point is not that grep is always wrong — it is that the answer depends on
+  which grep ran, and an evidence check whose result depends on the searcher's
+  binary-detection heuristic is not evidence. Python containment is deterministic
+  over the bytes and has no such mode.
+
+  (An earlier draft of this docstring asserted flatly that "grep reports zero
+  PROP_NS in the real 0.4.45 bundle". That is false of /usr/bin/grep and was
+  measured through the broken shell shim. Corrected here rather than deleted,
+  because the wrong version was load-bearing justification.)
+* A substring is not a marker. `"prop:"` appears in BOTH 0.4.40 and 0.4.45; only the
+  full assignment `PROP_NS = "prop:"` distinguishes them. Pass the whole discriminating
+  token as --expect, and pass known-decoy substrings as --forbid to prove the point.
+
+Usage:
+  assert_vendored_engine_marker.py <tarball> --expect 'PROP_NS = "prop:"' [--forbid ...]
+                                   [--member package/ts/dist/index.js]
+Exit 0 and print a receipt on success; exit 1 with the reason on failure.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+import tarfile
+from pathlib import Path
+
+DEFAULT_MEMBER = "package/ts/dist/index.js"
+
+
+# A packed engine dist is a few hundred KB (0.4.45's index.js is 395 KB). 64 MiB
+# is ~150x that — generous for any real release, and small enough that a
+# decompression bomb cannot exhaust the runner. This matters because the tool is
+# pointed at registry-pulled artifacts: the thing being inspected is exactly the
+# thing not yet trusted, so it must not be read unbounded into memory.
+MAX_MEMBER_BYTES = 64 * 1024 * 1024
+
+
+def sha256_file(path: Path) -> str:
+    """Digest by streaming. The receipt covers a registry-pulled artifact of unknown
+    size, so reading it whole to hash it would reintroduce the unbounded read that
+    read_member() takes care to avoid — the same defect one line apart."""
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def read_member(tarball: Path, member: str) -> bytes:
+    # A corrupt, truncated, non-gzip or unreadable tarball must produce the same clean
+    # "ERR: ... / exit 1" as every other failure here. Letting tarfile.ReadError or OSError
+    # escape would give automation a stack trace and a different exit code for what is,
+    # from the caller's side, the ordinary case of "this artifact is not what it claims".
+    try:
+        tar = tarfile.open(tarball, "r:gz")
+    except (tarfile.TarError, OSError) as exc:
+        raise SystemExit(f"ERR: {tarball.name} is not a readable gzip tarball — "
+                         f"{type(exc).__name__}: {exc}")
+    with tar:
+        try:
+            info = tar.getmember(member)
+        except KeyError:
+            raise SystemExit(f"ERR: {tarball.name} has no member {member!r} — cannot assert the dist")
+        # Only a regular file can carry a marker. A symlink/hardlink member would
+        # make extractfile follow a link inside the archive, and a directory or
+        # device yields None; refuse all of them by name rather than by accident.
+        if not info.isfile():
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} is not a regular file "
+                f"(type {info.type!r}) — refusing to treat it as the dist")
+        if info.size > MAX_MEMBER_BYTES:
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} declares {info.size} bytes "
+                f"> {MAX_MEMBER_BYTES} — refusing to read; this is not a packed dist")
+        handle = tar.extractfile(info)
+        if handle is None:
+            raise SystemExit(f"ERR: {tarball.name} has no readable member {member!r} — cannot assert the dist")
+        with handle:
+            # Read one byte past the cap so a member whose ACTUAL expanded bytes exceed
+            # its DECLARED header size is still caught. (The tar header's `size` field is
+            # the uncompressed member size, so it can disagree with what the member
+            # actually expands to — the header is part of the untrusted input.)
+            raw = handle.read(MAX_MEMBER_BYTES + 1)
+        if len(raw) > MAX_MEMBER_BYTES:
+            raise SystemExit(
+                f"ERR: {tarball.name} member {member!r} expands past {MAX_MEMBER_BYTES} bytes "
+                f"despite a declared size of {info.size} — refusing to read (decompression bomb)")
+        # Returned as BYTES, deliberately. Decoding with errors="replace" substitutes
+        # U+FFFD for anything that is not valid UTF-8 — which, in an evidence tool, means
+        # the thing being searched is no longer the thing that was shipped. A marker
+        # sitting next to a bad byte could be altered, and the search would then answer a
+        # question about a repaired copy. Markers are exact byte sequences; compare bytes.
+        # (Containment, never grep — see the module docstring for why.)
+        return raw
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Assert a discriminating marker inside a vendored engine tarball's packed dist.")
+    ap.add_argument("tarball", type=Path)
+    ap.add_argument("--expect", action="append", default=[], metavar="MARKER",
+                    help="marker string that MUST be present in the packed dist (repeatable)")
+    ap.add_argument("--forbid", action="append", default=[], metavar="MARKER",
+                    help="marker string that must be ABSENT — e.g. a decoy substring (repeatable)")
+    ap.add_argument("--member", default=DEFAULT_MEMBER, help=f"tarball member to inspect (default {DEFAULT_MEMBER})")
+    args = ap.parse_args(argv)
+
+    if not args.tarball.exists():
+        print(f"ERR: tarball not found: {args.tarball}", file=sys.stderr)
+        return 1
+    if not args.expect:
+        print("ERR: at least one --expect marker is required (a version field is not evidence)", file=sys.stderr)
+        return 1
+
+    try:
+        dist = read_member(args.tarball, args.member)
+    except SystemExit as exc:
+        # read_member raises SystemExit for the artifact-is-not-what-it-claims cases.
+        # main() is called programmatically (tests, other tools), so it must have ONE
+        # exit convention: return 0/1. Convert rather than leak mixed control flow.
+        print(str(exc), file=sys.stderr)
+        return 1
+    digest = sha256_file(args.tarball)
+
+    missing = [m for m in args.expect if m.encode("utf-8") not in dist]
+    present_forbidden = [m for m in args.forbid if m.encode("utf-8") in dist]
+
+    problems = []
+    if missing:
+        problems.append(f"expected markers absent from {args.member}: {missing}")
+    if present_forbidden:
+        problems.append(f"forbidden markers present in {args.member}: {present_forbidden}")
+
+    receipt = {
+        "tool": "prophet-platform.assert_vendored_engine_marker.v1",
+        "tarball": str(args.tarball),
+        "tarball_digest": f"sha256:{digest}",
+        "member": args.member,
+        "expected_present": args.expect,
+        "forbidden_absent": args.forbid,
+        "passed": not problems,
+        "problems": problems,
+        "non_claims": [
+            "Asserts the packed dist carries the discriminating marker; does NOT rebuild or run the engine.",
+            "Marker values are supplied by the caller (the register's version_marker); this tool holds no opinion of what a release is.",
+        ],
+    }
+    # stdout carries the receipt and NOTHING else, so a consumer can pipe this straight
+    # into jq. Human status goes to stderr — a receipt that has to be grepped out of
+    # prose is not machine-readable evidence.
+    print(json.dumps(receipt, indent=2, sort_keys=True))
+    if problems:
+        for p in problems:
+            print(f"ERR: {p}", file=sys.stderr)
+        return 1
+    print(f"OK: {args.tarball.name} dist carries {len(args.expect)} expected marker(s), "
+          f"{len(args.forbid)} decoy(s) absent", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
