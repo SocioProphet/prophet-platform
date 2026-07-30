@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 bases:
   - ../../base
+# PVC size must be >= the provisioned capacity: a PersistentVolumeClaim can grow but never shrink.
+# The live workspace-minio-pvc is 100Gi, so the earlier 20Gi request here left ws-workspace-minio
+# permanently OutOfSync ("storage: can not be less than status.capacity"). Held at 100Gi to match.
 patches:
   - target:
       kind: PersistentVolumeClaim
@@ -9,4 +12,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/resources/requests/storage
-        value: 20Gi
+        value: 100Gi
