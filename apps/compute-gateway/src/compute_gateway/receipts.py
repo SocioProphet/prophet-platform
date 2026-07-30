@@ -112,6 +112,25 @@ def chain(project: str) -> list[Receipt]:
     return list(_CHAINS.get(project, []))
 
 
+def snapshot_all() -> list[tuple[str, list[Receipt]]]:
+    """A consistent (project, chain) snapshot for read-only aggregators like
+    /healthz's signed_ratio. Copilot #1106: iterating `_CHAINS.values()` in the
+    server hits `RuntimeError: dictionary changed size during iteration` when a
+    concurrent seal() runs setdefault() on a new project. Take the dict snapshot
+    under `_LOCKS_LOCK` (which setdefault contends with because _project_lock()
+    holds it while creating a new entry) and per-chain snapshots under the
+    per-project seal lock so we do not observe a chain mid-append."""
+    with _LOCKS_LOCK:
+        projects = list(_CHAINS.keys())
+    out: list[tuple[str, list[Receipt]]] = []
+    for project in projects:
+        with _project_lock(project):
+            # Copy defensively: the receipt list may have grown or been rebuilt
+            # by hydrate() since we snapshotted the keyset.
+            out.append((project, list(_CHAINS.get(project, []))))
+    return out
+
+
 def verify(project: str) -> dict:
     """Recompute every id + re-walk every prev-link, and verify every present
     Ed25519 signature. Two independent guarantees: chain integrity (id-hash +

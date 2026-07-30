@@ -76,7 +76,34 @@ log = logging.getLogger("nugget-extractor")
 # (see BatchResult.status == 'degraded') that the caller can back-pressure on,
 # instead of a pod bounce. Match the device-service `run_once` skip-with-reason
 # pattern: no partial batch, no counted work, an explicit reason string.
-MAX_PENDING = int(os.environ.get("NUGGET_EXTRACTOR_MAX_PENDING", "1000"))
+#
+# Copilot #1106: a bare `int(os.environ.get(...))` on a misconfigured value
+# (e.g. NUGGET_EXTRACTOR_MAX_PENDING="off") would raise ValueError at IMPORT
+# time and crash the pod on boot — an OOM guard that itself becomes a boot-
+# time outage. Parse defensively: fall back to the 1000 default and log at
+# WARN so the misconfiguration is loud rather than silent, and clamp to a
+# non-negative floor (a negative cap would silently disable admission
+# forever, which is the same shape defect).
+def _parse_max_pending(raw: str | None, default: int = 1000) -> int:
+    if raw is None or raw == "":
+        return default
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        log.warning(
+            "NUGGET_EXTRACTOR_MAX_PENDING=%r is not an int; falling back to %d",
+            raw, default,
+        )
+        return default
+    if value < 0:
+        log.warning(
+            "NUGGET_EXTRACTOR_MAX_PENDING=%d is negative; clamping to 0", value,
+        )
+        return 0
+    return value
+
+
+MAX_PENDING = _parse_max_pending(os.environ.get("NUGGET_EXTRACTOR_MAX_PENDING"))
 
 NUGGET_LABEL = "KnowledgeNugget"
 DOCUMENT_LABEL = "SourceDocument"

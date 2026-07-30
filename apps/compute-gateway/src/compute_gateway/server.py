@@ -39,9 +39,15 @@ def healthz() -> dict:
     operator lost signatures across the fleet with a green health check. `signing.state`
     surfaces that fault as 'error' here; `signed_ratio` reports the observed share of
     receipts in memory carrying a verifying signature (all projects, all chains)."""
+    # Copilot #1106: iterate a consistent snapshot instead of `receipts._CHAINS.values()`
+    # directly. A concurrent seal() on a *new* project calls _CHAINS.setdefault(project, [])
+    # which mutates the dict — bare iteration would raise `RuntimeError: dictionary changed
+    # size during iteration` and break /healthz under load. snapshot_all() takes the keys
+    # snapshot under the receipts-module lock, then copies each per-project chain under its
+    # own seal lock, so a seal in flight cannot make us observe a chain mid-append either.
     total = 0
     signed = 0
-    for chain in receipts._CHAINS.values():
+    for _project, chain in receipts.snapshot_all():
         for r in chain:
             total += 1
             if r.signature is not None and r.statement is not None and signing.verify_signature(
