@@ -235,6 +235,100 @@ console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptograph
   } finally {
     if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
   }
+
+  // ── THE DATE SHIFT FAILS CLOSED ───────────────────────────────────────────────────────────────
+  // shiftDate() returned anything it could not parse UNCHANGED, so a malformed-but-meaningful date
+  // ('2024-13-45') survived UNSHIFTED into a view whose receipt claims 'safe-harbor+date-shift'.
+  // Asserted on real deidentify() OUTPUT: calling the helper directly, or checking a hand-built
+  // string, would leave the actual data path unproven — which is exactly how consult.ts went on
+  // shipping 8-hex ids underneath a passing invariant.
+  const WELL_FORMED = ['2024-01-15', '2024-01', '2024-01-15T10:30:00Z'];
+  const YEAR_ONLY = ['2024'];
+  // Copilot #1074: the absent branch admits three shapes — '', undefined, and null —
+  // and the invariant probe must exercise each; a probe that only asserts '' and
+  // undefined leaves the null path unverified even though the branch handles it.
+  const ABSENT: (string | undefined | null)[] = ['', undefined, null];
+  // malformed, and none of it a date: month 13 / day 45, a real-looking impossible day, a
+  // non-ISO ordering, prose, whitespace, and all-zeroes.
+  const GARBAGE = ['not-a-date', '2024-13-45', '2024-02-30', '15/01/2024', 'yesterday', '   ', '0000-00-00'];
+  const ALL = [...WELL_FORMED, ...YEAR_ONLY, ...ABSENT, ...GARBAGE];
+  const dateBundle = {
+    subject: { id: 'date-probe' },
+    systems: [{
+      id: 'sys', label: 'Sys', organs: [],
+      observations: ALL.map((d, i) => ({
+        code: `C${i}`, codeSystem: 'LOINC', display: `case ${i}`, value: 1, unit: 'x',
+        effective: d, epistemic: 'measured',
+      })),
+      conditions: [], encounters: [], imaging: [],
+    }],
+  };
+  const dv = deidentify(dateBundle, 'date-probe');
+  const emitted = dv.systems[0].observations.map((o: any) => o.effective);
+
+  // THE INVARIANT: no unparseable input survives as itself.
+  const survivors = GARBAGE.filter((g) => emitted.includes(g));
+  ok(survivors.length === 0,
+     `no unparseable date survives as itself through deidentify() (survivors: ${JSON.stringify(survivors)})`);
+  // and what replaced it is the sentinel. The LITERAL, not the imported constant: this string is a
+  // wire contract a reader matches on, so a change to the constant's VALUE must fail here.
+  const garbageOut = emitted.slice(WELL_FORMED.length + YEAR_ONLY.length + ABSENT.length);
+  ok(garbageOut.every((v: unknown) => v === 'date-unshiftable'),
+     `every unparseable date is replaced by the sentinel (${JSON.stringify(garbageOut)})`);
+
+  // A bare year is an EXPLICIT ALLOW — Safe Harbor permits year granularity — not a parse failure.
+  ok(emitted[WELL_FORMED.length] === '2024', 'a bare year passes through unshifted (Safe Harbor permits it)');
+  ok(WELL_FORMED.every((_, i) => /^\d{4}-\d{2}-\d{2}$/.test(emitted[i]) && emitted[i] !== WELL_FORMED[i]),
+     `every well-formed date was actually shifted (${JSON.stringify(emitted.slice(0, WELL_FORMED.length))})`);
+
+  // The receipt must not overstate what was de-identified: every date field is counted in exactly
+  // one branch, and the branches sum to the number of fields that went in.
+  const dc = dv.receipt.dates;
+  ok(dc.shifted === WELL_FORMED.length && dc.yearOnly === YEAR_ONLY.length
+     && dc.absent === ABSENT.length && dc.unshiftable === GARBAGE.length,
+     `receipt counts each branch exactly (${JSON.stringify(dc)})`);
+  ok(dc.shifted + dc.yearOnly + dc.absent + dc.unshiftable === ALL.length,
+     `receipt accounts for all ${ALL.length} date fields — none silently uncounted`);
+  ok(dc.unshiftable > 0,
+     'a view containing unshiftable dates says so on its receipt rather than claiming a clean shift');
+
+  // TIMEZONE STABILITY. The shift is whole days on a UTC instant, so the same input must give the
+  // same output in every zone. The previous implementation parsed date-only strings as UTC midnight
+  // and then advanced them with LOCAL-time setDate: the two offsets cancel only when none of the
+  // shift crosses a DST transition, so under America/Los_Angeles '2024-01-15' +88d came out a day
+  // early. Several salts are exercised precisely so that some shifts DO cross a transition.
+  const ZONES = ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata'];
+  const savedTZ = process.env.TZ;
+  // try/finally for the same reason the key block uses one: TZ is process-wide, and leaving it set
+  // would silently re-time every invariant that runs after this.
+  try {
+    const perZone = ZONES.map((tz) => {
+      process.env.TZ = tz;
+      return JSON.stringify(Array.from({ length: 12 }, (_, i) => {
+        const v = deidentify(dateBundle, `tz-salt-${i}`);
+        return [v.receipt.dateShiftDays, v.systems[0].observations.map((o: any) => o.effective)];
+      }));
+    });
+    ok(new Set(perZone).size === 1,
+       `the de-identified dates are identical in ${ZONES.join(', ')} (a local-time shift diverges across a DST edge)`);
+  } finally {
+    if (savedTZ === undefined) delete process.env.TZ; else process.env.TZ = savedTZ;
+  }
+
+  // INTERVALS SURVIVE — the property the whole date-shift exists to preserve. The local-time bug
+  // broke this too: only the endpoint on the far side of a DST edge moved, so a real 152-day gap
+  // came back as 153 under LA.
+  const gapBundle = (id: string) => ({
+    subject: { id }, systems: [{ id: 'sys', label: 'Sys', organs: [],
+      observations: ['2024-01-15', '2024-06-15'].map((d, i) => ({
+        code: `G${i}`, codeSystem: 'LOINC', display: `g${i}`, value: 1, unit: 'x', effective: d, epistemic: 'measured' })),
+      conditions: [], encounters: [], imaging: [] }],
+  });
+  const gapsHold = Array.from({ length: 12 }, (_, i) => {
+    const o = deidentify(gapBundle('gap'), `gap-${i}`).systems[0].observations;
+    return Math.round((Date.parse(o[1].effective) - Date.parse(o[0].effective)) / 86_400_000);
+  }).every((g) => g === 152);
+  ok(gapsHold, 'a 152-day interval is still 152 days after shifting (intervals are what the shift must preserve)');
 }
 
 
