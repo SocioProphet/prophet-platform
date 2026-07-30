@@ -59,8 +59,28 @@ DEFAULT_MEMBER = "package/ts/dist/index.js"
 MAX_MEMBER_BYTES = 64 * 1024 * 1024
 
 
+def sha256_file(path: Path) -> str:
+    """Digest by streaming. The receipt covers a registry-pulled artifact of unknown
+    size, so reading it whole to hash it would reintroduce the unbounded read that
+    read_member() takes care to avoid — the same defect one line apart."""
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def read_member(tarball: Path, member: str) -> str:
-    with tarfile.open(tarball, "r:gz") as tar:
+    # A corrupt, truncated, non-gzip or unreadable tarball must produce the same clean
+    # "ERR: ... / exit 1" as every other failure here. Letting tarfile.ReadError or OSError
+    # escape would give automation a stack trace and a different exit code for what is,
+    # from the caller's side, the ordinary case of "this artifact is not what it claims".
+    try:
+        tar = tarfile.open(tarball, "r:gz")
+    except (tarfile.TarError, OSError) as exc:
+        raise SystemExit(f"ERR: {tarball.name} is not a readable gzip tarball — "
+                         f"{type(exc).__name__}: {exc}")
+    with tar:
         try:
             info = tar.getmember(member)
         except KeyError:
@@ -80,17 +100,17 @@ def read_member(tarball: Path, member: str) -> str:
         if handle is None:
             raise SystemExit(f"ERR: {tarball.name} has no readable member {member!r} — cannot assert the dist")
         with handle:
-            # Read one byte past the cap so a member whose declared size lies
-            # about the compressed payload is still caught.
+            # Read one byte past the cap so a member whose ACTUAL expanded bytes exceed
+            # its DECLARED header size is still caught. (The tar header's `size` field is
+            # the uncompressed member size, so it can disagree with what the member
+            # actually expands to — the header is part of the untrusted input.)
             raw = handle.read(MAX_MEMBER_BYTES + 1)
         if len(raw) > MAX_MEMBER_BYTES:
             raise SystemExit(
-                f"ERR: {tarball.name} member {member!r} expands beyond {MAX_MEMBER_BYTES} bytes "
-                "despite its declared size — refusing to read (decompression bomb)")
-        # Python string containment, NEVER grep — see the module docstring. Verified
-        # on the real 0.4.45 bundle: `grep PROP_NS` reports zero matches (the file is
-        # classified as `data`) while `grep -a` reports three. grep here would make
-        # this evidence check a rubber stamp.
+                f"ERR: {tarball.name} member {member!r} expands past {MAX_MEMBER_BYTES} bytes "
+                f"despite a declared size of {info.size} — refusing to read (decompression bomb)")
+        # Python string containment, NEVER grep — see the module docstring for why
+        # (binary heuristics are searcher-dependent; containment is not).
         return raw.decode("utf-8", errors="replace")
 
 
@@ -112,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     dist = read_member(args.tarball, args.member)
-    digest = hashlib.sha256(args.tarball.read_bytes()).hexdigest()
+    digest = sha256_file(args.tarball)
 
     missing = [m for m in args.expect if m not in dist]
     present_forbidden = [m for m in args.forbid if m in dist]

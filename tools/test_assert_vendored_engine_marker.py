@@ -9,6 +9,7 @@ whole reason a substring proves nothing.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import io
 import tarfile
 from pathlib import Path
@@ -183,3 +184,34 @@ def test_non_regular_member_is_refused(tmp_path):
     with pytest.raises(SystemExit) as e:
         tool.main([str(linky), "--expect", MARKER])
     assert "not a regular file" in str(e.value)
+
+
+# ── Copilot round-2 ───────────────────────────────────────────────────────
+
+def test_a_corrupt_tarball_fails_cleanly_not_with_a_stack_trace(tmp_path):
+    """Automation reads the exit code. A ReadError escaping as a traceback is a
+    different failure mode from every other error path in this tool."""
+    junk = tmp_path / "corrupt.tgz"
+    junk.write_bytes(b"this is definitely not a gzip stream")
+    with pytest.raises(SystemExit) as e:
+        tool.main([str(junk), "--expect", MARKER])
+    assert "not a readable gzip tarball" in str(e.value)
+
+
+def test_a_directory_passed_as_a_tarball_fails_cleanly(tmp_path):
+    d = tmp_path / "adir.tgz"
+    d.mkdir()
+    with pytest.raises(SystemExit) as e:
+        tool.main([str(d), "--expect", MARKER])
+    assert "not a readable gzip tarball" in str(e.value)
+
+
+def test_the_tarball_digest_is_streamed_not_slurped():
+    """The receipt digest must not undo read_member's bounded read one line later.
+    Same digest as a whole-file hash, without holding the file in memory."""
+    import hashlib
+    assert tool.sha256_file(REAL_045) == hashlib.sha256(REAL_045.read_bytes()).hexdigest()
+    src = inspect.getsource(tool.main)
+    assert "read_bytes()" not in src, (
+        "main() slurps the whole tarball to hash it — this tool runs on registry-pulled "
+        "artifacts of unknown size, which is the exact case read_member() bounds")
