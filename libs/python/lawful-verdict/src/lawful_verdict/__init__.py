@@ -78,7 +78,18 @@ def truth_product(law: str, evidence: str) -> Verdict:
     'ZERO'
     >>> truth_product("NEG", "NEG")    # NOT 'POS' — sign arithmetic would say +1
     'NEG'
+
+    Raises ValueError on anything that is not a verdict. A bare KeyError from a primitive
+    used in tamper-evidence checking tells a caller nothing about what went wrong; the most
+    likely cause is a legacy ledger row that carries no factors at all, and the message says
+    so. Mirrors the TypeScript ``truthProduct``, which throws for the same reason.
     """
+    if law not in _RANK or evidence not in _RANK:
+        raise ValueError(
+            f"truth_product: not a verdict (law={law!r}, evidence={evidence!r}); "
+            f"expected one of {list(_RANK)}. Legacy ledger rows carry no factors — "
+            f"guard before multiplying rather than passing None through."
+        )
     return _VERDICTS[min(_RANK[law], _RANK[evidence])]
 
 
@@ -120,14 +131,32 @@ def evidence_tier(law_source: str, evidence_source: str) -> Tier:
 
 
 def canonical_json(obj: Any) -> str:
-    """Canonical JSON: recursive key sort, no whitespace. Must match the TypeScript
-    ``ledgerHash`` canonicaliser byte for byte or seals will not cross language boundaries."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+    """Canonical JSON: recursive key sort, no whitespace, non-ASCII emitted RAW.
+
+    ``ensure_ascii=False`` is load-bearing, not stylistic. Python's default escapes ``"café"``
+    to ``"caf\u00e9"`` while JavaScript's ``JSON.stringify`` emits it raw, so with the default
+    every seal over non-ASCII content diverges between languages — a receipt sealed by
+    prophet-workspace would fail to verify inside Noetica the moment it contained an accented
+    character. The cross-language seal test did not catch this because the spec's example
+    receipt is pure ASCII. Caught in review on prophet-platform#1065; now pinned by the
+    ``canonicalJson`` vectors, which include accented text, CJK and astral-plane emoji.
+    """
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def content_hash(text: str) -> str:
-    """SEAM-C content digest of a string body (request/answer)."""
-    return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+    """SEAM-C content digest of a string body (request/answer).
+
+    The digest is over ``canonicalJson(text)`` — the QUOTED JSON encoding — not the raw bytes.
+    That is not an arbitrary choice: TypeScript's ``contentHash`` is ``ledgerHash(s)``, which
+    canonicalises first, and it has already sealed every entry in the production ledger, so it
+    defines the function by incumbency. An earlier version here hashed ``text.encode()``
+    directly and therefore disagreed with TypeScript on EVERY input
+    (``content_hash("hello")`` differed completely). Nothing caught it: the schema only checks
+    that a digest is well-formed, and a wrong digest is still well-formed. The ``contentHash``
+    vectors now pin the function itself.
+    """
+    return "sha256:" + hashlib.sha256(canonical_json(text).encode("utf-8")).hexdigest()
 
 
 def _seal(obj: Any) -> str:

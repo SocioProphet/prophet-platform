@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.srcos.ai/v2/LawfulDispatchReceipt.json",
   "title": "LawfulDispatchReceipt",
-  "description": "Estate-wide contract for a governed dispatch: Truth = Law × Evidence. `×` is the meet in the chain NEG < ZERO < POS (strong-Kleene conjunction, i.e. min) — which, a three-element chain being a category, is the categorical product. The equation is an identity, NOT sign multiplication in {-1,0,+1}: that reading gives NEG × NEG = POS, certifying a refused gate with a refuted outcome as true. Any app on the mesh (Noetica, prophet-workspace, prophet-mesh, agora, ops-fabric) emits this shape, so a verdict means the same thing everywhere and is checkable by a validator in any language rather than by trusting each implementation. The two invariants below are the governance: a receipt whose verdict does not equal the product of its factors, or which claims T1 on a declared factor, is INVALID BY SHAPE.",
+  "description": "Estate-wide contract for a governed dispatch: Truth = Law × Evidence. `×` is the meet in the chain NEG < ZERO < POS (strong-Kleene conjunction, i.e. min) — which, a three-element chain being a category, is the categorical product. The equation is an identity, NOT sign multiplication in {-1,0,+1}: that reading gives NEG × NEG = POS, certifying a refused gate with a refuted outcome as true. Any app on the mesh (Noetica, prophet-workspace, prophet-mesh, agora, ops-fabric) emits this shape, so a verdict means the same thing everywhere and is checkable by a validator in any language rather than by trusting each implementation. The four invariants below are the governance. Two bind the product to its factors and the tier to their provenance; two bind each FACTOR to the record it is derived from — without those, an emitter could declare POS on a refused gate and the product would faithfully multiply the lie: a receipt whose verdict does not equal the product of its factors, or which claims T1 on a declared factor, is INVALID BY SHAPE.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -49,7 +49,7 @@
         "residual",
         "source"
       ],
-      "description": "The Law factor: did the fidelity bar clear, carrying what residual. Derived from the gate decision — never asserted by a caller.",
+      "description": "The Law factor: did the fidelity bar clear, carrying what residual. Derived from the gate decision — never asserted by a caller. The factor is a FUNCTION of barCleared and residual, enforced in both directions by allOf: an emitter cannot declare POS while its gate refused, which the product invariant alone did not prevent — it faithfully multiplied whatever factors it was handed.",
       "properties": {
         "factor": {
           "type": "string",
@@ -79,7 +79,83 @@
           ],
           "description": "Whether this factor was instrumented or asserted. A declared factor forces evidenceTier T2: claiming T1 for a value no instrument produced is the defect this contract exists to make unrepresentable."
         }
-      }
+      },
+      "allOf": [
+        {
+          "title": "barCleared=false ⇒ NEG",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          }
+        },
+        {
+          "title": "NEG ⇒ barCleared=false (a refusal cannot be claimed without one)",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "barCleared": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "title": "cleared with empty residual ⇒ POS",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": true
+              },
+              "residual": {
+                "maxItems": 0
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          }
+        },
+        {
+          "title": "cleared with undischarged residual ⇒ ZERO (deferred, not established)",
+          "if": {
+            "properties": {
+              "barCleared": {
+                "const": true
+              },
+              "residual": {
+                "minItems": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "ZERO"
+              }
+            }
+          }
+        }
+      ]
     },
     "evidence": {
       "type": "object",
@@ -88,7 +164,7 @@
         "factor",
         "source"
       ],
-      "description": "The Evidence factor: what the record actually contains. Absent or malformed digests are ZERO (nothing shown, nothing refuted); NEG requires an actual refutation.",
+      "description": "The Evidence factor: what the record actually contains. Absent or malformed digests are ZERO (nothing shown, nothing refuted); NEG requires an actual refutation. The factor is a FUNCTION of the digests, grounded and refuted, enforced in both directions: POS requires both well-formed digests AND grounded AND not refuted, NEG requires an actual refutation, and everything else is ZERO. Absent digests cannot be dressed as POS.",
       "properties": {
         "factor": {
           "type": "string",
@@ -122,7 +198,99 @@
           ],
           "description": "Whether this factor was instrumented or asserted. A declared factor forces evidenceTier T2: claiming T1 for a value no instrument produced is the defect this contract exists to make unrepresentable."
         }
-      }
+      },
+      "allOf": [
+        {
+          "title": "refuted ⇒ NEG",
+          "if": {
+            "required": [
+              "refuted"
+            ],
+            "properties": {
+              "refuted": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          }
+        },
+        {
+          "title": "NEG ⇒ refuted (only an actual refutation yields NEG)",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "NEG"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "refuted"
+            ],
+            "properties": {
+              "refuted": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "title": "POS ⇒ both digests present, grounded, not refuted",
+          "if": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "requestHash",
+              "answerHash",
+              "grounded"
+            ],
+            "properties": {
+              "grounded": {
+                "const": true
+              },
+              "refuted": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "title": "both digests present + grounded + not refuted ⇒ POS (ZERO cannot be under-claimed)",
+          "if": {
+            "required": [
+              "requestHash",
+              "answerHash",
+              "grounded"
+            ],
+            "properties": {
+              "grounded": {
+                "const": true
+              },
+              "refuted": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "factor": {
+                "const": "POS"
+              }
+            }
+          }
+        }
+      ]
     },
     "verdict": {
       "type": "string",

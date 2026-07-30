@@ -286,28 +286,73 @@ def test_receipts_validate_against_the_spec_schema_if_available() -> None:
     """Emit every one of the 9 product cells and validate each against the contract. This
     is the end-to-end claim: what this library produces is what the estate's schema
     accepts, for every reachable verdict — not just the happy path."""
-    if True:
-        if True:
-            jsonschema = pytest.importorskip("jsonschema")
-            validator = jsonschema.Draft202012Validator(
-                json.loads(_vendored("LawfulDispatchReceipt.json").read_text(encoding="utf-8")))
-            seen: set[str] = set()
-            cases = [
-                (_law(), _ev()),                                        # POS × POS
-                (_law(), _ev(grounded=False)),                          # POS × ZERO
-                (_law(), _ev(refuted=True)),                            # POS × NEG
-                (_law(residual=("r",)), _ev()),                         # ZERO × POS
-                (_law(residual=("r",)), _ev(grounded=False)),           # ZERO × ZERO
-                (_law(residual=("r",)), _ev(refuted=True)),             # ZERO × NEG
-                (_law(bar_cleared=False), _ev()),                       # NEG × POS
-                (_law(bar_cleared=False), _ev(grounded=False)),         # NEG × ZERO
-                (_law(bar_cleared=False), _ev(refuted=True)),           # NEG × NEG
-            ]
-            for law, ev in cases:
-                r = Receipt("urn:srcos:dispatch:x", "2026-07-29T00:00:00Z", law, ev, 0, "genesis",
-                            emitter="prophet-platform/libs/lawful-verdict")
-                errs = list(validator.iter_errors(r.to_json()))
-                assert not errs, f"{law.factor} × {ev.factor}: {errs[0].message if errs else ''}"
-                seen.add(f"{law.factor}x{ev.factor}")
-            assert len(seen) == 9, f"all 9 cells must be emitted and accepted, got {sorted(seen)}"
-            return
+    jsonschema = pytest.importorskip("jsonschema")
+    validator = jsonschema.Draft202012Validator(
+        json.loads(_vendored("LawfulDispatchReceipt.json").read_text(encoding="utf-8")))
+    seen: set[str] = set()
+    cases = [
+        (_law(), _ev()),                                        # POS × POS
+        (_law(), _ev(grounded=False)),                          # POS × ZERO
+        (_law(), _ev(refuted=True)),                            # POS × NEG
+        (_law(residual=("r",)), _ev()),                         # ZERO × POS
+        (_law(residual=("r",)), _ev(grounded=False)),           # ZERO × ZERO
+        (_law(residual=("r",)), _ev(refuted=True)),             # ZERO × NEG
+        (_law(bar_cleared=False), _ev()),                       # NEG × POS
+        (_law(bar_cleared=False), _ev(grounded=False)),         # NEG × ZERO
+        (_law(bar_cleared=False), _ev(refuted=True)),           # NEG × NEG
+    ]
+    for law, ev in cases:
+        r = Receipt("urn:srcos:dispatch:x", "2026-07-29T00:00:00Z", law, ev, 0, "genesis",
+                    emitter="prophet-platform/libs/lawful-verdict")
+        errs = list(validator.iter_errors(r.to_json()))
+        assert not errs, f"{law.factor} × {ev.factor}: {errs[0].message if errs else ''}"
+        seen.add(f"{law.factor}x{ev.factor}")
+    assert len(seen) == 9, f"all 9 cells must be emitted and accepted, got {sorted(seen)}"
+    return
+
+
+# ── the SEAL functions themselves, pinned by vectors ────────────────────────────
+# These exist because two real divergences got past everything else. The schema only checks
+# that a digest is well-formed, and a WRONG digest is still well-formed — so nothing in the
+# receipt-shaped tests could detect that the digest function disagreed across languages.
+
+def test_canonical_json_matches_the_shared_vectors_including_non_ascii() -> None:
+    """The ensure_ascii trap. Python's default escapes "café" to "caf\\u00e9" while
+    JavaScript emits it raw, so with the default every seal over non-ASCII content diverges.
+    The cross-language seal test passed anyway, because the spec's example receipt is pure
+    ASCII — which is exactly why the function needs vectors of its own."""
+    cases = _vectors()["canonicalJson"]["cases"]
+    assert any(any(ord(ch) > 127 for ch in json.dumps(c["input"], ensure_ascii=False)) for c in cases), \
+        "vectors must include a non-ASCII case or this test cannot catch the trap"
+    for c in cases:
+        got = canonical_json(c["input"])
+        assert got == c["expected"], f"{c.get('why', '')}: expected {c['expected']!r}, got {got!r}"
+
+
+def test_content_hash_matches_the_shared_vectors() -> None:
+    """contentHash(s) = sha256(canonicalJson(s)) — over the QUOTED JSON encoding, not the raw
+    bytes. An earlier version here hashed text.encode() directly and disagreed with
+    TypeScript on every single input."""
+    for c in _vectors()["contentHash"]["cases"]:
+        got = content_hash(c["input"])
+        assert got == c["expected"], f"{c.get('why', '')}: input {c['input']!r} → {got}, want {c['expected']}"
+
+
+def test_a_receipt_with_non_ascii_content_still_seals_reproducibly() -> None:
+    """End to end: the bug's real consequence was a receipt that would not verify in another
+    language the moment it carried an accented character."""
+    ev = EvidenceFactor(request_hash=content_hash("qué es la capital de España?"),
+                        answer_hash=content_hash("Madrid — 中文 🔒"), grounded=True)
+    r = Receipt("urn:srcos:dispatch:x", "2026-07-29T00:00:00Z", _law(), ev, 0, "genesis")
+    assert r.attestation() == r.attestation(), "deterministic"
+    body = r.body()
+    assert "\\u" not in canonical_json(body), "the canonical form must carry raw non-ASCII, not escapes"
+
+
+def test_truth_product_raises_a_useful_error_not_a_bare_KeyError() -> None:
+    # A bare KeyError from a primitive used in tamper-evidence checking tells a caller
+    # nothing. The most likely cause is a legacy row with no factors, and the message says so.
+    for law, ev in [(None, "POS"), ("POS", None), (None, None), ("MAYBE", "POS")]:
+        with pytest.raises(ValueError, match="not a verdict"):
+            truth_product(law, ev)  # type: ignore[arg-type]
+    assert truth_product("POS", "POS") == "POS", "and still works on real input"
