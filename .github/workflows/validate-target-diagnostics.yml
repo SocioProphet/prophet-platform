@@ -34,6 +34,10 @@ jobs:
         name: Is this diff provably inert for app/service tests?
         run: |
           set -euo pipefail
+          # PROBE ONLY - not for merge. Forces the docs-only verdict so the
+          # skip path is exercised even though this diff touches .github/.
+          echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          echo "PROBE: forcing docs_only=true"; exit 0
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "not a pull_request (${{ github.event_name }}) — main is never validated by inference"
             echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
@@ -69,6 +73,10 @@ jobs:
           echo "decision: docs_only=$RESULT (false => full matrix)"
 
   validate-target-diagnostics:
+    # PROBE ONLY - not for merge. The path filter that turns every leg off
+    # on a docs-only diff, which is what makes all three needs report skipped.
+    needs: changes
+    if: always() && needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
