@@ -84,6 +84,16 @@ DRY_RUN = os.environ.get("DRY_RUN", "").lower() in ("1", "true", "yes")
 # Used to prove the guard fires without waiting for a volume to genuinely fill.
 FORCE_UTIL = os.environ.get("FORCE_UTIL", "")
 
+# This guard PATCHES disks off a project-wide datasource, so every query MUST be pinned
+# to this cluster. GMP attaches cluster/location to every series; without the matchers a
+# second cluster feeding the same project returns kubelet_volume_stats_* that collide on
+# the namespace/pvc key, and the guard could resize a volume here off another cluster's
+# fill level. Read from env, else the GKE metadata server (same source as gcp_token), so
+# it self-scopes in-cluster; unknown scope fails closed in utilisation() rather than
+# querying estate-wide.
+CLUSTER_NAME = os.environ.get("CLUSTER_NAME", "")
+CLUSTER_LOCATION = os.environ.get("CLUSTER_LOCATION", "")
+
 
 def log(msg: str) -> None:
     print(f"[{datetime.now(timezone.utc).isoformat(timespec='seconds')}] {msg}", flush=True)
@@ -102,6 +112,33 @@ def gcp_token() -> str:
     )
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.load(r)["access_token"]
+
+
+def _metadata_attr(attr: str) -> str:
+    """A GKE instance attribute (cluster-name, cluster-location), or "" if the metadata
+    server is unreachable (i.e. not on GKE — under test the env vars supply these)."""
+    try:
+        req = urllib.request.Request(
+            "http://metadata.google.internal/computeMetadata/v1/instance/attributes/%s" % attr,
+            headers={"Metadata-Flavor": "Google"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.read().decode("utf-8").strip()
+    except Exception:  # noqa: BLE001 - absence is expected off-GKE; caller fails closed
+        return ""
+
+
+def cluster_selector() -> str:
+    """PromQL label matchers pinning a query to THIS cluster, or "" if it cannot be
+    determined. cluster+location uniquely identify a GKE cluster within a project."""
+    cluster = CLUSTER_NAME or _metadata_attr("cluster-name")
+    if not cluster:
+        return ""
+    location = CLUSTER_LOCATION or _metadata_attr("cluster-location")
+    matchers = ['cluster="%s"' % cluster]
+    if location:
+        matchers.append('location="%s"' % location)
+    return "{%s}" % ", ".join(matchers)
 
 
 def kube_ctx() -> tuple[str, dict, ssl.SSLContext | None]:
@@ -134,8 +171,18 @@ def promql(query: str) -> list:
 
 def utilisation() -> dict[str, float]:
     """{'namespace/pvc': fraction_used}. Empty result is an error, never 'all clear'."""
+    sel = cluster_selector()
+    if not sel:
+        # A mutating guard must never query a project-wide datasource unscoped: another
+        # cluster's kubelet_volume_stats_* collide on namespace/pvc and could drive a
+        # resize here. Fail closed, same posture as the empty-result guard below.
+        raise RuntimeError(
+            "cluster scope is unknown — set CLUSTER_NAME/CLUSTER_LOCATION or run on GKE. "
+            "Refusing to query kubelet_volume_stats_* estate-wide: GMP is project-wide and "
+            "a foreign cluster's series would collide with this cluster's namespace/pvc keys."
+        )
     rows = promql(
-        "kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes"
+        f"kubelet_volume_stats_used_bytes{sel} / kubelet_volume_stats_capacity_bytes{sel}"
     )
     if not rows:
         raise RuntimeError(
@@ -244,14 +291,33 @@ def main() -> int:
     log(f"read {len(util)} PVC utilisation series from GMP")
 
     # Estate budget is computed over the volumes this guard is allowed to grow.
+    #
+    # An unreadable enrolled PVC does NOT get silently skipped: that would undercount
+    # `provisioned`, and the aggregate brake below (`provisioned - cur + new > budget`)
+    # would then pass a grow that actually breaches estateMaxTotalGi — a control reporting
+    # headroom it cannot see. So a failed read makes the estate total UNKNOWN, and an
+    # unknown budget refuses every grow this cycle (fail closed, same posture as
+    # utilisation()'s empty-result guard). Growth resumes once the inventory is readable.
     provisioned = 0.0
+    budget_known = True
+    budget_blind: list[str] = []
     for ent in pol["pvcs"]:
         try:
             pvc = get_pvc(base, hdrs, ctx, ent["namespace"], ent["name"])
             provisioned += parse_gi(pvc["spec"]["resources"]["requests"]["storage"])
-        except Exception:
-            pass
-    log(f"estate provisioned across guarded PVCs: {provisioned:.0f}Gi / budget {budget_gi}Gi")
+        except Exception as exc:  # noqa: BLE001 - any read failure blinds the total
+            budget_known = False
+            budget_blind.append(f"{ent['namespace']}/{ent['name']} ({type(exc).__name__})")
+    log(f"estate provisioned across guarded PVCs: {provisioned:.0f}Gi / budget {budget_gi}Gi"
+        + ("" if budget_known else f" — INCOMPLETE, blind on {len(budget_blind)}"))
+    if not budget_known:
+        alert("PvcGuardBudgetUnknown", "critical",
+              "estate storage budget cannot be computed — refusing all growth this cycle",
+              "One or more enrolled PVCs could not be read (" + ", ".join(budget_blind[:5])
+              + "), so the estate total is a floor, not the true figure. Growing any volume "
+              "now could breach estateMaxTotalGi undetected, so the guard refuses every "
+              "expansion until the inventory is readable again. This is the aggregate brake "
+              "refusing to act on a number it cannot trust.", {})
 
     grew = blind = capped = 0
 
@@ -326,6 +392,12 @@ def main() -> int:
         step = max(min_step, min(max_step, cur_gi * step_pct))
         new_gi = int(min(cur_gi + step, max_gi))
 
+        # The aggregate brake. An unknown estate total (a PVC read failed above) means we
+        # cannot prove this grow stays under budget, so we refuse it — never grow on a
+        # number known to be incomplete. PvcGuardBudgetUnknown was already raised once.
+        if not budget_known:
+            log(f"  budget unknown (incomplete inventory) — refusing to grow {key}")
+            continue
         if provisioned - cur_gi + new_gi > budget_gi:
             alert("PvcGuardBudgetExhausted", "critical",
                   f"{key} needs growth but the estate storage budget is exhausted",
