@@ -5,8 +5,76 @@
 // notes) are stripped; the subject becomes a stable pseudonym; clinical codes/values/units/tiers are
 // preserved (that is exactly what the reviewer needs). Non-diagnostic; synthetic data only.
 
-// deterministic pseudonym so the same subject maps to the same token within a scope (unlinkable to identity)
-function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
+import { createHash, createHmac } from 'node:crypto';
+
+// ── PSEUDONYM DERIVATION ────────────────────────────────────────────────────────────────────────
+// The pseudonym was a 32-bit djb2 digest. Over PHI that is not a de-identification boundary: the
+// entire 2^32 output space enumerates in seconds, and distinct subjects start colliding by the
+// birthday bound at ~77k subjects — two people silently becoming one "anonymous" record.
+//
+// WHAT A WIDER DIGEST FIXES, AND WHAT IT DOES NOT — read this before trusting `anon:`.
+// SHA-256 truncated to 128 bits closes the OUTPUT space: you cannot find a second input that maps
+// to a given pseudonym, and you cannot enumerate the outputs. It does NOT close the INPUT space.
+// `salt` defaults to the literal 'default', and server.ts calls deidentify(bundle()) with no salt
+// at all, so on the default path the pseudonym is a pure function of a subject id. Subject ids are
+// low-entropy and guessable, and an attacker re-identifying by guessing never needed to invert the
+// hash — only to run it FORWARDS over candidate ids and compare. Against that attack a 256-bit
+// digest is worth exactly as much as a 32-bit one.
+//
+// A KEY is the only thing that closes the input space, so the derivation is HMAC-SHA256 whenever
+// HEALTH_TWIN_DEID_KEY is set: without the key the forward function cannot be computed at all, and
+// guessing the subject id stops being enough.
+//
+// THE FALLBACK IS REAL AND IT IS NOT PROTECTED. There is no key management in this service to
+// source a key from, so when the variable is unset the derivation falls back to unkeyed SHA-256,
+// warns once on stderr, and — the part that matters — RECORDS THE FACT in the de-id receipt
+// (`keyed: false`, `derivation: 'sha256'`). An unkeyed view is honestly labelled as unkeyed rather
+// than presented as protected. Treat unkeyed pseudonyms as pseudonymous-but-guessable, never as
+// anonymised, and do not release them outside a trust boundary that would also accept the raw ids.
+const DEID_KEY_VAR = 'HEALTH_TWIN_DEID_KEY';
+// read per call, not at import: a process may configure the key after this module loads, and the
+// invariants exercise both the keyed and unkeyed branches in one run.
+const deidKey = (): string => process.env[DEID_KEY_VAR] ?? '';
+
+let warnedUnkeyed = false;
+function warnIfUnkeyed(): void {
+  if (deidKey() || warnedUnkeyed) return;
+  warnedUnkeyed = true;
+  console.warn(
+    `[deident] ${DEID_KEY_VAR} is not set — pseudonyms are UNKEYED sha256. They are stable and ` +
+    'collision-resistant, but anyone who can GUESS a subject id can recompute the pseudonym and ' +
+    'confirm the guess. Receipts are marked keyed:false. Do not treat these views as anonymised.',
+  );
+}
+
+// Domain-separated derivation. The pseudonym and the date shift come from the SAME subject id and
+// salt, so they must not come from the same digest: sharing one would let anybody holding a
+// pseudonym solve for that view's date shift and undo the shifting (and vice-versa). The domain
+// tag is part of the hashed message, and the message is JSON-encoded so a '|' inside a subject id
+// cannot be re-parsed as a field boundary.
+function derive(domain: 'pseudonym' | 'dateshift', subjectId: string, salt: string): string {
+  const msg = JSON.stringify([domain, subjectId, salt]);
+  const key = deidKey();
+  warnIfUnkeyed();
+  return key
+    ? createHmac('sha256', key).update(msg).digest('hex')
+    : createHash('sha256').update(msg).digest('hex');
+}
+
+// 32 hex = 128 bits. The truncation is DELIBERATE, not an oversight: 128 bits is past any
+// collision or enumeration concern for a subject population, while keeping the token short enough
+// to appear in a UI, a URL and a reviewer's notes. The security limit on this value is the input
+// space described above, not these 128 bits — lengthening it would buy nothing.
+const PSEUDONYM_HEX = 32;
+
+// Date shift in [-183, +182] days, from 64 bits of the dateshift-domain digest.
+// BigInt, not parseInt: parseInt over a hex string longer than 13 digits silently exceeds 2^53 and
+// returns a rounded float, so the low bits — the ones the modulus actually consumes — are lost and
+// the "shift" degenerates toward a handful of values. BigInt is exact. Modulo bias over 2^64 into
+// 366 buckets is ~1e-17 and irrelevant here.
+function dateShiftFrom(digest: string): number {
+  return Number(BigInt(`0x${digest.slice(0, 16)}`) % 366n) - 183;
+}
 
 const shiftDate = (iso: string, days: number): string => {
   if (!iso || iso.length < 7) return iso;
@@ -22,6 +90,11 @@ export interface DeidReceipt {
   identifiersRemoved: string[]; // categories handled
   dateShiftDays: number;        // preserves intervals; absolute dates broken
   scope: DisclosureScope;       // the patient's agreed disclosure
+  // How the pseudonym was actually derived on THIS view. A receipt that reported a protection the
+  // run did not have would be worse than no receipt, so these are recorded from the live key state
+  // rather than from intent: `keyed: false` means a guessable subject id yields this pseudonym.
+  derivation: 'hmac-sha256' | 'sha256';
+  keyed: boolean;
   at: string;
 }
 
@@ -51,9 +124,13 @@ const NONDX = 'De-identified record for blinded review. Not a diagnosis; a clini
 // coarsened age-band + sex a doctor needs). The bundle is the shape returned by the engine's bundle().
 export function deidentify(bundle: any, salt = 'default', scope: DisclosureScope = 'standard'): DeidView {
   const subjectId = bundle?.subject?.id ?? 'subject';
-  const pseudonym = `anon:${djb2(`${subjectId}|${salt}`)}`;
-  // per-view deterministic date shift in [-183, +182] days — breaks absolute dates, preserves intervals
-  const dateShiftDays = (parseInt(djb2(`shift|${subjectId}|${salt}`), 16) % 366) - 183;
+  // `anon:` prefix is load-bearing — INVARIANT 1 asserts the subject was reduced to a pseudonym by
+  // testing for it. 32 hex of a domain-separated digest follows (see PSEUDONYM_HEX).
+  const pseudonym = `anon:${derive('pseudonym', subjectId, salt).slice(0, PSEUDONYM_HEX)}`;
+  // per-view deterministic date shift in [-183, +182] days — breaks absolute dates, preserves
+  // intervals. Separate domain, so holding the pseudonym does not reveal the shift.
+  const dateShiftDays = dateShiftFrom(derive('dateshift', subjectId, salt));
+  const keyed = deidKey().length > 0;
   const removed = new Set<string>();
 
   const systems = (bundle?.systems ?? []).map((s: any) => ({
@@ -94,7 +171,9 @@ export function deidentify(bundle: any, salt = 'default', scope: DisclosureScope
     disclaimer: NONDX,
     receipt: {
       method: 'safe-harbor+date-shift', pseudonym, identifiersRemoved: [...removed].sort(),
-      dateShiftDays, scope, at: new Date().toISOString(),
+      dateShiftDays, scope,
+      derivation: keyed ? 'hmac-sha256' : 'sha256', keyed,
+      at: new Date().toISOString(),
     } as DeidReceipt,
   };
 }
