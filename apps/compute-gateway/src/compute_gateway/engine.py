@@ -59,6 +59,15 @@ _MAX_REASON_LEN = 512         # bounded free-text
 _MAX_ITEMS = 10_000           # DoS safeguard on the ledger
 _MAX_SPEC_VERSION_LEN = 64    # a version string ("2.0", "2026-07-29"), not a field
 _MAX_COUNT_KEYS = 256         # a counts map is a tally, not a key-value store
+# Upper bound on any non-negative integer field. Python ints are arbitrary
+# precision, so "must be a non-negative int" is not by itself a bound at all — a
+# 1.9-million-digit int passes `isinstance(v, int)` just fine and only trips the
+# aggregate-serialisation cap on the way out. That means the per-field check
+# was declarative, not enforcing: exactly the "dimension nobody enumerated"
+# shape #1071 warned about. int64 max (~9.22e18) sits above any real byte count
+# (this exceeds exabyte-scale) and above any conceivable count of events, but
+# refuses to store a digit-encoded blob as a "number".
+_MAX_NONNEG_INT = 2**63 - 1
 
 # Aggregate backstop. Every bound above is per-field, and per-field bounds only
 # close the dimensions someone remembered to enumerate — `specVersion` and the
@@ -87,7 +96,13 @@ def _bad_ref(v) -> bool:
 
 
 def _bad_nonneg_int(v) -> bool:
-    return isinstance(v, bool) or not isinstance(v, int) or v < 0
+    # bool subclasses int; excluded first so True/False are rejected as types.
+    # The upper bound is what makes this a real gate: without it, an adapter can
+    # smuggle a 1.9-MB decimal blob as a "count" and only the aggregate
+    # backstop catches it — see the module docstring for the exhaust guard.
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        return True
+    return v > _MAX_NONNEG_INT
 
 
 def _validate_exhaust(exhaust) -> str | None:
@@ -110,7 +125,7 @@ def _validate_exhaust(exhaust) -> str | None:
         return f"specVersion must be a version string (<= {_MAX_SPEC_VERSION_LEN} chars)"
     for count_key in ("bytesIn", "bytesOut"):
         if count_key in exhaust and _bad_nonneg_int(exhaust[count_key]):
-            return f"{count_key} must be a non-negative int"
+            return f"{count_key} must be a bounded non-negative int (<= {_MAX_NONNEG_INT})"
     if "counts" in exhaust:
         c = exhaust["counts"]
         if not isinstance(c, dict):
@@ -121,7 +136,7 @@ def _validate_exhaust(exhaust) -> str | None:
             if not isinstance(k, str) or len(k) > _MAX_LABEL_LEN:
                 return f"counts.{k!r} label out of range"
             if _bad_nonneg_int(v):
-                return f"counts.{k} must be a non-negative int"
+                return f"counts.{k} must be a bounded non-negative int (<= {_MAX_NONNEG_INT})"
     if "items" in exhaust:
         items = exhaust["items"]
         if not isinstance(items, list):
@@ -139,7 +154,7 @@ def _validate_exhaust(exhaust) -> str | None:
             if "sha256" in it and _bad_ref(it["sha256"]):
                 return f"items[{i}].sha256 must be a 64-hex digest or sha256:/urn: ref"
             if "size" in it and _bad_nonneg_int(it["size"]):
-                return f"items[{i}].size must be a non-negative int"
+                return f"items[{i}].size must be a bounded non-negative int (<= {_MAX_NONNEG_INT})"
             if "ref" in it and _bad_ref(it["ref"]):
                 return f"items[{i}].ref must be a digest/URN reference"
     # Aggregate backstop — last, so it catches whatever the per-field checks

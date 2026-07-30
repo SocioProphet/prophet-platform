@@ -277,3 +277,90 @@ def test_exhaust_guard_accepts_a_large_but_legitimate_ref_ledger():
     good = {"type": "ExhaustRecord", "source": "compute",
             "items": [{"kind": "candidate", "sha256": "a" * 64} for _ in range(10_000)]}
     assert engine._guard_exhaust(good) == good
+
+
+# ── #1104 follow-up: digit-encoded-payload door on the int fields ─────────
+# Python ints are arbitrary precision. `isinstance(v, int) and v >= 0` is a
+# type/sign check, not a size bound — a 1.9-MB-of-decimal-digits int satisfies
+# both, so an adapter could smuggle payload as `bytesIn`/`bytesOut`/a `counts`
+# value/an `items[i].size` and only trip the 2 MiB aggregate cap on the way out.
+# The adversarial audit that produced #1104 called this the "dimension nobody
+# enumerated"; these tests pin the per-field bound that closes it, and assert
+# it fires *ahead* of the aggregate backstop (so a caller sees a specific,
+# actionable reason instead of the catch-all).
+
+def _giant_int_from_digits(mb: float) -> int:
+    """Return an int whose decimal representation is ~mb megabytes long.
+
+    The whole point of the attack is a payload dressed as a number, so the
+    fixture has to actually construct one; a plain `10**N` uses N+1 characters
+    to encode but this constructs an int whose *digit string* is huge, which
+    is what the smuggler's serialiser would produce.
+
+    Python 3.11+ caps int/str conversion at PYTHONINTMAXSTRDIGITS (default
+    4300) as its own DoS guard; that default already blocks the exact wire
+    payload this test asserts against, so raising it here models the "what if
+    that ceiling is lifted" scenario the per-field bound exists to defend.
+    """
+    import sys as _sys
+    digits = int(mb * 1_000_000)
+    # Bump above the default (4300) with headroom for both construction and
+    # json.dumps' own int-to-str call inside the aggregate check.
+    if _sys.get_int_max_str_digits() < digits + 64:
+        _sys.set_int_max_str_digits(digits + 64)
+    return int("9" * digits)
+
+
+def test_bytesIn_rejects_digit_encoded_payload():
+    """A 1.9-MB-of-decimal-digits int passes isinstance(v, int) and v >= 0.
+    Must be rejected by the per-field bound, NOT incidentally by the aggregate
+    backstop — a caller who sees the aggregate reason has no idea which field
+    is wrong."""
+    smuggled = {"type": "ExhaustRecord", "bytesIn": _giant_int_from_digits(1.9)}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "bytesIn" not in out, "raw digit payload survived the guard via bytesIn"
+    assert "exhaust rejected" in out["reason"]
+    assert "bytesIn must be a bounded non-negative int" in out["reason"], (
+        "must be rejected BY THE bytesIn BOUND, not incidentally by the "
+        f"aggregate backstop; got: {out['reason']}")
+
+
+def test_counts_value_rejects_digit_encoded_payload():
+    """The same door on counts values: `counts` bounds *keys* by length and
+    the map by cardinality, but each value was only checked for
+    type/non-negativity. A giant-int value slips through both."""
+    smuggled = {"type": "ExhaustRecord",
+                "counts": {"dropped": _giant_int_from_digits(1.9)}}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "counts" not in out or "dropped" not in out.get("counts", {})
+    assert "exhaust rejected" in out["reason"]
+    assert "counts.dropped must be a bounded non-negative int" in out["reason"], (
+        "must be rejected BY THE counts-value BOUND, not incidentally by the "
+        f"aggregate backstop; got: {out['reason']}")
+
+
+def test_items_size_rejects_digit_encoded_payload():
+    """Same door on items[i].size — bounded to non-negative int only,
+    which is not a size bound at all when ints are arbitrary precision."""
+    smuggled = {"type": "ExhaustRecord",
+                "items": [{"kind": "candidate", "sha256": "a" * 64,
+                           "size": _giant_int_from_digits(1.9)}]}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "items" not in out, "raw digit payload survived the guard via items[0].size"
+    assert "exhaust rejected" in out["reason"]
+    assert "items[0].size must be a bounded non-negative int" in out["reason"], (
+        "must be rejected BY THE items-size BOUND, not incidentally by the "
+        f"aggregate backstop; got: {out['reason']}")
+
+
+def test_bytesIn_accepts_a_reasonable_petabyte_int():
+    """The fix must not break the real thing it is bounding. 10**15 is
+    petabyte-scale — well over any realistic byte tally, well under the int64
+    ceiling — and must still be accepted so the guard does not become a limit
+    on legitimate usage."""
+    good = {"type": "ExhaustRecord", "bytesIn": 10**15, "bytesOut": 10**15,
+            "counts": {"dropped": 10**12}}
+    assert engine._guard_exhaust(good) == good
