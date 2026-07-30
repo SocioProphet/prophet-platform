@@ -1,0 +1,40 @@
+name: access-prewalk
+
+# Graded, receipt-bound access decisions — importable by any Python service on the mesh
+# (prophet-workspace, agora, ops-fabric-api, prophet-mesh's Michael Agent). Access grading
+# that lives inside one app is grading no other service can perform; same reasoning that
+# moved lawful-verdict here in #1065.
+
+on:
+  push:
+    paths:
+      - 'libs/python/access-prewalk/**'
+      - '.github/workflows/access-prewalk.yml'
+  pull_request:
+    paths:
+      - 'libs/python/access-prewalk/**'
+      - '.github/workflows/access-prewalk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libs/python/access-prewalk/requirements-test.txt -e libs/python/access-prewalk
+
+      # Covers the three grades, the trust-floor-before-roles ordering (the fail-open shape
+      # a2a-trust hardening closed), the requires-consent → ZERO mapping, and signed-URL
+      # tamper detection across every bound field.
+      - name: Tests
+        run: cd libs/python/access-prewalk && pytest -q
