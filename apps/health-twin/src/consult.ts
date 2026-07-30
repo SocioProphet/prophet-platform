@@ -108,15 +108,21 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
   if (consults.size >= CONSULT_MAX) {
     return { error: `consult ledger full (${consults.size}/${CONSULT_MAX}) — close finished consults with closeConsult() or raise HEALTH_TWIN_CONSULT_MAX; refusing to silently evict a consult with attached opinions` };
   }
-  const salt = `${Date.now()}-${scope}`;
+  // Timestamp captured ONCE per call and reused for salt / consent.at /
+  // createdAt. Copilot round-1 caught that Date.now() and
+  // new Date().toISOString() computed independently can diverge by a
+  // millisecond, which makes correlation and audit debugging harder.
+  const now = new Date();
+  const nowISO = now.toISOString();
+  const salt = `${now.getTime()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);
-  // #942 follow-up: without a random nonce, two openConsult calls in the
+  // #1068 follow-up: without a random nonce, two openConsult calls in the
   // same millisecond with the same scope produced the same id and silently
   // overwrote each other in the ledger. randomUUID() is cheap and
   // guaranteed unique per call.
   const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt, randomUUID()])}`;
-  const consent: Consent = { agreed: true, disclosure, at: new Date().toISOString(), receipt: receipt('consent', [id, disclosure]).id };
-  consults.set(id, { id, createdAt: new Date().toISOString(), scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
+  const consent: Consent = { agreed: true, disclosure, at: nowISO, receipt: receipt('consent', [id, disclosure]).id };
+  consults.set(id, { id, createdAt: nowISO, scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
   return { consult_id: id, slice, consent, receipt: receipt('consult-open', [id, scope]) };
 }
 
@@ -125,7 +131,17 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
 export function requestMore(consultId: string, field: string, reason: string): MoreRequest | { error: string } {
   const c = consults.get(consultId);
   if (!c) return { error: 'consult not found' };
-  const r: MoreRequest = { id: `more-${sha256([consultId, field, String(Date.now()), randomUUID()])}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
+  // Trim inputs BEFORE hashing so the id derivation matches the stored
+  // canonical values (Copilot round-1: whitespace-only differences produced
+  // different ids while the stored field was identical, making audit
+  // correlation harder). Timestamp captured once.
+  const trimmedField = field.trim();
+  const trimmedReason = reason.trim();
+  const now = new Date();
+  const r: MoreRequest = {
+    id: `more-${sha256([consultId, trimmedField, String(now.getTime()), randomUUID()])}`,
+    field: trimmedField, reason: trimmedReason, status: 'pending', at: now.toISOString(),
+  };
   c.moreRequests.push(r);
   return r;
 }
@@ -143,10 +159,11 @@ export function submitOpinion(consultId: string, reviewer: string, assessment: s
   if (!c) return { error: 'consult not found' };
   const rv = reviewer.trim(); const a = assessment.trim();
   if (!rv || !a) return { error: 'reviewer and assessment required' };
+  const now = new Date();
   const op: Opinion = {
-    id: `op-${sha256([consultId, rv, a, String(Date.now()), randomUUID()])}`,
+    id: `op-${sha256([consultId, rv, a, String(now.getTime()), randomUUID()])}`,
     reviewer: rv, assessment: a, confidence, tier: 'hypothesis',
-    at: new Date().toISOString(), receipt: receipt('opinion', [consultId, rv]),
+    at: now.toISOString(), receipt: receipt('opinion', [consultId, rv]),
   };
   c.opinions.push(op);
   return op;
