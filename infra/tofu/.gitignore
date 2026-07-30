@@ -9,4 +9,11 @@ dns-records.txt
 crash.log
 override.tf
 *_override.tf
-.terraform.lock.hcl
+
+# .terraform.lock.hcl is deliberately NOT ignored. Ignoring it meant every CI run
+# re-resolved providers against the registry, so a green `tofu validate` said
+# nothing about the next run. Commit the lock for any root you want reproducible.
+# Regenerate with the TOFU_VERSION in .github/workflows/tofu-plan.yml:
+#   tofu providers lock \
+#     -platform=linux_amd64 -platform=darwin_arm64 -platform=darwin_amd64
+# linux_amd64 is what CI runs on; the darwin entries keep local init working.
