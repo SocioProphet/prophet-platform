@@ -39,6 +39,7 @@ _LADDER = ["unknown", "hypothesis", "simulated", "observed", "derived", "verifie
 # Shape matches the ExhaustRecord already in use across compute-gateway (see
 # tests/test_exhaust_accounting.py:28 for the canonical example).
 
+import json as _json
 import re as _re
 
 _EXHAUST_TOP_KEYS = frozenset({
@@ -56,6 +57,25 @@ _MAX_REF_LEN = 512
 _MAX_LABEL_LEN = 256          # kind, source, adapter, etc. — labels, not blobs
 _MAX_REASON_LEN = 512         # bounded free-text
 _MAX_ITEMS = 10_000           # DoS safeguard on the ledger
+_MAX_SPEC_VERSION_LEN = 64    # a version string ("2.0", "2026-07-29"), not a field
+_MAX_COUNT_KEYS = 256         # a counts map is a tally, not a key-value store
+
+# Aggregate backstop. Every bound above is per-field, and per-field bounds only
+# close the dimensions someone remembered to enumerate — `specVersion` and the
+# *number* of `counts` keys were both unbounded on earlier passes of this very
+# guard, each good for >10 MB of verbatim smuggled text. A total-size cap is the
+# one check that also closes the dimensions nobody thought of, so it is
+# deliberately consulted last and deliberately NOT derived from the per-field
+# limits (deriving it would make it re-state the same assumptions it exists to
+# catch).
+#
+# Sized by measurement, not guess: the largest LEGITIMATE record the per-field
+# bounds permit is a full 10 000-entry bare-digest discard ledger, which
+# serialises to 0.93 MiB. The largest record that is legal in every individual
+# field but is plainly payload — 10 000 items x two 512-char URN refs — is
+# 10.05 MiB. 2 MiB sits between them: ~2x headroom over the real ceiling, and
+# still refuses the per-field-legal blob.
+_MAX_EXHAUST_BYTES = 2 * 1024 * 1024
 
 
 def _bad_ref(v) -> bool:
@@ -84,8 +104,10 @@ def _validate_exhaust(exhaust) -> str | None:
             return f"{lbl} must be a short label string (<= {_MAX_LABEL_LEN} chars)"
     if "reason" in exhaust and not (isinstance(exhaust["reason"], str) and len(exhaust["reason"]) <= _MAX_REASON_LEN):
         return f"reason must be a bounded string (<= {_MAX_REASON_LEN} chars)"
-    if "specVersion" in exhaust and not isinstance(exhaust["specVersion"], str):
-        return "specVersion must be a string"
+    if "specVersion" in exhaust and not (
+        isinstance(exhaust["specVersion"], str) and len(exhaust["specVersion"]) <= _MAX_SPEC_VERSION_LEN
+    ):
+        return f"specVersion must be a version string (<= {_MAX_SPEC_VERSION_LEN} chars)"
     for count_key in ("bytesIn", "bytesOut"):
         if count_key in exhaust and _bad_nonneg_int(exhaust[count_key]):
             return f"{count_key} must be a non-negative int"
@@ -93,6 +115,8 @@ def _validate_exhaust(exhaust) -> str | None:
         c = exhaust["counts"]
         if not isinstance(c, dict):
             return "counts must be a mapping"
+        if len(c) > _MAX_COUNT_KEYS:
+            return f"counts has {len(c)} keys > {_MAX_COUNT_KEYS} — a tally, not a payload"
         for k, v in c.items():
             if not isinstance(k, str) or len(k) > _MAX_LABEL_LEN:
                 return f"counts.{k!r} label out of range"
@@ -118,6 +142,15 @@ def _validate_exhaust(exhaust) -> str | None:
                 return f"items[{i}].size must be a non-negative int"
             if "ref" in it and _bad_ref(it["ref"]):
                 return f"items[{i}].ref must be a digest/URN reference"
+    # Aggregate backstop — last, so it catches whatever the per-field checks
+    # above did not think to bound. Everything reaching here is JSON-safe
+    # (str/int/dict/list only), but fail closed if serialisation surprises us.
+    try:
+        total = len(_json.dumps(exhaust, separators=(",", ":"), ensure_ascii=False, default=str).encode("utf-8"))
+    except Exception as exc:  # pragma: no cover - defensive
+        return f"exhaust is not serialisable: {type(exc).__name__}"
+    if total > _MAX_EXHAUST_BYTES:
+        return f"exhaust serialises to {total} bytes > {_MAX_EXHAUST_BYTES} — a ledger, not a payload"
     return None
 
 
