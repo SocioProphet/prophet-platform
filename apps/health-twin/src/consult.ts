@@ -54,12 +54,29 @@ export interface Consult {
 // consult. Silent LRU eviction of a consult with attached medical opinions
 // would destroy real work, and 'lost state' is the class of failure this
 // codebase removes as a matter of doctrine. Explicit pruning is closeConsult.
-const _envMax = Number.parseInt(process.env.HEALTH_TWIN_CONSULT_MAX ?? '', 10);
-export const CONSULT_MAX = Number.isFinite(_envMax) && _envMax > 0 ? _envMax : 10_000;
+// The cap is parsed STRICTLY: the whole value must be digits, or we fall back
+// to the default. Number.parseInt() is the wrong tool for reading config,
+// because it stops at the first character it does not understand and reports
+// success on the prefix it managed to read. Three of those partial reads are
+// things an operator would plausibly write, and every one of them silently
+// yields a cap far smaller than intended rather than an error:
+//
+//     HEALTH_TWIN_CONSULT_MAX="10_000"  ->  parseInt 10     ->  cap of 10
+//     HEALTH_TWIN_CONSULT_MAX="1e5"     ->  parseInt 1      ->  cap of 1
+//     HEALTH_TWIN_CONSULT_MAX="10000oops" -> parseInt 10000 ->  wrong-but-plausible
+//
+// A cap of 1 or 10 wedges the consult API almost immediately, and (until an
+// operator surface for closeConsult exists — see #1072) that wedge lasts until
+// the process restarts. Refusing to guess is the only safe reading.
+const DEFAULT_CONSULT_MAX = 10_000;
+const _envRaw = (process.env.HEALTH_TWIN_CONSULT_MAX ?? '').trim();
+const _envMax = /^\d+$/.test(_envRaw) ? Number(_envRaw) : Number.NaN;
+export const CONSULT_MAX =
+  Number.isSafeInteger(_envMax) && _envMax > 0 ? _envMax : DEFAULT_CONSULT_MAX;
 const consults = new Map<string, Consult>();
 
 /** Explicit pruning — the caller decides what to drop. Returns true when a
- *  consult was removed, false when the id wasn\'t known. */
+ *  consult was removed, false when the id wasn't known. */
 export function closeConsult(consultId: string): boolean {
   return consults.delete(consultId);
 }

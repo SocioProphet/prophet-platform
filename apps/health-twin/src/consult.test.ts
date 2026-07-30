@@ -93,3 +93,42 @@ test('default cap is 10_000 when env is unset or malformed', async () => {
   const m3 = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '-5' });
   assert.equal(m3.CONSULT_MAX, 10_000, 'negatives fall back to default');
 });
+
+/**
+ * The test above claimed "or malformed" but only exercised the two malformed
+ * inputs that Number.parseInt happens to reject outright. The dangerous class
+ * is the one parseInt ACCEPTS by reading a prefix and discarding the rest, and
+ * none of those were covered.
+ *
+ * Note the trap in the original test's own notation: it writes the default as
+ * the JS numeric literal `10_000`, which is 10000. The *string* '10_000' — the
+ * same thing an operator types into a ConfigMap — parses to 10. The test
+ * spelled the failing input on every line and could never hit it, because a
+ * literal is not a string.
+ *
+ * Each case below FAILED against the parseInt implementation merged in #1068.
+ */
+test('a partially-numeric cap is refused, not silently truncated', async () => {
+  const cases: Array<[string, string]> = [
+    ['10_000', 'underscore separator: parseInt stops at "_" and yields 10'],
+    ['1e5', 'scientific notation: parseInt stops at "e" and yields 1'],
+    ['10000oops', 'trailing garbage: parseInt reads the prefix and reports success'],
+    ['0x10', 'hex: parseInt(radix 10) stops at "x" and yields 0'],
+    ['12.9', 'decimal: parseInt truncates silently'],
+    ['', 'empty'],
+    ['   ', 'whitespace only'],
+    ['+5', 'signed'],
+    ['99999999999999999999', 'beyond Number.MAX_SAFE_INTEGER'],
+  ];
+  for (const [value, why] of cases) {
+    const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: value });
+    assert.equal(m.CONSULT_MAX, 10_000, `${JSON.stringify(value)} must fall back to the default — ${why}`);
+  }
+});
+
+test('a well-formed cap is still honoured', async () => {
+  for (const [value, expected] of [['1', 1], ['42', 42], ['10000', 10_000], [' 250 ', 250]] as const) {
+    const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: value });
+    assert.equal(m.CONSULT_MAX, expected, `${JSON.stringify(value)} must be honoured`);
+  }
+});
