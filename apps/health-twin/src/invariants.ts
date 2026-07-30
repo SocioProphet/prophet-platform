@@ -199,17 +199,42 @@ console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptograph
   // receipt hard-coded to keyed:true — the failure mode that matters — cannot pass.
   const KEY = 'HEALTH_TWIN_DEID_KEY';
   const saved = process.env[KEY];
-  delete process.env[KEY];
-  const unkeyed = deidentify(sampleBundle, 'deid-probe');
-  ok(unkeyed.receipt.keyed === false && unkeyed.receipt.derivation === 'sha256',
-     'with no key configured the receipt declares keyed:false / sha256 — it does not overstate');
-  process.env[KEY] = 'invariant-test-key';
-  const keyed = deidentify(sampleBundle, 'deid-probe');
-  ok(keyed.receipt.keyed === true && keyed.receipt.derivation === 'hmac-sha256',
-     'with a key configured the receipt declares keyed:true / hmac-sha256');
-  ok(keyed.receipt.pseudonym !== unkeyed.receipt.pseudonym,
-     'the key actually enters the derivation (keyed pseudonym ≠ unkeyed pseudonym)');
-  if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
+  // try/finally: this block mutates a process-wide variable that changes how PHI is de-identified.
+  // Restoring it only on the happy path would leave every later invariant running under a key state
+  // it did not choose, and a de-id failure would then be attributed to the wrong cause.
+  try {
+    delete process.env[KEY];
+    const unkeyed = deidentify(sampleBundle, 'deid-probe');
+    ok(unkeyed.receipt.keyed === false && unkeyed.receipt.derivation === 'sha256',
+       'with no key configured the receipt declares keyed:false / sha256 — it does not overstate');
+    process.env[KEY] = 'invariant-test-key-32-bytes-long';
+    const keyed = deidentify(sampleBundle, 'deid-probe');
+    ok(keyed.receipt.keyed === true && keyed.receipt.derivation === 'hmac-sha256',
+       'with a key configured the receipt declares keyed:true / hmac-sha256');
+    ok(keyed.receipt.pseudonym !== unkeyed.receipt.pseudonym,
+       'the key actually enters the derivation (keyed pseudonym ≠ unkeyed pseudonym)');
+
+    // A DEGENERATE KEY MUST NOT BUY THE keyed:true LABEL.
+    // The receipt's only job is to never overstate protection. The key is there to close the
+    // guessing attack; a one-character or whitespace key does not close it, so stamping
+    // keyed:true / hmac-sha256 for one would tell a reader the view is protected when it is not.
+    // Such a key is refused and the run falls back to the honest unkeyed path.
+    for (const weak of [' ', 'x', 'short', '\t\n', 'fifteen-bytes!']) {
+      process.env[KEY] = weak;
+      const r = deidentify(sampleBundle, 'deid-probe').receipt;
+      ok(r.keyed === false && r.derivation === 'sha256',
+         `a ${Buffer.byteLength(weak)}-byte key is refused, not reported as protection (${JSON.stringify(weak)} → keyed:${r.keyed})`);
+      ok(r.pseudonym === unkeyed.receipt.pseudonym,
+         `a refused key really is unused — the pseudonym is the unkeyed one (${JSON.stringify(weak)})`);
+    }
+    // and the boundary is where it says it is: 16 bytes is accepted
+    process.env[KEY] = 'sixteen-bytes-16';
+    const atMin = deidentify(sampleBundle, 'deid-probe').receipt;
+    ok(Buffer.byteLength('sixteen-bytes-16') === 16 && atMin.keyed === true && atMin.derivation === 'hmac-sha256',
+       'a key at the 16-byte minimum IS accepted (the floor is a floor, not a moving refusal)');
+  } finally {
+    if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
+  }
 }
 
 

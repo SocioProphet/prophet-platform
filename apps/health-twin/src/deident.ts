@@ -32,13 +32,55 @@ import { createHash, createHmac } from 'node:crypto';
 // than presented as protected. Treat unkeyed pseudonyms as pseudonymous-but-guessable, never as
 // anonymised, and do not release them outside a trust boundary that would also accept the raw ids.
 const DEID_KEY_VAR = 'HEALTH_TWIN_DEID_KEY';
+
+// A key shorter than this is NOT a key for this purpose, and is refused rather than used.
+// The key exists to close the INPUT space — to make the forward function incomputable to someone
+// guessing subject ids. A one-character or whitespace key does not do that: it is enumerated as
+// fast as the subject ids are. Accepting it would still stamp `keyed: true` / `hmac-sha256` on the
+// receipt, and a reader who trusts that flag would be told the view is protected when it is not.
+// The receipt's single job is to never overstate, so a degenerate key is rejected and the run falls
+// back to the honest unkeyed path — labelled unkeyed, exactly like a missing key.
+// 16 bytes = 128 bits, matching the pseudonym width; below that the flag would outrun the fact.
+const MIN_DEID_KEY_BYTES = 16;
+
 // read per call, not at import: a process may configure the key after this module loads, and the
 // invariants exercise both the keyed and unkeyed branches in one run.
-const deidKey = (): string => process.env[DEID_KEY_VAR] ?? '';
+const rawDeidKey = (): string => process.env[DEID_KEY_VAR] ?? '';
+
+/**
+ * The EFFECTIVE key state for this call — one source of truth for both the derivation and the
+ * receipt. These were two independent reads of the environment, which meant the receipt reported
+ * what the environment said rather than what the derivation did; they agree today only because
+ * nothing can interleave between them. Deriving both from one value makes the receipt structurally
+ * unable to describe a derivation that did not happen.
+ */
+function keyState(): { key: string; keyed: boolean; rejected: boolean } {
+  const raw = rawDeidKey();
+  if (!raw) return { key: '', keyed: false, rejected: false };
+  if (Buffer.byteLength(raw, 'utf8') < MIN_DEID_KEY_BYTES) return { key: '', keyed: false, rejected: true };
+  return { key: raw, keyed: true, rejected: false };
+}
 
 let warnedUnkeyed = false;
+let warnedRejected = false;
 function warnIfUnkeyed(): void {
-  if (deidKey() || warnedUnkeyed) return;
+  const st = keyState();
+  if (st.keyed) return;
+  // A configured-but-refused key is a DIFFERENT operator situation from an unset one: somebody
+  // intended protection and did not get it, so it must not be reported with the same message an
+  // untouched deployment gets.
+  if (st.rejected) {
+    if (warnedRejected) return;
+    warnedRejected = true;
+    console.warn(
+      `[deident] ${DEID_KEY_VAR} is set but is shorter than the ${MIN_DEID_KEY_BYTES}-byte minimum — ` +
+      'it has been REFUSED, not used. A key this short does not close the guessing attack the key ' +
+      'exists to close, and using it would let the receipt claim keyed:true for a protection you do ' +
+      'not have. Falling back to UNKEYED sha256; receipts are marked keyed:false.',
+    );
+    return;
+  }
+  if (warnedUnkeyed) return;
   warnedUnkeyed = true;
   console.warn(
     `[deident] ${DEID_KEY_VAR} is not set — pseudonyms are UNKEYED sha256. They are stable and ` +
@@ -54,9 +96,9 @@ function warnIfUnkeyed(): void {
 // cannot be re-parsed as a field boundary.
 function derive(domain: 'pseudonym' | 'dateshift', subjectId: string, salt: string): string {
   const msg = JSON.stringify([domain, subjectId, salt]);
-  const key = deidKey();
+  const { key, keyed } = keyState();
   warnIfUnkeyed();
-  return key
+  return keyed
     ? createHmac('sha256', key).update(msg).digest('hex')
     : createHash('sha256').update(msg).digest('hex');
 }
@@ -130,7 +172,8 @@ export function deidentify(bundle: any, salt = 'default', scope: DisclosureScope
   // per-view deterministic date shift in [-183, +182] days — breaks absolute dates, preserves
   // intervals. Separate domain, so holding the pseudonym does not reveal the shift.
   const dateShiftDays = dateShiftFrom(derive('dateshift', subjectId, salt));
-  const keyed = deidKey().length > 0;
+  // the SAME predicate derive() just used — not a second look at the environment
+  const keyed = keyState().keyed;
   const removed = new Set<string>();
 
   const systems = (bundle?.systems ?? []).map((s: any) => ({
