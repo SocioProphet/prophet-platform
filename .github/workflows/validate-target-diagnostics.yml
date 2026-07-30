@@ -27,7 +27,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
         with:
           fetch-depth: 0
       - id: detect
@@ -103,7 +103,7 @@ jobs:
           - validate-storage-suite
           - trustops-art-runner-smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Go
         if: matrix.target == 'test-go'
         uses: actions/setup-go@v5
@@ -180,7 +180,7 @@ jobs:
             install: pip install pytest pyyaml jsonschema
             test: pytest -q tools/tests
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -239,7 +239,7 @@ jobs:
           - liberty-stack-readout-smoke
           - tritfabric-consumption-api-smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -250,14 +250,41 @@ jobs:
   # Single stable check name for branch-protection rulesets: requiring this one
   # job covers every matrix leg above (and any added later) without having to
   # enumerate ~45 per-target check names in repo settings.
+  #
+  # DO NOT RENAME THIS JOB. `diagnostics-gate` is the only context in the
+  # `main-required-checks` ruleset, and gitops-promote.yml dispatches this
+  # workflow specifically to produce this check name on promote branches.
+  #
+  # This gate used to read:
+  #   [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]
+  # which tested `failure` and `cancelled` and nothing else. A skipped job
+  # reports `skipped`, so both contains() calls were false and the gate went
+  # GREEN — the sole required check for the repository passing having verified
+  # that nothing ran. `changes` was not even in `needs:`, so the job that
+  # authorises the skips was outside the gate it authorises.
+  #
+  # The verdict now lives in tools/ci_diagnostics_gate.py, under unit test, for
+  # the same reason the skip rule lives in tools/ci_docs_only.py: a rule that
+  # only exists as a YAML expression is a rule nobody can test — and this one
+  # decides whether anything may merge at all. It is fail-CLOSED. Every needed
+  # job must have SUCCEEDED, with exactly one documented exception: app-test-
+  # diagnostics and smoke-target-diagnostics may report `skipped` when the
+  # `changes` job proved the diff docs-only (docs/** and root *.md, per
+  # tools/ci_docs_only.py), which is the filter declared on those two jobs
+  # above. Any other skip — a new path filter, a mistyped condition, a leg
+  # dropped from `needs:` — is RED until someone argues the case in that file.
   diagnostics-gate:
     if: always()
-    needs: [validate-target-diagnostics, app-test-diagnostics, smoke-target-diagnostics]
+    needs: [changes, validate-target-diagnostics, app-test-diagnostics, smoke-target-diagnostics]
     runs-on: ubuntu-latest
     steps:
-      - name: Fail if any diagnostics job failed
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
+      - name: Fail unless every diagnostics job ran and passed
+        # `needs` reaches the rule through the environment rather than string
+        # interpolation, so the verdict is computed from data and never from
+        # shell text assembled at template-expansion time.
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          echo "validate=${{ needs.validate-target-diagnostics.result }}"
-          echo "app-tests=${{ needs.app-test-diagnostics.result }}"
-          echo "smokes=${{ needs.smoke-target-diagnostics.result }}"
-          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]
+          set -euo pipefail
+          printf '%s' "$NEEDS_JSON" | python3 tools/ci_diagnostics_gate.py
