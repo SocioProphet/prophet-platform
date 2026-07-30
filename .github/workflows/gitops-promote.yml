@@ -25,6 +25,10 @@ permissions:
                          # branch (see the long note in the push step). The repo default workflow
                          # permission is read-only, so without this the dispatch 403s and every
                          # promote PR sits BLOCKED forever waiting for diagnostics-gate.
+  statuses: write        # REQUIRED to POST the `diagnostics-gate` commit status that the
+                         # `main-required-checks` ruleset actually reads (see the push step).
+                         # Without it the POST 403s and the PR sits BLOCKED — same symptom as
+                         # before, so the step treats a failed POST as fatal rather than warning.
 
 concurrency:
   group: gitops-promote
@@ -124,45 +128,69 @@ jobs:
             --title "gitops: promote${bumped} → sha-${SHA:0:12}" \
             --body "Automated image-pin promotion (values-only). Auto-merges when diagnostics-gate passes."
 
-          # ── Why the explicit dispatch below is REQUIRED (measured 2026-07-29) ──────────
-          # A PR opened by this job never gets its required check on its own. Two distinct
-          # failure modes were observed on real promote PRs, both ending in BLOCKED:
+          # ── The required check must be PUBLISHED WHERE THE RULESET READS, not merely produced ──
+          # A PR opened by this job never gets its required check on its own. Two failure modes
+          # were measured on real promote PRs, both ending in BLOCKED:
           #   • #1007/#1013 — ZERO pull_request runs created. The GITHUB_TOKEN no-recursion
           #     rule: events caused by GITHUB_TOKEN do not start workflow runs.
-          #   • #1017/#1018 — 18 pull_request runs ARE created, but every one lands at
+          #   • #1017/#1018 — pull_request runs ARE created, but every one lands at
           #     conclusion=action_required (parked awaiting approval), and a run parked at
           #     action_required publishes NO check-runs. Measured alongside it:
           #     GET /repos/:r/actions/permissions/fork-pr-contributor-approval reports
           #     approval_policy=first_time_contributors, and these runs' triggering_actor
           #     is github-actions[bot] (on runs that DID work — #981/#983 — it was a human).
-          #     The policy is the likeliest cause; the parked state is the measured fact.
-          # Either way `diagnostics-gate` — the ONE context required by the
-          # `main-required-checks` ruleset — is absent, so the PR can never merge.
-          # The 7-8 checks that DO appear on these PRs (CodeQL `Analyze (*)`, `CodeQL`,
-          # `GitGuardian Security Checks`) are GitHub-App/`dynamic`-event products, exempt
-          # from the GITHUB_TOKEN rule — none of them is required, so a green rollup of
-          # those alone is a mirage. Do NOT read "7 checks passing" as "ready to merge".
+          # So diagnostics have to be dispatched explicitly: workflow_dispatch is the documented
+          # exception to the no-recursion rule, and is not subject to the contributor-approval
+          # gate. That much always worked, and is why the dispatch below is still here.
           #
-          # workflow_dispatch is the documented exception to the no-recursion rule: an
-          # EXPLICIT dispatch does create a run even under GITHUB_TOKEN, and because it is
-          # not a pull_request event it is not subject to the contributor-approval gate.
-          # The run attaches its check-runs to the branch-head SHA, which is the PR head,
-          # so `diagnostics-gate` lands on the PR rollup and the ruleset is satisfied.
-          # This is the CI-native fix: no PAT, no GitHub App token, no new secrets.
-          # NOTE: this needs `actions: write` (see the permissions block at the top) —
-          # the repo default workflow permission is read-only.
+          # ── What did NOT work, and cost 7 hours on 2026-07-29 (#1037…#1064) ────────────────
+          # A workflow_dispatch run has NO pull-request association, so its check-runs attach to
+          # the COMMIT but never enter the PULL REQUEST's statusCheckRollup — and the rollup is
+          # what ruleset `main-required-checks` evaluates. Measured on #1064:
+          #     GET /repos/:r/commits/:sha/check-runs  → diagnostics-gate = success  (+50 green jobs)
+          #     GraphQL pullRequest.statusCheckRollup  → 8 contexts, diagnostics-gate ABSENT
+          # All nine promote PRs sat MERGEABLE-but-BLOCKED with auto-merge armed and waiting on a
+          # context that was never going to arrive. The previous revision of this comment asserted
+          # the opposite ("lands on the PR rollup, so the ruleset is satisfied") because it was
+          # verified against the commit endpoint — the one that shows the gate — instead of the
+          # rollup, the one the ruleset reads. Do not re-introduce that claim, and do not verify
+          # this code path with /commits/:sha/check-runs.
           #
-          # validate-target-diagnostics.yml is safe to dispatch: it already declares
-          # workflow_dispatch, it has NO paths: filter (so a values-only diff still runs
-          # it — verified on #1008, which changed only deploy/values/compute-gateway.yaml
-          # and still produced diagnostics-gate=success), and it contains no
-          # github.event.pull_request.* expressions, so the job graph and every check NAME
-          # are byte-identical under pull_request and workflow_dispatch.
-          # If you are tempted to "just push an empty commit to kick CI" — that is the
-          # manual workaround this dispatch replaces. Don't re-add it.
+          # ── The fix ───────────────────────────────────────────────────────────────────────
+          # Dispatch, WAIT for the real job outcomes, then publish `diagnostics-gate` as a COMMIT
+          # STATUS (POST /repos/:o/:r/statuses/:sha). Commit statuses are part of the PR rollup by
+          # construction, so the ruleset sees them. GITHUB_TOKEN already carries `statuses: write`
+          # (declared in the permissions block above) — no App, no PAT, no new secret, no org change.
+          #
+          # validate-target-diagnostics.yml is safe to dispatch and is NOT edited from here: it
+          # already declares workflow_dispatch, has no paths: filter (so a values-only diff still
+          # runs it), and contains no github.event.pull_request.* expressions, so the job graph is
+          # identical under pull_request and workflow_dispatch.
+          HEAD_SHA="$(git rev-parse HEAD)"
+          # Copilot #1076: `target_url` follows RUN_ID once we know it, so the required-check
+          # link in the PR takes the reviewer straight to the diagnostics run (which is the
+          # thing they need to inspect), not back to this promote run (which is the driver
+          # and rarely what a reviewer wants to open). Falls back to this run when we do not
+          # yet have a diagnostics run to point at.
+          PROMOTE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DIAG_URL=""
+          post_status() {   # $1=state $2=description
+            local url="${DIAG_URL:-$PROMOTE_URL}"
+            gh api -X POST "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+              -f state="$1" -f context='diagnostics-gate' \
+              -f description="$(printf '%.140s' "$2")" \
+              -f target_url="$url" >/dev/null
+          }
+          # Publish `pending` FIRST. If this job dies at any point below, the PR is left with an
+          # explicitly pending required check (visibly blocked) rather than an absent one
+          # (invisibly blocked) — that difference is the whole bug. Fail-closed by construction:
+          # nothing downgrades this to success except a measured green run.
+          post_status pending "diagnostics dispatched onto ${BRANCH}"
+
+          gh pr merge "$BRANCH" --squash --auto --delete-branch
+
           # Retry: this job is unattended, and a dispatch that silently fails leaves the PR
-          # BLOCKED until a human happens to notice. A freshly-pushed ref can also take a
-          # moment to become dispatchable.
+          # BLOCKED until a human notices. A freshly-pushed ref can take a moment to be dispatchable.
           dispatched=""
           for attempt in 1 2 3; do
             if gh workflow run validate-target-diagnostics.yml --ref "$BRANCH"; then
@@ -171,8 +199,85 @@ jobs:
             echo "dispatch attempt $attempt failed; retrying in 10s"; sleep 10
           done
           if [ -z "$dispatched" ]; then
-            echo "::warning::could not dispatch validate-target-diagnostics for $BRANCH after 3 attempts; the PR will stay BLOCKED until diagnostics-gate is produced some other way"
+            post_status failure "could not dispatch diagnostics after 3 attempts"
+            echo "::error::could not dispatch validate-target-diagnostics for $BRANCH"; exit 1
           fi
 
-          gh pr merge "$BRANCH" --squash --auto --delete-branch
+          # The branch name is unique (embeds $(date +%s)), so ANY run on it is the one we just
+          # dispatched — no fragile created_at comparison needed.
+          # Copilot #1076: DO NOT blanket-suppress stderr — an auth/rate/permission failure
+          # here is indistinguishable from "eventual consistency: the dispatched run has not
+          # materialised yet" if we throw stderr away. Capture it, log it, and treat non-zero
+          # gh exit as a real failure. Empty `.workflow_runs[0]` is the only path we retry on.
+          RUN_ID=""
+          for attempt in $(seq 1 20); do
+            api_err=$(mktemp)
+            if RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/validate-target-diagnostics.yml/runs?branch=${BRANCH}&event=workflow_dispatch&per_page=1" \
+                          --jq '.workflow_runs[0].id // empty' 2>"$api_err"); then
+              rm -f "$api_err"
+              [ -n "$RUN_ID" ] && break
+              echo "run not yet visible (attempt $attempt) — eventual consistency, retrying"
+            else
+              echo "::warning::gh api failed on attempt $attempt: $(head -3 "$api_err")"
+              rm -f "$api_err"
+              # Do not silently retry an auth/permission/rate failure past a handful of
+              # tries — a real 4xx does not become a 2xx on its own.
+              if [ "$attempt" -ge 3 ]; then
+                post_status failure "querying workflow runs failed (see promote log)"
+                echo "::error::gh api failed 3 times — refusing to certify silently"; exit 1
+              fi
+            fi
+            sleep 15
+          done
+          if [ -z "$RUN_ID" ]; then
+            post_status failure "diagnostics run never appeared for ${BRANCH}"
+            echo "::error::dispatched run never materialised"; exit 1
+          fi
+          # Now that RUN_ID is known, future status posts point at the diagnostics run,
+          # not this promote run (Copilot #1076: PR reviewers open the required-check link
+          # expecting the check's evidence — direct them there rather than to the driver).
+          DIAG_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}"
+          post_status pending "diagnostics run ${RUN_ID} dispatched — awaiting outcome"
+          echo "waiting on diagnostics run ${RUN_ID} at ${DIAG_URL}"
+
+          # Copilot #1076: replace the 180-iteration status poll with `gh run watch`, which
+          # long-polls internally instead of hammering the API on a fixed interval. The old
+          # loop generated up to 180 GET/actions/runs/:id calls per promote, and promotes
+          # cascade (nine of them in the last incident), so a rate-limit hit was a matter of
+          # time. `gh run watch` also surfaces the finer-grained "in_progress" progression
+          # in-log rather than requiring us to poll for it. --exit-status is intentionally
+          # NOT used — the run being "failure" is not the check this gate exists to perform;
+          # the per-job success check below (fail-closed allowlist) is.
+          echo "watching diagnostics run ${RUN_ID}"
+          if ! timeout 2700 gh run watch "${RUN_ID}" --interval 15 >/dev/null 2>&1; then
+            # timeout(1) exits 124 on deadline; gh exits non-zero on a run-level failure.
+            # Either way, still read `.status` before deciding: a completed run whose watch
+            # returned non-zero because the run FAILED is exactly what we want to inspect
+            # per-job below. Only an actually-uncompleted run is a timeout.
+            STATUS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}" --jq '.status' 2>/dev/null || echo "")
+            if [ "$STATUS" != "completed" ]; then
+              post_status failure "diagnostics run ${RUN_ID} did not complete within the budget"
+              echo "::error::timed out waiting for run ${RUN_ID} (status=${STATUS:-unknown})"; exit 1
+            fi
+          fi
+
+          # FAIL-CLOSED verdict: allowlist `success`, never denylist known-bad conclusions.
+          # A denylist of {failure,cancelled} is exactly how a gate goes green on a run where the
+          # path filters skipped everything — `skipped` is not `failure`, so a denylist waves it
+          # through. Anything that is not literally `success` (skipped, neutral, timed_out,
+          # action_required, stale, null) is treated as NOT proven and posts failure.
+          BAD=$(gh api "repos/${{ github.repository }}/actions/runs/${RUN_ID}/jobs" --paginate \
+                  --jq '.jobs[] | select(.conclusion != "success") | .name' 2>/dev/null || echo "API_READ_FAILED")
+          if [ "$BAD" = "API_READ_FAILED" ]; then
+            post_status failure "could not read job results for run ${RUN_ID}"
+            echo "::error::job-list read failed — refusing to certify"; exit 1
+          fi
+          if [ -n "$BAD" ]; then
+            COUNT=$(printf '%s\n' "$BAD" | grep -c . || true)
+            FIRST=$(printf '%s\n' "$BAD" | head -3 | tr '\n' ',' | sed 's/,$//')
+            post_status failure "${COUNT} diagnostics job(s) not successful: ${FIRST}"
+            echo "::error::not certifying — non-success jobs:"; printf '%s\n' "$BAD"
+            echo "the promote PR stays open and BLOCKED for a human"; exit 1
+          fi
+          post_status success "all diagnostics jobs succeeded (run ${RUN_ID})"
           echo "promoted via auto-merge PR:${bumped}"
