@@ -5,6 +5,14 @@ on:
     # Runs at 06:00 UTC daily.
     - cron: "0 6 * * *"
   workflow_dispatch:
+  pull_request:
+    # So a change to the drift machinery itself is exercised before it merges.
+    # Only the self-test runs on a PR; the cloud lanes are gated on the event.
+    paths:
+      - ".github/workflows/infra-drift-detect.yml"
+      - "scripts/ci/tofu-drift-plan.sh"
+      - "scripts/ci/install-opentofu.sh"
+      - "scripts/ci/test-tofu-drift-plan.sh"
 
 permissions:
   contents: read
@@ -21,33 +29,50 @@ permissions:
 #   AZURE_TENANT_ID        — your Azure tenant GUID
 #   AZURE_SUBSCRIPTION_ID  — your Azure subscription GUID
 #   IBM_TRUSTED_PROFILE_ID — tofu output github_ci_trusted_profile_id (infra/tofu/environments/ibm-iks)
+#
+# Every lane runs scripts/ci/tofu-drift-plan.sh, which maps OpenTofu's exit codes
+# onto three distinct outcomes: 0 = clean, 2 = drift (issue opened, job green),
+# anything else = the check could not run (job RED). Previously the plan ran under
+# `continue-on-error: true` and an issue was opened only on exit 2, so a failed
+# init or bad credentials — exit 1 — gave a green job and no issue, which is the
+# same signal as "no drift".
+#
+# OpenTofu is installed by scripts/ci/install-opentofu.sh rather than
+# opentofu/setup-opentofu, which this repo's Actions allowlist blocks; see that
+# script for why, and for the checksum pinning that replaces it.
 
 jobs:
+  # Guards the exit-code mapping itself. Runs everywhere, needs no cloud access,
+  # and is the reason the four lanes below can be trusted to tell drift from error.
+  self-test:
+    name: self-test / exit-code mapping
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify drift, error and clean are distinguishable
+        run: scripts/ci/test-tofu-drift-plan.sh
+
   gcp-landing:
     name: plan / gcp-landing
     runs-on: ubuntu-latest
-    environment: gcp-prod
+    needs: self-test
+    if: github.event_name != 'pull_request'
+    # Was `gcp-prod`, which does not exist in this repo; `gcp-plan` is the
+    # plan-only environment tofu-plan.yml already uses.
+    environment: gcp-plan
     steps:
       - uses: actions/checkout@v4
-      - uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_TOFU_SA }}
       - name: plan
         id: plan
-        working-directory: infra/tofu/envs/gcp-landing
-        run: |
-          tofu init -reconfigure
-          # -detailed-exitcode returns 2 on drift; capture it before set -e/pipefail aborts the step.
-          set +e
-          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
-          ec=${PIPESTATUS[0]}
-          set -e
-          echo "exitcode=${ec}" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
+        run: scripts/ci/tofu-drift-plan.sh gcp-landing infra/tofu/envs/gcp-landing
       - name: open drift issue
-        if: steps.plan.outputs.exitcode == '2'
+        if: steps.plan.outputs.drift == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -63,27 +88,21 @@ jobs:
   aws-eks:
     name: plan / aws-eks
     runs-on: ubuntu-latest
+    needs: self-test
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
-      - uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_TOFU_ROLE_ARN }}
           aws-region: us-east-1
       - name: plan
         id: plan
-        working-directory: infra/tofu/environments/aws-eks
-        run: |
-          tofu init -reconfigure
-          # -detailed-exitcode returns 2 on drift; capture it before set -e/pipefail aborts the step.
-          set +e
-          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
-          ec=${PIPESTATUS[0]}
-          set -e
-          echo "exitcode=${ec}" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
+        run: scripts/ci/tofu-drift-plan.sh aws-eks infra/tofu/environments/aws-eks
       - name: open drift issue
-        if: steps.plan.outputs.exitcode == '2'
+        if: steps.plan.outputs.drift == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -99,9 +118,12 @@ jobs:
   azure-aks:
     name: plan / azure-aks
     runs-on: ubuntu-latest
+    needs: self-test
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
-      - uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
       - uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -109,18 +131,9 @@ jobs:
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: plan
         id: plan
-        working-directory: infra/tofu/environments/azure-aks
-        run: |
-          tofu init -reconfigure
-          # -detailed-exitcode returns 2 on drift; capture it before set -e/pipefail aborts the step.
-          set +e
-          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
-          ec=${PIPESTATUS[0]}
-          set -e
-          echo "exitcode=${ec}" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
+        run: scripts/ci/tofu-drift-plan.sh azure-aks infra/tofu/environments/azure-aks
       - name: open drift issue
-        if: steps.plan.outputs.exitcode == '2'
+        if: steps.plan.outputs.drift == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -136,9 +149,12 @@ jobs:
   ibm-iks:
     name: plan / ibm-iks
     runs-on: ubuntu-latest
+    needs: self-test
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
-      - uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1
+      - name: Install OpenTofu
+        run: scripts/ci/install-opentofu.sh
       - name: Authenticate via IBM Trusted Profile (OIDC)
         run: |
           # Exchange the GitHub OIDC token for an IBM IAM access token.
@@ -152,20 +168,11 @@ jobs:
           echo "IC_IAM_TOKEN=$IBM_TOKEN" >> "$GITHUB_ENV"
       - name: plan
         id: plan
-        working-directory: infra/tofu/environments/ibm-iks
         env:
           IC_IAM_TOKEN: ${{ env.IC_IAM_TOKEN }}
-        run: |
-          tofu init -reconfigure
-          # -detailed-exitcode returns 2 on drift; capture it before set -e/pipefail aborts the step.
-          set +e
-          tofu plan -detailed-exitcode -out=plan.tfplan 2>&1 | tee plan.txt
-          ec=${PIPESTATUS[0]}
-          set -e
-          echo "exitcode=${ec}" >> "$GITHUB_OUTPUT"
-        continue-on-error: true
+        run: scripts/ci/tofu-drift-plan.sh ibm-iks infra/tofu/environments/ibm-iks
       - name: open drift issue
-        if: steps.plan.outputs.exitcode == '2'
+        if: steps.plan.outputs.drift == 'true'
         uses: actions/github-script@v7
         with:
           script: |
