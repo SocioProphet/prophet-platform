@@ -174,6 +174,18 @@ def test_unclassified_job_finding_surfaces_reported_result_and_outputs_presence(
     assert 'outputs absent' in hit
 
 
+def test_present_but_empty_outputs_is_reported_as_present_not_absent():
+    """Copilot review on #1134: `bool(entry.get('outputs'))` reports "absent" for
+    {'outputs': {}} -- the key IS present, it's just an empty mapping. Presence and
+    non-emptiness are different questions; the finding must answer the one it names."""
+    payload = needs()
+    payload['brand-new-diagnostics'] = {'result': 'success', 'outputs': {}}
+    ok, findings = verdict(payload)
+    assert ok is False
+    hit = next(f for f in findings if f.startswith('brand-new-diagnostics:'))
+    assert 'outputs present' in hit
+
+
 def test_an_empty_payload_is_red():
     ok, _ = verdict({})
     assert ok is False
@@ -193,7 +205,7 @@ def test_only_the_literal_string_true_authorises_a_skip(docs_only):
     assert ok is False
 
 
-def test_missing_outputs_block_do_not_authorise_a_skip():
+def test_missing_outputs_block_does_not_authorise_a_skip():
     payload = needs(app='skipped', smoke='skipped')
     del payload['changes']['outputs']
     ok, _ = verdict(payload)

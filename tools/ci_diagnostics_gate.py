@@ -122,7 +122,10 @@ def verdict(needs: dict) -> tuple[bool, list[str]]:
         ok = False
         entry = needs.get(job)
         result = entry.get('result') if isinstance(entry, dict) else None
-        has_outputs = isinstance(entry, dict) and bool(entry.get('outputs'))
+        # `bool(entry.get('outputs'))` reports "absent" for {'outputs': {}} -- the key IS
+        # present, it's just an empty mapping. Presence and non-emptiness are different
+        # questions; this message only claims to answer the first one.
+        has_outputs = isinstance(entry, dict) and 'outputs' in entry
         findings.append(
             f'{job}: wired into the gate but not classified here (reported '
             f'result={result!r}, outputs {"present" if has_outputs else "absent"}) — '
