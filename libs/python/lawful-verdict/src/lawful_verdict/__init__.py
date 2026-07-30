@@ -255,6 +255,9 @@ class Receipt:
         return out
 
 
+#: Cap on attacker-controlled text echoed into a replay() reason.
+_MAX_REASON_DETAIL = 200
+
 GENESIS = "genesis"
 
 
@@ -297,7 +300,15 @@ class DispatchLedger:
             try:
                 ok, reason = self._replay_entry(e, prev)
             except Exception as exc:  # noqa: BLE001 — malformed input is a finding, not a bug
-                return False, i, f"malformed entry at index {i}: {type(exc).__name__}: {exc}"
+                # Bound the detail. The entry is attacker-controlled, so `exc` can carry
+                # arbitrary content straight into whatever logs or telemetry consume the
+                # reason. The type plus a clipped message is enough to debug with, and is
+                # the same discipline applied everywhere else a hostile value becomes a
+                # string in this estate.
+                detail = str(exc)
+                if len(detail) > _MAX_REASON_DETAIL:
+                    detail = detail[:_MAX_REASON_DETAIL] + f"… (+{len(str(exc)) - _MAX_REASON_DETAIL} chars)"
+                return False, i, f"malformed entry at index {i}: {type(exc).__name__}: {detail}"
             if not ok:
                 return False, i, reason
             prev = e["seal"]["attestation"]

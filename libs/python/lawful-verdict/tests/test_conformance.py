@@ -112,9 +112,15 @@ def test_vendored_vectors_match_upstream() -> None:
     """
     prov = json.loads(_vendored("_provenance.json").read_text(encoding="utf-8"))
     roots = _upstream_roots()
-    root = next((r for r in roots if (r / "conformance" / "lawful-verdict-vectors.json").exists()), None)
+    # Require EVERY provenance path, not just the vectors. Selecting a root on the
+    # strength of one file present, then reading three, turns an incomplete dev
+    # checkout into a FileNotFoundError stacktrace where the intended outcome is the
+    # explicit "UNVERIFIED" skip. Copilot caught this.
+    def _complete(r: Path) -> bool:
+        return all((r / m["sourcePath"]).exists() for m in prov["files"].values())
+    root = next((r for r in roots if _complete(r)), None)
     if root is None:
-        _unavailable("upstream sourceos-spec (vendored-copy drift check)", roots)
+        _unavailable("a COMPLETE upstream sourceos-spec (vendored-copy drift check)", roots)
         return
     stale: list[str] = []
     for name, meta in prov["files"].items():
@@ -494,3 +500,35 @@ def test_replay_still_allows_honest_under_claiming() -> None:
     e["seal"]["attestation"] = _seal(body)
     ok, _, reason = led.replay()
     assert ok, f"under-claiming must remain valid, got: {reason}"
+
+
+def test_an_incomplete_spec_checkout_skips_rather_than_stacktraces(tmp_path, monkeypatch) -> None:
+    """Copilot: the root was chosen because the VECTORS existed, then all three
+    provenance paths were read — so a checkout with vectors but no schemas/ raised
+    FileNotFoundError instead of reporting UNVERIFIED."""
+    partial = tmp_path / "sourceos-spec"
+    (partial / "conformance").mkdir(parents=True)
+    (partial / "conformance" / "lawful-verdict-vectors.json").write_bytes(b"{}")
+    monkeypatch.setenv("SOURCEOS_SPEC_DIR", str(partial))
+    # Skipped derives from BaseException, NOT Exception. The first version of this test
+    # used pytest.raises(Exception), so the Skipped propagated straight through and
+    # skipped THIS test — which then reported as a skip and asserted nothing at all.
+    # A test that cannot fail, arrived at by testing a skip. Catch the real type.
+    from _pytest.outcomes import Skipped
+    with pytest.raises(Skipped) as exc:
+        test_vendored_vectors_match_upstream()
+    assert "UNVERIFIED" in str(exc.value), f"wrong skip reason: {exc.value}"
+    assert "COMPLETE" in str(exc.value), "must name incompleteness as the cause"
+
+
+def test_replay_reason_does_not_echo_unbounded_attacker_text() -> None:
+    """Copilot: `reason` embedded str(exc) verbatim, and the entry is untrusted — so a
+    forger could push arbitrary volume into whatever consumes the reason."""
+    led = _sealed_ledger()
+    e = led.entries[0]
+    e["law"] = {"factor": "X" * 100_000, "source": "measured"}
+    _reseal(e)
+    ok, _, reason = led.replay()
+    assert ok is False
+    assert len(reason) < 1_000, f"reason is {len(reason)} chars — unbounded attacker text"
+    assert "chars)" in reason, "truncation must be visible, not silent"
