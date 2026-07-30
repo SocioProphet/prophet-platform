@@ -107,6 +107,47 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8097/api/health/twin)" = 403
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8097/api/health/grant -H 'content-type: application/json' -d '{"agent":"attacker"}')" = 403
 
+      # ── The configuration that will actually serve real records ────────────────────────────────
+      # Everything above runs the synthetic-only twin. `authenticated` is the mode a deployment holding
+      # a person's records must be in, and it had NO live coverage — the two membranes were each proved
+      # alone and never together. They answer different questions and neither substitutes for the
+      # other: exposure = may THIS DEPLOYMENT serve records at all; the grant = WHO may read how much.
+      # A request carrying one and not the other must fail, or one of them is decoration.
+      - name: boot smoke (authenticated mode) — both membranes, and neither alone
+        env:
+          HEALTH_TWIN_EXPOSURE: authenticated
+          HEALTH_TWIN_TOKEN: ci-deployment-secret-not-a-production-value
+        run: |
+          # the demo seed CANNOT exist here — asking for it is fatal at boot, not a warning
+          if HEALTH_TWIN_SEED_GRANT=1 PORT=8098 npx tsx src/server.ts > /tmp/seed-refusal.log 2>&1; then
+            echo "FAIL: the server booted with a demo consent grant in an authenticated deployment" >&2; exit 1
+          fi
+          grep -q 'Refusing to boot' /tmp/seed-refusal.log
+          # nor can the query-string form be switched back on here
+          if HEALTH_TWIN_LEGACY_GRANT_QUERY=1 PORT=8098 npx tsx src/server.ts > /tmp/legacy-refusal.log 2>&1; then
+            echo "FAIL: the server booted with grant ids accepted in the query string, in an authenticated deployment" >&2; exit 1
+          fi
+          grep -q 'Refusing to boot' /tmp/legacy-refusal.log
+
+          PORT=8098 npx tsx src/server.ts & sleep 3
+          curl -fsS localhost:8098/healthz
+          # minting consent needs the deployment credential
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8098/api/health/grant -H 'content-type: application/json' -d '{"agent":"Dr. X","scope":"cardiometabolic"}')" = 401
+          TOKEN=$(curl -fsS -X POST localhost:8098/api/health/grant \
+            -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H 'content-type: application/json' \
+            -d '{"agent":"Dr. X","scope":"cardiometabolic"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+          test -n "$TOKEN"
+          # holder credential without the deployment credential → refused
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $TOKEN" localhost:8098/api/health/agent-read -X POST -d '{}' -H 'content-type: application/json')" = 401
+          # BOTH → the read goes through, receipted. This is the path that serves a real chart.
+          curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" \
+            -X POST localhost:8098/api/health/agent-read -H 'content-type: application/json' -d '{}' | grep -q '"presentedBy":"sha256-'
+          # /doctor-view is not exposure-gated in this mirror (prophet-health is ahead there), so the
+          # holder credential alone is what stands between a caller and the chart. Assert exactly that
+          # rather than an exposure refusal this code does not make.
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401
+          curl -fsS -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
+
   orchestration-fixtures:
     runs-on: ubuntu-latest
     steps:
