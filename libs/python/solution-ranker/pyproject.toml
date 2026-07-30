@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prophet-solution-ranker"
+version = "0.1.0"
+description = "Walk the MeshActionRegistry for ABB slot fillers and rank them into a SolutionShortlist"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
