@@ -45,8 +45,8 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install validator dependencies
-        run: pip install jsonschema pyyaml pytest
+      - name: Install validator dependencies (pinned for reproducibility)
+        run: pip install jsonschema==4.23.0 PyYAML==6.0.2 pytest==8.3.4
 
       - name: Validate integration contracts (non-mutating)
         run: python3 tools/validate_newhope_slashtopics_integration.py

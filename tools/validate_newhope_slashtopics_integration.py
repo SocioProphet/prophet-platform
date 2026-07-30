@@ -25,6 +25,7 @@ from pathlib import Path
 
 import yaml
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SLASH = ROOT / "contracts" / "imported" / "slash-topics"
@@ -65,8 +66,15 @@ def assert_no_junk() -> None:
 
 
 def assert_import_provenance() -> None:
-    manifest = yaml.safe_load(IMPORT_MANIFEST.read_text(encoding="utf-8"))
-    by_repo = {i.get("repo"): i for i in manifest.get("imports", [])}
+    try:
+        manifest = yaml.safe_load(IMPORT_MANIFEST.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        fail(f"Required file missing: {IMPORT_MANIFEST.relative_to(ROOT)}")
+    except yaml.YAMLError as e:
+        fail(f"Could not parse {IMPORT_MANIFEST.relative_to(ROOT)}: {e}")
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("imports"), list):
+        fail("IMPORT_MANIFEST malformed: expected a mapping with an 'imports' list")
+    by_repo = {i.get("repo"): i for i in manifest["imports"] if isinstance(i, dict)}
     for repo in ("SocioProphet/new-hope", "SocioProphet/slash-topics"):
         entry = by_repo.get(repo)
         if not entry:
@@ -102,16 +110,34 @@ def assert_schema_invariants() -> None:
     ok("Model selection policy defaults to classical methods (encoder disabled)")
 
 
+def _schema_validate(instance: dict, schema: dict, label: str) -> None:
+    try:
+        Draft202012Validator(schema).validate(instance)
+    except ValidationError as e:
+        loc = "/".join(str(p) for p in e.absolute_path) or "<root>"
+        fail(f"{label} failed schema validation at {loc}: {e.message}")
+
+
 def validate_examples() -> None:
+    # All four landed fixtures must at least parse as JSON.
+    all_fixtures = [
+        "slash_topics_pack_min.example.json",
+        "membrane_decision_allow.example.json",
+        "newhope_message_posted.example.json",
+        "embedding_receipt_lsi.example.json",
+    ]
+    for name in all_fixtures:
+        load_json(EXAMPLES / name)
+
+    # The two fixtures with a mirrored slash-topics schema are validated against it.
+    # newhope_message_posted / embedding_receipt_lsi bind to New Hope schemas, which
+    # the platform imports by pinned manifest only (not mirrored), so they are
+    # parse-checked above rather than schema-validated here.
     schema = load_json(SPECS / "SlashTopics_Schema_v0.1.json")
     md_schema = load_json(SPECS / "Membrane_Decision_v0.1.json")
-
-    pack_example = load_json(EXAMPLES / "slash_topics_pack_min.example.json")
-    md_example = load_json(EXAMPLES / "membrane_decision_allow.example.json")
-
-    Draft202012Validator(schema).validate(pack_example)
-    Draft202012Validator(md_schema).validate(md_example)
-    ok("Landed example fixtures validate against the mirrored Slash Topics schemas")
+    _schema_validate(load_json(EXAMPLES / "slash_topics_pack_min.example.json"), schema, "slash_topics_pack_min")
+    _schema_validate(load_json(EXAMPLES / "membrane_decision_allow.example.json"), md_schema, "membrane_decision_allow")
+    ok("All 4 fixtures parse; the 2 with mirrored schemas validate against them")
 
 
 def main() -> int:
