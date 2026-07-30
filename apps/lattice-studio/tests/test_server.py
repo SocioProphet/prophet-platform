@@ -18,6 +18,31 @@ def test_project_collection_matches_noetica():
     assert proj_collection("a1b2-c3d4-e5f6-7890") == "proj-a1b2c3d4e5f6"
 
 
+def test_subgraph_label_is_url_encoded_not_injected(monkeypatch):
+    # proj_collection only strips dashes — it does not reject '&'/'=' etc. A project id
+    # carrying those must not let the caller inject extra query params into the upstream
+    # hellgraph-service request (the label value has to stay a single opaque value).
+    import lattice_studio.server as srv
+
+    seen_urls: list[str] = []
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            seen_urls.append(url)
+            return ({"nodes": [], "edgeList": []}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.get("/api/studio", params={"project": "evil&limit=99999"})
+    assert r.status_code == 200
+    assert seen_urls, "subgraph call should have fired"
+    url = seen_urls[0]
+    # the injected '&limit=' must be percent-encoded INSIDE the label value, not become a
+    # second real query param — i.e. the URL must still carry exactly one real 'limit='.
+    assert url.count("limit=") == 1
+    assert "label=proj-evil%26limit%3D9" in url
+
+
 def test_studio_bundle_project_scoped_and_complete():
     r = client.get("/api/studio?project=my-proj-42")
     assert r.status_code == 200
