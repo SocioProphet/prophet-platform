@@ -244,7 +244,10 @@ console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptograph
   // shipping 8-hex ids underneath a passing invariant.
   const WELL_FORMED = ['2024-01-15', '2024-01', '2024-01-15T10:30:00Z'];
   const YEAR_ONLY = ['2024'];
-  const ABSENT: (string | undefined)[] = ['', undefined];
+  // Copilot #1074: the absent branch admits three shapes — '', undefined, and null —
+  // and the invariant probe must exercise each; a probe that only asserts '' and
+  // undefined leaves the null path unverified even though the branch handles it.
+  const ABSENT: (string | undefined | null)[] = ['', undefined, null];
   // malformed, and none of it a date: month 13 / day 45, a real-looking impossible day, a
   // non-ISO ordering, prose, whitespace, and all-zeroes.
   const GARBAGE = ['not-a-date', '2024-13-45', '2024-02-30', '15/01/2024', 'yesterday', '   ', '0000-00-00'];

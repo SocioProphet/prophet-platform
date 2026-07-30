@@ -149,6 +149,15 @@ export interface DateShiftCounts {
   unshiftable: number;  // replaced with DATE_UNSHIFTABLE — the receipt must not hide these
 }
 
+// The value shape shiftDateField can return. Copilot #1074: the previous signature
+// declared `{ value: string }` but the absent branch preserved the original null /
+// undefined so `undefined` fields stayed undefined rather than becoming '' — the type
+// was lying by cast, and a caller that trusted it would deref .length on null. The
+// three outcomes that DO carry a string still say so via the discriminated union.
+export type ShiftDateResult =
+  | { value: string; outcome: 'shifted' | 'yearOnly' | 'unshiftable' }
+  | { value: null | undefined | ''; outcome: 'absent' };
+
 const BARE_YEAR = /^\d{4}$/;
 // The leading calendar date of an ISO-8601 value: 'YYYY-MM', 'YYYY-MM-DD', or 'YYYY-MM-DD' followed
 // by a time. Matching the DATE and ignoring any time-of-day is what keeps this timezone-stable for
@@ -171,11 +180,15 @@ const SHIFTED_FORM = /^\d{4}-\d{2}-\d{2}$/;
  * LA, because only the earlier endpoint crossed the March transition. Whole days added to a UTC
  * instant cannot drift — there is no local offset left to fail to cancel.
  */
-function shiftDateField(value: unknown, days: number): { value: string; outcome: DateOutcome } {
+function shiftDateField(value: unknown, days: number): ShiftDateResult {
   // (3) ABSENT — there was no date. Not an error, and not something to stamp a sentinel onto.
-  // The original value is returned so an undefined field stays undefined rather than becoming ''.
+  // Preserve the original value so an undefined field stays undefined rather than becoming ''
+  // — but say so honestly in the return type. Copilot #1074: dropping the `as string` cast
+  // means a caller can no longer read .length on the returned value without narrowing first,
+  // which is the correct constraint (the caller in deidentify() reads .value only on the
+  // three string-carrying branches; the absent branch is discarded via `dates[r.outcome]++`).
   if (value === null || value === undefined || value === '') {
-    return { value: value as string, outcome: 'absent' };
+    return { value: value as null | undefined | '', outcome: 'absent' };
   }
   // A non-string in a date field is not a date. Fail closed rather than coerce it.
   if (typeof value !== 'string') return { value: DATE_UNSHIFTABLE, outcome: 'unshiftable' };
@@ -270,7 +283,7 @@ export function deidentify(bundle: any, salt = 'default', scope: DisclosureScope
   // Per-view tally. Every shiftDate() call below lands in exactly one bucket, and the whole tally
   // goes on the receipt, so the count cannot drift from what was actually emitted.
   const dates: DateShiftCounts = { shifted: 0, yearOnly: 0, absent: 0, unshiftable: 0 };
-  const shiftDate = (value: unknown): string => {
+  const shiftDate = (value: unknown): string | null | undefined => {
     const r = shiftDateField(value, dateShiftDays);
     dates[r.outcome]++;
     return r.value;
