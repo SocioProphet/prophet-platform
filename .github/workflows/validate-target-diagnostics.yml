@@ -51,13 +51,28 @@ jobs:
           # The rule lives in tools/ci_docs_only.py so it is unit-tested; a skip rule that
           # only exists in YAML is a skip rule nobody can test.
           #
+          # It is read from the BASE REF, never from the PR checkout. `python3
+          # tools/ci_docs_only.py` ran the pull request's OWN copy of the detector, and the
+          # detector is not on its own inert allowlist — so a PR could edit it to print
+          # "true" unconditionally and thereby skip app-test and smoke for its entire diff.
+          # The detector would be certifying its own modification. origin/$BASE is the copy
+          # that has already been reviewed and merged.
+          #
+          # Consequence worth stating: a PR that improves the detector does not get the
+          # improvement applied to itself. That is the correct direction — the change takes
+          # effect once merged, and until then the PR runs the full matrix anyway.
+          DETECTOR="$(mktemp)"
+          if ! git show "origin/$BASE:tools/ci_docs_only.py" > "$DETECTOR" 2>/dev/null; then
+            echo "cannot read the detector from origin/$BASE — running everything"
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           # The detector is NOT allowed to fail this job. Skipping tests must require a
           # positive "true"; anything else — a crash, a missing interpreter, an
           # unrecognised answer — falls back to running the full matrix. Letting the job
           # fail instead would still be safe for coverage (the dependents run on an empty
           # output), but it paints the workflow red while the required gate stays green,
           # which teaches people to ignore red.
-          if ! RESULT="$(printf '%s\n' "$CHANGED" | python3 tools/ci_docs_only.py 2>&1)"; then
+          if ! RESULT="$(printf '%s\n' "$CHANGED" | python3 "$DETECTOR" 2>&1)"; then
             echo "detector failed, running everything. output: $RESULT"
             echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -173,6 +188,15 @@ jobs:
           # so this leg also catches contract drift the moment a vendored copy is edited.
           - name: device-service
             working-directory: apps/device-service
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: PYTHONPATH=src pytest -q tests
+          # arcticdb-gateway had tests but NO leg: images.yml built the image and nothing
+          # ran tests/. Its /v1/write auth is the whole reason the service is safe to expose
+          # in-cluster, and an auth test that never executes is decoration. requirements.txt
+          # is a pip freeze of the python:3.11-slim image, which is what this matrix pins,
+          # so the leg runs the same closure the image ships.
+          - name: arcticdb-gateway
+            working-directory: apps/arcticdb-gateway
             install: pip install -r requirements.txt -r requirements-test.txt
             test: PYTHONPATH=src pytest -q tests
           - name: tools-tests
