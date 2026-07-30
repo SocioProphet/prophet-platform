@@ -18,4 +18,8 @@ build_push() {  # <svc-dir> <image-name>
 build_push workspace-smtp   workspace-smtp
 build_push workspace-mail   workspace-mail
 build_push workspace-caldav workspace-caldav
-echo "✓ pushed all three. Deploy: helm upgrade --install prophet-workspace charts/prophet-workspace -n workspace --create-namespace -f <your-values>.yaml"
+echo "✓ pushed all three."
+echo "Deploy is GitOps: push to the sovereign registry (REGISTRY=registry.socioprophet.ai) and bump the image"
+echo "digests in infra/k8s/workspace-*/base — ArgoCD (ApplicationSet workspace-services) syncs them into ns/socioprophet."
+echo "Do NOT 'helm install charts/prophet-workspace' — that is an undeployed design reference; installing it stands up"
+echo "a second, GHCR-imaged stack in ns/workspace alongside the live one. See docs/PROPHET_WORKSPACE_MAIL_RUNBOOK.md."
