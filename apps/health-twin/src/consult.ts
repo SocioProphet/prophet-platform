@@ -5,7 +5,7 @@
 //
 // Each opinion attaches to the consult as a TIER=hypothesis claim (an opinion, never asserted truth —
 // the anti-Watson rule). The aggregate is a signal, NOT a diagnosis; a clinician still decides.
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { deidentify, type DeidView, type DisclosureScope } from './deident.js';
 
 // server.ts replaced djb2 with real SHA-256 and said so; this file was missed, so consult
@@ -110,7 +110,11 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
   }
   const salt = `${Date.now()}-${scope}`;
   const slice = deidentify(bundle, salt, disclosure);
-  const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt])}`;
+  // #942 follow-up: without a random nonce, two openConsult calls in the
+  // same millisecond with the same scope produced the same id and silently
+  // overwrote each other in the ledger. randomUUID() is cheap and
+  // guaranteed unique per call.
+  const id = `consult-${sha256([slice.receipt.pseudonym, scope, salt, randomUUID()])}`;
   const consent: Consent = { agreed: true, disclosure, at: new Date().toISOString(), receipt: receipt('consent', [id, disclosure]).id };
   consults.set(id, { id, createdAt: new Date().toISOString(), scope, consent, slice, blind: true, opinions: [], moreRequests: [] });
   return { consult_id: id, slice, consent, receipt: receipt('consult-open', [id, scope]) };
@@ -121,7 +125,7 @@ export function openConsult(bundle: any, scope = 'whole twin', disclosure: Discl
 export function requestMore(consultId: string, field: string, reason: string): MoreRequest | { error: string } {
   const c = consults.get(consultId);
   if (!c) return { error: 'consult not found' };
-  const r: MoreRequest = { id: `more-${sha256([consultId, field, String(Date.now())])}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
+  const r: MoreRequest = { id: `more-${sha256([consultId, field, String(Date.now()), randomUUID()])}`, field: field.trim(), reason: reason.trim(), status: 'pending', at: new Date().toISOString() };
   c.moreRequests.push(r);
   return r;
 }
@@ -140,7 +144,7 @@ export function submitOpinion(consultId: string, reviewer: string, assessment: s
   const rv = reviewer.trim(); const a = assessment.trim();
   if (!rv || !a) return { error: 'reviewer and assessment required' };
   const op: Opinion = {
-    id: `op-${sha256([consultId, rv, a, String(Date.now())])}`,
+    id: `op-${sha256([consultId, rv, a, String(Date.now()), randomUUID()])}`,
     reviewer: rv, assessment: a, confidence, tier: 'hypothesis',
     at: new Date().toISOString(), receipt: receipt('opinion', [consultId, rv]),
   };
