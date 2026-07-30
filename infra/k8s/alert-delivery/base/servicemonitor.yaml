@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alert-sink
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack   # picked up by the stack's serviceMonitorSelector
+spec:
+  selector:
+    matchLabels:
+      app: alert-sink
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
