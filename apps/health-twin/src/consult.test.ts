@@ -187,19 +187,35 @@ test('requestMore mints unique request ids in a tight loop', async () => {
 });
 
 
-test('requestMore hashes the trimmed field so a whitespace variant maps to the same canonical input', async () => {
+test('requestMore stores the trimmed field, and the id does not derive from it at all', async () => {
   const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
   const [cid] = agree(m, 1);
-  // The stored field is trimmed; the id derivation must use the same
-  // trimmed value so audit trails aren't misleading about what was hashed.
+  // Copilot round-1 asked that the hashed value match the stored one. The id is
+  // MINTED now (ids.ts), so the two cannot disagree by construction — the thing
+  // left to assert is that the STORED field is canonical, and that two requests
+  // naming the same field still get distinct ids.
   const r1 = m.requestMore(cid!, '  labs.a1c  ', 'need it');
-  assert.ok('id' in r1);
-  assert.equal(r1.field, 'labs.a1c');
-  // Rebuild the expected id from the trimmed inputs — we can't easily do that
-  // without duplicating the sha256 helper, but we CAN check the id doesn't
-  // silently vary with whitespace.
   const r2 = m.requestMore(cid!, 'labs.a1c', 'need it');
-  assert.ok('id' in r2);
-  // Both stored fields should be identical.
-  assert.equal(r1.field, r2.field);
+  assert.ok('id' in r1 && 'id' in r2);
+  assert.equal(r1.field, 'labs.a1c');
+  assert.equal(r1.field, r2.field, 'whitespace is normalised out of the stored field');
+  assert.notEqual(r1.id, r2.id, 'identical inputs still get distinct ids — an id names an event, not its content');
+  for (const r of [r1, r2]) assert.match(r.id, /^more-[0-9a-f]{64}$/, 'the id is 256 minted bits');
+});
+
+test('a minted id is not recomputable from the values the consult publishes', async () => {
+  const { createHash } = await import('node:crypto');
+  const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: '10' });
+  const r = m.openConsult({ patient: 'p' }, 'derivable-scope', 'standard', true);
+  assert.ok(r.consult_id);
+  // Everything the old id was built from is published on the response. Sweep every
+  // millisecond it could plausibly have been minted in, both join shapes.
+  const at = new Date(r.consent.at).getTime();
+  const pseudonym = r.slice.receipt.pseudonym;
+  for (let t = at - 2000; t <= at + 2000; t++) {
+    const parts = [pseudonym, 'derivable-scope', `${t}-derivable-scope`];
+    for (const j of [parts.join('|'), JSON.stringify(parts)]) {
+      assert.notEqual(`consult-${createHash('sha256').update(j).digest('hex')}`, r.consult_id);
+    }
+  }
 });
