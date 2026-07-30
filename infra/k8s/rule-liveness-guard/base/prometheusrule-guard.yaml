@@ -19,12 +19,15 @@ spec:
       rules:
         - alert: RuleLivenessGuardNotRunning
           # kube_state_metrics publishes job completion times; the guard runs
-          # hourly, so a gap over 3h means it is not running at all.
+          # hourly, so a gap over 3h means it is not running at all. Note the explicit
+          # namespace label below: the absent() branch produces no labels of its own,
+          # and without it this alert would not match the AlertmanagerConfig sub-route
+          # — the alert saying detection is down would go to null.
           expr: |
             time() - max(kube_job_status_completion_time{job_name=~"rule-liveness-guard-.*"}) > 10800
             or absent(kube_job_status_completion_time{job_name=~"rule-liveness-guard-.*"})
           for: 30m
-          labels: { severity: warning }
+          labels: { severity: warning, namespace: observability }
           annotations:
             summary: "rule-liveness-guard has not completed in over 3h"
             description: >-
@@ -36,7 +39,7 @@ spec:
           expr: |
             increase(kube_job_status_failed{job_name=~"rule-liveness-guard-.*"}[2h]) > 2
           for: 10m
-          labels: { severity: warning }
+          labels: { severity: warning, namespace: observability }
           annotations:
             summary: "rule-liveness-guard is failing repeatedly"
             description: >-
