@@ -424,5 +424,90 @@ console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusa
     'a cardiovascular-only grant admits exactly the cardio compartment (hepatic + renal stay outside)');
 }
 
+console.log('\n▶ INVARIANT 8 — a grant id is not a credential: the holder is authenticated, both ways');
+{
+  const {
+    authenticateHolder, holderDigest, holderToken, mintHolderSecret, parseHolderToken,
+    presentedHolderToken, seedGrantDecision, legacyQueryDecision,
+    HOLDER_AUTH_DISCLOSURE, HOLDER_FAILED, HOLDER_HEADER,
+  } = await import('./grantauth.js');
+
+  const secret = mintHolderSecret();
+  const bound = { id: 'grant-bound', holderDigest: holderDigest(secret) };
+  const unbound = { id: 'grant-legacy' }; // minted before holder binding existed
+  const find = (id: string) => [bound, unbound].find((g) => g.id === id);
+
+  // ── THE DEFECT: possession of the id must not be enough ────────────────────────────────────────
+  const leakedIdOnly = authenticateHolder({ presented: bound.id, find });
+  ok(leakedIdOnly.ok === false, 'a leaked grant id ALONE does not authenticate (the id is not a credential)');
+  const wrongSecret = authenticateHolder({ presented: holderToken(bound.id, mintHolderSecret()), find });
+  ok(wrongSecret.ok === false, 'the right id with the wrong secret is refused');
+  const noCredential = authenticateHolder({ presented: '', find });
+  ok(noCredential.ok === false && (noCredential as any).reason !== HOLDER_FAILED,
+     'presenting nothing at all is refused, and told how to present (a usage error, not a failed attempt)');
+  ok(authenticateHolder({ presented: holderToken(unbound.id, secret), find }).ok === false,
+     'a grant carrying NO holder binding authenticates nobody — it fails closed, it does not get a legacy pass');
+
+  // ── AND THE OTHER WAY: the real holder still gets in ───────────────────────────────────────────
+  const good = authenticateHolder({ presented: holderToken(bound.id, secret), find });
+  ok(good.ok === true && good.holderDigest === bound.holderDigest,
+     'the holder of the minted secret IS authenticated (a gate that refuses everyone is equally broken)');
+
+  // no enumeration oracle: "wrong secret" and "no such grant" are indistinguishable to a caller who
+  // has just failed to authenticate. Otherwise this endpoint answers "which grant ids are real?".
+  const unknownId = authenticateHolder({ presented: holderToken('grant-does-not-exist', secret), find });
+  ok(unknownId.ok === false && (unknownId as any).reason === (wrongSecret as any).reason
+     && (unknownId as any).detail === undefined && (wrongSecret as any).detail === undefined,
+     `unknown id and wrong secret give the identical refusal ("${(unknownId as any).reason}") — no id-enumeration oracle`);
+
+  // the secret is never written down, and the digest is not the secret
+  ok(!Object.values(bound).includes(secret) && bound.holderDigest !== secret, 'the grant stores a digest, never the secret');
+  ok(/^sha256-[0-9a-f]{64}$/.test(bound.holderDigest), 'the holder verifier is sha256-<64 hex> — the label matches the math');
+  ok(mintHolderSecret() !== mintHolderSecret() && Buffer.from(mintHolderSecret(), 'base64url').length === 32,
+     'each minted secret is 256 fresh CSPRNG bits (not derived from the id, not guessable from another grant)');
+
+  // token plumbing: ids contain dashes, secrets contain base64url — the split must survive both
+  const parsed = parseHolderToken(holderToken('grant-abc-123', secret));
+  ok(parsed?.grantId === 'grant-abc-123' && parsed?.secret === secret, 'a token round-trips through parse (split on the LAST dot)');
+  ok(parseHolderToken('no-separator') === null && parseHolderToken('') === null && parseHolderToken('.x') === null,
+     'a malformed token parses to null rather than to a half-credential');
+  ok(presentedHolderToken({ [HOLDER_HEADER]: `  ${holderToken(bound.id, secret)}  ` }) === holderToken(bound.id, secret),
+     'the header is read and trimmed');
+
+  // the disclosure never overstates: this binds a secret-holder, NOT a verified identity
+  ok(HOLDER_AUTH_DISCLOSURE.identityVerified === false,
+     'the disclosure states identityVerified:false — it authenticates the holder of a secret, not a person');
+  ok(!/\bverified (clinician|identity|person)\b/i.test(JSON.stringify(HOLDER_AUTH_DISCLOSURE)),
+     'nothing in the disclosure claims a verified person');
+
+  // ── the seed grant cannot exist in a production configuration ──────────────────────────────────
+  ok(seedGrantDecision({} as NodeJS.ProcessEnv, 'synthetic-only').seed === false,
+     'no demo grant is seeded by default (the hard-coded grant-seed-rivera is gone)');
+  const fatal = seedGrantDecision({ HEALTH_TWIN_SEED_GRANT: '1' } as any, 'authenticated');
+  ok(fatal.seed === false && !!fatal.fatal,
+     'asking for the demo grant on an authenticated deployment is FATAL — the server refuses to boot, it does not warn');
+  const seeded = seedGrantDecision({ HEALTH_TWIN_SEED_GRANT: '1' } as any, 'synthetic-only');
+  ok(seeded.seed === true && !!seeded.secret && seeded.minted === true && !fatal.secret,
+     'the demo grant on a synthetic deployment gets a secret MINTED at boot (never a literal in source)');
+  ok(seedGrantDecision({ HEALTH_TWIN_SEED_GRANT: '1', HEALTH_TWIN_SEED_GRANT_SECRET: 'operator-supplied' } as any, 'synthetic-only').secret === 'operator-supplied',
+     'an operator may supply the seed secret out of band (so CI can prove the positive case without scraping stdout)');
+
+  // ── and the leak channel itself is off unless someone turns it on, and cannot be turned on in prod
+  ok(legacyQueryDecision({} as NodeJS.ProcessEnv, 'synthetic-only').allowed === false,
+     '?grant=<id> is refused by default — the credential does not travel in the request line');
+  const legacyFatal = legacyQueryDecision({ HEALTH_TWIN_LEGACY_GRANT_QUERY: '1' } as any, 'authenticated');
+  ok(legacyFatal.allowed === false && !!legacyFatal.fatal,
+     'the legacy query form cannot be enabled on an authenticated deployment — that is also FATAL at boot');
+  ok(legacyQueryDecision({ HEALTH_TWIN_LEGACY_GRANT_QUERY: '1' } as any, 'synthetic-only').allowed === true,
+     'the synthetic demo may opt back in (deprecated, warned on every use)');
+
+  // ── the source itself no longer carries a usable grant ─────────────────────────────────────────
+  const { readFileSync } = await import('node:fs');
+  const serverSrc = readFileSync(new URL('./server.ts', import.meta.url), 'utf8');
+  ok(!serverSrc.includes('grant-seed-rivera'), 'the hard-coded grant-seed-rivera id is gone from server.ts');
+  ok(!/holderDigest:\s*['"`]/.test(serverSrc) && !/HEALTH_TWIN_SEED_GRANT_SECRET\s*=\s*['"`][^'"`]/.test(serverSrc),
+     'no holder secret or digest is a literal in server.ts');
+}
+
 console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);

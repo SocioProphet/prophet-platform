@@ -36,6 +36,77 @@ jobs:
           pnpm install
           pnpm build
 
+  # The health-twin engine had NO CI in this repo — only an image build in images.yml. Its guardrail
+  # invariants (de-identification, non-diagnostic framing, grant scoping, consent) existed and ran
+  # nowhere, so the mirror could drift out of conformance silently while prophet-health stayed green.
+  health-twin:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/health-twin } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm install --no-audit --no-fund
+      - name: guardrail invariants — non-diagnostic + de-identification + grant holder auth
+        run: npx tsx src/invariants.ts
+      - name: clinical eval — coding F1 / negation / values / guidance / residual fit (floors gated)
+        run: npx tsx src/eval.ts
+      - name: unit tests
+        run: npm test
+      - name: boot smoke — a grant id is not a credential, proved both ways
+        env:
+          # The demo consent grant is no longer a literal in server.ts. It exists only when asked for,
+          # its secret is supplied out of band, and asking for it on an `authenticated` deployment
+          # refuses to boot.
+          HEALTH_TWIN_SEED_GRANT: '1'
+          HEALTH_TWIN_SEED_GRANT_SECRET: ci-holder-secret-not-a-production-value
+        run: |
+          SEED_GRANT=grant-dev-seed-cardiology
+          SEED_TOKEN="$SEED_GRANT.$HEALTH_TWIN_SEED_GRANT_SECRET"
+          PORT=8097 npx tsx src/server.ts & sleep 3
+          curl -fsS localhost:8097/healthz
+          # NEGATIVE: the id alone, on the channel it used to arrive on. A query string is written to
+          # access logs, proxy logs, browser history and `Referer`, so anyone who reads one of those
+          # holds what used to be sufficient to open a chart. It is refused before any lookup happens.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT")" = 401
+          curl -s "localhost:8097/api/health/doctor-view?grant=$SEED_GRANT" | grep -q 'not accepted in the query string'
+          # NEGATIVE: the id in the header with no secret; a guessed secret; no credential at all.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $SEED_GRANT" localhost:8097/api/health/doctor-view)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $SEED_GRANT.wrong-secret" localhost:8097/api/health/doctor-view)" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8097/api/health/doctor-view)" = 401
+          # NEGATIVE: no enumeration oracle — an unknown id and a wrong secret are indistinguishable.
+          diff <(curl -s -H "x-health-grant: grant-nope.wrong-secret" localhost:8097/api/health/doctor-view | grep -o '"reason":"[^"]*"') \
+               <(curl -s -H "x-health-grant: $SEED_GRANT.also-wrong" localhost:8097/api/health/doctor-view | grep -o '"reason":"[^"]*"')
+          # NEGATIVE: nothing in the refusal leaks the chart, the agent or the scope.
+          if curl -s -H "x-health-grant: $SEED_GRANT.wrong-secret" localhost:8097/api/health/doctor-view | grep -qE 'Rivera|cardiometabolic|withheld|observations'; then
+            echo "FAIL: a refused grant read leaked chart, agent or scope detail" >&2; exit 1
+          fi
+          # POSITIVE: the actual holder still reads. A gate that refuses everyone is equally broken.
+          curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"withheld"'
+          # the read is receipted with WHO presented WHAT against WHICH subject, and does not overstate
+          curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
+          curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"subject":"synthetic-subject-0"'
+          curl -fsS -H "x-health-grant: $SEED_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"identityVerified":false'
+          # the patient's control panel lists grants but never the holder verifier
+          curl -fsS localhost:8097/api/health/grants | grep -q '"holderBound":true'
+          if curl -s localhost:8097/api/health/grants | grep -q 'holderDigest'; then
+            echo "FAIL: /api/health/grants published the holder verifier" >&2; exit 1
+          fi
+          # a freshly issued grant hands back its secret ONCE, and that secret works
+          NEW=$(curl -fsS -X POST localhost:8097/api/health/grant -H 'content-type: application/json' -d '{"agent":"Dr. CI","scope":"cardiometabolic"}')
+          echo "$NEW" | grep -q '"shownOnce":true'
+          NEW_TOKEN=$(echo "$NEW" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+          curl -fsS -H "x-health-grant: $NEW_TOKEN" localhost:8097/api/health/doctor-view | grep -q '"withheld"'
+          # revoke it, and the SAME authenticated holder is now refused on grant STATE (403, not 401)
+          NEW_ID=${NEW_TOKEN%.*}
+          curl -fsS -X POST localhost:8097/api/health/revoke -H 'content-type: application/json' -d "{\"grant\":\"$NEW_ID\"}" | grep -q '"revoked":true'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $NEW_TOKEN" localhost:8097/api/health/doctor-view)" = 403
+          # once a real record lands, the exposure membrane closes minting too — an open mint endpoint
+          # would make holder authentication theatre (issue yourself a grant, read with your own secret)
+          curl -fsS -X POST localhost:8097/api/health/ingest -H 'content-type: application/json' -d '{"connector":"epic-smart-fhir"}'
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8097/api/health/twin)" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8097/api/health/grant -H 'content-type: application/json' -d '{"agent":"attacker"}')" = 403
+
   orchestration-fixtures:
     runs-on: ubuntu-latest
     steps:

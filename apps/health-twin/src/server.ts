@@ -26,6 +26,11 @@ import { guidance } from './guidelines.js';
 import { openConsult, reviewerView, submitOpinion, aggregate, requestMore, type Confidence } from './consult.js';
 import { resolveScope, resolveGrant, applyScope, scopeSummary, SCOPE_PRESETS } from './grants.js';
 import { exposureDenial, exposureFromEnv } from './exposure.js';
+import {
+  HOLDER_HEADER, HOLDER_AUTH_DISCLOSURE, LEGACY_QUERY_REFUSAL, LEGACY_QUERY_DETAIL, LEGACY_QUERY_WARNING,
+  authenticateHolder, holderDigest, holderToken, legacyQueryDecision, mintHolderSecret,
+  presentedHolderToken, seedGrantDecision,
+} from './grantauth.js';
 import { predict, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
 import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
 import { fitSurrogate } from './dynamics/surrogate.js';
@@ -60,18 +65,52 @@ function denyExposure(req: http.IncomingMessage) {
   });
 }
 
-// In-memory grant ledger (skeleton). Local-first store in production. Seeded with one active
-// cardiometabolic grant for the care-team cardiologist so the doctor chart demos scoping on a
-// fresh boot (the childhood knee history is OUTSIDE this scope — it shows up as withheld counts).
-const grants: Grant[] = [{
-  id: 'grant-seed-rivera',
-  agent: 'Dr. A. Rivera (Cardiology)',
-  scope: 'cardiometabolic',
-  scopeSpec: resolveScope('cardiometabolic'),
-  granted_at: new Date().toISOString(),
-  expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
-  revoked: false, reads: 0, receipt: 'ht-grant-seed',
-}];
+// In-memory grant ledger (skeleton). Local-first store in production.
+const grants: Grant[] = [];
+const findGrant = (id: string) => grants.find((g) => g.id === id);
+
+// ── the demo cardiologist grant, and the two boot-time policies around it ───────────────────────
+//
+// This used to be an unconditional array literal right here: a fixed, well-known id (the invariants
+// assert that string is gone, so it is not repeated even in this comment), active for 30 days, on
+// every boot of every deployment. Since a grant id was the whole credential, that made a live consent
+// grant whose secret was a string committed to a public repository — presentable by anyone who read
+// the source, a log line or a `Referer`. It is now: absent by default, refused outright in a
+// deployment that serves real records, and bound to a secret that is never in source.
+//
+// Both policies REFUSE TO BOOT rather than warn. A production configuration that cannot exist cannot
+// be the thing nobody remembered to turn off.
+const SEED = seedGrantDecision(process.env, EXPOSURE);
+const LEGACY_QUERY = legacyQueryDecision(process.env, EXPOSURE);
+for (const fatal of [SEED.fatal, LEGACY_QUERY.fatal]) {
+  if (fatal) { console.error(`health-twin: ${fatal}`); process.exit(1); }
+}
+if (SEED.seed) {
+  // The scope is the cardiometabolic wedge, so the doctor chart still demos scoping on a fresh boot
+  // (the childhood knee history is OUTSIDE it — it shows up as withheld counts).
+  grants.push({
+    id: 'grant-dev-seed-cardiology',
+    agent: 'Dr. A. Rivera (Cardiology) — DEV SEED, synthetic subject only',
+    scope: 'cardiometabolic',
+    scopeSpec: resolveScope('cardiometabolic'),
+    granted_at: new Date().toISOString(),
+    expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    revoked: false, reads: 0, receipt: 'ht-grant-dev-seed',
+    holderDigest: holderDigest(SEED.secret!),
+  });
+  console.log(`health-twin: DEV SEED GRANT active (${SEED.why}). Synthetic subject only.`);
+  // Printed once, to the operator who asked for it, because the alternative is a literal in source.
+  if (SEED.minted) {
+    console.log(`health-twin: seed holder token (shown once) — ${HOLDER_HEADER}: ${holderToken('grant-dev-seed-cardiology', SEED.secret!)}`);
+  } else {
+    console.log(`health-twin: seed holder secret taken from HEALTH_TWIN_SEED_GRANT_SECRET (not printed)`);
+  }
+} else if (SEED.why) {
+  console.log(`health-twin: no demo grant — ${SEED.why}`);
+}
+if (LEGACY_QUERY.allowed) {
+  console.warn(`health-twin: DEPRECATED — ${LEGACY_QUERY.why}. ?grant=<id> authenticates nobody and leaks the id into every log in the path.`);
+}
 
 // Entered readings — device / voice / keyboard vitals that became coded observations. Local-first store.
 const readings: Reading[] = [];
@@ -126,7 +165,10 @@ function bundle() {
     careTeam: careTeam(), readings,
     timeline: [...ENCOUNTERS].sort((a, b) => (a.date < b.date ? 1 : -1)),
     counts: { observations: OBSERVATIONS.length, conditions: CONDITIONS.length, encounters: ENCOUNTERS.length, imaging: IMAGING.length, medications: MEDICATIONS.length, allergies: ALLERGIES.length, immunizations: IMMUNIZATIONS.length },
-    grants: grants.map((g) => ({ ...g, active: !g.revoked && new Date(g.expires_at) > new Date() })),
+    // `holderDigest` is the verifier for a live credential. It is not secret-equivalent (sha256 of
+    // 256 random bits), but there is no reason for it to be readable, and publishing verifiers is how
+    // an offline guessing target gets handed out for free.
+    grants: grants.map((g) => publicGrant(g)),
     // records pulled through the connector plane (provenance + epistemic tier on every one).
     ingested: { ...ingested, summary: ingestedSummary() },
     // captured media (voice notes, photos, documents) — hash-sealed, tier-tagged.
@@ -167,10 +209,23 @@ function twinTtl(): string {
   return head.concat(out).join('\n') + '\n';
 }
 
-function send(res: http.ServerResponse, code: number, body: unknown) {
-  res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type', 'access-control-allow-methods': 'POST, GET, OPTIONS' });
+function send(res: http.ServerResponse, code: number, body: unknown, extra: Record<string, string> = {}) {
+  res.writeHead(code, {
+    'content-type': 'application/json',
+    'access-control-allow-origin': '*',
+    // the holder credential rides a request header, so a cross-origin caller has to be allowed to set it
+    'access-control-allow-headers': `content-type, authorization, ${HOLDER_HEADER}`,
+    'access-control-allow-methods': 'POST, GET, OPTIONS',
+    ...extra,
+  });
   res.end(JSON.stringify(body));
 }
+
+// The grant as anyone but the ledger may see it: never the holder verifier.
+const publicGrant = (g: Grant) => {
+  const { holderDigest: _verifier, ...rest } = g;
+  return { ...rest, active: !g.revoked && new Date(g.expires_at) > new Date() };
+};
 function readJson(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let raw = ''; req.on('data', (c) => { raw += c; if (raw.length > 2_000_000) req.destroy(); });
@@ -178,6 +233,99 @@ function readJson(req: http.IncomingMessage): Promise<any> {
     req.on('error', reject);
   });
 }
+
+// ── the consent membrane's front door ───────────────────────────────────────────────────────────
+//
+// Every route that reads THROUGH a grant comes through here, so there is one answer to "who may
+// exercise this consent" rather than five copies that drift. The order is deliberate:
+//
+//   1. the query-string form is refused before anything is looked up — accepting a credential on a
+//      channel that logs it is the defect, and answering it at all normalises the channel;
+//   2. the HOLDER is authenticated (constant-time digest compare) with ONE uniform failure, so a
+//      caller who cannot authenticate cannot use the endpoint to discover which grant ids exist;
+//   3. only then is grant STATE consulted, so revoked/expired keep their stated reasons — reported
+//      to someone who has proved they hold the grant.
+//
+// Every refusal carries a receipt, for the same reason every read does: a block nobody can point at
+// afterwards is indistinguishable from a block that never happened.
+type GrantAuthz =
+  | { ok: true; grant: Grant; holder: string; legacy: boolean }
+  | { ok: false; code: number; body: Record<string, unknown>; headers?: Record<string, string> };
+
+/**
+ * `who` names the surface being read, so the receipt says WHAT was presented against WHICH subject
+ * on WHICH route. `required` is false for routes where a grant narrows an otherwise-permitted read
+ * (evidence, predict, the rejection ledger): no grant at all means "no narrowing", a presented grant
+ * means "authenticate it".
+ */
+function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, required: boolean, legacyBodyId?: string): GrantAuthz | null {
+  // The two channels a bare id used to arrive on: `?grant=` (logged everywhere) and a JSON body
+  // field (not logged, but still possession-is-authorization). Neither is a credential.
+  const bareId = url.searchParams.get('grant') ?? (legacyBodyId ? String(legacyBodyId) : null);
+  const presented = presentedHolderToken(req.headers as Record<string, string | string[] | undefined>);
+
+  if (bareId !== null && !presented) {
+    if (!LEGACY_QUERY.allowed) {
+      return {
+        ok: false, code: 401,
+        body: {
+          blocked: true, authenticated: false,
+          reason: LEGACY_QUERY_REFUSAL, detail: LEGACY_QUERY_DETAIL,
+          receipt: grantUseReceipt('grant-auth-denied', [who, LEGACY_QUERY_REFUSAL], { route: who, authenticated: false }),
+        },
+        headers: { warning: LEGACY_QUERY_WARNING },
+      };
+    }
+    // Enabled only on a synthetic-only deployment, and loud on every single use.
+    const r = resolveGrant(grants, bareId);
+    if (!r.ok) {
+      return {
+        ok: false, code: 403,
+        body: { blocked: true, authenticated: false, reason: r.reason, receipt: grantUseReceipt(`${who}-blocked`, [bareId, r.reason], { route: who, authenticated: false }) },
+        headers: { warning: LEGACY_QUERY_WARNING },
+      };
+    }
+    console.warn(`health-twin: DEPRECATED unauthenticated bare-id read on ${who} (${bareId})`);
+    return { ok: true, grant: r.grant, holder: 'unauthenticated:legacy-bare-id', legacy: true };
+  }
+
+  if (!presented && !required) return null; // no grant offered, and this route does not demand one
+
+  const auth = authenticateHolder({
+    presented,
+    find: findGrant,
+    onUnbound: (id) => console.warn(`health-twin: grant ${id} carries no holder binding — refused (fail-closed)`),
+  });
+  if (!auth.ok) {
+    return {
+      ok: false, code: auth.code,
+      body: { blocked: true, authenticated: false, reason: auth.reason, detail: auth.detail, receipt: grantUseReceipt('grant-auth-denied', [who, auth.reason], { route: who, authenticated: false }) },
+    };
+  }
+  // The holder is proved. Now, and only now, the grant's own state answers.
+  const r = resolveGrant(grants, auth.grantId);
+  if (!r.ok) {
+    return {
+      ok: false, code: 403,
+      body: { blocked: true, authenticated: true, reason: r.reason, receipt: grantUseReceipt(`${who}-blocked`, [auth.grantId, auth.holderDigest, r.reason], { route: who, grant: auth.grantId, presentedBy: auth.holderDigest }) },
+    };
+  }
+  return { ok: true, grant: r.grant, holder: auth.holderDigest, legacy: false };
+}
+
+/**
+ * A grant-use receipt names WHO presented WHAT against WHICH subject — the three things an audit
+ * after the fact has to answer. Same `ht-<kind>-<sha256>` shape and same `verifier`/`at` fields as
+ * every other receipt this service emits; the holder appears as the stored digest, never the secret.
+ */
+function grantUseReceipt(kind: string, parts: string[], extra: Record<string, unknown> = {}) {
+  return { ...receipt(kind, [...parts, SUBJECT.id]), subject: SUBJECT.id, ...extra };
+}
+
+/** What an authenticated read says about the authentication behind it. Claims nothing more. */
+const authenticatedAs = (a: Extract<GrantAuthz, { ok: true }>) => (a.legacy
+  ? { ...HOLDER_AUTH_DISCLOSURE, mechanism: 'none (deprecated ?grant= query form)', binds: 'nobody — possession of an id that travels in logs', channel: 'query string', deprecated: true }
+  : HOLDER_AUTH_DISCLOSURE);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
@@ -365,17 +513,21 @@ const server = http.createServer(async (req, res) => {
   // withheld findings can't leak to the clinician through the evidence side door. Enforced here, not
   // in the client. A blocked grant blocks evidence too.
   if (req.method === 'GET' && url.pathname === '/api/health/evidence') {
-    const gid = url.searchParams.get('grant');
+    const a = authorizeGrant(req, url, 'evidence', false);
     const grounded = await groundTwin();
-    if (!gid) return send(res, 200, grounded);
-    const r = resolveGrant(grants, String(gid));
-    if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('evidence-blocked', [String(gid), r.reason]) });
-    const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+    if (a === null) return send(res, 200, grounded); // no grant offered → no narrowing
+    if (!a.ok) return send(res, a.code, a.body, a.headers);
+    const scope = a.grant.scopeSpec ?? resolveScope(a.grant.scope);
     const { view } = applyScope(bundle(), scope);
     const keptIds = new Set<string>([
       ...view.systems.flatMap((s: any) => [...s.observations, ...s.conditions].map((x: any) => x.id)),
     ]);
-    return send(res, 200, { ...grounded, items: grounded.items.filter((i) => keptIds.has(i.recordId)) });
+    return send(res, 200, {
+      ...grounded,
+      items: grounded.items.filter((i) => keptIds.has(i.recordId)),
+      authentication: authenticatedAs(a),
+      receipt: grantUseReceipt('evidence-read', [a.grant.id, a.holder], { grant: a.grant.id, presentedBy: a.holder }),
+    }, a.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
   }
 
   // ── W10 TWIN DYNAMICS — the twin PREDICTS, under a gate. "Learned proposes, physics disposes."
@@ -419,12 +571,11 @@ const server = http.createServer(async (req, res) => {
         : COMPARTMENTS;
       const covariates = b.covariates && typeof b.covariates === 'object' ? (b.covariates as Covariates) : undefined;
 
-      const gid = url.searchParams.get('grant');
+      const a = authorizeGrant(req, url, 'predict', false);
+      if (a && !a.ok) return send(res, a.code, a.body, a.headers);
       let withheldSystems: string[] = [];
-      if (gid) {
-        const r = resolveGrant(grants, String(gid));
-        if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('predict-blocked', [String(gid), r.reason]) });
-        const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+      if (a) {
+        const scope = a.grant.scopeSpec ?? resolveScope(a.grant.scope);
         const allowed = compartments.filter((k) => scope.systems === 'all' || scope.systems.includes(COMPARTMENT_SYSTEM[k]));
         withheldSystems = compartments.filter((k) => !allowed.includes(k)).map((k) => COMPARTMENT_SYSTEM[k]);
         compartments = allowed;
@@ -432,7 +583,9 @@ const server = http.createServer(async (req, res) => {
       if (compartments.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant\u2019s scope' });
 
       const p = predict({ horizonDays, stepDays, compartments, covariates });
-      return send(res, 200, gid ? { ...p, grant: { id: gid, withheldSystems } } : p);
+      return send(res, 200, a
+        ? { ...p, grant: { id: a.grant.id, withheldSystems }, authentication: authenticatedAs(a), grantReceipt: grantUseReceipt('predict-read', [a.grant.id, a.holder], { grant: a.grant.id, presentedBy: a.holder }) }
+        : p, a?.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
     } catch (e) { return send(res, 400, { error: (e as Error).message || 'predict failed' }); }
   }
 
@@ -507,15 +660,30 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Grant a designated agent a scoped, time-boxed read grant — receipted.
+  // Grant a designated agent a scoped, time-boxed read grant — receipted, and now HOLDER-BOUND.
+  //
+  // 🔴 Minting is exposure-gated, and that is not decoration: an OPEN mint endpoint makes holder
+  // authentication theatre, because anyone refused at /doctor-view could simply issue themselves a
+  // full-history grant and read with a credential of their own choosing. Whether this deployment may
+  // hand out consent at all is the same question exposure.ts already answers for serving records.
+  //
+  // Be plain about what the grantor authentication IS: on a synthetic-only deployment, none — the
+  // data being synthetic is the whole protection, exactly as exposure.ts says. On an `authenticated`
+  // deployment it is the DEPLOYMENT secret, i.e. "whoever operates this node", NOT the patient. There
+  // is no patient identity plane in this skeleton, so consent cannot be attributed to the person
+  // whose records it discloses. That is recorded in the response rather than implied away.
   if (req.method === 'POST' && url.pathname === '/api/health/grant') {
     try {
+      const denied = denyExposure(req);
+      if (denied) return send(res, denied.code, denied.body);
       const b = await readJson(req);
       const agent = String(b.agent ?? '').trim();
       const scope = String(b.scope ?? 'all systems').trim() || 'all systems';
       const ttlDays = Math.max(1, Math.min(365, Number(b.ttlDays ?? 30)));
       if (!agent) return send(res, 422, { error: 'agent required' });
       const now = new Date();
+      // Minted here, hashed immediately, returned once, never stored and never logged.
+      const secret = mintHolderSecret();
       const g: Grant = {
         id: `grant-${sha256([agent, scope, String(now.getTime())].join('|'))}`,
         agent, scope, granted_at: now.toISOString(),
@@ -523,22 +691,42 @@ const server = http.createServer(async (req, res) => {
         revoked: false, reads: 0, receipt: receipt('grant', [agent, scope, String(ttlDays)]).id,
         // structured scope: explicit spec > preset name > the scope label if it names a preset > full history
         scopeSpec: resolveScope(String(b.preset ?? scope), b.scopeSpec),
+        holderDigest: holderDigest(secret),
       };
       grants.unshift(g);
-      return send(res, 200, { grant: { ...g, scopeSummary: scopeSummary(g.scopeSpec!) } });
+      return send(res, 200, {
+        grant: { ...publicGrant(g), scopeSummary: scopeSummary(g.scopeSpec!) },
+        holder: {
+          token: holderToken(g.id, secret),
+          shownOnce: true,
+          present: `${HOLDER_HEADER}: ${holderToken(g.id, secret)}`,
+          note: 'This is the only time the secret exists outside the holder. It is not recoverable — ' +
+            'only its sha256 digest is stored. Lost means re-issue, never look up.',
+        },
+        authentication: HOLDER_AUTH_DISCLOSURE,
+        grantorAuth: EXPOSURE === 'authenticated'
+          ? { authenticatedAs: 'deployment operator (HEALTH_TWIN_TOKEN)', isThePatient: false, note: 'no patient identity plane exists here — consent is issued by whoever operates the node' }
+          : { authenticatedAs: null, isThePatient: false, note: 'synthetic-only deployment: minting is ungated because the data is synthetic, and refuses the moment real records land' },
+        receipt: grantUseReceipt('grant-issued', [g.id, g.holderDigest!, agent, scope], { grant: g.id, boundTo: g.holderDigest }),
+      });
     } catch { return send(res, 400, { error: 'bad json' }); }
   }
 
-  // Grant summaries for the clinician surface (id + label + active — never the record itself).
+  // Grant summaries for the clinician surface (id + label + active — never the record itself, and
+  // never the holder verifier: this list is the patient's control panel, not a credential store.
+  // `holderBound` says whether the grant can authenticate anyone at all, so an unbound legacy grant
+  // is visible as such rather than looking active and silently refusing.)
   if (req.method === 'GET' && url.pathname === '/api/health/grants') {
     return send(res, 200, {
       grants: grants.map((g) => ({
         id: g.id, agent: g.agent, scope: g.scope,
         scopeSummary: scopeSummary(g.scopeSpec ?? resolveScope(g.scope)),
         active: !g.revoked && new Date(g.expires_at) > new Date(),
+        holderBound: !!g.holderDigest,
         expires_at: g.expires_at, reads: g.reads,
       })),
       presets: Object.fromEntries(Object.entries(SCOPE_PRESETS).map(([k, v]) => [k, scopeSummary(v)])),
+      authentication: HOLDER_AUTH_DISCLOSURE,
     });
   }
 
@@ -546,42 +734,80 @@ const server = http.createServer(async (req, res) => {
   // identified (the clinician is authorized); the slice is exactly what the consent covers, with
   // withheld COUNTS (never content) so the doctor can see more history exists and request it.
   // Every read is a receipt; revoked/expired/unknown grants get an explicit receipted block.
+  //
+  // 🔴 `resolveGrant` checks that the id exists, is unrevoked and is unexpired — nothing else — and
+  // the id arrived in a QUERY STRING, so it was a bearer capability with no holder authentication,
+  // logged by every proxy in the path and leaked in `Referer`; one of them was hard-coded in this
+  // file. Anyone who read the source, a log, or a referrer could present it.
+  //
+  // Now the grant BINDS A HOLDER: `x-health-grant: <grant-id>.<secret>`, verified against a sha256
+  // digest stored at issue time. A leaked id is no longer a chart. See grantauth.ts — including what
+  // this deliberately does NOT claim: it authenticates the holder of a secret, not a person.
   if (req.method === 'GET' && url.pathname === '/api/health/doctor-view') {
-    const id = String(url.searchParams.get('grant') ?? '');
-    const r = resolveGrant(grants, id);
-    if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('doctor-read-blocked', [id, r.reason]) });
-    const g = r.grant;
+    const a = authorizeGrant(req, url, 'doctor-read', true)!;
+    if (!a.ok) return send(res, a.code, a.body, a.headers);
+    const g = a.grant;
     g.reads += 1;
     const scope = g.scopeSpec ?? resolveScope(g.scope);
     const { view, withheld } = applyScope(bundle(), scope);
     return send(res, 200, {
       grant: { id: g.id, agent: g.agent, scope: g.scope, scopeSummary: scopeSummary(scope), expires_at: g.expires_at, reads: g.reads },
       view, withheld,
-      receipt: receipt('doctor-read', [g.id, String(g.reads)]),
-    });
+      authentication: authenticatedAs(a),
+      receipt: grantUseReceipt('doctor-read', [g.id, a.holder, String(g.reads)], { grant: g.id, presentedBy: a.holder }),
+    }, a.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
   }
 
   // Revoke a grant — read-enforced: future reads by that agent are blocked.
+  //
+  // DELIBERATELY still id-only, and the honest reason is written into the response. Revocation is the
+  // PATIENT shutting a door on someone else's grant; the patient does not hold the clinician's secret,
+  // so requiring the holder credential here would mean only the person being revoked could revoke
+  // themselves. Slamming the door must never be harder than opening it.
+  //
+  // What that leaves unprotected, stated rather than implied: on a synthetic-only deployment anyone
+  // who learns a grant id can revoke it. That is a denial-of-ACCESS, not a disclosure — the failure
+  // direction is a clinician locked out, not a stranger reading a chart — but it is real, and it is
+  // unfixable here without a patient identity plane this estate does not have. On an `authenticated`
+  // deployment the exposure membrane at least requires the deployment secret.
   if (req.method === 'POST' && url.pathname === '/api/health/revoke') {
     try {
+      const denied = denyExposure(req);
+      if (denied) return send(res, denied.code, denied.body);
       const b = await readJson(req);
-      const g = grants.find((x) => x.id === String(b.grant));
+      const g = findGrant(String(b.grant));
       if (!g) return send(res, 404, { error: 'grant not found' });
       g.revoked = true;
-      return send(res, 200, { grant: g, receipt: receipt('revoke', [g.id]) });
+      return send(res, 200, {
+        grant: publicGrant(g),
+        revokerAuth: {
+          authenticatedAs: EXPOSURE === 'authenticated' ? 'deployment operator (HEALTH_TWIN_TOKEN)' : null,
+          isThePatient: false,
+          note: 'revocation is id-only by design (the patient does not hold the clinician secret); ' +
+            'no patient identity plane exists here, so the revoker is not authenticated as the subject',
+        },
+        receipt: grantUseReceipt('revoke', [g.id], { grant: g.id }),
+      });
     } catch { return send(res, 400, { error: 'bad json' }); }
   }
 
   // An agent exercises a grant to read a slice — the access itself is a receipt (or a block).
+  // Same holder credential as /doctor-view: this route counted a read and named the agent on the
+  // strength of an id in a JSON body, which is the same bearer capability by another channel.
   if (req.method === 'POST' && url.pathname === '/api/health/agent-read') {
     try {
+      const denied = denyExposure(req);
+      if (denied) return send(res, denied.code, denied.body);
       const b = await readJson(req);
-      const g = grants.find((x) => x.id === String(b.grant));
-      if (!g) return send(res, 404, { error: 'grant not found' });
-      if (g.revoked) return send(res, 403, { blocked: true, reason: 'grant revoked — read denied' });
-      if (new Date(g.expires_at) <= new Date()) return send(res, 403, { blocked: true, reason: 'grant expired — read denied' });
+      const a = authorizeGrant(req, url, 'agent-read', true, b.grant ? String(b.grant) : undefined)!;
+      if (!a.ok) return send(res, a.code, a.body, a.headers);
+      const g = a.grant;
       g.reads += 1;
-      return send(res, 200, { agent: g.agent, scope: g.scope, reads: g.reads, receipt: receipt('read', [g.id, String(g.reads)]) });
+      return send(res, 200, {
+        agent: g.agent, scope: g.scope, reads: g.reads,
+        authentication: authenticatedAs(a),
+        receipt: grantUseReceipt('read', [g.id, a.holder, String(g.reads)], { grant: g.id, presentedBy: a.holder }),
+      });
     } catch { return send(res, 400, { error: 'bad json' }); }
   }
 
