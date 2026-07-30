@@ -61,3 +61,9 @@ variable "spf_hardfail" {
   default     = false
   description = "SPF all-qualifier: false = ~all (softfail, safe during warm-up), true = -all (hardfail, once reputation is established)."
 }
+
+variable "spf_includes" {
+  type        = list(string)
+  default     = []
+  description = "Extra SPF include: mechanisms merged into the SINGLE SPF record — e.g. [\"_spf.google.com\"] while migrating off Google Workspace. A domain may have exactly ONE SPF record; this coexists our IP with the incumbent instead of emitting a second (invalid) record."
+}

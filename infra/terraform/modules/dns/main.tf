@@ -17,6 +17,14 @@ locals {
   dmarc_rua = var.dmarc_rua != "" ? var.dmarc_rua : "postmaster@${var.zone_name}"
   spf_all   = var.spf_hardfail ? "-all" : "~all"
   have_mail = var.smtp_ip != ""
+
+  # Exactly ONE SPF record: incumbent includes (e.g. _spf.google.com during migration) + our SMTP IP.
+  # Two SPF TXT records = PermError, which breaks the domain's live mail. Coexist, never duplicate.
+  spf_mechanisms = concat(
+    [for inc in var.spf_includes : "include:${inc}"],
+    var.smtp_ip != "" ? ["ip4:${var.smtp_ip}"] : [],
+  )
+  spf_record = "v=spf1 ${join(" ", local.spf_mechanisms)} ${local.spf_all}"
 }
 
 resource "local_file" "dns_records" {
@@ -34,7 +42,9 @@ resource "local_file" "dns_records" {
     ${local.mail}  A    ${var.smtp_ip}
     ${local.imap}  A    ${local.imap_ip}
     ${var.zone_name}  MX   10 ${local.mail}.
-    ${var.zone_name}  TXT  "v=spf1 ip4:${var.smtp_ip} ${local.spf_all}"
+    # ONE SPF record only (coexists any spf_includes with our IP). Never add a second SPF TXT.
+    ${var.zone_name}  TXT  "${local.spf_record}"
+    # ONE DMARC record only. If the zone already has _dmarc (e.g. Google), REPLACE it — do not add a second.
     _dmarc.${var.zone_name}  TXT  "v=DMARC1; p=${var.dmarc_policy}; rua=mailto:${local.dmarc_rua}; adkim=s; aspf=s"
     %{if var.dkim_public_key != ""~}
     ${var.dkim_selector}._domainkey.${var.zone_name}  TXT  "v=DKIM1; k=rsa; p=${var.dkim_public_key}"
