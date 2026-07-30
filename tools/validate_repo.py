@@ -29,56 +29,83 @@ def fail(msg: str) -> None:
     raise SystemExit(2)
 
 
-def run_optional_validator(path: str, failure_message: str) -> None:
+# Validators that may legitimately be absent, each mapped to the reason why.
+#
+# This dict is the ONLY way an absent validator becomes a skip instead of a failure.
+# It is empty by design: every validator dispatched below currently ships in-tree, so
+# nothing needs an exemption today. Adding an entry is a deliberate act that has to name
+# a reason — which is the point. `validate_repo.py` runs as `make validate-repo`, a leg of
+# the REQUIRED diagnostics-gate, so "the file isn't there" previously meant the gate passed
+# without running the check at all: deleting or renaming a validator silently disarmed it.
+OPTIONAL_VALIDATORS: dict[str, str] = {}
+
+
+def run_validator(path: str, failure_message: str) -> None:
+    """Run a validator. An absent validator is a FAILURE, not a skip.
+
+    Absence is only tolerated when `path` carries an explicit OPTIONAL_VALIDATORS
+    entry stating why, and even then it is announced on stdout rather than passing
+    silently.
+    """
     validator = ROOT / path
-    if validator.exists():
-        result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
-        if result.returncode != 0:
-            fail(failure_message)
+    if not validator.exists():
+        reason = OPTIONAL_VALIDATORS.get(path)
+        if reason is None:
+            fail(
+                f"validator missing: {path} — this runs inside the required diagnostics "
+                f"gate, so an absent validator fails the build instead of silently "
+                f"passing it. If it is genuinely optional, add it to OPTIONAL_VALIDATORS "
+                f"in {Path(__file__).name} with the reason."
+            )
+        print(f"SKIP: {path} (declared optional: {reason})")
+        return
+    result = subprocess.run([sys.executable, str(validator)], cwd=ROOT, check=False)
+    if result.returncode != 0:
+        fail(failure_message)
 
 
 def run_professional_intelligence_validation() -> None:
-    run_optional_validator("tools/validate_professional_intelligence.py", "Professional Intelligence validation failed")
+    run_validator("tools/validate_professional_intelligence.py", "Professional Intelligence validation failed")
 
 
 def run_personal_intelligence_cell_validation() -> None:
-    run_optional_validator("tools/validate_personal_intelligence_cell.py", "Personal Intelligence Cell validation failed")
+    run_validator("tools/validate_personal_intelligence_cell.py", "Personal Intelligence Cell validation failed")
 
 
 def run_cell_lampstand_adapter_validation() -> None:
-    run_optional_validator("tools/validate_cell_lampstand_adapter.py", "Cell Lampstand adapter validation failed")
+    run_validator("tools/validate_cell_lampstand_adapter.py", "Cell Lampstand adapter validation failed")
 
 
 def run_cell_lampstand_live_fixture_validation() -> None:
-    run_optional_validator("tools/validate_cell_lampstand_live_fixture.py", "Cell live Lampstand fixture validation failed")
+    run_validator("tools/validate_cell_lampstand_live_fixture.py", "Cell live Lampstand fixture validation failed")
 
 
 def run_cell_postgres_runtime_validation() -> None:
-    run_optional_validator("tools/validate_cell_postgres_runtime.py", "Cell Postgres runtime validation failed")
+    run_validator("tools/validate_cell_postgres_runtime.py", "Cell Postgres runtime validation failed")
 
 
 def run_cell_clickhouse_fact_validation() -> None:
-    run_optional_validator("tools/validate_cell_clickhouse_facts.py", "Cell ClickHouse fact validation failed")
+    run_validator("tools/validate_cell_clickhouse_facts.py", "Cell ClickHouse fact validation failed")
 
 
 def run_cell_gateway_api_validation() -> None:
-    run_optional_validator("tools/validate_cell_gateway_api.py", "Cell gateway API validation failed")
+    run_validator("tools/validate_cell_gateway_api.py", "Cell gateway API validation failed")
 
 
 def run_cell_social_environment_validation() -> None:
-    run_optional_validator("tools/validate_cell_social_environment.py", "Cell social environment validation failed")
+    run_validator("tools/validate_cell_social_environment.py", "Cell social environment validation failed")
 
 
 def run_prophet_understand_validation() -> None:
-    run_optional_validator("tools/validate_prophet_understand.py", "Prophet Understand repo intelligence validation failed")
+    run_validator("tools/validate_prophet_understand.py", "Prophet Understand repo intelligence validation failed")
 
 
 def run_prophet_understand_vertical_slice() -> None:
-    run_optional_validator("tools/run_prophet_understand_vertical_slice.py", "Prophet Understand vertical slice failed")
+    run_validator("tools/run_prophet_understand_vertical_slice.py", "Prophet Understand vertical slice failed")
 
 
 def run_cell_service_smoke() -> None:
-    run_optional_validator("tools/smoke_cell_service_loop.py", "Cell service loop smoke failed")
+    run_validator("tools/smoke_cell_service_loop.py", "Cell service loop smoke failed")
 
 
 for rel in REQUIRED_DIRS:

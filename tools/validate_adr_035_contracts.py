@@ -79,7 +79,22 @@ def validate_file(path: Path) -> None:
 validate_file(ROOT / "tests" / "fixtures" / "fault-envelope-script-editor-synthetic.json")
 
 # ── ADR-035 worked example fixtures ──────────────────────────────────────────
-for path in sorted((CONTRACTS / "examples").glob("adr-035-*.json")):
+# Minimum-count assertion. An empty glob is a FAILURE, not a pass: every ADR-035
+# check below is driven by these files, so "zero matched" means this validator ran and
+# verified nothing while still printing success. The floor is the number that ships
+# today — deleting or relocating fixtures has to trip this, not slip past it.
+MIN_FIXTURES = 5
+fixture_paths = sorted((CONTRACTS / "examples").glob("adr-035-*.json"))
+if len(fixture_paths) < MIN_FIXTURES:
+    print(
+        f"ERR: expected at least {MIN_FIXTURES} adr-035-*.json fixtures under "
+        f"{(CONTRACTS / "examples").relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
+        f"silently disables this validator",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+for path in fixture_paths:
     validate_file(path)
 
 # ── Result ────────────────────────────────────────────────────────────────────

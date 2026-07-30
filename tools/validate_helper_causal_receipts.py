@@ -80,7 +80,22 @@ def check_policy_regression(records: list[dict], file_label: str) -> None:
     ok(f"policy-regression-gate {file_label}")
 
 
-for path in sorted(FIXTURES.glob("*.jsonl")):
+# Minimum-count assertion. An empty glob is a FAILURE, not a pass: every helper-causal-receipts
+# check below is driven by these files, so "zero matched" means this validator ran and
+# verified nothing while still printing success. The floor is the number that ships
+# today — deleting or relocating fixtures has to trip this, not slip past it.
+MIN_FIXTURES = 4
+fixture_paths = sorted(FIXTURES.glob("*.jsonl"))
+if len(fixture_paths) < MIN_FIXTURES:
+    print(
+        f"ERR: expected at least {MIN_FIXTURES} *.jsonl fixtures under "
+        f"{FIXTURES.relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
+        f"silently disables this validator",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+for path in fixture_paths:
     label = path.name
     is_reject = path.name.startswith("reject_")
 
