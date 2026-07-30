@@ -1,0 +1,39 @@
+name: solution-ranker
+
+# Walks MeshActionRegistry for ABB slot fillers and ranks them into a SolutionShortlist.
+# Backs Michael's `shortlist_solutions` capability (prophet-mesh#17) — the move that turns
+# "silently auto-route to the top score" into "here are your options, and here is why".
+
+on:
+  push:
+    paths:
+      - 'libs/python/solution-ranker/**'
+      - '.github/workflows/solution-ranker.yml'
+  pull_request:
+    paths:
+      - 'libs/python/solution-ranker/**'
+      - '.github/workflows/solution-ranker.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r libs/python/solution-ranker/requirements-test.txt -e libs/python/solution-ranker
+
+      # Covers filter-before-rank (a below-floor candidate is not rankable, it is excluded),
+      # the four auto-route preconditions with per-blocker reporting, and the Eve Smith
+      # cross-selling scenario from Zurich's E-RDA2 deck run end to end.
+      - name: Tests
+        run: cd libs/python/solution-ranker && pytest -q
