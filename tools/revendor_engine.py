@@ -145,7 +145,23 @@ def step_assert_marker(plan: RevendorPlan) -> dict:
     marker. A version field is not evidence; the bundle is."""
     if not plan.tarball.exists():
         raise RevendorAbort("assert_marker", f"tarball not found: {plan.tarball}")
-    raw = marker_tool.read_member(plan.tarball, plan.member)  # bounded, typed read
+    # Copilot #1062 round 2: marker_tool.read_member raises SystemExit for the
+    # artifact-is-not-what-it-claims cases (unreadable gzip, missing member,
+    # non-file member, declared-size-over-cap, expanded-past-cap). SystemExit
+    # inherits from BaseException, so execute()'s `except RevendorAbort` lets it
+    # tear the whole run down WITHOUT a sealed receipt — the exact opposite of
+    # this executor's fail-closed-AND-receipt-producing contract. Convert to a
+    # RevendorAbort here so a corrupt tarball becomes a receipt saying
+    # assert_marker.ok=false with the reader's own error text as evidence.
+    try:
+        raw = marker_tool.read_member(plan.tarball, plan.member)  # bounded, typed read
+    except SystemExit as exc:
+        raise RevendorAbort(
+            "assert_marker",
+            f"tarball could not be read as a packed dist: {exc}",
+            {"tarball": str(plan.tarball), "member": plan.member,
+             "reader_error": str(exc)},
+        )
     missing = [m for m in plan.expect_markers if m.encode("utf-8") not in raw]
     present_forbidden = [m for m in plan.forbid_markers if m.encode("utf-8") in raw]
     digest = marker_tool.sha256_file(plan.tarball)
@@ -405,7 +421,25 @@ def main(argv: list[str] | None = None) -> int:
     apply = args.apply or args.open_pr
     receipt = execute(plan, args.root, apply=apply)
     if receipt["status"] == "applied" and args.open_pr:
-        receipt["pr"] = open_pr(plan, receipt, args.root)
+        # Copilot #1062 round 2: the receipt IS the deliverable. If open_pr raises
+        # (RevendorAbort for a non-applied state, subprocess.CalledProcessError from
+        # any of git switch/add/commit/push or gh pr create, or OSError on a broken
+        # git tree) and we let it propagate, main() exits before printing — and
+        # automation loses the final JSON status entirely. Record the failure as a
+        # regular step, demote to failed, re-seal, print. Exit 1 still signals the
+        # operation failed, but a downstream `jq` on stdout has the whole story.
+        try:
+            receipt["pr"] = open_pr(plan, receipt, args.root)
+        except (RevendorAbort, subprocess.CalledProcessError, OSError) as exc:
+            step = getattr(exc, "step", "open_pr")
+            reason = getattr(exc, "reason", None) or str(exc)
+            evidence: dict = dict(getattr(exc, "evidence", {}) or {})
+            if isinstance(exc, subprocess.CalledProcessError):
+                evidence.update({"argv": list(exc.cmd) if exc.cmd else [],
+                                 "returncode": exc.returncode})
+            receipt["steps"].append({"step": step, "ok": False,
+                                     "evidence": {"reason": reason, **evidence}})
+            receipt["status"] = "failed"
         _seal(receipt)
     print(json.dumps(receipt, indent=2, sort_keys=True))
     return 0 if receipt["status"] in ("applied", "planned", "noop") else 1

@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -162,3 +163,61 @@ def test_from_effect_request_maps_the_contract(tmp_path):
 def test_wrong_capability_is_rejected():
     with pytest.raises(ValueError, match="vendor.revendor"):
         eng.RevendorPlan.from_effect_request({"capability": "something.else", "parameters": {}})
+
+
+# ── Copilot #1062 round 2: fail-closed AND receipt-producing ──────────────────
+
+def test_corrupt_tarball_yields_a_sealed_failed_receipt_not_a_raise(tmp_path):
+    """A tarball that is not a readable gzip trips marker_tool into raising
+    SystemExit. Pre-fix, step_assert_marker let it escape past execute()'s
+    `except RevendorAbort` and the run tore down WITHOUT a sealed receipt —
+    the exact opposite of the fail-closed-AND-receipt-producing contract.
+    Post-fix, execute() returns a sealed failed receipt naming assert_marker."""
+    root = _fixture(tmp_path)
+    corrupt = tmp_path / "corrupt-0.4.99.tgz"
+    corrupt.write_bytes(b"this is not a gzip stream")  # tarfile.open will raise
+    receipt = eng.execute(_plan(to="0.4.99", tarball=corrupt), root, apply=True)
+    # The whole point: NO exception escaped execute(); we got a receipt.
+    assert receipt["status"] == "failed"
+    failed = receipt["steps"][0]
+    assert failed["step"] == "assert_marker" and failed["ok"] is False
+    # The reader's own error text rides through as evidence — an operator sees
+    # what specifically was wrong with the artifact, not just "it failed".
+    assert "packed dist" in failed["evidence"]["reason"] \
+        or "readable gzip" in failed["evidence"]["reason"]
+    # And the receipt is sealed, so tamper detection still works.
+    assert receipt["receipt_digest"].startswith("sha256:")
+
+
+def test_open_pr_failure_still_prints_a_sealed_receipt_and_exits_nonzero(
+        tmp_path, monkeypatch, capsys):
+    """If --open-pr is used and open_pr() raises (any of RevendorAbort,
+    subprocess.CalledProcessError, OSError), main() must still print the
+    receipt as JSON on stdout — the receipt is the deliverable, and automation
+    downstream parses stdout to learn the final status. Pre-fix, the exception
+    propagated past the print() call and stdout was empty."""
+    root = _fixture(tmp_path)
+    # Stub open_pr so we do not actually run git/gh in this test.
+    def boom(plan, receipt, root):
+        raise subprocess.CalledProcessError(1, ["git", "push", "-u", "origin", "revendor/engine-0.4.45"])
+    monkeypatch.setattr(eng, "open_pr", boom)
+    rc = eng.main([
+        "--to-version", "0.4.45",
+        "--tarball", str(REAL_045),
+        "--expect", MARKER,
+        "--root", str(root),
+        "--open-pr",
+    ])
+    assert rc == 1, "an open_pr failure must exit non-zero"
+    out = capsys.readouterr().out
+    assert out.strip(), "stdout must carry the receipt even when open_pr failed"
+    receipt = json.loads(out)
+    assert receipt["status"] == "failed"
+    open_pr_step = [s for s in receipt["steps"] if s["step"] == "open_pr"][0]
+    assert open_pr_step["ok"] is False
+    # The subprocess argv rides through as evidence — an operator can see which
+    # git/gh call actually broke, not just "open_pr failed".
+    assert "git" in open_pr_step["evidence"]["argv"][0]
+    assert open_pr_step["evidence"]["returncode"] == 1
+    # And the receipt was re-sealed after the failure was recorded.
+    assert receipt["receipt_digest"].startswith("sha256:")
