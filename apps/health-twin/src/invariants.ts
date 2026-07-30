@@ -429,7 +429,7 @@ console.log('\n▶ INVARIANT 8 — a grant id is not a credential: the holder is
   const {
     authenticateHolder, holderDigest, holderToken, mintHolderSecret, parseHolderToken,
     presentedHolderToken, seedGrantDecision, legacyQueryDecision,
-    HOLDER_AUTH_DISCLOSURE, HOLDER_FAILED, HOLDER_HEADER,
+    HOLDER_AUTH_DISCLOSURE, HOLDER_FAILED, HOLDER_HEADER, HOLDER_REQUIRED,
   } = await import('./grantauth.js');
 
   const secret = mintHolderSecret();
@@ -443,7 +443,7 @@ console.log('\n▶ INVARIANT 8 — a grant id is not a credential: the holder is
   const wrongSecret = authenticateHolder({ presented: holderToken(bound.id, mintHolderSecret()), find });
   ok(wrongSecret.ok === false, 'the right id with the wrong secret is refused');
   const noCredential = authenticateHolder({ presented: '', find });
-  ok(noCredential.ok === false && (noCredential as any).reason !== HOLDER_FAILED,
+  ok(noCredential.ok === false && (noCredential as any).reason === HOLDER_REQUIRED && (noCredential as any).reason !== HOLDER_FAILED,
      'presenting nothing at all is refused, and told how to present (a usage error, not a failed attempt)');
   ok(authenticateHolder({ presented: holderToken(unbound.id, secret), find }).ok === false,
      'a grant carrying NO holder binding authenticates nobody — it fails closed, it does not get a legacy pass');
