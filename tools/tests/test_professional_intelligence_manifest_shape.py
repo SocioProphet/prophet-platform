@@ -29,6 +29,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOL = REPO_ROOT / "tools" / "validate_professional_intelligence_manifest.py"
 MANIFEST_NAME = "professional-intelligence.manifest.yaml"
 
+# The in-repo evidence the real manifest declares under
+# capabilities.workspaceOS.{contractPaths,controlRefs}. The validator now stats
+# these (require_declared_paths_exist), so a synthetic root that copies only the
+# tool makes the tool reject the real manifest for a path that is absent only
+# because the fixture never carried it. Copied into the synthetic root exactly as
+# build_root() does in test_professional_intelligence_manifest_evidence_paths.py.
+# Cross-repo refs (SocioProphet/<repo>:<path>) are not present in any checkout and
+# stay skipped by the tool, so they are deliberately NOT listed here.
+LOCAL_EVIDENCE = [
+    "contracts/workspace/workroom-update-request.example.json",
+    "contracts/workspace/workroom-update-response.accepted.example.json",
+    "contracts/workspace/workroom-update-response.invalid-runtime-mutation.example.json",
+    "docs/WORKROOM_UPDATE_RUNTIME_BOUNDARY.md",
+    "tools/validate_workroom_update_contract.py",
+]
+
 # Both interpreters must agree. Under -O the tool is what CI would run if
 # PYTHONOPTIMIZE were ever set in the environment; the point of the pair is
 # that the two columns never diverge.
@@ -55,6 +71,13 @@ def run_against(tmp_path: Path, manifest_obj: object, argv_prefix: list[str]):
     (root / MANIFEST_NAME).write_text(
         yaml.safe_dump(manifest_obj, sort_keys=False), encoding="utf-8"
     )
+    # The validator stats the manifest's in-repo evidence; carry it into the
+    # synthetic root so a valid manifest is not rejected for a fixture omission.
+    # Same copy-loop as build_root() in the evidence-paths suite.
+    for rel in LOCAL_EVIDENCE:
+        dest = root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO_ROOT / rel, dest)
     return subprocess.run(
         argv_prefix + [str(root / "tools" / TOOL.name)],
         capture_output=True,
