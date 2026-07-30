@@ -56,6 +56,15 @@ this process receives a heartbeat every hour, forever.
 `alert_sink_notifications_total` must therefore always be rising. If it stops,
 **`AlertDeliveryDead`** fires.
 
+> **Status today:** the heartbeat is NOT yet flowing, and that is visible rather
+> than hidden. `Watchdog` carries no `namespace` label, so the AlertmanagerConfig
+> sub-route (scoped `OnNamespace` by the operator) cannot match it — it still
+> routes to `null`. Only the **default route** in the Helm values catches it, and
+> that lands when the `kube-prometheus-stack` Argo app syncs this change.
+> Until then `AlertDeliveryDead` fires, correctly reporting that estate-wide
+> delivery is not wired. Measured live: 19 firing alerts still reaching `null`,
+> 0 reaching the sink, because none of them carry `namespace=observability`.
+
 That inverts the failure mode: silence is no longer "nothing is wrong", silence
 is itself the alarm.
 

@@ -9,6 +9,19 @@
 # fires permanently BY DESIGN, as a dead-man's switch. It is routed to the sink,
 # so the sink receives a notification every repeat_interval, forever. That turns
 # "the delivery path works" from an assertion into a continuously re-proved fact.
+#
+# The heartbeat only flows once the Alertmanager DEFAULT route points here
+# (deploy/argocd/observability-services.yaml). `Watchdog` carries no `namespace`
+# label, so the AlertmanagerConfig sub-route — which the operator scopes
+# OnNamespace — cannot match it. Until that chart change syncs, Watchdog still
+# goes to `null` and AlertDeliveryDead will fire. That is correct: estate-wide
+# delivery genuinely is not wired yet, and the alert saying so is the point.
+#
+# IMPORTANT — every alert below carries an explicit `namespace: observability`
+# label. Without it these rules emit alerts with no namespace label and the
+# sub-route would not match them either, so the alert reporting "delivery is
+# dead" would itself be delivered to `null`. That is the failure this component
+# exists to prevent, and it would have shipped inside the fix.
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -31,7 +44,7 @@ spec:
             increase(alert_sink_notifications_total[3h]) == 0
             or absent(alert_sink_notifications_total)
           for: 15m
-          labels: { severity: critical }
+          labels: { severity: critical, namespace: observability }
           annotations:
             summary: "Alert delivery is dead — no notification reached the sink in 3h"
             description: >-
@@ -46,7 +59,7 @@ spec:
         - alert: AlertSinkDown
           expr: up{job="alert-sink"} == 0 or absent(up{job="alert-sink"})
           for: 5m
-          labels: { severity: critical }
+          labels: { severity: critical, namespace: observability }
           annotations:
             summary: "alert-sink is down — Alertmanager has nowhere to deliver"
 
@@ -54,7 +67,7 @@ spec:
         - alert: AlertSinkRejecting
           expr: increase(alert_sink_errors_total[15m]) > 0
           for: 0m
-          labels: { severity: warning }
+          labels: { severity: warning, namespace: observability }
           annotations:
             summary: "alert-sink refused {{ $value }} malformed deliveries in 15m"
             description: >-
@@ -73,7 +86,7 @@ spec:
             increase(alertmanager_notifications_total{integration="webhook"}[3h]) == 0
             or absent(alertmanager_notifications_total{integration="webhook"})
           for: 15m
-          labels: { severity: critical }
+          labels: { severity: critical, namespace: observability }
           annotations:
             summary: "Alertmanager has sent zero webhook notifications in 3h"
             description: >-
