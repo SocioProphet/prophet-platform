@@ -9,3 +9,7 @@ image: { repository: portfolio-agent, tag: sha-a6d8311383ca91a2f56ec99c8070bbe7e
 service: { port: 8094, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
+# Autoscaling: SAFE — POST /analyze runs runPortfolioAgent purely on the request body
+# (apps/portfolio-agent/src/server.ts:34); every list in src/agent.ts is function-local.
+# Analysis is CPU-bound per request, so replicas are the right lever.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

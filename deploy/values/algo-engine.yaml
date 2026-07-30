@@ -3,4 +3,17 @@
 # gitops-promote after the first image build (same pattern as owl-reasoner / entity-resolution).
 image: { repository: algo-engine, tag: sha-32f5996a06f6b6d971e6717ca5f3cf5b0661cda2 }
 service: { port: 8080, portName: http }
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# ⚠️ AUTOSCALING OFF — the paper-execution ledger is process-local.
+# `_LEDGER` (apps/algo-engine/src/algo_engine/server.py:243) is a module-global dict
+# holding cash, positions and the order log. POST /paper/order mutates it; GET
+# /paper/state reads it back. Each replica boots its own copy at $1,000,000 cash.
+#
+# At 2 replicas: a user places a BUY on replica A and sees the position, then the next
+# /paper/state lands on B and shows an empty book with the full $1M still uncommitted.
+# The order history flickers between two disjoint versions on refresh, /paper/reset only
+# resets whichever pod it reaches, and because each replica independently believes it has
+# the whole budget, total exposure can exceed the notional cap. Backtests are pure and
+# would scale fine — the ledger is what makes this service a singleton.
+# Re-enabling is gated on moving _LEDGER to a shared store, not on load.
+autoscaling: { enabled: false }
+replicaCount: 1

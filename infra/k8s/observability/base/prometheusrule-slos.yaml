@@ -44,3 +44,62 @@ spec:
           labels: { severity: warning }
           annotations:
             summary: "{{ $labels.job }} 5xx ratio > 5% (SLO breach) — blocks canary promotion"
+    # ------------------------------------------------------------------------
+    # Autoscaling signals.
+    #
+    # DELIBERATELY BUILT ON kube-state-metrics, NOT on the app metrics plane. The
+    # request-slo group above depends on `http_server_request_duration_seconds`, which
+    # currently has ZERO emitters estate-wide (the shared chart ships `metrics.enabled:
+    # false` and no service overrides it), so those rules cannot fire. The
+    # `kube_horizontalpodautoscaler_*` series below are published by the
+    # kube-state-metrics deployment that is already running in this namespace and were
+    # confirmed present in Prometheus before these rules were written — 22 current-replica
+    # series and 198 condition series across the estate's HPAs. These alerts can fire today.
+    # ------------------------------------------------------------------------
+    - name: socioprophet.autoscaling
+      rules:
+        # THE "STOPPED AT THE CEILING" SIGNAL. An HPA pinned at maxReplicas is not healthy
+        # — it is a workload that wanted more capacity and was refused. Without this the
+        # cap is silent: pods are Ready, CPU sits at 100%, latency climbs, and nothing
+        # anywhere says the autoscaler ran out of room. 15m avoids paging on a burst that
+        # legitimately touches the ceiling and recedes.
+        - alert: HPAAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas
+              >= on (namespace, horizontalpodautoscaler)
+            kube_horizontalpodautoscaler_spec_max_replicas
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} has been at maxReplicas for 15m"
+            description: >-
+              The autoscaler is capped and cannot add capacity. Decide deliberately: raise
+              maxReplicas (each replica is direct Autopilot spend), or accept the cap as the
+              budget. Do NOT raise it past what regional CPU quota can actually satisfy — a
+              max nobody can reach is a false bound.
+        # THE "DECORATIVE AUTOSCALER" DETECTOR. ScalingActive=false means the HPA cannot
+        # compute a desired replica count at all — almost always a missing metric
+        # (no CPU request on the pods, metrics-server down, or a custom metric with no
+        # emitters). This is the exact failure mode where an autoscaler LOOKS installed,
+        # reports `<unknown>`, sits at minReplicas forever, and everything reads green.
+        # The chart refuses to render a CPU HPA without a CPU request
+        # (charts/socioprophet-service/templates/hpa.yaml), and this catches the rest.
+        - alert: HPACannotComputeMetric
+          expr: kube_horizontalpodautoscaler_status_condition{condition="ScalingActive",status="false"} == 1
+          for: 15m
+          labels: { severity: warning }
+          annotations:
+            summary: "HPA {{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} cannot compute its metric — it is not autoscaling anything"
+            description: >-
+              ScalingActive=false for 15m. The autoscaler exists but is inert. Check that the
+              target pods declare a resource request for the metric being scaled on.
+        # A budget that can never be met blocks every voluntary eviction, which on Autopilot
+        # means node upgrades, repairs and consolidation stall indefinitely. The chart
+        # guards against authoring one (templates/pdb.yaml renders only at floor >= 2, and
+        # always as maxUnavailable: 1); this catches any that arrive by another path.
+        - alert: PDBBlocksAllDisruption
+          expr: kube_poddisruptionbudget_status_expected_pods > 0 and kube_poddisruptionbudget_status_pod_disruptions_allowed == 0
+          for: 30m
+          labels: { severity: warning }
+          annotations:
+            summary: "PDB {{ $labels.namespace }}/{{ $labels.poddisruptionbudget }} has allowed 0 disruptions for 30m — node drains will hang"

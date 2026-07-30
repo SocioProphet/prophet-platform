@@ -2,3 +2,8 @@
 image: { repository: osm-map-api, tag: latest }
 service: { port: 8088, portName: http }  # app binds 8088 (uvicorn); chart uses this for containerPort + probes
 enableServiceLinks: false   # k8s injects OSM_MAP_API_PORT=tcp://<svc> otherwise → app int() crash
+# Autoscaling: SAFE — app.state.repository (osm_map_api/main.py:57) is a frozen dataclass
+# over read-only mounted fixture JSON (repository.py:66-76) and every route is a GET.
+# Nothing writes. Tile/lookup traffic is the burstiest shape on the platform, which is
+# what the headroom is for.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

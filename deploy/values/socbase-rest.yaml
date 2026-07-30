@@ -56,3 +56,8 @@ ingress:
           pathType: ImplementationSpecific
 
 replicaCount: 2
+# Autoscaling: SAFE — PostgREST is a stateless JWT-verifying translator over PGRST_DB_URI
+# with a per-request connection pool; it holds no cross-request state. This is the data
+# door, so the floor stays at 2. As with socbase-auth, minReplicas supersedes replicaCount
+# and the floor is unchanged — NO baseline cost, burst headroom only.
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 4 }

@@ -9,3 +9,8 @@ image: { repository: academy-board, tag: sha-f59cf2c937bad042565eeed561ba9a11af9
 service: { port: 8095, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
+# Autoscaling: SAFE — the only module state is a frozen ANSWER_KEY lookup table
+# (apps/academy-board/src/keys.ts:19) plus pure grading functions; handlers
+# (src/server.ts:37,51) derive everything from the request body. Courseware traffic is
+# classroom-shaped (idle, then a cohort arrives at once), which is what max 3 covers.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

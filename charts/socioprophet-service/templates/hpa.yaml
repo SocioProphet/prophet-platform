@@ -1,4 +1,19 @@
 {{- if .Values.autoscaling.enabled }}
+{{/*
+FAIL-CLOSED GUARD — a CPU-utilisation HPA is meaningless without a CPU request.
+
+`averageUtilization` is a percentage OF THE POD'S CPU REQUEST. With no request there is
+no denominator: the HPA reports `<unknown>` for the metric, never computes a desired
+replica count, and sits at minReplicas forever while looking installed. That is an
+autoscaler that cannot fire — the same shape as a probe that always returns 200.
+
+The chart ships a default request (values.yaml `resources.requests.cpu`), so this only
+trips if a service file explicitly blanks it. Refuse to render rather than ship a
+decorative autoscaler.
+*/}}
+{{- if not (dig "requests" "cpu" "" .Values.resources) }}
+{{- fail (printf "autoscaling.enabled=true for %s but resources.requests.cpu is unset — a CPU-utilisation HPA has no denominator and would never scale. Set a CPU request or disable autoscaling." (include "svc.fullname" .)) }}
+{{- end }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -18,4 +33,38 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+    {{- with .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    # Opt-in second signal. The HPA takes the MAX of the per-metric recommendations, so
+    # memory can only ever scale UP relative to the CPU decision — set it only where
+    # memory genuinely tracks load, never for a runtime whose heap simply grows to its
+    # ceiling and stays there (that pins the autoscaler at maxReplicas permanently).
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ . }}
+    {{- end }}
+  behavior:
+    scaleUp:
+      # React within a scrape interval, but bounded: at most N pods/min, so a traffic
+      # spike — or a metrics blip — cannot mint a node pool's worth of pods.
+      stabilizationWindowSeconds: {{ .Values.autoscaling.behavior.scaleUp.stabilizationWindowSeconds }}
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: {{ .Values.autoscaling.behavior.scaleUp.podsPerMinute }}
+          periodSeconds: 60
+    scaleDown:
+      # THE ANTI-THRASH CONTROL. The HPA holds the highest recommendation seen in this
+      # window before it will shrink, so a workload that dips between bursts does not
+      # flap. On Autopilot a scale-down also has a cost tail: the pod stops billing
+      # immediately, but the node it vacated only bills out once the cluster autoscaler
+      # consolidates — so rapid up/down churn pays for capacity it never used.
+      stabilizationWindowSeconds: {{ .Values.autoscaling.behavior.scaleDown.stabilizationWindowSeconds }}
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: {{ .Values.autoscaling.behavior.scaleDown.podsPerMinute }}
+          periodSeconds: 60
 {{- end }}

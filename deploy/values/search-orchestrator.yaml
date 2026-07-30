@@ -1,7 +1,25 @@
 # search-orchestrator — search/index daemon
 image: { repository: search-orchestrator, tag: sha-d2b483f26f85e1550c6b229a123109c311c50aae }
 service: { port: 8080, portName: http }
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 4 }
+# ⚠️ AUTOSCALING OFF — runtime-ingested academy records live in one replica's heap.
+# `academy_repository` (services/search-orchestrator/app/repositories.py:200) resolves via
+# build_academy_repository(), which falls through to InMemoryAcademySearchRepository
+# (repositories.py:24) unless SEARCH_ORCHESTRATOR_ACADEMY_STORE / _LAMPSTAND_JSONL /
+# _LAMPSTAND_CARRIER_DIR is set. None of them is set here — only the boot SEED below,
+# which is per-replica and therefore consistent.
+#
+# So the bundled 8.01 corpus is identical everywhere, but ANYTHING INGESTED AT RUNTIME is
+# not: a record POSTed to /v1/search/ingest/academy lands in one pod's `_records` dict and
+# is invisible to queries served by the others. This HPA ran at maxReplicas: 4 — the
+# widest fan-out in the estate — so the cockpit tutor would show a newly ingested Commons
+# record on one refresh and not the next, and /v1/search/debug/metrics would report ~1/4
+# of true traffic, making it useless for the debugging it exists for.
+# TO RE-ENABLE: set SEARCH_ORCHESTRATOR_ACADEMY_STORE (or a Lampstand carrier dir) to a
+# shared location so all replicas read one corpus. That is a store decision, not a load one.
+# NOTE: the same values file backs the fogstack-federal and fogstack-standard overlays,
+# which carried the identical max-4 HPA.
+autoscaling: { enabled: false }
+replicaCount: 1
 # Boot-seed the academy ingest with the bundled 8.01 corpus so the cockpit tutor's Cloud engine
 # returns real Commons records (idempotent; in-memory repo re-seeds each boot).
 extraEnv:

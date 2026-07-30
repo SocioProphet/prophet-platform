@@ -3,4 +3,18 @@
 # but was never scheduled — this wires it into the ApplicationSet. tag:latest → sha-pinned after next build.
 image: { repository: regis-acr-api, tag: latest }
 service: { port: 8080, portName: http }
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# ⚠️ AUTOSCALING OFF — proofs and the event log are in-process.
+# `_PROOFS` and `_EVENT_LOG` (apps/regis-acr-api/src/regis_acr_api/er_spine.py:68-69) are
+# module dicts; the comment directly above them says so ("Proofs + the event log are
+# receipts, not graph atoms, so they stay in-process here"). The default graph backend is
+# likewise an in-memory backend (graph_backend.py:132).
+#
+# At 2 replicas: POST /v1/resolve/entities mints a proof into replica A and returns
+# `proof_ref` to the caller; the follow-up GET /v1/proof/{proof_ref} has a coin-flip
+# chance of hitting B and 404-ing on a certificate the service issued seconds earlier.
+# For a plane whose contract is proof-carrying, replayable entity resolution, a randomly
+# unverifiable proof is a correctness failure, not a cache miss.
+# Re-enabling is gated on HELLGRAPH_SUPERPEER_URL (the shared-backend opt-in already in
+# graph_backend.get_backend()) plus a shared proof store — not on load.
+autoscaling: { enabled: false }
+replicaCount: 1

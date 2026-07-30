@@ -7,3 +7,16 @@ config:
   TRITRPC_ALLOW_INSECURE_DEV_KEY: "1"   # DEV ONLY — provision a real TRITRPC_KEY_HEX secret for prod
 secretEnv:
   TRITRPC_KEY_HEX: { secretName: tritrpc-shared-key, key: TRITRPC_KEY_HEX, optional: true }
+# Autoscaling: SAFE — verified stateless. Each accepted connection is handled
+# independently (apps/api/cmd/socioprophet-api/main.go:112,116) and the response is built
+# purely from the decoded request (:182); the only package-level var is a stateless
+# fixture client (:90). No disk writes, no session table, no background loop.
+#
+# minReplicas: 2 is a DELIBERATE availability floor, not headroom. This is the tritRPC
+# core — the platform's primary service contract — and `gateway` (itself 2-6) proxies
+# every call to it and health-checks it with a real HealthPing round-trip
+# (apps/gateway/cmd/tritrpc-gateway/main.go:43). At one replica, an api restart takes
+# EVERY gateway replica unhealthy simultaneously. Two replicas also earn this workload a
+# PodDisruptionBudget (floor >= 2), so Autopilot node drains stop being full outages.
+# Cost of the second replica at the 50m/128Mi request: ~$0.09/day.
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 4 }

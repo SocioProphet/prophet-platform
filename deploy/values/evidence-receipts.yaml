@@ -1,3 +1,15 @@
 # evidence-receipts
 image: { repository: evidence-receipts, tag: latest }
 service: { port: 8080, portName: http }
+# Autoscaling: SAFE TODAY, AND THE CONDITION IS WRITTEN DOWN.
+# All five routes are @app.get (apps/evidence-receipts/app/main.py:10-36) and main.py
+# imports only from .store — every replica serves the same read-only tree, so they are
+# interchangeable.
+# ⚠️ THE LATENT TRAP: the receipt store is the pod's OWN FILESYSTEM under
+# ~/.local/state/prophet-platform (app/store.py:19-22), not an external service. A writer
+# exists in the same package (app/telemetry_runtime.py:239-258) and is simply not imported
+# by main.py. The moment anything writes into this pod — a sidecar, an in-pod producer, or
+# a new POST route — replicas diverge instantly and silently, and this HPA turns a
+# read-only surface into a split store of record. If that writer is ever wired up, set
+# autoscaling.enabled back to false in the SAME change.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

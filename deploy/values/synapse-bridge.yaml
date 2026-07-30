@@ -9,3 +9,7 @@ image: { repository: synapse-bridge, tag: sha-8ad02c53edde7779e10a741a26d2257025
 service: { port: 8092, portName: http }
 # tsx/esbuild needs a writable /tmp under the chart's readOnlyRootFilesystem.
 tmpDir: { enabled: true }
+# Autoscaling: SAFE — two pure transforms over the request body
+# (apps/synapse-bridge/src/server.ts:28,32); src/enrichment.ts holds no mutable module
+# state.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

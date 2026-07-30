@@ -1,3 +1,8 @@
 # evidence-console
 image: { repository: evidence-console, tag: sha-dcfa461391ff888aef29d7361f61ab63586a7a5b }
 service: { port: 8080, portName: http }
+# Autoscaling: SAFE — a pure HTTP proxy. Every function in app/service.py calls
+# evidence-receipts over a per-request httpx client (app/client.py:14); there is no
+# module-level state at all and nothing is written locally. Replicas are interchangeable.
+# min 1 so idle costs nothing; max 3 is the budget.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

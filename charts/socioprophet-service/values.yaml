@@ -114,11 +114,51 @@ metrics:
   # Scrape port name; "" = the main service.portName (http).
   portName: ""
 
+# Horizontal autoscaling. CPU-utilisation based, DELIBERATELY — not a custom/external
+# metric. The estate has no HTTP request metric with emitters today (`metrics.enabled:
+# false` chart-wide, above, overridden nowhere), so a request-rate or latency HPA would
+# be an autoscaler wired to a series that does not exist: permanently `<unknown>`,
+# permanently pinned at minReplicas, and green. CPU comes from metrics-server, which is
+# on by default on GKE and already serves every HPA in this cluster.
+#
+# ⚠️ BEFORE YOU SET enabled: true — THE STATEFULNESS TEST.
+# An HPA is only correct for a workload whose replicas are INTERCHANGEABLE. Ask what a
+# second replica would split. Disqualifying, every time:
+#   - a PVC, a SQLite file, or any local-disk write a later request must read back
+#   - a module-level dict/list/set/counter that survives between requests and shapes
+#     responses (ledgers, stores-of-record, session/grant/revocation tables)
+#   - a background loop, poller, ticker or scheduler — two replicas do the work twice
+#   - a single-writer cursor, checkpoint or sequence (the materializer/market-replay shape)
+#   - any follow-up request that must land on the SAME process to succeed
+# These fail SILENTLY: pods Ready, dashboards green, and the damage is a wrong answer
+# served to whoever happened to hit the other replica. Services that fail this test
+# carry an explicit `autoscaling: { enabled: false }` with the reason written beside it
+# in deploy/values/<name>.yaml — that is the pattern; keep it.
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 75
+  # Optional second Resource metric. Unset by default — see hpa.yaml on why heap-shaped
+  # memory pins an autoscaler at maxReplicas.
+  targetMemoryUtilizationPercentage: null
+  behavior:
+    scaleUp:
+      # 0 = act on the current recommendation (k8s' own scale-up default).
+      stabilizationWindowSeconds: 0
+      podsPerMinute: 2
+    scaleDown:
+      # 300s matches the k8s default, but is set EXPLICITLY so the anti-thrash window is
+      # a decision on the record rather than an inherited value an API default could
+      # move underneath us.
+      stabilizationWindowSeconds: 300
+      podsPerMinute: 1
+
+# Voluntary-disruption budget. Rendered ONLY when the guaranteed replica floor is >= 2 —
+# a PDB on a singleton wedges Autopilot node drains forever. Full reasoning in
+# templates/pdb.yaml; the floor is computed by the `svc.replicaFloor` helper.
+podDisruptionBudget:
+  enabled: true
 
 ingress:
   enabled: false

@@ -16,3 +16,12 @@ probes:
 resources:
   requests: { cpu: 250m, memory: 1Gi }
   limits:   { cpu: "2", memory: 2Gi }
+# Autoscaling: SAFE — one SentenceTransformer loaded at import (apps/embeddings/app.py:19)
+# and used read-only per request (:40). No cache, no accumulation; replicas are
+# interchangeable.
+# maxReplicas: 2 is DELIBERATELY TIGHT. This pod requests 250m/1Gi — roughly 5x a default
+# service — so each replica is ~$0.50/day, not ~$0.09. It also carries a 40s
+# initialDelaySeconds because the model loads before uvicorn binds, so a scale-up is not
+# fast relief: it is capacity for a sustained load, not a spike. Widen only with a
+# measured queue-depth argument.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

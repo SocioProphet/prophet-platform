@@ -6,5 +6,19 @@
 # stay open (aggregate, non-identifying). tag:latest → sha-pinned after the first CI build (preflight).
 image: { repository: grl-mesh, tag: sha-e69549d48820c5ff34f0dd03c1ceadc9967c9ed7 }
 service: { port: 8080, portName: http }
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# ⚠️ AUTOSCALING OFF — the mesh aggregator IS the shared prior.
+# `_agg = MeshAggregator()` (apps/grl-mesh/src/grl_mesh/server.py:30) holds `_stats`
+# (reward statistics per policy/action/context) and `_contributors` in process memory.
+# POST /grl/publish folds observations in; GET /grl/prior serves them back.
+#
+# The whole point of the service is that publishes ACCUMULATE into one community prior.
+# At 2 replicas each pod aggregates roughly half the estate's observations, and a node
+# warm-starting its policy gets whichever partition the load balancer picked —
+# `mean_reward` and `n` differ between consecutive identical calls, and
+# `total_observations`/`contributors` visibly jump. This is silent statistical
+# corruption: the caller receives a well-formed prior computed from a subset of the
+# evidence, with nothing in the response indicating it is incomplete.
+# Re-enabling is gated on a shared aggregation store, not on load.
+autoscaling: { enabled: false }
+replicaCount: 1
 # Internal (ClusterIP) — nodes reach it in-cluster / via the sovereign edge; no public ingress yet.

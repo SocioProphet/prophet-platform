@@ -1,3 +1,12 @@
 # eval-fabric-api
 image: { repository: eval-fabric-api, tag: latest }
 service: { port: 8080, portName: http }
+# Autoscaling: SAFE — every route opens a fresh per-call connection to ClickHouse/Postgres
+# (app/db.py:59,82); the only in-process state is a 10s readiness-probe result cache where
+# a miss is harmless.
+# ⚠️ CONDITION: app/receipts.py writes .payload/.event/.receipt JSON to the POD'S OWN
+# filesystem, gated on EVAL_FABRIC_EMIT_RECEIPTS == "1" (receipts.py:135). That env var is
+# deliberately not set here. If it is ever set, receipts scatter across replicas and the
+# X-Evidence-Receipt-Ref header points at a file:// path that exists on only one pod —
+# disable autoscaling in the same change that enables emission.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

@@ -6,3 +6,6 @@ service: { port: 8080, portName: http }
 # 2 days on a missing "z".
 probes:
   path: /health
+# Autoscaling: SAFE — all five routes return module constants from app/data.py
+# (OPPORTUNITIES/PODS/READINESS/CADENCE) and never mutate them (app/main.py:24-44).
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

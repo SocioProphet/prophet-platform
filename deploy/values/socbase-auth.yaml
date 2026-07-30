@@ -54,3 +54,10 @@ ingress:
           pathType: ImplementationSpecific
 
 replicaCount: 2
+# Autoscaling: SAFE — GoTrue is stateless by construction. GOTRUE_DB_DRIVER=postgres with
+# DATABASE_URL above: users, sessions and refresh tokens live in the Postgres `auth`
+# schema, never in the pod. This is the identity door, so the floor stays at 2.
+# minReplicas supersedes replicaCount once an HPA exists (the chart omits the Deployment's
+# `replicas` field when autoscaling is on) — the floor is unchanged at 2, so this adds
+# NO baseline cost, only burst headroom for a login stampede.
+autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 4 }

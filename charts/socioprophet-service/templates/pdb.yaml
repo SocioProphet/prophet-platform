@@ -1,0 +1,39 @@
+{{/*
+PodDisruptionBudget — VOLUNTARY-disruption protection only.
+
+WHY THIS IS GUARDED BY THE REPLICA FLOOR
+A PDB constrains voluntary evictions: `kubectl drain`, node upgrades, autoscaler
+consolidation, node auto-repair. On GKE Autopilot every one of those is Google's to
+initiate, not ours. A single-replica workload with `minAvailable: 1` (or the equivalent
+`maxUnavailable: 0`) therefore has a budget that CAN NEVER BE MET: evicting the only pod
+drops availability to zero, so the eviction API refuses forever and the node drain hangs.
+That is the classic Autopilot footgun — a "safety" object that converts a routine node
+upgrade into a stuck cluster, and it is worse than having no PDB at all.
+
+So: this template renders ONLY when the guaranteed replica floor is >= 2
+(include "svc.replicaFloor"), and it always expresses the budget as `maxUnavailable: 1`.
+At a floor of 2 that permits exactly one pod to be evicted at a time — the drain always
+makes progress, one node at a time, while the service never drops below one live pod.
+Singletons get no PDB and are documented as accepting restart-length downtime, which is
+the honest position rather than a budget that lies.
+
+Disable per-service with `podDisruptionBudget.enabled: false`.
+*/}}
+{{- $floor := int (include "svc.replicaFloor" .) -}}
+{{- if and .Values.podDisruptionBudget.enabled (ge $floor 2) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "svc.fullname" . }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+  annotations:
+    # Recorded so the floor this budget was reasoned against is auditable at read time:
+    # if a later change drops the floor to 1 the template stops rendering the PDB, and
+    # this annotation is how you tell that happened deliberately rather than by drift.
+    socioprophet.io/replica-floor: {{ $floor | quote }}
+spec:
+  # Never minAvailable — see the header. maxUnavailable: 1 is satisfiable at any floor >= 2.
+  maxUnavailable: 1
+  selector:
+    matchLabels: {{- include "svc.selectorLabels" . | nindent 6 }}
+{{- end }}

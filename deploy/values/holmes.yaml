@@ -11,3 +11,7 @@ service: { port: 8091, portName: http }
 extraEnv:
   - name: HOLMES_HELLGRAPH
     value: http://hellgraph-service.socioprophet.svc.cluster.local:8090
+# Autoscaling: SAFE — handlers (apps/holmes/main.go:281-324) forward to hellgraph over a
+# shared http.Client and compute their verdict from the response; the only package vars
+# are build-info strings (:136-140). No local writes.
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 3 }

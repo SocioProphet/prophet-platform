@@ -14,4 +14,24 @@ config:
   # falls back to the hashing embedder — never mixes vector spaces. See infra/k8s/embeddings/base.
   EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# ⚠️ AUTOSCALING OFF — memoryd IS the state it serves.
+# MEMORYMESH_STORE_URI above is `memory://`, which selects InMemoryStore
+# (apps/memoryd/src/memoryd/store.py:38): resources, the event log, `_memories` and the
+# `_revoked` tombstone set are all plain dicts in ONE process's heap. A second replica is
+# a second, disjoint memory plane.
+#
+# The recall miss is the mild failure: write to replica A, recall from B, and the agent
+# has amnesia about its own writes. The SERIOUS one is governance. store.py:96 filters
+# recall on `_revoked` and calls it "Read-enforced revocation: a tombstoned memory never
+# surfaces in recall" — but revoke_memory (store.py:122) only tombstones in the replica
+# that received the call. At 2 replicas a revoked memory KEEPS BEING SERVED by the other
+# pod, with no error anywhere. That is the revocation contract failing silently, which is
+# the one thing it exists to prevent.
+#
+# This HPA was live for ~13 days and never fired (idle CPU ~6% against a 75% target), so
+# the split had not yet happened in production — it was one traffic spike away.
+# RE-ENABLING IS GATED ON A SHARED STORE, NOT ON LOAD: point MEMORYMESH_STORE_URI at the
+# Postgres DSN (apps/memoryd/src/memoryd/postgres_store.py already implements that
+# backend), confirm revocation is enforced in the store rather than in-process, then scale.
+autoscaling: { enabled: false }
+replicaCount: 1
