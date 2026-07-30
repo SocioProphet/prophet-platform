@@ -8,14 +8,19 @@ or aborting a whole sweep because one object failed. Each has a test.
 """
 from __future__ import annotations
 
+import copy
+import importlib.util
 import json
 import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
 from compute_gateway import governance_enroll as ge
 from compute_gateway import persistence
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.fixture
@@ -66,9 +71,102 @@ class RecordingWarden:
         return 201, {"ok": True}
 
 
+_DELETE = object()
+
+
+def _validator():
+    """Load tools/validate_retention_policy.py by path.
+
+    Not `import tools.validate_retention_policy`: that needs the repo root on
+    sys.path, which the dedicated governance workflow supplies via PYTHONPATH but
+    the generic app-test-diagnostics job does not — so this test passed in one CI
+    job and failed with ModuleNotFoundError in the other. Loading by path makes it
+    independent of who runs it and from where.
+    """
+    path = REPO_ROOT / "tools" / "validate_retention_policy.py"
+    spec = importlib.util.spec_from_file_location("validate_retention_policy", path)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load the retention validator at {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_policy_passes_its_own_validator():
-    import tools.validate_retention_policy as v  # noqa: E402
-    assert v.main() == 0
+    assert _validator().main() == 0
+
+
+# ── The validator must be shown to REJECT, not only to accept ─────────────
+#
+# test_policy_passes_its_own_validator was the ONLY thing exercising the
+# validator, and it asserts the shipped policy passes. That assertion survives
+# `errors()` being replaced with `return []` — so the entire enforcement of the
+# Sovereign Retention Doctrine could be deleted with nothing going red. Verified:
+# stubbing errors() to return [] leaves the original suite fully green.
+#
+# The validator's own docstring says these are "precisely the changes that would
+# look harmless in review, so they are asserted here rather than trusted". Each
+# therefore gets a case proving the assertion actually refuses it.
+
+def _mutate(**overrides):
+    """The real shipped policy with targeted damage applied."""
+    policy = copy.deepcopy(json.loads(
+        (REPO_ROOT / "contracts" / "governance" / "retention-policy.v0.json").read_text()))
+    for dotted, value in overrides.items():
+        node = policy
+        parts = dotted.split("__")
+        for p in parts[:-1]:
+            node = node[p]
+        if value is _DELETE:
+            node.pop(parts[-1], None)
+        else:
+            node[parts[-1]] = value
+    return policy
+
+
+@pytest.mark.parametrize("overrides,expect", [
+    ({"universal_invariants__residency": "us-east-1"},      "residency"),
+    ({"universal_invariants__residency": _DELETE},          "residency"),
+    ({"universal_invariants__vendor_opt_in": True},         "vendor_opt_in"),
+    ({"universal_invariants__vendor_opt_in": _DELETE},      "vendor_opt_in"),
+    ({"classes__derived__retention_delete_days": None},     "retention_delete_days"),
+    ({"classes__derived__retention_delete_days": 0},        "retention_delete_days"),
+    ({"classes__derived__ttl_days": 9_999},                 "ttl_days"),
+    ({"classes__asserted__retention_delete_days": 30},      "legal_hold"),
+    ({"fallback__unknown_epistemic_status": "derived"},     "SHORTEST"),
+    ({"fallback__unknown_epistemic_status": "asserted"},    "auto class"),
+    ({"fallback__unknown_epistemic_status": "nope"},        "not a defined class"),
+    ({"classes": {}},                                       "no classes"),
+])
+def test_validator_rejects_each_relaxed_invariant(overrides, expect):
+    errs = _validator().errors(_mutate(**overrides))
+    assert errs, f"validator ACCEPTED {overrides} — that invariant is unenforced"
+    assert any(expect in e for e in errs), \
+        f"rejected, but for the wrong reason. wanted {expect!r}, got: {errs}"
+
+
+@pytest.mark.parametrize("policy", [
+    "not a dict", ["also", "not"], 42, None,
+    {"universal_invariants": [], "classes": {}},
+    {"universal_invariants": {}, "classes": "should be an object"},
+    {"universal_invariants": {}, "classes": {"x": "not an object"}},
+    {"universal_invariants": {}, "classes": {}, "fallback": "not an object"},
+])
+def test_validator_reports_rather_than_crashes_on_wrong_types(policy):
+    """Copilot's third comment. A validator meant to fail safely must report a
+    violation, not raise AttributeError — a traceback and a violation report are
+    different signals, and only one of them says what is wrong."""
+    errs = _validator().errors(policy)
+    assert errs and all(isinstance(e, str) for e in errs)
+
+
+def test_the_shipped_policy_is_what_the_rejection_tests_mutate():
+    """Guards the mutation helper itself: if _mutate stopped reading the real
+    policy, every rejection case above would be testing a fixture instead."""
+    v = _validator()
+    assert v.errors(_mutate()) == [], "the unmutated copy must be the passing policy"
+    assert v.POLICY.resolve() == (
+        REPO_ROOT / "contracts" / "governance" / "retention-policy.v0.json").resolve()
 
 
 def test_classification_maps_status_to_class(store):
@@ -153,3 +251,74 @@ def test_each_blob_enrolled_once_even_if_multiple_receipts_cite_it(store):
     policy = ge.load_policy()
     digests = [p.digest for p in ge.build_plan(policy, now_ms=0)]
     assert digests.count("sha256:d1") == 1
+
+
+# ── Copilot round-1 ───────────────────────────────────────────────────────
+
+# Both ids are parametrised to sort BEFORE and AFTER the incumbent "r-derived".
+# This is not belt-and-braces: the first draft of the legal-hold test used only
+# "r-asserted-2", which sorts before "r-derived", so the buggy first-seen
+# implementation happened to pick the right answer and the test PASSED against
+# the bug it was written to catch. A tie-break test that only exercises one
+# iteration order is testing the ordering, not the tie-break.
+@pytest.mark.parametrize("rid", ["r-aaa-asserted", "r-zzz-asserted"])
+def test_a_digest_cited_by_two_classes_takes_the_LONGER_retention(store, rid):
+    """Copilot: dedupe kept whichever receipt was iterated first, so ordering
+    could pick the retention window — and in the bad case pick the shorter one.
+
+    One blob cited by both a 'derived' receipt (14d ttl / 90d delete) and an
+    'asserted' one (legal hold, never auto-deleted). Enrolling it as derived puts
+    a legally-held object on a 90-day hard delete.
+    """
+    persistence.save_receipt("p", 98, rid,
+                             json.dumps({"id": rid, "epistemic_status": "asserted"}))
+    persistence.save_index(rid, ["sha256:d1"])   # same blob as r-derived
+    policy = ge.load_policy()
+    plan = {p.digest: p for p in ge.build_plan(policy, now_ms=0)}["sha256:d1"]
+    assert plan.klass == "asserted", "legal hold must win over an auto class"
+    assert "retentionDeleteAt" not in plan.body, "a legally-held object must carry no delete date"
+
+
+@pytest.mark.parametrize("rid", ["r-aaa-observed", "r-zzz-observed"])
+def test_among_auto_classes_the_longer_ceiling_wins(store, rid):
+    """observed (365d) must beat derived (90d) in either iteration order."""
+    persistence.save_receipt("p", 97, rid,
+                             json.dumps({"id": rid, "epistemic_status": "observed"}))
+    persistence.save_index(rid, ["sha256:d1"])
+    policy = ge.load_policy()
+    plan = {p.digest: p for p in ge.build_plan(policy, now_ms=0)}["sha256:d1"]
+    assert plan.klass == "observed"
+
+
+def test_retention_rank_is_read_from_the_policy_not_hardcoded():
+    """The tie-break must follow the doctrine. If a class's ceiling is raised in
+    the contract, the ranking must move with it rather than stay pinned to a
+    constant someone wrote once."""
+    policy = ge.load_policy()
+    assert ge.retention_rank("asserted", policy) > ge.retention_rank("observed", policy)
+    assert ge.retention_rank("observed", policy) > ge.retention_rank("derived", policy)
+    bumped = copy.deepcopy(policy)
+    bumped["classes"]["derived"]["retention_delete_days"] = 10_000
+    assert ge.retention_rank("derived", bumped) > ge.retention_rank("observed", bumped), \
+        "ranking ignored the policy — it is hardcoded"
+
+
+def test_enrolled_content_is_the_bytes_the_id_addresses(store):
+    """Copilot: `id` is the artifact digest but `content` was a DIFFERENT encoding
+    of the same object, so the governed object's declared id did not address the
+    bytes the warden ingested. Verified broken before the fix: json.dumps defaults
+    differ from the canonical form for every dict blob, not just non-ASCII ones."""
+    from compute_gateway import artifacts
+    blob = {"note": "café résumé", "items": [1, 2], "z": "a"}
+    digest = artifacts.digest(blob)
+    persistence.save_blob(digest, blob)
+    persistence.save_receipt("p", 96, "r-uni",
+                             json.dumps({"id": "r-uni", "epistemic_status": "observed"}))
+    persistence.save_index("r-uni", [digest])
+
+    plan = {p.digest: p for p in ge.build_plan(ge.load_policy(), now_ms=0)}[digest]
+    rehashed = artifacts.digest(json.loads(plan.body["content"]))
+    assert rehashed == plan.body["id"], (
+        "content does not hash back to the id it is enrolled under — the governed "
+        "object is not content-addressed")
+    assert "\\u00e9" not in plan.body["content"], "content must not be ASCII-escaped"

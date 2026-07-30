@@ -70,6 +70,22 @@ def classify(epistemic_status: str | None, policy: dict) -> str:
     return policy["fallback"]["unknown_epistemic_status"]
 
 
+def retention_rank(klass: str, policy: dict) -> tuple[int, int]:
+    """How long a class keeps things, as a sortable rank. Higher keeps longer.
+
+    Read straight off the policy rather than hardcoded, so adding a class to the
+    doctrine cannot leave this function quietly ranking it wrong.
+    """
+    spec = policy["classes"][klass]
+    if spec.get("disposition") == "legal_hold":
+        return (1, 0)          # never auto-deletes; beats every auto class
+    return (0, int(spec.get("retention_delete_days") or 0))
+
+
+def _keeps_longer(candidate: str, incumbent: str, policy: dict) -> bool:
+    return retention_rank(candidate, policy) > retention_rank(incumbent, policy)
+
+
 @dataclass
 class EnrolmentPlan:
     digest: str
@@ -112,20 +128,42 @@ def build_plan(policy: dict, *, now_ms: int | None = None,
         for r in receipts:
             epistemic[r.get("id")] = r.get("epistemic_status")
 
-    plans: list[EnrolmentPlan] = []
-    seen: set[str] = set()
+    # One blob can be cited by several receipts, and the artifact store dedupes
+    # identical content across them -- so the same digest can arrive under two
+    # different epistemic statuses. Keeping whichever receipt was iterated first
+    # would let dict ordering choose the retention window, and in the bad case
+    # choose the SHORTER one: a blob also cited by an 'asserted' receipt (legal
+    # hold, never auto-deleted) could be enrolled as 'derived' (14d ttl, 90d hard
+    # delete) purely because a derived receipt cited it first. Retention is not a
+    # race.
+    #
+    # Collisions therefore resolve to the MOST CONSERVATIVE class -- legal_hold
+    # over auto, and among auto the longer hard-delete ceiling. Doubt keeps
+    # longer, the same rule the policy already applies to unknown status.
+    chosen: dict[str, tuple[str, str, str | None]] = {}   # digest -> (klass, receipt_id, status)
     for receipt_id, digests in persistence.load_index().items():
         status = epistemic.get(receipt_id)
         klass = classify(status, policy)
-        spec = policy["classes"][klass]
         for digest in digests:
-            if digest in seen:
-                continue  # one blob, one governed object, even if many receipts cite it
-            seen.add(digest)
+            prior = chosen.get(digest)
+            if prior is None or _keeps_longer(klass, prior[0], policy):
+                chosen[digest] = (klass, receipt_id, status)
+
+    plans: list[EnrolmentPlan] = []
+    for digest, (klass, receipt_id, status) in chosen.items():
+            spec = policy["classes"][klass]
             blob = persistence.get_blob(digest)
             if blob is None:
                 continue
-            content = blob if isinstance(blob, str) else json.dumps(blob, sort_keys=True)
+            # MUST match compute_gateway.artifacts.digest byte-for-byte. `id` is the
+            # content address of the blob; if `content` is a different encoding of the
+            # same object, the governed object's declared id does not address the bytes
+            # the warden ingested, and the content-addressed property the rest of the
+            # gateway relies on is silently false. json.dumps defaults (', ' / ': '
+            # separators, ensure_ascii=True) differ from the canonical form for EVERY
+            # dict blob, not only non-ASCII ones.
+            content = blob if isinstance(blob, str) else json.dumps(
+                blob, sort_keys=True, separators=(",", ":"), default=str, ensure_ascii=False)
             body: dict = {
                 "id": digest,
                 "content": content,

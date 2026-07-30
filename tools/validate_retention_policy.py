@@ -23,7 +23,18 @@ POLICY = ROOT / "contracts" / "governance" / "retention-policy.v0.json"
 def errors(policy: dict) -> list[str]:
     errs: list[str] = []
 
+    if not isinstance(policy, dict):
+        return [f"policy must be a JSON object, got {type(policy).__name__}"]
+
+    # Type-guard the containers before reaching into them. A validator whose job
+    # is to fail safely must not crash with AttributeError when the JSON drifts
+    # to the wrong shape: a traceback and a violation report are different
+    # signals, and only one of them says what is actually wrong.
     inv = policy.get("universal_invariants", {})
+    if not isinstance(inv, dict):
+        errs.append(f"universal_invariants must be an object, got {type(inv).__name__}")
+        inv = {}
+
     if inv.get("residency") != "sovereign":
         errs.append(f"residency must be 'sovereign', got {inv.get('residency')!r} "
                     f"-- governed bytes leaving our infra is not a tunable")
@@ -32,10 +43,16 @@ def errors(policy: dict) -> list[str]:
                     f"{inv.get('vendor_opt_in')!r}")
 
     classes = policy.get("classes", {})
+    if not isinstance(classes, dict):
+        errs.append(f"classes must be an object, got {type(classes).__name__}")
+        classes = {}
     if not classes:
         errs.append("no classes defined")
 
     for name, c in classes.items():
+        if not isinstance(c, dict):
+            errs.append(f"class {name}: must be an object, got {type(c).__name__}")
+            continue
         disp = c.get("disposition")
         if disp not in ("auto", "legal_hold"):
             errs.append(f"class {name}: disposition must be 'auto' or 'legal_hold', got {disp!r}")
@@ -57,8 +74,12 @@ def errors(policy: dict) -> list[str]:
                 errs.append(f"class {name}: legal_hold must NOT auto-delete "
                             f"(retention_delete_days must be null)")
 
-    fb = policy.get("fallback", {}).get("unknown_epistemic_status")
-    if fb not in classes:
+    fallback = policy.get("fallback", {})
+    if not isinstance(fallback, dict):
+        errs.append(f"fallback must be an object, got {type(fallback).__name__}")
+        fallback = {}
+    fb = fallback.get("unknown_epistemic_status")
+    if not isinstance(fb, str) or fb not in classes:
         errs.append(f"fallback class {fb!r} is not a defined class")
     elif classes.get(fb, {}).get("disposition") == "legal_hold":
         errs.append(f"fallback must be an auto class -- an unknown object defaulting to "
