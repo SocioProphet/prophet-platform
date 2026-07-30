@@ -111,6 +111,14 @@ async def _req(client: httpx.AsyncClient, method: str, url: str, json: Any | Non
         return None, str(exc)
 
 
+def _subgraph_url(coll: str, limit: int) -> str:
+    """The ONE place a subgraph query string is built. proj_collection() only strips dashes
+    and truncates -- it does not reject '&'/'=', so `coll` must be percent-encoded here, not
+    at each call site. A future subgraph call importing this instead of hand-interpolating
+    `?label={coll}&limit=...` cannot reintroduce the query-injection this function closed."""
+    return f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit={limit}"
+
+
 def _sherlock_request(project: str) -> dict[str, Any]:
     """A schema-valid sherlock_search_request (see schemas/search/sherlock_search_request.schema.json)."""
     return {
@@ -139,7 +147,7 @@ async def studio(project: str = "default", _auth: dict[str, Any] | None = Depend
             _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/stats"),
             _req(client, "GET", f"{TRITFABRIC_URL}/v1/registry"),
             _req(client, "POST", f"{SEARCH_ORCH_URL}/v0/search/query", json=_sherlock_request(project)),
-            _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit=300"),
+            _req(client, "GET", _subgraph_url(coll, 300)),
             _req(client, "GET", f"{EVIDENCE_RECEIPTS_URL}/v1/receipts/recent?service=hellgraph-service&limit=10"),
         )
     degraded = {k: v for k, v in {"graph": gerr, "models": rerr, "extraction": serr}.items() if v}
@@ -334,7 +342,7 @@ async def query(req: QueryRequest, _auth: dict[str, Any] | None = Depends(requir
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         (res, err), (subg, _s) = await asyncio.gather(
             _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/{lang}", json=body),
-            _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit=500"),
+            _req(client, "GET", _subgraph_url(coll, 500)),
         )
     if not isinstance(res, dict):
         raise HTTPException(status_code=400, detail=f"query failed: {err or 'no result from kernel'}")
@@ -371,7 +379,7 @@ def _safe_json(s: Any) -> Any:
 async def _fetch_raw_nodes(coll: str, limit: int = 500) -> tuple[list[dict[str, Any]], str | None]:
     """Raw project nodes (properties preserved — unlike _map_node, which projects to a fixed field set)."""
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit={limit}")
+        res, err = await _req(client, "GET", _subgraph_url(coll, limit))
     raw = (res.get("nodes") if isinstance(res, dict) else None) or []
     return (raw if isinstance(raw, list) else []), err
 
@@ -1130,7 +1138,7 @@ async def perspectives(project: str = "default",
 async def _fetch_graph(coll: str, limit: int = 2000) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
     """Project subgraph as (nodes, edges, err). Edges carry {from, to, label} — used for lineage walks."""
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit={limit}")
+        res, err = await _req(client, "GET", _subgraph_url(coll, limit))
     nodes = (res.get("nodes") if isinstance(res, dict) else None) or []
     edges = (res.get("edgeList") if isinstance(res, dict) else None) or []
     return (nodes if isinstance(nodes, list) else []), (edges if isinstance(edges, list) else []), err
@@ -3021,7 +3029,7 @@ async def _fetch_subgraph(coll: str, limit: int = 200) -> tuple[list[dict[str, A
     explorer draws real topology — not a chip-cloud — and every node still carries its provenance.
     """
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit={limit}")
+        res, err = await _req(client, "GET", _subgraph_url(coll, limit))
     raw_nodes = res.get("nodes", []) if isinstance(res, dict) else []
     raw_edges = res.get("edgeList", []) if isinstance(res, dict) else []
     nodes = [_map_node(n) for n in (raw_nodes if isinstance(raw_nodes, list) else [])[:limit]]
@@ -3049,7 +3057,7 @@ async def documents(project: str = "default", limit: int = 500, doc_sha: str = "
     not a node soup. Pass doc_sha to get one document's node ids (the explorer filter)."""
     coll = proj_collection(project)
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        res, err = await _req(client, "GET", f"{HELLGRAPH_URL}/api/graph/subgraph?label={quote(coll, safe='')}&limit={limit}")
+        res, err = await _req(client, "GET", _subgraph_url(coll, limit))
     raw_nodes = res.get("nodes", []) if isinstance(res, dict) else []
     raw_edges = res.get("edgeList", []) if isinstance(res, dict) else []
     docs: dict[str, dict[str, Any]] = {}

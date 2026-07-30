@@ -1,6 +1,8 @@
 """Studio BFF smoke: healthz + the studio bundle (live fabric services unreachable in test → graceful degrade)."""
 from __future__ import annotations
 
+from urllib.parse import urlparse, parse_qs
+
 from fastapi.testclient import TestClient
 
 from lattice_studio.server import app, proj_collection
@@ -36,11 +38,14 @@ def test_subgraph_label_is_url_encoded_not_injected(monkeypatch):
     r = client.get("/api/studio", params={"project": "evil&limit=99999"})
     assert r.status_code == 200
     assert seen_urls, "subgraph call should have fired"
-    url = seen_urls[0]
-    # the injected '&limit=' must be percent-encoded INSIDE the label value, not become a
-    # second real query param — i.e. the URL must still carry exactly one real 'limit='.
-    assert url.count("limit=") == 1
-    assert "label=proj-evil%26limit%3D9" in url
+    parsed = urlparse(seen_urls[0])
+    qs = parse_qs(parsed.query)
+    # Structured parsing, not substring counting: exactly two real query keys, and the
+    # injected '&limit=' must have landed INSIDE the label value (decoded), not spawned a
+    # second 'limit' key that would override the real one.
+    assert set(qs.keys()) == {"label", "limit"}
+    assert qs["label"] == ["proj-evil&limit=9"]
+    assert qs["limit"] == ["300"]
 
 
 def test_studio_bundle_project_scoped_and_complete():
