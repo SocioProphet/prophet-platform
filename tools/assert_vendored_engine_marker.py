@@ -70,7 +70,7 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def read_member(tarball: Path, member: str) -> str:
+def read_member(tarball: Path, member: str) -> bytes:
     # A corrupt, truncated, non-gzip or unreadable tarball must produce the same clean
     # "ERR: ... / exit 1" as every other failure here. Letting tarfile.ReadError or OSError
     # escape would give automation a stack trace and a different exit code for what is,
@@ -109,9 +109,13 @@ def read_member(tarball: Path, member: str) -> str:
             raise SystemExit(
                 f"ERR: {tarball.name} member {member!r} expands past {MAX_MEMBER_BYTES} bytes "
                 f"despite a declared size of {info.size} — refusing to read (decompression bomb)")
-        # Python string containment, NEVER grep — see the module docstring for why
-        # (binary heuristics are searcher-dependent; containment is not).
-        return raw.decode("utf-8", errors="replace")
+        # Returned as BYTES, deliberately. Decoding with errors="replace" substitutes
+        # U+FFFD for anything that is not valid UTF-8 — which, in an evidence tool, means
+        # the thing being searched is no longer the thing that was shipped. A marker
+        # sitting next to a bad byte could be altered, and the search would then answer a
+        # question about a repaired copy. Markers are exact byte sequences; compare bytes.
+        # (Containment, never grep — see the module docstring for why.)
+        return raw
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -131,11 +135,18 @@ def main(argv: list[str] | None = None) -> int:
         print("ERR: at least one --expect marker is required (a version field is not evidence)", file=sys.stderr)
         return 1
 
-    dist = read_member(args.tarball, args.member)
+    try:
+        dist = read_member(args.tarball, args.member)
+    except SystemExit as exc:
+        # read_member raises SystemExit for the artifact-is-not-what-it-claims cases.
+        # main() is called programmatically (tests, other tools), so it must have ONE
+        # exit convention: return 0/1. Convert rather than leak mixed control flow.
+        print(str(exc), file=sys.stderr)
+        return 1
     digest = sha256_file(args.tarball)
 
-    missing = [m for m in args.expect if m not in dist]
-    present_forbidden = [m for m in args.forbid if m in dist]
+    missing = [m for m in args.expect if m.encode("utf-8") not in dist]
+    present_forbidden = [m for m in args.forbid if m.encode("utf-8") in dist]
 
     problems = []
     if missing:
@@ -157,12 +168,16 @@ def main(argv: list[str] | None = None) -> int:
             "Marker values are supplied by the caller (the register's version_marker); this tool holds no opinion of what a release is.",
         ],
     }
+    # stdout carries the receipt and NOTHING else, so a consumer can pipe this straight
+    # into jq. Human status goes to stderr — a receipt that has to be grepped out of
+    # prose is not machine-readable evidence.
     print(json.dumps(receipt, indent=2, sort_keys=True))
     if problems:
         for p in problems:
             print(f"ERR: {p}", file=sys.stderr)
         return 1
-    print(f"OK: {args.tarball.name} dist carries {len(args.expect)} expected marker(s), {len(args.forbid)} decoy(s) absent")
+    print(f"OK: {args.tarball.name} dist carries {len(args.expect)} expected marker(s), "
+          f"{len(args.forbid)} decoy(s) absent", file=sys.stderr)
     return 0
 
 

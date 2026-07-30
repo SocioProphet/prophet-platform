@@ -8,6 +8,7 @@ whole reason a substring proves nothing.
 """
 from __future__ import annotations
 
+import json
 import importlib.util
 import inspect
 import io
@@ -60,8 +61,7 @@ def test_missing_dist_member_fails_loudly(tmp_path):
     empty = tmp_path / "empty.tgz"
     with tarfile.open(empty, "w:gz"):
         pass
-    with pytest.raises(SystemExit):
-        tool.main([str(empty), "--expect", MARKER])
+    assert tool.main([str(empty), "--expect", MARKER]) == 1
 
 
 def test_forbidden_marker_present_fails(tmp_path):
@@ -153,7 +153,8 @@ def test_the_dist_trips_binary_heuristics_but_containment_is_unaffected():
         "trigger, so the docstring's justification needs revisiting")
     assert raw.count(b"PROP_NS") == 3, "fixture changed; update the expected count"
     dist = tool.read_member(REAL_045, MEMBER)
-    assert MARKER in dist, "Python containment must find the marker regardless"
+    assert isinstance(dist, bytes), "the member must be searched as bytes, not repaired text"
+    assert MARKER.encode() in dist, "byte containment must find the marker regardless"
 
 
 # ── Copilot round-1: bounded, typed member reads ──────────────────────────
@@ -168,9 +169,7 @@ def test_oversized_member_is_refused_rather_than_read(tmp_path):
         info.size = len(payload)
         tar.addfile(info, io.BytesIO(payload))
     assert bomb.stat().st_size < 200_000, "fixture must be small on disk to be a bomb"
-    with pytest.raises(SystemExit) as e:
-        tool.main([str(bomb), "--expect", MARKER])
-    assert "refusing to read" in str(e.value)
+    assert tool.main([str(bomb), "--expect", MARKER]) == 1
 
 
 def test_non_regular_member_is_refused(tmp_path):
@@ -181,9 +180,7 @@ def test_non_regular_member_is_refused(tmp_path):
         info.type = tarfile.SYMTYPE
         info.linkname = "../../../../etc/passwd"
         tar.addfile(info)
-    with pytest.raises(SystemExit) as e:
-        tool.main([str(linky), "--expect", MARKER])
-    assert "not a regular file" in str(e.value)
+    assert tool.main([str(linky), "--expect", MARKER]) == 1
 
 
 # ── Copilot round-2 ───────────────────────────────────────────────────────
@@ -193,17 +190,13 @@ def test_a_corrupt_tarball_fails_cleanly_not_with_a_stack_trace(tmp_path):
     different failure mode from every other error path in this tool."""
     junk = tmp_path / "corrupt.tgz"
     junk.write_bytes(b"this is definitely not a gzip stream")
-    with pytest.raises(SystemExit) as e:
-        tool.main([str(junk), "--expect", MARKER])
-    assert "not a readable gzip tarball" in str(e.value)
+    assert tool.main([str(junk), "--expect", MARKER]) == 1
 
 
 def test_a_directory_passed_as_a_tarball_fails_cleanly(tmp_path):
     d = tmp_path / "adir.tgz"
     d.mkdir()
-    with pytest.raises(SystemExit) as e:
-        tool.main([str(d), "--expect", MARKER])
-    assert "not a readable gzip tarball" in str(e.value)
+    assert tool.main([str(d), "--expect", MARKER]) == 1
 
 
 def test_the_tarball_digest_is_streamed_not_slurped():
@@ -215,3 +208,45 @@ def test_the_tarball_digest_is_streamed_not_slurped():
     assert "read_bytes()" not in src, (
         "main() slurps the whole tarball to hash it — this tool runs on registry-pulled "
         "artifacts of unknown size, which is the exact case read_member() bounds")
+
+
+def test_main_has_one_exit_convention(tmp_path, capsys):
+    """Copilot round-3: main() returned 0/1 for some failures and raised SystemExit
+    for others, so a programmatic caller had to handle both. Every failure path now
+    returns 1 and explains itself on stderr."""
+    junk = tmp_path / "corrupt.tgz"; junk.write_bytes(b"not gzip")
+    empty = tmp_path / "empty.tgz"
+    with tarfile.open(empty, "w:gz"):
+        pass
+    for argv in ([str(junk), "--expect", MARKER],           # unreadable
+                 [str(empty), "--expect", MARKER],          # member absent
+                 [str(REAL_045)],                           # no --expect
+                 [str(tmp_path / "nope.tgz"), "--expect", MARKER]):  # missing file
+        assert tool.main(argv) == 1, f"{argv} must RETURN 1, not raise"
+        assert capsys.readouterr().err, f"{argv} must say why on stderr"
+
+
+def test_stdout_is_pure_json_so_a_consumer_can_pipe_it(capsys):
+    """The receipt is the machine-readable output. A human 'OK:' line on stdout made
+    it unparseable; status now goes to stderr."""
+    assert tool.main([str(REAL_045), "--expect", MARKER]) == 0
+    cap = capsys.readouterr()
+    receipt = json.loads(cap.out)          # must not raise
+    assert receipt["passed"] is True
+    assert receipt["tarball_digest"].startswith("sha256:")
+    assert "OK:" in cap.err, "human status belongs on stderr"
+    assert "OK:" not in cap.out, "stdout must be JSON only"
+
+
+def test_markers_are_matched_as_exact_bytes(tmp_path):
+    """errors='replace' would substitute U+FFFD for invalid UTF-8, so the search would
+    answer a question about a repaired copy rather than the shipped bytes. A marker
+    adjacent to a bad byte must still be found exactly."""
+    payload = b'\xff\xfe' + MARKER.encode() + b'\x80trailing'
+    t = tmp_path / "badbytes.tgz"
+    with tarfile.open(t, "w:gz") as tar:
+        info = tarfile.TarInfo("package/ts/dist/index.js"); info.size = len(payload)
+        tar.addfile(info, io.BytesIO(payload))
+    assert tool.main([str(t), "--expect", MARKER]) == 0
+    assert b"\xef\xbf\xbd" not in tool.read_member(t, "package/ts/dist/index.js"), \
+        "no U+FFFD substitution — the bytes must be untouched"
