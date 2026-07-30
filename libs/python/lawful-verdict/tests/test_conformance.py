@@ -6,16 +6,22 @@ consumed by every implementation on the mesh — this package and Noetica's Type
 disagree with each other; only a shared vector set makes cross-language drift detectable,
 which is the entire reason the file exists rather than each repo asserting its own table.
 
-If sourceos-spec is not checked out beside this repo the vector tests SKIP with a loud
-reason locally, and FAIL in CI, where the workflow sets LAWFUL_VERDICT_REQUIRE_VECTORS=1.
-They must never silently pass: a conformance suite reporting green when it never loaded the
-vectors converts an unknown into a false assurance, which is the same defect class as the
-asserted verdict this contract exists to eliminate. Verified in both directions — with the
-vectors moved aside, the strict run fails 5 tests and the permissive run skips 5.
+The vectors are VENDORED into `conformance/` with their upstream digests recorded in
+`conformance/_provenance.json`, so these tests run unconditionally and can never skip.
+That is deliberate: prophet-platform (SocioProphet) and sourceos-spec (SourceOS-Linux) are in
+different orgs, so CI's GITHUB_TOKEN cannot check the spec out — the first version of this
+suite duly reported UNVERIFIED and failed the build. A conformance gate that depends on
+network access it does not have is not a gate.
+
+Drift is caught separately. When the real spec IS present — a dev tree, or CI with cross-org
+access — `test_vendored_vectors_match_upstream` asserts the vendored bytes still hash to the
+recorded digests. So: never-skipping conformance, plus drift detection wherever it is
+actually possible, and an honest distinction between the two.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -43,15 +49,16 @@ from lawful_verdict import (
 
 VERDICTS = ["NEG", "ZERO", "POS"]
 
-def _spec_roots() -> list[Path]:
-    """Where sourceos-spec might be. SOURCEOS_SPEC_DIR comes first because CI cannot use a
-    sibling directory: actions/checkout refuses paths outside $GITHUB_WORKSPACE, so the
-    workflow checks the spec out into a subdirectory and points at it explicitly."""
+#: The vendored copies. Always present, so nothing here can skip for want of a file.
+VENDORED = Path(__file__).resolve().parents[1] / "conformance"
+
+
+def _upstream_roots() -> list[Path]:
+    """Where the real sourceos-spec might be, for the DRIFT check only. SOURCEOS_SPEC_DIR is
+    authoritative when set — no fallback, so a stray local checkout cannot make a
+    misconfigured CI run look like it verified something."""
     env = os.environ.get("SOURCEOS_SPEC_DIR")
     if env:
-        # AUTHORITATIVE when set: no fallback. An explicitly configured spec directory that
-        # does not contain the vectors is a misconfiguration, and falling back to a stray
-        # local checkout would let CI report agreement with a file it was not asked to read.
         return [Path(env)]
     return [
         Path(__file__).resolve().parents[5] / "sourceos-spec",   # dev tree sibling
@@ -59,20 +66,36 @@ def _spec_roots() -> list[Path]:
     ]
 
 
-def _spec_file(*parts: str) -> tuple[Path | None, list[Path]]:
-    looked = [r.joinpath(*parts) for r in _spec_roots()]
-    return next((p for p in looked if p.exists()), None), looked
-
-
-_CANDIDATES = [r / "conformance" / "lawful-verdict-vectors.json" for r in _spec_roots()]
+def _vendored(name: str) -> Path:
+    p = VENDORED / name
+    assert p.exists(), (
+        f"vendored conformance file missing: {p}. These are committed on purpose — see "
+        f"conformance/_provenance.json. Their absence is a packaging bug, never a reason to skip."
+    )
+    return p
 
 
 def _vectors() -> dict:
-    found, looked = _spec_file("conformance", "lawful-verdict-vectors.json")
-    if found:
-        return json.loads(found.read_text(encoding="utf-8"))
-    _unavailable("sourceos-spec conformance vectors", looked)
-    raise AssertionError("unreachable")
+    return json.loads(_vendored("lawful-verdict-vectors.json").read_text(encoding="utf-8"))
+
+
+def test_vendored_vectors_match_upstream() -> None:
+    """The drift check. Vendoring buys availability; only this buys freshness."""
+    prov = json.loads(_vendored("_provenance.json").read_text(encoding="utf-8"))
+    roots = _upstream_roots()
+    root = next((r for r in roots if (r / "conformance" / "lawful-verdict-vectors.json").exists()), None)
+    if root is None:
+        _unavailable("upstream sourceos-spec (vendored-copy drift check)", roots)
+        return
+    stale: list[str] = []
+    for name, meta in prov["files"].items():
+        upstream = root / meta["sourcePath"]
+        digest = "sha256:" + hashlib.sha256(upstream.read_bytes()).hexdigest()
+        if digest != meta["sha256"]:
+            stale.append(f"{name}: vendored {meta['sha256'][:20]}… upstream {digest[:20]}…")
+        assert hashlib.sha256(_vendored(name).read_bytes()).hexdigest() == digest.split(":")[1], \
+            f"{name}: vendored BYTES differ from upstream — re-vendor"
+    assert not stale, "vendored conformance artefacts are stale:\n  " + "\n  ".join(stale)
 
 
 # ── the shared vectors ──────────────────────────────────────────────────────────
@@ -118,15 +141,10 @@ def test_the_sealed_example_in_the_spec_verifies_against_this_implementation() -
     TypeScript canonicaliser by so much as key order or whitespace, this fails — which is
     exactly what we want it to catch, since a receipt sealed by one service must verify in
     another."""
-    found, looked = _spec_file("examples", "lawful-dispatch-receipt.example.json")
-    if found:
-        example = json.loads(found.read_text(encoding="utf-8"))
-        recorded = example["seal"].pop("attestation")
-        import hashlib
-        recomputed = "sha256:" + hashlib.sha256(canonical_json(example).encode()).hexdigest()
-        assert recomputed == recorded, "canonical-JSON seal disagrees across languages"
-        return
-    _unavailable("sourceos-spec example receipt (seal agreement)", looked)
+    example = json.loads(_vendored("lawful-dispatch-receipt.example.json").read_text(encoding="utf-8"))
+    recorded = example["seal"].pop("attestation")
+    recomputed = "sha256:" + hashlib.sha256(canonical_json(example).encode()).hexdigest()
+    assert recomputed == recorded, "canonical-JSON seal disagrees across languages"
 
 
 # ── the algebra, independent of the vector file ─────────────────────────────────
@@ -268,11 +286,11 @@ def test_receipts_validate_against_the_spec_schema_if_available() -> None:
     """Emit every one of the 9 product cells and validate each against the contract. This
     is the end-to-end claim: what this library produces is what the estate's schema
     accepts, for every reachable verdict — not just the happy path."""
-    found, looked = _spec_file("schemas", "LawfulDispatchReceipt.json")
-    if found:
+    if True:
         if True:
             jsonschema = pytest.importorskip("jsonschema")
-            validator = jsonschema.Draft202012Validator(json.loads(found.read_text(encoding="utf-8")))
+            validator = jsonschema.Draft202012Validator(
+                json.loads(_vendored("LawfulDispatchReceipt.json").read_text(encoding="utf-8")))
             seen: set[str] = set()
             cases = [
                 (_law(), _ev()),                                        # POS × POS
@@ -293,4 +311,3 @@ def test_receipts_validate_against_the_spec_schema_if_available() -> None:
                 seen.add(f"{law.factor}x{ev.factor}")
             assert len(seen) == 9, f"all 9 cells must be emitted and accepted, got {sorted(seen)}"
             return
-    _unavailable("sourceos-spec LawfulDispatchReceipt schema", looked)

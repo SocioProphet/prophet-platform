@@ -1,0 +1,159 @@
+{
+  "artifact": "lawful-verdict-conformance-vectors",
+  "specVersion": "0.1.0",
+  "schemaRef": "https://schemas.srcos.ai/v2/LawfulDispatchReceipt.json",
+  "purpose": "Language-agnostic vectors for Truth = Law × Evidence. EVERY implementation on the mesh must reproduce these exactly. Two implementations that each pass their own unit tests can still disagree with each other; only a shared vector set makes cross-language drift detectable. Consumed by Noetica (TypeScript) and prophet-platform libs/python/lawful-verdict.",
+  "sealDefinition": "attestation = \"sha256:\" + sha256(canonicalJson(receipt with seal.attestation removed)). canonicalJson = JSON with object keys sorted recursively, no whitespace. evidenceTier IS inside the seal: it carries governance meaning (T1 = instrumented), so it must not be flippable without breaking the attestation.",
+  "product": {
+    "note": "× is the meet in the chain NEG < ZERO < POS. NOT sign multiplication in {-1,0,+1}, which yields NEG × NEG = POS.",
+    "table": [
+      {
+        "law": "NEG",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "NEG",
+        "evidence": "ZERO",
+        "verdict": "NEG"
+      },
+      {
+        "law": "NEG",
+        "evidence": "POS",
+        "verdict": "NEG"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "ZERO",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "ZERO",
+        "evidence": "POS",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "POS",
+        "evidence": "NEG",
+        "verdict": "NEG"
+      },
+      {
+        "law": "POS",
+        "evidence": "ZERO",
+        "verdict": "ZERO"
+      },
+      {
+        "law": "POS",
+        "evidence": "POS",
+        "verdict": "POS"
+      }
+    ],
+    "mustNotHold": [
+      {
+        "law": "NEG",
+        "evidence": "NEG",
+        "verdict": "POS",
+        "why": "the sign-multiplication trap: a refused gate and a refuted outcome cannot certify as true"
+      }
+    ]
+  },
+  "lawFactor": [
+    {
+      "barCleared": true,
+      "residual": [],
+      "expect": "POS",
+      "why": "cleared clean"
+    },
+    {
+      "barCleared": true,
+      "residual": [
+        "citation.resolves"
+      ],
+      "expect": "ZERO",
+      "why": "a bar that cleared carrying undischarged constraints has deferred, not established"
+    },
+    {
+      "barCleared": false,
+      "residual": [],
+      "expect": "NEG",
+      "why": "the gate refused"
+    },
+    {
+      "barCleared": false,
+      "residual": [
+        "consent.granted"
+      ],
+      "expect": "NEG",
+      "why": "a refusal stands regardless of residual"
+    }
+  ],
+  "evidenceFactor": [
+    {
+      "requestHash": "sha256:8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+      "answerHash": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "grounded": true,
+      "expect": "POS",
+      "why": "both digests well-formed and grounded"
+    },
+    {
+      "requestHash": "sha256:8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+      "answerHash": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "grounded": false,
+      "expect": "ZERO",
+      "why": "ungrounded is unevidenced, not false"
+    },
+    {
+      "requestHash": "sha256:8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+      "answerHash": "",
+      "grounded": true,
+      "expect": "ZERO",
+      "why": "nothing captured"
+    },
+    {
+      "requestHash": "sha256:8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+      "answerHash": "deadbeef",
+      "grounded": true,
+      "expect": "ZERO",
+      "why": "a malformed digest proves nothing; must be sha256:<64 hex>"
+    },
+    {
+      "requestHash": "sha256:8e35c2cd3bf6641bdb0e2050b76932cbb2e6034a0ddacc1d9bea82a6ba57f7cf",
+      "answerHash": "sha256:ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "grounded": true,
+      "refuted": true,
+      "expect": "NEG",
+      "why": "a verifier contradicted the outcome"
+    }
+  ],
+  "tier": [
+    {
+      "lawSource": "measured",
+      "evidenceSource": "measured",
+      "expect": "T1",
+      "why": "both instrumented"
+    },
+    {
+      "lawSource": "declared",
+      "evidenceSource": "measured",
+      "expect": "T2",
+      "why": "a declared factor cannot claim instrumented tier"
+    },
+    {
+      "lawSource": "measured",
+      "evidenceSource": "declared",
+      "expect": "T2",
+      "why": "either declared is enough to demote"
+    },
+    {
+      "lawSource": "declared",
+      "evidenceSource": "declared",
+      "expect": "T2",
+      "why": "neither instrumented"
+    }
+  ]
+}

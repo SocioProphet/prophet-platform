@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "0.1.0",
+  "kind": "LawfulDispatchReceipt",
+  "dispatchId": "urn:srcos:dispatch:noetica:agent-machine:0001",
+  "emitter": "noetica/agent-machine",
+  "ts": "2026-07-29T11:04:22Z",
+  "law": {
+    "factor": "POS",
+    "barCleared": true,
+    "residual": [],
+    "source": "measured"
+  },
+  "evidence": {
+    "factor": "POS",
+    "requestHash": "sha256:ed775ea275f0f69ba5c87e1c72e21ef4c8265b759ef50390a61d2db0b8a3a7cd",
+    "answerHash": "sha256:5dd272b4f316b776a7b8e3d0894b37e1e42be3d5d3b204b8a5836cc50597a6b1",
+    "grounded": true,
+    "source": "measured"
+  },
+  "verdict": "POS",
+  "evidenceTier": "T1",
+  "seal": {
+    "seq": 0,
+    "prev": "genesis",
+    "attestation": "sha256:25fed276c2ffd54002e77a329f05f8c5383c377290ca41d564abd7f52f5c1f7a"
+  }
+}

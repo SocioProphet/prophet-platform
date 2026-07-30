@@ -1,13 +1,18 @@
 name: lawful-verdict
 
-# Truth = Law × Evidence, the estate's verdict algebra, as a SERVICE-LEVEL library any
-# Python service on the mesh can import (prophet-workspace, agora, ops-fabric-api,
-# prophet-mesh agents). Governance that lives inside one app is governance one app can
-# quietly drop, which is exactly what happened when this algebra lived only in Noetica.
+# Truth = Law × Evidence, the estate's verdict algebra, as a SERVICE-LEVEL library any Python
+# service on the mesh can import (prophet-workspace, agora, ops-fabric-api, prophet-mesh
+# agents). Governance that lives inside one app is governance one app can quietly drop, which
+# is exactly what happened while this algebra lived only in Noetica.
 #
-# The conformance job checks out sourceos-spec so the SHARED vectors are actually present,
-# and sets LAWFUL_VERDICT_REQUIRE_VECTORS=1 so a missing vector file FAILS rather than
-# skipping. A skipped anti-drift test is not a weaker guarantee, it is no guarantee.
+# No cross-repo checkout. prophet-platform (SocioProphet) and sourceos-spec (SourceOS-Linux)
+# are in different orgs, so CI's GITHUB_TOKEN cannot read the spec — an earlier revision tried
+# and could only report UNVERIFIED, failing the build. A conformance gate that depends on
+# network access it does not have is not a gate. The conformance artefacts are VENDORED into
+# libs/python/lawful-verdict/conformance/ with their upstream digests in _provenance.json, so
+# the vector, seal and schema checks run unconditionally and can never skip. Freshness is a
+# separate concern, handled by test_vendored_vectors_match_upstream, which runs wherever the
+# real spec is reachable (a dev tree, or a job with cross-org access via SOURCEOS_SPEC_DIR).
 
 on:
   push:
@@ -28,18 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Into a SUBDIRECTORY, not a sibling: actions/checkout refuses paths outside
-      # $GITHUB_WORKSPACE, so the tests are pointed at it via SOURCEOS_SPEC_DIR instead of
-      # relying on the dev tree's sibling layout.
-      - name: Checkout sourceos-spec (shared conformance vectors)
-        uses: actions/checkout@v4
-        with:
-          repository: SocioProphet/sourceos-spec
-          path: _sourceos-spec
-          token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-        id: spec
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -49,21 +42,28 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r libs/python/lawful-verdict/requirements-test.txt -e libs/python/lawful-verdict
 
-      - name: Unit tests (algebra, receipts, ledger, tamper-evidence)
+      # Covers the algebra, receipt derivation, tamper-evidence, AND conformance against the
+      # vendored vectors + the sealed cross-language example + all 9 cells against the schema.
+      - name: Tests and conformance (vendored vectors — cannot skip)
         run: cd libs/python/lawful-verdict && pytest -q
 
-      # Fails loudly if the spec checkout did not land, rather than reporting a green
-      # conformance run that never loaded a vector.
-      - name: Cross-language conformance against sourceos-spec vectors (STRICT)
-        if: steps.spec.outcome == 'success'
-        env:
-          LAWFUL_VERDICT_REQUIRE_VECTORS: '1'
-          SOURCEOS_SPEC_DIR: ${{ github.workspace }}/_sourceos-spec
-        run: cd libs/python/lawful-verdict && pytest -q
-
-      - name: Report if conformance could not be verified
-        if: steps.spec.outcome != 'success'
+      # The vendored copies must be byte-identical to what _provenance.json pins. This guards
+      # the one thing vendoring cannot: someone editing a vendored vector to make a failing
+      # implementation pass.
+      - name: Vendored conformance artefacts match their recorded digests
         run: |
-          echo "::error::sourceos-spec checkout failed — cross-language conformance is UNVERIFIED."
-          echo "The unit tests above passed, but agreement with the shared vectors was not checked."
-          exit 1
+          cd libs/python/lawful-verdict
+          python - <<'PY'
+          import hashlib, json, pathlib, sys
+          prov = json.loads(pathlib.Path("conformance/_provenance.json").read_text())
+          bad = []
+          for name, meta in prov["files"].items():
+              got = "sha256:" + hashlib.sha256(pathlib.Path("conformance", name).read_bytes()).hexdigest()
+              if got != meta["sha256"]:
+                  bad.append(f"{name}: recorded {meta['sha256']}, actual {got}")
+          if bad:
+              print("::error::vendored conformance artefacts do not match _provenance.json")
+              print("\n".join("  " + b for b in bad))
+              sys.exit(1)
+          print(f"OK {len(prov['files'])} vendored artefacts match their recorded digests")
+          PY
