@@ -20,17 +20,93 @@ spec:
           containers:
             - name: qdrant-snapshot
               image: curlimages/curl:8.6.0
-              args:
+              env:
+                # Service is `mesh-qdrant`, not `qdrant` — the old value did not
+                # resolve in this namespace. memoryd already had this right
+                # (infra/k8s/memoryd/base/deployment.yaml: QDRANT_URL).
+                - name: QDRANT_URL
+                  value: http://mesh-qdrant:6333
+                # Keep 7 snapshots per collection. Snapshots are full copies and
+                # they live on the same volume they snapshot, so retention is not
+                # optional here — without it the backup takes out the thing it
+                # is backing up.
+                - name: RETAIN
+                  value: "7"
+              # `command:`, not `args:`. curlimages/curl sets ENTRYPOINT ["curl"],
+              # so `args` left the entrypoint intact and the container ran
+              # `curl /bin/sh -c "<script>"` — curl treating /bin/sh as a URL.
+              # The shell never executed. Combined with the wrong hostname and a
+              # `jq` that is not in this image, this CronJob has never produced a
+              # single snapshot since it was authored, and said nothing.
+              command:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
-                  COLLECTIONS=$(curl -sf http://qdrant:6333/collections | jq -r '.result.collections[].name')
-                  for col in $COLLECTIONS; do
-                    echo "Snapshotting collection: $col"
-                    curl -sf -X POST "http://qdrant:6333/collections/${col}/snapshots"
+                  set -eu
+                  log() { echo "$@" >&2; }
+                  NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                  MADE=0; PRUNED=0; FAILED=0
+
+                  # No jq in curlimages/curl. Extract names with grep, which
+                  # busybox does have. Deliberately not adding a dependency to a
+                  # backup job — fewer moving parts is the whole point.
+                  # Whitespace-tolerant: a pretty-printed `"name" : "x"` must
+                  # parse the same as compact `"name":"x"`. The first version of
+                  # this was anchored to the compact form and silently extracted
+                  # nothing against a spaced response — reporting a clean
+                  # "0 collections" backup. Caught by running it against a mock.
+                  names() { grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4; }
+
+                  COLLECTIONS=$(curl -sf --max-time 30 "${QDRANT_URL}/collections" | names || true)
+                  if [ -z "${COLLECTIONS}" ]; then
+                    # "zero collections" and "qdrant is unreachable" look
+                    # identical unless checked separately. Refuse rather than
+                    # report a successful no-op backup.
+                    if ! curl -sf --max-time 10 "${QDRANT_URL}/readyz" >/dev/null 2>&1; then
+                      log "REFUSED: qdrant unreachable at ${QDRANT_URL}"
+                      printf '{"version":"0.1","receipt_id":"evr-qdrant-snapshot-unreachable-%s","created_at":"%s","service_ref":"infra/k8s/mesh-qdrant","action":"qdrant-snapshot","status":"denied","subject_ref":"pvc/qdrant-storage","hash":"","hash_algo":"sha256","metrics":{"collections":0}}\n' \
+                        "$(date -u +%Y%m%dT%H%M%SZ)" "${NOW}"
+                      exit 1
+                    fi
+                    log "qdrant reachable but reports zero collections — nothing to snapshot"
+                  fi
+
+                  for col in ${COLLECTIONS}; do
+                    log "snapshotting collection: ${col}"
+                    if curl -sf --max-time 300 -X POST "${QDRANT_URL}/collections/${col}/snapshots" >/dev/null; then
+                      MADE=$((MADE + 1))
+                    else
+                      log "FAILED: snapshot of ${col}"
+                      FAILED=$((FAILED + 1))
+                      continue
+                    fi
+
+                    # --- retention ------------------------------------------
+                    # The old job only ever POSTed. It never called
+                    # DELETE /collections/{c}/snapshots/{s}, so snapshots would
+                    # have accumulated forever had it ever run. Snapshot names
+                    # carry a timestamp and sort chronologically.
+                    SNAPS=$(curl -sf --max-time 30 "${QDRANT_URL}/collections/${col}/snapshots" | names || true)
+                    TOTAL=$(printf '%s\n' "${SNAPS}" | grep -c . || true)
+                    if [ "${TOTAL}" -gt "${RETAIN}" ]; then
+                      DROP=$((TOTAL - RETAIN))
+                      printf '%s\n' "${SNAPS}" | sort | head -n "${DROP}" | while read -r s; do
+                        [ -z "${s}" ] && continue
+                        log "retention: deleting ${col}/${s}"
+                        curl -sf --max-time 60 -X DELETE "${QDRANT_URL}/collections/${col}/snapshots/${s}" >/dev/null \
+                          || log "WARN: could not delete ${col}/${s}"
+                      done
+                      PRUNED=$((PRUNED + DROP))
+                    fi
                   done
-                  echo "All snapshots created"
+
+                  STATUS=succeeded
+                  [ "${FAILED}" -gt 0 ] && STATUS=partial
+                  printf '{"version":"0.1","receipt_id":"evr-qdrant-snapshot-%s","created_at":"%s","service_ref":"infra/k8s/mesh-qdrant","action":"qdrant-snapshot","status":"%s","subject_ref":"pvc/qdrant-storage","hash":"","hash_algo":"sha256","metrics":{"snapshots_made":%s,"pruned":%s,"failed":%s,"retain":%s}}\n' \
+                    "$(date -u +%Y%m%dT%H%M%SZ)" "${NOW}" "${STATUS}" "${MADE}" "${PRUNED}" "${FAILED}" "${RETAIN}"
+                  log "done: made=${MADE} pruned=${PRUNED} failed=${FAILED}"
+                  [ "${FAILED}" -gt 0 ] && exit 1
+                  exit 0
               resources:
                 requests:
                   cpu: 10m

@@ -20,6 +20,19 @@ spec:
       containers:
         - name: qdrant
           image: qdrant/qdrant:v1.9.4
+          env:
+            # Without this, qdrant defaults snapshots_path to ./snapshots
+            # relative to /qdrant — i.e. /qdrant/snapshots, which is NOT on the
+            # PVC. Snapshots then accumulate on the pod's ephemeral writable
+            # layer: they eat node ephemeral storage until eviction and vanish
+            # on every restart. A backup that does not survive a restart is not
+            # a backup, and nothing said so.
+            #
+            # Putting them under the mounted volume makes them durable AND makes
+            # them count against the same 20Gi the guard watches, so unbounded
+            # snapshot growth becomes visible instead of invisible.
+            - name: QDRANT__STORAGE__SNAPSHOTS_PATH
+              value: /qdrant/storage/snapshots
           ports:
             - name: http
               containerPort: 6333

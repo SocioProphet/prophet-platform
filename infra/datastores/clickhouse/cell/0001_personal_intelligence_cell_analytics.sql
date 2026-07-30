@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS cell_signal_scores
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(observed_at)
-ORDER BY (cell_id, watch_id, observed_at, signal_id);
+ORDER BY (cell_id, watch_id, observed_at, signal_id)
+TTL toDateTime(observed_at) + INTERVAL 12 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_source_quality_facts
 (
@@ -34,7 +35,8 @@ CREATE TABLE IF NOT EXISTS cell_source_quality_facts
 )
 ENGINE = SummingMergeTree
 PARTITION BY toYYYYMM(event_at)
-ORDER BY (cell_id, source_id, event_at);
+ORDER BY (cell_id, source_id, event_at)
+TTL toDateTime(event_at) + INTERVAL 24 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_reputation_deltas
 (
@@ -50,7 +52,8 @@ CREATE TABLE IF NOT EXISTS cell_reputation_deltas
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(event_at)
-ORDER BY (cell_id, subject_kind, subject_ref, event_at);
+ORDER BY (cell_id, subject_kind, subject_ref, event_at)
+TTL toDateTime(event_at) + INTERVAL 24 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_feedback_outcomes
 (
@@ -64,7 +67,8 @@ CREATE TABLE IF NOT EXISTS cell_feedback_outcomes
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(event_at)
-ORDER BY (cell_id, watch_id, action, event_at);
+ORDER BY (cell_id, watch_id, action, event_at)
+TTL toDateTime(event_at) + INTERVAL 24 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_watch_pattern_metrics
 (
@@ -80,7 +84,8 @@ CREATE TABLE IF NOT EXISTS cell_watch_pattern_metrics
 )
 ENGINE = SummingMergeTree
 PARTITION BY toYYYYMM(event_at)
-ORDER BY (cell_id, watch_id, pattern_id, event_at);
+ORDER BY (cell_id, watch_id, pattern_id, event_at)
+TTL toDateTime(event_at) + INTERVAL 24 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_notification_metrics
 (
@@ -94,7 +99,8 @@ CREATE TABLE IF NOT EXISTS cell_notification_metrics
 )
 ENGINE = SummingMergeTree
 PARTITION BY toYYYYMM(event_at)
-ORDER BY (cell_id, feed_kind, event_at);
+ORDER BY (cell_id, feed_kind, event_at)
+TTL toDateTime(event_at) + INTERVAL 12 MONTH DELETE;
 
 CREATE TABLE IF NOT EXISTS cell_social_environment_snapshots
 (
@@ -109,4 +115,5 @@ CREATE TABLE IF NOT EXISTS cell_social_environment_snapshots
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(snapshot_at)
-ORDER BY (cell_id, snapshot_at);
+ORDER BY (cell_id, snapshot_at)
+TTL toDateTime(snapshot_at) + INTERVAL 12 MONTH DELETE;

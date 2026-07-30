@@ -15,6 +15,19 @@ kind: PersistentVolumeClaim
 metadata:
   name: mesh-xl-cache
   namespace: serving
+  annotations:
+    # `kubectl describe pvc mesh-xl-cache` shows `Used By: <none>`, which reads
+    # as an abandoned 120Gi volume to anyone auditing storage. It is not.
+    # Unmounted IS the steady state: mesh-vllm-xl runs at replicas: 0 for $0
+    # idle, and this volume exists precisely so that warming back up re-reads
+    # cached weights (~2-3 min) instead of re-downloading them (~15 min).
+    # Recorded here, on the object itself, so the question does not have to be
+    # re-answered from the manifest every time someone audits PVCs.
+    socioprophet.io/intentionally-unmounted: >-
+      Model-weight cache for the scale-to-zero mesh-vllm-xl seat. Unmounted
+      while that Deployment is at replicas=0, which is its default. Do not
+      reclaim without also accepting ~15min cold-start on the XL seat.
+    socioprophet.io/idle-cost: "~120Gi pd-balanced (~USD 13/mo) while unmounted"
 spec:
   accessModes: [ReadWriteOnce]
   storageClassName: standard-rwo

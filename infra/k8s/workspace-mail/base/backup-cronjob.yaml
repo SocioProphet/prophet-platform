@@ -38,14 +38,114 @@ spec:
               # exact digest, uid 1000, caps dropped, seccomp RuntimeDefault): the pull
               # succeeds and the one-liner produces a real, listable .tar.gz.
               image: registry.socioprophet.ai/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+              env:
+                # Keep 7 dailies. The source is a 10Gi mail volume against a 20Gi
+                # target, so 7 compressed fulls is the most that fits with room to
+                # write the next one before pruning.
+                - name: RETAIN
+                  value: "7"
+                # Hard ceiling on what backups may occupy, independent of RETAIN.
+                # Whichever binds first wins.
+                - name: MAX_TOTAL_MB
+                  value: "14000"
+                # Refuse to start a backup that cannot fit. See below.
+                - name: MIN_FREE_MB
+                  value: "3000"
               command:
                 - /bin/sh
                 - -c
                 - |
-                  set -e
+                  # Retention, verification and a receipt.
+                  #
+                  # This job previously wrote a new full tarball every night and
+                  # deleted NOTHING. It never actually ran (the image did not
+                  # exist), which is the only reason the 20Gi volume is not
+                  # already full — the retention bug was latent, not fixed. It is
+                  # fixed here BEFORE the job is allowed to schedule.
+                  #
+                  # Order matters: prune first, then check free space, then write,
+                  # then verify, then receipt. Writing first and pruning after
+                  # would need headroom for N+1 backups, which is exactly the
+                  # margin that does not exist.
+                  set -eu
                   STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-                  tar czf /backup/mail-${STAMP}.tar.gz /maildata
-                  echo "Mail backup complete: mail-${STAMP}.tar.gz"
+                  OUT="/backup/mail-${STAMP}.tar.gz"
+                  RC=0
+
+                  log() { echo "$@" >&2; }
+
+                  # --- 1. prune by count -------------------------------------
+                  # Oldest first; names are lexically sortable by construction.
+                  COUNT=$(ls -1 /backup/mail-*.tar.gz 2>/dev/null | wc -l | tr -d ' ')
+                  log "retention: ${COUNT} existing backup(s), keeping ${RETAIN}"
+                  if [ "${COUNT}" -ge "${RETAIN}" ]; then
+                    DROP=$((COUNT - RETAIN + 1))
+                    ls -1 /backup/mail-*.tar.gz 2>/dev/null | sort | head -n "${DROP}" | \
+                      while read -r f; do
+                        log "retention: pruning $(basename "$f")"
+                        rm -f "$f"
+                      done
+                  fi
+
+                  # --- 2. prune by total size --------------------------------
+                  while :; do
+                    USED=$(du -sm /backup 2>/dev/null | awk '{print $1}')
+                    [ -z "${USED}" ] && USED=0
+                    [ "${USED}" -le "${MAX_TOTAL_MB}" ] && break
+                    OLDEST=$(ls -1 /backup/mail-*.tar.gz 2>/dev/null | sort | head -n1)
+                    [ -z "${OLDEST}" ] && break
+                    log "retention: ${USED}MB over ${MAX_TOTAL_MB}MB budget, pruning $(basename "${OLDEST}")"
+                    rm -f "${OLDEST}"
+                  done
+
+                  # --- 3. refuse rather than fill the disk -------------------
+                  # A backup that fills the volume takes out the next backup AND
+                  # anything else on it. Refusing is the safe failure, and it is
+                  # loud: exit 1 -> Job failure -> KubeJobFailed (a live alert).
+                  FREE=$(df -Pm /backup | awk 'NR==2 {print $4}')
+                  log "preflight: ${FREE}MB free, need >= ${MIN_FREE_MB}MB"
+                  if [ "${FREE}" -lt "${MIN_FREE_MB}" ]; then
+                    log "REFUSED: only ${FREE}MB free on /backup, below MIN_FREE_MB=${MIN_FREE_MB}"
+                    printf '{"version":"0.1","receipt_id":"evr-mail-backup-refused-%s","created_at":"%s","service_ref":"infra/k8s/workspace-mail","action":"mail-backup","status":"denied","subject_ref":"pvc/workspace-mail-backup","hash":"","hash_algo":"sha256","metrics":{"free_mb":%s,"min_free_mb":%s,"retained":%s}}\n' \
+                      "${STAMP}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${FREE}" "${MIN_FREE_MB}" "${COUNT}"
+                    exit 1
+                  fi
+
+                  # --- 4. write ----------------------------------------------
+                  if ! tar czf "${OUT}" /maildata; then
+                    log "FAILED: tar returned non-zero"
+                    rm -f "${OUT}"
+                    RC=1
+                  fi
+
+                  # --- 5. verify ---------------------------------------------
+                  # An unreadable archive is not a backup. Listing it is cheap
+                  # and catches a truncated write, which is the failure mode a
+                  # nearly-full volume actually produces.
+                  if [ "${RC}" -eq 0 ] && ! tar tzf "${OUT}" >/dev/null 2>&1; then
+                    log "FAILED: ${OUT} is not a readable gzip archive — removing"
+                    rm -f "${OUT}"
+                    RC=1
+                  fi
+
+                  # --- 6. receipt --------------------------------------------
+                  # One EvidenceReceipt line to stdout -> fluentbit-gke -> Cloud
+                  # Logging. `hash` is the archive digest, so the receipt proves
+                  # WHICH bytes were produced, not merely that something ran.
+                  NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                  KEPT=$(ls -1 /backup/mail-*.tar.gz 2>/dev/null | wc -l | tr -d ' ')
+                  USED=$(du -sm /backup 2>/dev/null | awk '{print $1}')
+                  if [ "${RC}" -eq 0 ]; then
+                    SIZE=$(du -m "${OUT}" | awk '{print $1}')
+                    SHA=$(sha256sum "${OUT}" | awk '{print $1}')
+                    printf '{"version":"0.1","receipt_id":"evr-mail-backup-%s","created_at":"%s","service_ref":"infra/k8s/workspace-mail","action":"mail-backup","status":"succeeded","subject_ref":"pvc/workspace-mail-backup","hash":"%s","hash_algo":"sha256","output_refs":["%s"],"metrics":{"size_mb":%s,"retained":%s,"used_mb":%s,"retain_policy":%s,"max_total_mb":%s}}\n' \
+                      "${STAMP}" "${NOW}" "${SHA}" "${OUT}" "${SIZE}" "${KEPT}" "${USED}" "${RETAIN}" "${MAX_TOTAL_MB}"
+                    log "Mail backup complete: $(basename "${OUT}") ${SIZE}MB; ${KEPT} retained, ${USED}MB used"
+                  else
+                    printf '{"version":"0.1","receipt_id":"evr-mail-backup-failed-%s","created_at":"%s","service_ref":"infra/k8s/workspace-mail","action":"mail-backup","status":"failed","subject_ref":"pvc/workspace-mail-backup","hash":"","hash_algo":"sha256","metrics":{"retained":%s,"used_mb":%s}}\n' \
+                      "${STAMP}" "${NOW}" "${KEPT}" "${USED}"
+                  fi
+                  exit "${RC}"
               volumeMounts:
                 - name: mail-data
                   mountPath: /maildata
