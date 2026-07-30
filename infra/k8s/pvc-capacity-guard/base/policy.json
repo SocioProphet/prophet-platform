@@ -1,0 +1,119 @@
+{
+  "_comment": [
+    "Enrolment is EXPLICIT and every entry must carry a maxGi. There is no default ceiling",
+    "and no wildcard: a volume nobody has thought about a bound for is a volume this guard",
+    "will not grow. Adding a PVC here is a deliberate act that says 'I accept up to maxGi of",
+    "permanent spend on this volume' — GCE persistent disks cannot be shrunk, so every",
+    "expansion is irreversible.",
+    "",
+    "Volumes are enrolled even when the guard cannot grow them (postgres-data-pvc is on a",
+    "static PV; workspace-mail-backup has never bound). Enrolment is what makes the guard",
+    "ALERT about them each cycle instead of leaving them unwatched.",
+    "",
+    "estateMaxTotalGi is the aggregate brake. Per-PVC maxGi bounds one runaway volume; the",
+    "estate budget bounds a correlated one (e.g. a push loop plus a log flood plus a backup",
+    "job all growing at once). Guarded PVCs total 402Gi today; 700Gi caps worst-case",
+    "provisioned storage at ~1.75x current, roughly $70/month of pd-balanced — a known,",
+    "bounded number rather than an open cheque."
+  ],
+
+  "estateMaxTotalGi": 700,
+
+  "defaults": {
+    "_comment": [
+      "thresholdPct 75: PD expansion measured ~25s wall-clock on this cluster (20Gi->100Gi,",
+      "online, no pod restart). At 75% even the smallest enrolled volume (2Gi) still has",
+      "512Mi of headroom, which comfortably outlasts one 15-minute cycle. Firing at 90%+",
+      "would be too late for a volume taking a burst of image-layer writes.",
+      "",
+      "stepPct 50 with minStepGi 5 / maxStepGi 50: geometric growth so large volumes gain",
+      "meaningful headroom, floored so tiny volumes do not creep up 1Gi at a time, and",
+      "CAPPED so the worst case a runaway push loop can provision is 50Gi per cycle —",
+      "200Gi/hour, well inside the time it takes a human to notice the alerts.",
+      "",
+      "cooldownMinutes 30: two cycles. A PD resize plus filesystem resize can leave",
+      "utilisation briefly reading against the old capacity; without a cooldown the guard",
+      "would double-grow on stale data."
+    ],
+    "thresholdPct": 75,
+    "stepPct": 50,
+    "minStepGi": 5,
+    "maxStepGi": 50,
+    "cooldownMinutes": 30
+  },
+
+  "pvcs": [
+    {
+      "namespace": "socioprophet",
+      "name": "workspace-minio-pvc",
+      "maxGi": 250,
+      "_note": "Registry blob store (zot S3 backend) AND workspace object storage. The volume that failed on 2026-07-30. zot retention (PR #1091) is the primary bound; this guard is the backstop for when retention is wrong or a push burst outruns GC."
+    },
+    {
+      "namespace": "scm",
+      "name": "gitea-data",
+      "maxGi": 150,
+      "_note": "Sovereign SCM. 122 repos are migrating in, so growth here is expected and lumpy."
+    },
+    {
+      "namespace": "serving",
+      "name": "mesh-xl-cache",
+      "maxGi": 200,
+      "_note": "Model/artifact cache. Largest volume in the estate at 120Gi."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "clickhouse-data",
+      "maxGi": 100,
+      "_note": "UNBOUNDED BY DESIGN: the DDL partitions by month but declares no TTL on any of the 7 tables, so nothing ever drops old partitions. Needs a real retention policy; this ceiling only buys time."
+    },
+    {
+      "namespace": "observability",
+      "name": "storage-loki-0",
+      "maxGi": 50,
+      "_note": "Log store. Verify Loki's own retention is set — a log volume without retention grows forever by construction."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "workspace-mail-pvc",
+      "maxGi": 50,
+      "_note": "Dovecot maildir with no quota plugin and no expire configured. Base manifest asks for 50Gi; the p0-lab overlay shrinks it to 10Gi."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "arcticdb-gateway-data",
+      "maxGi": 50,
+      "_note": "Currently BLIND: its pod has been in CreateContainerConfigError for ~8h, so the kubelet publishes no volume stats. Enrolled so the guard alerts on the blind spot every cycle."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "workspace-mail-backup",
+      "maxGi": 60,
+      "_note": "Highest latent risk in the estate. The mail-backup CronJob writes a NEW timestamped full tarball of the maildir on every run and deletes nothing; successfulJobsHistoryLimit bounds Job objects, not files. It has never actually run (PVC Pending 12 days, consumer pod never schedules) so the growth is latent. Fix the retention BEFORE fixing the scheduling, or this fills within days."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "zot-cache",
+      "maxGi": 20,
+      "_note": "zot boltdb metadata AND the sync extension's downloadDir — pull-through staging from docker.io/ghcr/gcr/registry.k8s.io lands here, which the 'stays small' comment on the manifest does not account for."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "workspace-caldav-pvc",
+      "maxGi": 20,
+      "_note": "Radicale collections. No history/cleanup configured."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "compute-gateway-data",
+      "maxGi": 10,
+      "_note": "Smallest enrolled volume (2Gi) — the minStepGi floor matters most here."
+    },
+    {
+      "namespace": "socioprophet",
+      "name": "postgres-data-pvc",
+      "maxGi": 50,
+      "_note": "CANNOT BE GROWN. Bound to the static PV postgres-data-pv with no StorageClass, so no expansion is possible by any mechanism. Enrolled purely so the guard raises PvcGuardCannotExpand instead of leaving the estate's primary database silently unprotected. Remediation is a manual migration to a dynamically-provisioned volume."
+    }
+  ]
+}

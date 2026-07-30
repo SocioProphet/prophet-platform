@@ -1,0 +1,25 @@
+# Storage capacity guard. Distinct from infra/argocd/autoscaling-stack.yaml, which is
+# WORKLOAD autoscaling (KEDA/HPA — replicas in response to load). This is VOLUME
+# autoscaling: bounded growth of PVCs in response to fullness. Kubernetes has no native
+# PVC autoscaler, so nothing upstream covers it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pvc-capacity-guard
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/pvc-capacity-guard/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,45 @@
+# Least privilege for the capacity guard: it reads PVCs and StorageClasses estate-wide and
+# may modify exactly two things on a PVC — spec.resources.requests.storage (via patch) and
+# its own bookkeeping annotations. No create, no delete. Kubernetes RBAC cannot restrict a
+# patch to specific fields, so `patch` on persistentvolumeclaims is the tightest verb
+# available; the ceiling that actually bounds the blast radius is policy.json's maxGi plus
+# estateMaxTotalGi, not RBAC.
+#
+# Note what is deliberately ABSENT: nodes/proxy. GKE Autopilot's Warden denies it cluster-wide
+# ("denied by managed-namespaces-limitation"), which is why the usual kubelet-scraping
+# volume-autoscalers cannot work on this cluster and why the signal comes from GMP instead.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-capacity-guard
+  namespace: observability
+  annotations:
+    # Workload Identity. The GSA needs roles/monitoring.viewer on the project to read
+    # kubelet_volume_stats_* out of Google Managed Prometheus. Created out of band — see
+    # the README's "Prerequisites" section; this is the one part that is not self-contained.
+    iam.gke.io/gcp-service-account: pvc-capacity-guard@socioprophet-platform.iam.gserviceaccount.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pvc-capacity-guard
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pvc-capacity-guard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pvc-capacity-guard
+subjects:
+  - kind: ServiceAccount
+    name: pvc-capacity-guard
+    namespace: observability
