@@ -1,0 +1,44 @@
+# Storage capacity guard. Distinct from infra/argocd/autoscaling-stack.yaml, which is
+# WORKLOAD autoscaling (KEDA/HPA — replicas in response to load). This is VOLUME
+# autoscaling: bounded growth of PVCs in response to fullness. Kubernetes has no native
+# PVC autoscaler, so nothing upstream covers it.
+#
+# Lives in deploy/argocd/, NOT infra/argocd/. The tofu-created root app-of-apps
+# (infra/tofu/environments/gcp-gke/argocd.tf) watches `deploy/argocd` with
+# directory.recurse — nothing under infra/argocd/ has ever reached the cluster. An
+# Application authored there deploys nothing, which for a guard whose whole purpose is
+# to not silently do nothing would have been the same defect one layer up. Same move,
+# and the same reason, as the Wave 0-3 observability apps (see the header of
+# deploy/argocd/observability-services.yaml). The kustomize base stays where it was
+# authored: only the Application manifest has to live in the watched tree.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pvc-capacity-guard
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Required by tools/preflight_deploy_contract.py check 5. reference, not
+    # foundation: this is a replaceable implementation of volume autoscaling (the
+    # PR rejects the controller-shaped alternatives on Autopilot), not part of the
+    # interoperability spine, and it runs a digest-pinned stock python image rather
+    # than anything images.yml builds.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    # No .git suffix — the convention in this tree (the suffixed form appears only
+    # in the two dead trees).
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/pvc-capacity-guard/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
