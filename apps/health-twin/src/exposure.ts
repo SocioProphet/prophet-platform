@@ -74,7 +74,13 @@ export function exposureDenial(input: ExposureInputs): ExposureDenial | null {
     // was compared as the string `Basic <secret>`. Neither is a bearer credential, and an
     // auth path that accepts things it never meant to accept is one bad refactor away
     // from accepting the wrong one. Match the scheme, then take the rest as the token.
-    const match = /^Bearer[ \t]+(.+)$/i.exec(input.authorization.trim());
+    // The token group is `\S.*`, not `.+`: `[ \t]+` and `.+` both match a space/tab, so on a header
+    // like `Bearer \t\t\t…` the two quantifiers share the boundary and matching is worst-case quadratic
+    // — a polynomial-ReDoS on the PHI auth path (CodeQL js/polynomial-redos, high). Requiring the token
+    // to START non-whitespace makes the split unique (`\S` and `[ \t]` are disjoint), so there is nothing
+    // to backtrack over. `.trim()` already stripped the outer spaces and a bearer token never begins with
+    // whitespace, so nothing legitimate is lost; a whitespace-only tail still fails to match and 401s.
+    const match = /^Bearer[ \t]+(\S.*)$/is.exec(input.authorization.trim());
     const presented = match ? match[1].trim() : '';
     // Constant-time. The previous note here argued a length-independent compare was not the
     // concern because the token is a deployment secret rather than a per-user credential.
