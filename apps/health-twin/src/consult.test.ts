@@ -118,7 +118,13 @@ test('a partially-numeric cap is refused, not silently truncated', async () => {
     ['', 'empty'],
     ['   ', 'whitespace only'],
     ['+5', 'signed'],
-    ['99999999999999999999', 'beyond Number.MAX_SAFE_INTEGER'],
+    ['99999999999999999999', 'far beyond Number.MAX_SAFE_INTEGER'],
+    // The sharp one: all digits, and Number() does NOT fail on it — it rounds to
+    // 9007199254740992, which IS a safe integer, so an isSafeInteger() guard
+    // accepts a value one less than what the operator wrote. Silently altering
+    // the config is the same defect as parseInt's partial read.
+    ['9007199254740993', 'one past MAX_SAFE_INTEGER — Number() rounds it to a *different* safe integer'],
+    ['9007199254740992', 'MAX_SAFE_INTEGER + 1 — the first value that cannot round-trip'],
   ];
   for (const [value, why] of cases) {
     const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: value });
@@ -127,7 +133,12 @@ test('a partially-numeric cap is refused, not silently truncated', async () => {
 });
 
 test('a well-formed cap is still honoured', async () => {
-  for (const [value, expected] of [['1', 1], ['42', 42], ['10000', 10_000], [' 250 ', 250]] as const) {
+  for (const [value, expected] of [
+    ['1', 1], ['42', 42], ['10000', 10_000], [' 250 ', 250],
+    // The boundary itself must remain acceptable — the rejection above must be
+    // "cannot round-trip", not "large numbers are suspicious".
+    ['9007199254740991', Number.MAX_SAFE_INTEGER],
+  ] as const) {
     const m = await freshModule({ HEALTH_TWIN_CONSULT_MAX: value });
     assert.equal(m.CONSULT_MAX, expected, `${JSON.stringify(value)} must be honoured`);
   }

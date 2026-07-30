@@ -68,6 +68,18 @@ export interface Consult {
 // A cap of 1 or 10 wedges the consult API almost immediately, and (until an
 // operator surface for closeConsult exists — see #1072) that wedge lasts until
 // the process restarts. Refusing to guess is the only safe reading.
+// All digits, then a safe-integer range check. The two together are sufficient,
+// including at the precision boundary — Number() rounds a digit string past
+// MAX_SAFE_INTEGER, but every such rounded value is itself unsafe, so
+// isSafeInteger still rejects it. Measured, because it is not obvious:
+//
+//     "9007199254740993" -> Number() 9007199254740992, isSafeInteger FALSE  -> rejected
+//     "9007199254740992" -> Number() 9007199254740992, isSafeInteger FALSE  -> rejected
+//     "9007199254740991" -> Number() 9007199254740991, isSafeInteger TRUE   -> accepted
+//
+// (A review suggested BigInt here on the premise that isSafeInteger returns true
+// for the rounded value. It does not — see the table. BigInt would be equivalent,
+// so the simpler form stays. The boundary cases are pinned in the tests.)
 const DEFAULT_CONSULT_MAX = 10_000;
 const _envRaw = (process.env.HEALTH_TWIN_CONSULT_MAX ?? '').trim();
 const _envMax = /^\d+$/.test(_envRaw) ? Number(_envRaw) : Number.NaN;
