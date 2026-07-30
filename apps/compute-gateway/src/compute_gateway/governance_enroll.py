@@ -151,34 +151,34 @@ def build_plan(policy: dict, *, now_ms: int | None = None,
 
     plans: list[EnrolmentPlan] = []
     for digest, (klass, receipt_id, status) in chosen.items():
-            spec = policy["classes"][klass]
-            blob = persistence.get_blob(digest)
-            if blob is None:
-                continue
-            # MUST match compute_gateway.artifacts.digest byte-for-byte. `id` is the
-            # content address of the blob; if `content` is a different encoding of the
-            # same object, the governed object's declared id does not address the bytes
-            # the warden ingested, and the content-addressed property the rest of the
-            # gateway relies on is silently false. json.dumps defaults (', ' / ': '
-            # separators, ensure_ascii=True) differ from the canonical form for EVERY
-            # dict blob, not only non-ASCII ones.
-            content = blob if isinstance(blob, str) else json.dumps(
-                blob, sort_keys=True, separators=(",", ":"), default=str, ensure_ascii=False)
-            body: dict = {
-                "id": digest,
-                "content": content,
-                "mime": _blob_mime(blob),
-                "residency": policy["universal_invariants"]["residency"],
-                "vendorOptIn": policy["universal_invariants"]["vendor_opt_in"],
-            }
-            if spec["disposition"] == "auto":
-                body["ttlAt"] = now + spec["ttl_days"] * DAY_MS
-                body["retentionDeleteAt"] = now + spec["retention_delete_days"] * DAY_MS
-            if spec.get("sensitive_by_default"):
-                body["sensitiveFields"] = ["payload"]
-            plans.append(EnrolmentPlan(digest, receipt_id, status, klass, body))
-            if limit is not None and len(plans) >= limit:
-                return plans
+        spec = policy["classes"][klass]
+        blob = persistence.get_blob(digest)
+        if blob is None:
+            continue
+        # MUST match compute_gateway.artifacts.digest byte-for-byte. `id` is the
+        # content address of the blob; if `content` is a different encoding of the
+        # same object, the governed object's declared id does not address the bytes
+        # the warden ingested, and the content-addressed property the rest of the
+        # gateway relies on is silently false. json.dumps defaults (', ' / ': '
+        # separators, ensure_ascii=True) differ from the canonical form for EVERY
+        # dict blob, not only non-ASCII ones.
+        content = blob if isinstance(blob, str) else json.dumps(
+            blob, sort_keys=True, separators=(",", ":"), default=str, ensure_ascii=False)
+        body: dict = {
+            "id": digest,
+            "content": content,
+            "mime": _blob_mime(blob),
+            "residency": policy["universal_invariants"]["residency"],
+            "vendorOptIn": policy["universal_invariants"]["vendor_opt_in"],
+        }
+        if spec["disposition"] == "auto":
+            body["ttlAt"] = now + spec["ttl_days"] * DAY_MS
+            body["retentionDeleteAt"] = now + spec["retention_delete_days"] * DAY_MS
+        if spec.get("sensitive_by_default"):
+            body["sensitiveFields"] = ["payload"]
+        plans.append(EnrolmentPlan(digest, receipt_id, status, klass, body))
+        if limit is not None and len(plans) >= limit:
+            return plans
     return plans
 
 
