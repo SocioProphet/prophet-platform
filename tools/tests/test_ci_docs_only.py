@@ -139,7 +139,20 @@ def test_an_unreadable_base_detector_runs_everything():
     """Fail-safe, not fail-open: if the base copy cannot be read, the full matrix runs."""
     script = _changes_job_script()
     marker = 'git show "origin/$BASE:tools/ci_docs_only.py"'
+    # Assert the landmarks before slicing on them, so a moved marker reports what is wrong
+    # instead of an IndexError with an unhelpful traceback.
+    assert marker in script, f'expected the base-ref read {marker!r} in the detect step'
     tail = script.split(marker, 1)[1]
+    assert 'fi' in tail, 'expected the base-ref read to be inside a guarded if-block'
     guard = tail.split('fi', 1)[0]
     assert 'docs_only=false' in guard, \
         'a detector that cannot be read from the base ref must fall back to running everything'
+
+
+def test_the_detector_temp_file_is_cleaned_up():
+    """Runners are ephemeral, but a step that leaks a temp file per run is still the kind of
+    hygiene that turns into a full disk on a self-hosted runner."""
+    script = _changes_job_script()
+    assert 'DETECTOR="$(mktemp)"' in script
+    assert "trap 'rm -f \"$DETECTOR\"' EXIT" in script, \
+        'the detector temp file must be removed when the step exits'
