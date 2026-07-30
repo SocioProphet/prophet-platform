@@ -10,6 +10,7 @@ Both fixes are guards at the trust boundary between adapter output and
 receipt/artifact storage. These tests exercise the guards directly rather
 than through HTTP, so they run fast and are readable.
 """
+import asyncio
 import base64
 import hashlib
 import os
@@ -31,7 +32,6 @@ def _text_pack(text: str) -> dict:
 
 def test_parse_recomputes_sha256_ignoring_caller_supplied():
     """Caller-supplied sha256 that mismatches the parsed bytes must fail-closed."""
-    import asyncio
     pack = _text_pack("hello world")
     pack["sha256"] = "sha256:" + "0" * 64
     out = asyncio.run(adapters._parse(pack, project="p", session=None))
@@ -41,7 +41,6 @@ def test_parse_recomputes_sha256_ignoring_caller_supplied():
 
 def test_parse_computes_sha256_when_caller_omits_it():
     """Caller omits sha256 entirely; parse computes it over the actual bytes."""
-    import asyncio, hashlib
     pack = _text_pack("hello world")
     pack.pop("sha256", None)
     out = asyncio.run(adapters._parse(pack, project="p", session=None))
@@ -51,7 +50,6 @@ def test_parse_computes_sha256_when_caller_omits_it():
 
 def test_parse_accepts_matching_caller_sha256():
     """Caller supplies the correct sha256; parse verifies and passes it through."""
-    import asyncio, hashlib
     pack = _text_pack("hello world")
     pack["sha256"] = hashlib.sha256(b"hello world").hexdigest()
     out = asyncio.run(adapters._parse(pack, project="p", session=None))
@@ -135,7 +133,6 @@ def test_exhaust_guard_returns_none_for_none_and_non_dict():
 def test_parse_accepts_matching_caller_sha256_with_sha256_prefix():
     """Copilot round-1: strict-string compare rejected caller's 'sha256:<hex>'
     form even when correct. Normalise before comparing."""
-    import asyncio, hashlib
     pack = _text_pack("hello world")
     pack["sha256"] = "sha256:" + hashlib.sha256(b"hello world").hexdigest()
     out = asyncio.run(adapters._parse(pack, project="p", session=None))
@@ -144,7 +141,6 @@ def test_parse_accepts_matching_caller_sha256_with_sha256_prefix():
 
 def test_parse_accepts_matching_caller_sha256_in_uppercase():
     """Same: hex is case-insensitive. UPPERCASE must not be treated as mismatch."""
-    import asyncio, hashlib
     pack = _text_pack("hello world")
     pack["sha256"] = hashlib.sha256(b"hello world").hexdigest().upper()
     out = asyncio.run(adapters._parse(pack, project="p", session=None))
@@ -173,3 +169,103 @@ def test_exhaust_guard_still_accepts_reasonable_urn_refs():
     }
     out = engine._guard_exhaust(good)
     assert out == good
+
+
+# ── Copilot round-2 follow-up: the two dimensions still unbounded ─────────
+#
+# These were verified as LIVE bypasses against the round-1 guard before the
+# fix: each smuggled >10 MB of verbatim text through `_guard_exhaust` intact
+# and into the artifact store, retrievable at /v1/artifacts/{exhaust_sha} —
+# the exact exfil path this guard exists to close. Literal sizes below are
+# written out rather than derived from engine._MAX_* on purpose: a test that
+# reads the same constant as the implementation cannot detect the constant
+# being widened.
+#
+# Each test also pins WHICH check rejected the record, via the reason string.
+# That is not decoration. First draft of these tests asserted only "rejected",
+# and stayed green with the per-field bound deleted — because the aggregate
+# backstop caught the same payload. Two guards where the test cannot tell them
+# apart is one guard that can be removed without any test going red.
+
+
+def test_exhaust_guard_rejects_payload_smuggled_as_specversion():
+    """`specVersion` was type-checked but not length-bounded — a string field
+    on the top-level allowlist with no ceiling is an open exfil door."""
+    payload = "SSN 123-45-6789 alice@example.com " * 300_000  # ~10 MB
+    smuggled = {"type": "ExhaustRecord", "specVersion": payload, "counts": {"x": 1}}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "specVersion" not in out, "raw payload survived the guard via specVersion"
+    assert "exhaust rejected" in out["reason"]
+    assert "specVersion must be a version string" in out["reason"], (
+        "must be rejected BY THE specVersion BOUND, not incidentally by the "
+        f"aggregate backstop; got: {out['reason']}")
+
+
+def test_specversion_bound_fires_below_the_aggregate_backstop():
+    """The discriminating case: a specVersion too long to be a version but far
+    too small to trip the 2 MiB backstop. Only the per-field bound can catch
+    this, so it proves the bound exists rather than being shadowed."""
+    smuggled = {"type": "ExhaustRecord", "specVersion": "v" * 5_000}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "specVersion" not in out
+    assert "specVersion must be a version string" in out["reason"]
+
+
+def test_exhaust_guard_accepts_a_real_spec_version_string():
+    """The bound must not break the actual field it is bounding."""
+    good = {"type": "ExhaustRecord", "specVersion": "2.0", "counts": {"dropped": 3}}
+    assert engine._guard_exhaust(good) == good
+
+
+def test_exhaust_guard_rejects_payload_smuggled_as_counts_keys():
+    """`counts` bounded each key to 256 chars but never bounded how MANY keys.
+    50 000 x 246-char keys = ~12 MB of attacker-chosen text, all label."""
+    smuggled = {"type": "ExhaustRecord",
+                "counts": {f"k{i:06d}" + "x" * 240: 1 for i in range(50_000)}}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert len(out.get("counts", {})) <= 1, "counts payload survived the guard"
+    assert "exhaust rejected" in out["reason"]
+    assert "counts has" in out["reason"], (
+        "must be rejected BY THE counts-key bound, not incidentally by the "
+        f"aggregate backstop; got: {out['reason']}")
+
+
+def test_counts_key_bound_fires_below_the_aggregate_backstop():
+    """Discriminating case: 2 000 short count keys is only ~26 KB — nowhere
+    near the 2 MiB backstop — but is still a key-value store, not a tally."""
+    smuggled = {"type": "ExhaustRecord", "counts": {f"k{i}": 1 for i in range(2_000)}}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert len(out.get("counts", {})) <= 1
+    assert "counts has" in out["reason"]
+
+
+def test_exhaust_guard_accepts_an_ordinary_counts_tally():
+    good = {"type": "ExhaustRecord",
+            "counts": {f"bucket{i}": i for i in range(64)}}
+    assert engine._guard_exhaust(good) == good
+
+
+def test_exhaust_guard_total_size_backstop_catches_unenumerated_dimensions():
+    """The aggregate cap is the check that closes dimensions nobody enumerated.
+    Every field here is individually legal — 10 000 items each carrying a
+    512-char URN ref clears every per-field bound, yet totals ~5 MB."""
+    ref = "urn:x:" + "a" * 500
+    assert not engine._bad_ref(ref), "each ref must be individually LEGAL for this test to mean anything"
+    smuggled = {"type": "ExhaustRecord",
+                "items": [{"kind": "candidate", "sha256": ref, "ref": ref} for _ in range(10_000)]}
+    out = engine._guard_exhaust(smuggled)
+    assert out is not None
+    assert "items" not in out, "per-field-legal payload still totalling megabytes survived"
+    assert "exhaust rejected" in out["reason"]
+
+
+def test_exhaust_guard_accepts_a_large_but_legitimate_ref_ledger():
+    """A real 10 000-entry discard ledger of bare digests must still pass —
+    the backstop bounds bytes, not usefulness."""
+    good = {"type": "ExhaustRecord", "source": "compute",
+            "items": [{"kind": "candidate", "sha256": "a" * 64} for _ in range(10_000)]}
+    assert engine._guard_exhaust(good) == good
