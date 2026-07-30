@@ -72,7 +72,8 @@ def errors(policy: dict) -> list[str]:
         else:  # legal_hold
             if c.get("retention_delete_days") is not None:
                 errs.append(f"class {name}: legal_hold must NOT auto-delete "
-                            f"(retention_delete_days must be null)")
+                            f"(retention_delete_days must be null or omitted, "
+                            f"got {c.get('retention_delete_days')!r})")
 
     fallback = policy.get("fallback", {})
     if not isinstance(fallback, dict):

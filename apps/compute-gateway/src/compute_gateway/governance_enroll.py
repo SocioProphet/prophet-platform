@@ -149,8 +149,15 @@ def build_plan(policy: dict, *, now_ms: int | None = None,
             if prior is None or _keeps_longer(klass, prior[0], policy):
                 chosen[digest] = (klass, receipt_id, status)
 
+    # sorted(), not chosen.items(). With --limit set, the subset that actually gets
+    # enrolled is whatever the iteration yields first, and that order comes from
+    # load_index() insertion order — so "the first live batch" would differ between
+    # runs and between environments. A limited enrolment against a live warden must be
+    # reproducible: the same store and the same limit must enrol the same objects, or
+    # a re-run after a partial failure silently governs a different set.
     plans: list[EnrolmentPlan] = []
-    for digest, (klass, receipt_id, status) in chosen.items():
+    for digest in sorted(chosen):
+        klass, receipt_id, status = chosen[digest]
         spec = policy["classes"][klass]
         blob = persistence.get_blob(digest)
         if blob is None:

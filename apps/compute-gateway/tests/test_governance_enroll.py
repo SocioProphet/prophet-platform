@@ -12,6 +12,7 @@ import copy
 import importlib.util
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -27,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 def store():
     """A real temp gateway store seeded with one blob per epistemic class."""
     prev = os.environ.get("GATEWAY_STORE_DIR")
-    d = tempfile.mkdtemp()
+    d = tempfile.mkdtemp()   # removed in teardown below — see shutil.rmtree
     os.environ["GATEWAY_STORE_DIR"] = d
     persistence._reset_connection()
 
@@ -52,6 +53,7 @@ def store():
     else:
         os.environ["GATEWAY_STORE_DIR"] = prev
     persistence._reset_connection()
+    shutil.rmtree(d, ignore_errors=True)   # mkdtemp does not clean up after itself
 
 
 class RecordingWarden:
@@ -322,3 +324,40 @@ def test_enrolled_content_is_the_bytes_the_id_addresses(store):
         "content does not hash back to the id it is enrolled under — the governed "
         "object is not content-addressed")
     assert "\\u00e9" not in plan.body["content"], "content must not be ASCII-escaped"
+
+
+def test_a_limited_enrolment_picks_the_same_objects_every_run(store):
+    """Copilot: with --limit set, which objects get enrolled depended on
+    load_index() insertion order, so 'the first live batch' was not reproducible.
+    A re-run after a partial failure would silently govern a different set.
+
+    The seeding below is the whole test. The default fixture inserts receipts whose
+    ids (r-asserted, r-derived, r-observed, r-unknown) happen to sort the same way
+    as their digests, so insertion order and sorted order COINCIDE and the fixture
+    cannot tell the two apart — the first version of this test passed with
+    chosen.items() restored. These pairs invert that deliberately: the receipt
+    inserted first carries the digest that sorts LAST.
+    """
+    persistence.save_receipt("p", 90, "r-aaa-first",
+                             json.dumps({"id": "r-aaa-first", "epistemic_status": "observed"}))
+    persistence.save_blob("sha256:zzz9", {"data": "sorts last, inserted first"})
+    persistence.save_index("r-aaa-first", ["sha256:zzz9"])
+    persistence.save_receipt("p", 91, "r-zzz-last",
+                             json.dumps({"id": "r-zzz-last", "epistemic_status": "observed"}))
+    persistence.save_blob("sha256:aaa0", {"data": "sorts first, inserted last"})
+    persistence.save_index("r-zzz-last", ["sha256:aaa0"])
+
+    policy = ge.load_policy()
+    everything = [p.digest for p in ge.build_plan(policy, now_ms=0)]
+    assert everything == sorted(everything), (
+        f"plan order is not deterministic — got {everything}")
+    # The discriminating relation: zzz9 was inserted FIRST, aaa0 LAST. Under insertion
+    # order zzz9 precedes aaa0; under digest order it cannot. If this ever holds under
+    # both, the fixture has stopped discriminating and the assertion above is decorative.
+    assert everything.index("sha256:aaa0") < everything.index("sha256:zzz9"), (
+        f"ordering still follows insertion, not digest — got {everything}")
+
+    first = [p.digest for p in ge.build_plan(policy, now_ms=0, limit=2)]
+    assert first == everything[:2], "the limited batch must be the first N of that order"
+    for _ in range(5):
+        assert [p.digest for p in ge.build_plan(policy, now_ms=0, limit=2)] == first
