@@ -1,6 +1,8 @@
 """Studio BFF smoke: healthz + the studio bundle (live fabric services unreachable in test → graceful degrade)."""
 from __future__ import annotations
 
+from urllib.parse import urlparse, parse_qs
+
 from fastapi.testclient import TestClient
 
 from lattice_studio.server import app, proj_collection
@@ -16,6 +18,34 @@ def test_healthz():
 def test_project_collection_matches_noetica():
     # Noetica projectCollectionId: proj-<12 hex, dashes stripped>
     assert proj_collection("a1b2-c3d4-e5f6-7890") == "proj-a1b2c3d4e5f6"
+
+
+def test_subgraph_label_is_url_encoded_not_injected(monkeypatch):
+    # proj_collection only strips dashes — it does not reject '&'/'=' etc. A project id
+    # carrying those must not let the caller inject extra query params into the upstream
+    # hellgraph-service request (the label value has to stay a single opaque value).
+    import lattice_studio.server as srv
+
+    seen_urls: list[str] = []
+
+    async def fake_req(client, method, url, json=None):
+        if "subgraph" in url:
+            seen_urls.append(url)
+            return ({"nodes": [], "edgeList": []}, None)
+        return (None, "unreachable")
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.get("/api/studio", params={"project": "evil&limit=99999"})
+    assert r.status_code == 200
+    assert seen_urls, "subgraph call should have fired"
+    parsed = urlparse(seen_urls[0])
+    qs = parse_qs(parsed.query)
+    # Structured parsing, not substring counting: exactly two real query keys, and the
+    # injected '&limit=' must have landed INSIDE the label value (decoded), not spawned a
+    # second 'limit' key that would override the real one.
+    assert set(qs.keys()) == {"label", "limit"}
+    assert qs["label"] == ["proj-evil&limit=9"]
+    assert qs["limit"] == ["300"]
 
 
 def test_studio_bundle_project_scoped_and_complete():
