@@ -33,7 +33,7 @@ import {
 } from './grantauth.js';
 import { corsHeaders, corsPolicyFromEnv, originAllowed } from './cors.js';
 import { mintId } from './ids.js';
-import { predict, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
+import { predict, EmissionLawViolation, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
 import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
 import { fitSurrogate } from './dynamics/surrogate.js';
 import { OBSERVABLE, type Compartment } from './dynamics/mechanistic.js';
@@ -662,10 +662,69 @@ const server = http.createServer(async (req, res) => {
       if (compartments.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant\u2019s scope' });
 
       const p = predict({ horizonDays, stepDays, compartments, covariates });
-      return send(res, 200, a
+      // #1081 holder-auth: the success body carries the authenticated grant + use-receipt; #1089's
+      // verdict gate below is applied to exactly this body (auth first, then the physics verdict).
+      const body = a
         ? { ...p, grant: { id: a.grant.id, withheldSystems }, authentication: authenticatedAs(a), grantReceipt: grantUseReceipt('predict-read', [a.grant.id, a.holder], { grant: a.grant.id, presentedBy: a.holder }) }
-        : p, a?.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
-    } catch (e) { return send(res, 400, { error: (e as Error).message || 'predict failed' }); }
+        : p;
+      const extra = a?.legacy ? { warning: LEGACY_QUERY_WARNING } : {};
+      const rec = p.reconciliation;
+
+      // ── THE GATE VERDICT IS CONSULTED HERE, NOT JUST COMPUTED ────────────────────────────────
+      // The body-state schema's safety invariant is that a 'divergent' forward model MUST NOT drive
+      // human actuation. gate.ts emits exactly that — executionDecision 'deny', humanActuation
+      // 'blocked', omegaCeiling 'TRUSTED' — and this endpoint used to send it with `200 OK` in a body
+      // shaped identically to an allowed prediction. The verdict was serialised and inert: a caller
+      // doing the ordinary `if (res.ok) render(body.organs)` could not tell a denied forward model
+      // from a permitted one. And this is NOT a theoretical path — `covariates` is caller-supplied,
+      // so an unprivileged POST can drive the surrogate across the admissibility bounds and make the
+      // run divergent. It was reachable, it was live, and it read as success.
+      //
+      // Why 409 and not 200: a naive client keys off `res.ok`, so the refusal has to be non-2xx or it
+      // is not a refusal. Why 409 and not 403: in this engine 403 means "you may not SEE this" — the
+      // exposure membrane and the grant scope both use it — and that is a different thing. Here the
+      // caller may see the trajectory in full; what is withdrawn is its standing to drive an action.
+      // Conflating the two would render "access denied" over data the caller is entitled to read, and
+      // would make a consent refusal and a physics refusal indistinguishable in any log or dashboard.
+      // 409 Conflict is the accurate one: the learned proposal conflicts with the mechanistic law.
+      //
+      // Why the prediction moves under `prediction`: the SHAPE has to differ too. A denied response
+      // that still answers `body.organs[i].emitted` is one careless `res.ok` away from being rendered
+      // as an ordinary forecast. Nested, a client that never considered divergence gets `undefined`
+      // and fails loudly instead of quietly. The trajectory itself is still served in full and is
+      // still the mechanistic one, exactly as the gate's own reason text promises.
+      if (rec.executionDecision === 'deny') {
+        return send(res, 409, {
+          blocked: true,
+          reason: rec.reason,
+          // hoisted, not merely nested: these three ARE the safety invariant, and a reader that has to
+          // walk into `.reconciliation` to find them is a reader that can miss them
+          executionDecision: rec.executionDecision,
+          humanActuation: rec.humanActuation,
+          omegaCeiling: rec.omegaCeiling,
+          verdict: rec.verdict,
+          schema: rec.schema,
+          reconciliation: rec,
+          // the trajectory is READABLE — it is the physics — but it is advisory, never actuation-grade
+          advisory: true,
+          prediction: body,
+          receipt: p.receipt,
+        }, extra);
+      }
+      return send(res, 200, body, extra);
+    } catch (e) {
+      // The anti-clamp law failing is NOT a bad request — it means the gate itself emitted a value
+      // that is neither the physics nor the whole proposal. Nothing is served, and the receipt that
+      // binds the violation is returned so the failure is provable rather than merely logged.
+      if (e instanceof EmissionLawViolation) {
+        return send(res, 500, {
+          error: 'emission-law-violation',
+          law: e.law, violations: e.violations, receipt: e.receipt,
+          detail: 'the reconciliation gate emitted a clamped value; the prediction was sealed and then refused rather than served',
+        });
+      }
+      return send(res, 400, { error: (e as Error).message || 'predict failed' });
+    }
   }
 
   // The rejection ledger. A refusal nobody can see may as well have been a silent clamp, so the refusals

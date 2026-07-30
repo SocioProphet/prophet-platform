@@ -403,6 +403,36 @@ console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusa
   ok(forced.reconciliation.executionDecision === 'deny' && forced.reconciliation.humanActuation === 'blocked' && forced.reconciliation.omegaCeiling === 'TRUSTED',
     'divergent denies actuation and caps omega at TRUSTED (body-state schema safety invariant)');
 
+  // 7b-ter. THE VERDICT IS ONLY WORTH COMPUTING IF SOMETHING CONSULTS IT.
+  // It was computed correctly, proven correctly, and never read on the request path: /api/health/predict
+  // sent a 'deny' with 200 OK in a body shaped exactly like an allowed prediction. Two things are
+  // invariants now — that the deny is reachable from ORDINARY CALLER INPUT (so this is a live path, not
+  // a hypothetical), and that the verdict is BOUND INTO THE SEAL (so it cannot be flipped after the
+  // fact). The HTTP status/shape half is asserted in the ci.yml boot smoke, against a real server.
+  const { verifyPrediction } = await import('./dynamics/predict.js');
+  const viaCovariates = predict({ covariates: { adherencePdc: 50, reninIndex: 50, bmi: 28.4, uacr: 0.18 } });
+  ok(viaCovariates.reconciliation.executionDecision === 'deny',
+    'caller-supplied covariates alone can drive the run to deny — the divergent path is reachable over HTTP, not just from the harness');
+  ok(predict().reconciliation.executionDecision === 'allow',
+    'teeth the other way: default covariates still produce an allowed prediction');
+  const flipped = structuredClone(viaCovariates);
+  flipped.reconciliation = { ...flipped.reconciliation, executionDecision: 'allow', humanActuation: 'permitted' };
+  ok(!verifyPrediction(flipped), 'flipping deny→allow breaks the receipt — the safety verdict is sealed, not decorative');
+
+  // 7b-quater. the anti-clamp audit is INSIDE the seal and predict() refuses rather than serving a clamp
+  const clean = predict();
+  ok(verifyPrediction(clean), 'a clean prediction verifies against its own receipt');
+  const clampTampered = structuredClone(clean);
+  (clampTampered.organs[0] as { emissionAudit: unknown }).emissionAudit = { violated: 'clamp', law: 'x', violations: [] };
+  ok(!verifyPrediction(clampTampered),
+    'a clamp violation perturbs the seal — "never clamps" is provable from the receipt, not just asserted in a comment');
+  const { EmissionLawViolation } = await import('./dynamics/predict.js');
+  let refusedClamp = false;
+  try {
+    predict({ compartments: ['cardio'], overrideDelta: () => -100, overrideDecisions: (_k, ds) => ds.map((d) => ({ ...d, emitted: RANGE.cardio.lo })) });
+  } catch (e) { refusedClamp = e instanceof EmissionLawViolation; }
+  ok(refusedClamp, 'a gate that clamps makes predict() fail CLOSED — the clamped number is never returned to a caller');
+
   // 7c. a prediction that can reach a patient-facing surface is PROVABLE and framed non-diagnostically
   const pred = predict();
   ok(/^ht-prediction-[0-9a-f]{64}$/.test(pred.receipt.id), 'a prediction carries a sha256 receipt id of the estate shape');
