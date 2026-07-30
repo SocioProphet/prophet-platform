@@ -52,7 +52,15 @@ export function exposureDenial(input: ExposureInputs): ExposureDenial | null {
         },
       };
     }
-    const presented = input.authorization.replace(/^Bearer\s+/i, '').trim();
+    // REQUIRE the Bearer scheme rather than stripping it when it happens to be there.
+    // `replace(/^Bearer\s+/i, '')` is a no-op on a header that carries any other scheme,
+    // so the entire header value was then compared as though it were the credential: a
+    // bare `Authorization: <secret>` authenticated, and `Authorization: Basic <secret>`
+    // was compared as the string `Basic <secret>`. Neither is a bearer credential, and an
+    // auth path that accepts things it never meant to accept is one bad refactor away
+    // from accepting the wrong one. Match the scheme, then take the rest as the token.
+    const match = /^Bearer[ \t]+(.+)$/i.exec(input.authorization.trim());
+    const presented = match ? match[1].trim() : '';
     // Length-independent compare is not the concern here (the token is a deployment secret,
     // not a per-user credential); an empty presented value must simply never match.
     if (!presented || presented !== input.token) {

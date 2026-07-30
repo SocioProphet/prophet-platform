@@ -173,6 +173,71 @@ def test_write_accepts_the_configured_token(client):
     assert r.status_code == 200
 
 
+# The header-parsing tests below call require_token directly rather than issuing requests,
+# for the same reason test_only_the_write_route_is_token_gated asserts on the route table:
+# the auth decision is independent of whether the LMDB backend can be opened here, and
+# binding these to a live store would make the security property unprovable wherever the
+# arcticdb native extension will not load.
+
+
+def _refusal(authorization: str) -> int | None:
+    """The status require_token raises for a header, or None if it allows the call."""
+    from fastapi import HTTPException
+
+    from arcticdb_gateway.server import require_token
+
+    try:
+        require_token(authorization)
+    except HTTPException as e:
+        return e.status_code
+    return None
+
+
+def test_the_bearer_scheme_is_case_insensitive(monkeypatch):
+    """RFC 7235: the auth scheme is case-insensitive. `removeprefix("Bearer ")` matched
+    exactly one casing, so a conformant client sending `bearer` got a 401 (Copilot #1034)."""
+    monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
+    for header in (f"bearer {TEST_TOKEN}", f"BEARER {TEST_TOKEN}", f"BeArEr {TEST_TOKEN}"):
+        assert _refusal(header) is None, f"{header!r} is a valid bearer credential"
+
+
+def test_a_non_bearer_scheme_is_not_a_credential(monkeypatch):
+    """The old parse was a no-op on any other scheme, so the ENTIRE header value was then
+    compared as though it were the token. It never matched — but an auth path should refuse
+    what it cannot parse, not compare it and hope. A bare secret is not a bearer credential
+    either, and that one DID authenticate."""
+    monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
+    for header in (f"Basic {TEST_TOKEN}", f"Token {TEST_TOKEN}", TEST_TOKEN):
+        assert _refusal(header) == 401, f"{header!r} is not a bearer credential"
+
+
+def test_a_valid_credential_is_still_accepted(monkeypatch):
+    monkeypatch.setenv("GATEWAY_TOKEN", TEST_TOKEN)
+    assert _refusal(f"Bearer {TEST_TOKEN}") is None
+    assert _refusal(f"Bearer  {TEST_TOKEN} ") is None, "surrounding whitespace is not part of it"
+    assert _refusal("Bearer wrong") == 401
+    assert _refusal("") == 401
+
+
+def test_an_unconfigured_gateway_still_fails_closed(monkeypatch):
+    monkeypatch.delenv("GATEWAY_TOKEN", raising=False)
+    assert _refusal("Bearer anything") == 503
+    assert _refusal("") == 503, "no token configured must never authenticate an empty header"
+
+
+def test_the_token_comparison_is_constant_time():
+    """Structural: `!=` on a secret short-circuits at the first differing byte, which makes
+    latency a function of how much of the token the caller already holds. Asserted on the
+    source because a timing difference is not reliably observable in a unit test."""
+    import inspect
+
+    from arcticdb_gateway import server
+
+    src = inspect.getsource(server.require_token)
+    assert "compare_digest" in src, "the token comparison must be constant-time"
+    assert "!= token" not in src, "a short-circuiting comparison leaks the token byte by byte"
+
+
 def test_only_the_write_route_is_token_gated(tmp_path):
     """Structural: the auth dependency is attached to /v1/write and to nothing else.
 
