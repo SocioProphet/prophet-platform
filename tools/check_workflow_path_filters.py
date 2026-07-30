@@ -56,7 +56,12 @@ def has_main_push(text: str) -> bool:
     if not m:
         return False
     push = re.search(r'^  push:\s*$(.*?)(?=^  \w|\Z)', m.group(0), re.M | re.S)
-    return bool(push and "main" in push.group(1) and "paths:" not in push.group(1))
+    if not push or "paths:" in push.group(1):
+        return False
+    # Match `main` as a whole branch token, not a substring: a push filtered to
+    # `maintenance` or `main-release` is NOT the unfiltered main-branch safety net,
+    # and `"main" in ...` would wrongly accept it.
+    return re.search(r'(?<![\w-])main(?![\w-])', push.group(1)) is not None
 
 
 def make_target_scripts(target: str) -> set[str]:
@@ -71,11 +76,46 @@ def make_target_scripts(target: str) -> set[str]:
     return set(BARE.findall(body.group(1))) if body else set()
 
 
+def _run_bodies(text: str) -> list[str]:
+    """Every `run:` body, INCLUDING multi-line `run: |` / `run: >` block scalars.
+
+    The naive `run:\\s*(.*)` captures only the first physical line, so a script
+    invoked on line 2+ of a block scalar is invisible -- and a vouched workflow
+    whose real script lives in a `run: |` block would be checked against nothing
+    and pass. Block bodies are gathered by indentation: the run-together lines
+    more-indented than the `run:` key belong to it.
+    """
+    bodies: list[str] = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        m = re.match(r'^(\s*)(?:-\s+)?run:\s*(\|[-+]?|>[-+]?)?\s*(.*)$', lines[i])
+        if not m:
+            i += 1
+            continue
+        indent, block, inline = m.group(1), m.group(2), m.group(3)
+        if not block:
+            bodies.append(inline)
+            i += 1
+            continue
+        base = len(indent)
+        collected = [inline] if inline else []
+        i += 1
+        while i < len(lines):
+            ln = lines[i]
+            if ln.strip() and (len(ln) - len(ln.lstrip())) <= base:
+                break
+            collected.append(ln)
+            i += 1
+        bodies.append("\n".join(collected))
+    return bodies
+
+
 def scripts_invoked(text: str) -> set[str]:
     out: set[str] = set()
-    for line in re.findall(r'run:\s*(?:\|)?(.*)', text):
-        out.update(BARE.findall(line))
-        for target in re.findall(r'\bmake\s+([A-Za-z0-9_.-]+)', line):
+    for body in _run_bodies(text):
+        out.update(BARE.findall(body))
+        for target in re.findall(r'\bmake\s+([A-Za-z0-9_.-]+)', body):
             out.update(make_target_scripts(target))
     resolved: set[str] = set()
     for item in out:

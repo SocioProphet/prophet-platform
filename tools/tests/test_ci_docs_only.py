@@ -65,3 +65,26 @@ def test_the_rule_is_all_or_nothing():
     """Skipping requires EVERY path to be inert — proof of inertness, not a majority vote."""
     assert docs_only(['docs/a.md', 'docs/b.md']) is True
     assert docs_only(['docs/a.md', 'apps/x.py']) is False
+
+
+@pytest.mark.parametrize('path', [
+    'docs/conf.py',          # Sphinx config — live Python under docs/
+    'docs/scripts/gen.ts',   # a generator that a test could import
+    'docs/build.sh',
+    'docs/Makefile',
+    'docs/notebook.ipynb',
+])
+def test_executable_files_under_docs_are_not_inert(path):
+    """docs/ is not a free pass: it holds live code, and changing that code must
+    not skip the tests that cover it (Copilot on #1044)."""
+    assert docs_only([path]) is False
+
+
+@pytest.mark.parametrize('path', [
+    'docs/architecture.md',
+    'docs/guide/deep/nested.md',
+    'README.md',
+    'docs/img/diagram.png',   # a doc ASSET, not executable
+])
+def test_prose_and_assets_under_docs_stay_inert(path):
+    assert docs_only([path]) is True

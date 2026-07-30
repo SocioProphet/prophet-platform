@@ -106,3 +106,31 @@ def test_generated_artifacts_are_not_required_inputs():
     """A path the job itself writes under build/ is an output, not an input."""
     assert not any(p.startswith("build/") for p in cwpf.inputs_of(
         ROOT / "tools" / "check_workflow_path_filters.py"))
+
+
+def test_multiline_run_block_scripts_are_seen():
+    """A script invoked on line 2+ of a `run: |` block must be surfaced, or a
+    vouched workflow could hide its real script from the auditor (Copilot on #1045)."""
+    wf = (
+        "name: x\non:\n  pull_request:\n    paths: ['tools/**']\n"
+        "  push:\n    branches: [main]\njobs:\n  a:\n    steps:\n"
+        "      - run: |\n"
+        "          pip install foo\n"
+        "          python3 tools/hidden_script.py\n"
+        "          bash tools/another.sh\n"
+    )
+    found = cwpf.scripts_invoked(wf)
+    assert "tools/hidden_script.py" in found
+    assert "tools/another.sh" in found
+
+
+@pytest.mark.parametrize("branches,expected", [
+    ("[main]", True),
+    ("[ main, dev ]", True),
+    ("[maintenance]", False),   # substring 'main' must NOT count as the main safety net
+    ("[main-release]", False),
+])
+def test_main_is_matched_as_a_whole_branch_token(branches, expected):
+    wf = (f"name: y\non:\n  push:\n    branches: {branches}\n"
+          f"  pull_request:\n    paths: ['x/**']\njobs: {{}}\n")
+    assert cwpf.has_main_push(wf) is expected
