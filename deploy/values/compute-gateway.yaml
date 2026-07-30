@@ -24,6 +24,14 @@ config:
   # Durable proof store: receipts + content-addressed artifacts + the doc→SQL sink land on
   # the PVC mounted here, so a governed run survives a restart (compute-gateway persistence).
   GATEWAY_STORE_DIR: "/data"
+  # ZEROTRUST_ENFORCE is DELIBERATELY UNSET, and that means the zero-trust gate is OFF in
+  # production: grant_check() records kernel-shaped evidence but validates no presented
+  # grant_id against the store, so a REVOKED or EXPIRED grant reads valid=True on entitlement
+  # alone. The gateway now says so out loud in its startup log rather than leaving it to be
+  # inferred from an absent key. Turning it on is a deployment decision with a live blast
+  # radius (every user-code kind starts requiring an explicit capability grant), so it is
+  # left to an explicit call, not flipped as a side effect of the parsing fix:
+  #   ZEROTRUST_ENFORCE: "1"      # accepted: 1 | true | yes | on
 # GATEWAY_TOKEN provisioned out-of-band; FORGE_TOKEN is the SAME lattice-forge-token
 # already present in socioprophet (the gateway authenticates to the forge with it).
 secretEnv:

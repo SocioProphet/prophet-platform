@@ -51,18 +51,76 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import logging
 import os
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from . import registry, signing
 from .contract import Receipt
 
-ZEROTRUST_ENFORCE = os.getenv("ZEROTRUST_ENFORCE", "false").lower() == "true"
+log = logging.getLogger("compute_gateway.zerotrust")
+
+# ── env flags: one spelling convention, and "off" is never silent ─────────────
+# The estate spells truthy at least three ways: "1" is dominant (NOETICA_SHACL_ENFORCE,
+# BROKER_REQUIRE_KEY, SERVICE_REGISTER_STRICT, PREMERGE_STRICT), memoryd/main.py accepts
+# {'1','true','yes'}, and hellgraph-service uses 'on'. This module used to accept the literal
+# "true" and nothing else, so ZEROTRUST_ENFORCE=1 — the estate's OWN dominant spelling — parsed
+# as False. An operator who set it believed the gate was on; grant_check silently skipped every
+# grant-store validation. A flag with three spellings, one of which quietly means "off", is a
+# worse failure than no flag at all.
+TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def env_flag(name: str, default: str = "false") -> bool:
+    """Parse a boolean env var — THE one way this package parses them.
+
+    Other apps in the estate still carry their own variants (memoryd, hellgraph-service,
+    device-service, openai-research-mcp, osm-map-api). Consolidating those is a separate
+    change; this at least stops the gateway from adding a fourth convention. Note that
+    engine.py's GATEWAY_MEMOIZE / GATEWAY_WRITE_PROVENANCE still use `== "true"` — they
+    default to ON, so the same bug there turns a feature off rather than a gate, but they
+    should adopt this helper too.
+    """
+    return os.getenv(name, default).strip().lower() in TRUTHY
+
+
+ZEROTRUST_ENFORCE = env_flag("ZEROTRUST_ENFORCE")
 TRUST_BOUNDARY_ID = os.getenv("ZEROTRUST_BOUNDARY_ID", "tb-compute-gateway")
 TRUST_DOMAIN = os.getenv("ZEROTRUST_TRUST_DOMAIN", "socioprophet.dev")
+
+
+def warn_if_unenforced(warn: Callable[[str], None] | None = None) -> bool:
+    """Announce a DISABLED zero-trust gate loudly at startup. Returns True if it warned.
+
+    Matches the discipline hellgraph-service already applies in auth.ts (`initAuth`) and
+    membrane.ts (`initMembrane`): off is a legitimate rollout state, but it is a passthrough,
+    and a passthrough must be stated out loud exactly once rather than inferred from silence.
+
+    The default is deliberately NOT flipped to on here. `deploy/values/compute-gateway.yaml`
+    does not set ZEROTRUST_ENFORCE at all, so the deployed default is off, and turning it on
+    is a deployment decision with a live blast radius — not something to slip in under a
+    parsing fix. Making "off" audible is the fix; choosing "on" is Michael's call.
+    """
+    if ZEROTRUST_ENFORCE:
+        return False
+    (warn or log.warning)(
+        "[zerotrust] WARN ZEROTRUST_ENFORCE is OFF — grant validation is a PASSTHROUGH. "
+        "grant_check() never checks a presented grant_id against the grant store, so a "
+        "REVOKED or EXPIRED grant returns valid=True on entitlement alone, and a user-code "
+        "kind dispatches with no capability grant at all. Set ZEROTRUST_ENFORCE to one of "
+        f"{sorted(TRUTHY)} to fail closed."
+    )
+    return True
+
+
+# Import IS startup for this module (the vendored-schema provenance assertion below already
+# relies on that), and the gateway's entrypoint is `uvicorn compute_gateway.server:app`, which
+# imports this module rather than calling an init hook we could hang the warning off.
+warn_if_unenforced()
 
 _SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"   # ships inside the package (src/)
 
@@ -208,6 +266,11 @@ def grant_check(*, project: str, kind: str, backend: str, actor: str,
     kernel-shaped evidence AND, under ZEROTRUST_ENFORCE, tightens the decision:
     a user-code kind presented with no grant_id fails closed regardless of
     entitlement (defence in depth — a paid entitlement is not a capability grant).
+
+    With enforcement OFF this function validates NOTHING against the grant store: a
+    presented grant_id is echoed into the evidence and `valid` tracks `entitled` alone,
+    so a REVOKED or EXPIRED grant still reads valid=True. That is the passthrough
+    warn_if_unenforced() announces at startup — it is a real state, not a theoretical one.
     """
     needs_grant = registry.KINDS.get(kind, {}).get("executes_user_code", False)
     gid = grant_id or f"grant-implicit-{project}-{kind}"
