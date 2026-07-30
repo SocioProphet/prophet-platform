@@ -9,7 +9,8 @@
 // Guardrails, enforced in the UI: opt-in gate before anything renders · non-diagnostic framing ·
 // nothing shared without an explicit grant · every access receipted.
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue';
-import { loadTwin, grantAccess, revokeAccess, agentRead, listConnectors, ingestConnector, reconcile, serviceHealth, type TwinBundle, type SystemBundle, type Observation, type Condition, type ConnectorMeta, type IngestSummary, type ServiceHealth, type ReconcileReport } from '../services/healthTwinApi';
+import { loadTwin, grantAccess, revokeAccess, agentRead, listGrants, listConnectors, ingestConnector, reconcile, serviceHealth, HolderAuthError, type TwinBundle, type SystemBundle, type Observation, type Condition, type ConnectorMeta, type IngestSummary, type ServiceHealth, type ReconcileReport } from '../services/healthTwinApi';
+import { setHolderToken, clearHolderToken, holderGrantId } from '../services/healthHolderToken';
 import { EPISTEMIC_COLORS } from '../services/studioApi';
 import Sparkline from '../components/Sparkline.vue';
 import SpineOverlay from './SpineOverlay.vue';
@@ -33,6 +34,12 @@ const view = ref<'systems' | 'spine' | 'sources' | 'consults' | 'ask' | 'capture
 const flash = ref('');
 function say(m: string) { flash.value = m; setTimeout(() => (flash.value = ''), 2800); }
 
+// Whether each grant can authenticate anyone. `/api/health/twin` does not carry it (that shape
+// deliberately strips the holder verifier), so it is merged in from the grants endpoint, which does.
+// undefined = we could not find out — reported as "unknown" rather than guessed either way.
+const holderBound = ref<Record<string, boolean>>({});
+const anyUnbound = computed(() => (twin.value?.grants ?? []).some((g) => holderBound.value[g.id] === false));
+
 async function load() {
   loading.value = true; err.value = '';
   try {
@@ -40,6 +47,9 @@ async function load() {
     if (!twin.value.systems.some((s) => s.id === selected.value)) selected.value = twin.value.systems[0]?.id ?? '';
   } catch (e) { err.value = e instanceof Error ? e.message : 'failed to load health twin'; }
   finally { loading.value = false; }
+  try {
+    holderBound.value = Object.fromEntries((await listGrants()).grants.map((g) => [g.id, g.holderBound]));
+  } catch { holderBound.value = {}; /* unknown beats a guess */ }
 }
 onMounted(() => { if (optedIn.value) load(); });
 
@@ -135,17 +145,61 @@ function onSheetKey(e: KeyboardEvent) { if (e.key === 'Escape') sheet.value = nu
 watch(sheet, (s) => { if (s) document.addEventListener('keydown', onSheetKey); else document.removeEventListener('keydown', onSheetKey); });
 onBeforeUnmount(() => document.removeEventListener('keydown', onSheetKey));
 
-// governed sharing
+// ── governed sharing ────────────────────────────────────────────────────────────────────────────
+// Issuing a grant now mints a HOLDER SECRET, returned exactly once. Only its sha256 digest is kept,
+// so this screen is the only moment the token exists outside the holder: it is shown here to be
+// handed to the clinician, and it is never written anywhere by this app.
 const ng = ref<{ agent: string; scope: string; ttl: number }>({ agent: '', scope: '', ttl: 30 });
+/** The freshly-minted token, held in component state ONLY until dismissed. Never persisted. */
+const issued = ref<{ agent: string; token: string; note: string } | null>(null);
+const copied = ref(false);
+
 async function doGrant() {
   if (!ng.value.agent.trim()) return;
-  try { await grantAccess(ng.value.agent.trim(), ng.value.scope.trim() || 'all systems', ng.value.ttl); say('Grant issued — receipted'); ng.value.agent = ''; ng.value.scope = ''; await load(); }
-  catch (e) { say(e instanceof Error ? e.message : 'grant failed'); }
+  const agent = ng.value.agent.trim();
+  try {
+    const r = await grantAccess(agent, ng.value.scope.trim() || 'all systems', ng.value.ttl);
+    ng.value.agent = ''; ng.value.scope = ''; copied.value = false;
+    if (r.holder?.token) {
+      issued.value = { agent, token: r.holder.token, note: r.holder.note };
+      // Also hold it in this session's credential slot, so "exercise this grant" below can
+      // demonstrate the read the clinician would make. Dropped on dismiss, and on refresh.
+      setHolderToken(r.holder.token);
+    }
+    say('Grant issued — receipted. Hand the token over now; it is not recoverable.');
+    await load();
+  } catch (e) { say(e instanceof Error ? e.message : 'grant failed'); }
 }
-async function doRevoke(id: string) { try { await revokeAccess(id); say('Revoked — future reads blocked'); await load(); } catch (e) { say(e instanceof Error ? e.message : 'revoke failed'); } }
+/** Wipe the token from component state. The engine cannot re-show it, and neither can we. */
+function dismissIssued() { issued.value = null; copied.value = false; }
+async function copyIssued() {
+  if (!issued.value) return;
+  try { await navigator.clipboard.writeText(issued.value.token); copied.value = true; }
+  catch { say('Copy failed — select the token and copy it manually.'); }
+}
+
+async function doRevoke(id: string) {
+  try {
+    await revokeAccess(id);
+    if (holderGrantId.value === id) clearHolderToken(); // the credential we hold is now worthless
+    say('Revoked — future reads blocked'); await load();
+  } catch (e) { say(e instanceof Error ? e.message : 'revoke failed'); }
+}
+/**
+ * Exercising a grant needs the grant's own credential, which the PATIENT does not hold — that is the
+ * whole point of holder binding, and the button is disabled rather than quietly failing for any
+ * grant whose token is not the one in this session. No grant id is sent; the credential names it.
+ */
+const canExercise = (id: string) => holderGrantId.value === id;
 async function doAgentRead(id: string) {
-  const r = await agentRead(id);
-  if (r.blocked) say(`🔒 ${r.reason}`); else say(`Agent read ✓ receipt ${r.receipt?.id} (read #${r.reads})`);
+  if (!canExercise(id)) { say('You do not hold this grant’s token — only its holder can exercise it.'); return; }
+  try {
+    const r = await agentRead();
+    if (r.blocked) say(`🔒 ${r.reason}`); else say(`Agent read ✓ receipt ${r.receipt?.id} (read #${r.reads})`);
+  } catch (e) {
+    if (e instanceof HolderAuthError) { clearHolderToken(); say(`🔒 ${e.reason}`); }
+    else say(e instanceof Error ? e.message : 'read failed');
+  }
   await load();
 }
 </script>
@@ -265,17 +319,51 @@ async function doAgentRead(id: string) {
             <div class="sh-ttl"><label>expires in</label><input v-model.number="ng.ttl" type="number" min="1" max="365" class="j ttl" /><span>days</span></div>
             <button class="btn" @click="doGrant" :disabled="!ng.agent.trim()">Grant read</button>
           </div>
+          <!-- the token, shown ONCE: the only moment it exists outside its holder -->
+          <div v-if="issued" class="sh-issued">
+            <b class="iss-h">🔑 Access token for {{ issued.agent }} — shown once</b>
+            <code class="iss-tok">{{ issued.token }}</code>
+            <div class="iss-actions">
+              <button class="mini" @click="copyIssued">{{ copied ? 'copied ✓' : 'copy' }}</button>
+              <button class="mini" @click="dismissIssued">done — hide it</button>
+            </div>
+            <p class="iss-note">{{ issued.note }}</p>
+            <p class="iss-note">
+              Give this to {{ issued.agent }} over a channel you trust. It is not saved here, and it is
+              not recoverable — only its digest is stored, so a lost token means re-issuing the grant.
+            </p>
+          </div>
+
           <div class="grants">
             <div v-for="g in twin.grants" :key="g.id" class="grant" :class="{ revoked: g.revoked, expired: !g.active && !g.revoked }">
-              <div class="g-top"><b>{{ g.agent }}</b><span class="g-state">{{ g.revoked ? 'revoked' : g.active ? 'active' : 'expired' }}</span></div>
+              <div class="g-top">
+                <b>{{ g.agent }}</b>
+                <span class="g-state">{{ g.revoked ? 'revoked' : g.active ? 'active' : 'expired' }}</span>
+              </div>
               <div class="g-scope">{{ g.scope }}</div>
               <div class="g-meta"><span>reads <b class="tnum">{{ g.reads }}</b></span><span class="g-exp">exp {{ g.expires_at.slice(0, 10) }}</span><span class="g-rcpt mono">{{ g.receipt }}</span></div>
+              <!-- can this grant authenticate anyone at all? -->
+              <div class="g-bound" :class="holderBound[g.id] === false ? 'unbound' : holderBound[g.id] ? 'bound' : 'unknown'">
+                <template v-if="holderBound[g.id]">🔑 holder-bound — only whoever holds its token can read</template>
+                <template v-else-if="holderBound[g.id] === false">⚠ authenticates nobody — issued before tokens; every read is refused until re-issued</template>
+                <template v-else>· holder binding unknown — the grants list did not answer</template>
+              </div>
               <div class="g-actions">
-                <button class="mini" @click="doAgentRead(g.id)">simulate agent read</button>
+                <button class="mini" :disabled="!canExercise(g.id)"
+                  :title="canExercise(g.id) ? 'Read as the holder, using the token issued in this session' : 'You do not hold this grant’s token — only its holder can exercise it'"
+                  @click="doAgentRead(g.id)">exercise this grant</button>
                 <button v-if="!g.revoked" class="mini danger" @click="doRevoke(g.id)">revoke</button>
               </div>
             </div>
             <p v-if="!twin.grants.length" class="sh-empty">No grants — your records are private.</p>
+            <p v-if="anyUnbound" class="sh-warn">
+              A grant that <b>authenticates nobody</b> predates holder binding. It reads as active but
+              cannot be used — revoke it and issue a new one to replace it.
+            </p>
+            <p class="sh-fine">
+              “Exercise” is enabled only for a grant whose token was issued in this session. You are the
+              patient — you do not hold a clinician's token, and that is the protection working.
+            </p>
           </div>
         </aside>
       </div>
@@ -477,7 +565,19 @@ async function doAgentRead(id: string) {
 .g-meta { display: flex; gap: 8px; font-size: 10px; color: var(--muted); align-items: center; flex-wrap: wrap; } .g-rcpt { color: var(--faint); } .mono { font-family: var(--mono); }
 .g-actions { display: flex; gap: 5px; margin-top: 5px; }
 .mini { border: 1px solid var(--hairline-strong); background: var(--surface); color: var(--ink-2); border-radius: var(--r-2); padding: 2px 8px; font-size: 11px; cursor: pointer; } .mini.danger { border-color: var(--fail); color: var(--fail); }
+.mini:disabled { opacity: .45; cursor: default; }
 .sh-empty { font-size: 11.5px; color: var(--faint); }
+/* can this grant authenticate anyone — the difference between a capability and a credential */
+.g-bound { font-size: 10px; line-height: 1.45; margin-top: 4px; }
+.g-bound.bound { color: var(--ok); } .g-bound.unbound { color: var(--warn); } .g-bound.unknown { color: var(--faint); }
+.sh-warn { font-size: 11px; line-height: 1.5; color: var(--warn); margin: 6px 0 0; }
+.sh-fine { font-size: 10.5px; line-height: 1.5; color: var(--faint); margin: 6px 0 0; }
+/* the minted token, shown once */
+.sh-issued { border: 1px solid color-mix(in srgb, var(--ok) 45%, var(--hairline)); background: color-mix(in srgb, var(--ok) 7%, var(--surface)); border-radius: var(--r-2); padding: 9px 10px; margin-bottom: 8px; }
+.iss-h { display: block; font-size: 12px; color: var(--ok); margin-bottom: 6px; }
+.iss-tok { display: block; font-family: var(--mono); font-size: 11px; word-break: break-all; user-select: all; background: var(--sunken); border: 1px solid var(--hairline); border-radius: var(--r-1); padding: 6px 8px; color: var(--ink); }
+.iss-actions { display: flex; gap: 5px; margin-top: 6px; }
+.iss-note { font-size: 10.5px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
 
 /* factsheet content */
 .fs-top { margin-bottom: var(--sp-3); }
