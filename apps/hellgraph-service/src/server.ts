@@ -25,6 +25,8 @@
  *   POST /api/graph/shacl          { shapes } → SHACL validation (core constraints; complex shapes via pyshacl sidecar)
  *   POST /api/membrane/decide      spec-valid EffectRequest wrapping an OrderIntent → policy kernel v0 →
  *                                  EffectDecision node (idempotent by key), sealed via compute-gateway (membrane.ts)
+ *   GET  /metrics                   Prometheus exposition (metrics.ts) — the slo-gate canary AnalysisTemplate's
+ *                                    Prometheus queries read the http_server_request_duration_seconds series this emits.
  *
  * Wave 2 doors (auth.ts / membrane.ts, both flag-gated): AUTH_ENFORCE=on requires scoped HMAC bearer
  * tokens on /api/graph/* + /api/membrane/*; MEMBRANE_ENFORCE=on makes ExecutionReport writes require
@@ -52,6 +54,7 @@ import { assembleOrgans } from './organs.js'
 import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
 import { sealToSpine, spineEnabled, unsealedReceipts } from './spine.js'
 import { verifyRcArtifact, expectedDigestFor, RC_SOURCE } from './ontology-provenance.js'
+import { instrumentHttp, metricsText, metricsContentType } from './metrics.js'
 
 const PORT = Number(process.env.PORT ?? 8090)
 
@@ -86,8 +89,35 @@ function initGovernanceOrDie(): { auth: AuthState; membrane: MembraneState } {
 }
 const { auth, membrane } = initGovernanceOrDie()
 
-const server = http.createServer((req, res) => {
+// Every route path this server actually handles (mirrors the header comment above),
+// used to shape the /metrics `http_route` label: hellgraph-service's routes carry no
+// path params (they take arguments via the query string), so this is a closed set —
+// anything else (typos, scanners, the legacy /metrics-less callers hitting a 404)
+// collapses to a fixed "unmatched" bucket rather than growing label cardinality per
+// distinct bad path.
+const KNOWN_ROUTES = new Set<string>([
+  '/metrics', '/healthz', '/api/organs',
+  '/api/graph/kko', '/api/graph/enrich', '/api/graph/explore', '/api/graph/stats',
+  '/api/graph/log', '/api/graph/analytics', '/api/graph/node', '/api/graph/edge',
+  '/api/graph/query', '/api/graph/subgraph', '/api/graph/surface', '/api/graph/resource',
+  '/api/graph/ground', '/api/graph/ask', '/api/graph/reason', '/api/graph/sparql',
+  '/api/graph/gremlin', '/api/graph/cypher', '/api/graph/shacl', '/api/membrane/decide',
+])
+function routeOf(pathname: string): string {
+  if (pathname.startsWith('/api/federation/')) return '/api/federation/*'
+  return KNOWN_ROUTES.has(pathname) ? pathname : 'unmatched'
+}
+
+function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): void {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
+
+  // Prometheus scrape target — deliberately BEFORE the auth gate (never token-gated;
+  // ungated the same way /healthz is) and before touching the engine at all.
+  if (req.method === 'GET' && url.pathname === '/metrics') {
+    res.writeHead(200, { 'content-type': metricsContentType })
+    return void metricsText().then((body) => res.end(body))
+  }
+
   const g = getHellGraph()
 
   // Scope gate first (auth.ts): with AUTH_ENFORCE=on, nothing under /api/graph/* or
@@ -480,7 +510,9 @@ const server = http.createServer((req, res) => {
   }
 
   json(res, 404, { error: 'not_found' })
-})
+}
+
+const server = http.createServer(instrumentHttp(routeOf, requestHandler))
 
 // Auto-seed on boot (idempotent): a fresh pod starts with an empty store (the /data VOLUME is
 // ephemeral — no PVC is mounted — so nothing persists across restarts), which leaves every knowledge
