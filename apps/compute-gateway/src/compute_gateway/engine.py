@@ -218,6 +218,22 @@ def memo_key(project: str, kind: str, backend: str, spec: dict) -> str:
     return receipts.sha({"project": project, "kind": kind, "backend": backend, "spec": spec})
 
 
+def read_memo_spec(kind: str, spec: dict, actor: str, entitlement: str | None):
+    """Memo spec for the compute cache.
+
+    The compute memo is keyed by (project, kind, backend, spec) and served to any
+    caller that matches — safe only while a result is caller-independent. The
+    read-path masking PDP makes graph reads depend on the caller's actor/entitlement
+    (per-tenant policy + forbidden-mixture veto), so folding caller identity into the
+    memo spec for maskable read kinds keeps one tenant's masked view from being served
+    to another out of the cache. Non-read kinds are unchanged (their cross-caller
+    memoization — the intended optimization — stands).
+    """
+    if kind in masking.READ_KINDS:
+        return {"spec": spec, "actor": actor, "entitlement": entitlement}
+    return spec
+
+
 def _weakest(warrants: list[str]) -> str:
     if not warrants:
         return "unknown"
@@ -351,7 +367,7 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
             entitlement_required=not entitled, grant_check=check,
             message=check["result"]["reason"])
 
-    key = memo_key(req.project, kind, backend, req.spec)
+    key = memo_key(req.project, kind, backend, read_memo_spec(kind, req.spec, req.actor, req.entitlement))
     if MEMOIZE and not req.no_cache and key in _MEMO:
         cached = _MEMO[key].model_copy(deep=True)
         cached.memoized = True

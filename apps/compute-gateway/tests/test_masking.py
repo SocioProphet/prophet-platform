@@ -5,6 +5,7 @@ import json
 
 from compute_gateway import masking
 from compute_gateway.contract import ComputeOutput
+from compute_gateway.engine import memo_key, read_memo_spec
 
 
 def _graph_output():
@@ -106,3 +107,18 @@ def test_legacy_global_still_applies(monkeypatch):
     monkeypatch.setenv("GATEWAY_MASKING_POLICY", json.dumps({"mask_fields": {"mrn": "redact"}}))
     r = masking.apply([_graph_output()], kind="graph-query", project="whatever", actor="u", entitlement=None)
     assert r[0].data["nodes"][0]["properties"]["mrn"] == "[REDACTED]"
+
+
+def test_read_memo_is_isolated_per_caller():
+    # A masked read result must not be shared across callers via the compute memo.
+    spec = {"label": "patients"}
+    a = memo_key("p", "graph-query", "hellgraph", read_memo_spec("graph-query", spec, "alice", "ent-a"))
+    b = memo_key("p", "graph-query", "hellgraph", read_memo_spec("graph-query", spec, "bob", "ent-b"))
+    assert a != b, "different callers must get different read memo keys (no cross-tenant leak)"
+    # same caller + same query → same key (memo still works within a tenant)
+    a2 = memo_key("p", "graph-query", "hellgraph", read_memo_spec("graph-query", spec, "alice", "ent-a"))
+    assert a == a2
+    # non-read kinds are unchanged (caller identity does NOT fragment their memo)
+    n1 = memo_key("p", "spark", "spark-runner", read_memo_spec("spark", spec, "alice", "ent-a"))
+    n2 = memo_key("p", "spark", "spark-runner", read_memo_spec("spark", spec, "bob", "ent-b"))
+    assert n1 == n2
