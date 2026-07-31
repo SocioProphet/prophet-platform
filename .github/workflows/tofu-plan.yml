@@ -56,6 +56,14 @@ jobs:
           tofu init -backend=false
           tofu validate
 
+      - name: validate — dns
+        run: |
+          cd infra/tofu/envs/dns
+          tofu init -backend=false
+          tofu validate
+        env:
+          TF_VAR_project: "validate-placeholder"
+
   gcp-plan-readiness:
     name: Check gcp-plan secret readiness
     runs-on: ubuntu-latest
@@ -145,3 +153,79 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check for provider leakage
         run: python3 tools/validate_no_provider_leakage.py
+
+  dns-plan-readiness:
+    name: Check dns-plan secret readiness
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      ready: ${{ steps.ready.outputs.ready }}
+    steps:
+      - id: ready
+        name: Determine whether dns-plan secrets are configured
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          GCP_DNS_PROJECT: ${{ secrets.GCP_DNS_PROJECT }}
+        run: |
+          if [ -n "$WIF_PROVIDER" ] && [ -n "$WIF_SERVICE_ACCOUNT" ] && [ -n "$GCP_DNS_PROJECT" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "dns-plan secrets are not configured; skipping live DNS plan. Static OpenTofu validation still runs."
+          fi
+
+  plan-dns:
+    name: Plan dns
+    runs-on: ubuntu-latest
+    needs: dns-plan-readiness
+    if: github.event_name == 'pull_request' && needs.dns-plan-readiness.outputs.ready == 'true'
+    permissions:
+      contents: read
+      id-token: write   # for Workload Identity Federation
+    environment: gcp-plan
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Authenticate to GCP via WIF
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Init dns
+        run: tofu init
+        working-directory: infra/tofu/envs/dns
+
+      - name: Plan dns
+        run: tofu plan -out=plan.out -no-color 2>&1 | tee plan.txt
+        working-directory: infra/tofu/envs/dns
+        env:
+          TF_VAR_project: ${{ secrets.GCP_DNS_PROJECT }}
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tofu-plan-dns-${{ github.sha }}
+          path: |
+            infra/tofu/envs/dns/plan.out
+            infra/tofu/envs/dns/plan.txt
+          retention-days: 30
+
+      - name: Post plan summary to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/tofu/envs/dns/plan.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.slice(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## OpenTofu Plan — dns\n\`\`\`hcl\n${truncated}\n\`\`\``
+            });

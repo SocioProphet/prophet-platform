@@ -1,0 +1,97 @@
+# Domain portfolio — single source of truth for the DNS-as-code plane.
+#
+# Fields per domain:
+#   domain      (required) apex, no trailing dot
+#   role        (required) canonical | redirect | reserved | mail
+#   mail        (optional, default false) SAFETY FLAG. false = hard anti-spoof lockdown
+#               (SPF -all, null-MX, DMARC p=reject). true = never auto-guess live mail;
+#               SPF/MX unmanaged, DMARC observe-mode (p=none) unless overridden.
+#   dnssec      (optional, default true)
+#   dmarc_policy(optional) override: none | quarantine | reject
+#   spf         (optional) override SPF value (only needed for mail domains)
+#   mx          (optional) list of MX rrdatas (only for mail domains)
+#   manage_ns   (optional, default false) delegate NS at Namecheap (needs var.manage_registrar)
+#   records     (optional) extra records: [{name,type,ttl,rrdatas}]; name '@' = apex
+#   notes       (optional) free text
+#
+# NOTE: roles below are a best-guess starting point — confirm/adjust. The security
+# baseline applies regardless of role, so this file is safe to plan as-is.
+domains:
+  # ── canonical product surfaces ────────────────────────────────────────────
+  - domain: socioprophet.com
+    role: canonical
+    mail: true
+    notes: "marketing / product home. mail:true = observe-mode DMARC, SPF/MX left as-is."
+  - domain: socioprophet.ai
+    role: canonical
+    mail: true
+    notes: "search / AI surface. mail:true = observe-mode."
+  - domain: socioprophet.id
+    role: canonical
+    notes: "identity plane (DigitalSoulIdentity / ProofOfSelf). confirm if it sends mail."
+  - domain: sourceos.org
+    role: canonical
+    notes: "SourceOS / SociOS Linux project home."
+  - domain: socioslinux.com
+    role: canonical
+    notes: "SociOS Linux distro. confirm vs redirect to sourceos.org."
+  - domain: truthorbot.net
+    role: canonical
+    notes: "truthorbot product. confirm."
+
+  # ── dev / docs ──────────────────────────────────────────────────────────────
+  - domain: socioprophet.dev
+    role: redirect
+  - domain: socioprophet.io
+    role: redirect
+  - domain: socios.dev
+    role: redirect
+  - domain: socioprophet.sh
+    role: reserved
+    notes: "dev/tools; reserved."
+  - domain: socioprophet.wiki
+    role: redirect
+    notes: "candidate: docs surface."
+
+  # ── infra ─────────────────────────────────────────────────────────────────
+  - domain: socioprophet.cloud
+    role: reserved
+    notes: "hosted infra; reserved."
+
+  # ── redirects / reserved (defensive + brand) ────────────────────────────────
+  - domain: socioprophet.org
+    role: redirect
+  - domain: socioprophet.academy
+    role: redirect
+    notes: "candidate: learning surface."
+  - domain: socioprophet.digital
+    role: redirect
+  - domain: socioprophet.info
+    role: redirect
+  - domain: socioprophet.exchange
+    role: reserved
+  - domain: socioprophet.law
+    role: reserved
+  - domain: socioprophet.live
+    role: reserved
+    notes: "candidate: events/streaming."
+  - domain: socioprophet.review
+    role: reserved
+  - domain: socioprophet.space
+    role: reserved
+  - domain: socioprophet.support
+    role: reserved
+    notes: "candidate: helpdesk surface."
+  - domain: socioslinux.org
+    role: redirect
+  - domain: sourceos.digital
+    role: redirect
+  - domain: sourceos.software
+    role: redirect
+  - domain: sourceos.systems
+    role: redirect
+  - domain: truthorbot.org
+    role: redirect
+  - domain: socioprofit.com
+    role: reserved
+    notes: "SPELLING: socioPROFIT, not prophet. Defensive/typo reg or a separate product? CONFIRM."
