@@ -90,7 +90,9 @@ func severResidual(scope string) (baseline, residual, contained []string) {
 			}
 		}
 		for _, e := range out {
-			keep := !cut[d] || (scope == "selective" && keepSel[e.label])
+			// Selective keeps kept-label edges, but never expands THROUGH an allow-listed
+			// endpoint (it is terminal — recorded above, never a pivot).
+			keep := !cut[d] || (scope == "selective" && keepSel[e.label] && !allow[e.to])
 			if keep && !seen[e.to] {
 				seen[e.to] = true
 				residual = append(residual, e.to)
