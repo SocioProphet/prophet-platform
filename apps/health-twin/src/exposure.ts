@@ -18,21 +18,37 @@
 // Pure and parameterised so it is testable without standing up a server; server.ts binds a
 // port at import time, which would otherwise make the gate provable only by running it.
 
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 export type Exposure = 'synthetic-only' | 'authenticated';
 
-/** Constant-time string compare. timingSafeEqual throws on a length mismatch, which would
- *  itself leak the length, so unequal lengths are compared against a same-length decoy and
- *  always answer false. */
+/** Constant-time compare whose control flow does not depend on either value's length.
+ *
+ *  `timingSafeEqual` throws on a length mismatch, so something has to handle unequal lengths
+ *  before calling it. The first version of this function guarded that with an early branch —
+ *  correct and necessary — but inside the branch it called `timingSafeEqual(ab, ab)`, the
+ *  presented value against ITSELF, and its docstring described that as comparing "against a
+ *  same-length decoy". It was not a decoy. It compared the attacker's own input to itself,
+ *  discarded the result, and returned false; deleting the line would have changed nothing.
+ *
+ *  The practical leak was negligible: the work is proportional to the presented value in both
+ *  branches, and the attacker already knows how long their own guess is. The defect is that a
+ *  security primitive's comment asserted a mechanism the code did not implement — and comments
+ *  on auth primitives are load-bearing, because the next reader audits the claim rather than
+ *  re-deriving the bytes.
+ *
+ *  Digesting both sides first removes the problem instead of restating it. SHA-256 output is
+ *  always 32 bytes, so the lengths can never differ: there is no throw to dodge, no branch to
+ *  balance, and no decoy to owe anyone. Nothing observable depends on the secret's length or
+ *  its contents. Total work still scales with the PRESENTED value's length, which is the
+ *  attacker's own input — that is unavoidable (it must be read) and discloses nothing.
+ *
+ *  A plain digest rather than an HMAC: the digests are computed and compared inside this
+ *  function and never escape it, so a keyed hash would buy nothing here. */
 function timingSafeEquals(a: string, b: string): boolean {
-  const ab = Buffer.from(a, 'utf8');
-  const bb = Buffer.from(b, 'utf8');
-  if (ab.length !== bb.length) {
-    timingSafeEqual(ab, ab);
-    return false;
-  }
-  return timingSafeEqual(ab, bb);
+  const ad = createHash('sha256').update(a, 'utf8').digest();
+  const bd = createHash('sha256').update(b, 'utf8').digest();
+  return timingSafeEqual(ad, bd);
 }
 
 export interface ExposureDenial {

@@ -65,3 +65,37 @@ test('an unset token fails closed with 503, not open', () => {
     503,
   );
 });
+
+/**
+ * The constant-time compare, pinned at the boundary its docstring talks about.
+ *
+ * The first cut of `timingSafeEquals` branched on a length mismatch and ran
+ * `timingSafeEqual(ab, ab)` — the presented value against ITSELF — while claiming in its
+ * docstring to compare against a "same-length decoy". The compare is now done on SHA-256
+ * digests, which are always 32 bytes, so the mismatch branch is gone entirely.
+ *
+ * These pin the observable half of that: a wrong credential is a 401 at ANY length, never
+ * an exception. The distinction matters because the natural "simplification" of this
+ * function — handing the two raw buffers straight to `timingSafeEqual` — throws
+ * ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH on mismatched lengths, which server.ts would surface
+ * as a 500. A crash is not a refusal.
+ */
+test('a credential of the wrong length is refused, never thrown', () => {
+  assert.equal(exposureDenial(authed('Bearer s3'))?.code, 401);
+  assert.equal(exposureDenial(authed('Bearer s3cretttttttttt'))?.code, 401);
+  assert.equal(exposureDenial(authed(`Bearer ${'x'.repeat(4096)}`))?.code, 401);
+  assert.equal(exposureDenial({ ...authed('Bearer x'), token: 'y'.repeat(512) })?.code, 401);
+});
+
+test('a wrong credential of exactly the right length is refused', () => {
+  // 's3cres' is the same six bytes as 's3cret' with one byte changed, so this takes the
+  // equal-length path and must still refuse.
+  assert.equal(exposureDenial(authed('Bearer s3cres'))?.code, 401);
+});
+
+test('multibyte credentials are compared by content, not collapsed by length', () => {
+  // 'é' is two bytes in UTF-8, the same as 'aa': equal byte length, different content.
+  assert.equal(exposureDenial({ ...authed('Bearer é'), token: 'aa' })?.code, 401);
+  // And a correct multibyte secret still authenticates.
+  assert.equal(exposureDenial({ ...authed('Bearer sécret'), token: 'sécret' }), null);
+});
