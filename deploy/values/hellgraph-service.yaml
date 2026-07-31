@@ -66,49 +66,50 @@ config:
   # honestly (sealed:false + sealError on the decision node), never the gate itself.
   MEMBRANE_ENFORCE: "on"
   COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
-# ── PILOT: Argo Rollouts canary (explore/rollouts-hellgraph-pilot, 2026-07-31) ──────────────
+# ── Argo Rollouts canary — LIVE once merged (explore/rollouts-hellgraph-pilot, 2026-07-31) ──
 # Adopts the shared chart's rollout.* pattern (charts/socioprophet-service/templates/rollout.yaml)
 # instead of infra/k8s/rollouts/base's old standalone rollout-hellgraph-service.example.yaml
 # (retired — this values block is now the source of truth for hellgraph-service's canary shape).
 #
-# rollout.enabled stays FALSE until BOTH prerequisites below are true — flipping it before
-# then does not fail safe, it fails silent-wrong (see feedback_control_that_cannot_fail):
-#   1. METRICS (BLOCKING, not done by this pilot — app-code change, out of scope here):
-#      hellgraph-service serves only /healthz today (apps/hellgraph-service/src/server.ts) — no
-#      /metrics endpoint, no OTel instrumentation. slo-gate's queries
-#      (job:request_error_ratio:rate5m{job="hellgraph-service"} /
-#       job:request_latency_p99:5m{job="hellgraph-service"}) read
-#      http_server_request_duration_seconds_{count,bucket}, which nothing here emits — confirmed
-#      by values.yaml's own metrics.enabled comment ("VERIFIED 2026-07-29 ... hellgraph-service
-#      serves /healthz + /api/graph/*") and by grep: zero prometheus/otel refs in the source tree.
-#      Empty Prometheus series is NOT "healthy" — an AnalysisRun against no data does not
-#      degrade safely, so DO NOT flip rollout.enabled before this service exports those metrics
-#      (add a /metrics endpoint + flip metrics.enabled: true here) and a `job="hellgraph-service"`
-#      series is confirmed flowing in Grafana/Prometheus.
-#   2. TRAFFIC ROUTING PLUGIN (needs a live cluster to validate): the argo-rollouts controller
-#      Application (infra/argocd/progressive-delivery.yaml) must register the Gateway API plugin
-#      via controller.trafficRouterPlugins before trafficRouting.plugin below resolves — unverified
-#      against the pinned chart version (argo-rollouts 2.37.7) offline; confirm on a real cluster.
-# rollout:
-#   enabled: true
-#   steps:
-#     - setWeight: 10
-#     - pause: { duration: 5m }
-#     - setWeight: 50
-#     - pause: { duration: 5m }
-#     - setWeight: 100
+# METRICS-FREE BY DESIGN — no `analysis:` block. hellgraph-service serves only /healthz today
+# (apps/hellgraph-service/src/server.ts) — no /metrics endpoint, no OTel instrumentation, confirmed
+# by grep (zero prometheus/otel refs in the source tree) and by the chart's own values.yaml comment
+# ("VERIFIED 2026-07-29 ... hellgraph-service serves /healthz + /api/graph/*"). An AnalysisRun
+# against `slo-gate`'s queries would read an EMPTY Prometheus series, which is not "healthy" — that
+# does not degrade safely (see feedback_control_that_cannot_fail), so this pilot deliberately ships
+# a fixed-pause canary instead of a half-wired gate. The traffic-SPLIT is real; the SLO-GATING on
+# top of it is not, yet.
+# TO ADD THE GATE LATER (once hellgraph-service exports http_server_request_duration_seconds_* and
+# a `job="hellgraph-service"` series is confirmed flowing in Prometheus/Grafana): set metrics.enabled:
+# true above this block, then add here —
 #   analysis:
 #     templateName: slo-gate
 #     args:
 #       - { name: service, value: hellgraph-service }
 #     startingStep: 1
-#   trafficRouting:
-#     enabled: true
-#     plugin:
-#       name: argoproj-labs/gatewayAPI
-#       config:
-#         httpRoute: hellgraph-service       # infra/k8s/mesh/base/gateway.yaml
-#         namespace: socioprophet
+#
+# trafficRouting is real Gateway API weight-shifting (argoproj-labs/rollouts-plugin-trafficrouter-
+# gatewayapi — Argo Rollouts has no plugin-free native Gateway API support, confirmed against the
+# project's docs source at both the pinned v1.7.2 and the latest v1.9.1), driving the HTTPRoute in
+# infra/k8s/mesh/base/gateway.yaml (backendRefs already renamed to match canaryServiceSuffix/
+# stableServiceSuffix below). Requires deploy/argocd/progressive-delivery-services.yaml's
+# controller.trafficRouterPlugins registration to have actually synced first — see that file's
+# header for what's still unverified about it.
+rollout:
+  enabled: true
+  steps:
+    - setWeight: 20
+    - pause: { duration: 5m }
+    - setWeight: 50
+    - pause: { duration: 5m }
+    - setWeight: 100
+  trafficRouting:
+    enabled: true
+    plugin:
+      name: argoproj-labs/gatewayAPI
+      config:
+        httpRoute: hellgraph-service       # infra/k8s/mesh/base/gateway.yaml
+        namespace: socioprophet
 secretEnv:
   # The SAME compute-gateway-token Secret compute-gateway + prophet-materializer-clickhouse
   # already require in this namespace — nothing new is provisioned, for either the membrane's

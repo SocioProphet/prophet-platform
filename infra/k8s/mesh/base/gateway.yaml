@@ -1,14 +1,26 @@
-# Gateway API (served by Cilium's Gateway controller) — the north-south entry
-# and the traffic-splitting substrate for traffic-shaped canaries (Argo Rollouts
-# can drive HTTPRoute weights instead of replica weights). Requires the Gateway
-# API CRDs + Cilium gatewayAPI.enabled=true.
+# Gateway API — the traffic-splitting substrate for traffic-shaped canaries (Argo Rollouts
+# drives HTTPRoute weights instead of replica weights, via the argoproj-labs/gatewayAPI
+# plugin — see deploy/argocd/progressive-delivery-services.yaml; there is no plugin-free
+# native support for this in Argo Rollouts as of v1.9.1, confirmed against the project's own
+# docs source).
+#
+# gatewayClassName: gke-l7-rilb (2026-07-31, was `cilium` — dropped; this cluster has no
+# separate Cilium Helm install and no CiliumNetworkPolicy CRD, only GKE's native Gateway API
+# implementation). Confirmed via `kubectl get gatewayclass` against the live cluster:
+# gke-l7-rilb/-gxlb/-regional-external-managed/-global-external-managed all exist.
+# gke-l7-rilb (regional INTERNAL LB) chosen to match this Gateway's `allowedRoutes: from:
+# Same` intent (in-namespace only, no internet exposure) — NOT a lightweight in-cluster
+# proxy the way Cilium's own Gateway controller would have been: GKE's Gateway controller
+# provisions a REAL regional internal Google Cloud load balancer for this. That's a cost +
+# behavior difference from the original Cilium design worth a second look before this ships
+# broadly (fine for a single pilot service; reconsider if many services adopt this pattern).
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: socioprophet-gateway
   namespace: socioprophet
 spec:
-  gatewayClassName: cilium
+  gatewayClassName: gke-l7-rilb
   listeners:
     - name: http
       protocol: HTTP

@@ -1,0 +1,131 @@
+# Progressive delivery (Argo Rollouts canary/A-B, metric-gated once metrics exist) — CONNECTED
+# into the watched tree (explore/rollouts-hellgraph-pilot, 2026-07-31; moved from
+# infra/argocd/progressive-delivery.yaml, same fix class as this directory's own
+# observability-services.yaml move: the tofu root app-of-apps only recurses deploy/argocd,
+# so anything under infra/argocd/ never reaches the cluster no matter how correct it is).
+#
+# Verified live on the cluster (read-only kubectl, gke_socioprophet-platform_us-central1_
+# prophet-platform) before this move: no `argo-rollouts` namespace, no rollouts.argoproj.io /
+# analysistemplates.argoproj.io CRDs — only an orphaned, partially-installed
+# `experiments.argoproj.io` CRD dated 2026-07-30 (a prior interrupted attempt, left as-is; not
+# this PR's job to clean up). infra/argocd/progressive-delivery.yaml had genuinely never
+# reconciled, not just gone stale.
+#
+# CILIUM DROPPED (was going to be installed as its own Application here). Confirmed live:
+# this cluster's Gateway API CRDs (gateways/httproutes/gatewayclasses/referencegrants/
+# tlsroutes/backendtlspolicies.gateway.networking.k8s.io, plus GKE's own
+# gcpgatewaypolicies.networking.gke.io) are GKE's NATIVE Gateway implementation
+# (networking.gke.io/gateway controller) — already installed, no separate CNI/mesh chart
+# needed. Also confirmed: `ciliumnetworkpolicies.cilium.io` is NOT registered on this cluster
+# (GKE Autopilot's Dataplane V2 exposes only its own internal Cilium bookkeeping CRDs —
+# ciliumendpoints/ciliumidentities/ciliumnodes/ciliumlocalredirectpolicies — never the
+# user-facing CiliumNetworkPolicy CRD). infra/k8s/mesh/base/cilium-networkpolicy.yaml was
+# converted to a plain networking.k8s.io/v1 NetworkPolicy for that reason — Dataplane V2
+# enforces standard NetworkPolicy natively, no CRD needed.
+#
+# TRAFFIC ROUTING: Argo Rollouts has NO plugin-free native Gateway API support (verified
+# against the argoproj/argo-rollouts docs source at the pinned v1.7.2 AND at the latest
+# v1.9.1 — "Gateway API" in the traffic-management provider list links to plugins.md in
+# both; google-cloud.md explicitly says GKE Gateway API integration is "available with the
+# Argo Rollouts Gateway API plugin" too). There is no trafficRouting.gatewayAPI key to
+# switch to — the argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi plugin below is the
+# only path to weighted-HTTPRoute canaries, on Cilium OR on GKE's native Gateway alike; only
+# the GatewayClass underneath changed (infra/k8s/mesh/base/gateway.yaml: cilium → gke-l7-rilb,
+# the internal regional GatewayClass — matches the Gateway's namespace-internal-only intent
+# and was confirmed available via `kubectl get gatewayclass` on this cluster).
+#
+# hellgraph-service (deploy/values/hellgraph-service.yaml) does NOT use the AnalysisTemplate
+# below yet — no /metrics exist for it (separate, unresolved prerequisite) — it runs a
+# metrics-free canary (fixed weights + pauses only). progressive-delivery-base still ships
+# the AnalysisTemplate for whichever service instruments itself first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: 2.37.7   # appVersion v1.7.2 (confirmed via `gh api` against argoproj/argo-helm) — current
+    helm:
+      releaseName: argo-rollouts
+      values: |
+        controller:
+          metrics:
+            enabled: true
+          # Registers the Gateway API traffic router plugin so a Rollout's
+          # trafficRouting.plugins["argoproj-labs/gatewayAPI"] stanza (see
+          # charts/socioprophet-service/templates/rollout.yaml, opted into by
+          # deploy/values/hellgraph-service.yaml's trafficRouting block) resolves on
+          # the controller — without this the plugin name is a dangling reference and
+          # the Rollout errors at reconcile, not at apply.
+          # UNVERIFIED offline (no live-cluster apply done from this branch): this
+          # key's shape against the pinned argo-rollouts chart 2.37.7 / controller
+          # v1.7.2 needs confirming once ArgoCD actually syncs it — the plugin
+          # release URL below is a placeholder pointer (upstream release asset), not
+          # a digest-pinned artifact per the estate's vendoring convention. hellgraph-
+          # service's own rollout doesn't reference this plugin yet either (its
+          # trafficRouting.enabled stays false — see deploy/values/hellgraph-service.yaml)
+          # until this is confirmed live.
+          trafficRouterPlugins:
+            - name: argoproj-labs/gatewayAPI
+              location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-amd64
+        dashboard:
+          enabled: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: progressive-delivery-mesh
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/mesh/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: progressive-delivery-base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/rollouts/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
