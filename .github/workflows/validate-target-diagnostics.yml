@@ -254,6 +254,17 @@ jobs:
   # DO NOT RENAME THIS JOB. `diagnostics-gate` is the only context in the
   # `main-required-checks` ruleset, and gitops-promote.yml dispatches this
   # workflow specifically to produce this check name on promote branches.
+  # That instruction is now ENFORCED, not merely written down: the rule below
+  # excludes this exact job id from its wiring check (a job cannot need itself)
+  # and asserts the name is present, so a rename turns the gate RED instead of
+  # silently disabling it.
+  #
+  # ADDING A JOB TO THIS FILE? It must also go in `needs:` below and be
+  # classified in tools/ci_diagnostics_gate.py. A job that is declared here but
+  # left out of `needs:` still runs and can still fail, and this — the only
+  # required check in the repository — would never look at it. The rule checks
+  # for that too, from the file rather than from the `needs:` payload, because
+  # the payload cannot report a job that was never wired in.
   #
   # This gate used to read:
   #   [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "false" ]
