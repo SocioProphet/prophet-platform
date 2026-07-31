@@ -85,7 +85,6 @@ the check stays green because it is never asked.
   - tools/validate_repo.py reads docs/TRITRPC_PLATFORM_BINDING.md, not matched by paths: filter
   - tools/validate_repo.py reads docs/TRITRPC_SPEC.md, not matched by paths: filter
   - tools/validate_repo.py reads docs/ZONE_MODEL.md, not matched by paths: filter
-  - tools/validate_repo.py reads infra/k8s/argo-cd/appsets/socioprophet-appset.yaml, not matched by paths: filter
   - tools/validate_repo.py reads tools/run_prophet_understand_vertical_slice.py, not matched by paths: filter
   - tools/validate_repo.py reads tools/validate_professional_intelligence.py, not matched by paths: filter
   - tools/validate_repo.py reads tools/validate_prophet_understand.py, not matched by paths: filter
