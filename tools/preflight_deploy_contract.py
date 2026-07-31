@@ -177,6 +177,11 @@ KNOWN_BROKEN = {
         "declarations -> fail-closed-validated DeviceReadings) added to CI this PR. Pin tag:latest -> the sha- "
         "tag after the first CI build; no sha exists until merge."
     ),
+    "cloud-twin:moving-tag": (
+        "New service — Cloud-Twin as a Service (apps/cloud-twin: GenesisSeed -> verified Twin -> replayable "
+        "TwinEventEnvelope stream; Cybernetic Agentic Genesis & Inception Phase-1 read-only skeleton) added to CI "
+        "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
+    ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
