@@ -1,12 +1,29 @@
+variable "dns_cloud" {
+  type        = string
+  default     = "gcp"
+  description = "Which cloud emitter renders the records: gcp | aws. Adding a cloud = a new emitter module against the dns-records contract."
+  validation {
+    condition     = contains(["gcp", "aws"], var.dns_cloud)
+    error_message = "dns_cloud must be one of: gcp, aws."
+  }
+}
+
 variable "project" {
   type        = string
-  description = "GCP project that hosts the Cloud DNS managed zones."
+  default     = ""
+  description = "GCP project hosting the Cloud DNS zones (required when dns_cloud=gcp)."
+}
+
+variable "aws_region" {
+  type        = string
+  default     = "us-east-1"
+  description = "AWS region for the provider (Route53 is global; region is for the provider handshake)."
 }
 
 variable "dmarc_rua" {
   type        = string
   default     = "dmarc@socioprophet.ai"
-  description = "Mailbox for DMARC reports and CAA iodef notices across the portfolio."
+  description = "Mailbox for DMARC reports and CAA iodef across the portfolio. Its domain hosts the cross-domain _report._dmarc authorizations."
 }
 
 variable "manage_registrar" {
@@ -18,7 +35,7 @@ variable "manage_registrar" {
 variable "create_egress_nat" {
   type        = bool
   default     = false
-  description = "When true, provision a reserved static egress IP + Cloud NAT (module egress-nat) so the registrar API can be called from an allowlistable fixed IP. Requires egress_network."
+  description = "Provision a reserved static egress IP + Cloud NAT so the registrar API can be called from an allowlistable fixed IP. Requires egress_network."
 }
 
 variable "egress_network" {
@@ -55,7 +72,7 @@ variable "namecheap_api_key" {
 variable "namecheap_client_ip" {
   type        = string
   default     = ""
-  description = "The public IP calling the Namecheap API. MUST be allowlisted in the Namecheap API settings (use a static egress IP / bastion — CI runner IPs are dynamic)."
+  description = "Public IP calling the Namecheap API. MUST be allowlisted (use the egress-nat static IP)."
 }
 
 variable "namecheap_sandbox" {

@@ -4,11 +4,6 @@ output "name_servers" {
 }
 
 output "zone_name" {
-  description = "The managed zone resource name."
+  description = "Managed zone resource name."
   value       = google_dns_managed_zone.this.name
-}
-
-output "dns_name" {
-  description = "The zone dns_name (with trailing dot)."
-  value       = google_dns_managed_zone.this.dns_name
 }
