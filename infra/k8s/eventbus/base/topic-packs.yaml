@@ -1,7 +1,9 @@
-# Slash Topic Packs for the mesh — TopicPackRef.v0.1-conformant scope objects.
-# These are the governed identities for the event-bus streams; the Kafka topic
-# name is the transport binding (pack_id). Signatures/policy_bundles are seeded
-# from the slash-topics trust store (trust/slash_topic_trust_store.json), not here.
+# Slash Topic Pack DECLARATIONS for the mesh (pre-sign inputs — NOT yet full
+# TopicPackRefs). The topic-pack signing lifecycle (§4.4 register->sign->publish)
+# emits the conformant TopicPackRef by adding pack_digest, provenance_ref, and
+# byte_size, verified against the slash-topics trust store
+# (trust/slash_topic_trust_store.json). The Kafka topic name is the transport
+# binding of pack_id.
 apiVersion: v1
 kind: ConfigMap
 metadata:
