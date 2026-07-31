@@ -114,6 +114,36 @@ metrics:
   # Scrape port name; "" = the main service.portName (http).
   portName: ""
 
+# Argo Rollouts canary adoption. Default OFF — renders as a plain Deployment
+# (deployment.yaml). Set rollout.enabled: true in a service's values file to
+# render a `Rollout` instead (rollout.yaml) with the same pod spec. See
+# rollout.yaml's header comment for the metrics prerequisite before enabling
+# this against a real slo-gate AnalysisTemplate in prod.
+rollout:
+  enabled: false
+  # Canary steps, passed straight through to strategy.canary.steps, e.g.:
+  #   [{ setWeight: 10 }, { pause: { duration: 5m } }, { setWeight: 50 },
+  #    { pause: { duration: 5m } }, { setWeight: 100 }]
+  steps: []
+  analysis:
+    templateName: ""   # e.g. "slo-gate" (infra/k8s/rollouts/base/analysistemplate-slo.yaml)
+    args: []            # [{ name: service, value: <job label the AnalysisTemplate queries> }]
+    startingStep: 1
+  trafficRouting:
+    # Default OFF = replica-weighted canary (the Service's endpoint list is
+    # just fewer/more canary pods — approximate, no exact traffic %). Turning
+    # this on drives EXACT traffic-shaped weights via a Gateway API HTTPRoute
+    # (served by Cilium here) instead, but needs the plugin registered on the
+    # argo-rollouts controller (controller.trafficRouterPlugins — see
+    # infra/argocd/progressive-delivery.yaml) and an HTTPRoute already
+    # pointing at this service's canary/stable Service names.
+    enabled: false
+    canaryServiceSuffix: "-canary"
+    stableServiceSuffix: "-stable"
+    plugin:
+      name: ""    # e.g. "argoproj-labs/gatewayAPI"
+      config: {}   # e.g. { httpRoute: <name>, namespace: <ns> }
+
 autoscaling:
   enabled: false
   minReplicas: 1

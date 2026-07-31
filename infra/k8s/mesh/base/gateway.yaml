@@ -30,9 +30,18 @@ spec:
         - path:
             type: PathPrefix
             value: /graph
-      # Argo Rollouts rewrites these weights during a traffic-shaped canary
-      # (stable vs canary Service). Starts 100/0.
+      # Two backendRefs (NOT the single Service the chart renders by default) — the
+      # argo-rollouts Gateway API plugin (see deploy/values/hellgraph-service.yaml's
+      # rollout.trafficRouting block) patches these weights during a traffic-shaped
+      # canary. Names must match rollout.trafficRouting.{canary,stable}ServiceSuffix
+      # in charts/socioprophet-service (rollout-services.yaml renders both). Starts
+      # 0/100 (all traffic on stable) until a canary rollout is in flight.
+      # Port 8090 — matches deploy/values/hellgraph-service.yaml's service.port
+      # (was 8080 here; that was stale relative to the Service it targets).
       backendRefs:
-        - name: hellgraph-service
-          port: 8080
+        - name: hellgraph-service-canary
+          port: 8090
+          weight: 0
+        - name: hellgraph-service-stable
+          port: 8090
           weight: 100

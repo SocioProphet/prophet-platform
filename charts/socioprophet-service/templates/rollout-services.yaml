@@ -1,0 +1,37 @@
+{{- /*
+canary/stable Service pair for the Gateway API traffic-routing plugin. The
+plugin patches these Services' selectors with the live canary/stable
+ReplicaSet's pod-template-hash at rollout time — it does not create them, so
+the chart must. The primary Service (service.yaml) keeps selecting the Rollout
+as a whole (svc.selectorLabels, unversioned) for in-cluster callers that don't
+go through the Gateway/HTTPRoute.
+*/ -}}
+{{- if and .Values.rollout.enabled .Values.rollout.trafficRouting.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "svc.fullname" . }}{{ .Values.rollout.trafficRouting.canaryServiceSuffix }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector: {{- include "svc.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: {{ .Values.service.portName }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.portName }}
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "svc.fullname" . }}{{ .Values.rollout.trafficRouting.stableServiceSuffix }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  selector: {{- include "svc.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: {{ .Values.service.portName }}
+      port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.portName }}
+      protocol: TCP
+{{- end }}
