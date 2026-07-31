@@ -1,6 +1,6 @@
 variable "domain" {
   type        = string
-  description = "The domain whose nameservers are delegated, e.g. socioprophet.ai."
+  description = "The registrable domain whose nameservers are delegated (no trailing dot), for example socioprophet.ai"
 }
 
 variable "name_servers" {

@@ -49,5 +49,5 @@ tofu init
 TF_VAR_project=<gcp-project> tofu plan
 ```
 
-After apply, read `terraform output name_servers` for the per-domain Cloud DNS nameservers
+After apply, read `tofu output name_servers` for the per-domain Cloud DNS nameservers
 to delegate at the registrar (or flip `manage_registrar` once the client_ip is allowlisted).

@@ -13,8 +13,9 @@ terraform {
   }
 
   # First run: comment this out for a local backend, then migrate to GCS.
+  # prefix is a directory-like prefix (GCS appends the state object under it).
   backend "gcs" {
     bucket = "prophet-tofu-state-prod"
-    prefix = "dns/terraform.tfstate"
+    prefix = "dns"
   }
 }

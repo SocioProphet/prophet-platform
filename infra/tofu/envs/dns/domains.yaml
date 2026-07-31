@@ -2,7 +2,7 @@
 #
 # Fields per domain:
 #   domain      (required) apex, no trailing dot
-#   role        (required) canonical | redirect | reserved | mail
+#   role        (required) canonical | redirect | reserved  (taxonomy only; mail behavior = the `mail` flag)
 #   mail        (optional, default false) SAFETY FLAG. false = hard anti-spoof lockdown
 #               (SPF -all, null-MX, DMARC p=reject). true = never auto-guess live mail;
 #               SPF/MX unmanaged, DMARC observe-mode (p=none) unless overridden.

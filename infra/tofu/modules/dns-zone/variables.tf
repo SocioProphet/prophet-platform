@@ -5,10 +5,10 @@ variable "domain" {
 
 variable "role" {
   type        = string
-  description = "Portfolio role: canonical | redirect | reserved | mail."
+  description = "Portfolio taxonomy only: canonical | redirect | reserved. Mail behavior is controlled solely by var.mail (kept separate so a role can never contradict the mail safety switch)."
   validation {
-    condition     = contains(["canonical", "redirect", "reserved", "mail"], var.role)
-    error_message = "role must be one of: canonical, redirect, reserved, mail."
+    condition     = contains(["canonical", "redirect", "reserved"], var.role)
+    error_message = "role must be one of: canonical, redirect, reserved."
   }
 }
 
