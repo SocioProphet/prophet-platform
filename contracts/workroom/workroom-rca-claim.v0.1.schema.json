@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/workroom/workroom-rca-claim.v0.1.json",
+  "title": "WorkroomRcaClaim",
+  "description": "CDM EventEnvelope profile for DevSecOps Workroom RCA claims / verdicts / findings. Encodes conformance requirements C2/C4/C5/C7/C9: a claim is Event-IR (EventEnvelope-shaped), carries epistemicLevel + calibrated uncertainty (S3, not boolean), an evidence-integrity manifest (S1 native provenance), space coords + proof ref (S2 three-space), and a membrane decision (execution separation / manifest-gate).",
+  "type": "object",
+  "required": ["id", "type", "source", "time", "topic", "epistemicLevel", "uncertainty", "evidence_integrity", "membrane_decision_ref", "payload"],
+  "properties": {
+    "id":     { "type": "string", "description": "EventEnvelope id" },
+    "type":   { "type": "string", "enum": ["rca.claim", "intel.verdict", "ops.finding", "ops.action"] },
+    "source": { "type": "string", "description": "producing agent/lane (e.g. devsecops-workroom, holmes, gdi)" },
+    "subject":{ "type": "string" },
+    "time":   { "type": "string", "format": "date-time" },
+    "topic":  { "type": "string", "description": "slash topic pack_id (e.g. intel.verdicts, ops.findings)",
+                "pattern": "^(telemetry|ops|intel)\\.[a-z]+$" },
+    "epistemicLevel": {
+      "type": "string",
+      "description": "S3 six-state gradient — strict superset of CoE booleans",
+      "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"]
+    },
+    "uncertainty": {
+      "type": "object",
+      "description": "calibrated uncertainty carried to the decision surface (not collapsed)",
+      "required": ["confidence"],
+      "properties": {
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "interval":   { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "method":     { "type": "string" }
+      }
+    },
+    "evidence_integrity": {
+      "type": "object",
+      "description": "S1 evidence-grade capture: every claim is backed by a hashed evidence bundle (native provenance, not post-hoc)",
+      "required": ["manifest_algo", "manifest_digest"],
+      "properties": {
+        "manifest_algo":   { "type": "string", "enum": ["sha256", "merkle-sha256"] },
+        "manifest_digest": { "type": "string" },
+        "evidence_refs":   { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "space_coords": {
+      "type": "object",
+      "description": "S2 three-space grounding — reproducible semantic anchors",
+      "properties": {
+        "lsa_id":  { "type": "string" },
+        "lsi_id":  { "type": "string" },
+        "lda_mix": { "type": "array", "items": { "type": "number" } }
+      }
+    },
+    "proof_artifact_ref": { "type": "string", "description": "S2 signed analyzer ProofArtifact reference (to the receipt spine)" },
+    "membrane_decision_ref": { "type": "string", "description": "C1/C9 MembraneDecision receipt — no authority without a gate decision" },
+    "authority_sources": {
+      "type": "array",
+      "description": "C9 — ALL authority incl. static/curated (allowlists/seed sets) declared + manifest-gated; no default-trusted exemption",
+      "items": {
+        "type": "object",
+        "required": ["ref", "gated"],
+        "properties": { "ref": { "type": "string" }, "gated": { "type": "boolean", "const": true } }
+      }
+    },
+    "payload": { "type": "object" }
+  }
+}

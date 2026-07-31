@@ -7,31 +7,111 @@
     "S3": "ScientistOne vs BAAP-Superior (native provenance, epistemicLevel superset)"
   },
   "requirements": [
-    { "id": "C1", "source": "S1 §3.1", "text": "execution separation: no privileged action without explicit grant + policy eval",
+    {
+      "id": "C1",
+      "source": "S1 \u00a73.1",
+      "text": "execution separation: no privileged action without explicit grant + policy eval",
       "status": "conforms",
-      "evidence": { "file": "docs/architecture/devsecops-workroom-guardrail-action-safety-scope-v0.1.md", "must_contain": "requires_human_approval" } },
-    { "id": "C2", "source": "S1 §5,§12", "text": "evidence bundles carry a SHA-256/Merkle integrity manifest before backing a claim",
-      "status": "partial", "binding": "require integrity_manifest on every evidence bundle" },
-    { "id": "C3", "source": "S1 §3.3,§10.1", "text": "controlled output: MIME-gated, no binary flooding",
-      "status": "bind", "binding": "MIME-gate the /telemetry/logs producer + evidence ingestion" },
-    { "id": "C4", "source": "S2 §2,§5.2", "text": "claims flow as Event-IR EventEnvelope, ir-validate fail-closed",
-      "status": "bind", "binding": "emit evidence_backed_rca_claims as EventEnvelope on /intel/*" },
-    { "id": "C5", "source": "S2 §3,§5.4", "text": "claims attach (lsa_id,lsi_id,lda_mix) + signed ProofArtifact",
-      "status": "bind", "binding": "RCA/verdict events carry space coords + proof ref to the receipt spine" },
-    { "id": "C6", "source": "S2 §5.5", "text": "Emergence gate: unitary space updates only after coverage/stability",
-      "status": "bind", "binding": "gate LDA-K / LSI-rank expansion of the intel loop" },
-    { "id": "C7", "source": "S3 §3", "text": "claims carry epistemicLevel 6-state + calibrated uncertainty, not boolean",
-      "status": "partial", "binding": "epistemicLevel + uncertainty on every RCA claim/verdict",
-      "evidence": { "file": "docs/architecture/devsecops-workroom-spec-conformance-v0.1.md", "must_contain": "epistemicLevel 6-state" } },
-    { "id": "C8", "source": "S3 §1,§4", "text": "native provenance: evidence captured at claim-production time (not post-hoc)",
+      "evidence": {
+        "file": "docs/architecture/devsecops-workroom-guardrail-action-safety-scope-v0.1.md",
+        "must_contain": "requires_human_approval"
+      }
+    },
+    {
+      "id": "C2",
+      "source": "S1 \u00a75,\u00a712",
+      "text": "evidence bundles carry a SHA-256/Merkle integrity manifest before backing a claim",
+      "status": "partial",
+      "binding": "require integrity_manifest on every evidence bundle",
+      "evidence": {
+        "file": "contracts/workroom/workroom-rca-claim.v0.1.schema.json",
+        "must_contain": "evidence_integrity"
+      }
+    },
+    {
+      "id": "C3",
+      "source": "S1 \u00a73.3,\u00a710.1",
+      "text": "controlled output: MIME-gated, no binary flooding",
+      "status": "bind",
+      "binding": "MIME-gate the /telemetry/logs producer + evidence ingestion"
+    },
+    {
+      "id": "C4",
+      "source": "S2 \u00a72,\u00a75.2",
+      "text": "claims flow as Event-IR EventEnvelope, ir-validate fail-closed",
+      "status": "partial",
+      "binding": "emit evidence_backed_rca_claims as EventEnvelope on /intel/*",
+      "evidence": {
+        "file": "contracts/workroom/workroom-rca-claim.v0.1.schema.json",
+        "must_contain": "WorkroomRcaClaim"
+      }
+    },
+    {
+      "id": "C5",
+      "source": "S2 \u00a73,\u00a75.4",
+      "text": "claims attach (lsa_id,lsi_id,lda_mix) + signed ProofArtifact",
+      "status": "partial",
+      "binding": "RCA/verdict events carry space coords + proof ref to the receipt spine",
+      "evidence": {
+        "file": "contracts/workroom/workroom-rca-claim.v0.1.schema.json",
+        "must_contain": "space_coords"
+      }
+    },
+    {
+      "id": "C6",
+      "source": "S2 \u00a75.5",
+      "text": "Emergence gate: unitary space updates only after coverage/stability",
+      "status": "bind",
+      "binding": "gate LDA-K / LSI-rank expansion of the intel loop"
+    },
+    {
+      "id": "C7",
+      "source": "S3 \u00a73",
+      "text": "claims carry epistemicLevel 6-state + calibrated uncertainty, not boolean",
+      "status": "partial",
+      "binding": "epistemicLevel + uncertainty on every RCA claim/verdict",
+      "evidence": {
+        "file": "docs/architecture/devsecops-workroom-spec-conformance-v0.1.md",
+        "must_contain": "epistemicLevel 6-state"
+      }
+    },
+    {
+      "id": "C8",
+      "source": "S3 \u00a71,\u00a74",
+      "text": "native provenance: evidence captured at claim-production time (not post-hoc)",
       "status": "conforms",
-      "evidence": { "file": "docs/architecture/devsecops-intelligence-workroom-v0.1.md", "must_contain": "evidence" } },
-    { "id": "C9", "source": "S3 §5.1", "text": "manifest-gate ALL authority incl static/curated sources (no default-trusted exemption)",
-      "status": "bind", "binding": "allowlists/seed sets register through the membrane gate" },
-    { "id": "C10", "source": "S1+S3", "text": "poisoned evidence cannot become action authority",
+      "evidence": {
+        "file": "docs/architecture/devsecops-intelligence-workroom-v0.1.md",
+        "must_contain": "evidence"
+      }
+    },
+    {
+      "id": "C9",
+      "source": "S3 \u00a75.1",
+      "text": "manifest-gate ALL authority incl static/curated sources (no default-trusted exemption)",
+      "status": "partial",
+      "binding": "allowlists/seed sets register through the membrane gate",
+      "evidence": {
+        "file": "contracts/workroom/workroom-rca-claim.v0.1.schema.json",
+        "must_contain": "authority_sources"
+      }
+    },
+    {
+      "id": "C10",
+      "source": "S1+S3",
+      "text": "poisoned evidence cannot become action authority",
       "status": "conforms",
-      "evidence": { "file": "docs/architecture/devsecops-workroom-guardrail-action-safety-scope-v0.1.md", "must_contain": "poisoned evidence" } },
-    { "id": "C11", "source": "S3 §5.3", "text": "convergent evaluator-exploitation test class (route to SCOPE-D)",
-      "status": "scope-d", "binding": "SCOPE-D adversarial suite: benchmark-contract vuln class" }
+      "evidence": {
+        "file": "docs/architecture/devsecops-workroom-guardrail-action-safety-scope-v0.1.md",
+        "must_contain": "poisoned evidence"
+      }
+    },
+    {
+      "id": "C11",
+      "source": "S3 \u00a75.3",
+      "text": "convergent evaluator-exploitation test class (route to SCOPE-D)",
+      "status": "scope-d",
+      "binding": "SCOPE-D adversarial suite: benchmark-contract vuln class"
+    }
   ]
 }

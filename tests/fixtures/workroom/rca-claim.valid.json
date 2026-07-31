@@ -1,0 +1,8 @@
+{ "id":"01J...","type":"intel.verdict","source":"holmes","time":"2026-07-31T18:00:00Z",
+  "topic":"intel.verdicts","epistemicLevel":"bounded",
+  "uncertainty":{"confidence":0.82,"interval":[0.71,0.9],"method":"conformal"},
+  "evidence_integrity":{"manifest_algo":"merkle-sha256","manifest_digest":"b3:deadbeef","evidence_refs":["ev://run/42"]},
+  "space_coords":{"lsa_id":"lsa:9","lsi_id":"lsi:3","lda_mix":[0.6,0.4]},
+  "proof_artifact_ref":"proof://spine/778","membrane_decision_ref":"mdr://gate/551",
+  "authority_sources":[{"ref":"allowlist://seed/ops","gated":true}],
+  "payload":{"claim":"deploy X regressed p95 latency"} }
