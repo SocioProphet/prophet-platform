@@ -1,0 +1,97 @@
+# Automated Postgres backups → GCS (pg_dump, gzip, 14-day retention).
+# Workload Identity: annotate the KSA with a GSA that has objectAdmin on the
+# backup bucket. Restore = gunzip | psql into a fresh estate (runbook in Layer 4).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: matrix-backup
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+  annotations:
+    iam.gke.io/gcp-service-account: REPLACE_WITH_BACKUP_GSA@socioprophet-platform.iam.gserviceaccount.com
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-public-backup
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: matrix-backup
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: google/cloud-sdk:slim
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: synapse-public-secrets
+                      key: postgres-password
+                - name: BUCKET
+                  value: gs://prophet-backups/wordops-matrix/public
+              command: [/bin/bash, -c]
+              args:
+                - |
+                  set -euo pipefail
+                  apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+                  ts=$(date -u +%Y%m%dT%H%M%SZ)
+                  f="/tmp/synapse_public-$ts.sql.gz"
+                  pg_dump -h postgres-public -U synapse_public synapse_public | gzip > "$f"
+                  gcloud storage cp "$f" "$BUCKET/synapse_public-$ts.sql.gz"
+                  # retention: delete dumps older than 14 days
+                  cutoff=$(date -u -d '14 days ago' +%Y%m%d 2>/dev/null || date -u -v-14d +%Y%m%d)
+                  gcloud storage ls "$BUCKET/" | while read -r obj; do
+                    d=$(echo "$obj" | grep -oE '[0-9]{8}T' | head -1 | tr -d T)
+                    [ -n "$d" ] && [ "$d" -lt "$cutoff" ] && gcloud storage rm "$obj" || true
+                  done
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-private-backup
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  schedule: "20 3 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: matrix-backup
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: google/cloud-sdk:slim
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: synapse-private-secrets
+                      key: postgres-password
+                - name: BUCKET
+                  value: gs://prophet-backups/wordops-matrix/private
+              command: [/bin/bash, -c]
+              args:
+                - |
+                  set -euo pipefail
+                  apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null
+                  ts=$(date -u +%Y%m%dT%H%M%SZ)
+                  f="/tmp/synapse_private-$ts.sql.gz"
+                  pg_dump -h postgres-private -U synapse_private synapse_private | gzip > "$f"
+                  gcloud storage cp "$f" "$BUCKET/synapse_private-$ts.sql.gz"
+                  cutoff=$(date -u -d '14 days ago' +%Y%m%d 2>/dev/null || date -u -v-14d +%Y%m%d)
+                  gcloud storage ls "$BUCKET/" | while read -r obj; do
+                    d=$(echo "$obj" | grep -oE '[0-9]{8}T' | head -1 | tr -d T)
+                    [ -n "$d" ] && [ "$d" -lt "$cutoff" ] && gcloud storage rm "$obj" || true
+                  done

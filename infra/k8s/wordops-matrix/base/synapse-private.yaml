@@ -1,0 +1,293 @@
+# WordOps Matrix — PRIVATE CORE estate (Synapse + Postgres)
+# Purpose: case rooms, escalation, incident, internal operator + agent workspaces.
+# Posture: private visibility; NO public room directory; federation disabled by
+# default (empty whitelist); E2EE posture checks required before sensitive agent
+# context is released (enforced in the governance layer). Cluster-internal only —
+# no public Ingress. Ported from templates/private-homeserver.yaml.tpl.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: synapse-private-config
+  labels:
+    app.kubernetes.io/name: synapse-private
+    app.kubernetes.io/part-of: wordops-matrix
+    wordops-matrix/estate: private
+data:
+  homeserver.yaml: |
+    server_name: "matrix-core.socioprophet.internal"
+    public_baseurl: "https://matrix-core.socioprophet.internal/"
+    serve_server_wellknown: true
+    pid_file: /data/homeserver.pid
+    listeners:
+      - port: 8008
+        tls: false
+        type: http
+        x_forwarded: true
+        bind_addresses: ['0.0.0.0']
+        resources:
+          - names: [client, federation]
+            compress: false
+    log_config: /config/log.config
+    media_store_path: /data/media_store
+    signing_key_path: /secrets/signing.key
+    report_stats: false
+    default_room_version: "12"
+    # --- hardening (private core is stricter than the public edge) ---
+    enable_registration: false
+    enable_registration_without_verification: false
+    allow_public_rooms_without_auth: false
+    allow_public_rooms_over_federation: false
+    # federation disabled by default: empty whitelist = federate with no servers.
+    # Loosen per-policy only when a specific sensitive-room exception is approved.
+    federation_domain_whitelist: []
+    presence:
+      enabled: false
+    # no third-party identity server for the private core
+    account_threepid_delegates: {}
+    max_upload_size: 50M
+    url_preview_enabled: false
+    # E2EE posture for private rooms is asserted by the governance layer (Layer 2).
+  log.config: |
+    version: 1
+    formatters:
+      precise:
+        format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(request)s - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: precise
+    root:
+      level: INFO
+      handlers: [console]
+    disable_existing_loggers: false
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: synapse-private-secrets
+  labels:
+    app.kubernetes.io/name: synapse-private
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: SecretStore
+    name: REPLACE_WITH_ESTATE_SECRETSTORE
+  target:
+    name: synapse-private-secrets
+    template:
+      engine: v2
+      data:
+        secrets.yaml: |
+          database:
+            name: psycopg2
+            args:
+              user: synapse_private
+              password: "{{ .dbPassword }}"
+              database: synapse_private
+              host: postgres-private
+              port: 5432
+              cp_min: 5
+              cp_max: 10
+          registration_shared_secret: "{{ .registrationSharedSecret }}"
+          macaroon_secret_key: "{{ .macaroonSecretKey }}"
+          form_secret: "{{ .formSecret }}"
+        signing.key: "{{ .signingKey }}"
+        postgres-password: "{{ .dbPassword }}"
+  data:
+    - secretKey: dbPassword
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/wordops-matrix-private-db-password }
+    - secretKey: registrationSharedSecret
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/wordops-matrix-private-registration-shared-secret }
+    - secretKey: macaroonSecretKey
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/wordops-matrix-private-macaroon-secret }
+    - secretKey: formSecret
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/wordops-matrix-private-form-secret }
+    - secretKey: signingKey
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/wordops-matrix-private-signing-key }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-private
+  labels:
+    app.kubernetes.io/name: postgres-private
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  serviceName: postgres-private
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-private
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-private
+        app.kubernetes.io/part-of: wordops-matrix
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: synapse_private
+            - name: POSTGRES_USER
+              value: synapse_private
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: synapse-private-secrets
+                  key: postgres-password
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8 --locale=C"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "synapse_private", "-d", "synapse_private"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: wordops-matrix-data
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-private
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres-private
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: synapse-private
+  labels:
+    app.kubernetes.io/name: synapse-private
+    app.kubernetes.io/part-of: wordops-matrix
+    wordops-matrix/estate: private
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: synapse-private
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: synapse-private
+        app.kubernetes.io/part-of: wordops-matrix
+        wordops-matrix/estate: private
+    spec:
+      securityContext:
+        runAsUser: 991
+        runAsGroup: 991
+        fsGroup: 991
+      containers:
+        - name: synapse
+          image: matrixdotorg/synapse:v1.131.0  # pin; record digest on promote (no :latest)
+          args: ["run", "--config-path", "/config/homeserver.yaml", "--config-path", "/secrets/secrets.yaml"]
+          ports:
+            - containerPort: 8008
+          readinessProbe:
+            httpGet:
+              path: /_matrix/client/versions
+              port: 8008
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8008
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: synapse-private-config
+        - name: secrets
+          secret:
+            secretName: synapse-private-secrets
+        - name: data
+          persistentVolumeClaim:
+            claimName: synapse-private-media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: synapse-private-media
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: wordops-matrix-data
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: synapse-private
+  labels:
+    app.kubernetes.io/name: synapse-private
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  selector:
+    app.kubernetes.io/name: synapse-private
+  ports:
+    - name: client
+      port: 8008
+      targetPort: 8008
+---
+# Private core is cluster-internal: accept client traffic only from in-cluster
+# operator/agent workloads (via the edge) — never a public Ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: synapse-private
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: synapse-private
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: matrix-edge
+      ports:
+        - port: 8008

@@ -1,0 +1,93 @@
+# In-cluster Postgres storage: expandable SSD + a usage-driven PVC autoscaler.
+# GKE has no native PVC autoscaling, so allowVolumeExpansion (online resize) plus
+# this CronJob grow the Postgres volumes when usage crosses a threshold.
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: wordops-matrix-data
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-ssd
+allowVolumeExpansion: true
+reclaimPolicy: Retain          # never lose Postgres data on PVC delete
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: matrix-pvc-autoscaler
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: matrix-pvc-autoscaler
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+rules:
+  - apiGroups: [""]
+    resources: [persistentvolumeclaims]
+    verbs: [get, list, patch]
+  - apiGroups: [""]
+    resources: [pods, pods/exec]
+    verbs: [get, list, create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: matrix-pvc-autoscaler
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: matrix-pvc-autoscaler
+subjects:
+  - kind: ServiceAccount
+    name: matrix-pvc-autoscaler
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: matrix-pvc-autoscaler
+  labels:
+    app.kubernetes.io/part-of: wordops-matrix
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: matrix-pvc-autoscaler
+          restartPolicy: Never
+          containers:
+            - name: autoscaler
+              image: bitnami/kubectl:1.30
+              command: [/bin/bash, -c]
+              args:
+                - |
+                  set -euo pipefail
+                  # Grow each Postgres PVC by 50% when data disk usage > 80%, cap 200Gi.
+                  THRESHOLD=80; MAX_GI=200
+                  for sts in postgres-public postgres-private; do
+                    pod="$sts-0"; pvc="data-$pod"
+                    used=$(kubectl exec "$pod" -c postgres -- df -P /var/lib/postgresql/data \
+                             | awk 'NR==2{gsub("%","",$5); print $5}') || { echo "skip $pod"; continue; }
+                    [ -n "$used" ] || continue
+                    if [ "$used" -ge "$THRESHOLD" ]; then
+                      cur=$(kubectl get pvc "$pvc" -o jsonpath='{.spec.resources.requests.storage}' | sed 's/Gi//')
+                      new=$(( cur + cur/2 )); [ "$new" -gt "$MAX_GI" ] && new=$MAX_GI
+                      if [ "$new" -gt "$cur" ]; then
+                        echo "PVC $pvc at ${used}% -> growing ${cur}Gi to ${new}Gi"
+                        kubectl patch pvc "$pvc" --type merge \
+                          -p "{\"spec\":{\"resources\":{\"requests\":{\"storage\":\"${new}Gi\"}}}}"
+                      fi
+                    else
+                      echo "PVC $pvc at ${used}% (<${THRESHOLD}%), no action"
+                    fi
+                  done

@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# p0-lab overlay: deploy the Matrix substrate into the socioprophet namespace.
+namespace: socioprophet
+
+resources:
+  - ../../base
+
+# Image pins live in base (matrixdotorg/synapse:v1.131.0, postgres:16-alpine,
+# nginx:1.27-alpine). Record digests here on promote to a higher tier.
