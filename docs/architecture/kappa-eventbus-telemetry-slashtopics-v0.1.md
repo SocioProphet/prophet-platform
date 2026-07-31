@@ -95,5 +95,58 @@ Alerts are events on `/ops/alerts`; PagerDuty is a consumer/sink of that topic.
 6. IaC tiering (GCS by locality_class) + Hypercore/kappa-core engine swap (prod).
 ```
 ```
+## 7. Meshed intelligence feedback loop (SynapseIQ · Holmes · Sherlock · GDI)
+
+The intelligence tier is what makes the Map Log a *feedback* loop, not a data
+grave. All four are **both producers and consumers** of slash topics — they
+reason over the same append-only log and emit derived `EventEnvelope` events
+back onto it, gated by the membrane like any other producer.
+
+```
+telemetry/ops events on the Map Log (/telemetry/*, /ops/alerts)
+  → SynapseIQ (enrichment/collector/reasoning): normalize + KKO/Peircean
+      classify → emit /intel/enriched
+  → Sherlock-Search (Tantivy+Qdrant): index enriched events → retrieval;
+      emit /intel/retrieval
+  → Holmes (:8091 /verify): evidence-grounded deduction over Sherlock
+      retrieval → emit /intel/verdicts
+  → global-devsecops-intelligence (AI4IT ops profile): correlate verdicts +
+      telemetry → emit /ops/findings + /ops/actions
+  → actions re-enter as ops events → telemetry → re-analysis  ⟲ (closed loop)
+```
+Existing wiring reused: Sherlock is already Holmes' retrieval component and the
+`corpus` source in search-gateway; Qdrant (`mesh-qdrant`) is the shared vector
+substrate; SynapseIQ plane (reasoning/enrichment/tabular/control-plane/collector)
+and Holmes are already deployed. GDI already has k8s base + ArgoCD wiring but
+**no image build** — it is a draft profile that must become a running consumer.
+
+### 7.1 Build additions (tracked)
+- [ ] **Mesh adapters** — a thin producer/consumer binding per component
+  (SynapseIQ, Sherlock, Holmes, GDI) that subscribes to its input slash topics
+  and publishes `EventEnvelope` outputs, membrane-gated. Prefer a shared
+  `mesh-sdk` over four bespoke clients.
+- [ ] **Slash Topic Packs** for the intel plane: `/intel/enriched`,
+  `/intel/retrieval`, `/intel/verdicts`, `/ops/findings`, `/ops/actions`
+  (signed, `policy_bundle_id`, `locality_class`, `ttl_s`).
+- [ ] **Roll GDI as a service**: Dockerfile (Python) + `images.yml` matrix entry
+  + CI build (SBOM+digest) + `deploy/values/global-devsecops-intelligence.yaml`;
+  promote real sha into the existing k8s base (currently placeholder image).
+- [ ] **GDI prophet-platform IaC**: Workload-Identity SA (least-priv: consume
+  `/telemetry/*` + `/intel/verdicts`, produce `/ops/*`), Secret Manager refs,
+  GCS profile/model store per `locality_class`, ServiceMonitor.
+- [ ] **Feedback-loop liveness**: canary claim traverses the full loop
+  (enriched→retrieval→verdict→finding→action); alert if any hop's slash topic
+  goes silent (never-fired=suspect, end-to-end across the mesh).
+- [ ] **Producer-before-storage gate** extended to the intel topics: every
+  `/intel/*` and `/ops/*` topic MUST have a producer AND a consumer.
+
+## 8. Ownership / lanes
+Intelligence services stay in their repos (`synapseiq`, `holmes`,
+`sherlock-search`, `SocioProphet/global-devsecops-intelligence`); prophet-platform
+owns only the **mesh substrate, IaC, deploy wiring, and slash-topic packs**. The
+authoritative logic lives upstream and is pinned (`standards.lock.yaml`).
+
+---
 **Gated:** every apply/deploy/image-push is a gated action (operator runs it).
-This doc is the contract; concrete artifacts are built against §4 and tracked there.
+This doc is the contract; concrete artifacts are built against §4 and §7 and
+tracked there.
