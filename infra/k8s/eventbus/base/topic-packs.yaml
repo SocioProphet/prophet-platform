@@ -1,0 +1,27 @@
+# Slash Topic Packs for the mesh — TopicPackRef.v0.1-conformant scope objects.
+# These are the governed identities for the event-bus streams; the Kafka topic
+# name is the transport binding (pack_id). Signatures/policy_bundles are seeded
+# from the slash-topics trust store (trust/slash_topic_trust_store.json), not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mesh-topic-packs
+  namespace: eventbus
+  labels:
+    app.kubernetes.io/part-of: eventbus
+data:
+  topic-packs.json: |
+    {
+      "version": "0.1",
+      "packs": [
+        { "pack_id": "telemetry.logs",    "pack_version": "0.1", "policy_bundle_id": "obs.default",  "locality_class": "hot-local",   "ttl_s": 1209600, "tags": ["telemetry","logs"] },
+        { "pack_id": "telemetry.metrics", "pack_version": "0.1", "policy_bundle_id": "obs.default",  "locality_class": "hot-local",   "ttl_s": 1209600, "tags": ["telemetry","metrics"] },
+        { "pack_id": "telemetry.traces",  "pack_version": "0.1", "policy_bundle_id": "obs.default",  "locality_class": "warm-local",  "ttl_s": 604800,  "tags": ["telemetry","traces"] },
+        { "pack_id": "ops.alerts",        "pack_version": "0.1", "policy_bundle_id": "ops.default",  "locality_class": "hot-local",   "ttl_s": 2592000, "tags": ["ops","alerts"] },
+        { "pack_id": "intel.enriched",    "pack_version": "0.1", "policy_bundle_id": "intel.default","locality_class": "warm-local",  "ttl_s": 2592000, "tags": ["intel","synapseiq"] },
+        { "pack_id": "intel.retrieval",   "pack_version": "0.1", "policy_bundle_id": "intel.default","locality_class": "warm-local",  "ttl_s": 2592000, "tags": ["intel","sherlock"] },
+        { "pack_id": "intel.verdicts",    "pack_version": "0.1", "policy_bundle_id": "intel.default","locality_class": "shared-near", "ttl_s": 7776000, "tags": ["intel","holmes"] },
+        { "pack_id": "ops.findings",      "pack_version": "0.1", "policy_bundle_id": "ops.default",  "locality_class": "shared-near", "ttl_s": 7776000, "tags": ["ops","gdi"] },
+        { "pack_id": "ops.actions",       "pack_version": "0.1", "policy_bundle_id": "ops.default",  "locality_class": "shared-near", "ttl_s": 7776000, "tags": ["ops","gdi","action"] }
+      ]
+    }
