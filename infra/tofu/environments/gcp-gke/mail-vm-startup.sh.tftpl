@@ -24,7 +24,10 @@ apt-get install -y postfix postfix-pgsql dovecot-imapd dovecot-lmtpd \
 mkdir -p /etc/opendkim/keys/$DOMAIN
 gcloud secrets versions access latest --secret="${dkim_secret_name}" > /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
 ADMIN_HASH="$(gcloud secrets versions access latest --secret="${admin_pass_secret_name}")"
-chown -R opendkim:opendkim /etc/opendkim/keys && chmod 600 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+# dirs owned by root (opendkim's pre-start check runs as root and rejects key
+# dirs owned by a non-root uid); key readable by the opendkim group only.
+chown -R root:opendkim /etc/opendkim/keys
+chmod 750 /etc/opendkim/keys /etc/opendkim/keys/$DOMAIN && chmod 640 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
 
 # --- TLS via Let's Encrypt (HTTP-01; the A record mail.$DOMAIN must already point here) ---
 if [ ! -d "/etc/letsencrypt/live/$HOST" ]; then
