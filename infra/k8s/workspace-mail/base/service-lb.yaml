@@ -1,0 +1,47 @@
+# External L4 LoadBalancers for the mail plane, bound to the reserved regional static IPs
+# (google_compute_address ws-smtp / ws-imap — see infra/tofu/environments/gcp-gke/workspace-mail.tf).
+# Separate from the ClusterIP services (which keep internal 143/lmtp for in-cluster relay): only the
+# secure, externally-needed ports are exposed here.
+#
+# externalTrafficPolicy: Local — preserve the real client source IP. Mandatory for mail: SMTP
+# reputation, RBL/greylist checks, and SPF all rely on the sending IP, which SNAT would hide.
+#
+# SEQUENCING: safe to land now — the MX stays on Google until TLS is verified (mail-tester >= 9/10),
+# so no real inbound traffic lands here yet. Do NOT cut the MX over until Dovecot ssl=required + a
+# cert-manager cert are in place, or 993 would be plaintext.
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-smtp-lb
+  annotations:
+    networking.gke.io/load-balancer-type: "External"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: "130.211.115.191" # ws-smtp — mail.socioprophet.ai (MX target); set PTR on this IP
+  externalTrafficPolicy: Local
+  selector:
+    app: workspace-smtp
+  ports:
+    - name: smtp
+      port: 25
+      targetPort: 25
+    - name: submission
+      port: 587
+      targetPort: 587
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workspace-imap-lb
+  annotations:
+    networking.gke.io/load-balancer-type: "External"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: "136.116.203.17" # ws-imap — imap.socioprophet.ai
+  externalTrafficPolicy: Local
+  selector:
+    app: workspace-mail
+  ports:
+    - name: imaps # implicit TLS (993) — real once Dovecot ssl=required + cert land; 143/lmtp stay internal-only
+      port: 993
+      targetPort: 993
