@@ -34,10 +34,14 @@ export function resolveScope(preset?: string, spec?: Partial<GrantScope>): Grant
 }
 
 // A grant either opens (ok) or blocks with a stated reason — never a silent partial.
-export function resolveGrant(grants: Grant[], id: string):
+//
+// Takes the ledger either as the array or as an id-keyed index. server.ts passes the index: a linear
+// `.find()` makes the time to refuse an answer to "does this id exist?", which is the enumeration
+// oracle the uniform refusal body exists to close. The array form stays for callers that hold one.
+export function resolveGrant(grants: Grant[] | ReadonlyMap<string, Grant>, id: string):
   | { ok: true; grant: Grant }
   | { ok: false; reason: string } {
-  const g = grants.find((x) => x.id === id);
+  const g = Array.isArray(grants) ? grants.find((x) => x.id === id) : grants.get(id);
   if (!g) return { ok: false, reason: 'grant not found' };
   if (g.revoked) return { ok: false, reason: 'grant revoked — read denied' };
   if (new Date(g.expires_at) <= new Date()) return { ok: false, reason: 'grant expired — read denied' };

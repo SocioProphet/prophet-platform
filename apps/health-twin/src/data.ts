@@ -53,6 +53,10 @@ export interface ImagingStudy { id: string; system: string; modality: string; bo
 export interface Grant {
   id: string; agent: string; scope: string; granted_at: string; expires_at: string;
   revoked: boolean; reads: number; receipt: string;
+  // `sha256-<hex>` of the holder secret minted when the grant was issued. The secret itself is shown
+  // ONCE, in the issue response, and is never stored — so a stolen ledger yields no readable grant.
+  // Absent = the grant binds no holder and authenticates nobody (see grantauth.ts; it fails closed).
+  holderDigest?: string;
   // structured consent scope (systems/kinds/lookback) — `scope` stays the human-readable label.
   // Type-only import from grants.js: no runtime cycle.
   scopeSpec?: import('./grants.js').GrantScope;

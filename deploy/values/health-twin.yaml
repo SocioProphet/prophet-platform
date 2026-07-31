@@ -28,3 +28,13 @@ config:
   # do NOT put the token here. Absent → the twin degrades gracefully to the local sourced KB (no break).
   # SMART launch link base for CDS Hooks cards (the cockpit's /health surface).
   SMART_APP_BASE: "https://socioprophet.md"
+  # CORS. Deliberately NOT set, and that is the whole point: the cockpit reaches this service
+  # SAME-ORIGIN through nginx (`/svc/health/` → health-twin:8097, see apps/socioprophet-web/
+  # nginx.conf), so no browser here ever performs a cross-origin request and no allowance is needed.
+  # The service no longer emits `access-control-allow-origin: *` — on a surface that accepts the
+  # `x-health-grant` credential, a wildcard let any page in any tab mint a grant and read the chart.
+  # Unset on a synthetic-only deployment, the default allowlist is the loopback developer origins
+  # (nothing in-cluster can be at one of those). To allow a browser origin that is genuinely
+  # cross-origin — a BearBrowser sovereign host on a loopback sidecar, say — name it exactly:
+  #   HEALTH_TWIN_ALLOWED_ORIGINS: "http://127.0.0.1:7654"
+  # `""` means none at all. `"*"` is refused AT BOOT, in either exposure mode.
