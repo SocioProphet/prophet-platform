@@ -69,6 +69,40 @@ def test_unknown_scheme_fails_closed():
 
 
 def test_invalid_policy_disables_off(monkeypatch):
+    monkeypatch.delenv("GATEWAY_MASKING_POLICIES", raising=False)
     monkeypatch.setenv("GATEWAY_MASKING_POLICY", "{not json")
     outs = [_graph_output()]
     assert masking.apply(outs, kind="graph-query", project="p", actor="u", entitlement=None) is outs
+
+
+def test_per_tenant_policy_selection(monkeypatch):
+    table = {
+        "tenant-a": {"policy_version": "a", "mask_fields": {"mrn": "redact"}},
+        "default": {"policy_version": "d", "mask_fields": {}},
+    }
+    monkeypatch.delenv("GATEWAY_MASKING_POLICY", raising=False)
+    monkeypatch.setenv("GATEWAY_MASKING_POLICIES", json.dumps(table))
+    # tenant-a → masks mrn
+    r_a = masking.apply([_graph_output()], kind="graph-query", project="tenant-a", actor="u", entitlement=None)
+    assert r_a[0].data["nodes"][0]["properties"]["mrn"] == "[REDACTED]"
+    assert r_a[-1].type == "masking-decision"
+    # tenant-b → no entry → "default" (no mask_fields) → passthrough, no decision appended
+    outs_b = [_graph_output()]
+    r_b = masking.apply(outs_b, kind="graph-query", project="tenant-b", actor="u", entitlement=None)
+    assert r_b is outs_b
+    assert r_b[0].data["nodes"][0]["properties"]["mrn"] == "MRN-12345"
+
+
+def test_entitlement_selector(monkeypatch):
+    table = {"ent-health": {"policy_version": "h", "mask_fields": {"ssn": "redact"}}}
+    monkeypatch.delenv("GATEWAY_MASKING_POLICY", raising=False)
+    monkeypatch.setenv("GATEWAY_MASKING_POLICIES", json.dumps(table))
+    r = masking.apply([_graph_output()], kind="graph-query", project="anything", actor="u", entitlement="ent-health")
+    assert r[0].data["nodes"][0]["properties"]["ssn"] == "[REDACTED]"
+
+
+def test_legacy_global_still_applies(monkeypatch):
+    monkeypatch.delenv("GATEWAY_MASKING_POLICIES", raising=False)
+    monkeypatch.setenv("GATEWAY_MASKING_POLICY", json.dumps({"mask_fields": {"mrn": "redact"}}))
+    r = masking.apply([_graph_output()], kind="graph-query", project="whatever", actor="u", entitlement=None)
+    assert r[0].data["nodes"][0]["properties"]["mrn"] == "[REDACTED]"

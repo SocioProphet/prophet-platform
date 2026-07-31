@@ -47,21 +47,38 @@ def _key() -> bytes:
     return os.getenv("GATEWAY_MASKING_KEY", "reference-masking-key-not-for-prod").encode("utf-8")
 
 
-def load_policy() -> dict[str, Any] | None:
-    """Masking policy, or None (masking off). Source: GATEWAY_MASKING_POLICY — either
-    inline JSON or a path to a JSON file. Invalid config fails closed to OFF (a masking
-    policy that cannot be read must never silently expose raw data — but neither should
-    it take down every read; it disables itself and the absence is observable upstream)."""
-    raw = os.getenv("GATEWAY_MASKING_POLICY")
+def _read_json_source(raw: str | None) -> Any:
+    """Parse a config value that is either inline JSON or a path to a JSON file.
+    Returns the parsed value, or None on any error (fail closed to OFF: a policy that
+    cannot be read must never silently expose raw data, but must not take down reads —
+    it disables itself, and the absence is observable upstream)."""
     if not raw:
         return None
     try:
-        if raw.strip().startswith("{"):
+        if raw.strip().startswith(("{", "[")):
             return json.loads(raw)
         with open(raw, encoding="utf-8") as fh:
             return json.load(fh)
     except (OSError, ValueError):
         return None
+
+
+def load_policy(project: str = "default", entitlement: str | None = None) -> dict[str, Any] | None:
+    """Resolve the masking policy for this request, or None (masking off).
+
+    Per-tenant first: GATEWAY_MASKING_POLICIES is a table {selector: policy} (inline
+    JSON or a file path), resolved by project, then entitlement, then a "*"/"default"
+    fallback — so different tenants/entitlements carry different masking rules through
+    the one gateway. Legacy single-policy GATEWAY_MASKING_POLICY still works as the
+    global fallback when no table entry matches."""
+    table = _read_json_source(os.getenv("GATEWAY_MASKING_POLICIES"))
+    if isinstance(table, dict):
+        for sel in (project, entitlement or "", "*", "default"):
+            pol = table.get(sel)
+            if isinstance(pol, dict):
+                return pol
+    single = _read_json_source(os.getenv("GATEWAY_MASKING_POLICY"))
+    return single if isinstance(single, dict) else None
 
 
 # ── field transforms (compact read-masking subset of tokenization-profile.v1) ──
@@ -155,7 +172,7 @@ def apply(outputs: list[ComputeOutput], *, kind: str, project: str, actor: str,
     On a forbidden mixture the data outputs are withheld and only the deny decision
     is returned. Otherwise configured fields are masked and a masking-decision output
     is appended (so it is sealed + attested alongside the data)."""
-    policy = load_policy()
+    policy = load_policy(project, entitlement)
     if not policy:
         return outputs
 
