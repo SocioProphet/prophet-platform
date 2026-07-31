@@ -24,13 +24,12 @@
 //	POST   /mcp/invoke                           — privileged tool call under a lease
 //	DELETE /mcp/session                          — explicit session teardown (MCP-Session-Id)
 //
-// SECURITY — honest scope of this increment: the gateway enforces the lease's
-// CLAIMS (audience/scope/case/task/expiry, containment⇒A4) but does NOT yet verify
-// the lease's cryptographic authenticity. Real deployment MUST front this with, or
-// add here, JWT signature + issuer (Keycloak JWKS) verification and DPoP
-// proof-of-possession (`dpop_jkt`) — otherwise the claims are spoofable by anyone
-// who can reach the gateway. That verification is the next hardening step; the
-// token schema (capability-lease-token) already carries `dpop_jkt` for it.
+// SECURITY: the gateway verifies the lease's cryptographic authenticity BEFORE
+// enforcing its claims. A lease is a broker-signed RS256 JWT (`lease_token`),
+// verified against the broker JWKS by kid, with issuer + nbf/exp checked. A
+// DPoP-bound lease (`dpop_jkt`) additionally requires a valid DPoP proof header
+// (RFC 9449) proving the caller holds the bound key. Only then are the claims
+// (audience/scope/case/task, containment⇒A4) enforced. See jose.go.
 package main
 
 import (
@@ -190,17 +189,40 @@ type config struct {
 	ledgerURL      string
 	authServer     string // Keycloak realm issuer for Protected Resource Metadata
 	resource       string
+	brokerJWKSURL  string // where the lease-signing broker publishes its verify keys
+	brokerIssuer   string // expected `iss` on a lease token ("" = skip issuer check)
+	invokePath     string // htu suffix a DPoP proof must bind to
 }
 
 type server struct {
 	cfg      config
 	client   *http.Client
+	jwks     *jwksCache
 	mu       sync.Mutex
 	sessions map[string]string // session-id -> subject (sessions are NOT authentication)
 }
 
 func newServer(cfg config) *server {
-	return &server{cfg: cfg, client: &http.Client{Timeout: 5 * time.Second}, sessions: map[string]string{}}
+	if cfg.invokePath == "" {
+		cfg.invokePath = "/mcp/invoke"
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	return &server{cfg: cfg, client: client, jwks: newJWKSCache(cfg.brokerJWKSURL, client), sessions: map[string]string{}}
+}
+
+// leaseFromClaims maps verified lease-token claims onto the internal lease shape so
+// the existing claim-authorization (audience/scope/case/task/expiry, containment⇒A4)
+// runs unchanged.
+func leaseFromClaims(cl *leaseClaims) lease {
+	return lease{
+		LeaseID: cl.JTI, Sub: cl.Sub, Act: cl.Act,
+		Aud:    json.RawMessage(fmt.Sprintf("%q", cl.Aud)),
+		Scope:  cl.Scope,
+		CaseID: cl.CaseID, TaskID: cl.TaskID, ApprovalID: cl.ApprovalID, RiskClass: cl.RiskClass,
+		NotBefore: time.Unix(cl.Nbf, 0).UTC().Format(time.RFC3339),
+		ExpiresAt: time.Unix(cl.Exp, 0).UTC().Format(time.RFC3339),
+		JTI:       cl.JTI,
+	}
 }
 
 func newID(prefix string) string {
@@ -264,9 +286,26 @@ func (s *server) sessionFor(r *http.Request, sub string) string {
 }
 
 type invokeReq struct {
-	Lease  lease          `json:"lease"`
-	Tool   toolReq        `json:"tool"`
-	Params map[string]any `json:"params"`
+	LeaseToken string         `json:"lease_token"`
+	Tool       toolReq        `json:"tool"`
+	Params     map[string]any `json:"params"`
+}
+
+// denyReceipt builds (and the caller emits) a governed block/denied receipt so every
+// refused attempt is audited — teeth fire both ways.
+func denyReceipt(caseRef string, heldScopes []string, reason string, latencyMs int, now time.Time) executionReceipt {
+	rec := executionReceipt{
+		SchemaVersion: "0.1.0", ExecutionReceiptID: newID("exec_deny_"), ExecutedAt: now.Format(time.RFC3339),
+		Agent:            agentRec{Name: "WordOps Containment Agent", Version: "0.1.0", Category: "response"},
+		Input:            inputRec{Type: "detection", Ref: caseRef},
+		Decision:         decRec{Verdict: "block", AuthorityBand: "observe", LatencyMs: latencyMs},
+		Verdict:          verRec{State: "denied", EpistemicLevel: "rejected"},
+		CapabilitiesHeld: heldScopes,
+		CapabilitiesUsed: []string{},
+		ProofArtifact:    proofRec{SHA256: "sha256:" + sha256Hex([]byte("deny:"+reason))},
+	}
+	sealReceipt(&rec)
+	return rec
 }
 
 func (s *server) handleInvoke(w http.ResponseWriter, r *http.Request) {
@@ -281,24 +320,41 @@ func (s *server) handleInvoke(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON: " + err.Error()})
 		return
 	}
-	sid := s.sessionFor(r, req.Lease.Sub)
-	w.Header().Set("MCP-Session-Id", sid)
 	now := time.Now().UTC()
 
-	ok, reason := req.Lease.authorize(req.Tool, now)
-	if !ok {
-		// Fail closed, but audit the denial (A4 is heavily audited).
-		rec := executionReceipt{
-			SchemaVersion: "0.1.0", ExecutionReceiptID: newID("exec_deny_"), ExecutedAt: now.Format(time.RFC3339),
-			Agent:            agentRec{Name: "WordOps Containment Agent", Version: "0.1.0", Category: "response"},
-			Input:            inputRec{Type: "detection", Ref: req.Lease.CaseID},
-			Decision:         decRec{Verdict: "block", AuthorityBand: "observe", LatencyMs: int(time.Since(start).Milliseconds())},
-			Verdict:          verRec{State: "denied", EpistemicLevel: "rejected"},
-			CapabilitiesHeld: req.Lease.Scope,
-			CapabilitiesUsed: []string{},
-			ProofArtifact:    proofRec{SHA256: "sha256:" + sha256Hex([]byte("deny:"+reason))},
+	// 1. Verify the lease is a genuine, unexpired broker-signed token.
+	claims, err := s.jwks.verifyLeaseToken(req.LeaseToken, s.cfg.brokerIssuer, now)
+	if err != nil {
+		rec := denyReceipt("", nil, "lease-token invalid: "+err.Error(), int(time.Since(start).Milliseconds()), now)
+		emitted, _ := s.emit(rec)
+		writeJSON(w, http.StatusUnauthorized, map[string]any{
+			"admitted": false, "reason": "lease-token invalid: " + err.Error(),
+			"receipt_hash": rec.ReceiptHash, "ledger_recorded": emitted,
+		})
+		return
+	}
+
+	// 2. If the lease is sender-constrained, the caller must prove key possession.
+	if claims.DPoPJKT != "" {
+		if err := verifyDPoP(r.Header.Get("DPoP"), claims.DPoPJKT, http.MethodPost, s.cfg.invokePath, now); err != nil {
+			rec := denyReceipt(claims.CaseID, claims.Scope, "DPoP verification failed: "+err.Error(), int(time.Since(start).Milliseconds()), now)
+			emitted, _ := s.emit(rec)
+			writeJSON(w, http.StatusUnauthorized, map[string]any{
+				"admitted": false, "reason": "DPoP verification failed: " + err.Error(),
+				"receipt_hash": rec.ReceiptHash, "ledger_recorded": emitted,
+			})
+			return
 		}
-		sealReceipt(&rec)
+	}
+
+	lease := leaseFromClaims(claims)
+	sid := s.sessionFor(r, lease.Sub)
+	w.Header().Set("MCP-Session-Id", sid)
+
+	// 3. Enforce the (now-authentic) claims.
+	ok, reason := lease.authorize(req.Tool, now)
+	if !ok {
+		rec := denyReceipt(lease.CaseID, lease.Scope, reason, int(time.Since(start).Milliseconds()), now)
 		emitted, _ := s.emit(rec)
 		writeJSON(w, http.StatusForbidden, map[string]any{
 			"admitted": false, "reason": reason, "session_id": sid,
@@ -331,10 +387,10 @@ func (s *server) handleInvoke(w http.ResponseWriter, r *http.Request) {
 	rec := executionReceipt{
 		SchemaVersion: "0.1.0", ExecutionReceiptID: newID("exec_sever_"), ExecutedAt: now.Format(time.RFC3339),
 		Agent:            agentRec{Name: "WordOps Containment Agent", Version: "0.1.0", Category: "response"},
-		Input:            inputRec{Type: "detection", Ref: req.Lease.CaseID},
+		Input:            inputRec{Type: "detection", Ref: lease.CaseID},
 		Decision:         decRec{Verdict: "allow", AuthorityBand: "execute_remote", LatencyMs: int(time.Since(start).Milliseconds())},
 		Verdict:          verRec{State: state, EpistemicLevel: level},
-		CapabilitiesHeld: req.Lease.Scope,
+		CapabilitiesHeld: lease.Scope,
 		CapabilitiesUsed: []string{req.Tool.RequiredScope},
 		ProofArtifact:    proofRec{SHA256: "sha256:" + sha256Hex(artBytes)},
 	}
@@ -407,6 +463,9 @@ func main() {
 		ledgerURL:      env("LEDGER_URL", "http://agent-activity-ledger:8080"),
 		authServer:     env("AUTH_SERVER", "https://auth.socioprophet.ai/realms/wordops"),
 		resource:       env("RESOURCE_URL", "https://agents.socioprophet.ai/mcp/wordops"),
+		brokerJWKSURL:  env("BROKER_JWKS_URL", "http://wordops-capability-broker:8080/.well-known/jwks.json"),
+		brokerIssuer:   env("BROKER_ISSUER", "https://auth.socioprophet.ai/realms/wordops/wordops-capability-broker"),
+		invokePath:     "/mcp/invoke",
 	})
 	log.Printf("wordops-mcp-gateway serving on :%s (containment=%s ledger=%s)", port, s.cfg.containmentURL, s.cfg.ledgerURL)
 	if err := http.ListenAndServe("0.0.0.0:"+port, s.mux()); err != nil {

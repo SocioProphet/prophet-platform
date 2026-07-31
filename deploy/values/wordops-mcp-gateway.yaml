@@ -23,3 +23,7 @@ extraEnv:
     value: https://auth.socioprophet.ai/realms/wordops
   - name: RESOURCE_URL
     value: https://agents.socioprophet.ai/mcp/wordops
+  - name: BROKER_JWKS_URL
+    value: http://wordops-capability-broker.socioprophet.svc.cluster.local:8080/.well-known/jwks.json
+  - name: BROKER_ISSUER
+    value: https://auth.socioprophet.ai/realms/wordops/wordops-capability-broker

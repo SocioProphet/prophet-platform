@@ -19,7 +19,9 @@ room.
 | Autonomy classes A0–A4 | `docs/WORDOPS_APPROVAL_TO_LEASE_GOVERNANCE.md` | ✅ present |
 | Lease issuance/action policy | `infra/wordops/opa/lease_policy.rego` | ✅ new, `opa test` green (14/14) |
 | Canonical lease record / wire token | `schemas/wordops/capability-lease.schema.json` · `…-token.schema.json` | ✅ record + ✅ new token |
-| Lease-enforcing MCP gateway | `apps/wordops-mcp-gateway/` | ✅ new, `go test` green |
+| Capability broker (lease issuance + JWKS) | `apps/wordops-capability-broker/` | ✅ new, signs RS256 leases, `go test` green |
+| Lease-enforcing MCP gateway (+JWT/DPoP verify) | `apps/wordops-mcp-gateway/` (`jose.go`) | ✅ new, verifies broker JWKS + DPoP, `go test` green |
+| Room-factory (governed Matrix rooms) | `apps/wordops-room-factory/` | ✅ new, encrypted/invite/no-federate, `go test` green |
 | Containment / blast-radius engine | `apps/gbrg-containment/` (Go front door for `gbrg-core::containment`) | ✅ present |
 | Executions ledger (durable receipt sink) | `apps/agent-activity-ledger/` (`POST /executions`) | ✅ new POST + teeth |
 | Containment agent cards | `apps/wordops-mcp-gateway/a2a/{public,extended}-agent-card.json` | ✅ new |
@@ -80,13 +82,20 @@ sequenceDiagram
 
 ## Maturity / honesty
 
-- ✅ **Real + tested now:** the OPA policy (A0–A4), the gateway lease enforcement and
-  fail-closed denial audit, the containment call, the ExecutionReceipt emission, and
-  the ledger's invariant checks — all covered by `opa test` and `go test`.
+- ✅ **Real + tested now:** the OPA policy (A0–A4); the **capability broker** (runs
+  allow_issue, mints RS256-signed leases, publishes JWKS); the gateway's **JWT
+  verification against the broker JWKS + DPoP proof-of-possession** (RFC 9449),
+  followed by claim enforcement and fail-closed denial audit; the containment call;
+  the ExecutionReceipt emission; the ledger's invariant checks; and the
+  **room-factory** (creates encrypted, invite-only, non-federated Matrix rooms). All
+  covered by `opa test` and `go test` (including invalid-token, DPoP-mismatch, and
+  taxonomy-enforcement cases).
 - 🟡 **Interface / fixture:** `gbrg-containment` computes over a fixture topology
   (the authoritative algorithm is `gbrg-core::containment` in sociosphere); the
-  ledger store is in-memory. Both are documented as follow-ons in their own headers.
-- ⬜ **Next increment:** the room-factory service (Synapse admin API) and broker
-  token-exchange service are specified here and by the OPA policy + token schema, but
-  are not yet live services in this PR — they are the next step, wired to the same
-  contracts so no interface churn.
+  ledger store is in-memory. The broker's signing key is an ephemeral dev key until
+  the `wordops-broker-signing` Secret is mounted; the room-factory needs the
+  `wordops-room-factory` service-account token Secret to talk to a live homeserver.
+  All documented in their headers / values files.
+- ⬜ **Next increment:** mount the broker signing-key + room-factory token Secrets in
+  the cluster, and add EC/ES256 support to the JOSE layer if a client needs it (the
+  code is RSA/RS256 throughout today).

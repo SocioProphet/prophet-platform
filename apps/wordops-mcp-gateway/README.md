@@ -54,11 +54,19 @@ cd apps/wordops-mcp-gateway && GOWORK=off go test ./...
 Sessions are **not** authentication (they are bound to the authenticated caller);
 durable workflow state lives outside MCP, in the ledger and the case kernel.
 
-## Security scope (honest)
+## Security
 
-This increment enforces the lease **claims** (audience/scope/case/task/expiry,
-containment ⇒ A4). It does **not** yet verify the lease's cryptographic
-authenticity — JWT signature + issuer (Keycloak JWKS) and DPoP proof-of-possession
-(`dpop_jkt`) are the next hardening step. Until then, treat the gateway as
-claim-enforcing, not identity-verifying, and keep it reachable only from inside the
-mesh. The token schema already carries `dpop_jkt` for the binding.
+The gateway verifies the lease's **cryptographic authenticity before** enforcing its
+claims (`jose.go`):
+
+1. `lease_token` is a broker-signed **RS256 JWT**, verified against the
+   `wordops-capability-broker` **JWKS** by `kid`, with `iss` and the `nbf`/`exp`
+   window checked. Wrong-key, expired, or tampered tokens are rejected `401` and
+   audited as denied.
+2. If the lease is sender-constrained (`dpop_jkt`), the caller must send a **DPoP**
+   proof header (RFC 9449) that self-signs with the bound key, whose JWK thumbprint
+   equals `dpop_jkt`, and whose `htm`/`htu`/`iat` bind it to this request.
+3. Only then are the claims (audience/scope/case/task, containment ⇒ A4) enforced.
+
+RSA/RS256 throughout (broker + DPoP). EC/ES256 is a mechanical addition. Configure
+`BROKER_JWKS_URL` + `BROKER_ISSUER`.
