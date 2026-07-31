@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Apple configuration profile: iPhone/iPad/Mac Mail in one tap.
+     EmailAddress + usernames are left EMPTY so Mail prompts the user (one profile fits all users).
+     NOTE: sign this profile (e.g. `openssl smime -sign` with a trusted cert) before serving, or
+     iOS shows "Unverified". Serve as application/x-apple-aspen-config over HTTPS. -->
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>                          <string>com.apple.mail.managed</string>
+      <key>PayloadVersion</key>                       <integer>1</integer>
+      <key>PayloadIdentifier</key>                    <string>ai.socioprophet.workspace.mail</string>
+      <key>PayloadUUID</key>                          <string>28DDFD3D-934D-45BF-89F9-B1ED87FE06BD</string>
+      <key>PayloadDisplayName</key>                   <string>SocioProphet Mail</string>
+
+      <key>EmailAccountType</key>                     <string>EmailTypeIMAP</string>
+      <key>EmailAccountName</key>                     <string>SocioProphet Workspace</string>
+      <key>EmailAccountDescription</key>              <string>SocioProphet</string>
+      <key>EmailAddress</key>                         <string></string>
+      <key>PreventMove</key>                          <false/>
+      <key>PreventAppSheet</key>                      <false/>
+      <key>SMIMEEnabled</key>                         <false/>
+
+      <key>IncomingMailServerHostName</key>           <string>mail.socioprophet.ai</string>
+      <key>IncomingMailServerPortNumber</key>         <integer>993</integer>
+      <key>IncomingMailServerUseSSL</key>             <true/>
+      <key>IncomingMailServerAuthentication</key>     <string>EmailAuthPassword</string>
+      <key>IncomingMailServerUsername</key>           <string></string>
+
+      <key>OutgoingMailServerHostName</key>           <string>mail.socioprophet.ai</string>
+      <key>OutgoingMailServerPortNumber</key>         <integer>587</integer>
+      <key>OutgoingMailServerUseSSL</key>             <true/>
+      <key>OutgoingMailServerAuthentication</key>     <string>EmailAuthPassword</string>
+      <key>OutgoingMailServerUsername</key>           <string></string>
+      <key>OutgoingPasswordSameAsIncomingPassword</key><true/>
+    </dict>
+  </array>
+  <key>PayloadType</key>            <string>Configuration</string>
+  <key>PayloadVersion</key>         <integer>1</integer>
+  <key>PayloadIdentifier</key>      <string>ai.socioprophet.workspace.mail.profile</string>
+  <key>PayloadUUID</key>            <string>EC0520AC-14C4-497D-BF4B-2AC32D4E5CD2</string>
+  <key>PayloadDisplayName</key>     <string>SocioProphet Workspace Mail</string>
+  <key>PayloadDescription</key>     <string>Configures Mail for your socioprophet.ai account.</string>
+  <key>PayloadOrganization</key>    <string>SocioProphet</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+</dict>
+</plist>

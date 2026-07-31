@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mozilla ISPDB autoconfig (Thunderbird, K-9/FairEmail, GNOME Evolution, and others).
+     Discovered at:  https://autoconfig.socioprophet.ai/mail/config-v1.1.xml?emailaddress=<addr>
+     and (fallback)  https://socioprophet.ai/.well-known/autoconfig/mail/config-v1.1.xml
+     %EMAILADDRESS% / %EMAILLOCALPART% are substituted by the client, so one file serves every user. -->
+<clientConfig version="1.1">
+  <emailProvider id="socioprophet.ai">
+    <domain>socioprophet.ai</domain>
+    <displayName>SocioProphet Workspace</displayName>
+    <displayShortName>SocioProphet</displayShortName>
+
+    <incomingServer type="imap">
+      <hostname>mail.socioprophet.ai</hostname>
+      <port>993</port>
+      <socketType>SSL</socketType>
+      <authentication>password-cleartext</authentication>
+      <username>%EMAILADDRESS%</username>
+    </incomingServer>
+
+    <outgoingServer type="smtp">
+      <hostname>mail.socioprophet.ai</hostname>
+      <port>587</port>
+      <socketType>STARTTLS</socketType>
+      <authentication>password-cleartext</authentication>
+      <username>%EMAILADDRESS%</username>
+    </outgoingServer>
+
+    <documentation url="https://socioprophet.ai/help/mail">
+      <descr lang="en">SocioProphet Workspace mail setup</descr>
+    </documentation>
+  </emailProvider>
+</clientConfig>
