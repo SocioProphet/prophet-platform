@@ -1,0 +1,66 @@
+# Telemetry-liveness alerts — the control that makes "capturing nothing" LOUD.
+# The canary guarantees a non-zero baseline into Loki, so zero ingestion is
+# provably a broken pipeline, not a quiet cluster. These alerts fire instead of
+# the estate silently paying for empty log/trace storage.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: telemetry-liveness
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: observability
+spec:
+  groups:
+    - name: telemetry-capture-liveness
+      rules:
+        # ── THE CORE CONTROL ────────────────────────────────────────────────
+        # The canary always emits; zero ingestion for 15m = the log pipeline is
+        # dead (promtail down, Loki push broken, or Loki refusing writes).
+        - alert: LokiNotIngestingLogs
+          expr: sum(rate(loki_distributor_bytes_received_total[10m])) == 0
+          for: 15m
+          labels: { severity: critical, pillar: observability }
+          annotations:
+            summary: "Loki is ingesting ZERO logs — log pipeline dead"
+            description: >-
+              loki_distributor_bytes_received_total rate has been 0 for 15m.
+              The telemetry-canary should keep this non-zero; zero means
+              promtail/Loki is broken and you are paying for empty log storage.
+        - alert: LokiHasNoStreams
+          expr: max(loki_ingester_memory_streams) == 0
+          for: 30m
+          labels: { severity: warning, pillar: observability }
+          annotations:
+            summary: "Loki holds zero in-memory streams"
+        # ── Traces: expected to fire until services are instrumented (Layer:
+        # trace wiring). Warning, not critical — it is an honest TODO signal.
+        - alert: TempoNotReceivingSpans
+          expr: sum(rate(tempo_distributor_spans_received_total[15m])) == 0
+          for: 1h
+          labels: { severity: warning, pillar: observability }
+          annotations:
+            summary: "Tempo receiving ZERO spans — no service emits traces yet"
+            description: "Wire OTEL_EXPORTER_OTLP_ENDPOINT into services to close this."
+        # ── Backend liveness: a store being DOWN is worse than empty.
+        - alert: ObservabilityBackendDown
+          expr: up{namespace="observability"} == 0
+          for: 10m
+          labels: { severity: critical, pillar: observability }
+          annotations:
+            summary: "Observability backend target {{ $labels.job }} is DOWN"
+        # ── The canary itself must be alive (else the core control loses its
+        # guaranteed baseline and silently degrades to blind).
+        - alert: TelemetryCanaryMissing
+          expr: absent(kube_pod_status_ready{namespace="observability", pod=~"telemetry-canary.*"})
+          for: 15m
+          labels: { severity: warning, pillar: observability }
+          annotations:
+            summary: "Telemetry canary is gone — the liveness baseline is no longer guaranteed"
+        # ── Any scrape target down (catches broken ServiceMonitors early).
+        - alert: PrometheusScrapeTargetDown
+          expr: count(up == 0) > 0
+          for: 15m
+          labels: { severity: warning, pillar: observability }
+          annotations:
+            summary: "{{ $value }} Prometheus scrape target(s) DOWN"
