@@ -268,11 +268,24 @@ const publicGrant = (g: Grant) => {
   const { holderDigest: _verifier, ...rest } = g;
   return { ...rest, active: !g.revoked && new Date(g.expires_at) > new Date() };
 };
+
+const MAX_BODY_BYTES = 2_000_000;
+
 function readJson(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
-    let raw = ''; req.on('data', (c) => { raw += c; if (raw.length > 2_000_000) req.destroy(); });
-    req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch (e) { reject(e); } });
-    req.on('error', reject);
+    let raw = '';
+    let tooLarge = false;
+    req.on('data', (c) => {
+      if (tooLarge) return;
+      raw += c;
+      // destroy() with no error arg doesn't reliably emit 'error' -- the stream can just
+      // go quiet, and this promise would never settle. Reject explicitly instead of
+      // waiting on an event that isn't guaranteed to fire, so an oversized body fails
+      // the request instead of hanging the connection open forever.
+      if (raw.length > MAX_BODY_BYTES) { tooLarge = true; req.destroy(); reject(new Error(`payload too large (max ${MAX_BODY_BYTES} bytes)`)); }
+    });
+    req.on('end', () => { if (!tooLarge) { try { resolve(raw ? JSON.parse(raw) : {}); } catch (e) { reject(e); } } });
+    req.on('error', (e) => { if (!tooLarge) reject(e); });
   });
 }
 
