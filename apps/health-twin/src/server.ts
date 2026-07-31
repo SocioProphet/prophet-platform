@@ -348,7 +348,7 @@ function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, requir
   const auth = authenticateHolder({
     presented,
     find: findGrant,
-    onUnbound: (id) => console.warn(`health-twin: grant ${id} carries no holder binding — refused (fail-closed)`),
+    onUnbound: (id) => console.warn(`health-twin: grant ${String(id).replace(/[\r\n]/g, ' ')} carries no holder binding — refused (fail-closed)`),
   });
   if (!auth.ok) {
     return {
