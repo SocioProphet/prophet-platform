@@ -139,6 +139,14 @@ KNOWN_BROKEN = {
     "entity-resolution:moving-tag": (
         "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
     ),
+    "agent-activity-ledger:moving-tag": (
+        "New service — Executions Ledger receipt spine (apps/agent-activity-ledger, Go) added to CI this PR on the "
+        "sovereign zot registry. Pin tag:latest -> the sha- tag after the first CI build; none exists until merge."
+    ),
+    "gbrg-containment:moving-tag": (
+        "New service — governed blast-radius/containment engine (apps/gbrg-containment, Go) added to CI this PR on "
+        "the sovereign zot registry. Pin tag:latest -> the sha- tag after the first CI build; none exists until merge."
+    ),
     "liberty-stack-readout:moving-tag": (
         "New service — liberty-stack-readout vendored into prophet-platform CI this PR. Pin tag:latest -> the "
         "sha- tag after the first build; none exists until merge."

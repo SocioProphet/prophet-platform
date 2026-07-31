@@ -81,6 +81,8 @@ jobs:
           - { image: ie-engine,             context: apps/ie-engine,             dockerfile: Dockerfile }
           - { image: synapse-bridge,        context: apps/synapse-bridge,        dockerfile: Dockerfile }
           - { image: holmes,                context: apps/holmes,                dockerfile: Dockerfile }
+          - { image: agent-activity-ledger, context: apps/agent-activity-ledger, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: gbrg-containment,      context: apps/gbrg-containment,      dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: portfolio-agent,       context: apps/portfolio-agent,       dockerfile: Dockerfile }
           - { image: academy-board,         context: apps/academy-board,         dockerfile: Dockerfile }
           - { image: health-twin,           context: apps/health-twin,           dockerfile: Dockerfile }
