@@ -4,6 +4,11 @@ metadata:
   name: workspace-caldav
 spec:
   replicas: 1
+  # RWO PVC + single replica: Recreate terminates the old pod before starting the new one,
+  # so the volume is released first. RollingUpdate deadlocks (new pod can't Multi-Attach the
+  # ReadWriteOnce volume held by the old pod on another node) — which wedged this exact deploy.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: workspace-caldav
