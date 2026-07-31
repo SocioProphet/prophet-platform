@@ -1,0 +1,42 @@
+# NOT applied on the current GKE Autopilot environment — see overlays/gcp-gke-autopilot
+# instead. This is the companion Cilium install for a future AWS/Azure/self-managed
+# environment's own app-of-apps to reference alongside this overlay's kustomization.
+# Restored 2026-07-31 from the original infra/argocd/progressive-delivery.yaml design
+# (pre-dated this repo's app-of-apps ever actually reconciling it), with its own original
+# rationale intact: real Cilium as CNI/Gateway API provider, install at cluster bootstrap
+# on self-managed/edge clusters; identical behavior on EKS/AKS.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  source:
+    repoURL: https://helm.cilium.io
+    chart: cilium
+    targetRevision: 1.16.5
+    helm:
+      releaseName: cilium
+      values: |
+        # mTLS between endpoints (transparent encryption).
+        encryption:
+          enabled: true
+          type: wireguard
+        hubble:
+          enabled: true
+          relay: { enabled: true }
+          ui: { enabled: true }
+        gatewayAPI:
+          enabled: true
+        kubeProxyReplacement: true
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
