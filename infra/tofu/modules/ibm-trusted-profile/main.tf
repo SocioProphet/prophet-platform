@@ -6,6 +6,17 @@
 # After apply, store the profile CRN as a GitHub Actions variable (not a secret):
 #   IBM_TRUSTED_PROFILE_ID → trusted_profile_id output
 
+# The IBM provider is the only non-hashicorp/ namespace provider in this repo,
+# so the source address must be declared here as well as in the root module —
+# otherwise OpenTofu infers "hashicorp/ibm", which does not exist, and init
+# fails before it can resolve the real provider. Version stays pinned in the
+# root (envs/.../versions.tf) to keep a single constraint.
+terraform {
+  required_providers {
+    ibm = { source = "IBM-Cloud/ibm" }
+  }
+}
+
 resource "ibm_iam_trusted_profile" "github_ci" {
   name        = "github-ci-${var.profile_name_suffix}"
   description = "GitHub Actions OIDC federation — no static API keys"

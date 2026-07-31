@@ -15,6 +15,6 @@ variable "cos_instance_crn" {
   description = "CRN of the IBM COS instance holding the Tofu state bucket"
 }
 variable "state_bucket_name" {
-  type        = string
-  default     = "prophet-tofu-state-ibm"
+  type    = string
+  default = "prophet-tofu-state-ibm"
 }
