@@ -24,16 +24,39 @@ from __future__ import annotations
 import re
 import sys
 
-# A path is inert only if it is inside docs/ or is a top-level markdown file.
-# Anchored and slash-explicit so `docsomething/x.py` and `apps/svc/README.md` do NOT match.
-INERT = re.compile(r'^(docs/|[^/]+\.md$)')
+# A path is inert only if it is prose/asset content: a top-level markdown file, or a file
+# under docs/ that is NOT executable. `docs/` is not a free pass — it routinely holds live
+# code (docs/conf.py for Sphinx, docs/scripts/*.ts generators) that a test can import, so
+# treating all of docs/ as inert would let a change to executable doc tooling skip the very
+# tests that cover it. Anchored + slash-explicit so `docsomething/x.py` and
+# `apps/svc/README.md` do NOT match.
+INERT = re.compile(r'^(docs/.+|[^/]+\.md)$')
+
+# Never inert regardless of location — anything that can be imported, executed, or that
+# defines behaviour. A docs/ path with one of these extensions is treated as live code.
+EXECUTABLE_SUFFIXES = (
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".sh", ".bash", ".zsh",
+    ".rb", ".go", ".rs", ".java", ".ipynb", ".mk", ".cmake",
+)
+EXECUTABLE_NAMES = ("Makefile", "Dockerfile")
+
+
+def _is_inert(path: str) -> bool:
+    if not INERT.match(path):
+        return False
+    lower = path.lower()
+    if lower.endswith(EXECUTABLE_SUFFIXES):
+        return False  # e.g. docs/conf.py, docs/scripts/gen.ts — live code under docs/
+    if path.rsplit("/", 1)[-1] in EXECUTABLE_NAMES:
+        return False
+    return True
 
 
 def docs_only(paths: list[str]) -> bool:
     cleaned = [p.strip() for p in paths if p.strip()]
     if not cleaned:
         return False  # an empty diff tells us nothing; run everything
-    return all(INERT.match(p) for p in cleaned)
+    return all(_is_inert(p) for p in cleaned)
 
 
 def main() -> int:

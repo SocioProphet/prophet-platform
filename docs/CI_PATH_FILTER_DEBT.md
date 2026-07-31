@@ -8,7 +8,7 @@ in its `VOUCHED` set are enforced and must stay clean; everything below is
 
 Regenerate with `python3 tools/check_workflow_path_filters.py`.
 
-## Uncovered inputs (10 workflows)
+## Uncovered inputs (22 workflows)
 
 A change to these paths does **not** trigger the validator that reads them —
 the check stays green because it is never asked.
@@ -17,9 +17,6 @@ the check stays green because it is never asked.
   - tools/validate-cloudshell-fog-structural-conformance.sh reads docs/FOGSTACK_SIGNED_MANIFESTS.md, not matched by paths: filter
   - tools/validate-cloudshell-fog-structural-conformance.sh reads tools/attach_fogstack_manifest_signature.py, not matched by paths: filter
 - **deploy-tests.yml**
-  - apps/eval-fabric-api/app/tracing.py reads docs/OBSERVABILITY_OTEL_OPENINFERENCE.md, not matched by paths: filter
-  - apps/eval-fabric-api/app/tracing_example.py reads infra/local/docker-compose.otel-collector.yml, not matched by paths: filter
-  - apps/eval-fabric-api/tests/test_schemas.py reads schemas/eval, not matched by paths: filter
   - runs tests/test_head_to_head.py, which its paths: filter does not match
 - **devsecops-investigation-run.yml**
   - tools/validate_devsecops_investigation_run.py reads tests/fixtures/workroom/devsecops-investigation-run.missing-topology-evidence.invalid.json, not matched by paths: filter
@@ -28,6 +25,47 @@ the check stays green because it is never asked.
 - **devsecops-scope-d-adversarial.yml**
   - tools/validate_devsecops_scope_d_adversarial.py reads tests/fixtures/workroom/devsecops-workroom.post-merge-incident.valid.json, not matched by paths: filter
   - tools/validate_devsecops_scope_d_adversarial.py reads tests/fixtures/workroom/devsecops-workroom.pre-merge-validation-failure.valid.json, not matched by paths: filter
+- **fogstack-apply-plan-index.yml**
+  - tools/tests/test_update_fogstack_local_demo_apply_plan.py reads tools/run_fogstack_local_demo.py, not matched by paths: filter
+  - tools/tests/test_update_fogstack_local_demo_apply_plan.py reads tools/run_fogstack_local_demo_deploy_plan.py, not matched by paths: filter
+  - tools/tests/test_update_fogstack_local_demo_apply_plan.py reads tools/update_fogstack_local_demo_deploy_artifacts.py, not matched by paths: filter
+- **fogstack-apply-plan-parity.yml**
+  - tools/tests/test_fogstack_parity_readiness.py reads tools/run_fogstack_local_demo_full.py, not matched by paths: filter
+- **fogstack-deploy-plan.yml**
+  - tools/tests/test_fogstack_deploy_plan.py reads apps/api, not matched by paths: filter
+  - tools/tests/test_fogstack_deploy_plan.py reads apps/gateway, not matched by paths: filter
+- **fogstack-filesystem-registry-root.yml**
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_registry_publication_index.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_registry_rollback_revocation_index.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_filesystem_registry.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_registry_rollback_revocation_index.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/publish_fogstack_filesystem_registry.py, not matched by paths: filter
+- **fogstack-filesystem-registry.yml**
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_filesystem_registry_root.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_registry_rollback_revocation_index.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_filesystem_registry_root.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_registry_rollback_revocation_index.py, not matched by paths: filter
+- **fogstack-kubernetes-manifests.yml**
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/build_fogstack_agent_machine_node_profile.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/build_fogstack_gitops_bundle.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/build_fogstack_local_cluster_runtime_adapter.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/check_fogstack_gitops_bundle.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/check_fogstack_runtime_contract.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/emit_fogstack_agent_machine_node_inventory_record.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/emit_fogstack_gitops_readiness_record.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/emit_fogstack_immutable_update_readiness_record.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/emit_fogstack_live_cluster_preflight_record.py, not matched by paths: filter
+  - tools/run_fogstack_local_demo_deploy_plan.py reads tools/emit_fogstack_runtime_dry_run_record.py, not matched by paths: filter
+- **fogstack-local-demo.yml**
+  - tools/check_fogstack_parity_readiness.py reads tools/validate_fogstack_svf_signadot_adapter_readiness.py, not matched by paths: filter
+- **fogstack-registry-lifecycle.yml**
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_filesystem_registry_root.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/build_fogstack_registry_publication_index.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_filesystem_registry.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/check_fogstack_filesystem_registry_root.py, not matched by paths: filter
+  - tools/tests/test_fogstack_filesystem_registry.py reads tools/publish_fogstack_filesystem_registry.py, not matched by paths: filter
+- **fogstack-validation.yml**
+  - runs tools/tests/test_fogstack_validation_to_evidence.py, which its paths: filter does not match
 - **mount-intent.yml**
   - libs/python/mount-intent/src/mount_intent/intents.py reads apps/regis-acr-api, not matched by paths: filter
 - **personal-intelligence-cell.yml**
@@ -52,7 +90,9 @@ the check stays green because it is never asked.
   - tools/validate_repo.py reads tools/validate_professional_intelligence.py, not matched by paths: filter
   - tools/validate_repo.py reads tools/validate_prophet_understand.py, not matched by paths: filter
 - **preflight-deploy-contract.yml**
+  - tools/preflight_deploy_contract.py reads apps/device-service, not matched by paths: filter
   - tools/preflight_deploy_contract.py reads apps/embeddings, not matched by paths: filter
+  - tools/preflight_deploy_contract.py reads apps/nugget-extractor, not matched by paths: filter
 - **professional-intelligence-gate4.yml**
   - tools/validate_professional_intelligence.py reads contracts/evidence/adoption-event.schema.json, not matched by paths: filter
   - tools/validate_professional_intelligence.py reads contracts/evidence/adoption-event.v0.1.example.json, not matched by paths: filter
@@ -62,6 +102,35 @@ the check stays green because it is never asked.
   - tools/validate_professional_intelligence.py reads contracts/policy/obligation.v0.1.example.json, not matched by paths: filter
   - tools/validate_professional_intelligence.py reads contracts/risk/conflict-check.schema.json, not matched by paths: filter
   - tools/validate_professional_intelligence.py reads contracts/risk/conflict-check.v0.1.example.json, not matched by paths: filter
+- **prometheus-agentplane-schema-pin.yml**
+  - tools/run_prometheus_local_demo.py reads catalog/prometheus-sr-gate-policy-equation-discovery.v0.1.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads contracts/ontology/prometheus-sr-assertion-compat.manifest.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tests/fixtures/prometheus/pysr-mvp-linear.csv, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tests/fixtures/prometheus/sindy-fast-path-linear.csv, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/emit_prometheus_gate_evaluation.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/emit_prometheus_jsonld_review.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_ai_descartes_mvp.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_emit_sr_run_artifact.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_pysr_mvp.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_sindy_fast_path.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_jsonld_shacl.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_ontogenesis_compat.py, not matched by paths: filter
+- **prometheus-jsonld.yml**
+  - tools/run_prometheus_local_demo.py reads catalog/prometheus-sr-gate-policy-equation-discovery.v0.1.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads contracts/ontology/prometheus-sr-assertion-compat.manifest.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tests/fixtures/prometheus/pysr-mvp-linear.csv, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tests/fixtures/prometheus/sindy-fast-path-linear.csv, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_ai_descartes_mvp.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_emit_sr_run_artifact.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_pysr_mvp.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_sindy_fast_path.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_ontogenesis_compat.py, not matched by paths: filter
+- **prometheus-local-demo.yml**
+  - tools/run_prometheus_local_demo.py reads catalog/prometheus-sr-gate-policy-equation-discovery.v0.1.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads contracts/ontology/prometheus-sr-assertion-compat.manifest.json, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/prometheus_ai_descartes_mvp.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_jsonld_shacl.py, not matched by paths: filter
+  - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_ontogenesis_compat.py, not matched by paths: filter
 - **sourceos-contracts.yml**
   - tools/smoke_sourceos_synthetic_boot_fingerprint.py reads tools/check_sourceos_boot_fingerprint_compliance.py, not matched by paths: filter
 - **tofu-plan.yml**
