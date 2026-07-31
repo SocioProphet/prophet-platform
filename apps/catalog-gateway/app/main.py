@@ -1,0 +1,63 @@
+"""Catalog Gateway — the unified read/resolve/lineage + interop seam over the
+Crystal Atlas catalog families.
+
+First increment (read-only), composing existing pieces rather than reinventing them:
+  * GET /v1/catalog/{kind}/{id}          — resolve a source|asset|model|workflow entry
+  * GET /v1/catalog/{kind}/{id}/lineage  — upstream refs (source_refs), best-effort resolved
+  * GET /v1/catalog/asset/{id}.dcat.json — the first real DCAT/schema.org emitter
+
+The GMS-equivalent seam the design brief calls for (docs/strategy/PROPHET_DATA_CATALOG_DESIGN.md).
+Registration (write path), search/faceting, and the masking-PDP mount land in later increments.
+"""
+from __future__ import annotations
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+
+from .dcat import asset_to_dcat
+from .store import KINDS, SERVICE, get_entry, is_valid_id
+
+app = FastAPI(title="Prophet Platform Catalog Gateway", version="0.1.0")
+
+
+@app.get("/healthz")
+def healthz() -> dict:
+    return {"status": "ok", "service": SERVICE, "kinds": list(KINDS)}
+
+
+def _resolve_or_404(kind: str, entry_id: str) -> dict:
+    if kind not in KINDS:
+        raise HTTPException(status_code=404, detail=f"unknown catalog kind: {kind}")
+    if not is_valid_id(entry_id):
+        raise HTTPException(status_code=400, detail="invalid catalog id")
+    entry = get_entry(kind, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"{kind} '{entry_id}' not found")
+    return entry
+
+
+# NOTE: the `.dcat.json` route is declared BEFORE the generic `/{kind}/{entry_id}`
+# resolver. Starlette matches routes in declaration order and `{entry_id}` is `[^/]+`
+# (dots included), so the generic resolver would otherwise swallow "<id>.dcat.json".
+@app.get("/v1/catalog/asset/{entry_id}.dcat.json")
+def asset_dcat(entry_id: str) -> JSONResponse:
+    entry = _resolve_or_404("asset", entry_id)
+    return JSONResponse(content=asset_to_dcat(entry), media_type="application/ld+json")
+
+
+@app.get("/v1/catalog/{kind}/{entry_id}/lineage")
+def lineage(kind: str, entry_id: str) -> dict:
+    entry = _resolve_or_404(kind, entry_id)
+    # source_refs are the lineage seed. Best-effort resolve any that are catalog ids.
+    upstream = []
+    for ref in entry.get("source_refs") or []:
+        as_source = get_entry("source", ref)
+        as_asset = get_entry("asset", ref)
+        upstream.append({"ref": ref, "resolved": bool(as_source or as_asset),
+                         "kind": "source" if as_source else ("asset" if as_asset else None)})
+    return {"node": entry_id, "kind": kind, "upstream": upstream}
+
+
+@app.get("/v1/catalog/{kind}/{entry_id}")
+def resolve(kind: str, entry_id: str) -> dict:
+    return {"kind": kind, "entry": _resolve_or_404(kind, entry_id)}
