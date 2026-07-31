@@ -44,7 +44,13 @@
     "vue-tsc": "^3.2.1"
   },
   "overrides": {
-    "qs": "^6.11.2"
+    "qs": "^6.11.2",
+    "undici": "6.27.0",
+    "fast-xml-parser": "5.10.1",
+    "fast-uri": "3.1.4",
+    "brace-expansion": "2.1.2",
+    "protobufjs": "7.6.5",
+    "@hono/node-server": "2.0.5"
   },
   "resolutions": {
     "qs": "^6.11.2"
