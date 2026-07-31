@@ -1,0 +1,19 @@
+{
+  "event_id": "wi-ai-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-ai-probe",
+  "subject": "socioprophet.com",
+  "relation": "self",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "ai_probe", "method": "five-engine-citation-probe", "sample_size": 5, "collected_at": "2026-07-31T00:00:00+00:00" },
+  "query": "governed AI orchestration platform",
+  "visibility_score": 40.0,
+  "engines": [
+    { "engine": "chatgpt", "cited": true, "position": 3, "sentiment": "neutral", "snippet_ref": "s-1" },
+    { "engine": "perplexity", "cited": true, "position": 2, "sentiment": "positive", "snippet_ref": "s-2" },
+    { "engine": "google_ai", "cited": false, "position": null, "sentiment": null, "snippet_ref": "" },
+    { "engine": "gemini", "cited": false, "position": null, "sentiment": null, "snippet_ref": "" },
+    { "engine": "grok", "cited": false, "position": null, "sentiment": null, "snippet_ref": "" }
+  ]
+}

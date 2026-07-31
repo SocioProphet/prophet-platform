@@ -1,0 +1,19 @@
+{
+  "event_id": "wi-bl-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-linkgraph",
+  "subject": "socioprophet.com",
+  "relation": "self",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "link_graph", "method": "owned-crawl+commoncrawl-merge", "sample_size": 1200, "collected_at": "2026-07-31T00:00:00+00:00" },
+  "referring_domains": 130,
+  "backlinks_total": 1200,
+  "toxic_domains": 37,
+  "potentially_toxic_domains": 17,
+  "toxic_share_pct": 42.0,
+  "anchor_concentration_pct": 78.3,
+  "authority_score": 34.0,
+  "link_farm_clusters": 1,
+  "disavow_candidates": ["spam-farm-01.example", "aged-domain-seller.example"]
+}

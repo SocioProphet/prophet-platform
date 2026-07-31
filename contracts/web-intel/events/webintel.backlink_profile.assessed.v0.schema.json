@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/backlink_profile_assessed.v0.schema.json",
+  "title": "webintel.backlink_profile.assessed.v0",
+  "description": "Owned link-graph backlink profile + toxicity for a subject domain.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "epistemic_level", "provenance", "referring_domains", "backlinks_total",
+    "toxic_domains", "toxic_share_pct", "anchor_concentration_pct", "authority_score"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string" },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "referring_domains": { "type": "integer", "minimum": 0 },
+    "backlinks_total": { "type": "integer", "minimum": 0 },
+    "toxic_domains": { "type": "integer", "minimum": 0 },
+    "potentially_toxic_domains": { "type": "integer", "minimum": 0 },
+    "toxic_share_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "anchor_concentration_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "authority_score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "link_farm_clusters": { "type": "integer", "minimum": 0 },
+    "disavow_candidates": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Referring domains recommended for disavow (post human review)."
+    }
+  }
+}

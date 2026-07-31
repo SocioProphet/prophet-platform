@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/content_gap_analyzed.v0.schema.json",
+  "title": "webintel.content_gap.analyzed.v0",
+  "description": "Keywords a competitor ranks for that the reference domain does not — the symmetric, competitor-facing metric.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "epistemic_level", "provenance", "reference_domain", "gap_keywords"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string", "description": "The competitor whose coverage is analyzed." },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "reference_domain": { "type": "string", "description": "The domain compared against the subject (usually ours)." },
+    "gap_keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["keyword", "subject_position"],
+        "properties": {
+          "keyword": { "type": "string" },
+          "subject_position": { "type": ["integer", "null"], "minimum": 1 },
+          "reference_position": { "type": ["integer", "null"], "minimum": 1 },
+          "search_volume": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
