@@ -18,7 +18,7 @@ metadata:
 spec:
   type: LoadBalancer
   loadBalancerIP: "130.211.115.191" # ws-smtp — mail.socioprophet.ai (MX target); set PTR on this IP
-  externalTrafficPolicy: Local
+  externalTrafficPolicy: Cluster  # INTERIM: Local didn't forward on Autopilot L4 (healthy node, still no datapath). Cluster gets it reachable; revisit source-IP preservation (PROXY-proto / fixed Local) before MX cutover.
   selector:
     app: workspace-smtp
   ports:
@@ -38,7 +38,7 @@ metadata:
 spec:
   type: LoadBalancer
   loadBalancerIP: "136.116.203.17" # ws-imap — imap.socioprophet.ai
-  externalTrafficPolicy: Local
+  externalTrafficPolicy: Cluster  # INTERIM: Local didn't forward on Autopilot L4 (healthy node, still no datapath). Cluster gets it reachable; revisit source-IP preservation (PROXY-proto / fixed Local) before MX cutover.
   selector:
     app: workspace-mail
   ports:
