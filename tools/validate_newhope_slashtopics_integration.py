@@ -83,6 +83,14 @@ def assert_import_provenance() -> None:
             fail(f"IMPORT_MANIFEST entry for {repo} has no pin (provenance required)")
     ok("IMPORT_MANIFEST declares new-hope + slash-topics, both pinned")
 
+    # Enforce slash-topics required_objects: each must resolve under its local_path.
+    st = by_repo["SocioProphet/slash-topics"]
+    local_path = ROOT / st.get("local_path", "contracts/imported/slash-topics/")
+    for obj in st.get("required_objects", []):
+        if not (local_path / obj).is_file():
+            fail(f"slash-topics required_object not mirrored: {(local_path / obj)}")
+    ok("slash-topics required_objects all resolve under local_path")
+
 
 def assert_schema_invariants() -> None:
     schema = load_json(SPECS / "SlashTopics_Schema_v0.1.json")
