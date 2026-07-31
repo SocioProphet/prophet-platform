@@ -81,23 +81,17 @@ config:
 # instead of infra/k8s/rollouts/base's old standalone rollout-hellgraph-service.example.yaml
 # (retired — this values block is now the source of truth for hellgraph-service's canary shape).
 #
-# METRICS-FREE BY DESIGN — no `analysis:` block. hellgraph-service serves only /healthz today
-# (apps/hellgraph-service/src/server.ts) — no /metrics endpoint, no OTel instrumentation, confirmed
-# by grep (zero prometheus/otel refs in the source tree) and by the chart's own values.yaml comment
-# ("VERIFIED 2026-07-29 ... hellgraph-service serves /healthz + /api/graph/*"). An AnalysisRun
-# against `slo-gate`'s queries would read an EMPTY Prometheus series, which is not "healthy" — that
-# does not degrade safely (see feedback_control_that_cannot_fail), so this pilot deliberately ships
-# a fixed-pause canary instead of a half-wired gate. The traffic-SPLIT is real; the SLO-GATING on
-# top of it is not, yet.
-# TO ADD THE GATE LATER (once hellgraph-service exports http_server_request_duration_seconds_* and
-# a `job="hellgraph-service"` series is confirmed flowing in Prometheus/Grafana): set metrics.enabled:
-# true above this block, then add here —
-#   analysis:
-#     templateName: slo-gate
-#     args:
-#       - { name: service, value: hellgraph-service }
-#     startingStep: 1
-#
+# SLO-GATED FOR REAL (2026-07-31): hellgraph-service now exports http_server_request_duration_seconds_*
+# via prom-client (apps/hellgraph-service/src/metrics.ts, GET /metrics on :8090) and metrics.enabled
+# is flipped on above — the exact series slo-gate's queries select on. This was deliberately shipped
+# metrics-free first (fixed-pause canary only, no analysis) because an AnalysisRun against an EMPTY
+# Prometheus series is not "healthy" and does not degrade safely (see feedback_control_that_cannot_fail);
+# now that real data exists, the gate below is real, not decorative. UNVERIFIED UNTIL FIRST LIVE RUN:
+# confirm a `job="hellgraph-service"` series is actually flowing in Prometheus post-deploy before
+# trusting the very first AnalysisRun's verdict — the recording rules in
+# infra/k8s/observability/base/prometheusrule-slos.yaml need at least one scrape interval of real
+# traffic to populate.
+
 # trafficRouting is real Gateway API weight-shifting (argoproj-labs/rollouts-plugin-trafficrouter-
 # gatewayapi — Argo Rollouts has no plugin-free native Gateway API support, confirmed against the
 # project's docs source at both the pinned v1.7.2 and the latest v1.9.1), driving the HTTPRoute in
@@ -110,6 +104,10 @@ rollout:
   steps:
     - setWeight: 20
     - pause: { duration: 5m }
+    - analysis:
+        templateName: slo-gate
+        args:
+          - { name: service, value: hellgraph-service }
     - setWeight: 50
     - pause: { duration: 5m }
     - setWeight: 100
