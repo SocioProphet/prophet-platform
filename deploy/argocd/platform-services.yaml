@@ -49,6 +49,7 @@ spec:
           - { name: holmes, tier: reference }                    # language-intelligence impl
           - { name: agent-activity-ledger, tier: foundation }    # Executions Ledger — receipt spine / system-of-record for agent runs
           - { name: gbrg-containment, tier: reference }          # governed blast-radius/containment engine impl
+          - { name: wordops-mcp-gateway, tier: foundation }      # WordOps lease-enforcing MCP gateway — authz sink for containment/ledger
           - { name: portfolio-agent, tier: reference }           # product agent
           - { name: academy-board, tier: reference }             # academy courseware surface
           - { name: health-twin, tier: reference }               # health-twin product surface

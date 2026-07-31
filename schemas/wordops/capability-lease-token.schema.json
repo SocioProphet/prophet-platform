@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/wordops/capability-lease-token.schema.json",
+  "title": "CapabilityLeaseToken",
+  "description": "The WIRE representation of a WordOps capability-lease: the down-scoped JWT-claims form minted by the capability broker via OAuth token exchange and presented at the MCP/A2A boundary. This is NOT the canonical lease record (capability-lease.schema.json) — it is the on-the-wire token derived from it. Timestamps are NumericDate (epoch seconds) per RFC 7519; `risk` is the coarse public band, while the canonical record carries the estate's A0-A4 `risk_class`. Reconciles the external Phase-0 reference pack into the estate without overwriting the richer internal record.",
+  "type": "object",
+  "required": ["sub", "act", "aud", "scope", "risk", "exp", "nbf", "jti"],
+  "properties": {
+    "sub": { "type": "string", "description": "Subject principal receiving the lease" },
+    "act": { "type": "string", "description": "Actor on whose behalf the lease is issued (acting-party)" },
+    "aud": {
+      "description": "Target service or gateway audience",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      ]
+    },
+    "scope": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "case_id": { "type": "string" },
+    "task_id": { "type": "string" },
+    "risk": {
+      "type": "string",
+      "description": "Coarse public risk band. Maps to the canonical risk_class: low→A0/A1, medium→A2, high→A3, regulated→A4.",
+      "enum": ["low", "medium", "high", "regulated"]
+    },
+    "risk_class": {
+      "type": "string",
+      "description": "The estate's fine-grained autonomy class, carried through when present (authoritative over `risk`).",
+      "enum": ["A0", "A1", "A2", "A3", "A4"]
+    },
+    "approval_id": { "type": "string" },
+    "exp": { "type": "integer", "description": "Expiry (NumericDate, epoch seconds)" },
+    "nbf": { "type": "integer", "description": "Not-before (NumericDate, epoch seconds)" },
+    "jti": { "type": "string", "description": "Unique token id; correlates to the canonical lease_id" },
+    "dpop_jkt": { "type": "string", "description": "DPoP JWK SHA-256 thumbprint binding the token to a key" },
+    "traceparent": { "type": "string" },
+    "policy_version": { "type": "string" },
+    "workflow_version": { "type": "string" }
+  },
+  "additionalProperties": true
+}
