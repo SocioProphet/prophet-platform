@@ -24,7 +24,13 @@ apt-get install -y postfix postfix-pgsql dovecot-imapd dovecot-lmtpd \
 mkdir -p /etc/opendkim/keys/$DOMAIN
 gcloud secrets versions access latest --secret="${dkim_secret_name}" > /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
 ADMIN_HASH="$(gcloud secrets versions access latest --secret="${admin_pass_secret_name}")"
-chown -R opendkim:opendkim /etc/opendkim/keys && chmod 600 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+# opendkim runs its pre-start safety check AS ROOT and requires the private key
+# and its ancestor dirs to be (a) owned by root — the executing uid — and (b)
+# not group/world-readable. opendkim loads the key while still root, before
+# dropping to the opendkim user, so root:600 is both correct and most secure.
+# (Owning the key by opendkim, or making it group-readable, both fail the check.)
+chown -R root:opendkim /etc/opendkim
+chmod 750 /etc/opendkim/keys /etc/opendkim/keys/$DOMAIN && chmod 600 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
 
 # --- TLS via Let's Encrypt (HTTP-01; the A record mail.$DOMAIN must already point here) ---
 if [ ! -d "/etc/letsencrypt/live/$HOST" ]; then
