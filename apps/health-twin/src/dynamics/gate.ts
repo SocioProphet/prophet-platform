@@ -85,7 +85,13 @@ export const RULES: AdmissibilityRule[] = [
     bound: 'proposed ≤ sbpUntreated(t) + tol' },
   { reason: 'monotonicity', compartments: ['renal'],
     law: 'Functioning nephron mass does not regenerate on this horizon, so eGFR is non-increasing under the model.',
-    bound: 'proposed ≤ previousAccepted + tol' },
+    // `previousEmitted`, NOT `previousAccepted` — and the difference is load-bearing, not pedantic.
+    // The bound is the last value the twin actually EMITTED, which after a refusal is the mechanistic
+    // fallback. Bounding against the last ACCEPTED value would leave the rule undefined for a run whose
+    // proposals were all refused, and would compare the trajectory against a point the twin never
+    // published. RULES is served verbatim at GET /api/health/dynamics as inspectable policy, so the
+    // text has to name the quantity the code actually reads.
+    bound: 'proposed ≤ previousEmitted + tol' },
   { reason: 'rate', compartments: ['cardio', 'hepatic', 'renal'],
     law: 'The observable cannot move faster over a step than a chronic trajectory permits.',
     bound: `|Δ|/Δt ≤ ${MAX_RATE_PER_DAY.cardio} mmHg/d · ${MAX_RATE_PER_DAY.hepatic} %/d · ${MAX_RATE_PER_DAY.renal} mL/min/d` },
@@ -288,10 +294,21 @@ export function recordRejections(predictionId: string, decisions: GateDecision[]
   return recs;
 }
 
-export function rejectionLedger(limit = 100): { count: number; rejections: RejectionRecord[]; byReason: Record<string, number> } {
+/**
+ * Read the ledger, optionally restricted to a set of compartments.
+ *
+ * 🔴 A ledger entry is NOT policy. It carries `mechanistic`, `proposed`, `delta`, `emitted` and the
+ * measured violation — real physiological values for the person the prediction was anchored to. So a
+ * caller holding a cardiovascular grant must not read renal entries, or the ledger becomes the side
+ * door around the consent scope that /predict is careful to close. `only` is that scope, and the
+ * count and the reason histogram are recomputed OVER THE SCOPED SET: a total taken across the whole
+ * ledger would itself disclose that out-of-scope refusals happened.
+ */
+export function rejectionLedger(limit = 100, only?: readonly Compartment[]): { count: number; rejections: RejectionRecord[]; byReason: Record<string, number> } {
+  const scoped = only ? LEDGER.filter((r) => only.includes(r.compartment)) : LEDGER;
   const byReason: Record<string, number> = {};
-  for (const r of LEDGER) byReason[r.reason!] = (byReason[r.reason!] ?? 0) + 1;
-  return { count: LEDGER.length, rejections: LEDGER.slice(0, limit), byReason };
+  for (const r of scoped) byReason[r.reason!] = (byReason[r.reason!] ?? 0) + 1;
+  return { count: scoped.length, rejections: scoped.slice(0, limit), byReason };
 }
 
 /** Test-only: reset the ledger between harness scenarios. */

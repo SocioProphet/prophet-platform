@@ -452,6 +452,39 @@ console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusa
   const allowedDyn = (['cardio', 'hepatic', 'renal'] as const).filter((k) => cardioOnly.systems.includes(COMPARTMENT_SYSTEM[k]));
   ok(resolvedDyn.ok === true && allowedDyn.length === 1 && allowedDyn[0] === 'cardio',
     'a cardiovascular-only grant admits exactly the cardio compartment (hepatic + renal stay outside)');
+
+  // 7e. THE REJECTION LEDGER IS RECORD CONTENT, AND IT IS SCOPED LIKE ONE.
+  // Every entry carries mechanistic / proposed / delta / emitted — the person's own trajectory in
+  // mmHg, % and mL/min. The endpoint shipped ungated and unscoped, so a clinician refused the renal
+  // forecast at /predict could have reconstructed it by reading the refusals instead. Scoping the
+  // ledger closes that side door, and the count and histogram are recomputed over the scoped set —
+  // a total taken across the whole ledger would itself disclose that out-of-scope refusals happened.
+  _clearLedger();
+  predict({ overrideDelta: () => -100 });               // force refusals in ALL THREE compartments
+  const full = rejectionLedger(500);
+  const scoped = rejectionLedger(500, ['cardio']);
+  ok(full.rejections.some((r) => r.compartment === 'renal') && full.rejections.some((r) => r.compartment === 'hepatic'),
+    `the unscoped ledger holds every compartment (${full.count} refusals across ${new Set(full.rejections.map((r) => r.compartment)).size} organs)`);
+  ok(scoped.rejections.every((r) => r.compartment === 'cardio'),
+    'a cardio-scoped ledger read returns cardio entries ONLY — the renal trajectory is not readable through the refusals');
+  ok(scoped.count === scoped.rejections.length && scoped.count < full.count,
+    `the scoped count is recomputed over the scoped set (${scoped.count} of ${full.count}), not leaked as a whole-ledger total`);
+  ok(Object.values(scoped.byReason).reduce((a, b) => a + b, 0) === scoped.count,
+    'the scoped reason histogram sums to the scoped count — no out-of-scope refusal is counted');
+  // and the values really are record content, so the scoping is load-bearing rather than tidy
+  ok(full.rejections.every((r) => typeof r.mechanistic === 'number' && typeof r.emitted === 'number'),
+    'a ledger entry does carry physiological values (which is WHY it is gated and scoped)');
+  _clearLedger();
+
+  // 7f. DECLARED == ENFORCED. RULES is served verbatim at GET /api/health/dynamics as inspectable
+  // policy, so a rule whose text names a different quantity than the code reads is a documented lie
+  // on a PHI surface. The renal bound said `previousAccepted` while the gate read `previousEmitted`.
+  const { RULES } = await import('./dynamics/gate.js');
+  const renalMono = RULES.find((r) => r.reason === 'monotonicity' && r.compartments.includes('renal'))!;
+  ok(/previousEmitted/.test(renalMono.bound) && !/previousAccepted/.test(renalMono.bound),
+    `the renal monotonicity bound names the quantity the gate actually reads (${renalMono.bound})`);
+  ok(RULES.every((r) => !/previousAccepted/.test(r.bound)),
+    'no published rule bound names a quantity the gate does not read');
 }
 
 console.log('\n▶ INVARIANT 9 — a grant id is not a credential: the holder is authenticated, both ways');

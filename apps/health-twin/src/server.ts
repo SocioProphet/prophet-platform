@@ -728,10 +728,38 @@ const server = http.createServer(async (req, res) => {
   }
 
   // The rejection ledger. A refusal nobody can see may as well have been a silent clamp, so the refusals
-  // are a first-class readable surface — not a log line. Decisions and bounds only, never record content.
+  // are a first-class readable surface — not a log line.
+  //
+  // 🔴 A ledger entry IS record content. An earlier comment here claimed "decisions and bounds only,
+  // never record content" and that was simply false: every entry carries the mechanistic value, the
+  // proposal, the delta and the emitted value — the person's own trajectory in mmHg, % and mL/min. So
+  // the SAME TWO MEMBRANES that guard /predict guard this, for the same two reasons:
+  //   • EXPOSURE, because these are record-derived numbers and this endpoint is reachable cross-origin;
+  //   • the GRANT scope, because a clinician holding a cardiovascular grant must not learn the renal
+  //     trajectory — and would have, by reading the refusals instead of asking for the prediction.
+  // Without both, a caller refused at /predict could reconstruct what it was refused, one rejection at
+  // a time, which is exactly the bypass the grant scope exists to prevent.
   if (req.method === 'GET' && url.pathname === '/api/health/dynamics/rejections') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
     const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') ?? 100)));
-    return send(res, 200, { ...rejectionLedger(limit), law: gatePolicy().doctrine });
+
+    const gid = url.searchParams.get('grant');
+    let only: Compartment[] | undefined;
+    let withheldSystems: string[] = [];
+    if (gid) {
+      const r = resolveGrant(grants, String(gid));
+      if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('rejections-blocked', [String(gid), r.reason]) });
+      const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+      only = COMPARTMENTS.filter((k) => scope.systems === 'all' || scope.systems.includes(COMPARTMENT_SYSTEM[k]));
+      withheldSystems = COMPARTMENTS.filter((k) => !only!.includes(k)).map((k) => COMPARTMENT_SYSTEM[k]);
+      if (only.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant’s scope' });
+    }
+    return send(res, 200, {
+      ...rejectionLedger(limit, only),
+      law: gatePolicy().doctrine,
+      ...(gid ? { grant: { id: gid, withheldSystems } } : {}),
+    });
   }
 
   // Provider directory + a provider's profile (the patient reviews who their doctors are).

@@ -12,7 +12,8 @@ import { guidance } from './guidelines.js';
 import { ground } from './knowledge.js';
 import { buildCohort, mechanisticFor, SAMPLE_DAYS, HORIZON_DAYS } from './dynamics/cohort.js';
 import { fitSurrogate, proposeDelta } from './dynamics/surrogate.js';
-import { OBSERVABLE, type Compartment } from './dynamics/mechanistic.js';
+import { OBSERVABLE, anchorTo, simulate, observableOf, DEFAULT_PARAMS, type Compartment } from './dynamics/mechanistic.js';
+import { reconcile } from './dynamics/gate.js';
 
 interface Gold { code: string; negated: boolean; value?: string }
 interface Case { text: string; gold: Gold[] }
@@ -84,27 +85,56 @@ function evalGrounding() {
   return { hit, total: cases.length, acc: hit / cases.length };
 }
 
-// twin dynamics: mechanistic-alone vs mechanistic + gated learned residual, on HELD-OUT synthetic
+// twin dynamics: mechanistic-alone vs mechanistic + GATED learned residual, on HELD-OUT synthetic
 // subjects the surrogate was never fitted on. 🔴 The cohort is SYNTHETIC and its ground truth is a
 // superset of the mechanistic model, so this measures that the residual machinery extracts real signal
 // from covariates the ODE does not consume. It is NOT clinical validation and must never be quoted as
 // such. Renal is expected NOT to improve — see the note by its floor.
-function evalDynamics() {
+//
+// 🔴 THE RESIDUAL IS SCORED THROUGH THE REAL GATE. This previously computed `m + proposeDelta(...)`
+// while reporting "gated", which measured a path predict() never takes. It happened to agree — the
+// gate refuses nothing on this cohort — but "the number was right by coincidence" is not the same
+// claim as "the number is right", and the gate is the entire safety argument for shipping a learned
+// term at all. A floor that scores the ungated surrogate would keep passing through exactly the
+// regression the gate exists to catch: a surrogate that drifts into inadmissible proposals would score
+// on its raw output while the twin emitted the physics.
+//
+// So `reconcile()` — the same function predict() calls — adjudicates every step, `previousEmitted`
+// chains across the horizon exactly as it does in a real run, and the reported RMSE is over what the
+// twin WOULD ACTUALLY EMIT. The ungated figure is reported alongside it, and any divergence between
+// the two is printed rather than left for a reader to assume away.
+function evalDynamics(amplify = 1) {
   const sur = fitSurrogate();
   const test = buildCohort().filter((s) => s.split === 'test');
-  const out: Record<string, { rmseM: number; rmseR: number; gain: number; n: number }> = {};
+  const out: Record<string, { rmseM: number; rmseR: number; rmseUngated: number; gain: number; n: number; accepted: number; rejected: number; byReason: Record<string, number> }> = {};
   for (const k of ['cardio', 'hepatic', 'renal'] as Compartment[]) {
-    let seM = 0, seR = 0, n = 0;
+    let seM = 0, seR = 0, seU = 0, n = 0, accepted = 0, rejected = 0;
+    const byReason: Record<string, number> = {};
     for (const s of test) {
       const mech = mechanisticFor(s)[k];
+      // the gate reads the full mechanistic state (untreated path, τ_rbc, …), not just the observable
+      const params = anchorTo(s.baseline, DEFAULT_PARAMS);
+      const run = simulate(HORIZON_DAYS, params);
+      let previousEmitted = observableOf(run.steps[0]!, k);
       SAMPLE_DAYS.forEach((d, i) => {
         const y = s.truth[k][i]!, m = mech[i]!;
-        const r = m + proposeDelta(sur, k, s.covariates, d / HORIZON_DAYS);
-        seM += (y - m) ** 2; seR += (y - r) ** 2; n++;
+        const delta = proposeDelta(sur, k, s.covariates, d / HORIZON_DAYS) * amplify;
+        const decision = reconcile({
+          compartment: k, day: d, dtDays: d - (i === 0 ? 0 : SAMPLE_DAYS[i - 1]!),
+          mechanistic: m, previousEmitted, proposed: m + delta, delta,
+          step: run.steps[d]!, params,
+        });
+        if (decision.verdict === 'rejected') { rejected++; byReason[decision.reason!] = (byReason[decision.reason!] ?? 0) + 1; }
+        else accepted++;
+        seM += (y - m) ** 2;
+        seR += (y - decision.emitted) ** 2;   // what the twin would actually emit
+        seU += (y - (m + delta)) ** 2;        // what the surrogate wanted, ungoverned
+        previousEmitted = decision.emitted;
+        n++;
       });
     }
-    const rmseM = Math.sqrt(seM / n), rmseR = Math.sqrt(seR / n);
-    out[k] = { rmseM, rmseR, gain: 1 - rmseR / rmseM, n };
+    const rmseM = Math.sqrt(seM / n), rmseR = Math.sqrt(seR / n), rmseUngated = Math.sqrt(seU / n);
+    out[k] = { rmseM, rmseR, rmseUngated, gain: 1 - rmseR / rmseM, n, accepted, rejected, byReason };
   }
   return out;
 }
@@ -122,12 +152,43 @@ console.log(`  Value extraction  accuracy  ${pct(cod.valAcc)}`);
 console.log(`  Guideline firing  ${gud.hit}/${gud.want}  ${pct(gud.acc)}`);
 console.log(`  Grounding source  ${grd.hit}/${grd.total}  ${pct(grd.acc)}   (right authoritative source cited)`);
 console.log('  (measures OUR capabilities — coding/negation/values/guidance/grounding — not full clinical QA)');
-console.log('\n  Twin dynamics — held-out RMSE, mechanistic alone → mechanistic + gated learned residual');
+console.log('\n  Twin dynamics — held-out RMSE, mechanistic alone → mechanistic + GATED learned residual');
+console.log('    (scored through reconcile() — the same gate predict() runs, so this is what the twin would emit)');
 for (const k of ['cardio', 'hepatic', 'renal'] as Compartment[]) {
   const d = dyn[k]!;
-  console.log(`    ${k.padEnd(8)} ${d.rmseM.toFixed(4)} → ${d.rmseR.toFixed(4)} ${OBSERVABLE[k].unit.padEnd(7)} ${d.gain >= 0 ? pct(d.gain) + ' better' : pct(-d.gain) + ' WORSE'}   (n=${d.n} held-out points)`);
+  console.log(`    ${k.padEnd(8)} ${d.rmseM.toFixed(4)} → ${d.rmseR.toFixed(4)} ${OBSERVABLE[k].unit.padEnd(7)} ${d.gain >= 0 ? pct(d.gain) + ' better' : pct(-d.gain) + ' WORSE'}   (n=${d.n} held-out points · gate accepted ${d.accepted}/${d.n}${d.rejected ? ` · refused ${JSON.stringify(d.byReason)}` : ''})`);
+}
+// State the gate's effect out loud. If it refused nothing, the gated and ungated numbers coincide and
+// the reader is entitled to know that this figure is the gate's BEST case rather than a test of it —
+// the teeth are proven separately, by verify.ts and INVARIANT 7. If it ever starts refusing, the
+// divergence prints here instead of hiding inside a single RMSE.
+const totalRejected = (['cardio', 'hepatic', 'renal'] as Compartment[]).reduce((a, k) => a + dyn[k]!.rejected, 0);
+if (totalRejected === 0) {
+  console.log('    gate refused 0/'
+    + (['cardio', 'hepatic', 'renal'] as Compartment[]).reduce((a, k) => a + dyn[k]!.n, 0)
+    + ' proposals on this cohort — every proposal was admissible, so the gated and ungated residuals coincide here.');
+} else {
+  for (const k of ['cardio', 'hepatic', 'renal'] as Compartment[]) {
+    const d = dyn[k]!;
+    if (d.rejected) console.log(`    ${k}: gate refused ${d.rejected}/${d.n} — ungated RMSE would read ${d.rmseUngated.toFixed(4)} (${pct(1 - d.rmseUngated / d.rmseM)}), gated reads ${d.rmseR.toFixed(4)} (${pct(d.gain)}).`);
+  }
 }
 console.log('    🔴 SYNTHETIC cohort — measures that the residual extracts signal the ODE ignores, NOT clinical validity.');
+
+// GATE-WIRING SELF-CHECK. The gate refuses nothing on this cohort, so "scored through the gate" and
+// "scored without one" print the same number — which means a future edit could unwire reconcile()
+// here and every floor would stay green. That is precisely the silent-wrong shape this estate keeps
+// finding, so the wiring is PROVEN rather than trusted: re-score with a deliberately inadmissible
+// residual and require the gate to refuse it and to hold the emitted trajectory at the physics. If
+// this check ever passes trivially, the eval is no longer measuring what it says it measures.
+const probe = evalDynamics(40);
+const probeRejected = (['cardio', 'hepatic', 'renal'] as Compartment[]).reduce((a, k) => a + probe[k]!.rejected, 0);
+const gateBites = probeRejected > 0
+  && probe.cardio!.rmseR < probe.cardio!.rmseUngated
+  && probe.cardio!.rmseR <= probe.cardio!.rmseM * 1.0001;   // all-refused ⇒ the emitted path IS the physics
+console.log(`\n  Gate wiring self-check — amplified (×40) residual: gate refused ${probeRejected}/${probe.cardio!.n * 3}`);
+console.log(`    cardio ungated RMSE would be ${probe.cardio!.rmseUngated.toFixed(4)}; through the gate it is ${probe.cardio!.rmseR.toFixed(4)} (physics = ${probe.cardio!.rmseM.toFixed(4)}).`);
+console.log(`    ${gateBites ? '✓ the gate is live in this eval — an inadmissible residual is refused and the physics is emitted' : '✗ THE GATE IS NOT WIRED INTO THIS EVAL — the reported numbers do not measure what they claim'}`);
 
 // quality floors — the build fails if we regress below these
 const floors = { f1: 0.85, negAcc: 0.9, valAcc: 0.9, guidance: 1.0, grounding: 1.0, cardioGain: 0.20, hepaticGain: 0.15, renalNoHarm: -0.02 };
@@ -144,5 +205,8 @@ if (dyn.hepatic!.gain < floors.hepaticGain) fails.push(`hepatic residual gain ${
 // learn. That is a property of the observable, and the honest response is to say so in the floor rather
 // than to lengthen the horizon or shrink the noise until the number flatters us.
 if (dyn.renal!.gain < floors.renalNoHarm) fails.push(`renal residual DEGRADED fit by ${pct(-dyn.renal!.gain)}`);
+// The gate is the whole safety argument for shipping a learned term, so an eval that has stopped
+// exercising it is a failed eval, not a passing one.
+if (!gateBites) fails.push('the reconciliation gate is not wired into the dynamics eval (it refused nothing even for a ×40 inadmissible residual)');
 console.log(fails.length ? `\n✗ below floor: ${fails.join(' · ')}` : '\n✓ all metrics above floor');
 process.exit(fails.length ? 1 : 0);
