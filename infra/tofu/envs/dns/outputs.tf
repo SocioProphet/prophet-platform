@@ -8,6 +8,11 @@ output "record_manifest" {
   value       = { for k, m in module.records : k => m.records }
 }
 
+output "redirect_ip" {
+  description = "Redirect LB IP (empty unless enable_redirects=true). Redirect domains' apex/www A records point here."
+  value       = local.redirect_ip
+}
+
 output "egress_ips" {
   description = "Static egress IP(s) to allowlist in Namecheap and set as namecheap_client_ip. Empty unless create_egress_nat=true."
   value       = var.create_egress_nat ? module.egress_nat[0].egress_ips : []

@@ -45,5 +45,15 @@ locals {
     }],
   )
 
-  records = concat(local.baseline, local.app_rest)
+  # Redirect A records (apex + www) when a redirect target IP is provided for a redirect domain.
+  redirect_records = var.role == "redirect" && var.redirect_ip != "" ? [
+    { name = local.dns_name, type = "A", ttl = 300, rrdatas = [var.redirect_ip] },
+    { name = "www.${local.dns_name}", type = "A", ttl = 300, rrdatas = [var.redirect_ip] },
+  ] : []
+
+  records = concat(local.baseline, local.redirect_records, local.app_rest)
+
+  # A domain is safe to delegate once it has records beyond the security baseline:
+  # explicit app_records, or emitted redirect A records.
+  has_delegable_records = length(var.app_records) > 0 || length(local.redirect_records) > 0
 }
