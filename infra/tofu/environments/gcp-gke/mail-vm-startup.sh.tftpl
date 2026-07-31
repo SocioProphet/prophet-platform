@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Prophet Workspace mail VM — Postfix (SMTP/submission) + Dovecot (IMAPS) + OpenDKIM, TLS via certbot.
+# Mail is an edge appliance (stable IP + PTR + port 25 + real source IP) — the one workload that lives
+# on a VM instead of the Autopilot cluster. Idempotent-ish; re-runs safely. v1: single admin mailbox
+# seeded from Secret Manager; multi-user + broker/Postgres integration is a follow-up.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+HOST="${mail_hostname}"; DOMAIN="${mail_domain}"; SELECTOR="${dkim_selector}"; ADMIN="${admin_email}"
+exec > >(tee -a /var/log/mail-bootstrap.log) 2>&1
+echo "=== mail bootstrap $(date -u) host=$HOST domain=$DOMAIN ==="
+
+# hostname must match the PTR / A record for deliverability
+hostnamectl set-hostname "$HOST" || true
+echo "$HOST" > /etc/mailname
+
+apt-get update -y
+# preseed postfix as 'Internet Site' so the package install is non-interactive
+debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
+debconf-set-selections <<< "postfix postfix/mailname string $HOST"
+apt-get install -y postfix postfix-pgsql dovecot-imapd dovecot-lmtpd \
+  opendkim opendkim-tools certbot ca-certificates jq
+
+# --- secrets from Secret Manager (VM SA has secretAccessor) ---
+mkdir -p /etc/opendkim/keys/$DOMAIN
+gcloud secrets versions access latest --secret="${dkim_secret_name}" > /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+ADMIN_HASH="$(gcloud secrets versions access latest --secret="${admin_pass_secret_name}")"
+chown -R opendkim:opendkim /etc/opendkim/keys && chmod 600 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+
+# --- TLS via Let's Encrypt (HTTP-01; the A record mail.$DOMAIN must already point here) ---
+if [ ! -d "/etc/letsencrypt/live/$HOST" ]; then
+  certbot certonly --standalone --non-interactive --agree-tos -m "postmaster@$DOMAIN" -d "$HOST" || \
+    echo "WARN: certbot failed (DNS not propagated yet?) — re-run: certbot certonly --standalone -d $HOST"
+fi
+CERT="/etc/letsencrypt/live/$HOST/fullchain.pem"; KEY="/etc/letsencrypt/live/$HOST/privkey.pem"
+# renew hook reloads postfix+dovecot
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+printf '#!/bin/sh\nsystemctl reload postfix dovecot\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-mail.sh
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-mail.sh
+
+# --- OpenDKIM ---
+cat > /etc/opendkim.conf <<EOF
+Syslog yes
+UMask 002
+Mode sv
+Socket inet:8891@localhost
+Domain $DOMAIN
+Selector $SELECTOR
+KeyFile /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+Canonicalization relaxed/simple
+OversignHeaders From
+EOF
+systemctl enable opendkim && systemctl restart opendkim
+
+# --- Dovecot: virtual users via passwd-file, IMAPS only, TLS required ---
+mkdir -p /etc/dovecot /var/mail/vhosts/$DOMAIN
+groupadd -g 5000 vmail 2>/dev/null || true
+useradd -g vmail -u 5000 vmail -d /var/mail 2>/dev/null || true
+echo "$ADMIN:$ADMIN_HASH::::::" > /etc/dovecot/users   # passwd-file; hash is {SHA512-CRYPT}
+chown -R vmail:vmail /var/mail/vhosts
+cat > /etc/dovecot/dovecot.conf <<EOF
+protocols = imap lmtp
+listen = *
+ssl = required
+ssl_cert = <$CERT
+ssl_key = <$KEY
+mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
+mail_privileged_group = vmail
+namespace inbox { inbox = yes }
+passdb { driver = passwd-file; args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/users }
+userdb { driver = static; args = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n }
+service lmtp { unix_listener /var/spool/postfix/private/dovecot-lmtp { mode = 0600; user = postfix; group = postfix } }
+service auth { unix_listener /var/spool/postfix/private/auth { mode = 0660; user = postfix; group = postfix } }
+auth_mechanisms = plain login
+EOF
+systemctl enable dovecot && systemctl restart dovecot
+
+# --- Postfix: TLS, submission (587) w/ SASL via Dovecot, LMTP delivery, OpenDKIM milter ---
+postconf -e "myhostname = $HOST" "mydomain = $DOMAIN" "myorigin = \$mydomain"
+postconf -e "inet_interfaces = all" "inet_protocols = ipv4"
+postconf -e "mydestination = localhost"
+postconf -e "virtual_mailbox_domains = $DOMAIN"
+postconf -e "virtual_transport = lmtp:unix:private/dovecot-lmtp"
+postconf -e "smtpd_tls_cert_file = $CERT" "smtpd_tls_key_file = $KEY"
+postconf -e "smtpd_tls_security_level = may" "smtp_tls_security_level = may"
+postconf -e "smtpd_sasl_type = dovecot" "smtpd_sasl_path = private/auth"
+postconf -e "milter_default_action = accept" "milter_protocol = 6"
+postconf -e "smtpd_milters = inet:localhost:8891" "non_smtpd_milters = inet:localhost:8891"
+# submission (587): require TLS + auth
+postconf -M submission/inet="submission inet n - y - - smtpd"
+postconf -P "submission/inet/syslog_name=postfix/submission" \
+  "submission/inet/smtpd_tls_security_level=encrypt" \
+  "submission/inet/smtpd_sasl_auth_enable=yes" \
+  "submission/inet/smtpd_client_restrictions=permit_sasl_authenticated,reject"
+systemctl enable postfix && systemctl restart postfix
+echo "=== mail bootstrap complete $(date -u) ==="
