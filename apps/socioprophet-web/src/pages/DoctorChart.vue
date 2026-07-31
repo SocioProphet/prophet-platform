@@ -4,8 +4,15 @@
 // withheld COUNTS (never content), and a receipt per read; a revoked or expired grant is an explicit
 // block. Problems / meds / allergies up top, vitals with one-tap voice/keyboard entry, labs with
 // trends, and history as far back as the grant reaches. Non-diagnostic; a clinician decides.
+//
+// The chart reads through a HOLDER CREDENTIAL, not a grant id. The clinician pastes the token the
+// patient's twin showed once at issue time; it is held in memory for this session and nowhere else
+// (healthHolderToken.ts explains why not localStorage / sessionStorage / a cookie). No token means
+// no request — the empty state below is reached without ever asking the engine a question it would
+// have to refuse.
 import { ref, computed, onMounted } from 'vue';
-import { listGrants, doctorView, addReading, groundEvidence, type GrantSummary, type WithheldCounts, type TwinBundle, type TwinEvidence } from '../services/healthTwinApi';
+import { listGrants, doctorView, addReading, groundEvidence, HolderAuthError, type GrantSummary, type WithheldCounts, type TwinBundle, type TwinEvidence } from '../services/healthTwinApi';
+import { setHolderToken, clearHolderToken, hasHolderToken, holderGrantId } from '../services/healthHolderToken';
 import Sparkline from '../components/Sparkline.vue';
 
 const twin = ref<TwinBundle | null>(null);
@@ -18,7 +25,6 @@ const evByRecord = computed(() => { const m: Record<string, TwinEvidence> = {}; 
 
 // consent membrane state — which grant this chart reads through
 const grants = ref<GrantSummary[]>([]);
-const grantId = ref('');
 const grantMeta = ref<{ agent: string; scope: string; scopeSummary: string; expires_at: string; reads: number } | null>(null);
 const withheld = ref<WithheldCounts | null>(null);
 const readReceipt = ref('');
@@ -26,25 +32,81 @@ const blockedReason = ref('');
 const withheldDetail = computed(() =>
   Object.entries(withheld.value ?? {}).filter(([k, v]) => k !== 'total' && v).map(([k, v]) => `${v} ${k}`).join(', '));
 
+// The credential, and the one state that is NOT a failure: a recoverable "enter your token".
+// `refused` distinguishes "the engine rejected what you presented" from "you haven't presented one".
+const tokenEntry = ref('');
+const authNeeded = ref<{ reason: string; detail?: string; refused: boolean } | null>(null);
+const held = hasHolderToken;
+// The id half of the held token. Safe to render — the id was never the secret; that was the bug.
+const heldGrant = computed(() => grants.value.find((g) => g.id === holderGrantId.value) ?? null);
+
+function clearChart() {
+  twin.value = null; grantMeta.value = null; withheld.value = null; evidence.value = [];
+  evContext.value = ''; readReceipt.value = '';
+}
+
+/**
+ * Mount, and every refresh of the grant list. Reads ONLY the unauthenticated grants list — the
+ * patient's control panel, which needs no credential — and stops there when nothing is held. The
+ * old version fired doctor-view at mount with whichever grant id happened to be first, which under
+ * holder auth is a guaranteed 401 and a receipted failed read on every page load.
+ */
 async function load() {
   loading.value = true; err.value = '';
   try {
-    const gl = await listGrants();
-    grants.value = gl.grants;
-    if (!grantId.value) grantId.value = (gl.grants.find((g) => g.active) ?? gl.grants[0])?.id ?? '';
-    if (!grantId.value) { blockedReason.value = 'No consent grant on file — the patient has not authorized clinician access.'; twin.value = null; return; }
-    const dv = await doctorView(grantId.value);
+    grants.value = (await listGrants()).grants;
+  } catch (e) {
+    err.value = e instanceof Error ? e.message : 'grants unreachable';
+    loading.value = false; return;
+  }
+  loading.value = false;
+  if (held.value) await readChart();
+}
+
+async function readChart() {
+  loading.value = true; err.value = ''; authNeeded.value = null;
+  try {
+    const dv = await doctorView();
     if (dv.blocked || !dv.view) {
+      // 403: the holder is proven, the GRANT is revoked or expired. A block is an answer, not a fault.
       blockedReason.value = dv.reason ?? 'access blocked';
-      twin.value = null; grantMeta.value = null; withheld.value = null; evidence.value = [];
+      clearChart();
       return;
     }
     blockedReason.value = '';
     twin.value = dv.view as TwinBundle; // the SCOPED slice — grants panel stays with the patient
     grantMeta.value = dv.grant ?? null; withheld.value = dv.withheld ?? null; readReceipt.value = dv.receipt?.id ?? '';
-    try { const g = await groundEvidence(grantId.value); evidence.value = g.items; evContext.value = g.context; } catch { /* evidence optional */ }
-  } catch (e) { err.value = e instanceof Error ? e.message : 'chart unreachable'; }
-  finally { loading.value = false; }
+    // Evidence stays optional: the chart is already rendering under a proven credential, and blanking
+    // it because a secondary read failed would be a worse answer than showing it without annotations.
+    try { const g = await groundEvidence(); evidence.value = g.items; evContext.value = g.context; } catch { /* evidence optional */ }
+  } catch (e) {
+    if (e instanceof HolderAuthError) {
+      // Recoverable. The credential is what failed — say so, and let the clinician enter another.
+      authNeeded.value = { reason: e.reason, detail: e.detail, refused: !e.missing };
+      if (!e.missing) clearHolderToken(); // a refused token is not worth keeping around to re-fail
+      blockedReason.value = ''; clearChart();
+    } else {
+      err.value = e instanceof Error ? e.message : 'chart unreachable';
+    }
+  } finally { loading.value = false; }
+}
+
+function submitToken() {
+  if (!setHolderToken(tokenEntry.value)) {
+    authNeeded.value = {
+      reason: 'That is not a grant token.',
+      detail: 'Expected `<grant-id>.<secret>` — a grant id on its own is not a credential.',
+      refused: true,
+    };
+    return;
+  }
+  tokenEntry.value = ''; // the raw credential does not linger in a DOM input once it is held
+  readChart();
+}
+
+function forgetToken() {
+  clearHolderToken();
+  clearChart(); blockedReason.value = ''; authNeeded.value = null; tokenEntry.value = '';
 }
 onMounted(load);
 
@@ -85,20 +147,72 @@ async function submitReading() {
   <div class="dc">
     <p class="dc-dx">⚕ Clinician chart — the patient's authorized record. Not a diagnosis; a clinician decides. Synthetic demo data.</p>
     <p v-if="err" class="dc-err">{{ err }}</p>
-    <p v-else-if="loading && !twin && !blockedReason" class="dc-msg">Loading chart…</p>
+    <p v-else-if="loading && held && !twin && !blockedReason" class="dc-msg">Loading chart…</p>
 
-    <!-- consent membrane: which grant this chart reads through — scope, receipt, and what's withheld -->
-    <section v-if="grants.length" class="dc-gate">
+    <!-- ── no credential held: the recoverable state, reached WITHOUT an unauthenticated read ──── -->
+    <section v-if="!held" class="dc-auth" :class="{ refused: authNeeded?.refused }">
+      <b class="dc-auth-h">{{ authNeeded?.refused ? '⛔ That token was refused' : '🔑 Enter your grant token' }}</b>
+      <p v-if="authNeeded?.refused" class="dc-auth-why">
+        {{ authNeeded.reason }}<span v-if="authNeeded.detail"> — {{ authNeeded.detail }}</span>
+      </p>
+      <p class="dc-auth-lead">
+        This chart reads through the patient's consent grant. The grant's access token is shown
+        <b>once</b>, to whoever issued it — paste it here. A grant id on its own is not a credential.
+      </p>
+      <div class="dc-auth-form">
+        <input
+          v-model="tokenEntry" type="password" class="dc-auth-in" placeholder="grant-id.secret"
+          autocomplete="off" spellcheck="false" aria-label="Grant access token"
+          @keydown.enter="submitToken" />
+        <button class="dc-auth-go" :disabled="!tokenEntry.trim()" @click="submitToken">Open chart</button>
+      </div>
+      <p class="dc-auth-fine">
+        Held <b>in memory for this session only</b> — never written to this device, this browser, or a
+        cookie. <b>Refreshing the page loses it, and that is deliberate:</b> a credential that survives
+        a refresh is a credential left behind on a shared bedside screen. Re-entering costs you
+        seconds; persisting it costs the patient their chart.
+      </p>
+      <p class="dc-auth-fine">
+        No token? It cannot be looked up — only its digest is stored, so a lost token means the grant
+        has to be re-issued. Ask the patient, or the operator of this node, for one.
+      </p>
+
+      <!-- grants on file: which of them can actually authenticate anyone -->
+      <div v-if="grants.length" class="dc-auth-grants">
+        <span class="dc-auth-grants-h">Grants on file</span>
+        <div v-for="g in grants" :key="g.id" class="dc-gr" :class="{ off: !g.active }">
+          <b class="dc-gr-agent">{{ g.agent }}</b>
+          <span class="dc-gr-scope">{{ g.scopeSummary || g.scope }}</span>
+          <span class="dc-gr-badge" :class="g.holderBound ? 'bound' : 'unbound'">
+            {{ g.holderBound ? '🔑 holder-bound' : '⚠ authenticates nobody' }}
+          </span>
+          <span class="dc-gr-state">{{ g.active ? 'active' : 'inactive' }}</span>
+        </div>
+        <p v-if="grants.some((g) => !g.holderBound)" class="dc-gr-note">
+          A grant marked <b>authenticates nobody</b> was issued before grants bound a holder. It still
+          reads as active, but every read through it is refused — it has to be re-issued to be usable.
+        </p>
+      </div>
+      <p v-else class="dc-auth-fine">
+        No consent grant on file — the patient has not authorized clinician access.
+      </p>
+    </section>
+
+    <!-- consent membrane: the credential this chart reads through — scope, receipt, and what's withheld -->
+    <section v-else class="dc-gate">
       <div class="dc-gate-row">
-        <span class="dc-gate-h">Consent grant</span>
-        <select v-model="grantId" class="dc-gate-sel" @change="load()">
-          <option v-for="g in grants" :key="g.id" :value="g.id">{{ g.agent }} — {{ g.scope }}{{ g.active ? '' : ' (inactive)' }}</option>
-        </select>
+        <span class="dc-gate-h">Reading through</span>
+        <span class="dc-gate-scope">{{ heldGrant?.agent || grantMeta?.agent || holderGrantId }}</span>
         <template v-if="grantMeta">
           <span class="dc-gate-scope">{{ grantMeta.scopeSummary }}</span>
           <span class="dc-gate-sub">expires {{ grantMeta.expires_at.slice(0, 10) }} · read #{{ grantMeta.reads }} · receipt {{ readReceipt }}</span>
         </template>
+        <button class="dc-gate-forget" @click="forgetToken">Forget token</button>
       </div>
+      <p class="dc-gate-fine">
+        Holder-authenticated — this proves possession of the grant's secret. It does not verify an
+        identity, an organisation or a clinical licence; there is no identity provider behind it.
+      </p>
       <p v-if="withheld?.total" class="dc-withheld">
         ⛉ {{ withheld.total }} record(s) withheld by the patient's consent scope <span class="dc-gate-sub">({{ withheldDetail }})</span>
         — counts only; content stays with the patient. Expanded access is the patient's decision.
@@ -219,9 +333,34 @@ async function submitReading() {
 .dc-gate { border: 1px solid var(--hairline); border-radius: var(--r-3); background: var(--sunken); padding: 10px var(--sp-4); margin-bottom: var(--sp-3); }
 .dc-gate-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .dc-gate-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
-.dc-gate-sel { font: 13px var(--ui); color: var(--ink); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 4px 8px; max-width: 340px; }
 .dc-gate-scope { font-size: 12.5px; font-weight: 600; }
 .dc-gate-sub { font-size: 11.5px; color: var(--muted); }
+.dc-gate-fine { font-size: 11px; color: var(--faint); margin: 6px 0 0; }
+.dc-gate-forget { margin-left: auto; font: 11.5px var(--ui); color: var(--muted); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 3px 10px; cursor: pointer; }
+.dc-gate-forget:hover { color: var(--fail); border-color: color-mix(in srgb, var(--fail) 40%, var(--hairline)); }
+/* the recoverable "enter your token" state — a credential prompt, not a failure toast */
+.dc-auth { border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--hairline)); border-radius: var(--r-3); background: var(--sunken); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); max-width: 680px; }
+.dc-auth.refused { border-color: color-mix(in srgb, var(--fail) 40%, var(--hairline)); background: color-mix(in srgb, var(--fail) 5%, var(--surface)); }
+.dc-auth-h { display: block; font-size: 14px; margin-bottom: 6px; }
+.dc-auth.refused .dc-auth-h { color: var(--fail); }
+.dc-auth-why { font-size: 12.5px; color: var(--fail); margin: 0 0 8px; }
+.dc-auth-lead { font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
+.dc-auth-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.dc-auth-in { flex: 1; min-width: 220px; min-height: 40px; border: 1px solid var(--hairline-strong); border-radius: var(--r-2); padding: 0 12px; font: inherit; font-size: 14px; background: var(--surface); color: var(--ink); }
+.dc-auth-in:focus { outline: 0; border-color: var(--accent); }
+.dc-auth-go { min-height: 40px; padding: 0 18px; background: var(--accent); color: #04122e; border: 0; border-radius: var(--r-2); font: inherit; font-weight: 600; cursor: pointer; }
+.dc-auth-go:disabled { opacity: .5; cursor: default; }
+.dc-auth-fine { font-size: 11.5px; line-height: 1.5; color: var(--muted); margin: 10px 0 0; }
+.dc-auth-grants { margin-top: var(--sp-3); border-top: 1px solid var(--hairline); padding-top: 10px; }
+.dc-auth-grants-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 700; }
+.dc-gr { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 12.5px; }
+.dc-gr:first-of-type { border-top: 0; } .dc-gr.off { opacity: .6; }
+.dc-gr-agent { font-weight: 600; } .dc-gr-scope { color: var(--muted); font-size: 11.5px; }
+.dc-gr-state { margin-left: auto; font-size: 11px; color: var(--faint); }
+.dc-gr-badge { font-size: 10.5px; border-radius: var(--pill); padding: 1px 9px; border: 1px solid var(--hairline); }
+.dc-gr-badge.bound { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--hairline)); background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.dc-gr-badge.unbound { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--hairline)); background: var(--warn-wash); }
+.dc-gr-note { font-size: 11.5px; line-height: 1.5; color: var(--warn); margin: 8px 0 0; }
 .dc-withheld { font-size: 12.5px; color: var(--warn); margin: 8px 0 0; }
 .dc-blocked { border: 1px solid color-mix(in srgb, var(--fail) 40%, var(--hairline)); border-radius: var(--r-3); background: color-mix(in srgb, var(--fail) 7%, var(--surface)); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); display: flex; flex-direction: column; gap: 4px; }
 .dc-blocked b { color: var(--fail); } .dc-blocked span { font-size: 14px; } .dc-blocked p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
