@@ -15,6 +15,24 @@ variable "manage_registrar" {
   description = "When true, delegate NS at Namecheap for domains with manage_ns:true. Keep false until a plan is reviewed and the API client_ip is allowlisted."
 }
 
+variable "create_egress_nat" {
+  type        = bool
+  default     = false
+  description = "When true, provision a reserved static egress IP + Cloud NAT (module egress-nat) so the registrar API can be called from an allowlistable fixed IP. Requires egress_network."
+}
+
+variable "egress_network" {
+  type        = string
+  default     = ""
+  description = "VPC network (name or self_link) for the egress NAT. Required when create_egress_nat=true."
+}
+
+variable "egress_region" {
+  type        = string
+  default     = "us-central1"
+  description = "Region for the egress NAT."
+}
+
 variable "namecheap_user_name" {
   type        = string
   default     = ""

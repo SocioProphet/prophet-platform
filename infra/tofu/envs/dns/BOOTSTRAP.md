@@ -54,13 +54,17 @@ tofu output name_servers                              # per-domain NS to delegat
 Namecheap's API requires the **calling IP to be pre-allowlisted**, and CI runner IPs are
 dynamic. Pick one:
 
-- **Cloud NAT with a reserved static IP** (recommended): route the registrar apply through a
-  GCP egress with a fixed IP.
+- **Cloud NAT with a reserved static IP** (recommended, and codified): the `egress-nat`
+  module provisions a reserved external IP + Cloud Router + Cloud NAT. Enable it in this env:
   ```bash
-  gcloud compute addresses create dns-egress-ip --region <region> --project "$PROJECT"
-  # attach to a Cloud NAT / router used by a self-hosted runner or a Cloud Run job
+  TF_VAR_project="$PROJECT" TF_VAR_create_egress_nat=true \
+    TF_VAR_egress_network=<vpc-name-or-self-link> TF_VAR_egress_region=<region> \
+    tofu apply
+  tofu output egress_ips        # -> the IP(s) to allowlist and use as namecheap_client_ip
   ```
-- **Small bastion / self-hosted runner** with a fixed public IP.
+  Whatever performs the registrar call (self-hosted runner / Cloud Run job / GCE) must
+  egress through that VPC to inherit the fixed IP.
+- **Small bastion / self-hosted runner** with a fixed public IP (alternative to the module).
 
 Then, in the Namecheap dashboard: Profile → Tools → **API Access** → enable, and add that IP
 to the **whitelist**. (API access is available with 20+ domains — met.)

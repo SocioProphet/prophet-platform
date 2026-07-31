@@ -45,3 +45,11 @@ module "registrar" {
   name_servers = module.zone[each.key].name_servers
   enabled      = var.manage_registrar
 }
+
+module "egress_nat" {
+  source  = "../../modules/egress-nat"
+  count   = var.create_egress_nat ? 1 : 0
+  project = var.project
+  region  = var.egress_region
+  network = var.egress_network
+}
