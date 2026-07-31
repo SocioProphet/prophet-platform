@@ -4,6 +4,8 @@ kind: Kustomization
 # WordOps / Sherlock Matrix substrate — Layer 1 (homeservers).
 # Two Synapse estates (public edge + private core) + edge proxy/ingress.
 resources:
+  - storage.yaml
   - synapse-public.yaml
   - synapse-private.yaml
   - matrix-edge.yaml
+  - postgres-backup.yaml

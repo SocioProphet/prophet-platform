@@ -160,6 +160,7 @@ spec:
         name: data
       spec:
         accessModes: ["ReadWriteOnce"]
+        storageClassName: wordops-matrix-data
         resources:
           requests:
             storage: 10Gi
@@ -250,6 +251,7 @@ metadata:
     app.kubernetes.io/part-of: wordops-matrix
 spec:
   accessModes: ["ReadWriteOnce"]
+  storageClassName: wordops-matrix-data
   resources:
     requests:
       storage: 20Gi
