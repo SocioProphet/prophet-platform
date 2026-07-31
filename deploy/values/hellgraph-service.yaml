@@ -5,6 +5,16 @@
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
 image: { repository: hellgraph-service, tag: sha-4df9dcbdccb826d35852da38294069b551b2e01a }
 service: { port: 8090, portName: http }
+# The chart's ServiceMonitor (charts/socioprophet-service/templates/servicemonitor.yaml) was
+# OFF for every service because none exposed a real /metrics endpoint. hellgraph-service now
+# does (src/metrics.ts, prom-client): GET /metrics on the SAME port (8090/http), emitting
+# http_server_request_duration_seconds_{count,bucket} with an http_response_status_code label —
+# the exact series infra/k8s/observability/base/prometheusrule-slos.yaml's job:request_error_ratio:rate5m
+# / job:request_latency_p99:5m recording rules select on. Flipping this on is what makes the
+# slo-gate canary AnalysisTemplate (infra/k8s/rollouts/base/analysistemplate-slo.yaml) have real
+# data instead of querying an always-empty series. No portName override needed — /metrics rides
+# the main "http" port alongside every other route.
+metrics: { enabled: true }
 # Measured: 55k RC load peaks 560MB RSS (batched loader, engine 0.4.40) — 1Gi is the honest budget.
 resources:
   requests: { cpu: 250m, memory: 768Mi }
@@ -66,6 +76,48 @@ config:
   # honestly (sealed:false + sealError on the decision node), never the gate itself.
   MEMBRANE_ENFORCE: "on"
   COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+# ── Argo Rollouts canary — LIVE once merged (explore/rollouts-hellgraph-pilot, 2026-07-31) ──
+# Adopts the shared chart's rollout.* pattern (charts/socioprophet-service/templates/rollout.yaml)
+# instead of infra/k8s/rollouts/base's old standalone rollout-hellgraph-service.example.yaml
+# (retired — this values block is now the source of truth for hellgraph-service's canary shape).
+#
+# SLO-GATED FOR REAL (2026-07-31): hellgraph-service now exports http_server_request_duration_seconds_*
+# via prom-client (apps/hellgraph-service/src/metrics.ts, GET /metrics on :8090) and metrics.enabled
+# is flipped on above — the exact series slo-gate's queries select on. This was deliberately shipped
+# metrics-free first (fixed-pause canary only, no analysis) because an AnalysisRun against an EMPTY
+# Prometheus series is not "healthy" and does not degrade safely (see feedback_control_that_cannot_fail);
+# now that real data exists, the gate below is real, not decorative. UNVERIFIED UNTIL FIRST LIVE RUN:
+# confirm a `job="hellgraph-service"` series is actually flowing in Prometheus post-deploy before
+# trusting the very first AnalysisRun's verdict — the recording rules in
+# infra/k8s/observability/base/prometheusrule-slos.yaml need at least one scrape interval of real
+# traffic to populate.
+
+# trafficRouting is real Gateway API weight-shifting (argoproj-labs/rollouts-plugin-trafficrouter-
+# gatewayapi — Argo Rollouts has no plugin-free native Gateway API support, confirmed against the
+# project's docs source at both the pinned v1.7.2 and the latest v1.9.1), driving the HTTPRoute in
+# infra/k8s/mesh/base/gateway.yaml (backendRefs already renamed to match canaryServiceSuffix/
+# stableServiceSuffix below). Requires deploy/argocd/progressive-delivery-services.yaml's
+# controller.trafficRouterPlugins registration to have actually synced first — see that file's
+# header for what's still unverified about it.
+rollout:
+  enabled: true
+  steps:
+    - setWeight: 20
+    - pause: { duration: 5m }
+    - analysis:
+        templateName: slo-gate
+        args:
+          - { name: service, value: hellgraph-service }
+    - setWeight: 50
+    - pause: { duration: 5m }
+    - setWeight: 100
+  trafficRouting:
+    enabled: true
+    plugin:
+      name: argoproj-labs/gatewayAPI
+      config:
+        httpRoute: hellgraph-service       # infra/k8s/mesh/base/gateway.yaml
+        namespace: socioprophet
 secretEnv:
   # The SAME compute-gateway-token Secret compute-gateway + prophet-materializer-clickhouse
   # already require in this namespace — nothing new is provisioned, for either the membrane's
