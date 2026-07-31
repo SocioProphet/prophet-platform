@@ -112,6 +112,30 @@ reports (all legit senders aligned), tighten per-domain in `domains.yaml`:
 Only touch SPF/MX on a mail domain by setting explicit `spf:` / `mx:` in `domains.yaml`
 (e.g. Google Workspace) — the module never guesses them.
 
+## Adversarial review — operational risks (read before delegating)
+
+The safe first apply (zones + baseline, `manage_registrar=false`) has no known failure
+mode. The following bite only at **delegation** time and are gated off by default:
+
+1. **Redirect/canonical domains go dark if delegated before they have records.** Delegating
+   NS to Cloud DNS replaces Namecheap DNS entirely — any current Namecheap URL-redirect or
+   email-forwarding stops. Only delegate `reserved`/parked domains first; do not flip
+   `manage_ns: true` on a `redirect`/`canonical` domain until its A/redirect records exist in
+   `domains.yaml`. (The redirect target service — GCLB URL map — is not built yet.)
+2. **DNSSEC needs a DS record at the registrar.** The zone is signed (`dnssec on`), but the
+   chain of trust is inert until you upload the zone's DS record to Namecheap *after*
+   delegation. Until then resolution works but is unvalidated. Do the DS upload as the final
+   go-live step per domain (verify with `dig DS <domain> +short`).
+3. **Cross-domain DMARC reports need authorization.** All domains report to
+   `dmarc@socioprophet.ai`. Per RFC 7489 §7.1, a receiver only sends aggregate reports to an
+   out-of-domain mailbox if the reporting domain publishes an authorization record, e.g.
+   `sourceos.org._report._dmarc.socioprophet.ai TXT "v=DMARC1"`. Without it, `p=reject` still
+   protects the domain — you just won't receive its `rua` reports. Add these authorization
+   records in the `socioprophet.ai` zone (via `records:` in `domains.yaml`) if you want the
+   reports, or set a per-domain `dmarc_rua`.
+4. **null-MX / CAA formats** (`0 .`, `0 issue "…"`) are validated at `tofu plan` against
+   Cloud DNS — review the first plan output before applying.
+
 ## Rollback
 
 - Baseline records: `tofu destroy -target=module.zone["<domain>"]` (or remove from

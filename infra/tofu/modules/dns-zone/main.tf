@@ -10,6 +10,15 @@ locals {
   spf_value  = var.spf != "" ? var.spf : (var.mail ? "" : "v=spf1 -all")
   manage_spf = local.spf_value != ""
 
+  # Cloud DNS keeps ALL TXT strings for a name in ONE record set. Fold SPF together with
+  # any apex TXT supplied via app_records (e.g. a domain-verification token) so they don't
+  # collide as two record sets at the apex.
+  apex_txt_extra   = flatten([for r in var.app_records : r.rrdatas if r.name == "@" && upper(r.type) == "TXT"])
+  spf_rrdata       = local.manage_spf ? ["\"${local.spf_value}\""] : []
+  apex_txt_all     = concat(local.spf_rrdata, local.apex_txt_extra)
+  manage_apex_txt  = length(local.apex_txt_all) > 0
+  app_records_rest = [for r in var.app_records : r if !(r.name == "@" && upper(r.type) == "TXT")]
+
   # MX: null-MX (RFC 7505) for parked; unmanaged for mail unless explicitly provided.
   mx_rrdatas = length(var.mx_records) > 0 ? var.mx_records : (var.mail ? [] : ["0 ."])
   manage_mx  = length(local.mx_rrdatas) > 0
@@ -41,13 +50,13 @@ resource "google_dns_managed_zone" "this" {
   }
 }
 
-resource "google_dns_record_set" "spf" {
-  count        = local.manage_spf ? 1 : 0
+resource "google_dns_record_set" "apex_txt" {
+  count        = local.manage_apex_txt ? 1 : 0
   name         = local.dns_name
   type         = "TXT"
   ttl          = 3600
   managed_zone = google_dns_managed_zone.this.name
-  rrdatas      = ["\"${local.spf_value}\""]
+  rrdatas      = local.apex_txt_all
 }
 
 resource "google_dns_record_set" "mx" {
@@ -76,7 +85,7 @@ resource "google_dns_record_set" "caa" {
 }
 
 resource "google_dns_record_set" "app" {
-  for_each     = { for r in var.app_records : "${r.type}:${r.name}" => r }
+  for_each     = { for r in local.app_records_rest : "${r.type}:${r.name}" => r }
   name         = each.value.name == "@" ? local.dns_name : "${each.value.name}.${local.dns_name}"
   type         = each.value.type
   ttl          = each.value.ttl
