@@ -1,8 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Mesh policy + Gateway. Requires the Gateway API CRDs (GKE's native implementation on this
-# cluster — confirmed already installed, no CNI chart needed here; see
-# deploy/argocd/progressive-delivery-services.yaml for the 2026-07-31 Cilium-drop rationale).
+# Mesh policy + Gateway. Cloud-agnostic base — requires Gateway API CRDs (any provider) and
+# does NOT set a GatewayClass; pick an overlay under ../overlays/ for that (gcp-gke-autopilot
+# or cilium-portable). Do not apply this base directly.
 resources:
   - networkpolicy.yaml
   - gateway.yaml
