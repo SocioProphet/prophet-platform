@@ -7,17 +7,19 @@
 #   tofu import google_compute_address.ws_smtp projects/socioprophet-platform/regions/us-central1/addresses/ws-smtp
 #   tofu import google_compute_address.ws_imap projects/socioprophet-platform/regions/us-central1/addresses/ws-imap
 
+# ws-smtp = mail.socioprophet.ai (SMTP 25/587 + MX target; PTR set on the mail VM). NOTE: no
+# `description` — it is a ForceNew field and these IPs already exist (imported), so setting one
+# would destroy+recreate the address and lose 130.211.115.191.
 resource "google_compute_address" "ws_smtp" {
   name         = "ws-smtp"
-  description  = "mail.socioprophet.ai — SMTP LoadBalancer (25/587) + MX target. Set PTR on this IP."
   region       = var.region
   address_type = "EXTERNAL"
   labels       = local.labels
 }
 
+# ws-imap = spare since mail+imap now share the VM IP (kept reserved; free to release later).
 resource "google_compute_address" "ws_imap" {
   name         = "ws-imap"
-  description  = "imap.socioprophet.ai — IMAPS LoadBalancer (993)."
   region       = var.region
   address_type = "EXTERNAL"
   labels       = local.labels
