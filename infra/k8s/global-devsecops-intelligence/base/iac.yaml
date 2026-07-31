@@ -1,0 +1,51 @@
+# GDI prophet-platform IaC — Workload Identity SA (least-priv: consume telemetry
+# + intel.verdicts, produce ops.* ; read the GCS profile store), runtime secrets
+# via ExternalSecret (never in repo), and a ServiceMonitor so the mesh/telemetry
+# liveness rules can see GDI.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gdi
+  labels:
+    app: global-devsecops-intelligence
+  annotations:
+    # WI: bind to a GSA with objectViewer on the GDI profile bucket + secretAccessor
+    iam.gke.io/gcp-service-account: REPLACE_WITH_GDI_GSA@socioprophet-platform.iam.gserviceaccount.com
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gdi-secrets
+  labels:
+    app: global-devsecops-intelligence
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: SecretStore
+    name: REPLACE_WITH_ESTATE_SECRETSTORE
+  target:
+    name: gdi-secrets
+  data:
+    - secretKey: mesh-sasl-password
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/gdi-mesh-sasl-password }
+    - secretKey: model-router-token
+      remoteRef: { key: REPLACE_WITH_REMOTE_KEY_PATH/gdi-model-router-token }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: global-devsecops-intelligence
+  labels:
+    release: kube-prometheus-stack
+    app: global-devsecops-intelligence
+spec:
+  namespaceSelector:
+    matchNames: [socioprophet]
+  selector:
+    matchLabels:
+      app: global-devsecops-intelligence
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s

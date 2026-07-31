@@ -1,0 +1,23 @@
+# global-devsecops-intelligence (GDI) — AI4IT ops-intelligence, the DevSecOps
+# Workroom's runtime + the mesh consumer that closes the feedback loop:
+# consumes /telemetry/* + /intel/verdicts, correlates, produces /ops/findings +
+# /ops/actions as RCA-claim EventEnvelopes (epistemicLevel + evidence-integrity +
+# space-coords), membrane-gated. Image built + published by the GDI repo's own
+# CI; pin the immutable sha- tag here (lane discipline: prophet-platform owns
+# deploy wiring only).
+image: { repository: global-devsecops-intelligence, tag: sha-REPLACE_ON_FIRST_BUILD }
+service: { port: 8840, portName: http }
+serviceAccountName: gdi
+config:
+  MESH_BOOTSTRAP: "kafka.eventbus.svc.cluster.local:9092"
+  MESH_TOPICS_CONSUME: "telemetry.logs,telemetry.metrics,telemetry.traces,intel.verdicts"
+  MESH_TOPICS_PRODUCE: "ops.findings,ops.actions"
+  # membrane gate: no /ops/* production without a MembraneDecision receipt (C1/C9)
+  MEMBRANE_URL: "http://sovereign-broker:8080/membrane"
+  # every produced /ops/* event MUST satisfy this contract (C4/C7)
+  RCA_CLAIM_SCHEMA: "https://socioprophet.org/contracts/workroom/workroom-rca-claim.v0.1.json"
+  HOLMES_URL: "http://holmes:8091"
+  SYNAPSEIQ_URL: "http://synapseiq-reasoning-api:8092"
+  SHERLOCK_URL: "http://sherlock-search:8810"
+  MODEL_ROUTER_URL: "http://model-router:8710"
+autoscaling: { enabled: false }
