@@ -63,6 +63,26 @@ resource "google_secret_manager_secret_iam_member" "mail_admin_pass_access" {
   member    = "serviceAccount:${google_service_account.mail_vm.email}"
 }
 
+# Persistent data disk — the cert (/etc/letsencrypt), mailboxes (/var/mail), and user db survive
+# VM replace/recreate. THE fix for the replace-loop that wiped the cert every iteration and burned
+# the Let's Encrypt rate limit. Issue the cert ONCE; it lives here forever (also = the #33 resiliency).
+resource "google_compute_disk" "mail_data" {
+  name   = "prophet-mail-data"
+  type   = "pd-balanced"
+  zone   = "${var.region}-a"
+  size   = 20
+  labels = local.labels
+  lifecycle {
+    prevent_destroy = true # never let a config change delete mail + certs
+  }
+}
+
+variable "acme_staging" {
+  type        = bool
+  default     = true
+  description = "true = Let's Encrypt STAGING (untrusted, no rate limit — validate the pipeline). Flip to false for the real cert once prod quota is clear."
+}
+
 # --- The mail VM ---
 resource "google_compute_instance" "mail" {
   name                      = "prophet-mail"
@@ -78,6 +98,11 @@ resource "google_compute_instance" "mail" {
       size  = 30
       type  = "pd-balanced"
     }
+  }
+
+  attached_disk {
+    source      = google_compute_disk.mail_data.id
+    device_name = "maildata"
   }
 
   network_interface {
@@ -100,6 +125,7 @@ resource "google_compute_instance" "mail" {
     admin_email            = local.admin_email
     dkim_secret_name       = google_secret_manager_secret.mail_dkim.secret_id
     admin_pass_secret_name = google_secret_manager_secret.mail_admin_pass.secret_id
+    acme_staging           = var.acme_staging
   })
 
   depends_on = [

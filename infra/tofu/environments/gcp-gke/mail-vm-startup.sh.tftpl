@@ -13,6 +13,24 @@ echo "=== mail bootstrap $(date -u) host=$HOST domain=$DOMAIN ==="
 hostnamectl set-hostname "$HOST" || true
 echo "$HOST" > /etc/mailname
 
+# --- persistent data disk: cert + mailboxes survive VM replace/recreate (idempotent) ---
+# This is what stops the replace-loop from wiping the cert and re-hitting the LE rate limit:
+# on a recreated VM the disk already holds live/$HOST, so certbot below SKIPS re-issuance.
+DEV=/dev/disk/by-id/google-maildata; MP=/mnt/maildata
+if [ -b "$DEV" ]; then
+  blkid "$DEV" >/dev/null 2>&1 || mkfs.ext4 -F "$DEV"
+  mkdir -p "$MP"
+  grep -q "$MP" /etc/fstab || echo "$DEV $MP ext4 defaults,nofail 0 2" >> /etc/fstab
+  mountpoint -q "$MP" || mount "$MP"
+  mkdir -p "$MP/letsencrypt" "$MP/mail"
+  # symlink stateful paths onto the disk (before certbot / dovecot use them)
+  [ -L /etc/letsencrypt ] || { [ -d /etc/letsencrypt ] && cp -a /etc/letsencrypt/. "$MP/letsencrypt/" 2>/dev/null; rm -rf /etc/letsencrypt; ln -s "$MP/letsencrypt" /etc/letsencrypt; }
+  mkdir -p /var/mail
+  [ -L /var/mail/vhosts ] || { rm -rf /var/mail/vhosts; ln -s "$MP/mail" /var/mail/vhosts; }
+else
+  echo "WARN: data disk $DEV not attached — using ephemeral boot disk (cert will not persist)"
+fi
+
 apt-get update -y
 # preseed postfix as 'Internet Site' so the package install is non-interactive
 debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
@@ -21,21 +39,22 @@ apt-get install -y postfix postfix-pgsql dovecot-imapd dovecot-lmtpd \
   opendkim opendkim-tools certbot ca-certificates jq
 
 # --- secrets from Secret Manager (VM SA has secretAccessor) ---
-mkdir -p /etc/opendkim/keys/$DOMAIN
-gcloud secrets versions access latest --secret="${dkim_secret_name}" > /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+# DKIM key in a SEPARATE opendkim-owned dir. opendkim's root pre-check requires the /etc/opendkim
+# CONFIG dir to stay root-owned (owning it by opendkim fails "writeable and owned by uid 106"),
+# while the daemon (as opendkim) reads the key from /etc/dkimkeys after dropping privileges.
+mkdir -p /etc/dkimkeys /run/opendkim
+gcloud secrets versions access latest --secret="${dkim_secret_name}" > /etc/dkimkeys/$SELECTOR.private
 ADMIN_HASH="$(gcloud secrets versions access latest --secret="${admin_pass_secret_name}")"
-# opendkim runs its pre-start safety check AS ROOT and requires the private key
-# and its ancestor dirs to be (a) owned by root — the executing uid — and (b)
-# not group/world-readable. opendkim loads the key while still root, before
-# dropping to the opendkim user, so root:600 is both correct and most secure.
-# (Owning the key by opendkim, or making it group-readable, both fail the check.)
-chown -R root:opendkim /etc/opendkim
-chmod 750 /etc/opendkim/keys /etc/opendkim/keys/$DOMAIN && chmod 600 /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+chown -R opendkim:opendkim /etc/dkimkeys /run/opendkim
+chmod 700 /etc/dkimkeys && chmod 600 /etc/dkimkeys/$SELECTOR.private
 
 # --- TLS via Let's Encrypt (HTTP-01; the A record mail.$DOMAIN must already point here) ---
+# STAGING avoids the prod rate limit while validating the pipeline. If the cert already exists on
+# the persistent disk (recreated VM), this is SKIPPED entirely — no re-issue, no rate-limit hit.
+STAGING=""; [ "${acme_staging}" = "true" ] && STAGING="--staging"
 if [ ! -d "/etc/letsencrypt/live/$HOST" ]; then
-  certbot certonly --standalone --non-interactive --agree-tos -m "postmaster@$DOMAIN" -d "$HOST" || \
-    echo "WARN: certbot failed (DNS not propagated yet?) — re-run: certbot certonly --standalone -d $HOST"
+  certbot certonly --standalone $STAGING --non-interactive --agree-tos -m "postmaster@$DOMAIN" -d "$HOST" || \
+    echo "WARN: certbot failed — re-run: certbot certonly --standalone $STAGING -d $HOST"
 fi
 CERT="/etc/letsencrypt/live/$HOST/fullchain.pem"; KEY="/etc/letsencrypt/live/$HOST/privkey.pem"
 # renew hook reloads postfix+dovecot
@@ -51,11 +70,22 @@ Mode sv
 Socket inet:8891@localhost
 Domain $DOMAIN
 Selector $SELECTOR
-KeyFile /etc/opendkim/keys/$DOMAIN/$SELECTOR.private
+KeyFile /etc/dkimkeys/$SELECTOR.private
 Canonicalization relaxed/simple
 OversignHeaders From
 EOF
-systemctl enable opendkim && systemctl restart opendkim
+# Debian's opendkim.service takes its socket/rundir from /etc/default/opendkim — keep it
+# consistent with opendkim.conf + the Postfix milter, and ensure the rundir/pidfile exist.
+cat > /etc/default/opendkim <<EOF
+RUNDIR=/run/opendkim
+SOCKET="inet:8891@localhost"
+USER=opendkim
+GROUP=opendkim
+PID=/run/opendkim/opendkim.pid
+EOF
+systemctl enable opendkim
+# Non-fatal: a DKIM hiccup must NOT abort the run and leave Postfix/Dovecot unconfigured.
+systemctl restart opendkim || echo "WARN: opendkim failed — mail continues unsigned; DKIM fixable separately"
 
 # --- Dovecot: virtual users via passwd-file, IMAPS only, TLS required ---
 mkdir -p /etc/dovecot /var/mail/vhosts/$DOMAIN
@@ -71,14 +101,35 @@ ssl_cert = <$CERT
 ssl_key = <$KEY
 mail_location = maildir:/var/mail/vhosts/%d/%n/Maildir
 mail_privileged_group = vmail
-namespace inbox { inbox = yes }
-passdb { driver = passwd-file; args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/users }
-userdb { driver = static; args = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n }
-service lmtp { unix_listener /var/spool/postfix/private/dovecot-lmtp { mode = 0600; user = postfix; group = postfix } }
-service auth { unix_listener /var/spool/postfix/private/auth { mode = 0660; user = postfix; group = postfix } }
+namespace inbox {
+  inbox = yes
+}
+passdb {
+  driver = passwd-file
+  args = scheme=SHA512-CRYPT username_format=%u /etc/dovecot/users
+}
+userdb {
+  driver = static
+  args = uid=vmail gid=vmail home=/var/mail/vhosts/%d/%n
+}
+service lmtp {
+  unix_listener /var/spool/postfix/private/dovecot-lmtp {
+    mode = 0600
+    user = postfix
+    group = postfix
+  }
+}
+service auth {
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0660
+    user = postfix
+    group = postfix
+  }
+}
 auth_mechanisms = plain login
 EOF
-systemctl enable dovecot && systemctl restart dovecot
+systemctl enable dovecot
+systemctl restart dovecot || echo "WARN: dovecot restart returned non-zero"
 
 # --- Postfix: TLS, submission (587) w/ SASL via Dovecot, LMTP delivery, OpenDKIM milter ---
 postconf -e "myhostname = $HOST" "mydomain = $DOMAIN" "myorigin = \$mydomain"
@@ -97,5 +148,10 @@ postconf -P "submission/inet/syslog_name=postfix/submission" \
   "submission/inet/smtpd_tls_security_level=encrypt" \
   "submission/inet/smtpd_sasl_auth_enable=yes" \
   "submission/inet/smtpd_client_restrictions=permit_sasl_authenticated,reject"
-systemctl enable postfix && systemctl restart postfix
+systemctl enable postfix
+systemctl restart postfix || echo "WARN: postfix restart returned non-zero"
+# Final readiness echo so we can confirm the run reached the end (not aborted mid-way).
+echo "=== services: opendkim=$(systemctl is-active opendkim) dovecot=$(systemctl is-active dovecot) postfix=$(systemctl is-active postfix) ==="
+echo "=== LISTEN ==="; ss -ltnp 2>/dev/null | grep -E ':25|:465|:587|:993' || echo "MAILDIAG: nothing on mail ports"
+echo "=== MAILDIAG inet_interfaces=$(postconf -h inet_interfaces 2>/dev/null) master_smtp=$(postconf -M smtp/inet 2>/dev/null || echo MISSING) ==="
 echo "=== mail bootstrap complete $(date -u) ==="
