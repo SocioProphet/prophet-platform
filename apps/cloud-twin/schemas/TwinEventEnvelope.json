@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/TwinEventEnvelope.json",
+  "title": "TwinEventEnvelope",
+  "description": "Cybernetic Agentic Genesis & Inception — the standardized event envelope for verified Twins (the K3 twin-bridge lifecycle). Every world-changing action carries identity, policy, memory, and provenance refs for replay. Phase-0 canonical schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "event_id", "event_type", "timestamp", "actor_id", "twin_id", "policy_refs", "provenance_refs"],
+  "properties": {
+    "type": { "const": "TwinEventEnvelope" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "actor_id": { "type": "string", "minLength": 1 },
+    "twin_id": { "type": "string", "minLength": 1 },
+    "mission_id": { "type": "string" },
+    "project_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "trace_id": { "type": "string" },
+    "policy_refs": { "type": "array", "items": { "type": "string" } },
+    "memory_refs": { "type": "array", "items": { "type": "string" } },
+    "provenance_refs": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "payload": { "type": "object", "additionalProperties": true }
+  }
+}

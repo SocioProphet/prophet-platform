@@ -52,6 +52,7 @@ spec:
           - { name: portfolio-agent, tier: reference }           # product agent
           - { name: academy-board, tier: reference }             # academy courseware surface
           - { name: health-twin, tier: reference }               # health-twin product surface
+          - { name: cloud-twin, tier: reference }                # Cloud-Twin as a Service — genesis/twin lifecycle (GenesisSeed → verified Twin → replayable events)
           - { name: memoryd, tier: foundation }                  # memory-plane daemon — contract other services call
           - { name: embeddings, tier: reference }                # swappable embedder (fogstack literally swaps it out)
           - { name: regis-acr-api, tier: reference }             # registry ACR product API

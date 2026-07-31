@@ -1,0 +1,7 @@
+# cloud-twin — Cloud-Twin as a Service (Cybernetic Agentic Genesis & Inception).
+# Submit a GenesisSeed -> verified Twin -> replayable TwinEventEnvelope stream.
+image: { repository: cloud-twin, tag: latest }
+service: { port: 8080, portName: http }
+# The app exposes @app.get("/health") (app/main.py), not the chart's default /healthz.
+probes:
+  path: /health
