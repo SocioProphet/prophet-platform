@@ -1,0 +1,29 @@
+# wordops-mcp-gateway — WordOps lease-enforcing MCP gateway (Go), on the SOVEREIGN registry (zot).
+#
+# Registry: registry.socioprophet.ai (zot), NOT GAR — images.yml builds+pushes it there
+# (registry: registry.socioprophet.ai, basic auth), so the deploy MUST pull from there too via the
+# `zot-pull` dockerconfigjson secret (namespace socioprophet).
+#
+# New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable `sha-<commit>` tag
+# on the first successful build+merge (same pattern as agent-activity-ledger / gbrg-containment).
+#
+# The enforcement point of the WordOps agentic chat-ops fabric: it authorizes a capability-lease
+# (audience/scope/case/task/expiry; a containment sever is intrinsically risk_class A4), calls
+# gbrg-containment, and writes the durable ExecutionReceipt to agent-activity-ledger — the ledger,
+# NOT the Matrix room, is the authorization sink. Serves /healthz (chart probe default) on :8080.
+image: { registry: registry.socioprophet.ai, repository: wordops-mcp-gateway, tag: latest }
+imagePullSecrets: [{ name: zot-pull }]
+service: { port: 8080, portName: http }
+extraEnv:
+  - name: GBRG_CONTAINMENT_URL
+    value: http://gbrg-containment.socioprophet.svc.cluster.local:8080
+  - name: LEDGER_URL
+    value: http://agent-activity-ledger.socioprophet.svc.cluster.local:8080
+  - name: AUTH_SERVER
+    value: https://auth.socioprophet.ai/realms/wordops
+  - name: RESOURCE_URL
+    value: https://agents.socioprophet.ai/mcp/wordops
+  - name: BROKER_JWKS_URL
+    value: http://wordops-capability-broker.socioprophet.svc.cluster.local:8080/.well-known/jwks.json
+  - name: BROKER_ISSUER
+    value: https://auth.socioprophet.ai/realms/wordops/wordops-capability-broker
