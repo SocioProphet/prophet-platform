@@ -5,6 +5,16 @@
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
 image: { repository: hellgraph-service, tag: sha-4df9dcbdccb826d35852da38294069b551b2e01a }
 service: { port: 8090, portName: http }
+# The chart's ServiceMonitor (charts/socioprophet-service/templates/servicemonitor.yaml) was
+# OFF for every service because none exposed a real /metrics endpoint. hellgraph-service now
+# does (src/metrics.ts, prom-client): GET /metrics on the SAME port (8090/http), emitting
+# http_server_request_duration_seconds_{count,bucket} with an http_response_status_code label —
+# the exact series infra/k8s/observability/base/prometheusrule-slos.yaml's job:request_error_ratio:rate5m
+# / job:request_latency_p99:5m recording rules select on. Flipping this on is what makes the
+# slo-gate canary AnalysisTemplate (infra/k8s/rollouts/base/analysistemplate-slo.yaml) have real
+# data instead of querying an always-empty series. No portName override needed — /metrics rides
+# the main "http" port alongside every other route.
+metrics: { enabled: true }
 # Measured: 55k RC load peaks 560MB RSS (batched loader, engine 0.4.40) — 1Gi is the honest budget.
 resources:
   requests: { cpu: 250m, memory: 768Mi }
