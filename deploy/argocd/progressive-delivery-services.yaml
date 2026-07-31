@@ -29,10 +29,15 @@
 # both; google-cloud.md explicitly says GKE Gateway API integration is "available with the
 # Argo Rollouts Gateway API plugin" too). There is no trafficRouting.gatewayAPI key to
 # switch to — the argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi plugin below is the
-# only path to weighted-HTTPRoute canaries, on Cilium OR on GKE's native Gateway alike; only
-# the GatewayClass underneath changed (infra/k8s/mesh/base/gateway.yaml: cilium → gke-l7-rilb,
-# the internal regional GatewayClass — matches the Gateway's namespace-internal-only intent
-# and was confirmed available via `kubectl get gatewayclass` on this cluster).
+# only path to weighted-HTTPRoute canaries, on Cilium OR on GKE's native Gateway alike.
+#
+# PORTABILITY FIX (2026-07-31, same day): the path below now points at
+# infra/k8s/mesh/overlays/gcp-gke-autopilot, not infra/k8s/mesh/base directly. The GatewayClass
+# is a per-cloud overlay concern, not something to hardcode into the shared base — a future
+# AWS/Azure/self-managed environment's own app-of-apps should point this same Application shape
+# at overlays/cilium-portable instead (see that overlay's README for the companion Cilium
+# install). No change to what's actually live on THIS cluster — gke-l7-rilb either way, matching
+# GKE Autopilot's Dataplane V2 constraint (no user-facing Cilium Gateway API surface here).
 #
 # hellgraph-service (deploy/values/hellgraph-service.yaml) does NOT use the AnalysisTemplate
 # below yet — no /metrics exist for it (separate, unresolved prerequisite) — it runs a
@@ -102,7 +107,7 @@ spec:
   source:
     repoURL: https://github.com/SocioProphet/prophet-platform.git
     targetRevision: main
-    path: infra/k8s/mesh/base
+    path: infra/k8s/mesh/overlays/gcp-gke-autopilot
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions:

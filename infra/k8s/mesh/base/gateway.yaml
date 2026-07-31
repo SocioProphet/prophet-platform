@@ -4,23 +4,27 @@
 # native support for this in Argo Rollouts as of v1.9.1, confirmed against the project's own
 # docs source).
 #
-# gatewayClassName: gke-l7-rilb (2026-07-31, was `cilium` — dropped; this cluster has no
-# separate Cilium Helm install and no CiliumNetworkPolicy CRD, only GKE's native Gateway API
-# implementation). Confirmed via `kubectl get gatewayclass` against the live cluster:
-# gke-l7-rilb/-gxlb/-regional-external-managed/-global-external-managed all exist.
-# gke-l7-rilb (regional INTERNAL LB) chosen to match this Gateway's `allowedRoutes: from:
-# Same` intent (in-namespace only, no internet exposure) — NOT a lightweight in-cluster
-# proxy the way Cilium's own Gateway controller would have been: GKE's Gateway controller
-# provisions a REAL regional internal Google Cloud load balancer for this. That's a cost +
-# behavior difference from the original Cilium design worth a second look before this ships
-# broadly (fine for a single pilot service; reconsider if many services adopt this pattern).
+# gatewayClassName is deliberately a placeholder here (2026-07-31, corrected same-day) — this
+# base must stay portable across clouds (GKE/EKS/AKS/self-managed), not hardcoded to the one
+# GKE cluster that happens to exist today. Every consumer selects an overlay:
+#   overlays/gcp-gke-autopilot — gke-l7-rilb (GKE's native Gateway controller; matches this
+#     cluster's Dataplane V2, which doesn't expose a user-facing Cilium Gateway API surface —
+#     see networkpolicy.yaml's header for the same Autopilot constraint). Provisions a REAL
+#     regional internal Google Cloud load balancer — a cost + behavior difference from the
+#     portable overlay worth a second look if many services adopt this.
+#   overlays/cilium-portable — cilium (real Cilium install required — see that overlay's
+#     README for the companion Application spec). Identical on EKS/AKS/self-managed/bare-metal.
+# deploy/argocd/progressive-delivery-services.yaml currently points at gcp-gke-autopilot,
+# matching the one live cluster today. A future AWS/Azure/self-managed environment's own
+# app-of-apps should point at cilium-portable instead — identical HTTPRoute/plugin wiring,
+# only this one field differs.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: socioprophet-gateway
   namespace: socioprophet
 spec:
-  gatewayClassName: gke-l7-rilb
+  gatewayClassName: REPLACE_ME_VIA_OVERLAY
   listeners:
     - name: http
       protocol: HTTP

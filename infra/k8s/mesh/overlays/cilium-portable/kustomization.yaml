@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# For EKS/AKS/self-managed/bare-metal — anywhere that isn't GKE Autopilot. Requires the
+# companion Cilium Application in this directory (cilium-application.yaml) to actually be
+# synced by that environment's own app-of-apps FIRST — this overlay only patches the
+# GatewayClass reference, it does not install Cilium itself (ArgoCD Applications aren't
+# expressible as a kustomize resource in a way that composes with a Gateway/HTTPRoute
+# resource list, so keep them as separate concerns: this overlay for the workload-facing
+# Gateway API objects, the Application spec for the cluster-level CNI/controller install).
+resources:
+  - ../../base
+patches:
+  - target:
+      group: gateway.networking.k8s.io
+      version: v1
+      kind: Gateway
+      name: socioprophet-gateway
+    patch: |-
+      - op: replace
+        path: /spec/gatewayClassName
+        value: cilium
