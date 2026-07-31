@@ -7,4 +7,13 @@ resource "namecheap_domain_records" "delegation" {
   domain      = var.domain
   mode        = "OVERWRITE"
   nameservers = var.name_servers
+
+  lifecycle {
+    precondition {
+      # Fail closed: refuse to delegate a canonical/redirect domain that has no records —
+      # delegation replaces the registrar's DNS entirely, so it would resolve to nothing.
+      condition     = !(contains(["canonical", "redirect"], var.role) && !var.has_records)
+      error_message = "Refusing to delegate ${var.domain}: role=${var.role} has no non-baseline records; delegation would make it resolve to nothing. Add records in domains.yaml (or a redirect target) first."
+    }
+  }
 }
