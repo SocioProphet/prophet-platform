@@ -1,11 +1,11 @@
 output "name_servers" {
-  description = "Per-domain Cloud DNS name servers. Delegate each domain to these at the registrar (or set var.manage_registrar=true to do it via Namecheap)."
-  value       = { for k, m in module.zone : k => m.name_servers }
+  description = "Per-domain nameservers from the active cloud emitter. Delegate each domain to these at the registrar."
+  value       = { for k in keys(local.domains) : k => try(module.gcp[k].name_servers, module.aws[k].name_servers, []) }
 }
 
-output "zones" {
-  description = "Managed zone resource names, keyed by domain."
-  value       = { for k, m in module.zone : k => m.zone_name }
+output "record_manifest" {
+  description = "Audit artifact: the full normalized record set that WILL be created per domain (cloud-agnostic). Review via `tofu output -json record_manifest`."
+  value       = { for k, m in module.records : k => m.records }
 }
 
 output "egress_ips" {
