@@ -17,7 +17,7 @@ import {
   reconcile, auditEmission, rejectionLedger, _clearLedger, gatePolicy, EMISSION_LAW,
   RANGE, MAX_RATE_PER_DAY, ENVELOPE_K, REJECTION_REASONS, type RejectionReason, type ReconciliationVerdict,
 } from './gate.js';
-import { predict, verifyPrediction, currentObservations } from './predict.js';
+import { predict, verifyPrediction, currentObservations, EmissionLawViolation } from './predict.js';
 import { seal, canonical, digest } from './seal.js';
 
 let failures = 0;
@@ -199,6 +199,66 @@ console.log('\n▶ E3 — THE VERDICT USES THE VOCABULARY THE BODY-STATE SCHEMA 
   // 'learned_only' is unreachable BY CONSTRUCTION and that is the point: physics always runs first.
   const anyLearnedOnly = [applied, untouched, refused].some((p) => p.reconciliation.verdict === 'learned_only');
   ok(!anyLearnedOnly, "'learned_only' is unreachable — the mechanistic model always runs and the surrogate cannot express an absolute value");
+}
+
+console.log('\n▶ E4 — THE ANTI-CLAMP AUDIT IS INSIDE THE SEAL, AND IT FAILS CLOSED');
+{
+  // The audit used to only pick which literal went into a field, and the sealed projection EXCLUDED
+  // that field — so a clamped run and an honest run produced the same digest and the violation was
+  // unprovable from the receipt afterwards. Both halves are asserted here: bound, and acted on.
+  const p = predict();
+  ok(verifyPrediction(p), 'a clean prediction verifies against its own receipt');
+
+  const tampered = structuredClone(p) as typeof p;
+  (tampered.organs[0] as { emissionAudit: unknown }).emissionAudit = {
+    violated: 'clamp', law: EMISSION_LAW,
+    violations: [{ compartment: 'cardio', day: 7, emitted: RANGE.cardio.lo, mechanistic: 138, proposed: 38 }],
+  };
+  ok(!verifyPrediction(tampered),
+    'flipping emissionAudit from ok to a clamp violation BREAKS the seal — the violation is provable from the receipt');
+
+  const flipped = structuredClone(p) as typeof p;
+  flipped.reconciliation = { ...flipped.reconciliation, executionDecision: 'allow', humanActuation: 'permitted', verdict: 'physics_verified' };
+  ok(!verifyPrediction(flipped),
+    'flipping the reconciliation verdict deny→allow BREAKS the seal — the safety verdict is BOUND, not merely derivable');
+
+  // now a gate that genuinely clamps: it emits the BOUNDARY instead of the physics. predict() must
+  // seal it (so it is provable) and then REFUSE it (so the clamped number never reaches a caller).
+  let thrown: EmissionLawViolation | null = null;
+  try {
+    predict({
+      compartments: ['cardio'], overrideDelta: () => -100,
+      overrideDecisions: (_k, ds) => ds.map((d) => ({ ...d, emitted: RANGE.cardio.lo })),
+    });
+  } catch (e) { thrown = e instanceof EmissionLawViolation ? e : null; }
+  ok(thrown !== null, 'a gate that clamps makes predict() THROW — a clamped prediction is never returned');
+  if (thrown) {
+    ok(thrown.law === EMISSION_LAW, 'the refusal cites the anti-clamp law');
+    ok(thrown.violations.some((v) => v.compartment === 'cardio'), 'the refusal names the compartment that clamped');
+    ok(/^ht-prediction-[0-9a-f]{64}$/.test(thrown.receipt.id),
+      'the prediction was SEALED BEFORE it was refused — the receipt exists, so the violation is provable after the fact');
+    const honest = predict({ compartments: ['cardio'], overrideDelta: () => -100 });
+    ok(thrown.receipt.snapshotDigest !== honest.receipt.snapshotDigest,
+      'the clamped run and the honest run seal DIFFERENTLY (before this fix they were identical)');
+  }
+}
+
+console.log('\n▶ E5 — THE DENY VERDICT IS REACHABLE FROM CALLER INPUT ALONE (no test hook)');
+{
+  // This is why the unwired verdict mattered. `covariates` is read straight off the POST body in
+  // server.ts, and the surrogate consumes it — so an ordinary caller can drive the proposal across the
+  // admissibility bounds and make the run divergent. No overrideDelta, no privileged access.
+  const live = predict({ covariates: { adherencePdc: 50, reninIndex: 50, bmi: 28.4, uacr: 0.18 } });
+  ok(live.reconciliation.verdict === 'divergent',
+    `caller-supplied covariates alone drive the run divergent (got '${live.reconciliation.verdict}', ${live.gate.rejected} refusals)`);
+  ok(live.reconciliation.executionDecision === 'deny' && live.reconciliation.humanActuation === 'blocked' && live.reconciliation.omegaCeiling === 'TRUSTED',
+    'that run carries deny / blocked / TRUSTED — the verdict the request path must act on');
+  ok(live.organs.every((o) => o.emitted.every((v, i) => Number.isFinite(v) && Number.isFinite(o.mechanistic[i]!))),
+    'the divergent run still carries a readable mechanistic trajectory (the refusal is about actuation, not about reading)');
+
+  const ordinary = predict();
+  ok(ordinary.reconciliation.executionDecision === 'allow',
+    'TEETH THE OTHER WAY — the default covariates still produce an ALLOWED prediction, so the gate is not simply refusing everything');
 }
 
 // ── F. the seal ──────────────────────────────────────────────────────────────────────────────────

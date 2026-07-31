@@ -17,7 +17,8 @@ import {
 import { fitSurrogate, proposeDelta, SEED_COVARIATES, SURROGATE_ID, SURROGATE_VERSION } from './surrogate.js';
 import {
   reconcile, recordRejections, auditEmission, gatePolicy, reconciliationVerdict, GATE_ID, GATE_POLICY_VERSION,
-  ADMISSIBILITY_DIGEST, type GateDecision, type RejectionRecord, type RejectionReason, type Reconciliation,
+  ADMISSIBILITY_DIGEST, EMISSION_LAW,
+  type GateDecision, type RejectionRecord, type RejectionReason, type Reconciliation,
 } from './gate.js';
 import { seal, verifySeal, q, type Seal } from './seal.js';
 import { OBSERVATIONS } from '../data.js';
@@ -45,6 +46,14 @@ export interface PredictOptions {
    * argument only — it is never reachable from HTTP input, so no caller can steer the gate.
    */
   overrideDelta?: (k: Compartment, day: number, mechanistic: number) => number;
+  /**
+   * TEST-ONLY injection point, same discipline as `overrideDelta`: rewrite a compartment's decisions
+   * AFTER adjudication, so the harness can simulate a BROKEN GATE — one that clamps. There is no other
+   * way to exercise the anti-clamp response: `reconcile()` cannot produce a clamp, which is the point,
+   * so a gate that clamps has to be forged to prove the audit acts on it. Function argument only, never
+   * read from HTTP input.
+   */
+  overrideDecisions?: (k: Compartment, decisions: GateDecision[]) => GateDecision[];
 }
 
 export interface OrganPrediction {
@@ -101,6 +110,52 @@ const DISCLAIMER =
   'Projection of this record’s own numbers under the current regimen, from a mechanistic organ model with a '
   + 'gated learned correction. Synthetic data. Not a diagnosis, not a prognosis, not a medical device — a clinician decides.';
 
+// ── the sealed projection ────────────────────────────────────────────────────────────────────────
+//
+// 🔴 ONE function, called by both `predict()` (which computes the seal) and `verifyPrediction()`
+// (which re-derives it). It used to be written out twice, by hand, and the two copies had already
+// drifted: neither included `emissionAudit`, so a clamp violation did not perturb the digest and was
+// UNPROVABLE from the receipt afterwards — the receipt said "this run is fine" whether or not it was.
+// A seal that omits the audit of its own emission is a seal over the part nobody doubts.
+//
+// What the projection must therefore bind, and why each is load-bearing:
+//   • emitted / mechanistic / decisions — the numbers and the adjudication that produced them;
+//   • emissionAudit — the ANTI-CLAMP verdict. Without it a clamped run and an honest run seal alike;
+//   • reconciliation (per organ AND for the run) — the safety verdict the request path acts on. It is
+//     derivable from the decisions today, but "derivable" is not "bound": a future change to
+//     reconciliationVerdict() could flip deny→allow without moving a single digest.
+function sealedProjection(organs: OrganPrediction[], reconciliation: Reconciliation) {
+  return {
+    reconciliation,
+    organs: organs.map((o) => ({
+      compartment: o.compartment, days: o.days, mechanistic: o.mechanistic, emitted: o.emitted,
+      decisions: o.decisions.map((d) => ({ day: d.day, verdict: d.verdict, reason: d.reason ?? null, proposed: d.proposed, emitted: d.emitted })),
+      emissionAudit: o.emissionAudit,
+      reconciliation: o.reconciliation,
+    })),
+  };
+}
+
+/**
+ * Raised when the gate's own anti-clamp audit fails — i.e. the engine emitted a value that is neither
+ * the physics nor the whole proposal. This is NOT a caller error and it is not a rejected proposal: it
+ * means the GATE ITSELF is broken, and the number it produced is the silent-wrong class in the flesh.
+ *
+ * The audit result used to only choose which literal to write into a field nobody read. Now it fails
+ * CLOSED: the prediction is sealed first (so the violation is bound into a receipt and provable after
+ * the fact) and then refused, so a clamped clinical number never reaches a caller at all.
+ */
+export class EmissionLawViolation extends Error {
+  readonly name = 'EmissionLawViolation';
+  constructor(
+    readonly law: string,
+    readonly violations: { compartment: Compartment; violations: unknown[] }[],
+    readonly receipt: Seal,
+  ) {
+    super(`the gate emitted a value that is neither the physics nor the whole proposal (${violations.map((v) => v.compartment).join(', ')}) — refusing to serve a clamped prediction; receipt ${receipt.id}`);
+  }
+}
+
 /** The twin's latest recorded value for each compartment's observable. */
 export function currentObservations(): { sbp?: number; a1c?: number; egfr?: number } {
   const byCode = (c: string) => OBSERVATIONS.find((o) => o.code === c)?.value;
@@ -134,8 +189,9 @@ export function predict(opts: PredictOptions = {}): TwinPrediction {
   const allDecisions: GateDecision[] = [];
 
   for (const k of compartments) {
-    const mechanistic: number[] = [], proposed: (number | null)[] = [], emitted: number[] = [];
-    const decisions: GateDecision[] = [];
+    const mechanistic: number[] = [], proposed: (number | null)[] = [];
+    let emitted: number[] = [];
+    let decisions: GateDecision[] = [];
     let previousEmitted = observableOf(run.steps[0]!, k);
 
     days.forEach((day, i) => {
@@ -163,6 +219,14 @@ export function predict(opts: PredictOptions = {}): TwinPrediction {
       previousEmitted = decision.emitted;
     });
 
+    // TEST-ONLY: simulate a gate that clamps, so the anti-clamp response can be proven to have teeth.
+    // The emitted trajectory is re-read from the (possibly rewritten) decisions, because a forged clamp
+    // that did not move `emitted` would not be a clamp — it would be a mislabelled record.
+    if (opts.overrideDecisions) {
+      decisions = opts.overrideDecisions(k, decisions);
+      emitted = [emitted[0]!, ...decisions.map((d) => d.emitted)];
+    }
+
     const byReason: Partial<Record<RejectionReason, number>> = {};
     for (const d of decisions) if (d.verdict === 'rejected' && d.reason) byReason[d.reason] = (byReason[d.reason] ?? 0) + 1;
     const audit = auditEmission(decisions);
@@ -183,14 +247,13 @@ export function predict(opts: PredictOptions = {}): TwinPrediction {
   const byReason: Partial<Record<RejectionReason, number>> = {};
   for (const d of allDecisions) if (d.verdict === 'rejected' && d.reason) byReason[d.reason] = (byReason[d.reason] ?? 0) + 1;
 
+  const reconciliation = reconciliationVerdict(allDecisions);
+
   // ── seal ───────────────────────────────────────────────────────────────────────────────────────
   // Inputs, output and provenance are digested separately and bound into one snapshot, so a surface
   // can prove after the fact WHICH model, WHICH surrogate weights and WHICH gate policy produced this.
   const inputs = { horizonDays, stepDays, compartments, observed, covariates };
-  const output = organs.map((o) => ({
-    compartment: o.compartment, days: o.days, mechanistic: o.mechanistic, emitted: o.emitted,
-    decisions: o.decisions.map((d) => ({ day: d.day, verdict: d.verdict, reason: d.reason ?? null, proposed: d.proposed, emitted: d.emitted })),
-  }));
+  const output = sealedProjection(organs, reconciliation);
   const provenance = {
     mechanistic: { model: MODEL_ID, version: MODEL_VERSION, params: digestParams(params) },
     surrogate: { id: SURROGATE_ID, version: SURROGATE_VERSION, coefficientsDigest: sur.coefficientsDigest, fittedOn: sur.fittedOn, residualOnly: true as const },
@@ -199,9 +262,18 @@ export function predict(opts: PredictOptions = {}): TwinPrediction {
   const receipt = seal('prediction', inputs, output, provenance);
   const rejections = recordRejections(receipt.id, allDecisions);
 
+  // ── the anti-clamp law, ENFORCED ───────────────────────────────────────────────────────────────
+  // Sealed FIRST, refused SECOND, and the order is the whole point: the receipt exists and binds the
+  // violation, so the failure is provable after the fact — and then nothing is served. A clamped value
+  // that is merely LABELLED as clamped is still a clamped clinical number on a surface.
+  const clamped = organs
+    .filter((o) => o.emissionAudit !== 'ok')
+    .map((o) => ({ compartment: o.compartment, violations: (o.emissionAudit as { violations: unknown[] }).violations }));
+  if (clamped.length > 0) throw new EmissionLawViolation(EMISSION_LAW, clamped, receipt);
+
   return {
     horizonDays, stepDays, anchoredTo: observed, covariates, organs,
-    reconciliation: reconciliationVerdict(allDecisions),
+    reconciliation,
     gate: {
       policyVersion: GATE_POLICY_VERSION, admissibilityDigest: ADMISSIBILITY_DIGEST,
       accepted: allDecisions.filter((d) => d.verdict === 'accepted').length,
@@ -219,12 +291,12 @@ function digestParams(p: unknown): string {
   return seal('params', p, null, null).inputsDigest;
 }
 
-/** Re-derive a prediction's seal from its own contents — the verification side of the receipt. */
+/**
+ * Re-derive a prediction's seal from its own contents — the verification side of the receipt.
+ * Uses the SAME `sealedProjection` the seal was computed over, so the two can no longer drift apart.
+ */
 export function verifyPrediction(p: TwinPrediction): boolean {
   const inputs = { horizonDays: p.horizonDays, stepDays: p.stepDays, compartments: p.organs.map((o) => o.compartment), observed: p.anchoredTo, covariates: p.covariates };
-  const output = p.organs.map((o) => ({
-    compartment: o.compartment, days: o.days, mechanistic: o.mechanistic, emitted: o.emitted,
-    decisions: o.decisions.map((d) => ({ day: d.day, verdict: d.verdict, reason: d.reason ?? null, proposed: d.proposed, emitted: d.emitted })),
-  }));
+  const output = sealedProjection(p.organs, p.reconciliation);
   return verifySeal(p.receipt, 'prediction', inputs, output, p.provenance);
 }
