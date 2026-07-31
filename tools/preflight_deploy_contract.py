@@ -182,6 +182,11 @@ KNOWN_BROKEN = {
         "TwinEventEnvelope stream; Cybernetic Agentic Genesis & Inception Phase-1 read-only skeleton) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
+    "wordops-mcp-gateway:moving-tag": (
+        "New service — WordOps lease-enforcing MCP gateway (apps/wordops-mcp-gateway: authorizes A0-A4 "
+        "capability-leases, containment=>A4, and writes ExecutionReceipts to the ledger) added to CI this PR. "
+        "Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
+    ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
