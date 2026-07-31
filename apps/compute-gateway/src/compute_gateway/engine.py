@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from . import adapters, artifacts, receipts, registry, zerotrust
+from . import adapters, artifacts, masking, receipts, registry, zerotrust
 from .contract import ComputeOutput, ComputeRequest, ComputeResult, GraphEdge
 
 MEMOIZE = os.getenv("GATEWAY_MEMOIZE", "true").lower() == "true"
@@ -370,6 +370,16 @@ async def execute(req: ComputeRequest, _depth: int = 0) -> ComputeResult:
     # an adapter may TYPE the warrant dynamically (extraction = weakest extracted fact;
     # reconcile → verified only when every fact reconciled). Falls back to the kind default.
     epistemic = raw.get("epistemic", epistemic)
+
+    # ── masking PDP (read-path) ────────────────────────────────────────────────
+    # For governed read kinds, apply the field-level masking policy to the outputs
+    # BEFORE they are sealed, so the receipt attests exactly what the caller received
+    # and the masking decision rides the same Ed25519 attestation. No policy
+    # configured → exact passthrough (zero behaviour change on a live gateway).
+    if status == "ok" and kind in masking.READ_KINDS:
+        raw["outputs"] = masking.apply(
+            raw["outputs"], kind=kind, project=req.project,
+            actor=req.actor, entitlement=req.entitlement)
 
     # ── exhaust accounting (W6.1) ──────────────────────────────────────────────
     # Every receipt carries what the stage consumed vs produced (bytes_out/bytes_in
