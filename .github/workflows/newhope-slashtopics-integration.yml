@@ -1,0 +1,55 @@
+name: New Hope + Slash Topics Integration
+
+# Validates the New Hope + Slash Topics semantic-BI integration contracts.
+# Read-only: inspects the mirrored slash-topics schema subset, the landed
+# integration examples, and the import manifest already in the tree. No
+# network calls, no writes.
+on:
+  pull_request:
+    paths:
+      - 'contracts/imported/slash-topics/**'
+      - 'contracts/imported/IMPORT_MANIFEST.yaml'
+      - 'contracts/imported/CANONICAL_SOURCES.yaml'
+      - 'examples/newhope-slash-topics/**'
+      - 'tools/validate_newhope_slashtopics_integration.py'
+      - 'tools/tests/test_validate_newhope_slashtopics_integration.py'
+      - 'docs/INTEGRATION_NewHope_SlashTopics_SemanticBI.md'
+      - '.github/workflows/newhope-slashtopics-integration.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'contracts/imported/slash-topics/**'
+      - 'contracts/imported/IMPORT_MANIFEST.yaml'
+      - 'contracts/imported/CANONICAL_SOURCES.yaml'
+      - 'examples/newhope-slash-topics/**'
+      - 'tools/validate_newhope_slashtopics_integration.py'
+      - 'tools/tests/test_validate_newhope_slashtopics_integration.py'
+      - 'docs/INTEGRATION_NewHope_SlashTopics_SemanticBI.md'
+      - '.github/workflows/newhope-slashtopics-integration.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  newhope-slashtopics-validate:
+    name: Validate New Hope + Slash Topics integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install validator dependencies (pinned for reproducibility)
+        run: pip install jsonschema==4.23.0 PyYAML==6.0.2 pytest==8.3.4
+
+      - name: Validate integration contracts (non-mutating)
+        run: python3 tools/validate_newhope_slashtopics_integration.py
+
+      - name: Run integration validator tests
+        run: pytest tools/tests/test_validate_newhope_slashtopics_integration.py -q

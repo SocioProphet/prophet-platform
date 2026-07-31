@@ -1,0 +1,28 @@
+# Canonical Sources Registry (platform-level)
+# v0.1 — single source of truth per namespace
+
+namespaces:
+  newhope:
+    canonical_repo: new-hope-main
+    owns:
+      - carrier_wire_format
+      - receptor_mindset
+      - membrane_input_semantics
+  slash_topics:
+    canonical_repo: slash-topics-main
+    owns:
+      - slash-topics.pack.v0.1
+      - MembraneDecision.v0.1
+      - model-selection.policy.v0.1
+  semantic_search_bi:
+    canonical_repo: sociosphere-main
+    owns:
+      - caps/semantic-search-bi
+
+mirrors:
+  sourceos-main:
+    allowed_to_mirror:
+      - semantic_search_bi
+      - slash_topics
+      - newhope
+    rule: "mirrors must be generated or hash-locked; no hand edits"

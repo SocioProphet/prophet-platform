@@ -1,0 +1,10 @@
+repo: SocioProphet/slash-topics
+pin: "9037a91959706e4cef07d0b55edfea8e9487baf1"
+imported_by: prophet-platform
+import_mode: mirror_schema_subset
+role: governed signed topic scopes — topic-pack, membrane-decision, and model-selection semantics
+mirrored_objects:
+  - specs/SlashTopics_Schema_v0.1.json
+  - specs/Membrane_Decision_v0.1.json
+  - specs/Membrane_Decision_v0.2.json
+  - specs/Model_Selection_Policy_v0.1.json

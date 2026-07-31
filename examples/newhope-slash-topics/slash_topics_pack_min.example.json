@@ -1,0 +1,30 @@
+{
+  "schema": "slash-topics.pack.v0.1",
+  "pack": "commons_default",
+  "version": "0.1.0",
+  "snapshot": "2026-02-11",
+  "canonicalization": {
+    "format": "json",
+    "ordering": "lexicographic",
+    "encoding": "utf-8",
+    "hash": "blake3"
+  },
+  "topics": [
+    {
+      "slash": "/science",
+      "name": "Science",
+      "category": "reference",
+      "description": "High-signal science and research sources.",
+      "derived": false,
+      "source": {
+        "origin": "seed:blekko",
+        "snapshot": "2012-10-15",
+        "kind": "bootstrap"
+      },
+      "policy": {
+        "default_posture": "allow",
+        "labels": ["safe-default", "no-egress-default"]
+      }
+    }
+  ]
+}

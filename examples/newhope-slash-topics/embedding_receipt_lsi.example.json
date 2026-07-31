@@ -1,0 +1,13 @@
+{
+  "schema": "embedding.receipt.v0.1",
+  "model_family": "lsi",
+  "tier": "global",
+  "corpus_ref": "hash://blake3/<corpus-hash>",
+  "preprocess_ref": "hash://blake3/<preprocess-hash>",
+  "hyperparams": {"k": 256, "tfidf": {"min_df": 2}},
+  "rng_seed": 0,
+  "artifact_hashes": ["hash://blake3/<svd-matrix>", "hash://blake3/<vocab>"],
+  "timestamp": "2026-02-11T22:00:05Z",
+  "input_carriers": ["hash://blake3/<carrier-hash>"],
+  "output_embeddings": {"vector_dim": 256, "ref": "hash://blake3/<embedding-artifact>"}
+}

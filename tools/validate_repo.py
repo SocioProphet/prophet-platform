@@ -112,6 +112,7 @@ for rel in [
     "contracts/imported/semantic-serdes/SOURCE_MANIFEST.yaml",
     "contracts/imported/new-hope/SOURCE_MANIFEST.yaml",
     "contracts/imported/memory-mesh/SOURCE_MANIFEST.yaml",
+    "contracts/imported/slash-topics/SOURCE_MANIFEST.yaml",
 ]:
     if not (ROOT / rel).exists():
         fail(f"missing imported source manifest: {rel}")

@@ -1,0 +1,71 @@
+{
+  "schema": "model-selection.policy.v0.1",
+  "scope": [
+    "slash-topics"
+  ],
+  "tiers": [
+    "user",
+    "global"
+  ],
+  "families": {
+    "lsa": {
+      "enabled": true,
+      "representation": "tfidf->svd",
+      "determinism": "deterministic",
+      "notes": "Fast, stable baseline for topic projection and similarity."
+    },
+    "lsi": {
+      "enabled": true,
+      "representation": "tfidf->svd (IR-oriented)",
+      "determinism": "deterministic",
+      "notes": "LSI aligned with retrieval semantics; often same math as LSA but treated as IR pipeline."
+    },
+    "lda": {
+      "enabled": true,
+      "representation": "bag-of-words->topic distribution",
+      "determinism": "bounded_nondeterministic",
+      "notes": "Requires seed control; sampling may vary unless fixed RNG + deterministic backend."
+    }
+  },
+  "training": {
+    "user": {
+      "data_sources": [
+        "user-local-corpus",
+        "user-interactions (opt-in)"
+      ],
+      "privacy_posture": "local-first",
+      "update_schedule": "incremental",
+      "retention": "user-controlled",
+      "export": "signed pack + receipt"
+    },
+    "global": {
+      "data_sources": [
+        "commons-corpus",
+        "curated-feeds",
+        "federated packs"
+      ],
+      "privacy_posture": "minimized",
+      "update_schedule": "batched",
+      "retention": "policy-bound",
+      "export": "signed pack + receipt"
+    }
+  },
+  "encoder_policy": {
+    "allowed": false,
+    "review_required": true,
+    "notes": "We default to classical (LSA/LSI/LDA). Encoder/hybrid models require explicit governance + reproducibility receipts."
+  },
+  "receipts": {
+    "must_emit": true,
+    "fields_required": [
+      "model_family",
+      "tier",
+      "corpus_ref",
+      "preprocess_ref",
+      "hyperparams",
+      "rng_seed",
+      "artifact_hashes",
+      "timestamp"
+    ]
+  }
+}

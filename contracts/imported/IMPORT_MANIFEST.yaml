@@ -38,6 +38,20 @@ imports:
       - openapi-validate
       - client-smoke
 
+  - repo: SocioProphet/slash-topics
+    role: governed signed topic scopes — topic-pack + membrane-decision + model-selection semantics
+    import_mode: mirror_schema_subset
+    local_path: contracts/imported/slash-topics/
+    required_objects:
+      - specs/SlashTopics_Schema_v0.1.json
+      - specs/Membrane_Decision_v0.1.json
+      - specs/Membrane_Decision_v0.2.json
+      - specs/Model_Selection_Policy_v0.1.json
+    pin: "9037a91959706e4cef07d0b55edfea8e9487baf1"
+    validation:
+      - jsonschema
+      - newhope-slashtopics-integration
+
 references:
   - repo: SocioProphet/ontogenesis
     role: semantic governance, SHACL gates, registry
