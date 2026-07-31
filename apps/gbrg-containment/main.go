@@ -7,8 +7,9 @@
 // downgraded to epistemicLevel=speculative, never presented as clean containment.
 //
 // Endpoints (bind 0.0.0.0:$PORT, default 8080):
-//   GET /healthz                      — liveness/readiness (chart probe path)
-//   GET /containment?scope=full|selective  — sever the demo foothold, return the artifact
+//
+//	GET /healthz                      — liveness/readiness (chart probe path)
+//	GET /containment?scope=full|selective  — sever the demo foothold, return the artifact
 //
 // Topology is fixture-backed here; wiring to the Rust engine over a live graph is
 // the follow-on (the Rust crate is the source of truth for the algorithm).
@@ -27,10 +28,10 @@ type edge struct{ from, to, label string }
 // demo topology: a compromised foothold, an SMB chain to a high-value DC + file
 // server, an RDP path, and the allow-listed EDR channel.
 var (
-	source   = "vvv-648e9d56f1a"
-	allow    = map[string]bool{"edr-epp": true}
-	keepSel  = map[string]bool{"RDP": true, "EDR": true}
-	edges    = []edge{
+	source  = "vvv-648e9d56f1a"
+	allow   = map[string]bool{"edr-epp": true}
+	keepSel = map[string]bool{"RDP": true, "EDR": true}
+	edges   = []edge{
 		{"vvv-648e9d56f1a", "wks-2970", "SMB"},
 		{"wks-2970", "dc-01", "SMB"},
 		{"dc-01", "file-srv", "SMB"},

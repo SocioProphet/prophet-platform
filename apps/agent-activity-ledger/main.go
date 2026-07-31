@@ -5,8 +5,9 @@
 // prophet-core-contracts ExecutionReceipt schema — never a bare boolean.
 //
 // Endpoints (bind 0.0.0.0:$PORT, default 8080):
-//   GET /healthz     — liveness/readiness (chart probe path)
-//   GET /executions  — the ledger (trailing window); shape mirrors ExecutionReceipt
+//
+//	GET /healthz     — liveness/readiness (chart probe path)
+//	GET /executions  — the ledger (trailing window); shape mirrors ExecutionReceipt
 //
 // Fixture-backed for now (system-of-record store is the follow-on): the endpoint
 // returns governed, schema-shaped receipts so the cockpit renders REAL warrants
@@ -50,7 +51,7 @@ type decision struct {
 	LatencyMs     int    `json:"latency_ms,omitempty"`
 }
 type verdict struct {
-	State         string `json:"state"`
+	State          string `json:"state"`
 	EpistemicLevel string `json:"epistemic_level,omitempty"`
 }
 type proof struct {
@@ -63,25 +64,25 @@ type proof struct {
 var ledger = []executionReceipt{
 	{
 		SchemaVersion: "0.1.0", ExecutionReceiptID: "exec_hybrid_investigation_wiz_verified", ExecutedAt: "2026-07-31T15:09:04Z",
-		Agent:    agent{Name: "Hybrid Investigation Agent", Version: "1.1.0", Category: "investigation"},
-		Input:    input{Type: "external_alert", Ref: "alert_wiz_372688"},
-		Decision: decision{Verdict: "allow", AuthorityBand: "recommend", LatencyMs: 12},
-		Verdict:  verdict{State: "verified", EpistemicLevel: "bounded"},
+		Agent:            agent{Name: "Hybrid Investigation Agent", Version: "1.1.0", Category: "investigation"},
+		Input:            input{Type: "external_alert", Ref: "alert_wiz_372688"},
+		Decision:         decision{Verdict: "allow", AuthorityBand: "recommend", LatencyMs: 12},
+		Verdict:          verdict{State: "verified", EpistemicLevel: "bounded"},
 		CapabilitiesHeld: []string{"cap_read_alerts", "cap_read_baseline", "cap_read_reputation"},
 		CapabilitiesUsed: []string{"cap_read_alerts", "cap_read_baseline", "cap_read_reputation"},
-		ProofArtifact: proof{SHA256: "sha256:4f8b0c11a2e7d9f0", SignedBy: "warden", Replayable: true},
-		ReceiptHash:   "sha256:exec-hybrid-investigation-wiz-verified",
+		ProofArtifact:    proof{SHA256: "sha256:4f8b0c11a2e7d9f0", SignedBy: "warden", Replayable: true},
+		ReceiptHash:      "sha256:exec-hybrid-investigation-wiz-verified",
 	},
 	{
 		SchemaVersion: "0.1.0", ExecutionReceiptID: "exec_investigation_agent_denied", ExecutedAt: "2026-07-31T13:38:49Z",
-		Agent:    agent{Name: "Investigation Agent", Version: "1.0.2", Category: "investigation"},
-		Input:    input{Type: "event", Ref: "event_16517"},
-		Decision: decision{Verdict: "block", AuthorityBand: "observe", LatencyMs: 8},
-		Verdict:  verdict{State: "denied", EpistemicLevel: "rejected"},
+		Agent:            agent{Name: "Investigation Agent", Version: "1.0.2", Category: "investigation"},
+		Input:            input{Type: "event", Ref: "event_16517"},
+		Decision:         decision{Verdict: "block", AuthorityBand: "observe", LatencyMs: 8},
+		Verdict:          verdict{State: "denied", EpistemicLevel: "rejected"},
 		CapabilitiesHeld: []string{"cap_read_events"},
 		CapabilitiesUsed: []string{},
-		ProofArtifact: proof{SHA256: "sha256:a0f12277b3c4d5e6", SignedBy: "warden", Replayable: true},
-		ReceiptHash:   "sha256:exec-investigation-agent-denied",
+		ProofArtifact:    proof{SHA256: "sha256:a0f12277b3c4d5e6", SignedBy: "warden", Replayable: true},
+		ReceiptHash:      "sha256:exec-investigation-agent-denied",
 	},
 }
 
