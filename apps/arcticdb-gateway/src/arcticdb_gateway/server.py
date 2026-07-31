@@ -16,6 +16,7 @@ mount in deploy/values/arcticdb-gateway.yaml). LMDB is single-writer: one replic
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
@@ -26,6 +27,24 @@ from .store import BadRequest, GatewayStore, SymbolNotFound
 DEFAULT_URI = "lmdb:///data/arcticdb?map_size=8GB"
 
 
+def _bearer(authorization: str) -> str:
+    """The presented credential, or "" if this is not a well-formed Bearer header.
+
+    RFC 7235 makes the auth scheme case-insensitive, so `bearer x` is as valid as
+    `Bearer x`; `removeprefix("Bearer ")` matched one casing and silently passed the
+    whole header through as the token for every other input, which meant a header
+    carrying a different scheme was compared as though it were a credential.
+
+    Split on any run of whitespace rather than a literal space: RFC 7235 spells the
+    separator `1*SP`, so HTAB is not strictly conformant, but rejecting `Bearer<TAB>token`
+    buys no safety and costs a confusing 401.
+    """
+    parts = authorization.strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return ""
+    return parts[1].strip()
+
+
 def require_token(authorization: str = Header(default="")) -> None:
     """Fail-closed write auth, matching compute-gateway.
 
@@ -34,11 +53,15 @@ def require_token(authorization: str = Header(default="")) -> None:
     convention for a mutating endpoint is 503 when no token is configured — an
     unconfigured gateway refuses rather than serving open — and 401 when one is wrong.
     Reads stay open: this closes the mutation path, which is the asymmetry that matters.
+
+    The comparison is constant-time. `!=` on a secret returns as soon as it finds a
+    differing byte, which makes the response time a function of how much of the token
+    the caller already has — enough, over many requests, to recover it a byte at a time.
     """
     token = os.getenv("GATEWAY_TOKEN", "")
     if not token:
         raise HTTPException(status_code=503, detail="gateway token not configured (fail-closed)")
-    if authorization.removeprefix("Bearer ").strip() != token:
+    if not secrets.compare_digest(_bearer(authorization), token):
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
