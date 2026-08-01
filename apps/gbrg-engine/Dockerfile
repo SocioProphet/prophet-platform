@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 # Pin: the sociosphere main commit that carries crates/gbrg-engine (repoint on bump).
-ARG SOCIOSPHERE_REV=62020ea3721b6b389ae5e33cd2d1bf98c18edcc9
+ARG SOCIOSPHERE_REV=33f7fe8b175e5a8866a2992d8a70be294bae6637
 RUN git clone https://github.com/SocioProphet/sociosphere.git . \
     && git checkout "${SOCIOSPHERE_REV}"
 WORKDIR /src/gbrg

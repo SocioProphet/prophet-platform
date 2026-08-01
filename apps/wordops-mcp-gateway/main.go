@@ -249,7 +249,7 @@ func (s *server) callContainment(scope string) (map[string]any, error) {
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("gbrg-containment returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("containment engine returned %d", resp.StatusCode)
 	}
 	var art map[string]any
 	if err := json.Unmarshal(body, &art); err != nil {
@@ -459,7 +459,7 @@ func env(k, def string) string {
 func main() {
 	port := env("PORT", "8080")
 	s := newServer(config{
-		containmentURL: env("GBRG_CONTAINMENT_URL", "http://gbrg-containment:8080"),
+		containmentURL: env("GBRG_CONTAINMENT_URL", "http://gbrg-engine:8080"),
 		ledgerURL:      env("LEDGER_URL", "http://agent-activity-ledger:8080"),
 		authServer:     env("AUTH_SERVER", "https://auth.socioprophet.ai/realms/wordops"),
 		resource:       env("RESOURCE_URL", "https://agents.socioprophet.ai/mcp/wordops"),

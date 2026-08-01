@@ -40,7 +40,7 @@ audited (teeth both ways).
 | Var | Default |
 |---|---|
 | `PORT` | `8080` |
-| `GBRG_CONTAINMENT_URL` | `http://gbrg-containment:8080` |
+| `GBRG_CONTAINMENT_URL` | `http://gbrg-engine:8080` |
 | `LEDGER_URL` | `http://agent-activity-ledger:8080` |
 | `AUTH_SERVER` | `https://auth.socioprophet.ai/realms/wordops` |
 | `RESOURCE_URL` | `https://agents.socioprophet.ai/mcp/wordops` |

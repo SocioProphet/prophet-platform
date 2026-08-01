@@ -22,7 +22,7 @@ room.
 | Capability broker (lease issuance + JWKS) | `apps/wordops-capability-broker/` | ✅ new, signs RS256 leases, `go test` green |
 | Lease-enforcing MCP gateway (+JWT/DPoP verify) | `apps/wordops-mcp-gateway/` (`jose.go`) | ✅ new, verifies broker JWKS + DPoP, `go test` green |
 | Room-factory (governed Matrix rooms) | `apps/wordops-room-factory/` | ✅ new, encrypted/invite/no-federate, `go test` green |
-| Containment / blast-radius engine | `apps/gbrg-containment/` (Go front door for `gbrg-core::containment`) | ✅ present |
+| Containment / blast-radius engine | `gbrg-engine` (the authoritative Rust `gbrg-core::containment` served over HTTP; the Go front-door was retired) | ✅ present |
 | Executions ledger (durable receipt sink) | `apps/agent-activity-ledger/` (`POST /executions`) | ✅ new POST + teeth |
 | Containment agent cards | `apps/wordops-mcp-gateway/a2a/{public,extended}-agent-card.json` | ✅ new |
 
@@ -45,7 +45,7 @@ room.
 4. **Controlled MCP action** — the agent calls `POST /mcp/invoke` on the
    **wordops-mcp-gateway** with the lease + tool. The gateway enforces
    audience/scope/case/task/expiry and re-asserts *containment ⇒ A4*. On allow it
-   calls `gbrg-containment`, receives a `ContainmentProofArtifact`, and maps it
+   calls the containment engine (`gbrg-engine`), receives a `ContainmentProofArtifact`, and maps it
    **honestly**: a no-op sever (INCONCLUSIVE / `speculative`) is `pending`, never a
    verified containment.
 5. **Durable receipt** — the gateway writes an **ExecutionReceipt** (conforming to
@@ -63,7 +63,7 @@ sequenceDiagram
     participant R as #incident room
     participant B as Capability broker (OPA allow_issue)
     participant G as wordops-mcp-gateway (allow_action)
-    participant C as gbrg-containment
+    participant C as gbrg-engine
     participant L as agent-activity-ledger
     R->>B: request A4 lease (containment:sever, case+task, approval/break-glass)
     B-->>R: capability-lease token (≤30s, audience-bound) or DENY
@@ -90,7 +90,7 @@ sequenceDiagram
   **room-factory** (creates encrypted, invite-only, non-federated Matrix rooms). All
   covered by `opa test` and `go test` (including invalid-token, DPoP-mismatch, and
   taxonomy-enforcement cases).
-- 🟡 **Interface / fixture:** `gbrg-containment` computes over a fixture topology
+- 🟡 **Interface / fixture:** `gbrg-engine` GET /containment serves a fixture demo topology
   (the authoritative algorithm is `gbrg-core::containment` in sociosphere); the
   ledger store is in-memory. The broker's signing key is an ephemeral dev key until
   the `wordops-broker-signing` Secret is mounted; the room-factory needs the

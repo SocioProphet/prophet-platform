@@ -16,7 +16,7 @@ imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
 extraEnv:
   - name: GBRG_CONTAINMENT_URL
-    value: http://gbrg-containment.socioprophet.svc.cluster.local:8080
+    value: http://gbrg-engine.socioprophet.svc.cluster.local:8080
   - name: LEDGER_URL
     value: http://agent-activity-ledger.socioprophet.svc.cluster.local:8080
   - name: AUTH_SERVER
