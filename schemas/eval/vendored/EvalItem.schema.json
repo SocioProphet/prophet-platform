@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/EvalItem.json",
+  "$comment": "VENDORED from SourceOS-Linux/sourceos-spec schemas/EvalItem.json (merged PR #238). Do not edit here — update upstream and re-vendor. Kept local so the iSOTA tournament corpus validates in-repo without a cross-repo fetch (vendor, not CDN).",
+  "title": "EvalItem",
+  "description": "One item in the provider-neutral model-tournament corpora that feed the Intelligence-Superiority Bench (iSOTA). Corpus A provider-seed / B Sherlock-task (weighted heavy) / C adversarial. Load-bearing rule: an item with no expected_answer_traits cannot be scored and is rejected; provider-sourced items must name the provider.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "id", "source", "corpus", "task_family", "user_question", "expected_answer_traits", "grading_method", "risk_class"],
+  "properties": {
+    "type": { "const": "EvalItem" },
+    "id": { "type": "string", "minLength": 1 },
+    "source": { "type": "string", "enum": ["provider", "internal"] },
+    "provider": { "type": "string" },
+    "corpus": { "type": "string", "enum": ["A", "B", "C"] },
+    "task_family": {
+      "type": "string",
+      "enum": ["support_triage", "duplicate_detection", "evidence_answer", "incident_timeline", "routing_escalation", "repo_diagnosis", "release_impact", "prompt_eng", "rag_grounding", "tool_use", "structured_output", "safety_policy", "adversarial"]
+    },
+    "user_question": { "type": "string", "minLength": 1 },
+    "context_doc_ids": { "type": "array", "items": { "type": "string" } },
+    "expected_answer_traits": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1 },
+    "gold_answer": { "type": "string" },
+    "gold_citations": { "type": "array", "items": { "type": "string" } },
+    "grading_method": {
+      "type": "string",
+      "enum": ["exact", "citation_faithfulness", "groundedness", "instruction_following", "tool_accuracy", "case_action", "human", "llm_judge"]
+    },
+    "risk_class": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+  },
+  "allOf": [
+    { "if": { "properties": { "source": { "const": "provider" } } }, "then": { "required": ["provider"] } }
+  ]
+}

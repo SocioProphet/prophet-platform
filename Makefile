@@ -569,3 +569,11 @@ validate-capability-membrane:
 	# sealed receipt was still emitted for the deferred decision.
 	python3 -m tools.capability_membrane --operation fixtures/capability-membrane/operation-deploy-apply.decision.json --surface deployment --access destructive --tension policy,identity,provenance,evidence,replay,revocation,audit,post_authority_ref --autonomy-level L4 --evidence conductor_response_envelope --out build/capability-membrane/deploy-apply.sealed.json || true
 	test -s build/capability-membrane/deploy-apply.sealed.json
+
+.PHONY: validate-isota-tournament
+# iSOTA provider-neutral tournament: producer emits spec-valid eval-fabric records
+# (provisional — no reproduced facts) and the invariant tests run. Mirrors the CI
+# workflow .github/workflows/isota-tournament.yml.
+validate-isota-tournament:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && python tools/isota_tournament.py && pytest -q tests/platform_stubs/test_isota_tournament.py

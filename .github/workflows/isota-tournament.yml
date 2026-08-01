@@ -1,0 +1,44 @@
+# Fires the iSOTA provider-neutral tournament harness as a real control: it
+# validates every emitted eval-fabric record spec-first and runs the invariant
+# tests (provider-neutral, fail-closed Stage 0, no-laundering). Path-scoped so it
+# actually runs when the harness, its corpus, the eval schemas, or its tests move
+# — a control that never fires is worse than none.
+name: isota-tournament
+
+on:
+  pull_request:
+    paths:
+      - 'tools/isota_tournament.py'
+      - 'tools/isota_corpus_seed.json'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_isota_tournament.py'
+      - '.github/workflows/isota-tournament.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/isota_tournament.py'
+      - 'tools/isota_corpus_seed.json'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_isota_tournament.py'
+      - '.github/workflows/isota-tournament.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tournament:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        # rfc3339-validator makes jsonschema's FormatChecker actually enforce
+        # "format": date-time (e.g. MetricFact.ts) rather than silently skip it.
+        run: python -m pip install --upgrade pip jsonschema rfc3339-validator pytest
+      - name: Producer emits spec-valid records (provisional — no reproduced facts)
+        run: python tools/isota_tournament.py
+      - name: Invariant + conformance tests
+        run: pytest -q tests/platform_stubs/test_isota_tournament.py
