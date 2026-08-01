@@ -1,0 +1,58 @@
+# tools/validate_mesh_deployment.py checks that the prophet-mesh + SocioSphere
+# deployment tree stays internally consistent: k8s manifests exist for every
+# mesh/sociosphere service, the Argo CD appset at
+# infra/k8s/argo-cd/appsets/socioprophet-appset.yaml includes every bundle,
+# the two docker-compose files declare every service with correct dependency
+# ordering and unique ports, and no manifest carries a plaintext secret. See
+# docs/WAVE0_SUPPLY_CHAIN_PROMOTION.md for why this tree's sync-wave ordering
+# is genuinely live, and the script's own docstring for the 2026-07-29
+# phantom-deploy audit that motivated it.
+#
+# The script existed and is well-written, but was never wired into CI —
+# confirmed 2026-07-31 via `grep -rl validate_mesh_deployment .github/workflows/`
+# returning nothing. This workflow closes that gap.
+#
+# ADVISORY ONLY on first landing (`continue-on-error: true` below). The script
+# has never run in CI before; a manual run against the current tree at wiring
+# time surfaced 2 pre-existing failures (k8s/hellgraph/base/deployment.yaml
+# missing — hellgraph ships a StatefulSet, not a Deployment, and the checker
+# doesn't know that; k8s/lattice-forge/base/ missing entirely) that need
+# separate triage. Do not flip this to a blocking/required check until those
+# are resolved or the script is corrected, and a clean run is confirmed.
+#
+# No `pip install` step: the script only imports sys, re, and pathlib (checked
+# against tools/validate_mesh_deployment.py directly) — unlike
+# preflight_deploy_contract.py's workflow, it has no pyyaml dependency.
+name: validate-mesh-deployment
+
+on:
+  pull_request:
+    paths:
+      - 'infra/k8s/**'
+      - 'infra/local/docker-compose.mesh.yml'
+      - 'infra/local/docker-compose.sociosphere.yml'
+      - 'tools/validate_mesh_deployment.py'
+      - '.github/workflows/validate-mesh-deployment.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/k8s/**'
+      - 'infra/local/docker-compose.mesh.yml'
+      - 'infra/local/docker-compose.sociosphere.yml'
+      - 'tools/validate_mesh_deployment.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-mesh-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Mesh + SocioSphere deployment alignment (advisory — not yet a required check, see header)
+        continue-on-error: true
+        run: python3 tools/validate_mesh_deployment.py

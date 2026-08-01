@@ -1,0 +1,36 @@
+name: control-plane-overlay
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/overlay_transport.py'
+      - 'tools/tests/test_overlay_transport.py'
+      - 'contracts/workspace-control-plane/**'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE6.md'
+      - '.github/workflows/control-plane-overlay.yml'
+  pull_request:
+    paths:
+      - 'tools/overlay_transport.py'
+      - 'tools/tests/test_overlay_transport.py'
+      - 'contracts/workspace-control-plane/**'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE6.md'
+      - '.github/workflows/control-plane-overlay.yml'
+
+jobs:
+  control-plane-overlay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema pytest
+      - name: Overlay transport tests
+        run: pytest -q tools/tests/test_overlay_transport.py

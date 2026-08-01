@@ -1,0 +1,1 @@
+{ "account_id": "acct-gdrive-1", "provider": "google", "display_name": "SocioProphet Drive", "auth_ref": "secret://gdrive/oauth-1" }

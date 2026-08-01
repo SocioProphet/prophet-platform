@@ -1,0 +1,28 @@
+{
+  "name": "WordOps Containment Agent",
+  "description": "Public, read-only view of the governed containment agent. Privileged actions are not exposed here — they live in the extended card and require a capability-lease.",
+  "version": "0.1.0",
+  "url": "https://agents.socioprophet.ai/a2a/wordops-containment",
+  "provider": { "organization": "SocioProphet", "url": "https://socioprophet.ai" },
+  "capabilities": { "streaming": true, "pushNotifications": true, "extendedAgentCard": true },
+  "securitySchemes": {
+    "oidc": { "type": "openIdConnect", "openIdConnectUrl": "https://auth.socioprophet.ai/realms/wordops/.well-known/openid-configuration" }
+  },
+  "security": [{ "oidc": [] }],
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "containment.explain",
+      "name": "Explain containment posture",
+      "description": "Describe how endpoint isolation / blast-radius containment works and what governance applies. Read-only.",
+      "tags": ["public", "read-only", "discovery"]
+    },
+    {
+      "id": "executions.read",
+      "name": "Read the executions ledger",
+      "description": "Return recent governed agent-execution receipts (verdict + warrant). Read-only.",
+      "tags": ["public", "read-only", "ledger"]
+    }
+  ]
+}

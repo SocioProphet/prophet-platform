@@ -1,0 +1,40 @@
+{
+  "name": "WordOps Containment Agent",
+  "description": "Authenticated containment agent. Privileged skills (endpoint sever) require a short-lived A4 capability-lease and are enforced at the WordOps MCP gateway; every action produces an ExecutionReceipt in the ledger.",
+  "version": "0.1.0",
+  "url": "https://agents.socioprophet.ai/a2a/wordops-containment",
+  "provider": { "organization": "SocioProphet", "url": "https://socioprophet.ai" },
+  "capabilities": { "streaming": true, "pushNotifications": true, "extendedAgentCard": true },
+  "securitySchemes": {
+    "oidc": { "type": "openIdConnect", "openIdConnectUrl": "https://auth.socioprophet.ai/realms/wordops/.well-known/openid-configuration" }
+  },
+  "security": [{ "oidc": [] }],
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "containment.explain",
+      "name": "Explain containment posture",
+      "description": "Describe how endpoint isolation / blast-radius containment works and what governance applies. Read-only.",
+      "tags": ["public", "read-only", "discovery"]
+    },
+    {
+      "id": "executions.read",
+      "name": "Read the executions ledger",
+      "description": "Return recent governed agent-execution receipts (verdict + warrant). Read-only.",
+      "tags": ["authenticated", "read-only", "ledger"]
+    },
+    {
+      "id": "containment.preview-blast-radius",
+      "name": "Preview blast radius",
+      "description": "Compute the reachable set and residual-after-sever for an endpoint via gbrg-containment. Read-only; no network is severed.",
+      "tags": ["authenticated", "read-only", "gbrg"]
+    },
+    {
+      "id": "containment.sever-endpoint",
+      "name": "Sever endpoint (isolate)",
+      "description": "Isolate an endpoint (full or selective). Intrinsically risk_class A4: requires an approved, step-up capability-lease bound to case + task; enforced at the MCP gateway and audited to the ledger.",
+      "tags": ["authenticated", "regulated", "lease-required", "A4", "step-up"]
+    }
+  ]
+}

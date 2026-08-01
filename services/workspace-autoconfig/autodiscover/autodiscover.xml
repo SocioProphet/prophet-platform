@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Microsoft Autodiscover (POX) for Outlook / Windows Mail.
+     Outlook POSTs the account email to:
+       https://autodiscover.socioprophet.ai/autodiscover/autodiscover.xml
+       (and https://socioprophet.ai/autodiscover/autodiscover.xml, and the SRV _autodiscover._tcp)
+     A static response works for IMAP; the serving layer (see README) should echo the posted
+     <LoginName> into <LoginName> below when it can, but Outlook falls back to prompting. -->
+<Autodiscover xmlns="http://schemas.microsoft.com/exchange/autodiscover/responseschema/2006">
+  <Response xmlns="http://schemas.microsoft.com/exchange/autodiscover/outlook/responseschema/2006a">
+    <Account>
+      <AccountType>email</AccountType>
+      <Action>settings</Action>
+      <Protocol>
+        <Type>IMAP</Type>
+        <Server>mail.socioprophet.ai</Server>
+        <Port>993</Port>
+        <DomainRequired>off</DomainRequired>
+        <SPA>off</SPA>
+        <SSL>on</SSL>
+        <Encryption>SSL</Encryption>
+        <AuthRequired>on</AuthRequired>
+      </Protocol>
+      <Protocol>
+        <Type>SMTP</Type>
+        <Server>mail.socioprophet.ai</Server>
+        <Port>587</Port>
+        <DomainRequired>off</DomainRequired>
+        <SPA>off</SPA>
+        <SSL>on</SSL>
+        <Encryption>TLS</Encryption>
+        <AuthRequired>on</AuthRequired>
+        <UsePOPAuth>off</UsePOPAuth>
+        <SMTPLast>off</SMTPLast>
+      </Protocol>
+    </Account>
+  </Response>
+</Autodiscover>

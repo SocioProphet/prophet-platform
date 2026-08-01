@@ -1,0 +1,11 @@
+# gbrg-engine — THE containment service (authoritative Rust engine), on the SOVEREIGN registry (zot).
+#
+# Built from the sociosphere gbrg workspace at a pinned public commit (see the Dockerfile). This IS
+# the containment service now — the Go gbrg-containment reimplementation was RETIRED, so every caller
+# (the wordops MCP gateway, the cockpit) gets gbrg_core::emit_containment_artifact directly. Serves
+# GET /containment?scope= (demo foothold) + POST /containment (arbitrary topology) + /healthz on :8080.
+#
+# gitops-promote pins the immutable sha- tag on each build.
+image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: sha-d7d84e7032cafa8a36c50a2e712dd5a1a4e9e5d3 }
+imagePullSecrets: [{ name: zot-pull }]
+service: { port: 8080, portName: http }

@@ -3,7 +3,7 @@ domain: socioprophet.ai
 mailHostname: mail.socioprophet.ai      # MX target + Postfix myhostname (set matching A + PTR/reverse-DNS)
 imapHostname: imap.socioprophet.ai      # IMAPS endpoint for mail clients
 caldavHostname: caldav.socioprophet.ai  # Radicale (served via ingress + TLS)
-brokerHostname: id.socioprophet.ai      # sovereign broker = OIDC issuer (verifier-only; holds no user roots/data)
+brokerHostname: socioprophet.id         # sovereign broker = OIDC issuer (verifier-only; holds no user roots/data). Pinned to socioprophet.id (the identity domain) 2026-08-01; DNS reservation + registrar-lock gate before deploy.
 giteaHostname: git.socioprophet.ai      # Gitea — sovereign git + dev workspace (OIDC via the broker)
 
 # Deployment is CLOUD-VENDOR AGNOSTIC. Set cloudProvider and the chart applies the right LoadBalancer/storage
@@ -24,10 +24,12 @@ gitea:
   db: gitea
   storage: 20Gi
   oidc:
-    enabled: false            # enable once broker has TLS and auth-code endpoints live
-    brokerUrl: ""             # e.g. https://id.socioprophet.ai (must match BROKER_ISS)
-    clientId: gitea           # client_id registered in BROKER_CLIENTS
-    clientSecretSecret: ""    # optional: k8s Secret with key 'secret'; blank = PKCE-only (Gitea ≥1.22)
+    enabled: false            # ⬅ THE single flip to activate gitea SSO. Everything else below is pre-staged.
+                              #    Flip to true ONLY AFTER: broker live at socioprophet.id + registrar-lock confirmed.
+                              #    Then the workspace-gitea-oidc-setup Job runs `gitea admin auth add-oauth`.
+    brokerUrl: "https://socioprophet.id"   # pre-staged; matches BROKER_ISS/brokerHostname (active only when enabled=true)
+    clientId: gitea           # client_id registered in broker.clients below
+    clientSecretSecret: ""    # blank = PKCE-only (Gitea ≥1.22) — no client secret to manage
 
 image:
   registry: ghcr.io/socioprophet/prophet-platform
@@ -49,12 +51,15 @@ broker:
   tokenTtlSec: 3600
   appName: "Prophet Workspace"                  # shown on the sovereign login page
   # clients: registered OIDC clients. Format: { clientId: { redirectUris: [...], secret?: "..." } }
-  # Example for Gitea:
-  # clients:
-  #   gitea:
-  #     redirectUris:
-  #       - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
-  clients: {}
+  # PRE-STAGED (2026-08-01) for gitea SSO — PKCE-only (no secret). Inert until the broker is deployed AND
+  # gitea.oidc.enabled=true. Scoped to THIS chart's gitea (giteaHostname = git.socioprophet.ai) ONLY —
+  # one client per instance to bound blast radius. If the LIVE standalone gitea (code.socioprophet.ai) is
+  # the wired target instead (open decision #5), register a SEPARATE client for it — do NOT add its
+  # callback to this client.
+  clients:
+    gitea:
+      redirectUris:
+        - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
 
 postgres:
   host: postgres                  # reuse the platform Postgres (it's already deployed)

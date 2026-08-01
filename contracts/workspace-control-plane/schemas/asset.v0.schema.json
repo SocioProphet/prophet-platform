@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/asset.v0.schema.json",
+  "title": "asset.v0",
+  "description": "An asset (file/message/email/calendar item) distinct from claims (spec D6). Content-addressed, versioned, bound to a root.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["asset_id", "kind", "root_ref", "current_version", "created_at"],
+  "properties": {
+    "asset_id": { "type": "string", "description": "Content address of the asset identity." },
+    "kind": { "enum": ["file", "message", "email", "calendar_event", "contact", "note", "other"] },
+    "root_ref": { "type": "string", "description": "The Root/Mount this asset belongs to." },
+    "current_version": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version_id", "content_hash"],
+      "properties": {
+        "version_id": { "type": "string" },
+        "content_hash": { "type": "string" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "modified_at": { "type": "string" }
+      }
+    },
+    "prior_versions": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string" }
+  }
+}

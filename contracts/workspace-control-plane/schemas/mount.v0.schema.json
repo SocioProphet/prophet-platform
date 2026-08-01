@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/mount.v0.schema.json",
+  "title": "mount.v0",
+  "description": "A least-privilege, user-selected mount over a root (spec D3). Scoped to picker-selected paths rather than ambient account-wide access.",
+  "type": "object", "additionalProperties": false,
+  "required": ["mount_id", "root_ref", "scope", "least_privilege"],
+  "properties": {
+    "mount_id": { "type": "string", "minLength": 8 },
+    "root_ref": { "type": "string" },
+    "scope": { "type": "array", "items": { "type": "string" }, "description": "Explicitly selected paths/ids (least authority)." },
+    "least_privilege": { "type": "boolean" }
+  }
+}

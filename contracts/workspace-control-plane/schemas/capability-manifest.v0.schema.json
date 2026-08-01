@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/capability-manifest.v0.schema.json",
+  "title": "capability-manifest.v0",
+  "description": "A SIGNED capability manifest (spec D7/D8/D9). Capabilities are a separate plane from data topics; discovery is gated by trust policy. Signed with expiry, delegation, and revocation (TUF/Sigstore-shaped).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_id", "kind", "provider", "capabilities", "expiry", "signature"],
+  "properties": {
+    "manifest_id": { "type": "string", "minLength": 8 },
+    "kind": { "const": "capability" },
+    "provider": { "type": "string" },
+    "capabilities": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "input_schema_ref": { "type": "string" },
+          "output_schema_ref": { "type": "string" },
+          "transport": { "enum": ["mcp", "local", "http"] }
+        }
+      }
+    },
+    "expiry": { "type": "string" },
+    "delegation": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "parent_ref": { "type": "string" }, "allowed": { "type": "array", "items": { "type": "string" } } }
+    },
+    "revocation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["revoked"],
+      "properties": { "revoked": { "type": "boolean" }, "reason": { "type": "string" } }
+    },
+    "signature": { "type": "object", "additionalProperties": false, "required": ["signer", "algorithm", "signature", "signed_at"], "properties": { "signer": { "type": "string" }, "algorithm": { "enum": ["ed25519", "ecdsa-p256", "sigstore-keyless", "hmac-blake2b"] }, "signature": { "type": "string" }, "cert_ref": { "type": "string" }, "signed_at": { "type": "string" } } }
+  }
+}

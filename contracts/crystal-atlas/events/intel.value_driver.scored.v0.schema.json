@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/intel_value_driver_scored.v0.schema.json",
+  "title": "intel.value_driver.scored.v0",
+  "description": "Attaches an equity-weighted value-driver score to a Crystal Atlas downstream finding. The seam that wires the value-driver mechanism into the competitive-intelligence lane, so findings arrive quantified rather than raw.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject",
+    "epistemic_level", "provenance", "source", "value_drivers", "overall_value_score"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string", "description": "The entity the finding concerns (company / contract / competitor)." },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["crystal_atlas", "analyst", "model"] },
+        "method": { "type": "string" },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_event_type", "source_event_id"],
+      "properties": {
+        "source_event_type": {
+          "enum": [
+            "contract.clauses.compared.v0",
+            "procurement.substitution.recommended.v0",
+            "entitlement.adjacency.inferred.v0",
+            "diligence.risk.pack.generated.v0"
+          ]
+        },
+        "source_event_id": { "type": "string" }
+      }
+    },
+    "value_drivers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["driver", "kpi", "score", "equity_weight"],
+        "properties": {
+          "driver": { "type": "string" },
+          "kpi": { "type": "string" },
+          "score": { "type": "number" },
+          "equity_weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "overall_value_score": {
+      "type": "number",
+      "description": "Equity-weighted aggregate of the driver scores (sum of score * equity_weight)."
+    }
+  }
+}

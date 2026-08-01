@@ -1,14 +1,30 @@
-# Gateway API (served by Cilium's Gateway controller) — the north-south entry
-# and the traffic-splitting substrate for traffic-shaped canaries (Argo Rollouts
-# can drive HTTPRoute weights instead of replica weights). Requires the Gateway
-# API CRDs + Cilium gatewayAPI.enabled=true.
+# Gateway API — the traffic-splitting substrate for traffic-shaped canaries (Argo Rollouts
+# drives HTTPRoute weights instead of replica weights, via the argoproj-labs/gatewayAPI
+# plugin — see deploy/argocd/progressive-delivery-services.yaml; there is no plugin-free
+# native support for this in Argo Rollouts as of v1.9.1, confirmed against the project's own
+# docs source).
+#
+# gatewayClassName is deliberately a placeholder here (2026-07-31, corrected same-day) — this
+# base must stay portable across clouds (GKE/EKS/AKS/self-managed), not hardcoded to the one
+# GKE cluster that happens to exist today. Every consumer selects an overlay:
+#   overlays/gcp-gke-autopilot — gke-l7-rilb (GKE's native Gateway controller; matches this
+#     cluster's Dataplane V2, which doesn't expose a user-facing Cilium Gateway API surface —
+#     see networkpolicy.yaml's header for the same Autopilot constraint). Provisions a REAL
+#     regional internal Google Cloud load balancer — a cost + behavior difference from the
+#     portable overlay worth a second look if many services adopt this.
+#   overlays/cilium-portable — cilium (real Cilium install required — see that overlay's
+#     README for the companion Application spec). Identical on EKS/AKS/self-managed/bare-metal.
+# deploy/argocd/progressive-delivery-services.yaml currently points at gcp-gke-autopilot,
+# matching the one live cluster today. A future AWS/Azure/self-managed environment's own
+# app-of-apps should point at cilium-portable instead — identical HTTPRoute/plugin wiring,
+# only this one field differs.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: socioprophet-gateway
   namespace: socioprophet
 spec:
-  gatewayClassName: cilium
+  gatewayClassName: REPLACE_ME_VIA_OVERLAY
   listeners:
     - name: http
       protocol: HTTP
@@ -30,9 +46,18 @@ spec:
         - path:
             type: PathPrefix
             value: /graph
-      # Argo Rollouts rewrites these weights during a traffic-shaped canary
-      # (stable vs canary Service). Starts 100/0.
+      # Two backendRefs (NOT the single Service the chart renders by default) — the
+      # argo-rollouts Gateway API plugin (see deploy/values/hellgraph-service.yaml's
+      # rollout.trafficRouting block) patches these weights during a traffic-shaped
+      # canary. Names must match rollout.trafficRouting.{canary,stable}ServiceSuffix
+      # in charts/socioprophet-service (rollout-services.yaml renders both). Starts
+      # 0/100 (all traffic on stable) until a canary rollout is in flight.
+      # Port 8090 — matches deploy/values/hellgraph-service.yaml's service.port
+      # (was 8080 here; that was stale relative to the Service it targets).
       backendRefs:
-        - name: hellgraph-service
-          port: 8080
+        - name: hellgraph-service-canary
+          port: 8090
+          weight: 0
+        - name: hellgraph-service-stable
+          port: 8090
           weight: 100

@@ -15,6 +15,11 @@ on:
       - 'infra/datastores/**/cell/**'
       - 'fixtures/cell/**'
       - 'docs/PERSONAL_INTELLIGENCE_CELL*.md'
+      # tools/validate_repo.py (run by this workflow, see below) reads this
+      # appset file directly. Closes docs/CI_PATH_FILTER_DEBT.md's
+      # "validate_repo.py reads infra/k8s/argo-cd/appsets/socioprophet-appset.yaml,
+      # not matched by paths: filter" item.
+      - 'infra/k8s/argo-cd/appsets/socioprophet-appset.yaml'
       - '.github/workflows/personal-intelligence-cell.yml'
   push:
     branches:
@@ -30,6 +35,7 @@ on:
       - 'infra/datastores/**/cell/**'
       - 'fixtures/cell/**'
       - 'docs/PERSONAL_INTELLIGENCE_CELL*.md'
+      - 'infra/k8s/argo-cd/appsets/socioprophet-appset.yaml'
       - '.github/workflows/personal-intelligence-cell.yml'
 
 permissions:

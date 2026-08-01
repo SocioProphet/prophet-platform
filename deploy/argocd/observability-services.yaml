@@ -22,10 +22,21 @@
 #
 # DELIBERATELY NOT CONNECTED here (they stay in infra/argocd until Prometheus is
 # live and measured): chaos-stack (Chaos Mesh steady-state reads these metrics),
-# progressive-delivery (Argo Rollouts analysis reads the Wave-1 SLO rules; Cilium
-# is a cluster-surgery decision), autoscaling-stack (KEDA scalers query
-# Prometheus). Connecting consumers before their metric source exists just
-# manufactures degraded apps.
+# autoscaling-stack (KEDA scalers query Prometheus). Connecting consumers before
+# their metric source exists just manufactures degraded apps.
+#
+# progressive-delivery MOVED to deploy/argocd/progressive-delivery-services.yaml
+# (explore/rollouts-hellgraph-pilot, 2026-07-31) — same disease this file's own
+# move already fixed once: infra/argocd/progressive-delivery.yaml sat outside the
+# tofu root app's watched tree (deploy/argocd, recurse) and was NEVER reconciled.
+# Confirmed live on the cluster before moving it: no argo-rollouts namespace, no
+# rollouts.argoproj.io/analysistemplates.argoproj.io CRDs (only an orphaned,
+# partially-installed experiments.argoproj.io CRD from 2026-07-30) — it had
+# genuinely never run, not just "stale". Dropped the Cilium install with the
+# move: this cluster's Gateway API CRDs (gateways/httproutes/gatewayclasses.
+# gateway.networking.k8s.io) are GKE's own native implementation, confirmed
+# already installed — no separate CNI/mesh chart needed for traffic-shaped
+# canaries here.
 #
 # RESOURCE BUDGET: this is a small GKE Autopilot cluster and the estate has
 # already paid the 512Mi-OOM tuition (hellgraph RC load, #991). Every helm

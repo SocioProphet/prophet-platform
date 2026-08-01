@@ -1,7 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# Mesh policy + Gateway. Requires Cilium (CNI + gatewayAPI) and the Gateway API
-# CRDs — installed by the mesh Argo app at an earlier sync-wave.
+# Mesh policy + Gateway. Cloud-agnostic base — requires Gateway API CRDs (any provider) and
+# does NOT set a GatewayClass; pick an overlay under ../overlays/ for that (gcp-gke-autopilot
+# or cilium-portable). Do not apply this base directly.
 resources:
-  - cilium-networkpolicy.yaml
+  - networkpolicy.yaml
   - gateway.yaml

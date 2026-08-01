@@ -1,6 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# The AnalysisTemplate deploys (shared canary gate). The Rollout is an adoption
-# example only (would supersede the live Deployment) — not included here.
+# The AnalysisTemplate deploys (shared canary gate). The Rollout itself is no longer a
+# standalone manifest here — as of explore/rollouts-hellgraph-pilot (2026-07-31) it's rendered
+# by charts/socioprophet-service (templates/rollout.yaml + rollout-services.yaml) when a
+# service's deploy/values/<name>.yaml sets rollout.enabled: true, e.g. deploy/values/
+# hellgraph-service.yaml (commented out pending the metrics prerequisite — see that file).
+# This keeps every service on the same chart + values-file path regardless of whether it's a
+# Deployment or a Rollout, instead of a second, hand-authored-manifest deploy path.
 resources:
   - analysistemplate-slo.yaml

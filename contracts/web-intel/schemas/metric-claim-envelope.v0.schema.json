@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/metric_claim_envelope.v0.schema.json",
+  "title": "metric-claim-envelope.v0",
+  "description": "Shared warrant envelope carried by every Web Intelligence event. Makes a competitor metric as auditable as one about ourselves.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "emitted_at",
+    "tenant_id",
+    "producer",
+    "subject",
+    "relation",
+    "epistemic_level",
+    "provenance"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string", "description": "ISO-8601 timestamp" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string", "description": "The domain evaluated (ours or a competitor's)." },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": {
+      "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    }
+  }
+}

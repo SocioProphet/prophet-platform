@@ -1,0 +1,20 @@
+# wordops-room-factory — creates governed Matrix rooms (Go), on the SOVEREIGN registry (zot).
+#
+# Dedicated service account that opens PRIVATE case/incident rooms in the private Synapse estate:
+# encryption ON, join by invite only, federation OFF (docs/room-taxonomy.md). The taxonomy is fixed
+# by room type, never caller-controlled.
+#
+# New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable sha- tag on first build.
+# Mount the room-factory service-account token as the secret below; without it the homeserver rejects createRoom.
+image: { registry: registry.socioprophet.ai, repository: wordops-room-factory, tag: sha-462eb07fdc47d891fde54905b51bd92afec4b27e }
+imagePullSecrets: [{ name: zot-pull }]
+service: { port: 8080, portName: http }
+extraEnv:
+  - name: MATRIX_HS_URL
+    value: http://synapse-private.socioprophet.svc.cluster.local:8008
+  - name: MATRIX_ACCESS_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: wordops-room-factory
+        key: access_token
+        optional: true

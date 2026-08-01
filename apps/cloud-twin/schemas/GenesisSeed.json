@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/GenesisSeed.json",
+  "title": "GenesisSeed",
+  "description": "Cybernetic Agentic Genesis & Inception — the reusable formation artifact. A GenesisSeed declares the archetype, ontology slice, allowed organs, and the retrieval/memory/policy/provider/federation/approval profiles from which a verified Twin is instantiated via Inception. Phase-0 canonical schema (see the genesis inception plan).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "seed_id", "archetype", "ontology_slice", "goal_schema", "organs_allowed"],
+  "properties": {
+    "type": { "const": "GenesisSeed" },
+    "seed_id": { "type": "string", "minLength": 1 },
+    "archetype": { "type": "string", "minLength": 1 },
+    "ontology_slice": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "goal_schema": { "type": "string", "minLength": 1 },
+    "organs_allowed": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "retrieval_profile": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "graph": { "type": "boolean" }, "hybrid": { "type": "boolean" },
+        "multimodal": { "type": "boolean" }, "self_reflective": { "type": "boolean" },
+        "recursive": { "type": "boolean" }
+      }
+    },
+    "memory_profile": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "episodic": { "type": "string" }, "semantic": { "type": "string" },
+        "procedural": { "type": "string" },
+        "provenance": { "type": "string", "enum": ["append_only", "read", "read_write", "none"] }
+      }
+    },
+    "policy_profile": { "type": "array", "items": { "type": "string" } },
+    "provider_profile": { "type": "array", "items": { "type": "string" } },
+    "federation_profile": { "type": "string", "enum": ["same_domain_only", "cross_domain", "none"] },
+    "approval_profile": {
+      "type": "object", "additionalProperties": true,
+      "properties": { "host_mutation": { "type": "string", "enum": ["required", "not_required"] } }
+    }
+  }
+}

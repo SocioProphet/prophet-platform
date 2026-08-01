@@ -48,10 +48,14 @@ spec:
           - { name: synapse-bridge, tier: reference }            # SynapseIQ bridge impl
           - { name: holmes, tier: reference }                    # language-intelligence impl
           - { name: agent-activity-ledger, tier: foundation }    # Executions Ledger — receipt spine / system-of-record for agent runs
-          - { name: gbrg-containment, tier: reference }          # governed blast-radius/containment engine impl
+          - { name: gbrg-engine, tier: reference }               # AUTHORITATIVE containment engine (Rust) the front-door calls
+          - { name: wordops-mcp-gateway, tier: foundation }      # WordOps lease-enforcing MCP gateway — authz sink for containment/ledger
+          - { name: wordops-capability-broker, tier: foundation } # WordOps lease issuance — signs A0-A4 leases + publishes JWKS
+          - { name: wordops-room-factory, tier: reference }      # WordOps room-factory — governed Matrix incident/case rooms
           - { name: portfolio-agent, tier: reference }           # product agent
           - { name: academy-board, tier: reference }             # academy courseware surface
           - { name: health-twin, tier: reference }               # health-twin product surface
+          - { name: cloud-twin, tier: reference }                # Cloud-Twin as a Service — genesis/twin lifecycle (GenesisSeed → verified Twin → replayable events)
           - { name: memoryd, tier: foundation }                  # memory-plane daemon — contract other services call
           - { name: embeddings, tier: reference }                # swappable embedder (fogstack literally swaps it out)
           - { name: regis-acr-api, tier: reference }             # registry ACR product API

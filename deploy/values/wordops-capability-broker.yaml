@@ -1,0 +1,18 @@
+# wordops-capability-broker — mints down-scoped, signed capability-leases (Go), on the SOVEREIGN registry (zot).
+#
+# The issuance side of the WordOps lease fabric: runs the A0-A4 allow_issue policy and,
+# on allow, mints a short-lived RS256-signed lease JWT the gateway verifies via /.well-known/jwks.json.
+#
+# New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable sha- tag on first build.
+# Signing key: mount an RSA private key as the secret below to make the JWKS stable across restarts. If the
+# secret is absent the broker boots an EPHEMERAL key (dev) — leases still verify within a pod's lifetime.
+image: { registry: registry.socioprophet.ai, repository: wordops-capability-broker, tag: sha-462eb07fdc47d891fde54905b51bd92afec4b27e }
+imagePullSecrets: [{ name: zot-pull }]
+service: { port: 8080, portName: http }
+extraEnv:
+  - name: WORDOPS_BROKER_SIGNING_KEY
+    valueFrom:
+      secretKeyRef:
+        name: wordops-broker-signing
+        key: private.pem
+        optional: true

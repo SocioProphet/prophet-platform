@@ -51,6 +51,7 @@ jobs:
           - { image: evidence-receipts,     context: apps/evidence-receipts,    dockerfile: Dockerfile }
           - { image: eval-fabric-api,       context: apps/eval-fabric-api,      dockerfile: Dockerfile }
           - { image: agentic-os-api,        context: apps/agentic-os-api,       dockerfile: Dockerfile }
+          - { image: cloud-twin,            context: apps/cloud-twin,           dockerfile: Dockerfile }
           - { image: hellgraph-service,     context: apps/hellgraph-service,    dockerfile: Dockerfile }
           - { image: reporting-watcher,     context: apps/reporting-watcher,    dockerfile: Dockerfile }
           - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
@@ -84,7 +85,10 @@ jobs:
           - { image: synapse-bridge,        context: apps/synapse-bridge,        dockerfile: Dockerfile }
           - { image: holmes,                context: apps/holmes,                dockerfile: Dockerfile }
           - { image: agent-activity-ledger, context: apps/agent-activity-ledger, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
-          - { image: gbrg-containment,      context: apps/gbrg-containment,      dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: gbrg-engine,           context: apps/gbrg-engine,           dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: wordops-mcp-gateway,   context: apps/wordops-mcp-gateway,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: wordops-capability-broker, context: apps/wordops-capability-broker, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: wordops-room-factory,  context: apps/wordops-room-factory,  dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: portfolio-agent,       context: apps/portfolio-agent,       dockerfile: Dockerfile }
           - { image: academy-board,         context: apps/academy-board,         dockerfile: Dockerfile }
           - { image: health-twin,           context: apps/health-twin,           dockerfile: Dockerfile }

@@ -1,0 +1,55 @@
+{{- /*
+Argo Rollouts canary — opt-in per service (rollout.enabled: true), superseding
+deployment.yaml. Requires the argo-rollouts CRDs/controller (installed by
+infra/argocd/progressive-delivery.yaml — see rollouts-services.yaml below for
+what else this needs when trafficRouting is on).
+
+Draft status (2026-07-31, explore/rollouts-hellgraph-pilot): the SLO gate this
+strategy points at (rollout.analysis.templateName, typically `slo-gate`) reads
+Prometheus recording rules built from OTel HTTP semconv metrics
+(http_server_request_duration_seconds_*). A service adopting this MUST already
+emit those metrics (native /metrics + a ServiceMonitor via metrics.enabled, or
+the OTLP pattern documented under `config` in values.yaml) — otherwise every
+canary step queries an empty series and the gate's behavior is undefined
+(Prometheus "no data" is not the same as "healthy"). Verify metrics.enabled (or
+OTLP export) is real for THIS service before flipping rollout.enabled in prod.
+*/ -}}
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "svc.fullname" . }}
+  labels: {{- include "svc.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "svc.selectorLabels" . | nindent 6 }}
+  template:
+    {{- include "svc.podTemplateSpec" . | nindent 4 }}
+  strategy:
+    canary:
+      {{- if .Values.rollout.trafficRouting.enabled }}
+      canaryService: {{ include "svc.fullname" . }}{{ .Values.rollout.trafficRouting.canaryServiceSuffix }}
+      stableService: {{ include "svc.fullname" . }}{{ .Values.rollout.trafficRouting.stableServiceSuffix }}
+      trafficRouting:
+        plugins:
+          {{ .Values.rollout.trafficRouting.plugin.name }}:
+            {{- toYaml .Values.rollout.trafficRouting.plugin.config | nindent 12 }}
+      {{- end }}
+      {{- with .Values.rollout.analysis }}
+      {{- if .templateName }}
+      analysis:
+        templates:
+          - templateName: {{ .templateName }}
+        {{- with .args }}
+        args:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        startingStep: {{ .startingStep | default 1 }}
+      {{- end }}
+      {{- end }}
+      steps:
+        {{- toYaml .Values.rollout.steps | nindent 8 }}
+{{- end }}

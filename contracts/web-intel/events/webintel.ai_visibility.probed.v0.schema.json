@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/ai_visibility_probed.v0.schema.json",
+  "title": "webintel.ai_visibility.probed.v0",
+  "description": "AI-search visibility for a subject domain across generative engines. The axis the standard vendors do not cover.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "epistemic_level", "provenance", "query", "visibility_score", "engines"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string" },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "query": { "type": "string" },
+    "visibility_score": { "type": "number", "minimum": 0, "maximum": 100, "description": "Share of probed engines that cited the subject." },
+    "engines": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engine", "cited"],
+        "properties": {
+          "engine": { "enum": ["chatgpt", "perplexity", "google_ai", "gemini", "grok"] },
+          "cited": { "type": "boolean" },
+          "position": { "type": ["integer", "null"], "minimum": 1 },
+          "sentiment": { "enum": ["positive", "neutral", "negative", null] },
+          "snippet_ref": { "type": "string" }
+        }
+      }
+    }
+  }
+}
