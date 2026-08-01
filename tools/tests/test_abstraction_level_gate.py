@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from tools.semantic_algebra import (
+    BOTTOM,
     PRIMITIVES,
     Term,
     TermSet,
@@ -62,7 +63,7 @@ def _pair_cases() -> List[Case]:
                     query=grad_anchor,
                     upper=upper,
                     lower=add(c_intro),  # no candidate under the grad anchor
-                    gold=None,
+                    gold=BOTTOM,
                 )
             )
     return cases
@@ -99,8 +100,8 @@ def test_naive_binder_fails_on_mismatch():
 # -- a binder that abstains on everything is CAUGHT as vacuous --------------- #
 
 
-def _lazy_bind(query: Term, upper: TermSet, lower: TermSet) -> Optional[Term]:
-    return None
+def _lazy_bind(query: Term, upper: TermSet, lower: TermSet):
+    return BOTTOM
 
 
 def test_lazy_binder_fails_as_vacuous():
@@ -131,6 +132,6 @@ def test_intro_query_never_binds_to_graduate_topic():
 
     # An intro-level query finds no topic under its own anchor -> abstains,
     # rather than matching the graduate topic (the 0.38-0.54 cosine failure).
-    assert bind_tiered(mechanics, upper, lower) is None
+    assert bind_tiered(mechanics, upper, lower) is BOTTOM
     # ...whereas a binder that ignored the anchor would wrongly bind it:
     assert _naive_bind(mechanics, upper, lower) == qft_topic

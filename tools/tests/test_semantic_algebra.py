@@ -10,6 +10,7 @@ import pytest
 
 from tools.semantic_algebra import (
     ACT,
+    BOTTOM,
     DYAD,
     FST,
     MAX_LAYER,
@@ -186,10 +187,10 @@ def test_pullback_restricts_to_matching_cells():
     assert all(cell.roles()["ground"] == prim(POT) for cell in restricted)
 
 
-def test_pullback_returns_none_on_total_restriction():
-    """A restriction that admits nothing is a refusal, not an empty success."""
+def test_pullback_abstains_on_total_restriction():
+    """A restriction that admits nothing is a first-class abstention, not None."""
     paradigm = distribute(prim(POT), add(prim(FST), prim(SND)))
-    assert pullback(paradigm, {"ground": prim(ACT)}) is None
+    assert pullback(paradigm, {"ground": prim(ACT)}) is BOTTOM
 
 
 def test_pushout_glues_along_a_shared_role():
@@ -283,7 +284,7 @@ def test_tiered_binding_bars_the_wrong_abstraction_level():
 def test_tiered_binding_abstains_when_nothing_injects():
     intro_anchor, advanced_anchor, _, advanced_topic, upper, _ = _tiers()
     lower_without_intro = add(advanced_topic)
-    assert bind_tiered(intro_anchor, upper, lower_without_intro) is None
+    assert bind_tiered(intro_anchor, upper, lower_without_intro) is BOTTOM
 
 
 def test_tiered_binding_refuses_a_query_from_the_wrong_layer():
