@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/AgentCoordinateVector.v0.1.json",
+  "title": "AgentCoordinateVector v0.1",
+  "description": "The eleven axes every agent declares itself on, so that 'what kind of work is this' is a typed value rather than a convention. Exactly eleven coordinates; an agent with ten or twelve is ill-formed by construction. Exactly one coordinate is the agent's primary. The middle-column axes (chesed/gevurah/tiferet) name the two dual operators and the meet that reconciles them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "agentId", "coordinates"],
+  "properties": {
+    "schemaVersion": { "const": "v0.1" },
+    "kind": { "const": "AgentCoordinateVector" },
+    "agentId": { "type": "string", "minLength": 1 },
+    "coordinates": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Exactly the eleven named axes — no more, no fewer.",
+      "required": [
+        "keter", "chochmah", "binah", "daat", "chesed", "gevurah",
+        "tiferet", "netzach", "hod", "yesod", "malchut"
+      ],
+      "properties": {
+        "keter":    { "$ref": "#/$defs/axis" },
+        "chochmah": { "$ref": "#/$defs/axis" },
+        "binah":    { "$ref": "#/$defs/axis" },
+        "daat":     { "$ref": "#/$defs/axis" },
+        "chesed":   { "$ref": "#/$defs/axis" },
+        "gevurah":  { "$ref": "#/$defs/axis" },
+        "tiferet":  { "$ref": "#/$defs/axis" },
+        "netzach":  { "$ref": "#/$defs/axis" },
+        "hod":      { "$ref": "#/$defs/axis" },
+        "yesod":    { "$ref": "#/$defs/axis" },
+        "malchut":  { "$ref": "#/$defs/axis" }
+      }
+    }
+  },
+  "$defs": {
+    "axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary"],
+      "properties": {
+        "primary": {
+          "type": "boolean",
+          "description": "True on exactly one axis across the vector — the agent's home coordinate."
+        },
+        "operator": {
+          "type": "string",
+          "description": "The library operator this axis is realised by, where it is an operator axis.",
+          "enum": ["pushout", "pullback", "meet", "none"]
+        },
+        "binding": {
+          "type": "string",
+          "description": "Optional reference to the contract or service that implements this coordinate."
+        }
+      }
+    }
+  }
+}
