@@ -1,4 +1,9 @@
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+
+# .terraform.lock.hcl was ignored here as well as in infra/tofu/.gitignore.
+# A nested .gitignore overrides its parent, so un-ignoring the lock at
+# infra/tofu/.gitignore (#1108) does NOT reach this directory — the lock would
+# have been dropped silently by `git add`. Removed so the committed lock sticks.
+# Ephemeral state stays ignored: the lock pins the provider build, not the state.

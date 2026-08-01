@@ -2,12 +2,7 @@
 # Creates the S3 bucket + DynamoDB lock table used by aws-* backend blocks.
 # Uses a local backend here; mirrors infra/terraform/bootstrap/main.tf for the Tofu layer.
 # Never destroy without migrating state first.
-
-terraform {
-  required_providers {
-    aws = { source = "hashicorp/aws", version = "~> 5.0" }
-  }
-}
+# Version pins live in versions.tf.
 
 provider "aws" {
   region = var.region
@@ -46,6 +41,17 @@ resource "aws_s3_bucket_lifecycle_configuration" "tofu_state" {
   rule {
     id     = "expire-old-versions"
     status = "Enabled"
+
+    # An empty filter means "every object in the bucket" — which is what this
+    # rule always intended. Without it aws 5.100.0 emits:
+    #   Warning: Invalid Attribute Combination — No attribute specified when one
+    #   (and only one) of [rule[0].filter, rule[0].prefix] is required.
+    #   This will be an error in a future version of the provider.
+    # bootstrap/aws was the only root in the tree validating with a warning.
+    # `filter {}` is the provider's documented way to say "all objects", so this
+    # records the existing scope rather than narrowing it.
+    filter {}
+
     noncurrent_version_expiration { noncurrent_days = 90 }
   }
 }
