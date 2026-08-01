@@ -34,7 +34,7 @@ def test_orchestrate_honors_rails(tmp_path):
     roots = [_root("mirror"), _root("live"), _root("action")]
     connectors = {r["root_id"]: conn for r in roots}
 
-    results = {res.root_id: res for res in ro.orchestrate(roots, connectors, now=NOW)}
+    results = {res.root_id: res for res in ro.orchestrate(roots, connectors)}
     assert len(results["root-mirror"].assets) == 1 and len(results["root-mirror"].events) == 1
     assert results["root-live"].assets == [] and len(results["root-live"].events) == 1
     assert results["root-action"].deferred_to_workflow and results["root-action"].events == []
@@ -44,14 +44,20 @@ def test_apply_cursors_advances_root(tmp_path):
     (tmp_path / "f.txt").write_text("hi")
     conn = cr.LocalFilesConnector(str(tmp_path))
     roots = [_root("mirror")]
-    results = ro.orchestrate(roots, {roots[0]["root_id"]: conn}, now=NOW)
+    results = ro.orchestrate(roots, {roots[0]["root_id"]: conn})
     ro.apply_cursors(roots, results)
     assert roots[0]["delta_cursor"] is not None
 
 
 def test_missing_connector_raises():
     with pytest.raises(KeyError):
-        ro.orchestrate([_root("mirror")], {}, now=NOW)
+        ro.orchestrate([_root("mirror")], {})
+
+
+def test_unknown_rail_rejected():
+    bad = _root("teleport")  # not mirror/live/action
+    with pytest.raises(ValueError):
+        ro.orchestrate([bad], {bad["root_id"]: cr.LocalFilesConnector("/tmp")})
 
 
 # ---- attention registry ----

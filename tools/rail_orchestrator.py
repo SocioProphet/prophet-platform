@@ -32,11 +32,12 @@ class RailResult:
     deferred_to_workflow: bool = False
 
 
+VALID_RAILS = ("mirror", "live", "action")
+
+
 def orchestrate(
     roots: list[dict[str, Any]],
     connectors: dict[str, RootConnector],
-    *,
-    now: str | None = None,
 ) -> list[RailResult]:
     """Run one orchestration pass across roots, honoring each root's rail.
 
@@ -48,6 +49,9 @@ def orchestrate(
     for root in roots:
         root_id = root["root_id"]
         rail = root.get("sync_mode", "mirror")
+        if rail not in VALID_RAILS:
+            # Keep the mirror/live/action split structural: reject unknown rails.
+            raise ValueError(f"unknown sync_mode {rail!r} for root {root_id!r}; expected one of {VALID_RAILS}")
         conn = connectors.get(root_id)
         if conn is None:
             raise KeyError(f"no connector registered for root {root_id!r}")
