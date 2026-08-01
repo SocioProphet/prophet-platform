@@ -99,3 +99,45 @@ def test_transparency_log_appends_every_check():
     broker.verify_manifest(_signed_manifest(revoked=True), NOW)
     assert len(broker.transparency_log) == 2
     assert [e["trusted"] for e in broker.transparency_log] == [True, False]
+
+
+# ---- hardening follow-up (Copilot #1190) ----
+
+def test_unknown_algorithm_is_distinct_from_unavailable():
+    broker = tb.TrustBroker(_registry("root"))
+    d = broker.verify_manifest(_signed_manifest(algo="totally-made-up"), NOW)
+    assert "unknown_algorithm" in d.reasons and "verifier_unavailable" not in d.reasons
+
+
+def test_malformed_signature_does_not_crash():
+    broker = tb.TrustBroker(_registry("root"))
+    m = {"manifest_id": "m", "kind": "capability", "provider": "p",
+         "capabilities": [{"name": "x"}], "expiry": FUTURE, "signature": "not-a-dict"}
+    d = broker.verify_manifest(m, NOW)  # must not raise
+    assert not d.trusted and "malformed_signature" in d.reasons
+    assert broker.transparency_log[-1]["subject_id"] == "m"  # still recorded
+
+
+def test_bad_timestamp_fails_closed():
+    broker = tb.TrustBroker(_registry("root"))
+    d = broker.verify_manifest(_signed_manifest(expiry="not-a-date"), NOW)  # attacker-controlled
+    assert not d.trusted and "bad_timestamp" in d.reasons
+
+
+def test_catalog_max_age_enforced():
+    reg = _registry("s0", "s1")
+    broker = tb.TrustBroker(reg, max_age_seconds=3600)
+    # Two valid signatures, but signed >1h before NOW -> none count -> below threshold.
+    entry = {"entry_id": "cat-old", "role": "targets", "version": 1, "targets": ["x"],
+             "expiry": FUTURE, "delegation": {"threshold": 2, "keys": ["k"]}}
+    payload = tb.canonical_signing_bytes(entry, exclude=("signatures",))
+    entry["signatures"] = [
+        {"signer": "s0", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(payload, SECRET), "signed_at": "2026-07-31T20:00:00+00:00"},
+        {"signer": "s1", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(payload, SECRET), "signed_at": "2026-07-31T20:00:00+00:00"},
+    ]
+    d = broker.verify_catalog(entry, NOW)
+    assert not d.trusted and any("insufficient_signatures" in r for r in d.reasons)
+    # Same catalog, fresh signatures -> trusted.
+    for s in entry["signatures"]:
+        s["signed_at"] = NOW
+    assert broker.verify_catalog(entry, NOW).trusted

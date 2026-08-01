@@ -29,6 +29,16 @@ def _parse(ts: str) -> datetime:
     return dt
 
 
+def _try_parse(ts: Any) -> Optional[datetime]:
+    """Parse an attacker-controlled timestamp, returning None on anything invalid."""
+    if not isinstance(ts, str):
+        return None
+    try:
+        return _parse(ts)
+    except (ValueError, TypeError):
+        return None
+
+
 def canonical_signing_bytes(obj: dict[str, Any], *, exclude: tuple[str, ...]) -> bytes:
     """Deterministic bytes over an object with the signature field(s) excluded."""
     payload = {k: v for k, v in obj.items() if k not in exclude}
@@ -53,21 +63,34 @@ def mac_sign(payload: bytes, secret: bytes) -> str:
     return hashlib.blake2b(payload, key=secret).hexdigest()
 
 
+# Algorithms with a real (production) verifier interface, pending keys/infra.
+_KNOWN_ASYMMETRIC = {"ed25519", "ecdsa-p256", "sigstore-keyless"}
+
+
 def verify_signature(sig_block: dict[str, Any], payload: bytes, registry: KeyRegistry) -> tuple[bool, str]:
-    """Verify one signature block against payload. Returns (ok, reason)."""
+    """Verify one signature block against payload. Returns (ok, reason).
+
+    Fail-closed on malformed/attacker-controlled input; distinguishes an
+    *unsupported-in-lab* algorithm from an *unknown/typo* one.
+    """
+    if not isinstance(sig_block, dict):
+        return False, "malformed_signature"
     algo = sig_block.get("algorithm")
     signer = sig_block.get("signer", "")
     sig = sig_block.get("signature", "")
     if algo == "hmac-blake2b":
+        if not isinstance(sig, str) or not sig:
+            return False, "malformed_signature"
         key = registry.get(signer)
         if key is None:
             return False, "unknown_signer"
-        expected = mac_sign(payload, key)
-        # Constant-time compare.
-        ok = hmac.compare_digest(expected, sig)
+        ok = hmac.compare_digest(mac_sign(payload, key), sig)
         return ok, "ok" if ok else "bad_signature"
-    # Asymmetric algorithms need production keys/infra.
-    return False, "verifier_unavailable"
+    if algo in _KNOWN_ASYMMETRIC:
+        # Supported algorithm, but no production verifier wired in the lab stance.
+        return False, "verifier_unavailable"
+    # Typos / algorithms outside the declared enum are a distinct, diagnosable error.
+    return False, "unknown_algorithm"
 
 
 @dataclass
@@ -94,12 +117,27 @@ class TrustBroker:
         })
 
     def _fresh(self, expiry: Optional[str], signed_at: Optional[str], now: str, reasons: list[str]) -> None:
-        now_dt = _parse(now)
-        if expiry and _parse(expiry) <= now_dt:
-            reasons.append("expired")
-        if self.max_age_seconds is not None and signed_at:
-            if (now_dt - _parse(signed_at)).total_seconds() > self.max_age_seconds:
+        now_dt = _parse(now)  # our own clock string; trusted format
+        if expiry is not None:
+            e = _try_parse(expiry)
+            if e is None:
+                reasons.append("bad_timestamp")  # fail closed on malformed input
+            elif e <= now_dt:
+                reasons.append("expired")
+        if self.max_age_seconds is not None and signed_at is not None:
+            s = _try_parse(signed_at)
+            if s is None:
+                reasons.append("bad_timestamp")
+            elif (now_dt - s).total_seconds() > self.max_age_seconds:
                 reasons.append("stale")
+
+    def _sig_fresh(self, sig: Any, now_dt: datetime) -> bool:
+        """Whether a single signature is within max_age (fail-closed)."""
+        if self.max_age_seconds is None:
+            return True
+        signed_at = sig.get("signed_at") if isinstance(sig, dict) else None
+        s = _try_parse(signed_at)
+        return s is not None and (now_dt - s).total_seconds() <= self.max_age_seconds
 
     def verify_manifest(self, manifest: dict[str, Any], now: str) -> TrustDecision:
         subject_id = manifest.get("manifest_id", "?")
@@ -107,6 +145,8 @@ class TrustBroker:
         sig = manifest.get("signature")
         if not sig:
             reasons.append("unsigned")
+        elif not isinstance(sig, dict):
+            reasons.append("malformed_signature")  # remote input; do not crash
         else:
             payload = canonical_signing_bytes(manifest, exclude=("signature",))
             ok, why = verify_signature(sig, payload, self.registry)
@@ -124,10 +164,15 @@ class TrustBroker:
         subject_id = entry.get("entry_id", "?")
         reasons: list[str] = []
         payload = canonical_signing_bytes(entry, exclude=("signatures",))
+        now_dt = _parse(now)
+        sigs = entry.get("signatures", [])
+        if not isinstance(sigs, list):
+            sigs = []
         valid = 0
-        for sig in entry.get("signatures", []):
+        for sig in sigs:
             ok, _ = verify_signature(sig, payload, self.registry)
-            if ok:
+            # A signature counts only if it verifies AND is within max_age.
+            if ok and self._sig_fresh(sig, now_dt):
                 valid += 1
         threshold = (entry.get("delegation") or {}).get("threshold", 1)
         if valid < threshold:
