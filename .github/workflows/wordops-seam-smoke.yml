@@ -1,0 +1,33 @@
+name: wordops-seam-smoke
+
+# Proves the WordOps lease fabric holds END-TO-END: builds the four real service
+# binaries, wires them together over HTTP as they are in-cluster, and drives a real
+# lease -> verify -> sever -> receipt-in-ledger -> room flow (plus a live spoof-block).
+# The unit tests each mock the other services; this is the only check that exercises
+# the actual seam between them.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/wordops-capability-broker/**'
+      - 'apps/wordops-mcp-gateway/**'
+      - 'apps/wordops-room-factory/**'
+      - 'apps/gbrg-containment/**'
+      - 'apps/agent-activity-ledger/**'
+      - 'tools/smoke_wordops_lease_seam.sh'
+      - '.github/workflows/wordops-seam-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run the WordOps seam smoke
+        run: bash tools/smoke_wordops_lease_seam.sh
