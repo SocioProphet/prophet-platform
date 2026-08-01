@@ -1,0 +1,40 @@
+name: value-driver-seam
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'contracts/crystal-atlas/events/intel.value_driver.scored.v0.schema.json'
+      - 'contracts/crystal-atlas/examples/intel.value_driver.scored.v0.json'
+      - 'tools/emit_value_driver_score.py'
+      - 'tools/tests/test_value_driver_seam.py'
+      - '.github/workflows/value-driver-seam.yml'
+  pull_request:
+    paths:
+      - 'contracts/crystal-atlas/events/intel.value_driver.scored.v0.schema.json'
+      - 'contracts/crystal-atlas/examples/intel.value_driver.scored.v0.json'
+      - 'tools/emit_value_driver_score.py'
+      - 'tools/tests/test_value_driver_seam.py'
+      - '.github/workflows/value-driver-seam.yml'
+
+jobs:
+  value-driver-seam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema pytest
+      - name: Seam tests (schema + example + scoring)
+        run: pytest -q tools/tests/test_value_driver_seam.py
+      - name: Emitter smoke (score a real Crystal Atlas finding)
+        run: |
+          echo '{"source_event_type":"procurement.substitution.recommended.v0","source_event_id":"c1","estimated_savings_pct":60,"substitution_confidence":80,"coverage_completeness":100}' > "$RUNNER_TEMP/finding.json"
+          python tools/emit_value_driver_score.py --in "$RUNNER_TEMP/finding.json" --subject vendor://acme-corp
