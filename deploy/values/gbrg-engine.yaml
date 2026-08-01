@@ -5,6 +5,6 @@
 # result is the authoritative gbrg_core::emit_containment_artifact, not a Go reimplementation.
 #
 # New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable sha- tag on first build.
-image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: latest }
+image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: sha-2df3cf6eeb59529d5ee87eb672aa4c6e4a05565b }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
