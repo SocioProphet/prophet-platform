@@ -51,10 +51,15 @@ Make **`sovereign-broker` at a single pinned `id.socioprophet.ai`** the one esta
 
 **broker (stand up + harden)** → **gitea** (code exists) → **zot UI** → **web app last** (highest risk; protects the never-delete Firebase client). Each step gated on a verified real sign-in before the next.
 
-## 6. Decisions required (Michael)
+## 6. Decisions
 
-1. **THE issuer:** (a) sovereign-broker OIDC *[recommended — matches existing gitea code]*, (b) socbase/GoTrue as OIDC provider, (c) off-the-shelf (Zitadel/Keycloak/Dex).
-2. **Google now or sovereign-only:** keep **Google/Firebase as a federated upstream** during transition (non-breaking) *[recommended]* vs. hard-cut.
+### Taken (2026-08-01)
+- ✅ **Transition:** keep **Google/Firebase federated now** (non-breaking), **PLAN a later hard-cut** to fully sovereign. (Decision #2 → 1-now, path-to-2.)
+- ✅ **First target:** **gitea** (lowest blast radius, OIDC code already exists), then zot UI, then web app last. (Decision #6.)
+- 🔬 **Issuer (#1) — EXPANDED to a sovereign-identity-root study.** Rather than a conventional OIDC provider alone, evaluate **cryptographic / attested / decentralized human identity** as the root, then bridge to OIDC for the services: **Urbit ID (Azimuth), ORCID/"ochid", SPIFFE-linked GPG / crypto ID, and an attested-human-ID → crypto-ID** (WebAuthn/passkey / hardware attestation / vTPM). Rationale: the estate's a2a-mcp-zero-trust surface already runs on **SPIFFE** for workload/agent identity — extend that to human identity. The OIDC-consuming services (gitea/zot/web) still need an OIDC front, so the likely shape is **attested/crypto human identity → SPIFFE SVID → broker mints OIDC → services.** Under active discovery; see the identity-root study.
+- 🏷️ **Issuer domain: `socioprophet.id`** — the estate owns it (per Michael); semantically ideal ("id") for the identity root, preferred over `id.socioprophet.ai` / `id.workspace.socioprophet.ai`. 🔴 **BLOCKER before use:** the domain audit ([[project_prod_auth_domain_audit]]) previously flagged `socioprophet.id` as **UNOWNED / takeover-risk**. Rooting estate identity on a takeover-able domain is catastrophic — VERIFY registrar ownership + registrar-lock + authoritative DNS control (and a netlify-sub check) before it fronts any auth. Treat as a hard gate.
+
+### Still open (detail — decide as we wire)
 3. **Pin the issuer hostname:** `id.socioprophet.ai` (chart) vs `id.workspace.socioprophet.ai` (live deployment) — must be ONE value before any `--auto-discover-url` wiring.
 4. **socbase:** fix it now (root-caused: run the schema bootstrap Job + the GoTrue `search_path` fix) or defer and go OIDC-direct for the web app?
 5. **gitea two-sources-of-truth:** wire OIDC into the live SQLite `deploy/scm/gitea-sovereign.yaml`, or migrate onto the OIDC-ready Postgres Helm gitea first?
