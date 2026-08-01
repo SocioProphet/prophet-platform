@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "v0.2",
+  "kind": "BoundaryTransition",
+  "transitionId": "bt-2026-08-01-0007",
+  "timestamp": "2026-08-01T18:45:00Z",
+  "sourceComponent": "prophet-mesh/research-agent",
+  "targetComponent": "agent-machine/ai-invocation-boundary",
+  "boundaryType": "ai_invocation",
+  "initiator": "agent_action",
+  "userVisible": true,
+  "aiAccessDelta": "granted",
+  "policyDecisionRef": "membrane://decision/9f2c",
+  "operatorExplanation": "research-agent asked the model to summarize a capital-markets filing for the analyst",
+  "evidenceRefs": ["evidence://receipt/bt-2026-08-01-0007"],
+  "actants": {
+    "root": "summarize",
+    "initiator": "prophet-mesh/research-agent",
+    "interactant": "capital-markets/filing/ASX-GYG-2026Q2",
+    "recipient": "analyst/charles.peterson",
+    "cause": "analyst requested a briefing ahead of the earnings call",
+    "time": "2026-08-01T18:45:00Z",
+    "place": "agent-machine/ai-invocation-boundary",
+    "intention": "produce a decision-ready briefing",
+    "manner": "extractive summary with source spans, no external network"
+  }
+}
