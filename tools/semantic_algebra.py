@@ -635,3 +635,71 @@ class LexiconRegistry:
 def canonical_json(payload: object) -> str:
     """JCS-style canonical form, matching the rest of the contracts tooling."""
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+# --------------------------------------------------------------------------- #
+# 8. The layer adjunction — lift ⊣ ground (Kant's schematism, made plural)
+# --------------------------------------------------------------------------- #
+#
+# `distance` forbids cross-layer comparison; that is safe but only prohibitive. This
+# pair makes a crossing POSSIBLE but only through a named morphism. See
+# docs/SEMANTIC_LAYER_ADJUNCTION.md for the proof obligations (P1-P6). It is a
+# coreflection: `lift` is a full embedding, `ground` its retraction, with
+# `ground(lift(t)) == t` exactly and `refines(p, lift(ground(p)))` always.
+
+
+def lift(t: Term) -> Term:
+    """Generalize: place `t` one layer up as the ground of an otherwise-neutral product.
+
+    Raises (via `mul`) at `MAX_LAYER` — the crossing is typed, not unbounded.
+    """
+    if t is BOTTOM:  # type: ignore[comparison-overlap]
+        raise LayerError("cannot lift BOTTOM (abstention has no layer)")
+    neutral = _neutral_at(t.layer)
+    return mul(t, neutral, neutral)
+
+
+def ground(p: Term) -> "Term | Abstain":
+    """Specialize: recover the layer-n term a lifted term stands on.
+
+    BOTTOM on a leaf — a primitive stands on nothing, so grounding it is an honest
+    abstention, not a guess.
+    """
+    if p is BOTTOM:  # type: ignore[comparison-overlap]
+        return BOTTOM
+    if p.is_leaf:
+        return BOTTOM
+    return p.roles()["ground"]
+
+
+def refines(a: Term, b: Term) -> bool:
+    """The refinement relation ⊑: `a` is at least as specific as `b` (same layer).
+
+    The neutral element is the top (most general); `a ⊑ b` when `b` is neutral wherever
+    `a` carries content. Raises across layers — refinement is a within-layer order.
+    """
+    if a is BOTTOM or b is BOTTOM:  # type: ignore[comparison-overlap]
+        raise LayerError("refinement is undefined for BOTTOM")
+    if a.layer != b.layer:
+        raise LayerError(f"refinement is within a layer ({a.layer} vs {b.layer})")
+    if b == _neutral_at(b.layer):
+        return True  # everything refines the top
+    if a.is_leaf or b.is_leaf:
+        return a == b
+    return all(refines(a.roles()[r], b.roles()[r]) for r in ROLES)
+
+
+def distance_bridged(lo: Term, hi: Term) -> int:
+    """The ONLY legal cross-layer comparison: `lo` at layer n, `hi` at layer n+1.
+
+    Computed by lifting `lo` through the morphism and comparing within `hi`'s layer.
+    Raw cross-layer `distance` still raises; this is the warranted crossing, and it is
+    adjacent-only (no n -> n+2 leaps) by economy.
+    """
+    if lo is BOTTOM or hi is BOTTOM:  # type: ignore[comparison-overlap]
+        raise LayerError("distance_bridged is undefined for BOTTOM")
+    if hi.layer != lo.layer + 1:
+        raise LayerError(
+            f"distance_bridged bridges adjacent layers low->high, got {lo.layer} and {hi.layer}"
+        )
+    return distance(lift(lo), hi)
