@@ -18,6 +18,6 @@
       "required": ["revoked"],
       "properties": { "revoked": { "type": "boolean" }, "reason": { "type": "string" } }
     },
-    "signature": { "type": "object", "additionalProperties": false, "required": ["signer", "algorithm", "signature", "signed_at"], "properties": { "signer": { "type": "string" }, "algorithm": { "enum": ["ed25519", "ecdsa-p256", "sigstore-keyless"] }, "signature": { "type": "string" }, "cert_ref": { "type": "string" }, "signed_at": { "type": "string" } } }
+    "signature": { "type": "object", "additionalProperties": false, "required": ["signer", "algorithm", "signature", "signed_at"], "properties": { "signer": { "type": "string" }, "algorithm": { "enum": ["ed25519", "ecdsa-p256", "sigstore-keyless", "hmac-blake2b"] }, "signature": { "type": "string" }, "cert_ref": { "type": "string" }, "signed_at": { "type": "string" } } }
   }
 }
