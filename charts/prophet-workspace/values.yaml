@@ -52,13 +52,14 @@ broker:
   appName: "Prophet Workspace"                  # shown on the sovereign login page
   # clients: registered OIDC clients. Format: { clientId: { redirectUris: [...], secret?: "..." } }
   # PRE-STAGED (2026-08-01) for gitea SSO — PKCE-only (no secret). Inert until the broker is deployed AND
-  # gitea.oidc.enabled=true. Both redirectUris registered because the "which gitea" decision (#5) is open:
-  # chart gitea = git.socioprophet.ai (Helm/Postgres); live gitea = code.socioprophet.ai (standalone SQLite).
+  # gitea.oidc.enabled=true. Scoped to THIS chart's gitea (giteaHostname = git.socioprophet.ai) ONLY —
+  # one client per instance to bound blast radius. If the LIVE standalone gitea (code.socioprophet.ai) is
+  # the wired target instead (open decision #5), register a SEPARATE client for it — do NOT add its
+  # callback to this client.
   clients:
     gitea:
       redirectUris:
         - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
-        - https://code.socioprophet.ai/user/oauth2/Sovereign/callback
 
 postgres:
   host: postgres                  # reuse the platform Postgres (it's already deployed)

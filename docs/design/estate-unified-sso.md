@@ -25,13 +25,13 @@ The estate has drifted into **three parallel identity planes**:
 | `app.socioprophet.com` | web cockpit SPA (Vue) | **Firebase (Google)** — `client-vue/src/firebase.ts`, `GoogleAuthProvider` | via socbase or OIDC-direct |
 | `code.socioprophet.ai` | gitea (ns `scm`, SQLite v1) | **Local accounts only** (`michael` admin/must-change, `estate-mirror` service) | ✅ OIDC Job coded, gated off |
 | `registry.socioprophet.ai` | zot (v2.1.2) | **htpasswd + accessControl** (`ci`/`k8s-pull`/`admin` robots) | UI-OIDC capable; robots stay htpasswd |
-| `id.socioprophet.ai` | sovereign-broker OIDC issuer | scaffolded, not live | — (this is the issuer itself) |
+| `socioprophet.id` | sovereign-broker OIDC issuer (pinned; was `id.socioprophet.ai`) | scaffolded, not live | — (this is the issuer itself) |
 | `socbase.socioprophet.ai` | GoTrue+PostgREST | down | — |
 | `mail/caldav.socioprophet.ai` | prophet-workspace | IMAP/SMTP/CalDAV creds; Google Workspace still live | later phase |
 
 ## 3. Recommended architecture — Option B: converge on `sovereign-broker`
 
-Make **`sovereign-broker` at a single pinned `id.socioprophet.ai`** the one estate OIDC issuer, because:
+Make **`sovereign-broker` at a single pinned issuer — `socioprophet.id`** (see §6) the one estate OIDC issuer, because:
 - gitea's wiring already targets it (`--auto-discover-url …/.well-known/openid-configuration`);
 - it's the leanest sovereign choice, consistent with the estate's gitea-over-GitLab / zot-over-Harbor posture;
 - the web app reaches it via socbase/GoTrue federation (preserving the `supabase-js` DX plan) *or* OIDC-direct.
@@ -42,7 +42,7 @@ Make **`sovereign-broker` at a single pinned `id.socioprophet.ai`** the one esta
 
 ## 4. Per-service integration steps (once the issuer is chosen + hardened)
 
-- **broker prereqs:** healthy TLS + auth-code endpoints at ONE `id.` host; `sovereign-broker-signing-key` secret; `BROKER_CLIENTS` populated.
+- **broker prereqs:** healthy TLS + auth-code endpoints at the issuer host; the **`workspace-broker-signing`** secret (the chart's `broker.signingKeySecret` default — ed25519.key); `BROKER_CLIENTS` populated.
 - **gitea:** register a `gitea` client; set `gitea.oidc.{enabled=true,brokerUrl,clientId,clientSecretSecret}`; let the existing `workspace-gitea-oidc-setup` Job run the `gitea admin auth add-oauth --provider openidConnect …` (or run that one command against the live SQLite box). Keep `michael`/`estate-mirror` as **local break-glass**.
 - **zot:** add an `openid`/`oauth2` block for **web-UI / human** logins → broker; **keep htpasswd robots** (`ci`, `k8s-pull`, gitea-actions) for CI push + kubelet pull (Docker token flow, not browser OIDC). Requires `rollout restart` (zot does not hot-reload).
 - **web app:** socbase federates to broker (SPA keeps `supabase-js`) *or* SPA does OIDC-direct. **Do NOT touch the Firebase client** until a browser sign-in through the new path passes.
@@ -62,12 +62,12 @@ Make **`sovereign-broker` at a single pinned `id.socioprophet.ai`** the one esta
 - ✅🔬 **Issuer (#1) — RESOLVED by study: the estate already built the answer.** `prophet-platform/apps/identity-prime` (`docs/SOVEREIGN_ANONYMOUS_IDENTITY.md`) + `Noetica/agent-machine/lib/sovereign-{id,broker,oidc,vault}.ts` (build steps 1–4 ✅) already implement a sovereign broker. **Human root = `did:key` (Ed25519, user-held in OS keychain — "a KEY not an email"); per-scope HKDF(root, scope_id) → unlinkable pairwise pseudonyms; `sovereign-oidc.ts` already mints EdDSA OIDC tokens + JWKS.** Deployed by `charts/prophet-workspace/templates/broker.yaml` as `workspace-broker`. So the "issuer" IS this broker — Option B, but more built than §3 realized.
   - **Verdict on the named options:** ❌ **Urbit** — research/ideological, Ethereum-L1 root, no OIDC → reject. ❌ **ORCID** ("ochid"?) — centralized SaaS, disqualified as root; consume only as a *relayed factor*. ✅ **SPIFFE** — keep for AGENT/workload identity (already built, Apache-2.0, no human attestor); federate its `oidc-discovery-provider` into the broker. ✅ **Passkey/WebAuthn + TPM/Secure Enclave** — the **production-ready human enrollment/step-up** layer. ✅ **W3C DID/VC** — the honest unifying frame; `did:key`/`did:web:socioprophet.id` usable now; credential layer (SD-JWT-VC draft / BBS+) = research roadmap, not a launch dep.
   - **Shape:** two symmetric crypto roots — `did:key` (humans) + SPIFFE (workloads) → ONE sovereign broker → standard OIDC at **`socioprophet.id`** → gitea/zot/web/matrix. Everything needed to LAUNCH is real + coded (did:key, passkey/TPM attestation, HKDF pairwise, EdDSA OIDC); build steps 5–10 remain.
-  - 🔴 **Immediate: pin the `iss`.** DNS `infra/tofu/envs/dns/domains.yaml` reserves `socioprophet.id` for the identity plane, but `values.yaml` sets `brokerHostname: id.socioprophet.ai`. The OIDC `iss` claim is load-bearing — pick ONE (recommend `socioprophet.id`) before any service binds.
+  - ✅ **`iss` pinned (resolved).** DNS `infra/tofu/envs/dns/domains.yaml` reserves `socioprophet.id`; `values.yaml` `brokerHostname` is now **`socioprophet.id`** to match — one stable `iss` before any service binds. Inert today: `workspace-broker` is **not currently deployed anywhere** (verified), so `brokerHostname` only takes effect on deploy, gated on DNS + registrar-lock.
   - 🔴 **License gate:** if a packaged IdP goes behind the broker (LDAP/admin/passkey UX), use **Keycloak (Apache-2.0)**. **Zitadel switched to AGPL-3.0 in 2025 → EXCLUDED** by the MIT/Apache-only rule. Authentik (MIT core) is fallback.
 - 🏷️ **Issuer domain: `socioprophet.id`** — the estate owns it (per Michael); semantically ideal ("id") for the identity root, preferred over `id.socioprophet.ai` / `id.workspace.socioprophet.ai`. 🔴 **BLOCKER before use:** the domain audit ([[project_prod_auth_domain_audit]]) previously flagged `socioprophet.id` as **UNOWNED / takeover-risk**. Rooting estate identity on a takeover-able domain is catastrophic — treat as a hard gate. **Verified 2026-08-01 (DNS/whois):** registered at **Namecheap**, currently **PARKED** (`192.64.119.248`, NS `dns{1,2}.registrar-servers.com`, `www`→`parkingpage.namecheap.com`). Owned + DNS-controllable (consistent with the estate Namecheap portfolio), and the parking is Namecheap's own — **no active dangling-CNAME takeover vector**. Remaining gate (registrar-account level, not DNS-visible): confirm it sits in the **estate's** Namecheap account, enable **registrar-lock + DNSSEC**, then point DNS at the broker. Corrects the stale "unowned" note in the domain audit.
 
 ### Still open (detail — decide as we wire)
-3. **Pin the issuer hostname:** `id.socioprophet.ai` (chart) vs `id.workspace.socioprophet.ai` (live deployment) — must be ONE value before any `--auto-discover-url` wiring.
+3. ✅ **Pin the issuer hostname — DONE:** pinned to `socioprophet.id` (chart `brokerHostname` updated from `id.socioprophet.ai`).
 4. **socbase:** fix it now (root-caused: run the schema bootstrap Job + the GoTrue `search_path` fix) or defer and go OIDC-direct for the web app?
 5. **gitea two-sources-of-truth:** wire OIDC into the live SQLite `deploy/scm/gitea-sovereign.yaml`, or migrate onto the OIDC-ready Postgres Helm gitea first?
 6. **Rollout order:** confirm broker → gitea → zot → web.
