@@ -19,9 +19,11 @@ to any third-party formal language. (A formal language and its algebra are a
 | roles `ground` / `differentia` / `mode` | the three positions of the ternary product | Aristotle (genus + differentia) + Spinoza (mode) | *Categories*; *Ethics* Pt I def. 5 |
 
 Nothing in the generating set is taken from, or requires permission of, any
-third-party metalanguage. The comparison to IEML lives in the internal design
-register (`SP-DES-*`), **not** in this repo or its public README, and no element
-above was derived from IEML's dictionary, definitions, or grammar prose.
+third-party formal language or metalanguage. Any such comparison lives only in the
+internal design register (`SP-DES-*`), **never** in this repo or its public README,
+and no element above was derived from a third party's dictionary, definitions, or
+grammar prose. (This constraint is enforced, not merely asserted — see
+`tools/check_cleanroom.py`.)
 
 ## 2. Why an algebra (the measured failure it fixes)
 
