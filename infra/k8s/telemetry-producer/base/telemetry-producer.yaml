@@ -1,0 +1,80 @@
+# telemetry-producer — OTLP (telemetry.logs.raw) -> EventEnvelope (telemetry.logs).
+# The Kappa producer: the collector's kafka exporter feeds .raw; this wraps each
+# record in the CDM contract onto the Map Log for the projection consumers.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-producer
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: telemetry-producer
+    app.kubernetes.io/part-of: eventbus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telemetry-producer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: telemetry-producer
+        app.kubernetes.io/part-of: eventbus
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: producer
+          image: ghcr.io/socioprophet/telemetry-producer:sha-REPLACE_ON_FIRST_BUILD
+          env:
+            - name: MESH_BOOTSTRAP
+              value: "kafka.eventbus.svc.cluster.local:9092"
+            - name: SOURCE_TOPIC
+              value: "telemetry.logs.raw"
+            - name: TARGET_TOPIC
+              value: "telemetry.logs"
+            - name: HEALTH_PORT
+              value: "9110"
+          ports:
+            - { name: http-metrics, containerPort: 9110 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 9110 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /healthz, port: 9110 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry-producer
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: telemetry-producer
+spec:
+  selector:
+    app.kubernetes.io/name: telemetry-producer
+  ports:
+    - { name: http-metrics, port: 9110, targetPort: 9110 }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: telemetry-producer
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: eventbus
+spec:
+  namespaceSelector: { matchNames: [observability] }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: telemetry-producer
+  endpoints:
+    - { port: http-metrics, path: /metrics, interval: 30s }
