@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "AgentCoordinateVector",
+  "agentId": "michael-agent",
+  "coordinates": {
+    "keter":    { "primary": false },
+    "chochmah": { "primary": false },
+    "binah":    { "primary": false },
+    "daat":     { "primary": false, "binding": "contracts/InternalModelState.v0.1.json" },
+    "chesed":   { "primary": false, "operator": "pushout" },
+    "gevurah":  { "primary": false, "operator": "pullback" },
+    "tiferet":  { "primary": true,  "operator": "meet", "binding": "Truth = Law x Evidence" },
+    "netzach":  { "primary": false },
+    "hod":      { "primary": false },
+    "yesod":    { "primary": false },
+    "malchut":  { "primary": false }
+  }
+}
