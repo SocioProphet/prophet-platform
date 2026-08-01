@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.socioprophet.org/contracts/BoundaryTransition.v0.2.json",
+  "title": "BoundaryTransition v0.2",
+  "description": "v0.1 plus a complete, non-redundant governed-action frame: the nine actantial roles (who, to what, for whom, by what and why, when, where, to what purpose, how). Additive over v0.1 — every v0.1 field is retained. The actantial frame is universal linguistics (Tesnière's actants + standard case grammar), not any third party's IP, and it replaces the ad-hoc field sets in v0.1 with one closed role inventory. A USL is language-independent, so the frame's structure can be transmitted while the natural-language surface is withheld — the concrete lever for linkability (G2) and twin de-identification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "transitionId",
+    "timestamp",
+    "sourceComponent",
+    "targetComponent",
+    "boundaryType",
+    "initiator",
+    "userVisible",
+    "actants"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "v0.2" },
+    "kind": { "const": "BoundaryTransition" },
+    "transitionId": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sourceComponent": { "type": "string", "minLength": 1 },
+    "targetComponent": { "type": "string", "minLength": 1 },
+    "boundaryType": {
+      "type": "string",
+      "enum": [
+        "embedded_engine_initialization",
+        "network_open",
+        "file_open",
+        "credential_request",
+        "ai_invocation",
+        "shell_execution",
+        "automation_bridge_use",
+        "diagnostic_export",
+        "policy_gate",
+        "renderer_spawn",
+        "worker_spawn"
+      ]
+    },
+    "initiator": {
+      "type": "string",
+      "enum": [
+        "local_user_action",
+        "system_startup",
+        "feature_rollout",
+        "agent_action",
+        "remote_event",
+        "scheduled_task",
+        "unknown"
+      ]
+    },
+    "userVisible": { "type": "boolean" },
+    "userActionRef": { "type": "string" },
+    "policyDecisionRef": { "type": "string" },
+    "engineManifestRef": { "type": "string" },
+    "networkDelta": { "type": "string", "enum": ["none", "opened", "denied", "closed", "unknown"] },
+    "fileAccessDelta": { "type": "string", "enum": ["none", "opened", "denied", "closed", "unknown"] },
+    "credentialAccessDelta": { "type": "string", "enum": ["none", "requested", "denied", "granted", "unknown"] },
+    "aiAccessDelta": { "type": "string", "enum": ["none", "requested", "denied", "granted", "unknown"] },
+    "operatorExplanation": { "type": "string" },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "actants": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The nine syntagmatic roles of the crossing. `root` (the process) and `initiator` (actant-1) are required; the rest are declared when they apply. This inventory is closed: an unlisted role is rejected.",
+      "required": ["root", "initiator"],
+      "properties": {
+        "root":        { "type": "string", "minLength": 1, "description": "the process / predicate — what is being done" },
+        "initiator":   { "type": "string", "minLength": 1, "description": "actant-1 — who acts" },
+        "interactant": { "type": "string", "description": "actant-2 — what is acted upon" },
+        "recipient":   { "type": "string", "description": "actant-3 — for or to whom" },
+        "cause":       { "type": "string", "description": "by what and why" },
+        "time":        { "type": "string", "description": "when" },
+        "place":       { "type": "string", "description": "where" },
+        "intention":   { "type": "string", "description": "to what purpose" },
+        "manner":      { "type": "string", "description": "how" }
+      }
+    }
+  }
+}
