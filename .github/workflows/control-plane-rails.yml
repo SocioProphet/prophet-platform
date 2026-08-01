@@ -1,0 +1,38 @@
+name: control-plane-rails
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/rail_orchestrator.py'
+      - 'tools/attention_registry.py'
+      - 'tools/connector_roots.py'
+      - 'tools/tests/test_rails_attention.py'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE4.md'
+      - '.github/workflows/control-plane-rails.yml'
+  pull_request:
+    paths:
+      - 'tools/rail_orchestrator.py'
+      - 'tools/attention_registry.py'
+      - 'tools/connector_roots.py'
+      - 'tools/tests/test_rails_attention.py'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE4.md'
+      - '.github/workflows/control-plane-rails.yml'
+
+jobs:
+  control-plane-rails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema pytest
+      - name: Rails + attention tests
+        run: pytest -q tools/tests/test_rails_attention.py
