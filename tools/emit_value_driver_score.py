@@ -14,12 +14,41 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 SERVICE = "value-driver-scorer"
+
+# The four Crystal Atlas downstream findings this seam accepts (matches the strict
+# source_event_type enum in intel.value_driver.scored.v0). Enforced before any
+# write so append-only state is never polluted with an out-of-contract event.
+ALLOWED_SOURCE_EVENT_TYPES = frozenset(
+    {
+        "contract.clauses.compared.v0",
+        "procurement.substitution.recommended.v0",
+        "entitlement.adjacency.inferred.v0",
+        "diligence.risk.pack.generated.v0",
+    }
+)
+
+
+class OutOfContractEvent(ValueError):
+    """Raised when an event would violate the seam contract (fail-closed on emit)."""
+
+
+def assert_emittable(event: dict[str, Any]) -> None:
+    """Reject events that must not enter append-only state (spec D2/D11)."""
+    src = event.get("source", {})
+    t = src.get("source_event_type")
+    if t not in ALLOWED_SOURCE_EVENT_TYPES:
+        raise OutOfContractEvent(
+            f"refusing to emit: source_event_type {t!r} is not one of {sorted(ALLOWED_SOURCE_EVENT_TYPES)}"
+        )
+    if not src.get("source_event_id"):
+        raise OutOfContractEvent("refusing to emit: source.source_event_id must be non-empty")
 
 
 def drivers_for(finding: dict[str, Any]) -> list[tuple[str, str, float, float]]:
@@ -90,6 +119,8 @@ def _state_root() -> Path:
 
 
 def emit(event: dict[str, Any]) -> str:
+    # Fail-closed: never write an out-of-contract event to append-only state.
+    assert_emittable(event)
     corr = event["event_id"]
     root = _state_root()
     for kind, payload, suffix in (
@@ -114,7 +145,11 @@ def main() -> int:
     event = compute_scored_event(finding, subject=args.subject)
     print(json.dumps(event, indent=2, sort_keys=True))
     if args.emit:
-        print(f"emitted: {emit(event)}")
+        try:
+            print(f"emitted: {emit(event)}")
+        except OutOfContractEvent as exc:
+            print(f"NOT emitted: {exc}", file=sys.stderr)
+            return 3
     return 0
 
 

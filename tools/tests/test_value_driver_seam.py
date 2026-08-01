@@ -53,6 +53,39 @@ def test_diligence_risk_is_inverted():
     assert list(Draft202012Validator(SCHEMA).iter_errors(ev)) == []
 
 
+def test_emit_refuses_out_of_contract_event(tmp_path, monkeypatch):
+    # Fail-closed: an unknown/missing source_event_type must not enter append-only state.
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    ev = vd.compute_scored_event(
+        {"source_event_type": "something.else.v0", "source_event_id": "c3", "value_score": 42.0},
+        subject="x",
+    )
+    import pytest
+
+    with pytest.raises(vd.OutOfContractEvent):
+        vd.emit(ev)
+    # nothing was written
+    assert not (tmp_path / "prophet-platform").exists()
+
+    # a missing source_event_id is also refused
+    good_type = vd.compute_scored_event(
+        {"source_event_type": "procurement.substitution.recommended.v0", "source_event_id": "", "estimated_savings_pct": 10},
+        subject="x",
+    )
+    with pytest.raises(vd.OutOfContractEvent):
+        vd.emit(good_type)
+
+
+def test_emit_writes_a_valid_event(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    ev = vd.compute_scored_event(
+        {"source_event_type": "procurement.substitution.recommended.v0", "source_event_id": "c1", "estimated_savings_pct": 60, "substitution_confidence": 80, "coverage_completeness": 100},
+        subject="vendor://acme",
+    )
+    corr = vd.emit(ev)
+    assert (tmp_path / "prophet-platform" / "payloads" / "value-driver-scorer" / f"{corr}.payload.json").exists()
+
+
 def test_unknown_type_fallback_is_out_of_contract():
     # The emitter still computes a generic fallback score for resilience...
     ev = vd.compute_scored_event(
