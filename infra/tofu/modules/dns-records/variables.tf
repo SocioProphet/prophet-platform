@@ -73,3 +73,9 @@ variable "report_authorizations" {
   default     = []
   description = "External domains to authorize for DMARC aggregate reporting to this zone's rua mailbox (RFC 7489 §7.1). Set only on the rua domain's zone; emits <ext>._report._dmarc records."
 }
+
+variable "redirect_ip" {
+  type        = string
+  default     = ""
+  description = "Cloud-neutral: when role=redirect and this is set, emit apex + www A records to this IP (the redirect service's address). Any cloud's redirect service yields an IP, so this stays portable."
+}
