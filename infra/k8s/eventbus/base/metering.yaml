@@ -1,0 +1,106 @@
+# Mesh metering — kafka-exporter surfaces per-topic offsets/throughput to
+# Prometheus so we can SEE events flowing per slash topic (the validation
+# signal) and meter volume per topic (ties to TopicPackRef byte_size/ttl_s for
+# the estate Measurement/ResourceContract — first real declarer of it).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-exporter
+  namespace: eventbus
+  labels:
+    app.kubernetes.io/name: kafka-exporter
+    app.kubernetes.io/part-of: eventbus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kafka-exporter
+        app.kubernetes.io/part-of: eventbus
+    spec:
+      containers:
+        - name: kafka-exporter
+          image: danielqsj/kafka-exporter:v1.7.0   # pinned
+          args:
+            - --kafka.server=$(KAFKA_BOOTSTRAP)
+          env:
+            - name: KAFKA_BOOTSTRAP
+              value: kafka.eventbus.svc.cluster.local:9092   # match the deployed broker
+          ports:
+            - { name: metrics, containerPort: 9308 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-exporter
+  namespace: eventbus
+  labels:
+    app.kubernetes.io/name: kafka-exporter
+spec:
+  selector:
+    app.kubernetes.io/name: kafka-exporter
+  ports:
+    - { name: metrics, port: 9308, targetPort: 9308 }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: eventbus
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: eventbus
+spec:
+  namespaceSelector: { matchNames: [eventbus] }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-exporter
+  endpoints:
+    - { port: metrics, path: /metrics, interval: 30s }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mesh-metering
+  namespace: eventbus
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: eventbus
+spec:
+  groups:
+    - name: mesh-metering
+      rules:
+        # per-topic event throughput (the "is it flowing?" validation signal)
+        - record: mesh:topic_events:rate5m
+          expr: sum by (topic) (rate(kafka_topic_partition_current_offset[5m]))
+        # cumulative events per topic (metering volume)
+        - record: mesh:topic_events:total
+          expr: sum by (topic) (kafka_topic_partition_current_offset)
+        # broker/exporter reachability — a DOWN bus is worse than a quiet one
+        - alert: MeshBusExporterDown
+          # kafka_brokers is exported by kafka-exporter; absent => the exporter is
+          # down or unscraped (reliable, vs matching the Operator-generated job label).
+          expr: absent(kafka_brokers)
+          for: 10m
+          labels: { severity: critical, pillar: eventbus }
+          annotations:
+            summary: "Mesh metering (kafka-exporter) is DOWN — bus visibility lost"
+        # once a producer exists for a topic, silence = broken (never-fired=suspect).
+        # Scoped to topics tagged live via the producer-before-storage gate;
+        # starts as a warning to avoid noise before producers land.
+        - alert: MeshTopicSilent
+          expr: mesh:topic_events:rate5m{topic=~"telemetry.*|ops.*|intel.*"} == 0
+          for: 30m
+          labels: { severity: warning, pillar: eventbus }
+          annotations:
+            summary: "Mesh topic {{ $labels.topic }} has ZERO throughput — no producer or broken"

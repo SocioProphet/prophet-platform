@@ -69,6 +69,8 @@ jobs:
           - { image: lattice-studio,        context: apps/lattice-studio,        dockerfile: Dockerfile }
           - { image: lattice-forge,         context: apps/lattice-forge,         dockerfile: Dockerfile }
           - { image: compute-gateway,       context: apps/compute-gateway,       dockerfile: Dockerfile }
+          - { image: mlog-projection-loki,  context: services/mlog-projection-loki, dockerfile: Dockerfile }
+          - { image: telemetry-producer,    context: services/telemetry-producer, dockerfile: Dockerfile }
           # GPU batch JOB, not a service. It has no port and no /healthz, and it is not
           # deployed by gitops-promote — the run planes reference the image directly, so
           # pass an explicit sha- tag rather than relying on :latest (a moving tag with

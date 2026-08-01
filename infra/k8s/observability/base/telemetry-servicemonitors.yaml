@@ -1,0 +1,65 @@
+# Scrape Loki + Tempo backend metrics so the liveness alerts have data.
+# Without these, Prometheus never sees loki_/tempo_ metrics and the liveness
+# control is silently blind (the silent-wrong pattern, one level up).
+# release: kube-prometheus-stack label -> Prometheus adopts them (the chart sets
+# serviceMonitorSelectorNilUsesHelmValues: false, but the release label is the
+# convention the estate's ServiceMonitors already carry).
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loki
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: observability
+spec:
+  namespaceSelector:
+    matchNames: [observability]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+    matchExpressions:
+      - { key: variant, operator: NotIn, values: [headless] }
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tempo
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: observability
+spec:
+  namespaceSelector:
+    matchNames: [observability]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+  endpoints:
+    - port: tempo-prom-metrics
+      path: /metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: promtail
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: observability
+spec:
+  namespaceSelector:
+    matchNames: [observability]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: promtail
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s

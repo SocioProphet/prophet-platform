@@ -1,0 +1,42 @@
+# Route CRITICAL observability alerts to a human pager. The existing alert-sink
+# AlertmanagerConfig only forwards to an internal webhook — so a critical alert
+# (e.g. LokiNotIngestingLogs) would fire and reach no human. This adds PagerDuty
+# paging for severity=critical, pillar=observability, on top of the internal sink.
+#
+# Seed the routing key (never in repo): create secret `alertmanager-pagerduty`
+# with key `routingKey` via ExternalSecret. The estate already defines a
+# PagerDuty channel in infra/tofu/modules/monitoring (GCP side) — reuse that key.
+#
+# NOTE: with multiple AlertmanagerConfigs the operator nests each under a
+# namespace matcher; verify post-deploy that critical alerts reach PagerDuty
+# (continue:true keeps the internal sink receiving them too).
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: telemetry-alert-routing
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: observability
+spec:
+  route:
+    receiver: observability-pager
+    groupBy: [alertname, pillar]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    matchers:
+      - name: pillar
+        value: observability
+    routes:
+      - receiver: observability-pager
+        matchers:
+          - name: severity
+            value: critical
+        continue: true
+  receivers:
+    - name: observability-pager
+      pagerdutyConfigs:
+        - sendResolved: true
+          routingKey:
+            name: alertmanager-pagerduty
+            key: routingKey

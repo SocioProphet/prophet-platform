@@ -1,0 +1,10 @@
+# mlog-projection-loki — Map-Log (Kafka) -> Loki projection consumer. Pin the
+# immutable sha the images.yml build publishes.
+image: { repository: mlog-projection-loki, tag: sha-REPLACE_ON_FIRST_BUILD }
+service: { port: 9109, portName: http-metrics }
+config:
+  MESH_BOOTSTRAP: "kafka.eventbus.svc.cluster.local:9092"
+  MESH_TOPICS_CONSUME: "telemetry.logs,telemetry.metrics,telemetry.traces"
+  LOKI_URL: "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+  LOKI_TENANT: "fake"
+autoscaling: { enabled: false }

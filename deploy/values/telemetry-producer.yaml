@@ -1,0 +1,9 @@
+# telemetry-producer — OTLP -> EventEnvelope adapter. Pin the immutable sha the
+# images.yml build publishes.
+image: { repository: telemetry-producer, tag: sha-REPLACE_ON_FIRST_BUILD }
+service: { port: 9110, portName: http-metrics }
+config:
+  MESH_BOOTSTRAP: "kafka.eventbus.svc.cluster.local:9092"
+  SOURCE_TOPIC: "telemetry.logs.raw"
+  TARGET_TOPIC: "telemetry.logs"
+autoscaling: { enabled: false }

@@ -7,3 +7,9 @@ resources:
   - otel-collector-service.yaml
   - servicemonitor.yaml
   - prometheusrule-slos.yaml
+  # capture + self-verifying liveness (added: Loki was ingesting 0 for 2.5d)
+  - promtail.yaml
+  - telemetry-canary.yaml
+  - telemetry-servicemonitors.yaml
+  - telemetry-liveness.yaml
+  - telemetry-alert-routing.yaml   # route critical observability alerts to a human pager

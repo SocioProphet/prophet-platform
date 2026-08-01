@@ -1,0 +1,44 @@
+# Topic bootstrap — create one Kafka topic per Slash Topic Pack (transport
+# binding of pack_id). Idempotent (--if-not-exists). Retention is a placeholder
+# here; per-pack ttl_s is enforced by the lifecycle controller (§4.4).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mesh-topic-bootstrap
+  namespace: eventbus
+  labels:
+    app.kubernetes.io/part-of: eventbus
+  annotations:
+    # re-run on change; ArgoCD hook-friendly
+    argocd.argoproj.io/hook: PostSync
+spec:
+  backoffLimit: 6
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: create-topics
+          image: bitnami/kafka:3.7   # has kafka-topics.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          env:
+            - name: KAFKA_BOOTSTRAP
+              value: kafka.eventbus.svc.cluster.local:9092
+          command: [/bin/bash, -c]
+          args:
+            - |
+              set -euo pipefail
+              TOPICS="telemetry.logs telemetry.metrics telemetry.traces ops.alerts \
+                      intel.enriched intel.retrieval intel.verdicts ops.findings ops.actions"
+              for t in $TOPICS; do
+                kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" \
+                  --create --if-not-exists --topic "$t" --partitions 3 --replication-factor 1
+                echo "ensured topic: $t"
+              done
+              echo "--- current topics ---"
+              kafka-topics.sh --bootstrap-server "$KAFKA_BOOTSTRAP" --list

@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Mesh event-bus — slice 1: topic packs + topic bootstrap + metering.
+# (Kafka KRaft broker itself is deployed via infra/fabric/helm bitnami/kafka;
+# these manifests bind the slash-topic packs + hook metering onto it.)
+namespace: eventbus
+
+resources:
+  - namespace.yaml
+  - topic-packs.yaml
+  - topic-bootstrap.yaml
+  - metering.yaml

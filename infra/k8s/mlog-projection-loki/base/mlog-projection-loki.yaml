@@ -1,0 +1,82 @@
+# mlog-projection-loki — rebuilds the Loki projection from the Map Log.
+# Consumes Kafka /telemetry/* (EventEnvelope) -> Loki. Retires the held direct
+# promtail->Loki path: Loki becomes a projection of the append-only log (Kappa).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlog-projection-loki
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: mlog-projection-loki
+    app.kubernetes.io/part-of: eventbus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlog-projection-loki
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mlog-projection-loki
+        app.kubernetes.io/part-of: eventbus
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: projection
+          image: ghcr.io/socioprophet/mlog-projection-loki:sha-REPLACE_ON_FIRST_BUILD
+          env:
+            - name: MESH_BOOTSTRAP
+              value: "kafka.eventbus.svc.cluster.local:9092"
+            - name: MESH_TOPICS_CONSUME
+              value: "telemetry.logs,telemetry.metrics,telemetry.traces"
+            - name: LOKI_URL
+              value: "http://loki.observability.svc.cluster.local:3100/loki/api/v1/push"
+            - name: LOKI_TENANT
+              value: "fake"
+            - name: HEALTH_PORT
+              value: "9109"
+          ports:
+            - { name: http-metrics, containerPort: 9109 }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 9109 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /healthz, port: 9109 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlog-projection-loki
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: mlog-projection-loki
+spec:
+  selector:
+    app.kubernetes.io/name: mlog-projection-loki
+  ports:
+    - { name: http-metrics, port: 9109, targetPort: 9109 }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mlog-projection-loki
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: eventbus
+spec:
+  namespaceSelector: { matchNames: [observability] }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlog-projection-loki
+  endpoints:
+    - { port: http-metrics, path: /metrics, interval: 30s }
