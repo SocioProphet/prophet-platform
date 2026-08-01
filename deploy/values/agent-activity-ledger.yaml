@@ -10,6 +10,6 @@
 #
 # The cockpit's Executions Ledger reads /executions; nginx routes /svc/executions → this service.
 # Serves /healthz (chart probe default) on :8080. Records mirror prophet-core-contracts ExecutionReceipt.
-image: { registry: registry.socioprophet.ai, repository: agent-activity-ledger, tag: sha-2c2050cd5a73d887a0068fc33ce4eded064841b5 }
+image: { registry: registry.socioprophet.ai, repository: agent-activity-ledger, tag: sha-462eb07fdc47d891fde54905b51bd92afec4b27e }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }

@@ -6,7 +6,7 @@
 #
 # New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable sha- tag on first build.
 # Mount the room-factory service-account token as the secret below; without it the homeserver rejects createRoom.
-image: { registry: registry.socioprophet.ai, repository: wordops-room-factory, tag: latest }
+image: { registry: registry.socioprophet.ai, repository: wordops-room-factory, tag: sha-462eb07fdc47d891fde54905b51bd92afec4b27e }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
 extraEnv:

@@ -11,7 +11,7 @@
 # (audience/scope/case/task/expiry; a containment sever is intrinsically risk_class A4), calls
 # gbrg-containment, and writes the durable ExecutionReceipt to agent-activity-ledger — the ledger,
 # NOT the Matrix room, is the authorization sink. Serves /healthz (chart probe default) on :8080.
-image: { registry: registry.socioprophet.ai, repository: wordops-mcp-gateway, tag: latest }
+image: { registry: registry.socioprophet.ai, repository: wordops-mcp-gateway, tag: sha-462eb07fdc47d891fde54905b51bd92afec4b27e }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
 extraEnv:
