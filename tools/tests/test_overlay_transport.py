@@ -98,3 +98,34 @@ def test_ops_on_unjoined_topic_refused():
 
 def test_join_manifest_conforms_to_frozen_schema():
     assert list(Draft202012Validator(TOPIC_SCHEMA).iter_errors(manifest())) == []
+
+
+# ---- hardening (Copilot #1195) ----
+
+def test_rejoin_preserves_existing_logs():
+    broker = ov.OverlayBroker()
+    topic = broker.join(manifest(), trusted=True, now=NOW).name
+    broker.append(topic, "A", "a1", 1)
+    # Re-join the same topic: must NOT reset/discard the existing log.
+    again = broker.join(manifest(), trusted=True, now=NOW)
+    assert [e.data for e in again.writer_log("A").entries] == ["a1"]
+
+
+def test_malformed_timestamp_refused_not_raised():
+    broker = ov.OverlayBroker()
+    with pytest.raises(ov.OverlayRefused) as e:
+        broker.join(manifest(expiry="not-a-date"), trusted=True, now=NOW)
+    assert "bad_timestamp" in e.value.reasons
+    with pytest.raises(ov.OverlayRefused) as e2:
+        broker.join(manifest(), trusted=True, now="also-bad")
+    assert "bad_timestamp" in e2.value.reasons
+
+
+def test_verify_enforces_single_writer():
+    log = ov.AppendLog("A")
+    log.append("a1", 1)
+    assert log.verify()
+    # A cross-writer entry (even with a self-consistent hash) must not validate.
+    log.entries[0].writer = "B"
+    log.entries[0].entry_hash = ov._entry_hash("", "B", 0, 1, "a1")  # re-hash under forged writer
+    assert not log.verify()

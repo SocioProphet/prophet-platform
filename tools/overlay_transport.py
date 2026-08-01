@@ -20,8 +20,14 @@ from typing import Iterable, Optional
 KNOWN_TRANSPORTS = {"hypercore", "hyperswarm", "autobase", "hyperdrive"}
 
 
-def _parse(ts: str) -> datetime:
-    dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+def _try_parse(ts: object) -> Optional[datetime]:
+    """Parse an attacker-controlled timestamp, returning None on anything invalid."""
+    if not isinstance(ts, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt
@@ -61,10 +67,15 @@ class AppendLog:
         return e
 
     def verify(self) -> bool:
-        """True iff the hash chain is intact (tamper-evident)."""
+        """True iff the hash chain is intact AND single-writer (tamper-evident).
+
+        Enforces `e.writer == self.writer` for every entry: without it a
+        cross-writer entry could validate as long as its internal chain is
+        consistent, since the hash is recomputed from the (tamperable) `e.writer`.
+        """
         prev = ""
         for i, e in enumerate(self.entries):
-            if e.seq != i or e.prev_hash != prev:
+            if e.writer != self.writer or e.seq != i or e.prev_hash != prev:
                 return False
             if e.entry_hash != _entry_hash(prev, e.writer, e.seq, e.clock, e.data):
                 return False
@@ -125,11 +136,24 @@ class OverlayBroker:
         rev = manifest.get("revocation") or {}
         if rev.get("revoked"):
             reasons.append("revoked")
+        # Fail closed on malformed (attacker-controlled) timestamps.
+        now_dt = _try_parse(now)
+        if now_dt is None:
+            reasons.append("bad_timestamp")
         expiry = manifest.get("expiry")
-        if expiry and _parse(expiry) <= _parse(now):
-            reasons.append("expired")
+        if expiry is not None:
+            exp_dt = _try_parse(expiry)
+            if exp_dt is None:
+                reasons.append("bad_timestamp")
+            elif now_dt is not None and exp_dt <= now_dt:
+                reasons.append("expired")
         if reasons:
             raise OverlayRefused(reasons)
+        # Re-joining an already-joined topic returns the existing handle so its
+        # logs are preserved (do not reset/discard on re-join).
+        existing = self.joined.get(manifest["topic"])
+        if existing is not None:
+            return existing
         topic = Topic(manifest["topic"])
         self.joined[manifest["topic"]] = topic
         return topic
