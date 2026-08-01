@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/capability-grant.v0.schema.json",
+  "title": "capability-grant.v0",
+  "description": "A per-account access grant (spec D3): the scopes an account has authorized, with expiry and revocation. Distinct from capability-manifest (which describes tools).",
+  "type": "object", "additionalProperties": false,
+  "required": ["grant_id", "account_ref", "scopes", "expiry", "revocation"],
+  "properties": {
+    "grant_id": { "type": "string", "minLength": 8 },
+    "account_ref": { "type": "string" },
+    "scopes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "expiry": { "type": "string" },
+    "revocation": { "type": "object", "additionalProperties": false, "required": ["revoked"], "properties": { "revoked": { "type": "boolean" }, "reason": { "type": "string" } } }
+  }
+}

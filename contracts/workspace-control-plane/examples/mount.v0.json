@@ -1,0 +1,1 @@
+{ "mount_id": "mount-gdrive-proj", "root_ref": "root-gdrive-primary", "scope": ["/Projects/SocioProphet", "/Investor"], "least_privilege": true }
