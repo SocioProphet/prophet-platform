@@ -36,10 +36,14 @@ resource "google_compute_url_map" "https_redirect" {
     strip_query            = false
   }
 
+  # The DNS module emits BOTH apex and www A records at this LB's IP for every
+  # redirect-role domain, so both hosts must resolve here or www falls through
+  # to default_url_redirect (the global default_target) instead of this
+  # domain's actual redirect_to.
   dynamic "host_rule" {
     for_each = var.redirects
     content {
-      hosts        = [host_rule.key]
+      hosts        = [host_rule.key, "www.${host_rule.key}"]
       path_matcher = local.matcher_name[host_rule.value]
     }
   }

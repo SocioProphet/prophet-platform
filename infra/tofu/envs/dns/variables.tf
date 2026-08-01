@@ -35,7 +35,7 @@ variable "manage_registrar" {
 variable "enable_redirects" {
   type        = bool
   default     = false
-  description = "When true (and dns_cloud=gcp), stand up the redirect LB and point redirect-role domains' apex/www A records at it. Off by default (creates a global IP + managed cert)."
+  description = "When true (and dns_cloud=gcp), stand up the redirect LB (global external HTTP(S) LB: global IP, managed cert, URL maps, target proxies, forwarding rules) and point redirect-role domains' apex/www A records at it. Off by default."
 }
 
 variable "default_redirect_target" {
