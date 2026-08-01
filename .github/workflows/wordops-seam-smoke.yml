@@ -12,7 +12,7 @@ on:
       - 'apps/wordops-capability-broker/**'
       - 'apps/wordops-mcp-gateway/**'
       - 'apps/wordops-room-factory/**'
-      - 'apps/gbrg-containment/**'
+      - 'apps/gbrg-engine/**'
       - 'apps/agent-activity-ledger/**'
       - 'tools/smoke_wordops_lease_seam.sh'
       - '.github/workflows/wordops-seam-smoke.yml'

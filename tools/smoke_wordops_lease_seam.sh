@@ -5,7 +5,7 @@
 # the four REAL binaries + a fake homeserver, wires them together over HTTP exactly
 # as they are wired in-cluster, and drives a real incident-containment flow —
 #
-#   broker mints an A4 lease  →  gateway verifies the signed lease  →  gbrg-containment
+#   broker mints an A4 lease  →  gateway verifies the signed lease  →  the containment engine
 #   severs  →  an ExecutionReceipt actually lands in the ledger  →  room-factory opens
 #   a governed room
 #
@@ -48,7 +48,7 @@ wait_health() { # wait_health <url> <name>
 BROKER=18091 LEDGER=18092 CONT=18093 GW=18094 RF=18095 SYN=18096
 
 info "[build] compiling the four real binaries"
-for svc in wordops-capability-broker agent-activity-ledger gbrg-containment wordops-mcp-gateway wordops-room-factory; do
+for svc in wordops-capability-broker agent-activity-ledger wordops-mcp-gateway wordops-room-factory; do
   if ( cd "$ROOT/apps/$svc" && GOWORK=off go build -ldflags="-B gobuildid" -o "$BIN/$svc" . ) 2>"$WORK/build.$svc.log"; then
     ok "built $svc"
   else
@@ -70,14 +70,32 @@ class H(BaseHTTPRequestHandler):
 HTTPServer(("127.0.0.1",int(sys.argv[1])),H).serve_forever()
 PY
 
-info "\n[boot] starting broker, ledger, containment, gateway, room-factory + fake homeserver"
+# ── fake containment endpoint (the real one is gbrg-engine, a Rust service in the
+# sociosphere repo — out of this Go+bash smoke's build scope). Returns a PROVED
+# ContainmentProofArtifact so the gateway maps it to verdict=verified. Containment
+# CORRECTNESS is covered by gbrg-engine's own tests + the Rust golden conformance;
+# this smoke proves the LEASE seam, not the sever algorithm. ──
+cat > "$WORK/fakecont.py" <<'PY'
+import json,sys
+from http.server import BaseHTTPRequestHandler,HTTPServer
+ART=json.dumps({"schemaVersion":"0.1.0","source":"vvv-648e9d56f1a","severedScope":"full","epistemicLevel":"empirical","status":"PROVED","baselineReachableCount":5,"residualReachableCount":1,"containedCount":4,"residualReachable":["edr-epp"]}).encode()
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        b=b'{"status":"ok"}' if self.path.startswith("/healthz") else ART
+        self.send_response(200); self.send_header('Content-Type','application/json')
+        self.send_header('Content-Length',str(len(b))); self.end_headers(); self.wfile.write(b)
+    def log_message(self,*a): pass
+HTTPServer(("127.0.0.1",int(sys.argv[1])),H).serve_forever()
+PY
+
+info "\n[boot] starting broker, ledger, containment (gbrg-engine stub), gateway, room-factory + fake homeserver"
 BROKER_KEY="$WORK/broker.pem"; openssl genrsa -out "$BROKER_KEY" 2048 2>/dev/null
 BROKER_ISSUER="https://auth.socioprophet.ai/realms/wordops/wordops-capability-broker"
 
 python3 "$WORK/fakesyn.py" "$SYN" & PIDS+=($!)
 WORDOPS_BROKER_SIGNING_KEY="$(cat "$BROKER_KEY")" PORT=$BROKER "$BIN/wordops-capability-broker" >"$WORK/broker.log" 2>&1 & PIDS+=($!)
 PORT=$LEDGER "$BIN/agent-activity-ledger" >"$WORK/ledger.log" 2>&1 & PIDS+=($!)
-PORT=$CONT "$BIN/gbrg-containment" >"$WORK/cont.log" 2>&1 & PIDS+=($!)
+python3 "$WORK/fakecont.py" "$CONT" & PIDS+=($!)
 PORT=$GW GBRG_CONTAINMENT_URL="http://127.0.0.1:$CONT" LEDGER_URL="http://127.0.0.1:$LEDGER" \
   BROKER_JWKS_URL="http://127.0.0.1:$BROKER/.well-known/jwks.json" BROKER_ISSUER="$BROKER_ISSUER" \
   "$BIN/wordops-mcp-gateway" >"$WORK/gw.log" 2>&1 & PIDS+=($!)
