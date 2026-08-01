@@ -2,7 +2,10 @@
 
 Consumes CDM EventEnvelopes from the mesh (Kafka topics /telemetry/*) and writes
 them to Loki. At-least-once: the offset is committed only after Loki accepts the
-push; the transform is deterministic so reprocessing is idempotent (replay-safe).
+push. The transform itself is deterministic (same envelope -> same Loki stream
+payload, byte-identical on replay) -- that makes reprocessing safe to correlate
+and dedupe on, though the Loki write path is still at-least-once, not a true
+idempotent write.
 Exposes /healthz + /metrics on :$HEALTH_PORT for probes + mesh liveness.
 """
 import json, os, sys, threading, time

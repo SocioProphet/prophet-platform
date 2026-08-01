@@ -1,13 +1,24 @@
 """Unit tests for the OTLP->EventEnvelope producer transform + round-trip with
 the Loki projection (both halves speak one contract)."""
 import os, importlib.util
-from transform import otlp_log_to_envelope, _stable_id
 
-# load the consumer-side projection under a distinct name (both files are transform.py)
-_p = os.path.join(os.path.dirname(__file__), "..", "mlog-projection-loki", "transform.py")
-_spec = importlib.util.spec_from_file_location("proj_transform", _p)
-_proj = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_proj)
+
+def _load(name: str, rel_path: str):
+    # both this service and mlog-projection-loki have a same-named transform.py;
+    # a bare `from transform import ...` in each test file collides via
+    # sys.modules when both get collected in one pytest process (the SUT here
+    # AND the cross-service round-trip import both need a distinct name).
+    p = os.path.join(os.path.dirname(__file__), rel_path)
+    spec = importlib.util.spec_from_file_location(name, p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_own = _load("producer_transform", "transform.py")
+otlp_log_to_envelope, _stable_id = _own.otlp_log_to_envelope, _own._stable_id
+
+_proj = _load("proj_transform", os.path.join("..", "mlog-projection-loki", "transform.py"))
 envelope_to_loki_stream = _proj.envelope_to_loki_stream
 
 REC = {

@@ -2,8 +2,10 @@
 
 Consumes OTLP-json the OTel collector's kafka exporter writes to
 `telemetry.logs.raw`, flattens each log record, wraps it as a CDM EventEnvelope
-(deterministic id => replay-idempotent), and produces to `telemetry.logs` (the
-Map-Log stream mlog-projection-loki consumes). Serves /healthz + /metrics.
+(deterministic id => a redelivered record maps to the same id, so a reader can
+dedupe on replay -- Kafka production itself is still at-least-once, not
+idempotent), and produces to `telemetry.logs` (the Map-Log stream
+mlog-projection-loki consumes). Serves /healthz + /metrics.
 """
 import json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -90,8 +92,16 @@ def main() -> None:
                 env = otlp_log_to_envelope(rec, OUT_TOPIC)
                 p.produce(OUT_TOPIC, key=env["id"].encode(), value=json.dumps(env).encode())
                 n += 1
-            p.flush(5)
-            c.commit(msg)  # at-least-once; deterministic ids keep it idempotent
+            pending = p.flush(5)
+            if pending:
+                # flush() returns the still-undelivered count on timeout rather than
+                # raising; committing the source offset anyway would drop those
+                # messages for good. Skip the commit so this batch redelivers.
+                with _lock:
+                    _m["errors"] += 1
+                print(f"produce error: flush timed out with {pending} message(s) undelivered, not committing offset", file=sys.stderr)
+                continue
+            c.commit(msg)  # at-least-once; deterministic ids let a reader dedupe on redelivery
             with _lock:
                 _m["produced"] += n
         except Exception as e:

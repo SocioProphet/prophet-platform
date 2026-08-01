@@ -28,27 +28,39 @@ def main() -> int:
 
     failures, pending, checked = [], [], 0
     for r in reqs:
-        rid, status = r["id"], r.get("status")
+        rid = r.get("id", "<missing id>")
+        status = r.get("status")
         ev = r.get("evidence")
         # silent-pass guard: a conforms/partial requirement MUST carry evidence,
         # else drift (someone drops the evidence block) goes undetected.
         if status in ("conforms", "partial") and not ev:
             failures.append(f"{rid}: status '{status}' has no evidence block")
         if status in ("conforms", "partial") and ev:
-            f = ROOT / ev["file"]
+            ev_file, needle = ev.get("file"), ev.get("must_contain")
+            if not ev_file or not needle:
+                # a malformed evidence block must FAIL, not KeyError/crash the
+                # whole check — this script's own fail-closed design would be
+                # undermined by an unhandled exception taking it down instead.
+                failures.append(f"{rid}: evidence block missing 'file' or 'must_contain'")
+                continue
+            f = (ROOT / ev_file).resolve()
+            if ROOT not in f.parents and f != ROOT:
+                # reject an absolute path or a `..` escape out of the repo root
+                # before ever reading anything outside it.
+                failures.append(f"{rid}: evidence path escapes repo root: {ev_file}")
+                continue
             # self-exclusion: a requirement may not cite the checker as its own evidence
-            if f.resolve() == SELF:
+            if f == SELF:
                 failures.append(f"{rid}: evidence points at the checker itself")
                 continue
-            needle = ev["must_contain"]
             if not f.exists():
-                failures.append(f"{rid}: evidence file absent: {ev['file']}")
+                failures.append(f"{rid}: evidence file absent: {ev_file}")
             elif needle not in f.read_text():
-                failures.append(f"{rid}: evidence lost — '{needle}' not in {ev['file']}")
+                failures.append(f"{rid}: evidence lost — '{needle}' not in {ev_file}")
             else:
                 checked += 1
         if status in ("bind", "partial", "scope-d"):
-            pending.append(f"{rid} [{status}] {r['text']}")
+            pending.append(f"{rid} [{status}] {r.get('text', '<missing text>')}")
 
     print(f"== workroom spec-conformance: {len(reqs)} requirements, {checked} evidence-checked ==")
     for p in pending:

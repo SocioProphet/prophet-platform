@@ -1,6 +1,17 @@
 """Unit tests for the Loki projection rule — deterministic, no Kafka/Loki."""
 import json
-from transform import envelope_to_loki_stream, _to_ns
+import os
+import importlib.util
+
+# telemetry-producer has a same-named transform.py; a bare `from transform
+# import ...` collides via sys.modules if both test_transform.py files get
+# collected in one pytest process. Load this service's own module by path
+# under a distinct name instead of relying on the ambient sys.path.
+_p = os.path.join(os.path.dirname(__file__), "transform.py")
+_spec = importlib.util.spec_from_file_location("projection_transform", _p)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+envelope_to_loki_stream, _to_ns = _mod.envelope_to_loki_stream, _mod._to_ns
 
 
 def test_maps_envelope_to_loki_stream():
