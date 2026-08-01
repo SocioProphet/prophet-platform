@@ -6,6 +6,6 @@
 # GET /containment?scope= (demo foothold) + POST /containment (arbitrary topology) + /healthz on :8080.
 #
 # gitops-promote pins the immutable sha- tag on each build.
-image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: sha-2df3cf6eeb59529d5ee87eb672aa4c6e4a05565b }
+image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: sha-d7d84e7032cafa8a36c50a2e712dd5a1a4e9e5d3 }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
