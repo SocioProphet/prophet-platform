@@ -8,6 +8,6 @@
 # (gbrg-core::containment, sociosphere) — a no-op sever is epistemicLevel=speculative, never clean
 # containment. The cockpit Containment surface reads /containment; nginx routes /svc/containment here.
 # Serves /healthz (chart probe default) on :8080.
-image: { registry: registry.socioprophet.ai, repository: gbrg-containment, tag: sha-2c2050cd5a73d887a0068fc33ce4eded064841b5 }
+image: { registry: registry.socioprophet.ai, repository: gbrg-containment, tag: sha-93d3b9c7163eed8d01320a6836dc77b6f341b09d }
 imagePullSecrets: [{ name: zot-pull }]
 service: { port: 8080, portName: http }
