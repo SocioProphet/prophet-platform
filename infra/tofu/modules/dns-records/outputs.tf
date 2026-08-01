@@ -19,6 +19,11 @@ output "records" {
 }
 
 output "has_app_records" {
-  description = "Whether any non-baseline records exist (used to fail-closed on delegating an otherwise-empty canonical/redirect domain)."
+  description = "Whether explicit app_records were supplied."
   value       = length(var.app_records) > 0
+}
+
+output "has_delegable_records" {
+  description = "Whether the domain has records beyond the security baseline (app_records or emitted redirect A records). Used to fail-closed on delegating an otherwise-empty canonical/redirect domain."
+  value       = local.has_delegable_records
 }

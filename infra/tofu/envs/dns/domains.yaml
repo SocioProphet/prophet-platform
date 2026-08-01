@@ -84,14 +84,19 @@ domains:
     notes: "candidate: helpdesk surface."
   - domain: socioslinux.org
     role: redirect
+    redirect_to: sourceos.org
   - domain: sourceos.digital
     role: redirect
+    redirect_to: sourceos.org
   - domain: sourceos.software
     role: redirect
+    redirect_to: sourceos.org
   - domain: sourceos.systems
     role: redirect
+    redirect_to: sourceos.org
   - domain: truthorbot.org
     role: redirect
+    redirect_to: truthorbot.net
   - domain: socioprofit.com
     role: reserved
     notes: "SPELLING: socioPROFIT, not prophet. Defensive/typo reg or a separate product? CONFIRM."

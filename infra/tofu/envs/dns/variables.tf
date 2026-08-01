@@ -32,6 +32,18 @@ variable "manage_registrar" {
   description = "When true, delegate NS at Namecheap for domains with manage_ns:true. Keep false until a plan is reviewed and the API client_ip is allowlisted."
 }
 
+variable "enable_redirects" {
+  type        = bool
+  default     = false
+  description = "When true (and dns_cloud=gcp), stand up the redirect LB (global external HTTP(S) LB: global IP, managed cert, URL maps, target proxies, forwarding rules) and point redirect-role domains' apex/www A records at it. Off by default."
+}
+
+variable "default_redirect_target" {
+  type        = string
+  default     = "socioprophet.com"
+  description = "Canonical 301 target for redirect-role domains that don't set redirect_to."
+}
+
 variable "create_egress_nat" {
   type        = bool
   default     = false
