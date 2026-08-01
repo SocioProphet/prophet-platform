@@ -22,11 +22,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"sort"
+	"time"
 )
 
 type edge struct{ from, to, label string }
@@ -202,20 +205,76 @@ func containmentArtifact(t topology, scope string) map[string]any {
 	}
 }
 
+// toInput renders a topology + scope as the on-the-wire JSON the authoritative
+// gbrg-engine (Rust) consumes.
+func (t topology) toInput(scope string) topoInput {
+	in := topoInput{Source: t.source, Scope: scope}
+	for l := range t.keepLabels {
+		in.KeepLabels = append(in.KeepLabels, l)
+	}
+	for a := range t.allow {
+		in.Allow = append(in.Allow, a)
+	}
+	sort.Strings(in.KeepLabels)
+	sort.Strings(in.Allow)
+	for _, e := range t.edges {
+		in.Edges = append(in.Edges, struct {
+			From  string `json:"from"`
+			To    string `json:"to"`
+			Label string `json:"label"`
+		}{e.from, e.to, e.label})
+	}
+	return in
+}
+
+// resolveArtifact returns the AUTHORITATIVE artifact from gbrg-engine when engineURL
+// is set and reachable; otherwise it falls back to the local computation (which the
+// conformance test pins to that same engine). The engine is authoritative; the local
+// path is a fail-safe so a governed answer is always available.
+func resolveArtifact(client *http.Client, engineURL string, t topology, scope string) map[string]any {
+	if scope != "selective" {
+		scope = "full"
+	}
+	if engineURL == "" {
+		return containmentArtifact(t, scope)
+	}
+	body, _ := json.Marshal(t.toInput(scope))
+	resp, err := client.Post(engineURL+"/containment", "application/json", bytes.NewReader(body))
+	if err != nil {
+		log.Printf("gbrg-engine unreachable (%v) — falling back to local compute", err)
+		return containmentArtifact(t, scope)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("gbrg-engine returned %d — falling back to local compute", resp.StatusCode)
+		return containmentArtifact(t, scope)
+	}
+	var art map[string]any
+	if err := json.Unmarshal(raw, &art); err != nil {
+		log.Printf("gbrg-engine bad JSON (%v) — falling back to local compute", err)
+		return containmentArtifact(t, scope)
+	}
+	return art
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+	engineURL := os.Getenv("GBRG_ENGINE_URL") // authoritative Rust engine; empty = local compute
+	client := &http.Client{Timeout: 5 * time.Second}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "service": "gbrg-containment"})
 	})
 	mux.HandleFunc("/containment", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, containmentArtifact(demoTopo, r.URL.Query().Get("scope")))
+		writeJSON(w, http.StatusOK, resolveArtifact(client, engineURL, demoTopo, r.URL.Query().Get("scope")))
 	})
 
-	log.Printf("gbrg-containment serving on :%s (/healthz /containment)", port)
+	log.Printf("gbrg-containment serving on :%s (/healthz /containment); engine=%q", port, engineURL)
 	if err := http.ListenAndServe("0.0.0.0:"+port, mux); err != nil {
 		log.Fatal(err)
 	}
