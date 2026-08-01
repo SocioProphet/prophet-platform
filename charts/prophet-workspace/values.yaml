@@ -24,10 +24,12 @@ gitea:
   db: gitea
   storage: 20Gi
   oidc:
-    enabled: false            # enable once broker has TLS and auth-code endpoints live
-    brokerUrl: ""             # e.g. https://socioprophet.id (must match BROKER_ISS / brokerHostname)
-    clientId: gitea           # client_id registered in BROKER_CLIENTS
-    clientSecretSecret: ""    # optional: k8s Secret with key 'secret'; blank = PKCE-only (Gitea ≥1.22)
+    enabled: false            # ⬅ THE single flip to activate gitea SSO. Everything else below is pre-staged.
+                              #    Flip to true ONLY AFTER: broker live at socioprophet.id + registrar-lock confirmed.
+                              #    Then the workspace-gitea-oidc-setup Job runs `gitea admin auth add-oauth`.
+    brokerUrl: "https://socioprophet.id"   # pre-staged; matches BROKER_ISS/brokerHostname (active only when enabled=true)
+    clientId: gitea           # client_id registered in broker.clients below
+    clientSecretSecret: ""    # blank = PKCE-only (Gitea ≥1.22) — no client secret to manage
 
 image:
   registry: ghcr.io/socioprophet/prophet-platform
@@ -49,12 +51,14 @@ broker:
   tokenTtlSec: 3600
   appName: "Prophet Workspace"                  # shown on the sovereign login page
   # clients: registered OIDC clients. Format: { clientId: { redirectUris: [...], secret?: "..." } }
-  # Example for Gitea:
-  # clients:
-  #   gitea:
-  #     redirectUris:
-  #       - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
-  clients: {}
+  # PRE-STAGED (2026-08-01) for gitea SSO — PKCE-only (no secret). Inert until the broker is deployed AND
+  # gitea.oidc.enabled=true. Both redirectUris registered because the "which gitea" decision (#5) is open:
+  # chart gitea = git.socioprophet.ai (Helm/Postgres); live gitea = code.socioprophet.ai (standalone SQLite).
+  clients:
+    gitea:
+      redirectUris:
+        - https://git.socioprophet.ai/user/oauth2/Sovereign/callback
+        - https://code.socioprophet.ai/user/oauth2/Sovereign/callback
 
 postgres:
   host: postgres                  # reuse the platform Postgres (it's already deployed)
