@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/event.v0.schema.json",
+  "title": "event.v0",
+  "description": "Canonical append-only event (spec D2/D12). Object-centric: case_id + object_refs + activity + actor + inputs + outputs + state_delta, with W3C PROV framing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "ts", "case_id", "activity", "actor", "object_refs"],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "ts": { "type": "string", "description": "ISO-8601" },
+    "case_id": { "type": "string", "description": "Object-centric process case identifier." },
+    "activity": { "type": "string" },
+    "actor": { "type": "string", "description": "PROV agent responsible." },
+    "object_refs": { "type": "array", "items": { "type": "string" }, "description": "Refs to assets/claims/tasks/etc. this event touched." },
+    "inputs": { "type": "object", "additionalProperties": true },
+    "outputs": { "type": "object", "additionalProperties": true },
+    "state_delta": { "type": "object", "additionalProperties": true },
+    "prov": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "entity": { "type": "string" },
+        "activity": { "type": "string" },
+        "agent": { "type": "string" }
+      }
+    }
+  }
+}

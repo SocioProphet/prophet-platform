@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/claim.v0.schema.json",
+  "title": "claim.v0",
+  "description": "A traceable proposition extracted from assets (spec D6). Carries provenance, confidence, validity window, contradiction status, and epistemic level.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim_id", "subject", "statement", "epistemic_level", "confidence", "provenance", "contradiction_status"],
+  "properties": {
+    "claim_id": { "type": "string", "minLength": 8 },
+    "subject": { "type": "string" },
+    "statement": { "type": "string" },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "type": "string" },
+        "method": { "type": "string" },
+        "collected_at": { "type": "string" },
+        "derived_from": { "type": "array", "items": { "type": "string" }, "description": "asset_id/claim_id lineage." }
+      }
+    },
+    "validity": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "start": { "type": "string" }, "end": { "type": ["string", "null"] } }
+    },
+    "contradiction_status": { "enum": ["none", "contested", "superseded", "refuted"] }
+  }
+}
