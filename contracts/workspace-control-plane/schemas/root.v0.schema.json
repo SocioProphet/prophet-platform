@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/root.v0.schema.json",
+  "title": "root.v0",
+  "description": "A mounted root with per-root policy and rail configuration (spec D3/D4). Each root declares its sync mode, cache policy, and allowed actions independently.",
+  "type": "object", "additionalProperties": false,
+  "required": ["root_id", "account_ref", "kind", "sync_mode", "cache_policy", "allowed_actions"],
+  "properties": {
+    "root_id": { "type": "string", "minLength": 4 },
+    "account_ref": { "type": "string" },
+    "kind": { "enum": ["local_dir", "drive_folder", "mailbox", "calendar", "box_folder", "onedrive_folder", "icloud_documents"] },
+    "sync_mode": { "enum": ["mirror", "live", "action"], "description": "D4: mirror rail (indexed copy) | live rail (just-in-time) | action rail (side effects)." },
+    "cache_policy": { "enum": ["none", "metadata_only", "full"] },
+    "allowed_actions": { "type": "array", "items": { "type": "string" } },
+    "delta_cursor": { "type": ["string", "null"], "description": "Opaque provider delta token / mtime watermark for incremental sync." },
+    "watch": { "type": "object", "additionalProperties": false, "properties": { "enabled": { "type": "boolean" }, "channel_ref": { "type": "string" } } }
+  }
+}

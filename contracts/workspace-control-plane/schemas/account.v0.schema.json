@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/account.v0.schema.json",
+  "title": "account.v0",
+  "description": "An external account as a first-class root owner (spec D3). Holds a reference to credentials, never the credentials themselves.",
+  "type": "object", "additionalProperties": false,
+  "required": ["account_id", "provider", "display_name", "auth_ref"],
+  "properties": {
+    "account_id": { "type": "string", "minLength": 4 },
+    "provider": { "enum": ["google", "microsoft", "box", "apple", "local", "imap", "caldav"] },
+    "display_name": { "type": "string" },
+    "auth_ref": { "type": "string", "description": "Opaque reference to a credential in a secret store — NOT the secret." }
+  }
+}

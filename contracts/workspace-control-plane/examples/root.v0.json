@@ -1,0 +1,1 @@
+{ "root_id": "root-gdrive-primary", "account_ref": "acct-gdrive-1", "kind": "drive_folder", "sync_mode": "mirror", "cache_policy": "metadata_only", "allowed_actions": ["read", "list"], "delta_cursor": "startPageToken:98213", "watch": { "enabled": true, "channel_ref": "gdrive://watch/ch-1" } }
