@@ -126,8 +126,13 @@ spec:
           configMap:
             name: promtail-config
         - name: run
-          hostPath:
-            path: /run/promtail
+          # GKE Autopilot's Warden admission webhook rejects ANY write-mode
+          # hostPath outright (autogke-no-write-mode-hostpath) -- confirmed
+          # live, ArgoCD retried 5x and failed to ever create this DaemonSet.
+          # positions.yaml only needs to survive within one pod's lifetime;
+          # losing it on a reschedule just means a few duplicate log lines
+          # get re-shipped, which is the correct tradeoff vs never deploying.
+          emptyDir: {}
         - name: pods
           hostPath:
             path: /var/log/pods
