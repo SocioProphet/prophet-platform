@@ -35,7 +35,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install deps
-        run: python -m pip install --upgrade pip jsonschema pytest
+        # rfc3339-validator makes jsonschema's FormatChecker actually enforce
+        # "format": date-time (e.g. MetricFact.ts) rather than silently skip it.
+        run: python -m pip install --upgrade pip jsonschema rfc3339-validator pytest
       - name: Producer emits spec-valid records (provisional — no reproduced facts)
         run: python tools/isota_tournament.py
       - name: Invariant + conformance tests

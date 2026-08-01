@@ -19,9 +19,11 @@ TWO invariants are load-bearing and enforced (see tests):
   2. NO LAUNDERING (the eval-fabric honesty rule). `internal_reproduced` /
      reproduced_by_us=true means WE MEASURED IT. Illustrative seed scores are the
      mechanism's INPUT and are never emitted as data — no ModelCandidate carries a
-     score, and MetricFacts are emitted ONLY when real per-item run results are
-     supplied (--results). A provisional (seed) run emits the tournament STRUCTURE
-     and ZERO reproduced facts.
+     score, and an emitted accepted/rejected status comes ONLY from a real measured
+     result (--results), compared to the promotion threshold; seed scores never set
+     it. A provisional (seed) run emits the tournament STRUCTURE and ZERO reproduced
+     facts. A Stage-0-gated candidate is fail-closed — never scored — so it yields no
+     fact even if a result is supplied for it.
 
 Run:  python3 tools/isota_tournament.py [--results FILE.json] [--out DIR]
       (validates every emitted record against the real eval schemas before writing)
@@ -33,7 +35,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-import jsonschema
+from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_DIR = ROOT / "schemas" / "eval"
@@ -115,11 +117,19 @@ def build(corpus: list[dict], candidates: list[dict], results: dict | None = Non
     facts = []
     for c in candidates:
         cid, v = c["candidate_id"], verdicts[c["candidate_id"]]
-        # honesty: without real results, verdict does not set accepted/rejected.
-        if results is None:
+        gated = v["stage_reached"] == 0            # Stage 0 governance gate — decided by governance flags, not scores
+        has_real = results is not None and cid in results
+        # honesty: emitted status comes ONLY from a real measured result. A provisional
+        # run asserts nothing (benchmark_candidate). A gated candidate is fail-closed —
+        # rejected, never scored — so it yields no fact even if a result was supplied.
+        # Seed axis scores never set an emitted status.
+        if not has_real:
             status = "benchmark_candidate"
+        elif gated:
+            status = "rejected"
         else:
-            status = "accepted" if v["promoted"] else "rejected"
+            measured = float(results[cid]["value_scalar"])
+            status = "accepted" if measured >= PROMOTE_THRESHOLD else "rejected"
         gates = ["stage0_governance", "stage1_provider_seed_smoke", "stage2_sherlock_weighted",
                  "stage3_adversarial_stress", "stage4_promotion_threshold"]
         model_candidates.append({
@@ -152,8 +162,9 @@ def build(corpus: list[dict], candidates: list[dict], results: dict | None = Non
             ],
             "failure_modes_to_probe": ["stale_docs", "conflicting_evidence", "permission_bound", "long_context", "multilingual"],
         })
-        # MetricFacts ONLY for real, measured results — never from seed scores.
-        if results is not None and cid in results:
+        # MetricFacts ONLY for a real measured result on a candidate that CLEARED
+        # Stage 0 — never from seed scores, never for a fail-closed-gated candidate.
+        if has_real and not gated:
             r = results[cid]
             facts.append({
                 "metric_fact_id": "mf.isota.%s.%s" % (cid.split(".")[-1], ts),
@@ -175,17 +186,23 @@ def build(corpus: list[dict], candidates: list[dict], results: dict | None = Non
             "contracts": contracts, "facts": facts, "verdicts": verdicts}
 
 
+def _validate(inst: dict, schema: dict) -> None:
+    # spec-first WITH format enforcement — e.g. MetricFact.ts "format": "date-time"
+    # is actually checked (needs rfc3339-validator installed to bite on date-time).
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(inst)
+
+
 def validate_bundle(bundle: dict) -> None:
     md, mc = _schema("metric-definition"), _schema("model-candidate")
     bc, mf = _schema("benchmark-contract"), _schema("metric-fact")
     for d in bundle["definitions"]:
-        jsonschema.validate(d, md)
+        _validate(d, md)
     for c in bundle["candidates"]:
-        jsonschema.validate(c, mc)
+        _validate(c, mc)
     for k in bundle["contracts"]:
-        jsonschema.validate(k, bc)
+        _validate(k, bc)
     for f in bundle["facts"]:
-        jsonschema.validate(f, mf)
+        _validate(f, mf)
 
 
 # ---- seed candidates: research-tracked models. Axis scores are ILLUSTRATIVE INPUT
@@ -222,6 +239,10 @@ def main() -> int:
     args = ap.parse_args()
 
     corpus = json.loads(SEED_CORPUS.read_text())["items"]
+    # fail-fast: the corpus must conform to the vendored EvalItem schema (spec-first).
+    eval_item_schema = json.loads((SCHEMA_DIR / "vendored" / "EvalItem.schema.json").read_text())
+    for it in corpus:
+        _validate(it, eval_item_schema)
     results = json.loads(args.results.read_text()) if args.results else None
     bundle = build(corpus, seed_candidates(), results=results)
     validate_bundle(bundle)

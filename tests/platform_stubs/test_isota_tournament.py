@@ -85,6 +85,33 @@ def test_real_results_emit_internal_reproduced_facts():
     assert statuses["cand.opus_class"] in ("accepted", "rejected")
 
 
+def test_stage0_gated_candidate_in_results_emits_no_fact_and_is_rejected():
+    # the exact laundering/fail-closed hole: a governance-gated candidate present in
+    # results must NOT yield a reproduced fact, and its status is rejected (fail-closed).
+    mod = _mod()
+    cands = mod.seed_candidates()
+    gated_id = next(c["candidate_id"] for c in cands
+                    if mod.run_tournament([c])[c["candidate_id"]]["stage_reached"] == 0)
+    results = {gated_id: {"value_scalar": 99.0, "sample_n": 100}}  # even a top score
+    bundle = mod.build(_corpus(), cands, results=results)
+    assert bundle["facts"] == [], "a Stage-0-gated candidate must not yield a reproduced fact"
+    status = {c["candidate_id"]: c["status"] for c in bundle["candidates"]}
+    assert status[gated_id] == "rejected"
+
+
+def test_emitted_status_tracks_measured_value_not_seed_scores():
+    # a non-gated candidate whose MEASURED result is below threshold is rejected even
+    # if its seed composite would promote — emitted status follows measurement, not seed.
+    mod = _mod()
+    cands = mod.seed_candidates()
+    strong = next(c["candidate_id"] for c in cands
+                  if mod.run_tournament([c])[c["candidate_id"]]["promoted"])
+    low = {strong: {"value_scalar": 10.0, "sample_n": 50}}
+    bundle = mod.build(_corpus(), cands, results=low)
+    status = {c["candidate_id"]: c["status"] for c in bundle["candidates"]}
+    assert status[strong] == "rejected", "measured value below threshold must reject, ignoring seed score"
+
+
 def test_provider_neutral_permuting_labels_changes_no_verdict():
     mod = _mod()
     base = mod.seed_candidates()

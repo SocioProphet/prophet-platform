@@ -576,4 +576,4 @@ validate-capability-membrane:
 # workflow .github/workflows/isota-tournament.yml.
 validate-isota-tournament:
 	test -d .venv-tools || python3 -m venv .venv-tools
-	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema pytest >/dev/null && python tools/isota_tournament.py && pytest -q tests/platform_stubs/test_isota_tournament.py
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && python tools/isota_tournament.py && pytest -q tests/platform_stubs/test_isota_tournament.py
