@@ -67,24 +67,38 @@ def mac_sign(payload: bytes, secret: bytes) -> str:
 _KNOWN_ASYMMETRIC = {"ed25519", "ecdsa-p256", "sigstore-keyless"}
 
 
+def signing_input(payload: bytes, signed_at: str) -> bytes:
+    """The bytes a signature actually covers.
+
+    `signed_at` is folded in so it is **authenticated** — otherwise it lives
+    outside the signed payload and an attacker could replay an old valid
+    signature with an edited `signed_at` to defeat max-age freshness.
+    """
+    return payload + b"\n:signed_at:" + signed_at.encode("utf-8")
+
+
 def verify_signature(sig_block: dict[str, Any], payload: bytes, registry: KeyRegistry) -> tuple[bool, str]:
     """Verify one signature block against payload. Returns (ok, reason).
 
-    Fail-closed on malformed/attacker-controlled input; distinguishes an
-    *unsupported-in-lab* algorithm from an *unknown/typo* one.
+    Fail-closed on malformed/attacker-controlled input (non-dict block, non-string
+    signer/signature/signed_at); distinguishes an *unsupported-in-lab* algorithm
+    from an *unknown/typo* one. The signature covers `signed_at` (see
+    [`signing_input`]).
     """
     if not isinstance(sig_block, dict):
         return False, "malformed_signature"
     algo = sig_block.get("algorithm")
-    signer = sig_block.get("signer", "")
-    sig = sig_block.get("signature", "")
+    signer = sig_block.get("signer")
+    sig = sig_block.get("signature")
+    signed_at = sig_block.get("signed_at")
+    # signer must be hashable/str (registry lookup), and sig/signed_at present strings.
+    if not isinstance(signer, str) or not isinstance(sig, str) or not sig or not isinstance(signed_at, str):
+        return False, "malformed_signature"
     if algo == "hmac-blake2b":
-        if not isinstance(sig, str) or not sig:
-            return False, "malformed_signature"
         key = registry.get(signer)
         if key is None:
             return False, "unknown_signer"
-        ok = hmac.compare_digest(mac_sign(payload, key), sig)
+        ok = hmac.compare_digest(mac_sign(signing_input(payload, signed_at), key), sig)
         return ok, "ok" if ok else "bad_signature"
     if algo in _KNOWN_ASYMMETRIC:
         # Supported algorithm, but no production verifier wired in the lab stance.
