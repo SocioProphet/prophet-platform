@@ -25,16 +25,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Sequence
 
-from tools.semantic_algebra import Term, TermSet, bind_tiered
+from tools.semantic_algebra import BOTTOM, Term, TermSet, bind_tiered
 
-BindFn = Callable[[Term, TermSet, TermSet], Optional[Term]]
+
+def _abstained(x: object) -> bool:
+    """True for a first-class abstention (BOTTOM) or a legacy ``None``."""
+    return x is None or x is BOTTOM
+
+
+BindFn = Callable[[Term, TermSet, TermSet], object]
 
 
 @dataclass(frozen=True)
 class Case:
     """One grounding trial.
 
-    `gold` is the term the binder SHOULD admit, or None when the correct
+    `gold` is the term the binder SHOULD admit, or BOTTOM when the correct
     behaviour is to abstain (the query has no same-anchor candidate — the trap
     that produced the measured failure).
     """
@@ -43,11 +49,11 @@ class Case:
     query: Term
     upper: TermSet
     lower: TermSet
-    gold: Optional[Term]
+    gold: "Term | object"  # a Term, or BOTTOM for an expected abstain
 
     @property
     def should_admit(self) -> bool:
-        return self.gold is not None
+        return not _abstained(self.gold)
 
 
 @dataclass(frozen=True)
@@ -75,18 +81,18 @@ def run_gate(
 
     for case in cases:
         pred = bind_fn(case.query, case.upper, case.lower)
-        if pred == case.gold:
-            if case.gold is None:
+        if _abstained(pred):
+            if _abstained(case.gold):
                 correct_abstains += 1
             else:
-                correct_admits += 1
-        elif pred is not None:
+                # gold was a term, binder abstained: over-cautious, not unsafe.
+                over_abstains += 1
+        elif pred == case.gold:
+            correct_admits += 1
+        else:
             # admitted a binding other than the gold one: bound across the
             # abstraction anchor. This is THE failure being measured.
             mismatches += 1
-        else:
-            # gold was a term, binder abstained: over-cautious, not unsafe.
-            over_abstains += 1
 
     mismatch_rate = mismatches / n if n else 1.0
     admits = correct_admits + mismatches

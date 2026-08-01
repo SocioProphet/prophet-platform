@@ -48,6 +48,13 @@ Conformance notes
 * `pullback` (limit / restrict) and `pushout` (colimit / glue) are duals and are
   the only two ways to combine knowledge. `meet` reconciles them. One meet
   implementation serves both this kernel and Truth = Law x Evidence.
+* Abstention is a first-class value, `BOTTOM`, not `None`: `bind_tiered` and
+  `pullback` return it, `meet` absorbs it, and its position is undefined under
+  `distance`. Incompleteness makes abstention structural, so it is carried, not
+  smuggled through the control flow.
+* The verdict lattice is DERIVED from `VERDICT_CLEARS` (what each verdict clears)
+  by `derive_verdict_order`, not hand-authored; it raises unless the verdicts form
+  a chain. There is no second copy of the ordering to drift from its meaning.
 """
 
 from __future__ import annotations
@@ -56,7 +63,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, Iterable, Optional, Sequence, Tuple
 
-SPEC_VERSION = "0.1.0"
+SPEC_VERSION = "0.2.0"
 
 MAX_LAYER = 4
 
@@ -162,6 +169,37 @@ def prim(symbol: str) -> Term:
 NIL_TERM = prim(NIL)
 
 
+# --------------------------------------------------------------------------- #
+# 2b. BOTTOM — abstention as a first-class value (Gödel)
+# --------------------------------------------------------------------------- #
+
+
+class Abstain:
+    """The honest-ignorance element: "not decidable from within this system".
+
+    Incompleteness makes abstention *structural*, not incidental — so it is a value
+    the algebra carries, never an out-of-band ``None`` the control flow smuggles.
+    ``BOTTOM`` composes: it is absorbing under ``meet`` and its position is undefined
+    under ``distance``, so a computation that passed through an undecidable point
+    cannot quietly forget it. Singleton; identity comparison (``is BOTTOM``) is the
+    intended test.
+    """
+
+    _instance: "Optional[Abstain]" = None
+
+    def __new__(cls) -> "Abstain":
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __repr__(self) -> str:  # pragma: no cover - trivial
+        return "BOTTOM"
+
+
+#: The single abstention value. Grounding operators return this, not ``None``.
+BOTTOM = Abstain()
+
+
 def mul(ground: Term, differentia: Term, mode: Optional[Term] = None) -> Term:
     """The ternary, NON-commutative product. Elides `mode` to the neutral element.
 
@@ -265,8 +303,11 @@ def distance(a: Term, b: Term) -> int:
     what makes a paradigm row/column a genuine neighbourhood: nothing is learned
     and nothing is curated per pair.
 
-    Raises on cross-layer comparison — see `bind_tiered` for why.
+    Raises on cross-layer comparison — see `bind_tiered` for why. Undefined for
+    BOTTOM: abstention has no position, so distance to it is not a number.
     """
+    if a is BOTTOM or b is BOTTOM:
+        raise LayerError("distance is undefined for BOTTOM (abstention has no position)")
     if a.layer != b.layer:
         raise LayerError(
             f"distance is undefined across layers ({a.layer} vs {b.layer}); "
@@ -298,11 +339,12 @@ def neighbours(target: Term, candidates: Iterable[Term], radius: int = 1) -> Tup
 # --------------------------------------------------------------------------- #
 
 
-def pullback(candidates: TermSet, constraint: Dict[str, Term]) -> Optional[TermSet]:
+def pullback(candidates: TermSet, constraint: Dict[str, Term]) -> "TermSet | Abstain":
     """LIMIT / restrict — keep only the cells agreeing with `constraint` on each role.
 
-    The restrictive operator. Returns None when the restriction is total, which
-    callers must treat as a refusal rather than as an empty-but-fine result.
+    The restrictive operator. Returns BOTTOM when the restriction is total: a
+    first-class abstention the caller must reconcile, not an empty-but-fine result
+    and not a smuggled ``None``.
     """
     kept = set()
     for cell in candidates.terms:
@@ -310,7 +352,7 @@ def pullback(candidates: TermSet, constraint: Dict[str, Term]) -> Optional[TermS
             continue
         if all(cell.roles()[role] == want for role, want in constraint.items()):
             kept.add(cell)
-    return TermSet(frozenset(kept)) if kept else None
+    return TermSet(frozenset(kept)) if kept else BOTTOM
 
 
 def pushout(a: Term, b: Term, along: str) -> Term:
@@ -337,20 +379,59 @@ def pushout(a: Term, b: Term, along: str) -> Term:
     return mul(merged["ground"], merged["differentia"], merged["mode"])
 
 
-#: The verdict lattice, weakest to strongest. `meet` takes the minimum, which is
-#: the same operation Truth = Law x Evidence uses. One implementation, two call
-#: sites — a second copy of this ordering is how the two drift apart.
-VERDICT_ORDER: Tuple[str, ...] = ("refuse", "quarantine", "weak", "probable", "sealed")
+#: What each verdict CLEARS. This is the ground the order is DERIVED from, not an
+#: authored ranking — a stronger verdict clears a superset, and the lattice order is
+#: the subset relation over these sets. This was the one hand-authored canon in the
+#: kernel; deriving it removes the second copy of the ordering that could drift from
+#: its meaning, the same discipline the 23x6 grid applies to its cells. (Mach:
+#: economy — keep no ungrounded posit.)
+VERDICT_CLEARS: Dict[str, FrozenSet[str]] = {
+    "refuse":     frozenset(),
+    "quarantine": frozenset({"observe_isolated"}),
+    "weak":       frozenset({"observe_isolated", "cite"}),
+    "probable":   frozenset({"observe_isolated", "cite", "act_reversible"}),
+    "sealed":     frozenset({"observe_isolated", "cite", "act_reversible", "act_irreversible"}),
+}
 
 
-def meet(*verdicts: str) -> str:
-    """Reconcile verdicts by taking the lattice minimum.
+def derive_verdict_order(clears: Dict[str, FrozenSet[str]]) -> Tuple[str, ...]:
+    """Derive the verdict lattice from what each verdict clears — weakest first.
 
-    The middle-column operation: an expansive signal never carries a decision on
-    its own, because the meet with a restrictive signal cannot exceed it.
+    The order is the subset relation over the cleared-capability sets, computed, not
+    written down twice. Raises if the verdicts do not form a chain (a pair whose sets
+    are incomparable): `meet` needs a total order, and an un-derivable one is a defect
+    to surface, not paper over — the same stance as `buildCanonicalGrid` throwing
+    unless the count is exact. Adding a properly-nested verdict extends the order with
+    no second edit.
+    """
+    verdicts = sorted(clears, key=lambda v: (len(clears[v]), v))
+    for weaker, stronger in zip(verdicts, verdicts[1:]):
+        if not clears[weaker] <= clears[stronger]:
+            raise ValueError(
+                f"verdicts {weaker!r} and {stronger!r} are incomparable: "
+                f"{set(clears[weaker])} vs {set(clears[stronger])} — not a chain"
+            )
+    return tuple(verdicts)
+
+
+#: The verdict lattice, weakest to strongest — DERIVED from VERDICT_CLEARS, checked
+#: not claimed. `meet` takes the minimum, the same operation Truth = Law x Evidence
+#: uses. One implementation, one derived order, no authored second copy.
+VERDICT_ORDER: Tuple[str, ...] = derive_verdict_order(VERDICT_CLEARS)
+
+
+def meet(*verdicts: "str | Abstain") -> "str | Abstain":
+    """Reconcile verdicts by the lattice minimum; BOTTOM is absorbing.
+
+    The middle-column operation: an expansive signal never carries a decision on its
+    own, because the meet with a restrictive signal cannot exceed it. If any arm is
+    BOTTOM (undecidable), the reconciliation is BOTTOM — you cannot seal on an arm you
+    could not decide.
     """
     if not verdicts:
         raise ValueError("meet requires at least one verdict")
+    if any(v is BOTTOM for v in verdicts):
+        return BOTTOM
     unknown = [v for v in verdicts if v not in VERDICT_ORDER]
     if unknown:
         raise ValueError(f"unknown verdict(s): {unknown}")
@@ -362,7 +443,7 @@ def meet(*verdicts: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def bind_tiered(query: Term, upper: TermSet, lower: TermSet) -> Optional[Term]:
+def bind_tiered(query: Term, upper: TermSet, lower: TermSet) -> "Term | Abstain":
     """Ground a query general-first: anchor in `upper`, then descend to `lower`.
 
     A lower-tier candidate is admitted ONLY if it is a product whose `ground`
@@ -371,7 +452,8 @@ def bind_tiered(query: Term, upper: TermSet, lower: TermSet) -> Optional[Term]:
     structural property of the address, not a cosine threshold that can be
     tuned until it stops complaining.
 
-    Returns None when nothing injects through the anchor — an honest abstain.
+    Returns BOTTOM when nothing injects through the anchor — an honest abstain, as
+    a first-class value the caller must reconcile, not a smuggled ``None``.
     """
     if query.layer != upper.layer:
         raise LayerError(
@@ -379,7 +461,7 @@ def bind_tiered(query: Term, upper: TermSet, lower: TermSet) -> Optional[Term]:
         )
     anchors = neighbours(query, upper.terms, radius=1)
     if not anchors:
-        return None
+        return BOTTOM
     anchor = anchors[0]
     admitted = [
         cell
@@ -387,7 +469,7 @@ def bind_tiered(query: Term, upper: TermSet, lower: TermSet) -> Optional[Term]:
         if not cell.is_leaf and cell.roles()["ground"] == anchor
     ]
     if not admitted:
-        return None
+        return BOTTOM
     return sorted(admitted, key=lambda t: t.code())[0]
 
 
@@ -414,7 +496,7 @@ class SemanticAddress:
     warrant, not the addressing, that goes stale.
     """
 
-    term: Term
+    term: "Term | Abstain"
     iri: Optional[str] = None
     inference: str = "asserted"
     mood: str = "assert"
@@ -434,12 +516,25 @@ class SemanticAddress:
             raise ValueError("confidence must be in [0, 1]")
 
     @property
+    def abstains(self) -> bool:
+        """True when this address is the honest 'could not ground' — term is BOTTOM."""
+        return self.term is BOTTOM
+
+    @property
     def layer(self) -> int:
+        if self.term is BOTTOM:
+            raise LayerError("an abstaining address has no layer")
         return self.term.layer
 
     @property
     def is_grounded(self) -> bool:
-        """True when the address has an extensional anchor, not only structure."""
+        """True when the address has an extensional anchor, not only structure.
+
+        An abstaining address is never grounded, whatever its `iri` — you cannot
+        ground what you declined to decide.
+        """
+        if self.term is BOTTOM:
+            return False
         return bool(self.iri)
 
     def skeleton(self) -> Dict[str, object]:
@@ -451,8 +546,9 @@ class SemanticAddress:
         evidence pointer.
         """
         return {
-            "code": self.term.code(),
-            "layer": self.layer,
+            "code": "BOTTOM" if self.abstains else self.term.code(),
+            "layer": None if self.abstains else self.layer,
+            "abstains": self.abstains,
             "inference": self.inference,
             "mood": self.mood,
         }
@@ -460,8 +556,9 @@ class SemanticAddress:
     def to_json(self) -> Dict[str, object]:
         payload: Dict[str, object] = {
             "specVersion": SPEC_VERSION,
-            "code": self.term.code(),
-            "layer": self.layer,
+            "code": "BOTTOM" if self.abstains else self.term.code(),
+            "layer": None if self.abstains else self.layer,
+            "abstains": self.abstains,
             "inference": self.inference,
             "mood": self.mood,
         }
