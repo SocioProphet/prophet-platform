@@ -1,0 +1,15 @@
+{
+  "event_id": "wi-cg-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-serp-probe",
+  "subject": "a-competitor.example",
+  "relation": "competitor",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "serp_probe", "method": "keyword-set-diff", "sample_size": 2, "collected_at": "2026-07-31T00:00:00+00:00" },
+  "reference_domain": "socioprophet.com",
+  "gap_keywords": [
+    { "keyword": "ai model risk attestation", "subject_position": 4, "reference_position": null, "search_volume": 320 },
+    { "keyword": "provable ai audit trail", "subject_position": 6, "reference_position": 41, "search_volume": 210 }
+  ]
+}

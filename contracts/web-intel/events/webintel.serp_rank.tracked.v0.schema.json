@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/serp_rank_tracked.v0.schema.json",
+  "title": "webintel.serp_rank.tracked.v0",
+  "description": "Organic SERP position + share-of-voice for a subject domain on a keyword.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "epistemic_level", "provenance", "keyword", "position", "share_of_voice_pct"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string" },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "keyword": { "type": "string" },
+    "position": { "type": ["integer", "null"], "minimum": 1 },
+    "previous_position": { "type": ["integer", "null"], "minimum": 1 },
+    "search_volume": { "type": "integer", "minimum": 0 },
+    "share_of_voice_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+    "serp_features": { "type": "array", "items": { "type": "string" } },
+    "url": { "type": "string" }
+  }
+}

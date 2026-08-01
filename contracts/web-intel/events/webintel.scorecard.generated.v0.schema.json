@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/scorecard_generated.v0.schema.json",
+  "title": "webintel.scorecard.generated.v0",
+  "description": "Unified web-intelligence scorecard for a subject domain. overall_epistemic_level is the MEET of contributing component levels (one weak input caps the whole); value_drivers carry equity-weighted impact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "overall_epistemic_level", "component_event_ids", "headline", "value_drivers"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string" },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "overall_epistemic_level": {
+      "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"],
+      "description": "The meet (lowest) of the epistemic_level of every contributing component event."
+    },
+    "component_event_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "event_id of each metric event that fed this scorecard (the lineage)."
+    },
+    "headline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "site_health_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "authority_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "ai_visibility_score": { "type": "number", "minimum": 0, "maximum": 100 },
+        "share_of_voice_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "value_drivers": {
+      "type": "array",
+      "description": "Value-driver breakdown: each web-intel dimension mapped to a driver + equity-weighted impact score. Generalizes the VDT scorecard into the intelligence program.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["driver", "kpi", "score", "equity_weight"],
+        "properties": {
+          "driver": { "type": "string" },
+          "kpi": { "type": "string" },
+          "score": { "type": "number" },
+          "equity_weight": { "type": "number", "minimum": 0, "maximum": 1 },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

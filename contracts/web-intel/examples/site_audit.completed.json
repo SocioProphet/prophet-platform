@@ -1,0 +1,19 @@
+{
+  "event_id": "wi-sa-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-crawler",
+  "subject": "socioprophet.com",
+  "relation": "self",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "owned_crawler", "method": "playwright+lxml+simhash", "sample_size": 15, "collected_at": "2026-07-31T00:00:00+00:00" },
+  "site_health_score": 61.5,
+  "ai_search_health_score": 40.0,
+  "pages_crawled": 15,
+  "status_buckets": { "ok_2xx": 9, "redirect_3xx": 4, "broken_4xx": 4, "server_5xx": 0 },
+  "duplicates": { "titles": 30, "meta_descriptions": 30, "content": 30 },
+  "thin_pages": 28,
+  "redirect_chains_max": 2,
+  "internal_link": { "single_inbound_pages": 18, "no_anchor_links": 46, "orphan_pages": 2 },
+  "control_files": { "robots_present": true, "sitemap_present": true, "llms_present": true }
+}

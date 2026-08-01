@@ -1,0 +1,17 @@
+{
+  "event_id": "wi-sc-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-metrics",
+  "subject": "socioprophet.com",
+  "relation": "self",
+  "overall_epistemic_level": "empirical",
+  "component_event_ids": ["wi-sa-0001", "wi-bl-0001", "wi-ai-0001", "wi-sr-0001"],
+  "headline": { "site_health_score": 61.5, "authority_score": 34.0, "ai_visibility_score": 40.0, "share_of_voice_pct": 6.2 },
+  "value_drivers": [
+    { "driver": "Discoverability", "kpi": "site_health_score", "score": 61.5, "equity_weight": 0.3, "notes": "Owned crawl; duplicates + thin pages drag it." },
+    { "driver": "Authority", "kpi": "authority_score", "score": 34.0, "equity_weight": 0.25, "notes": "42% toxic referring share caps this." },
+    { "driver": "AI-Search Presence", "kpi": "ai_visibility_score", "score": 40.0, "equity_weight": 0.25, "notes": "Cited by 2 of 5 engines." },
+    { "driver": "Demand Capture", "kpi": "share_of_voice_pct", "score": 6.2, "equity_weight": 0.2, "notes": "Organic SoV on tracked keyword set." }
+  ]
+}

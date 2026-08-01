@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/web-intel/site_audit_completed.v0.schema.json",
+  "title": "webintel.site_audit.completed.v0",
+  "description": "Owned-crawler site audit for a subject domain. Semrush-parity site-health detail, warranted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer", "subject", "relation",
+    "epistemic_level", "provenance", "site_health_score", "ai_search_health_score",
+    "pages_crawled", "status_buckets", "duplicates", "internal_link", "control_files"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8 },
+    "emitted_at": { "type": "string" },
+    "tenant_id": { "type": "string" },
+    "producer": { "type": "string" },
+    "subject": { "type": "string" },
+    "relation": { "enum": ["self", "competitor", "prospect", "partner"] },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "method", "collected_at"],
+      "properties": {
+        "source": { "enum": ["owned_crawler", "ai_probe", "serp_probe", "link_graph"] },
+        "method": { "type": "string" },
+        "sample_size": { "type": "integer", "minimum": 0 },
+        "collected_at": { "type": "string" }
+      }
+    },
+    "site_health_score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "ai_search_health_score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "pages_crawled": { "type": "integer", "minimum": 0 },
+    "status_buckets": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ok_2xx", "redirect_3xx", "broken_4xx", "server_5xx"],
+      "properties": {
+        "ok_2xx": { "type": "integer", "minimum": 0 },
+        "redirect_3xx": { "type": "integer", "minimum": 0 },
+        "broken_4xx": { "type": "integer", "minimum": 0 },
+        "server_5xx": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "duplicates": {
+      "type": "object", "additionalProperties": false,
+      "required": ["titles", "meta_descriptions", "content"],
+      "properties": {
+        "titles": { "type": "integer", "minimum": 0 },
+        "meta_descriptions": { "type": "integer", "minimum": 0 },
+        "content": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "thin_pages": { "type": "integer", "minimum": 0 },
+    "redirect_chains_max": { "type": "integer", "minimum": 0 },
+    "internal_link": {
+      "type": "object", "additionalProperties": false,
+      "required": ["single_inbound_pages", "no_anchor_links", "orphan_pages"],
+      "properties": {
+        "single_inbound_pages": { "type": "integer", "minimum": 0 },
+        "no_anchor_links": { "type": "integer", "minimum": 0 },
+        "orphan_pages": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "control_files": {
+      "type": "object", "additionalProperties": false,
+      "required": ["robots_present", "sitemap_present", "llms_present"],
+      "properties": {
+        "robots_present": { "type": "boolean" },
+        "sitemap_present": { "type": "boolean" },
+        "llms_present": { "type": "boolean" }
+      }
+    }
+  }
+}

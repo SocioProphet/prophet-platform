@@ -1,0 +1,17 @@
+{
+  "event_id": "wi-sr-0001",
+  "emitted_at": "2026-07-31T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "web-intel-serp-probe",
+  "subject": "socioprophet.com",
+  "relation": "self",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "serp_probe", "method": "owned-serp-fetch", "sample_size": 1, "collected_at": "2026-07-31T00:00:00+00:00" },
+  "keyword": "governed ai orchestration",
+  "position": 8,
+  "previous_position": 12,
+  "search_volume": 480,
+  "share_of_voice_pct": 6.2,
+  "serp_features": ["ai_overview", "people_also_ask"],
+  "url": "https://socioprophet.com/"
+}
