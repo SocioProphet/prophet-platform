@@ -36,6 +36,7 @@ FRAMEWORK_FILES: Tuple[str, ...] = (
     "tools/boundary_transition_actants.py",
     "tools/abstraction_level_gate.py",
     "tools/intent_address.py",
+    "tools/spectral_grounding.py",
     "docs/SEMANTIC_COORDINATE_ALGEBRA.md",
     "docs/SEMANTIC_LAYER_ADJUNCTION.md",
     "contracts/AgentCoordinateVector.v0.1.json",
