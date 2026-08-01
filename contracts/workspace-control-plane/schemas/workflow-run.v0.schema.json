@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/workflow-run.v0.schema.json",
+  "title": "workflow-run.v0",
+  "description": "A durable workflow run (spec D11/D12). External side effects run through durable workflows, approval gates, and an outbox.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "case_id", "activity", "actor", "object_refs", "status", "started_at"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 8 },
+    "case_id": { "type": "string" },
+    "activity": { "type": "string" },
+    "actor": { "type": "string" },
+    "object_refs": { "type": "array", "items": { "type": "string" } },
+    "inputs": { "type": "object", "additionalProperties": true },
+    "outputs": { "type": "object", "additionalProperties": true },
+    "state_delta": { "type": "object", "additionalProperties": true },
+    "status": { "enum": ["pending", "running", "awaiting_approval", "succeeded", "failed", "compensated"] },
+    "event_history_ref": { "type": "string" },
+    "outbox": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "state": { "enum": ["none", "queued", "sent", "acked", "failed"] }, "attempts": { "type": "integer", "minimum": 0 } }
+    },
+    "started_at": { "type": "string" }
+  }
+}

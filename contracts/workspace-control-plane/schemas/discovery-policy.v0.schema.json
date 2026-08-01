@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/discovery-policy.v0.schema.json",
+  "title": "discovery-policy.v0",
+  "description": "Deterministic capability-discovery policy (spec D7): fixed resolution order and trust requirements. Prevents the planner from arbitrary network crawling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy_id", "resolution_order", "trust_requirements"],
+  "properties": {
+    "policy_id": { "type": "string", "minLength": 8 },
+    "resolution_order": {
+      "type": "array", "minItems": 1,
+      "items": { "enum": ["local_manifest", "local_affordance", "mcp_server", "trusted_catalog", "remote_join"] },
+      "description": "Ordered resolution: local manifests -> local affordances -> MCP servers -> trusted catalogs -> remote joins."
+    },
+    "trust_requirements": {
+      "type": "object", "additionalProperties": false,
+      "required": ["require_signed", "require_revocation_check"],
+      "properties": {
+        "require_signed": { "type": "boolean" },
+        "max_age_seconds": { "type": "integer", "minimum": 0 },
+        "require_revocation_check": { "type": "boolean" }
+      }
+    }
+  }
+}

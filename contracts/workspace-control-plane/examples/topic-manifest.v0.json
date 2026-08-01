@@ -1,0 +1,1 @@
+{ "manifest_id": "topman-0001", "kind": "data_topic", "topic": "socioprophet/intel/web-intel", "transport": "hypercore", "discovery_key": "hc:deadbeef", "expiry": "2026-12-31T00:00:00+00:00", "revocation": {"revoked": false}, "signature": {"signer": "socioprophet-root", "algorithm": "ed25519", "signature": "ed25519:sig", "signed_at": "2026-08-01T00:00:00+00:00"} }

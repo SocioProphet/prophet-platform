@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/workspace-control-plane/attention-mark.v0.schema.json",
+  "title": "attention-mark.v0",
+  "description": "A resurfacing marker on an asset or claim (spec D5). Keeps half-processed work discoverable before deep indexing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mark_id", "target_ref", "mode", "created_at"],
+  "properties": {
+    "mark_id": { "type": "string", "minLength": 8 },
+    "target_ref": { "type": "string", "description": "asset_id or claim_id." },
+    "mode": { "enum": ["pin", "watch", "revisit", "incubate", "hold", "forget"] },
+    "resurfacing_triggers": { "type": "array", "items": { "type": "string" } },
+    "decay": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "policy": { "enum": ["none", "linear", "exponential"] }, "half_life_seconds": { "type": "integer", "minimum": 0 } }
+    },
+    "suppression": { "type": "object", "additionalProperties": false, "properties": { "rules": { "type": "array", "items": { "type": "string" } } } },
+    "created_at": { "type": "string" }
+  }
+}

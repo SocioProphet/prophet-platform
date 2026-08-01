@@ -1,0 +1,1 @@
+{ "policy_id": "discpol-0001", "resolution_order": ["local_manifest", "local_affordance", "mcp_server", "trusted_catalog", "remote_join"], "trust_requirements": {"require_signed": true, "max_age_seconds": 86400, "require_revocation_check": true} }
