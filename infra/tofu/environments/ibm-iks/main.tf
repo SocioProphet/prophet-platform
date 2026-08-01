@@ -3,12 +3,18 @@
 # + Argo CD + the identical root app. App layer (charts/ + deploy/argocd)
 # unchanged.
 
+# IBM user tags must match ^[A-Za-z0-9:_ .-]+$ — no "/". So the repo is carried
+# as two tags (org + name) rather than one "owner/name" tag. This matches how
+# every other root already labels: aws-eks/azure-aks and shared/labels.tf both
+# use a separate "org" = "socioprophet" key and never embed the owner in the
+# repo name. Values are lowercase because IBM lowercases user tags on write.
 locals {
   prophet_tags = [
     "managed-by:opentofu",
     "environment:production",
     "team:platform",
-    "repo:SocioProphet/prophet-platform",
+    "org:socioprophet",
+    "repo:prophet-platform",
   ]
 }
 
@@ -67,8 +73,10 @@ resource "ibm_cr_namespace" "images" {
   tags              = local.prophet_tags
 }
 
-# GitHub Actions OIDC federation via IBM Trusted Profile (no static API keys).
-# After apply, set IBM_TRUSTED_PROFILE_ID as a GitHub Actions *variable*.
+# IBM Trusted Profile for CI. ⚠️ NOT currently federated to GitHub Actions —
+# IBM IAM has no claim rule type that accepts a GitHub OIDC token. The profile
+# and its policies are created, but nothing can assume them yet. Read the header
+# of modules/ibm-trusted-profile/main.tf before wiring anything to this.
 module "github_ci" {
   source            = "../../modules/ibm-trusted-profile"
   github_repo       = "SocioProphet/prophet-platform"
@@ -79,5 +87,5 @@ module "github_ci" {
 
 output "github_ci_trusted_profile_id" {
   value       = module.github_ci.trusted_profile_id
-  description = "Set as GitHub Actions variable IBM_TRUSTED_PROFILE_ID (not a secret)."
+  description = "IBM Trusted Profile ID. WARNING: setting this as IBM_TRUSTED_PROFILE_ID will NOT make CI auth work — the profile has no claim rule, because IBM cannot federate GitHub Actions OIDC."
 }
