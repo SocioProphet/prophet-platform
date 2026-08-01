@@ -1,0 +1,16 @@
+{
+  "event_id": "cav-vd-0001",
+  "emitted_at": "2026-08-01T00:00:00+00:00",
+  "tenant_id": "socioprophet",
+  "producer": "value-driver-scorer",
+  "subject": "vendor://acme-corp",
+  "epistemic_level": "empirical",
+  "provenance": { "source": "crystal_atlas", "method": "downstream-finding-mapping", "collected_at": "2026-08-01T00:00:00+00:00" },
+  "source": { "source_event_type": "procurement.substitution.recommended.v0", "source_event_id": "corr-cla-771" },
+  "value_drivers": [
+    { "driver": "Cost Efficiency", "kpi": "estimated_savings_pct", "score": 62.0, "equity_weight": 0.5, "notes": "Substitution reduces annual spend." },
+    { "driver": "Switching Risk", "kpi": "substitution_confidence", "score": 80.0, "equity_weight": 0.3, "notes": "High-confidence like-for-like substitute." },
+    { "driver": "Continuity", "kpi": "coverage_completeness", "score": 90.0, "equity_weight": 0.2, "notes": "No clause coverage lost." }
+  ],
+  "overall_value_score": 73.0
+}
