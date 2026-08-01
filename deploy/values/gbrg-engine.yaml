@@ -1,0 +1,10 @@
+# gbrg-engine — the AUTHORITATIVE GBRG containment engine (Rust), on the SOVEREIGN registry (zot).
+#
+# Built from the sociosphere gbrg workspace at a pinned public commit (see the Dockerfile).
+# The Go gbrg-containment front-door calls this over the wire (GBRG_ENGINE_URL) so the deployed
+# result is the authoritative gbrg_core::emit_containment_artifact, not a Go reimplementation.
+#
+# New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable sha- tag on first build.
+image: { registry: registry.socioprophet.ai, repository: gbrg-engine, tag: latest }
+imagePullSecrets: [{ name: zot-pull }]
+service: { port: 8080, portName: http }

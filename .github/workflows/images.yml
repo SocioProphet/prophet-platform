@@ -84,6 +84,7 @@ jobs:
           - { image: holmes,                context: apps/holmes,                dockerfile: Dockerfile }
           - { image: agent-activity-ledger, context: apps/agent-activity-ledger, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: gbrg-containment,      context: apps/gbrg-containment,      dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
+          - { image: gbrg-engine,           context: apps/gbrg-engine,           dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: wordops-mcp-gateway,   context: apps/wordops-mcp-gateway,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: wordops-capability-broker, context: apps/wordops-capability-broker, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: wordops-room-factory,  context: apps/wordops-room-factory,  dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }

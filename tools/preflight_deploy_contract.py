@@ -177,20 +177,13 @@ KNOWN_BROKEN = {
         "declarations -> fail-closed-validated DeviceReadings) added to CI this PR. Pin tag:latest -> the sha- "
         "tag after the first CI build; no sha exists until merge."
     ),
-    "wordops-mcp-gateway:moving-tag": (
-        "New service — WordOps lease-enforcing MCP gateway (apps/wordops-mcp-gateway: authorizes A0-A4 "
-        "capability-leases, containment=>A4, and writes ExecutionReceipts to the ledger) added to CI this PR. "
-        "Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
-    ),
-    "wordops-capability-broker:moving-tag": (
-        "New service — WordOps capability broker (apps/wordops-capability-broker: runs A0-A4 allow_issue and "
-        "mints RS256-signed lease JWTs + publishes JWKS) added to CI this PR. Pin tag:latest -> the sha- tag "
-        "after the first CI build; no sha exists until merge."
-    ),
-    "wordops-room-factory:moving-tag": (
-        "New service — WordOps room-factory (apps/wordops-room-factory: opens encrypted invite-only "
-        "non-federated Matrix incident/case rooms) added to CI this PR. Pin tag:latest -> the sha- tag after "
-        "the first CI build; no sha exists until merge."
+    # wordops-{mcp-gateway,capability-broker,room-factory} were sha-pinned by
+    # gitops-promote after their first CI build (#1171 line) → removed from the ratchet
+    # (it only shrinks; leaving them would let the gate FAIL "now passes").
+    "gbrg-engine:moving-tag": (
+        "New service — gbrg-engine (apps/gbrg-engine: the authoritative Rust containment engine served over "
+        "HTTP, built from pinned sociosphere) added to CI this PR. Pin tag:latest -> the sha- tag after the "
+        "first CI build; no sha exists until merge."
     ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
