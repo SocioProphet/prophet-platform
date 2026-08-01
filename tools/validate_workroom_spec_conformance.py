@@ -30,6 +30,10 @@ def main() -> int:
     for r in reqs:
         rid, status = r["id"], r.get("status")
         ev = r.get("evidence")
+        # silent-pass guard: a conforms/partial requirement MUST carry evidence,
+        # else drift (someone drops the evidence block) goes undetected.
+        if status in ("conforms", "partial") and not ev:
+            failures.append(f"{rid}: status '{status}' has no evidence block")
         if status in ("conforms", "partial") and ev:
             f = ROOT / ev["file"]
             # self-exclusion: a requirement may not cite the checker as its own evidence

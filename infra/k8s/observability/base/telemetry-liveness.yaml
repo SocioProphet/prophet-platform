@@ -18,7 +18,9 @@ spec:
         # The canary always emits; zero ingestion for 15m = the log pipeline is
         # dead (promtail down, Loki push broken, or Loki refusing writes).
         - alert: LokiNotIngestingLogs
-          expr: sum(rate(loki_distributor_bytes_received_total[10m])) == 0
+          # fire on zero ingestion OR on the metric being absent (broken
+          # ServiceMonitor/scrape) — an absent metric must not read as "healthy".
+          expr: sum(rate(loki_distributor_bytes_received_total[10m])) == 0 or absent(loki_distributor_bytes_received_total)
           for: 15m
           labels: { severity: critical, pillar: observability }
           annotations:
@@ -52,7 +54,9 @@ spec:
         # ── The canary itself must be alive (else the core control loses its
         # guaranteed baseline and silently degrades to blind).
         - alert: TelemetryCanaryMissing
-          expr: absent(kube_pod_status_ready{namespace="observability", pod=~"telemetry-canary.*"})
+          # missing OR not-ready: a NotReady canary still exports the metric (=0),
+          # so absent() alone misses it — scope to condition="true" and alert on ==0 too.
+          expr: absent(kube_pod_status_ready{namespace="observability", pod=~"telemetry-canary.*", condition="true"}) or max(kube_pod_status_ready{namespace="observability", pod=~"telemetry-canary.*", condition="true"}) == 0
           for: 15m
           labels: { severity: warning, pillar: observability }
           annotations:

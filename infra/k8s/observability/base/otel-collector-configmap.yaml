@@ -41,8 +41,6 @@ data:
         endpoint: tempo.observability.svc.cluster.local:4317
         tls:
           insecure: true
-      otlphttp/loki:
-        endpoint: http://loki.observability.svc.cluster.local:3100/otlp
       # Kappa: produce logs onto the Map Log (Kafka). telemetry-producer wraps
       # each record as a CDM EventEnvelope on telemetry.logs; mlog-projection-loki
       # rebuilds the Loki projection from it. Loki is no longer a push target.

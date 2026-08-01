@@ -16,9 +16,16 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: create-topics
           image: bitnami/kafka:3.7   # has kafka-topics.sh
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
           env:
             - name: KAFKA_BOOTSTRAP
               value: kafka.eventbus.svc.cluster.local:9092

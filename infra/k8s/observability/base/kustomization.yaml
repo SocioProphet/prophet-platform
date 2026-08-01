@@ -12,3 +12,4 @@ resources:
   - telemetry-canary.yaml
   - telemetry-servicemonitors.yaml
   - telemetry-liveness.yaml
+  - telemetry-alert-routing.yaml   # route critical observability alerts to a human pager

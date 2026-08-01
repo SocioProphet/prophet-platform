@@ -36,6 +36,8 @@ spec:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: 65534
+            capabilities: { drop: ["ALL"] }
+            seccompProfile: { type: RuntimeDefault }
 ---
 apiVersion: v1
 kind: Service
@@ -86,7 +88,9 @@ spec:
           expr: sum by (topic) (kafka_topic_partition_current_offset)
         # broker/exporter reachability — a DOWN bus is worse than a quiet one
         - alert: MeshBusExporterDown
-          expr: up{job="kafka-exporter"} == 0
+          # kafka_brokers is exported by kafka-exporter; absent => the exporter is
+          # down or unscraped (reliable, vs matching the Operator-generated job label).
+          expr: absent(kafka_brokers)
           for: 10m
           labels: { severity: critical, pillar: eventbus }
           annotations:
