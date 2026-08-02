@@ -32,13 +32,29 @@ spec:
                   # failed this job silently, forever, on every scheduled run.
                   # grep/sed instead of jq: stays on the same minimal, already-reviewed
                   # image rather than adding a dependency for one field extraction.
-                  COLLECTIONS=$(curl -sf http://mesh-qdrant:6333/collections \
-                    | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"$//')
-                  for col in $COLLECTIONS; do
-                    echo "Snapshotting collection: $col"
-                    curl -sf -X POST "http://mesh-qdrant:6333/collections/${col}/snapshots"
-                  done
-                  echo "All snapshots created"
+                  #
+                  # Copilot review on #1207: under plain /bin/sh (dash; no bash pipefail),
+                  # `set -e` only sees a PIPELINE's LAST command's exit status -- so a
+                  # failed curl here piped into grep/sed would still exit 0 (sed always
+                  # succeeds on empty input), COLLECTIONS would end up empty, the for-loop
+                  # would run zero times, and the job would print success having created
+                  # ZERO snapshots. Capture curl's own exit status explicitly, outside the
+                  # pipeline, so an unreachable mesh-qdrant fails this job loudly instead.
+                  RESPONSE=$(curl -sf http://mesh-qdrant:6333/collections) || {
+                    echo "ERROR: could not reach mesh-qdrant to list collections" >&2
+                    exit 1
+                  }
+                  COLLECTIONS=$(echo "$RESPONSE" | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"$//')
+                  if [ -z "$COLLECTIONS" ]; then
+                    echo "No collections exist yet -- nothing to snapshot (this is a legitimate empty state, not a fetch failure)"
+                  else
+                    for col in $COLLECTIONS; do
+                      echo "Snapshotting collection: $col"
+                      # Not piped -- set -e already catches a bare failing command like this.
+                      curl -sf -X POST "http://mesh-qdrant:6333/collections/${col}/snapshots"
+                    done
+                  fi
+                  echo "Backup run complete"
               resources:
                 requests:
                   cpu: 10m

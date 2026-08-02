@@ -72,16 +72,29 @@ fn load_docs(corpus_path: &str) -> (Vec<Doc>, Option<PathBuf>) {
     if let Some(parent) = store_path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    match std::fs::File::create(&store_path) {
-        Ok(mut f) => {
-            for d in &docs {
-                let _ = writeln!(f, "{}", serde_json::to_string(d).unwrap());
-            }
-            eprintln!("bootstrapped {} seed doc(s) into persistent store {store_path:?}", docs.len());
+    // Copilot review on #1207: the previous version returned Some(store_path)
+    // regardless of whether this write actually succeeded, so /healthz could
+    // report persistent:true for a corpus that would NOT survive a restart --
+    // exactly the claimed-durability-that-isn't-real bug this fix exists to
+    // stop. Track every fallible step (create, and each line write) and only
+    // report a persistent store if the whole bootstrap actually landed on disk.
+    let bootstrap_ok = (|| -> std::io::Result<()> {
+        let mut f = std::fs::File::create(&store_path)?;
+        for d in &docs {
+            writeln!(f, "{}", serde_json::to_string(d).unwrap())?;
         }
-        Err(e) => eprintln!("WARN: could not create persistent store {store_path:?}: {e} -- corpus will not survive a restart"),
+        Ok(())
+    })();
+    match bootstrap_ok {
+        Ok(()) => {
+            eprintln!("bootstrapped {} seed doc(s) into persistent store {store_path:?}", docs.len());
+            (docs, Some(store_path))
+        }
+        Err(e) => {
+            eprintln!("WARN: could not bootstrap persistent store {store_path:?}: {e} -- corpus will not survive a restart");
+            (docs, None)
+        }
     }
-    (docs, Some(store_path))
 }
 
 fn append_doc(store_path: &PathBuf, d: &Doc) -> std::io::Result<()> {
@@ -292,7 +305,11 @@ fn main() {
                         let idx = docs.len();
                         // Persist first: if this fails, the doc must not become searchable
                         // and silently vanish on the next restart (fail closed, not quiet).
-                        let persisted = match &store_path {
+                        // Named doc_persisted, not persisted/persistent, to stay unambiguous
+                        // next to /healthz's "persistent" (Copilot review on #1207): that one
+                        // reports whether the persistence subsystem is configured and working
+                        // at all; this one reports whether THIS document survived the write.
+                        let doc_persisted = match &store_path {
                             Some(p) => match append_doc(p, &d) {
                                 Ok(()) => true,
                                 Err(e) => {
@@ -313,7 +330,7 @@ fn main() {
                         writer.commit().unwrap();
                         let _ = reader.reload();
                         docs.push(d);
-                        json!({"ok": true, "idx": idx, "docs": docs.len(), "persisted": persisted}).to_string()
+                        json!({"ok": true, "idx": idx, "docs": docs.len(), "doc_persisted": doc_persisted}).to_string()
                     }
                 }
             }
