@@ -13,10 +13,13 @@ REQUIRED = [
     "infra/k8s/search-orchestrator/base/kustomization.yaml",
     "infra/k8s/search-orchestrator/base/deployment.yaml",
     "infra/k8s/search-orchestrator/base/service.yaml",
-    "infra/k8s/search-orchestrator/base/configmap.yaml",
-    "infra/k8s/search-orchestrator/base/serviceaccount-rbac.yaml",
-    "infra/k8s/search-orchestrator/base/pvc.yaml",
-    "infra/k8s/search-orchestrator/base/networkpolicy.yaml",
+    # Supporting resources factored into base-support/ so the prod blue-green overlay can
+    # compose them without the base Deployment (INV-DEP-10, self-contained overlays).
+    "infra/k8s/search-orchestrator/base-support/kustomization.yaml",
+    "infra/k8s/search-orchestrator/base-support/configmap.yaml",
+    "infra/k8s/search-orchestrator/base-support/serviceaccount-rbac.yaml",
+    "infra/k8s/search-orchestrator/base-support/pvc.yaml",
+    "infra/k8s/search-orchestrator/base-support/networkpolicy.yaml",
     "infra/k8s/search-orchestrator/overlays/lab/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/carrier/kustomization.yaml",
     "infra/k8s/search-orchestrator/overlays/policy/kustomization.yaml",
@@ -67,7 +70,13 @@ REQUIRED_TEXT = {
         "digest form",
     ],
     "infra/k8s/search-orchestrator/base/kustomization.yaml": [
+        # base now composes the supporting resources via base-support/ (INV-DEP-10).
+        "../base-support",
+        "deployment.yaml",
+    ],
+    "infra/k8s/search-orchestrator/base-support/kustomization.yaml": [
         "serviceaccount-rbac.yaml",
+        "configmap.yaml",
         "pvc.yaml",
         "networkpolicy.yaml",
     ],
@@ -80,17 +89,17 @@ REQUIRED_TEXT = {
         "search-orchestrator-data",
         "resources:",
     ],
-    "infra/k8s/search-orchestrator/base/serviceaccount-rbac.yaml": [
+    "infra/k8s/search-orchestrator/base-support/serviceaccount-rbac.yaml": [
         "kind: ServiceAccount",
         "kind: Role",
         "kind: RoleBinding",
     ],
-    "infra/k8s/search-orchestrator/base/pvc.yaml": [
+    "infra/k8s/search-orchestrator/base-support/pvc.yaml": [
         "kind: PersistentVolumeClaim",
         "ReadWriteOnce",
         "storage: 5Gi",
     ],
-    "infra/k8s/search-orchestrator/base/networkpolicy.yaml": [
+    "infra/k8s/search-orchestrator/base-support/networkpolicy.yaml": [
         "kind: NetworkPolicy",
         "policyTypes:",
         "Ingress",
