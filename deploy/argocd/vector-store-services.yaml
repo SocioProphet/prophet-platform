@@ -1,0 +1,47 @@
+# Argo CD ApplicationSet — shared platform vector store (Qdrant).
+#
+# infra/k8s/mesh-qdrant (StatefulSet + 20Gi PVC + NetworkPolicy + daily snapshot CronJob) has
+# existed, complete, since before the KMASS baseline (2026-08-01) -- but was never registered
+# with any ArgoCD Application, so it was never deployed. sherlock-engine's values file has
+# declared QDRANT_URL pointing at mesh-qdrant's in-cluster DNS name since before this PR ("the
+# binding is explicit"); memoryd's own dense-recall path is documented to ride it too. Neither
+# could ever actually connect to it.
+#
+# Same house convention as zot (deploy/argocd/registry-services.yaml): stateful, single
+# multi-manifest component -> KUSTOMIZE, not the stateless-service Helm chart.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: vector-store-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          # foundation: memoryd (dense recall) and sherlock-engine (hybrid search) both
+          # already declare this endpoint; the search plane silently degrades to lexical-only
+          # without it, rather than failing loudly -- see the KMASS baseline readout.
+          - { name: qdrant, path: infra/k8s/mesh-qdrant/overlays/p0-lab, tier: foundation }
+  template:
+    metadata:
+      name: 'vector-store-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: sovereign-mesh
+      annotations:
+        socioprophet.io/tier: '{{.tier}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

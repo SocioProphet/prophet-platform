@@ -17,9 +17,28 @@ spec:
         app: mesh-qdrant
         bundle: mesh.vector-store
     spec:
+      # Had no securityContext at all before this fix -- every other stateful service in
+      # this estate runs hardened (see clickhouse/questdb/arcticdb-gateway values files).
+      # Verified directly (throwaway pod against this exact image) rather than assumed:
+      # runAsUser 1000 + fsGroup 1000 works IF snapshots_path is redirected below --
+      # qdrant's default `./snapshots` is a SIBLING of `./storage`, not nested inside it,
+      # so it was never covered by the one PVC mount and failed permission-denied on
+      # startup under non-root (confirmed with a live repro before this fix landed).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
       containers:
         - name: qdrant
           image: qdrant/qdrant:v1.9.4
+          env:
+            # Moves snapshots inside the already-mounted, already-persistent storage PVC
+            # instead of needing a second volume. Without this, /qdrant/snapshots has no
+            # backing volume, so POST .../snapshots would fail -- the backup CronJob's
+            # target would never have anywhere durable to write even after its own two
+            # bugs (service name, missing jq) were fixed.
+            - { name: QDRANT__STORAGE__SNAPSHOTS_PATH, value: "./storage/snapshots" }
           ports:
             - name: http
               containerPort: 6333
@@ -37,6 +56,9 @@ spec:
               port: 6333
             initialDelaySeconds: 20
             periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
           resources:
             requests:
               cpu: "100m"
