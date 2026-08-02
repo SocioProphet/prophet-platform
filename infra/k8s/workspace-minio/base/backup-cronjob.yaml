@@ -15,24 +15,69 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            # fsGroup applies ONLY to mounted volumes. The one mounted volume here is the
+            # backup-target PVC (the DESTINATION). The MinIO source is read over S3
+            # (workspace-minio:9000) and is NEVER mounted, so this fsGroup cannot touch the
+            # source's ownership — writes land only on the backup PVC. Required because a fresh
+            # GCE PD mounts root:root 0755 and uid 1000 otherwise cannot create /backup/minio.
+            fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
           containers:
             - name: mc-mirror
               image: minio/mc:RELEASE.2024-03-30T15-29-52Z
+              # The minio/mc image ENTRYPOINT is `mc`. The previous manifest set `args:` only, so
+              # Kubernetes ran `mc /bin/sh -c "<script>"` — mc treated `/bin/sh` as a subcommand
+              # and the shell NEVER executed. (Running as uid 1000 it died even earlier, at
+              # `mkdir /.mc: permission denied`.) The job has therefore failed on every single
+              # run since it was authored. Override `command:` so the shell actually runs.
+              command: ["/bin/sh", "-c"]
+              env:
+                # mc writes its config to $HOME/.mc. Under runAsUser 1000, HOME defaults to `/`
+                # (unwritable) → `mc: Unable to save new mc config. mkdir /.mc: permission
+                # denied` on the first mc call. Point HOME at a writable path.
+                - name: HOME
+                  value: /tmp
+                # minio-credentials stores hyphenated keys (access-key / secret-key), which are
+                # NOT valid env-var identifiers, so `envFrom` silently dropped them and
+                # $MINIO_ROOT_USER/$MINIO_ROOT_PASSWORD were always empty. Map them explicitly,
+                # exactly as the workspace-minio Deployment already does.
+                - name: MINIO_ROOT_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-credentials
+                      key: access-key
+                - name: MINIO_ROOT_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-credentials
+                      key: secret-key
               args:
-                - /bin/sh
-                - -c
                 - |
-                  set -e
-                  mc alias set local http://workspace-minio:9000 \
-                    "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
-                  # Mirror workspace data to the backup bucket
-                  mc mirror --overwrite --remove local/workspace s3/prophet-workspace-backup/ || true
-                  echo "MinIO mirror complete"
-              envFrom:
-                - secretRef:
-                    name: minio-credentials
+                  set -eu
+                  # Source is read over S3 (never mounted); destination is the backup PVC.
+                  mc alias set local http://workspace-minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
+                  mkdir -p /backup/minio
+                  # Mirror EVERY real bucket to the dedicated backup PVC. The old command mirrored
+                  # `local/workspace` (a bucket that does not exist) to `s3/prophet-workspace-backup`
+                  # (an alias never configured — there is no S3 backup secret anywhere in the
+                  # namespace), the whole line masked by `|| true`, so it could only ever exit
+                  # green having moved nothing. There is deliberately no `|| true` below: a mirror
+                  # failure now fails the job loudly.
+                  # NOTE: the minio/mc image ships no awk/find, so bucket parsing is POSIX shell only.
+                  mc ls local > /tmp/buckets.txt
+                  buckets=0
+                  while read -r line; do
+                    b=${line##* }; b=${b%/}
+                    [ -n "$b" ] || continue
+                    echo "mirroring bucket: $b"
+                    mc mirror --overwrite --remove "local/$b" "/backup/minio/$b"
+                    buckets=$((buckets + 1))
+                  done < /tmp/buckets.txt
+                  echo "MinIO mirror complete: ${buckets} bucket(s); backup now $(du -sh /backup/minio | cut -f1) at /backup/minio"
+              volumeMounts:
+                - name: backup-target
+                  mountPath: /backup
               resources:
                 requests:
                   cpu: 50m
@@ -45,3 +90,23 @@ spec:
                 readOnlyRootFilesystem: false
                 capabilities:
                   drop: ["ALL"]
+          volumes:
+            - name: backup-target
+              persistentVolumeClaim:
+                claimName: workspace-minio-backup
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: workspace-minio-backup
+  annotations:
+    # Never prune on ArgoCD sync — this PVC holds the backups.
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      # Matches the workspace-minio source PVC (100Gi). A backup volume smaller than its source
+      # is a latent silent failure — the mirror starts hitting ENOSPC the moment the source
+      # grows past it. Matching capacity keeps the nightly mirror from ever failing on space.
+      storage: 100Gi
