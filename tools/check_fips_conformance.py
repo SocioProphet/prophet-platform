@@ -37,14 +37,23 @@ CI_GATE = ".github/workflows/validate-target-diagnostics.yml"
 CHECK_TARGET = "fips-conformance-check"
 
 _SOURCE_SUFFIXES = {".py", ".ts", ".js", ".mjs", ".go", ".rs"}
-_COMMENT_PREFIXES = ("#", "//", "*", "/*")
 
 
-def load_boundary(root: Path) -> dict[str, Any]:
+def load_boundary(root: Path) -> dict[str, Any] | None:
+    """The boundary mapping, or None when the file is absent — main() then treats a
+    missing boundary as a violation only if a deployment actually requires FIPS
+    (fail-closed there, no-op otherwise). Malformed YAML is always fail-closed."""
     path = root / BOUNDARY
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        raise SystemExit(f"fips-conformance-check: FAIL — {BOUNDARY} is not valid YAML ({type(e).__name__})")
     if not isinstance(data, dict):
-        raise SystemExit(f"{BOUNDARY}: not a mapping")
+        raise SystemExit(f"fips-conformance-check: FAIL — {BOUNDARY} is not a mapping")
     return data
 
 
@@ -73,11 +82,13 @@ def scan_scope(root: Path, boundary: dict[str, Any]) -> list[str]:
                 out.append(f"{rel}: unreadable file inside the FIPS boundary — cannot certify")
                 continue
             for n, line in enumerate(lines, 1):
-                stripped = line.strip()
-                if stripped.startswith(_COMMENT_PREFIXES):  # a mention in a comment is not a call
+                # Drop inline AND full-line comments — a banned-algorithm name mentioned
+                # in a comment (e.g. "# was hashlib.sha1(...)") is not a call.
+                code = line.split("#", 1)[0].split("//", 1)[0]
+                if not code.strip():
                     continue
                 for bid, rx, why in compiled:
-                    if rx.search(line) and (rel, bid) not in allow:
+                    if rx.search(code) and (rel, bid) not in allow:
                         out.append(f"{rel}:{n}: non-FIPS algorithm '{bid}' in the FIPS boundary — {why}")
     return out
 
@@ -89,14 +100,28 @@ def _ci_wires_check(root: Path) -> bool:
         return False
 
 
+def _key_is_true(obj: Any, key: str) -> bool:
+    """Recursively: does `key` appear anywhere with the boolean value true? (Parsing
+    the YAML and checking the real key beats a raw-text regex, which would match the
+    key inside a comment or a string.)"""
+    if isinstance(obj, dict):
+        if obj.get(key) is True:
+            return True
+        return any(_key_is_true(v, key) for v in obj.values())
+    if isinstance(obj, list):
+        return any(_key_is_true(v, key) for v in obj)
+    return False
+
+
 def deployments_requiring_fips(root: Path) -> list[str]:
     out: list[str] = []
     for p in sorted(root.rglob("deployment-inventory*.y*ml")):
         try:
-            if re.search(r"require_fips_validated_crypto:\s*true", p.read_text(encoding="utf-8")):
-                out.append(str(p.relative_to(root)))
-        except OSError:
+            data = yaml.safe_load(p.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
             continue
+        if _key_is_true(data, "require_fips_validated_crypto"):
+            out.append(str(p.relative_to(root)))
     return out
 
 
@@ -124,6 +149,14 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     root = Path(args.root)
     boundary = load_boundary(root)
+    if boundary is None:
+        # No boundary file. Fail-closed only if something actually requires FIPS.
+        requiring = deployments_requiring_fips(root)
+        if requiring:
+            print(f"fips-conformance-check: FAIL — {BOUNDARY} is missing but these require FIPS: {', '.join(requiring)}")
+            return 1
+        print("fips-conformance-check: OK — no FIPS boundary declared and nothing requires one.")
+        return 0
     violations = check_flag_enforced(root, boundary) + scan_scope(root, boundary)
     if violations:
         print("fips-conformance-check: FAIL — FIPS boundary is not conformant:")

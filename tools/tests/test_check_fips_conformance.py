@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -76,6 +77,32 @@ def test_declared_flag_but_check_unwired_fails(tmp_path):
 def test_no_federal_flag_needs_no_enforcement(tmp_path):
     root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", wired=False, fed_flag=False)
     assert _run(root) == []
+
+
+def test_inline_comment_with_a_call_is_not_flagged(tmp_path):
+    # Copilot #1204: an inline comment mentioning a banned call must not false-positive.
+    root = _mkroot(tmp_path, scope_body="import hashlib\nx = hashlib.sha256()  # replaces hashlib.blake2b(x)\n")
+    assert _run(root) == []
+
+
+def test_missing_boundary_with_federal_flag_fails(tmp_path):
+    # Copilot #1204: a missing boundary must fail-closed when a deployment requires FIPS.
+    root = _mkroot(tmp_path, scope_body="x = 1\n")
+    (root / "security/fips-boundary.yaml").unlink()
+    assert fips.main(["--root", str(root)]) == 1
+
+
+def test_missing_boundary_without_flag_is_ok(tmp_path):
+    root = _mkroot(tmp_path, scope_body="x = 1\n", fed_flag=False)
+    (root / "security/fips-boundary.yaml").unlink()
+    assert fips.main(["--root", str(root)]) == 0
+
+
+def test_malformed_boundary_fails_closed(tmp_path):
+    root = _mkroot(tmp_path, scope_body="x = 1\n")
+    (root / "security/fips-boundary.yaml").write_text("{ this: : not yaml :\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        fips.load_boundary(root)
 
 
 def test_shipped_repo_boundary_is_conformant():
