@@ -72,17 +72,34 @@ spec:
           # deploy/values/hellgraph-service.yaml's trafficRouting block) resolves on
           # the controller — without this the plugin name is a dangling reference and
           # the Rollout errors at reconcile, not at apply.
-          # UNVERIFIED offline (no live-cluster apply done from this branch): this
-          # key's shape against the pinned argo-rollouts chart 2.37.7 / controller
-          # v1.7.2 needs confirming once ArgoCD actually syncs it — the plugin
-          # release URL below is a placeholder pointer (upstream release asset), not
-          # a digest-pinned artifact per the estate's vendoring convention. hellgraph-
-          # service's own rollout doesn't reference this plugin yet either (its
-          # trafficRouting.enabled stays false — see deploy/values/hellgraph-service.yaml)
-          # until this is confirmed live.
+          #
+          # FIXED 2026-08-02 (live 14h outage): the "UNVERIFIED offline" note this
+          # comment used to carry was right to be worried — the original shape here
+          # was a bare YAML list, but argo-rollouts' own configmap.yaml template does
+          # `{{- with .Values.controller.trafficRouterPlugins }}{{ toYaml . | nindent 2 }}`
+          # DIRECTLY under `data:`, so the value must already be a MAP (whose key
+          # becomes the ConfigMap's data key, holding the plugin list as a nested YAML
+          # string) — not a bare list. A bare list rendered straight under `data:`,
+          # which Kubernetes rejects: "expected map, got &{[map[...]]}" (confirmed via
+          # `kubectl get application argo-rollouts -o json`'s operationState.message).
+          # ArgoCD retried the failing patch 5 times and gave up; argo-rollouts-config
+          # never existed; the controller queued "plugin ... not configured in
+          # configmap" for 5,212 retries; hellgraph-service ran zero pods for 14 hours.
+          # Verified via `helm template argo-rollouts <chart> -f <these values>
+          # --show-only templates/controller/configmap.yaml` before this landed —
+          # renders a real `data: {trafficRouterPlugins: "<yaml string>"}` map now.
+          #
+          # Also still true from the original note: the plugin release URL below is a
+          # placeholder pointer (upstream release asset), not a digest-pinned artifact
+          # per the estate's vendoring convention — tracked as a fast-follow, not
+          # blocking this outage fix. And the "hellgraph-service doesn't reference this
+          # plugin yet" claim was already stale before this fix — its rollout.enabled
+          # is true and its trafficRouting block is live; that's WHY the malformed
+          # ConfigMap caused a real outage instead of sitting unused.
           trafficRouterPlugins:
-            - name: argoproj-labs/gatewayAPI
-              location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-amd64
+            trafficRouterPlugins: |-
+              - name: argoproj-labs/gatewayAPI
+                location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-amd64
         dashboard:
           enabled: true
   syncPolicy:
