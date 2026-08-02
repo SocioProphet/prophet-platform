@@ -12,7 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load(path: Path) -> dict:
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert isinstance(data, dict)
+    if not isinstance(data, dict):
+        # Was `assert isinstance(data, dict)`. Under `python -O` that check is
+        # stripped, so a JSON file that is a list (or a bare string/number)
+        # flowed on as if it were the expected object and every later
+        # `.get(...)` silently reported the field as absent rather than the
+        # file as malformed.
+        raise TypeError(f"{path}: expected a JSON object, got {type(data).__name__}")
     return data
 
 

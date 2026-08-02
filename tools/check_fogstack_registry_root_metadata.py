@@ -51,7 +51,22 @@ def main() -> int:
 
     ref = root.get("revocation_index_ref")
     expected = root.get("revocation_index_digest")
-    if isinstance(ref, str):
+    # `revocation_index_ref` is optional (schema: ["string", "null"], not in
+    # `required`), so absent/null legitimately skips. Anything ELSE must fail,
+    # not skip. This tool never applies the JSON schema -- it is hand-rolled --
+    # so nothing else rejects a mistyped ref. Under the previous
+    # `if isinstance(ref, str)` a numeric, list or object ref fell straight
+    # through: existence AND digest verification of the revocation index were
+    # both skipped and the tool printed "FogStack registry root metadata
+    # passed." One mistyped key silently switched off revocation checking.
+    # The releases loop above already fails closed on a non-string ref; this
+    # branch was the odd one out.
+    if ref is not None and not isinstance(ref, str):
+        errors.append(
+            f"revocation_index_ref must be a string or null, got {type(ref).__name__} "
+            f"({ref!r}) -- a mistyped ref skips revocation-index verification entirely"
+        )
+    elif isinstance(ref, str):
         if not Path(ref).exists():
             errors.append(f"missing index: {ref}")
         elif sha256_file(Path(ref)) != expected:

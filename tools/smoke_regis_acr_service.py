@@ -25,25 +25,44 @@ except Exception as exc:  # pragma: no cover
     sys.exit(2)
 
 
+class SmokeFailure(RuntimeError):
+    """A Regis ACR service smoke obligation failed."""
+
+
+def require(condition: object, context: object) -> None:
+    """Smoke check that survives `python -O`.
+
+    All 30 checks in this tool were bare `assert`. `python -O` strips every one
+    of them, so main() walked the whole service path -- health, ingest,
+    proposal, promotion margin, relationship hook -- inspected none of the
+    responses, and still returned 0. It would have reported a clean smoke run
+    against a service answering 500s, or one that had quietly started
+    performing canonical mutations (`canonical_mutation: true`), which is the
+    exact safety posture these checks exist to hold.
+    """
+    if not condition:
+        raise SmokeFailure(str(context)[:2000])
+
+
 def assert_receipt(payload: Dict[str, Any], action: str) -> None:
     receipt = payload.get("receipt")
-    assert isinstance(receipt, dict), payload
-    assert receipt.get("service") == "regis-acr-api", receipt
-    assert receipt.get("action") == action, receipt
-    assert receipt.get("status") == "succeeded", receipt
+    require(isinstance(receipt, dict), payload)
+    require(receipt.get("service") == "regis-acr-api", receipt)
+    require(receipt.get("action") == action, receipt)
+    require(receipt.get("status") == "succeeded", receipt)
     for key in ("correlation_id", "subject_ref", "payload_ref", "event_ref", "receipt_ref", "created_at"):
-        assert receipt.get(key), receipt
+        require(receipt.get(key), receipt)
 
 
 def main() -> int:
     client = TestClient(app)
 
     health = client.get("/healthz")
-    assert health.status_code == 200, health.text
+    require(health.status_code == 200, health.text)
     health_json = health.json()
-    assert health_json["ok"] is True, health_json
-    assert health_json["service"] == "regis-acr-api", health_json
-    assert "DecisionLedgerEntry" in health_json["contracts"], health_json
+    require(health_json["ok"] is True, health_json)
+    require(health_json["service"] == "regis-acr-api", health_json)
+    require("DecisionLedgerEntry" in health_json["contracts"], health_json)
 
     source_record = {
         "source_record_id": "src:tesco:supplier:0001",
@@ -62,19 +81,22 @@ def main() -> int:
     }
 
     ingest = client.post("/v1/source-records", json=source_record)
-    assert ingest.status_code == 200, ingest.text
+    require(ingest.status_code == 200, ingest.text)
     ingest_json = ingest.json()
-    assert ingest_json["ok"] is True, ingest_json
-    assert ingest_json["decision_ledger_entry"]["canonical_mutation"] is False, ingest_json
-    assert ingest_json["decision_ledger_entry"]["outcome"] == "accepted_as_evidence_only", ingest_json
+    require(ingest_json["ok"] is True, ingest_json)
+    require(ingest_json["decision_ledger_entry"]["canonical_mutation"] is False, ingest_json)
+    require(
+        ingest_json["decision_ledger_entry"]["outcome"] == "accepted_as_evidence_only",
+        ingest_json,
+    )
     assert_receipt(ingest_json, "SourceRecordIngest")
 
     proposal = client.post("/v1/concordance/proposals", json=source_record)
-    assert proposal.status_code == 200, proposal.text
+    require(proposal.status_code == 200, proposal.text)
     proposal_json = proposal.json()
-    assert proposal_json["concordance_links"][0]["status"] == "pending_review", proposal_json
-    assert proposal_json["concordance_links"][0]["canonical_mutation"] is False, proposal_json
-    assert proposal_json["decision_ledger_entry"]["canonical_mutation"] is False, proposal_json
+    require(proposal_json["concordance_links"][0]["status"] == "pending_review", proposal_json)
+    require(proposal_json["concordance_links"][0]["canonical_mutation"] is False, proposal_json)
+    require(proposal_json["decision_ledger_entry"]["canonical_mutation"] is False, proposal_json)
     assert_receipt(proposal_json, "ConcordanceProposal")
 
     low_margin = client.post("/v1/promotion/evaluate", json={
@@ -83,11 +105,14 @@ def main() -> int:
         "runnerup_score": 0.82,
         "winner_flip_rate": 0.2,
     })
-    assert low_margin.status_code == 200, low_margin.text
+    require(low_margin.status_code == 200, low_margin.text)
     low_json = low_margin.json()
-    assert low_json["energy_ledger_entry"]["promotion_allowed"] is False, low_json
-    assert low_json["energy_ledger_entry"]["promotion_decision"] == "blocked_or_review_required", low_json
-    assert low_json["energy_ledger_entry"]["canonical_mutation"] is False, low_json
+    require(low_json["energy_ledger_entry"]["promotion_allowed"] is False, low_json)
+    require(
+        low_json["energy_ledger_entry"]["promotion_decision"] == "blocked_or_review_required",
+        low_json,
+    )
+    require(low_json["energy_ledger_entry"]["canonical_mutation"] is False, low_json)
     assert_receipt(low_json, "PromotionEvaluation")
 
     eligible = client.post("/v1/promotion/evaluate", json={
@@ -96,11 +121,14 @@ def main() -> int:
         "runnerup_score": 0.80,
         "winner_flip_rate": 0.0,
     })
-    assert eligible.status_code == 200, eligible.text
+    require(eligible.status_code == 200, eligible.text)
     eligible_json = eligible.json()
-    assert eligible_json["energy_ledger_entry"]["promotion_allowed"] is True, eligible_json
-    assert eligible_json["energy_ledger_entry"]["promotion_decision"] == "eligible_for_evidence_only_insert", eligible_json
-    assert eligible_json["energy_ledger_entry"]["canonical_mutation"] is False, eligible_json
+    require(eligible_json["energy_ledger_entry"]["promotion_allowed"] is True, eligible_json)
+    require(
+        eligible_json["energy_ledger_entry"]["promotion_decision"] == "eligible_for_evidence_only_insert",
+        eligible_json,
+    )
+    require(eligible_json["energy_ledger_entry"]["canonical_mutation"] is False, eligible_json)
     assert_receipt(eligible_json, "PromotionEvaluation")
 
     hook = client.post("/v1/relationships/formation-hooks", json={
@@ -108,13 +136,13 @@ def main() -> int:
         "subject_entity_ref": "canonical:acme-cooperative-foods-ltd",
         "object_entity_ref": "canonical:tesco-plc",
     })
-    assert hook.status_code == 200, hook.text
+    require(hook.status_code == 200, hook.text)
     hook_json = hook.json()
     bindings = hook_json["relationship_formation_hook"]["ontogenesis_bindings"]
-    assert bindings["genesis_event_required"] is True, hook_json
-    assert bindings["validity_interval_required"] is True, hook_json
-    assert bindings["derivation_path_required"] is True, hook_json
-    assert hook_json["relationship_formation_hook"]["canonical_mutation"] is False, hook_json
+    require(bindings["genesis_event_required"] is True, hook_json)
+    require(bindings["validity_interval_required"] is True, hook_json)
+    require(bindings["derivation_path_required"] is True, hook_json)
+    require(hook_json["relationship_formation_hook"]["canonical_mutation"] is False, hook_json)
     assert_receipt(hook_json, "RelationshipFormationHook")
 
     summary = {
