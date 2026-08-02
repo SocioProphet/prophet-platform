@@ -1,0 +1,37 @@
+# Detects alert rules that are incapable of firing — the generalisation of the
+# KubePersistentVolumeFillingUp failure, where a rule queried a metric with zero
+# series and reported health=ok forever while the disk filled.
+#
+# Lives in deploy/argocd/, NOT infra/argocd/, for the reason documented in
+# deploy/argocd/pvc-capacity-guard.yaml: the root app-of-apps only recurses
+# `deploy/argocd`, so an Application under infra/argocd/ deploys nothing. For a
+# guard against controls that silently do nothing, that would be the defect
+# recursing one layer up.
+#
+# sync-wave "1": after the kube-prometheus-stack CRDs so PrometheusRule exists.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rule-liveness-guard
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Required by tools/preflight_deploy_contract.py check 5. reference: a
+    # replaceable meta-monitor on a digest-pinned stock python image.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/rule-liveness-guard/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

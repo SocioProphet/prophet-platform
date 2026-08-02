@@ -1,0 +1,50 @@
+# Meta-monitoring for the rule-liveness guard itself.
+#
+# The guard exists because a control that cannot fail is not a control. That
+# applies to the guard: if its CronJob stops running, the estate quietly loses
+# dead-rule detection and looks exactly the same. So the guard's own liveness is
+# a rule — and, being an ordinary rule in this Prometheus, it is scanned by the
+# guard on the next run. The check checks the checker.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: rule-liveness-guard
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: rule-liveness-guard.meta
+      rules:
+        - alert: RuleLivenessGuardNotRunning
+          # kube_state_metrics publishes job completion times; the guard runs
+          # hourly, so a gap over 3h means it is not running at all. Note the explicit
+          # namespace label below: the absent() branch produces no labels of its own,
+          # and without it this alert would not match the AlertmanagerConfig sub-route
+          # — the alert saying detection is down would go to null.
+          expr: |
+            time() - max(kube_job_status_completion_time{job_name=~"rule-liveness-guard-.*"}) > 10800
+            or absent(kube_job_status_completion_time{job_name=~"rule-liveness-guard-.*"})
+          for: 30m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "rule-liveness-guard has not completed in over 3h"
+            description: >-
+              Dead-rule detection has stopped. Alert rules can silently become
+              incapable of firing again with nothing to notice.
+            runbook: infra/k8s/rule-liveness-guard/README.md
+
+        - alert: RuleLivenessGuardFailing
+          expr: |
+            increase(kube_job_status_failed{job_name=~"rule-liveness-guard-.*"}[2h]) > 2
+          for: 10m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "rule-liveness-guard is failing repeatedly"
+            description: >-
+              The guard exits non-zero ONLY when it is itself broken —
+              unreachable Prometheus, an empty rule corpus, or alerts it could
+              not deliver. Findings do not fail the job (they travel by alert),
+              so a failing job means dead-rule detection is down, not that dead
+              rules exist. Check the pod logs for the EvidenceReceipt.

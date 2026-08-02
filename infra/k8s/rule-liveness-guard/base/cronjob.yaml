@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rule-liveness-guard
+  namespace: observability
+spec:
+  # Hourly. Rule liveness changes when someone edits a PrometheusRule, renames a
+  # label, or a scrape target disappears — none of which is sub-hourly. Hourly is
+  # also frequent enough that a regression is caught the same working day.
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: rule-liveness-guard
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: guard
+              # Pulled DIRECTLY from docker.io, not through
+              # registry.socioprophet.ai — same rule as pvc-capacity-guard and
+              # alert-delivery. A monitor whose own image comes from the thing it
+              # monitors goes blind exactly when it is needed. Stdlib only, so a
+              # bare python image needs no pip install.
+              image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+              command: ["python3", "/opt/guard/guard.py"]
+              env:
+                - name: PROM_URL
+                  value: http://kube-prometheus-stack-prometheus.observability.svc:9090
+                - name: ALERTMANAGER_URL
+                  value: http://kube-prometheus-stack-alertmanager.observability.svc:9093
+                - name: POLICY_PATH
+                  value: /etc/guard/policy.json
+                # 7 days. Long enough that a metric which only appears under load
+                # is not called dead; short enough that a rule broken last week
+                # is still caught this week.
+                - name: LOOKBACK_DAYS
+                  value: "7"
+              volumeMounts:
+                - name: guard
+                  mountPath: /opt/guard/guard.py
+                  subPath: guard.py
+                  readOnly: true
+                - name: guard
+                  mountPath: /etc/guard/policy.json
+                  subPath: policy.json
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: guard
+              configMap:
+                name: rule-liveness-guard
+                defaultMode: 0555
