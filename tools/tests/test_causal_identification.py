@@ -75,6 +75,21 @@ def test_mediator_is_a_descendant_and_never_enters_the_adjustment_set():
     assert r.adjustment_set == ["Z"]
 
 
+def test_measured_collider_does_not_cause_a_false_negative():
+    # M-bias: T→Y has NO confounding, but M is a measured collider between two
+    # UNMEASURED variables (U1→T, U1→M, U2→M, U2→Y). Conditioning on M would OPEN
+    # a spurious path; conditioning on the whole candidate pool would false-negative.
+    # The correct answer is the EMPTY adjustment set — don't touch the collider.
+    dag = _dag(
+        ["T", "Y", "M", "U1", "U2"],
+        [("U1", "T"), ("U1", "M"), ("U2", "M"), ("U2", "Y"), ("T", "Y")],
+        ["T", "Y", "M"],  # U1, U2 unmeasured
+    )
+    r = identify(dag, "T", "Y")
+    assert r.status == IDENTIFIED
+    assert r.adjustment_set == []  # the collider M is correctly left out
+
+
 def test_adjustment_set_is_minimal():
     # An irrelevant observed variable W (no backdoor role) must be dropped.
     dag = _dag(

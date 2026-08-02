@@ -19,7 +19,8 @@ never invoked on an estimand Layer A has not cleared.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Optional
+from itertools import combinations
+from typing import Callable, Optional
 
 
 @dataclass
@@ -117,13 +118,28 @@ class IdentificationReport:
         return self.status in (IDENTIFIED, IDENTIFIED_UNDER_ASSUMPTION)
 
 
-def _minimal(dag: Dag, t: str, y: str, candidate: set[str]) -> list[str]:
-    """Greedily drop nodes that are not needed to keep d-separation."""
-    z = set(candidate)
-    for node in sorted(candidate):
-        if d_separated(dag, t, y, z - {node}):
-            z.discard(node)
-    return sorted(z)
+# Cap the subset search so a pathological graph can't blow up 2**n. Real
+# structural graphs at this layer are small; beyond the cap we fall back to the
+# full candidate set rather than search, which is conservative (never a false
+# positive — an unblockable set just reports not-identified).
+_MAX_SEARCH = 12
+
+
+def _find_adjustment(dag: Dag, t: str, y: str, pool: set[str]) -> Optional[list[str]]:
+    """Smallest valid backdoor adjustment set drawn from `pool`, or None.
+
+    Searches subsets smallest-first, so the FIRST hit is minimal by construction
+    and a collider in `pool` is simply left out when a smaller set d-separates —
+    fixing the false-negative of conditioning on the whole pool at once.
+    """
+    ordered = sorted(pool)
+    if len(ordered) > _MAX_SEARCH:
+        return list(ordered) if d_separated(dag, t, y, pool) else None
+    for r in range(len(ordered) + 1):
+        for subset in combinations(ordered, r):
+            if d_separated(dag, t, y, set(subset)):
+                return list(subset)
+    return None
 
 
 def identify(
@@ -137,31 +153,28 @@ def identify(
     """Attempt backdoor identification of treatment→outcome on `dag`."""
     assume_unconfounded = assume_unconfounded or set()
     backdoor = dag.without_outgoing(treatment)
-    desc = dag.descendants(treatment)
-    non_desc = dag.nodes - desc - {treatment, outcome}
-    z_measured = non_desc & dag.measured
-    z_all = non_desc
+    non_desc = dag.nodes - dag.descendants(treatment) - {treatment, outcome}
+    measured_nd = non_desc & dag.measured
 
-    if d_separated(backdoor, treatment, outcome, z_measured):
-        return IdentificationReport(estimand_id, IDENTIFIED,
-                                    adjustment_set=_minimal(backdoor, treatment, outcome, z_measured))
+    # 1. A valid, minimal adjustment set drawn only from MEASURED non-descendants.
+    z = _find_adjustment(backdoor, treatment, outcome, measured_nd)
+    if z is not None:
+        return IdentificationReport(estimand_id, IDENTIFIED, adjustment_set=sorted(z))
 
-    if d_separated(backdoor, treatment, outcome, z_all):
-        # A set exists, but it requires currently-unmeasured variables.
-        needed = sorted(
-            u for u in (z_all - dag.measured)
-            if not d_separated(backdoor, treatment, outcome, z_all - {u})
-        )
+    # 2. A valid set exists but needs currently-unmeasured variables.
+    z_all = _find_adjustment(backdoor, treatment, outcome, non_desc)
+    if z_all is not None:
+        needed = sorted(set(z_all) - dag.measured)
         remaining = [u for u in needed if u not in assume_unconfounded]
         if not remaining:
             return IdentificationReport(estimand_id, IDENTIFIED_UNDER_ASSUMPTION,
-                                        adjustment_set=_minimal(backdoor, treatment, outcome, z_all),
+                                        adjustment_set=sorted(z_all),
                                         assumptions=[f"no_confounding_via:{u}" for u in needed])
         return IdentificationReport(estimand_id, NOT_IDENTIFIED,
                                     measurement_to_identify=remaining,
                                     blocking_structure=[f"unblocked_backdoor_via:{u}" for u in remaining])
 
-    # No adjustment set d-separates even with everything measured: structurally
+    # 3. No adjustment set d-separates even with everything measured: structurally
     # unidentifiable by adjustment (needs an instrument / different design).
     return IdentificationReport(estimand_id, NOT_IDENTIFIED,
                                 blocking_structure=["no_valid_adjustment_set:needs_instrument_or_design"])
