@@ -6,11 +6,16 @@ Metric-gated **canary** deploys via Argo Rollouts, and Gateway API traffic-shape
 
 ## Progressive delivery (`infra/k8s/rollouts`)
 
-- **`analysistemplate-slo.yaml`** (`slo-gate`) — the canary gate. At each step
-  Rollouts queries Prometheus for the Wave-1 recording rules
+- **`analysistemplate-slo.yaml`** (`slo-gate`) — the canary gate, a **`ClusterAnalysisTemplate`
+  (cluster-scoped)**. At each step Rollouts queries Prometheus for the Wave-1 recording rules
   (`job:request_error_ratio:rate5m`, `job:request_latency_p99:5m`) and **aborts**
   the rollout if 5xx ratio ≥ 5% or p99 ≥ 1.5s. Promotion is metric-gated, not
-  time-based. **Not wired to any service yet** — see hellgraph-service below.
+  time-based. It is cluster-scoped **on purpose (INV-DEP-9)**: a namespaced `AnalysisTemplate`
+  only resolves for a Rollout in its OWN namespace, so the old `socioprophet/slo-gate` resolved
+  for nothing but `socioprophet` and a prod-overlay apply to `prophet-platform-prod` failed
+  `InvalidSpec: AnalysisTemplate 'slo-gate' not found`. Reference it with `clusterScope: true`
+  and one definition is shared by every wave/service namespace. **Not wired to any service yet**
+  — see hellgraph-service below.
 - **Adoption pattern** (2026-07-31: no longer a standalone example manifest here —
   see `charts/socioprophet-service/templates/rollout.yaml`): set
   `rollout.enabled: true` in a service's `deploy/values/<name>.yaml` and the shared

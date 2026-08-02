@@ -1,8 +1,16 @@
 # WAVE 3 (prod) — BLUE-GREEN cutover via Argo Rollouts, reusing the estate's existing
 # canary/SLO machinery (infra/k8s/rollouts/base/analysistemplate-slo.yaml, the shared
-# `slo-gate` AnalysisTemplate). This is NOT a second deploy path: it is the same digest the
+# `slo-gate` gate). This is NOT a second deploy path: it is the same digest the
 # dev/canary Deployments carry (INV-DEP-2, build-once-promote-many), advanced into a
 # blueGreen Rollout for the production cutover.
+#
+# The gate is referenced as a CLUSTER-scoped template (`clusterScope: true`), INV-DEP-9. This
+# overlay renders into the fresh `prophet-platform-prod` namespace, which holds NO namespaced
+# `slo-gate`; a bare `templateName: slo-gate` resolved only in `socioprophet` and made a live
+# apply fail `InvalidSpec: AnalysisTemplate 'slo-gate' not found` (Degraded, no pods) even
+# though kustomize dry-run rendered clean. slo-gate is now a ClusterAnalysisTemplate (applied
+# once cluster-wide), resolvable from this namespace without the overlay having to bundle a
+# per-namespace copy. Guarded by tools/verify_rollout_analysis_refs.py.
 #
 # Cutover rule (INV-DEP-3): the frozen digest deploys to GREEN (preview). prePromotionAnalysis
 # runs the fail-closed slo-gate against the preview; promotion to active (the cutover) happens
@@ -34,6 +42,7 @@ spec:
       prePromotionAnalysis:
         templates:
           - templateName: slo-gate                  # reuse the in-repo fail-closed SLO gate
+            clusterScope: true                      # ClusterAnalysisTemplate — resolvable in any ns (INV-DEP-9)
         args:
           - name: service
             value: search-orchestrator

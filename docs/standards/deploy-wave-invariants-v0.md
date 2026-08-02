@@ -138,6 +138,39 @@ image ref pointing at ghcr is flagged `wrong-registry` in CI, not just at apply)
 `verify_pinned_digest_exists.py` authenticates GAR HEADs with the WIF access token
 (`GAR_ACCESS_TOKEN`) so INV-DEP-6 verifies against the registry the nodes actually use.
 
+## INV-DEP-9 — An overlay MUST be self-contained: every referenced cluster resource is rendered by the overlay or is cluster-scoped
+
+A workload in an overlay MUST NOT reference a **namespaced** cluster resource that the overlay
+does not itself render. Specifically for Argo Rollouts: an `AnalysisTemplate` is namespaced, so a
+Rollout may reference it ONLY if the overlay renders an `AnalysisTemplate` of that name into the
+SAME namespace; otherwise the reference MUST be to a cluster-scoped `ClusterAnalysisTemplate`
+(with `clusterScope: true`), which resolves from any namespace. The estate's shared SLO gate is
+therefore a **`ClusterAnalysisTemplate` `slo-gate`** (`infra/k8s/rollouts/base/analysistemplate-slo.yaml`),
+applied once cluster-wide and referenced `clusterScope: true` by every wave Rollout — one
+definition, no per-namespace copy to drift.
+
+*Rationale.* The wave-deploy prod blue-green Rollout referenced `slo-gate`, but that
+`AnalysisTemplate` existed ONLY in the `socioprophet` namespace. `kubectl kustomize` rendered the
+prod overlay perfectly and every shape/existence gate (INV-DEP-1/2/6/8) passed — yet deploying it
+to a fresh `prophet-platform-prod` namespace failed on the LIVE Rollout controller with
+`InvalidSpec: AnalysisTemplate 'slo-gate' not found` (Degraded, **no pods**). A namespaced
+cross-namespace reference is invisible to a dry-run render; only a real apply surfaces it — the
+same "dry-run green, apply red" class as INV-DEP-6/8, now for a *namespaced-resource* reference
+rather than an image.
+
+*Fail-closed distinction.* The check renders each overlay and classifies every Rollout analysis
+ref: RESOLVED (a namespaced ref whose template the overlay renders, OR a clusterScope ref whose
+`ClusterAnalysisTemplate` the repo declares) vs DANGLING (neither). A DANGLING ref FAILS. A render
+that will not `kubectl kustomize`, or output that will not parse, also FAILS — an overlay that
+cannot be certified self-contained is treated as not self-contained.
+
+*Enforced by.* `tools/verify_rollout_analysis_refs.py` (renders the promote overlays; proven both
+ways by `tools/tests/test_verify_rollout_analysis_refs.py` — a resolvable overlay passes, a
+dangling namespaced ref and an undeclared-clusterScope ref both fail); `make
+rollout-analysis-refs-check` in the required `validate-target-diagnostics` matrix;
+`wave-promote.yml` GATE 3b renders the promoting wave's overlay and refuses a dangling ref before
+any apply.
+
 ---
 
 ## Conformance checklist
@@ -153,3 +186,4 @@ image ref pointing at ghcr is flagged `wrong-registry` in CI, not just at apply)
 | 7 | Every frozen digest exists in the registry (INV-DEP-6) — GAR needs a WIF token | `GAR_ACCESS_TOKEN="$(gcloud auth print-access-token)" python3 tools/verify_pinned_digest_exists.py manifest releases/manifests/release-train.<label>.manifest.json` |
 | 8 | Digest-exists (incl. GAR) + lock-provenance gates, both ways (INV-DEP-6/7) | `python3 -m pytest -q tools/tests/test_verify_pinned_digest_exists.py tools/tests/test_apply_search_orchestrator_image_lock.py` |
 | 9 | First-party refs point at a pullable registry — GAR/zot, not ghcr (INV-DEP-8) | `python3 tools/preflight_deploy_contract.py` |
+| 10 | Overlays self-contained — every Rollout analysis ref resolves (INV-DEP-9) | `python3 tools/verify_rollout_analysis_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_rollout_analysis_refs.py`) |

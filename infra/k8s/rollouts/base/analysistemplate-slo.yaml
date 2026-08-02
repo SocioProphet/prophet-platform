@@ -3,6 +3,18 @@
 # Wave 1 (infra/k8s/observability). This is what makes promotion metric-gated
 # rather than time-based.
 #
+# CLUSTER-SCOPED (ClusterAnalysisTemplate), not namespaced (INV-DEP-9). AnalysisTemplates are
+# namespaced: a Rollout can only reference one that lives in ITS OWN namespace. The wave deploy
+# runs the blue-green Rollout in a FRESH per-wave namespace (prophet-platform-prod / -canary),
+# and services adopting charts/socioprophet-service run Rollouts in their own namespaces — none
+# of which is `socioprophet`. A namespaced `socioprophet/slo-gate` therefore resolved for
+# NOTHING but socioprophet: deploying the prod overlay to prophet-platform-prod failed
+# `InvalidSpec: AnalysisTemplate 'slo-gate' not found` (Degraded, no pods) — kustomize dry-run
+# rendered fine; the Rollout controller rejected it live. Promoting the gate to a
+# ClusterAnalysisTemplate makes ONE definition resolvable from EVERY namespace (referenced with
+# `clusterScope: true`), so every wave shares the identical fail-closed SLO gate with no
+# per-namespace copy to drift. Enforced by tools/verify_rollout_analysis_refs.py.
+#
 # FAIL-CLOSED ON NO DATA — do not "simplify" this back to a failureCondition-only
 # metric. Each metric declares BOTH a successCondition that requires the series to
 # EXIST and be healthy (len(result) > 0 && ...) and a failureCondition that fires
@@ -15,10 +27,12 @@
 # failure, makes a metrics gap ABORT the rollout instead of silently promoting it.
 # Enforced by tools/check_canary_slo_gate.py in the validate-target-diagnostics gate.
 apiVersion: argoproj.io/v1alpha1
-kind: AnalysisTemplate
+kind: ClusterAnalysisTemplate   # cluster-scoped: resolvable from every wave/service namespace
 metadata:
   name: slo-gate
-  namespace: socioprophet
+  # No namespace — ClusterAnalysisTemplate is cluster-scoped. Applied once cluster-wide by the
+  # rollouts base app (deploy/argocd/progressive-delivery-services.yaml), it is shared by every
+  # Rollout that references it with `clusterScope: true`, in any namespace.
 spec:
   args:
     - name: service        # the Rollout passes its job/service label in

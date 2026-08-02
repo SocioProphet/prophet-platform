@@ -161,7 +161,7 @@ dependency waves (0…13).
 
 `infra/k8s/search-orchestrator/overlays/promote/prod` renders an Argo Rollouts `Rollout`
 (`strategy.blueGreen`), reusing the estate's existing fail-closed
-`slo-gate` AnalysisTemplate (`infra/k8s/rollouts/base/analysistemplate-slo.yaml`) as
+`slo-gate` gate (`infra/k8s/rollouts/base/analysistemplate-slo.yaml`) as
 `prePromotionAnalysis`:
 
 - the frozen digest deploys to **GREEN** (`previewService: search-orchestrator-preview`);
@@ -171,6 +171,19 @@ dependency waves (0…13).
   (`autoPromotionEnabled: false`);
 - the old ReplicaSet is retained `scaleDownDelaySeconds: 600` for **instant rollback** — flip
   the Service selector back, no rebuild, no re-pull.
+
+> **Self-contained overlays — the apply-caught lesson (INV-DEP-9).** `slo-gate` is a
+> **`ClusterAnalysisTemplate` (cluster-scoped)**, referenced `clusterScope: true`. It used to be a
+> namespaced `AnalysisTemplate` in `socioprophet` — and `AnalysisTemplate`s are namespaced, so a
+> Rollout only resolves one in its OWN namespace. The prod overlay deploys into a fresh
+> `prophet-platform-prod` namespace that held no such template, so the LIVE Rollout controller
+> rejected it: `InvalidSpec: AnalysisTemplate 'slo-gate' not found` (Degraded, **no pods**) — even
+> though `kubectl kustomize` rendered clean and every shape/existence gate was green. Same
+> "dry-run green, apply red" class as INV-DEP-6/8, now for a *namespaced-resource* reference. The
+> rule an overlay must satisfy: **every cluster resource it references is either rendered by the
+> overlay itself (namespaced, same namespace) or is cluster-scoped.** Enforced before any apply by
+> `tools/verify_rollout_analysis_refs.py` (`make rollout-analysis-refs-check`; `wave-promote.yml`
+> GATE 3b renders the promoting overlay and refuses a dangling analysis ref).
 
 ## Scheduled release train
 
@@ -208,7 +221,9 @@ overlays with the identical digest and ascending sync-waves; the frozen manifest
 the skip/build decision (including "source matches but image missing ⇒ BUILD"), the digest-exists
 gate (both ways), the lock-provenance guard and the queue-vs-cancel contract are unit-tested;
 all workflows pass `actionlint` + `yaml.safe_load`; `preflight_deploy_contract.py` and
-`check_canary_slo_gate.py` pass. The INV-DEP-6 gate is also proven live against a public registry:
+`check_canary_slo_gate.py` pass; `verify_rollout_analysis_refs.py` renders the promote overlays
+and proves every Rollout analysis ref resolves (INV-DEP-9) — proven both ways, a planted dangling
+ref fails the gate. The INV-DEP-6 gate is also proven live against a public registry:
 a real `ghcr.io/oras-project/oras@sha256:0087224…` HEADs 200 ⇒ EXISTS (exit 0); a fabricated
 digest on the same repo HEADs 404 ⇒ ABSENT (exit 4).
 
