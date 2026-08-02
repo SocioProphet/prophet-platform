@@ -1,17 +1,37 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # WAVE 3 (prod) of the build-once-promote-many release train — BLUE-GREEN cutover.
-# Self-contained (a Rollout, not the base Deployment) because the production cutover uses
-# Argo Rollouts blueGreen + the shared slo-gate AnalysisTemplate. Same frozen digest as
-# dev/canary (INV-DEP-2); the image-patch below injects it (INV-DEP-1, digest-pinned).
+#
+# SELF-CONTAINED / ONE-CLICK: this overlay brings its OWN supporting resources
+# (ServiceAccount + RBAC, ConfigMap, PVC, NetworkPolicy) — everything from base EXCEPT the
+# base Deployment, because prod runs the Argo Rollouts blueGreen Rollout instead. No
+# pre-bootstrapped namespace, no manual `kubectl apply` of prerequisites: a single ArgoCD
+# Application (or `kustomize build | kubectl apply`) stands the whole thing up.
+#
+# WHY these are listed (not assumed): the 2026-08-02 live prod apply FailedCreate'd with
+# `serviceaccount "search-orchestrator" not found` — the Rollout's pod template references
+# the SA/ConfigMap/PVC by name, but the overlay never applied them. An overlay that
+# references base resources it does not include is a silent scaffold (declared self-
+# contained, not actually self-contained); the real apply is the ultimate verifier.
+# INV-DEP-10 (verify_overlay_self_contained.py) now fails closed on this class of gap.
+#
+# Same frozen digest as dev/canary (INV-DEP-2); image-patch injects it (INV-DEP-1).
 # Highest sync-wave — prod syncs last, after canary is Healthy (INV-DEP-3).
 namespace: prophet-platform-prod
 commonAnnotations:
   argocd.argoproj.io/sync-wave: "22"
   socioprophet.io/release-wave: prod
 resources:
+  # Supporting resources shared with base (SA/RBAC, ConfigMap, PVC, NetworkPolicy) — the
+  # base MINUS the Deployment, since prod runs the Rollout below instead.
+  - ../../../base-support
+  # Prod cutover workload + service.
   - rollout.yaml
   - service.yaml
 patches:
-  # Strategic-merge the frozen digest onto the Rollout (kind: Rollout, name/container match).
+  # Strategic-merge the frozen digest onto the Rollout (INV-DEP-1, digest-pinned).
   - path: image-patch.yaml
+  # Bind the KSA to the IaC-provisioned Workload Identity GSA (infra/tofu/envs/shared/main.tf).
+  - path: workload-identity-patch.yaml
+  # Re-scope the baseline NetworkPolicy ingress/egress to the prod namespace.
+  - path: networkpolicy-patch.yaml

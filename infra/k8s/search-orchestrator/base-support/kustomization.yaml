@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Supporting resources for search-orchestrator, factored out of base so BOTH deployment
+# paths can compose them:
+#   - base/            → base-support + Deployment (dev/canary standard path)
+#   - overlays/promote/prod → base-support + blue-green Rollout (prod cutover, no Deployment)
+# No namespace here: the composing kustomization sets it (prophet-platform for base,
+# prophet-platform-prod for the prod overlay).
+resources:
+  - serviceaccount-rbac.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - networkpolicy.yaml
