@@ -93,11 +93,59 @@ spec:
           resources:
             requests: { cpu: 50m, memory: 128Mi }
             limits: { cpu: 500m, memory: 256Mi }
-        # ── Alertmanager: KEPT minimal — one replica, idle footprint. It only
-        # routes the corpus's SLO alerts; no receivers are configured yet, so it
-        # gets a floor-sized budget until a paging integration earns it more.
+        # ── Alertmanager: one replica, idle footprint.
+        #
+        # It used to have exactly one receiver, named "null". Every alert in the
+        # estate — including the ones that fire on data loss — was routed to a
+        # receiver that discards, and nothing reported a problem, because from
+        # inside Alertmanager "delivered to null" and "delivered" are the same
+        # code path. The whole alerting corpus was decorative.
+        #
+        # The default route now terminates at the in-cluster alert-sink
+        # (infra/k8s/alert-delivery), which turns each notification into an
+        # EvidenceReceipt on stdout -> fluentbit-gke -> Cloud Logging. That is
+        # deliberately a destination that needs NO credential and NO external
+        # endpoint. Human paging (email/Slack/PagerDuty) is a separate decision
+        # because it needs a secret — see infra/k8s/alert-delivery/README.md.
         alertmanager:
           enabled: true
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              group_by: ["namespace", "alertname"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+              receiver: alert-sink
+              routes:
+                # Watchdog fires permanently by design — it is the corpus's
+                # dead-man's switch. Routing it here with a 1h repeat gives the
+                # sink a heartbeat forever, which is what makes AlertDeliveryDead
+                # a real control instead of an assumption: if the counter stops
+                # rising, delivery is broken and we are told.
+                - receiver: alert-sink
+                  matchers: ['alertname = "Watchdog"']
+                  group_wait: 0s
+                  repeat_interval: 1h
+            receivers:
+              - name: alert-sink
+                webhook_configs:
+                  - url: http://alert-sink.observability.svc:9095/alerts
+                    send_resolved: true
+                    # 0 = never truncate. A truncated notification would drop
+                    # alerts silently, which is the defect being fixed.
+                    max_alerts: 0
+            inhibit_rules:
+              - source_matchers: ["severity = critical"]
+                target_matchers: ["severity =~ warning|info"]
+                equal: ["namespace", "alertname"]
+              - source_matchers: ["severity = warning"]
+                target_matchers: ["severity = info"]
+                equal: ["namespace", "alertname"]
+              - source_matchers: ['alertname = "InfoInhibitor"']
+                target_matchers: ["severity = info"]
+                equal: ["namespace"]
           alertmanagerSpec:
             replicas: 1
             resources:

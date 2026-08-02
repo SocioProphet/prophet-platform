@@ -1,0 +1,94 @@
+# Meta-monitoring for the alert delivery path itself.
+#
+# The estate's alerts were routed to a receiver named "null" for the life of the
+# cluster and nothing reported a problem, because "delivered to null" and
+# "delivered" are indistinguishable from inside Alertmanager. These rules make
+# the delivery path observable so that failure is loud rather than quiet.
+#
+# The load-bearing trick: kube-prometheus-stack ships a `Watchdog` alert that
+# fires permanently BY DESIGN, as a dead-man's switch. It is routed to the sink,
+# so the sink receives a notification every repeat_interval, forever. That turns
+# "the delivery path works" from an assertion into a continuously re-proved fact.
+#
+# The heartbeat only flows once the Alertmanager DEFAULT route points here
+# (deploy/argocd/observability-services.yaml). `Watchdog` carries no `namespace`
+# label, so the AlertmanagerConfig sub-route — which the operator scopes
+# OnNamespace — cannot match it. Until that chart change syncs, Watchdog still
+# goes to `null` and AlertDeliveryDead will fire. That is correct: estate-wide
+# delivery genuinely is not wired yet, and the alert saying so is the point.
+#
+# IMPORTANT — every alert below carries an explicit `namespace: observability`
+# label. Without it these rules emit alerts with no namespace label and the
+# sub-route would not match them either, so the alert reporting "delivery is
+# dead" would itself be delivered to `null`. That is the failure this component
+# exists to prevent, and it would have shipped inside the fix.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: alert-delivery
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: alert-delivery.liveness
+      rules:
+        # THE dead-man's switch. Watchdog fires forever and repeats every
+        # repeat_interval (12h by default, cut to 1h for the heartbeat route),
+        # so this counter must keep moving. If it stops, alerts are no longer
+        # being delivered anywhere and every other alert in this estate has
+        # gone quiet without saying so.
+        - alert: AlertDeliveryDead
+          expr: |
+            increase(alert_sink_notifications_total[3h]) == 0
+            or absent(alert_sink_notifications_total)
+          for: 15m
+          labels: { severity: critical, namespace: observability }
+          annotations:
+            summary: "Alert delivery is dead — no notification reached the sink in 3h"
+            description: >-
+              The Watchdog heartbeat routes to alert-sink every hour, so
+              alert_sink_notifications_total must always be rising. It is not.
+              Either Alertmanager stopped notifying, the route regressed to a
+              null receiver, or the sink is down. Every alert in the estate is
+              currently going nowhere.
+            runbook: infra/k8s/alert-delivery/README.md
+
+        # The sink process being gone is itself an alert, not an absence.
+        - alert: AlertSinkDown
+          expr: up{job="alert-sink"} == 0 or absent(up{job="alert-sink"})
+          for: 5m
+          labels: { severity: critical, namespace: observability }
+          annotations:
+            summary: "alert-sink is down — Alertmanager has nowhere to deliver"
+
+        # Refusals must never accumulate quietly.
+        - alert: AlertSinkRejecting
+          expr: increase(alert_sink_errors_total[15m]) > 0
+          for: 0m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "alert-sink refused {{ $value }} malformed deliveries in 15m"
+            description: >-
+              The sink returned 4xx for at least one Alertmanager delivery. Each
+              refusal emitted an EvidenceReceipt with status=failed to Cloud
+              Logging. A refusal means an alert was NOT receipted.
+
+    - name: alert-delivery.config
+      rules:
+        # Guards the regression that started all of this: if Alertmanager is
+        # reconfigured back to a null-only receiver set, notifications stop and
+        # AlertDeliveryDead catches it within 3h. This catches it in 5m by
+        # watching Alertmanager's own delivery counter for the sink integration.
+        - alert: AlertmanagerNotNotifying
+          expr: |
+            increase(alertmanager_notifications_total{integration="webhook"}[3h]) == 0
+            or absent(alertmanager_notifications_total{integration="webhook"})
+          for: 15m
+          labels: { severity: critical, namespace: observability }
+          annotations:
+            summary: "Alertmanager has sent zero webhook notifications in 3h"
+            description: >-
+              Alertmanager is not delivering to any webhook receiver. If the
+              receiver list has regressed to `null`, this is the signal.

@@ -1,0 +1,41 @@
+# The estate's terminal alert receiver. Until this landed, Alertmanager's only
+# receiver was named "null" and every alert in the estate was discarded on
+# delivery while reporting success.
+#
+# Lives in deploy/argocd/, NOT infra/argocd/. The tofu-created root app-of-apps
+# (infra/tofu/environments/gcp-gke/argocd.tf) watches `deploy/argocd` with
+# directory.recurse — nothing under infra/argocd/ has ever reached the cluster.
+# An Application authored there deploys nothing, which for the component that
+# makes alerting real would be the same defect one layer up. Same move and same
+# reason as deploy/argocd/pvc-capacity-guard.yaml.
+#
+# sync-wave "1": after the kube-prometheus-stack CRDs (wave -3) so the
+# ServiceMonitor / PrometheusRule / AlertmanagerConfig kinds exist.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alert-delivery
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Required by tools/preflight_deploy_contract.py check 5. reference: a
+    # replaceable implementation of alert delivery running a digest-pinned stock
+    # python image, not part of the interoperability spine and not built by
+    # images.yml.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/alert-delivery/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

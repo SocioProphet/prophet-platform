@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+  namespace: observability
+  labels:
+    app: alert-sink
+spec:
+  selector:
+    app: alert-sink
+  ports:
+    - name: http
+      port: 9095
+      targetPort: http

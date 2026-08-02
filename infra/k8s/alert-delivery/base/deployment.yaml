@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+  namespace: observability
+  labels:
+    app: alert-sink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-sink
+  template:
+    metadata:
+      labels:
+        app: alert-sink
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: sink
+          # Pulled DIRECTLY from docker.io, deliberately not through
+          # registry.socioprophet.ai — same rule the PVC guard states. This is the
+          # terminal receiver for every alert in the estate, including the alerts
+          # that fire when the registry is broken. Routing its image through the
+          # registry would silence alerting in exactly the situation that needs it.
+          # Stdlib-only script, so a bare python image needs no pip install.
+          image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+          command: ["python3", "/opt/sink/sink.py"]
+          env:
+            - name: PORT
+              value: "9095"
+            - name: CLUSTER_NAME
+              value: prophet-platform
+            # Fixed-size ring; the sink keeps no unbounded history. Durability is
+            # Cloud Logging's job, not this process's.
+            - name: RECENT_RING
+              value: "50"
+            - name: MAX_BODY_BYTES
+              value: "2097152"
+          ports:
+            - name: http
+              containerPort: 9095
+          volumeMounts:
+            - name: sink
+              mountPath: /opt/sink/sink.py
+              subPath: sink.py
+              readOnly: true
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          resources:
+            # 250m is GKE Autopilot's floor for a single-container pod. Asking
+            # for less makes Autopilot mutate the spec on admission, which shows
+            # up as permanent ArgoCD drift — so the manifest states what the
+            # platform will actually grant.
+            requests:
+              cpu: 250m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: sink
+          configMap:
+            name: alert-sink
+            defaultMode: 0555

@@ -1,0 +1,51 @@
+# Immediate delivery coverage for the `observability` namespace.
+#
+# Two mechanisms ship together, deliberately:
+#
+#  1. deploy/argocd/observability-services.yaml sets the Alertmanager DEFAULT
+#     route to the sink. That is the estate-wide fix, and it lands when that
+#     Argo app next syncs.
+#
+#  2. This AlertmanagerConfig, which the operator merges in as a sub-route. The
+#     operator scopes routes from an AlertmanagerConfig to the CR's own
+#     namespace (matcherStrategy OnNamespace, the default), so this covers
+#     alerts labelled namespace=observability only.
+#
+# Why both: (2) is a separate resource from the Helm release, so it takes effect
+# without waiting on a chart sync — and every guard added in this wave
+# (pvc-capacity-guard, rule-liveness-guard, alert-delivery itself) fires in the
+# observability namespace. So the new controls have a real receiver from the
+# moment they are applied, rather than being wired to `null` until a merge.
+#
+# It is NOT a substitute for (1). Alerts in socioprophet/, scm/, serving/ etc.
+# still need the default route, which is why the Helm change ships too.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: alert-sink
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  route:
+    receiver: alert-sink
+    groupBy: ["alertname"]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 12h
+    routes:
+      # The dead-man's switch. Watchdog fires forever by design; a 1h repeat
+      # keeps alert_sink_notifications_total rising, which is the fact that
+      # AlertDeliveryDead watches for.
+      - receiver: alert-sink
+        matchers:
+          - name: alertname
+            value: Watchdog
+        groupWait: 0s
+        repeatInterval: 1h
+  receivers:
+    - name: alert-sink
+      webhookConfigs:
+        - url: http://alert-sink.observability.svc:9095/alerts
+          sendResolved: true
