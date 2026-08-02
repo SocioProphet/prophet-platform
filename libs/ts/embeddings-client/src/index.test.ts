@@ -59,7 +59,7 @@ test('fail-closed: wrong dimension throws EmbeddingSpaceError', async () => {
 test('fail-closed: wrong model throws EmbeddingSpaceError', async () => {
   await assert.rejects(
     () => embed('x', { fetchImpl: fakeFetch({ model: 'ollama/nomic-embed-text' }) }),
-    (e: unknown) => e instanceof EmbeddingSpaceError && /incomparable space/.test((e as Error).message),
+    (e: unknown) => e instanceof EmbeddingSpaceError && /different space/.test((e as Error).message),
   );
 });
 
@@ -74,6 +74,53 @@ test('fail-closed: HTTP error throws', async () => {
   await assert.rejects(
     () => embed('x', { fetchImpl: fakeFetch({ status: 503 }) }),
     (e: unknown) => e instanceof EmbeddingSpaceError && /HTTP 503/.test((e as Error).message),
+  );
+});
+
+test('fail-closed: missing model in response is unverifiable and throws', async () => {
+  const noModel = (async () => ({
+    ok: true, status: 200,
+    json: async () => ({ object: 'list', data: [{ index: 0, embedding: Array(EMBEDDINGS_DIMENSION).fill(0) }] }),
+  } as unknown as Response)) as unknown as typeof fetch;
+  await assert.rejects(
+    () => embed('x', { fetchImpl: noModel }),
+    (e: unknown) => e instanceof EmbeddingSpaceError && /unverifiable or different space/.test((e as Error).message),
+  );
+});
+
+test('fail-closed: unparseable JSON throws EmbeddingSpaceError', async () => {
+  const badJson = (async () => ({
+    ok: true, status: 200,
+    json: async () => { throw new SyntaxError('Unexpected token < in JSON'); },
+  } as unknown as Response)) as unknown as typeof fetch;
+  await assert.rejects(
+    () => embed('x', { fetchImpl: badJson }),
+    (e: unknown) => e instanceof EmbeddingSpaceError && /unparseable JSON/.test((e as Error).message),
+  );
+});
+
+test('fail-closed: a network/fetch failure surfaces as EmbeddingSpaceError', async () => {
+  const boom = (async () => { throw new TypeError('network down'); }) as unknown as typeof fetch;
+  await assert.rejects(
+    () => embed('x', { fetchImpl: boom }),
+    (e: unknown) => e instanceof EmbeddingSpaceError && /failed: network down/.test((e as Error).message),
+  );
+});
+
+test('fail-closed: duplicate/missing indices (correct count) throw rather than mis-map', async () => {
+  const dupIdx = (async () => ({
+    ok: true, status: 200,
+    json: async () => ({
+      object: 'list', model: EMBEDDINGS_MODEL,
+      data: [
+        { index: 0, embedding: Array(EMBEDDINGS_DIMENSION).fill(1) },
+        { index: 0, embedding: Array(EMBEDDINGS_DIMENSION).fill(2) }, // duplicate index
+      ],
+    }),
+  } as unknown as Response)) as unknown as typeof fetch;
+  await assert.rejects(
+    () => embed(['a', 'b'], { fetchImpl: dupIdx }),
+    (e: unknown) => e instanceof EmbeddingSpaceError && /permutation of 0\.\.1/.test((e as Error).message),
   );
 });
 

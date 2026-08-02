@@ -75,27 +75,41 @@ export async function embed(
   if (opts.apiKey) headers['authorization'] = `Bearer ${opts.apiKey}`;
 
   // Wire body is OpenAI/Ollama compatible; we always send the pinned model id so
-  // the request itself is contract-shaped (EmbeddingRequest).
+  // Wire body is OpenAI/Ollama compatible ({model, input}); the full contract
+  // record (incl. dimension) is available via embeddingRequest().
   const body = JSON.stringify({ model: EMBEDDINGS_MODEL, input: texts });
 
-  const res = await fetchImpl(url, {
-    method: 'POST',
-    headers,
-    body,
-    signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
-  });
+  // Fail closed on transport too: fetch/JSON failures must surface as
+  // EmbeddingSpaceError so a caller gets correct vectors or that error — never
+  // some other exception type that slips past the contract.
+  let res: Response;
+  try {
+    res = await fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body,
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
+    });
+  } catch (err) {
+    throw new EmbeddingSpaceError(`embeddings request to ${url} failed: ${(err as Error).message}`);
+  }
   if (!res.ok) {
     throw new EmbeddingSpaceError(`embeddings service returned HTTP ${res.status} from ${url}`);
   }
 
-  const payload = (await res.json()) as OpenAIEmbeddingsResponse;
+  let payload: OpenAIEmbeddingsResponse;
+  try {
+    payload = (await res.json()) as OpenAIEmbeddingsResponse;
+  } catch (err) {
+    throw new EmbeddingSpaceError(`embeddings service returned unparseable JSON from ${url}: ${(err as Error).message}`);
+  }
 
-  // Fail closed on model drift. A service that answers as a different model is,
-  // by construction, a different vector space — refuse rather than compare.
-  if (payload.model && payload.model !== EMBEDDINGS_MODEL) {
+  // Fail closed on model drift — INCLUDING a missing model. The guarantee is
+  // "provably in the pinned space"; an unnamed model is unverifiable, so refuse.
+  if (payload.model !== EMBEDDINGS_MODEL) {
     throw new EmbeddingSpaceError(
-      `embeddings service reported model ${JSON.stringify(payload.model)}, not the pinned ` +
-        `${JSON.stringify(EMBEDDINGS_MODEL)} — a different, incomparable space`,
+      `embeddings service reported model ${JSON.stringify(payload.model ?? null)}, not the pinned ` +
+        `${JSON.stringify(EMBEDDINGS_MODEL)} — an unverifiable or different space`,
     );
   }
 
@@ -106,8 +120,23 @@ export async function embed(
     );
   }
 
-  // Preserve input order (OpenAI guarantees index, but do not trust it — sort).
-  const ordered = [...rows].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  // Trust `index` only after proving it is a permutation of 0..n-1. Duplicate or
+  // missing indices with a correct count would otherwise silently associate a
+  // vector with the wrong input — the exact silent-wrong the guarantee forbids.
+  const n = rows.length;
+  const seen = new Array<boolean>(n).fill(false);
+  for (const row of rows) {
+    const idx = row.index;
+    if (typeof idx !== 'number' || !Number.isInteger(idx) || idx < 0 || idx >= n || seen[idx]) {
+      throw new EmbeddingSpaceError(
+        `embeddings response indices are not a permutation of 0..${n - 1} ` +
+          `(bad or duplicate index ${JSON.stringify(idx)})`,
+      );
+    }
+    seen[idx] = true;
+  }
+
+  const ordered = [...rows].sort((a, b) => (a.index as number) - (b.index as number));
   return ordered.map((row, i) => {
     const vec = row.embedding;
     if (!Array.isArray(vec) || vec.length !== EMBEDDINGS_DIMENSION) {
