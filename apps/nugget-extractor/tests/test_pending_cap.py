@@ -16,7 +16,7 @@ from unittest import mock
 import pytest
 
 from nugget_extractor import emitter as em, extract as ex
-from nugget_extractor.clients import EmitError
+from nugget_extractor.clients import EmitError, GatewayError
 
 TEXT = b"Network sales grew 22.6% to AUD 1,138.9 million.\n\nStore rollout continued."
 DOC = "urn:srcos:document:cap-test"
@@ -58,10 +58,14 @@ def test_submit_refuses_with_degraded_status_when_pending_at_ceiling():
         assert r3.status == "degraded"
         assert r3.reason is not None
         assert "pending queue full" in r3.reason
-        assert "hellgraph downstream may be unavailable" in r3.reason
-        # No work was counted — a degraded submit is a pure no-op.
+        # Attribution comes from the LAST observed drain, not a hardcoded guess: here the
+        # wedged dependency really is hellgraph, so it is named — and the gateway, never
+        # reached, is NOT falsely reported down.
+        assert "hellgraph is not keeping up" in r3.reason
+        # No work was counted — a degraded submit is a pure no-op that contacted nothing.
         assert r3.documents == 0 and r3.extracted == 0 and r3.emitted == 0
-        assert r3.hellgraph_ok is False and r3.gateway_ok is False
+        assert r3.attempted is False
+        assert r3.hellgraph_ok is False and r3.gateway_ok is True
         # _pending did NOT grow past the cap.
         assert len(e._pending) == 2
 
@@ -130,3 +134,53 @@ def test_max_pending_env_override_is_respected():
             os.environ["NUGGET_EXTRACTOR_MAX_PENDING"] = prev
         from importlib import reload
         reload(em)
+
+
+class _HealthyGraph:
+    def post_node(self, *_a, **_kw):
+        pass
+
+    def post_edge(self, *_a, **_kw):
+        pass
+
+
+class _WedgedGateway:
+    """Graph writes land, but the receipt step is down — the OTHER way the queue fills."""
+
+    def mint(self, **_kw):
+        raise GatewayError("gateway receipt refused")
+
+
+def test_degraded_refusal_attributes_the_gateway_when_it_is_the_stalled_side():
+    """The misattribution fix. When the queue fills because the compute-gateway receipt
+    step is wedged (graph writes succeed), the refusal must name the GATEWAY and report
+    gateway_ok False / hellgraph_ok True — from the last real drain observation. Pre-fix
+    every degraded refusal hardcoded a hellgraph-centric reason and both deps False, so an
+    operator chasing a gateway outage was pointed at hellgraph."""
+    with mock.patch.object(em, "MAX_PENDING", 2):
+        e = em.NuggetEmitter(writer=_HealthyGraph(), gateway=_WedgedGateway(),
+                             clock=lambda: "2026-07-29T00:00:00.000Z")
+        r1 = e.submit(_extraction(), doc_ref=DOC + "-g1", run_ref=RUN)
+        r2 = e.submit(_extraction(), doc_ref=DOC + "-g2", run_ref=RUN)
+        assert r1.status == "ok" and r2.status == "ok"
+        # The drain reached the gateway and it failed; hellgraph was fine.
+        assert r1.gateway_ok is False and r1.hellgraph_ok is True
+        assert len(e._pending) == 2
+
+        r3 = e.submit(_extraction(), doc_ref=DOC + "-g3", run_ref=RUN)
+        assert r3.status == "degraded"
+        assert "compute-gateway receipt step" in r3.reason, r3.reason
+        assert "hellgraph is not keeping up" not in r3.reason  # NOT misattributed to hellgraph
+        assert r3.gateway_ok is False and r3.hellgraph_ok is True
+        assert r3.attempted is False  # a refusal observed nothing this call
+
+
+def test_max_pending_rejects_non_int_and_clamps_negative():
+    """The OOM guard must not itself become a boot-time outage or a permanent kill.
+    A non-int env falls back to the default; a negative env clamps to 0 (never a
+    negative cap, which would refuse every submit forever)."""
+    assert em._parse_max_pending("off", default=1000) == 1000      # non-int -> default
+    assert em._parse_max_pending("", default=1000) == 1000         # empty -> default
+    assert em._parse_max_pending(None, default=1000) == 1000       # unset -> default
+    assert em._parse_max_pending("-5", default=1000) == 0          # negative -> clamped
+    assert em._parse_max_pending("42", default=1000) == 42         # valid honoured

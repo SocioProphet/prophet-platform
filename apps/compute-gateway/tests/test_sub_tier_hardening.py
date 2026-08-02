@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import importlib
 import os
+import sys
 import threading
 
 os.environ["GATEWAY_TOKEN"] = "t"
@@ -205,3 +206,68 @@ def test_healthz_reports_signed_ratio_when_key_is_valid():
         if prev is None: os.environ.pop("GATEWAY_SIGNING_KEY", None)
         else: os.environ["GATEWAY_SIGNING_KEY"] = prev
         importlib.reload(server)
+
+
+# ── #4: /healthz signed-ratio aggregation vs concurrent seal() ───────────
+
+def test_healthz_survives_concurrent_seals_on_new_projects():
+    """/healthz aggregates signed_ratio over every chain. A concurrent seal() on a NEW
+    project runs receipts._CHAINS.setdefault(project, []), mutating the dict — iterating
+    it BARE raises `RuntimeError: dictionary changed size during iteration` and 500s the
+    health endpoint under load, a liveness probe that flaps exactly when the gateway is
+    busiest. server.healthz() now reads receipts.snapshot_all() (snapshot under the locks)
+    instead. This drives the race directly: one thread hammers /healthz while another
+    seals into ever-new projects. Pre-fix it 500s; post-fix every call is 200."""
+    prev_key = os.environ.get("GATEWAY_SIGNING_KEY")
+    # A valid key so seeded receipts are SIGNED: /healthz then runs signing.verify_signature
+    # (an Ed25519 C call that RELEASES the GIL) once per receipt, which is exactly the
+    # window a concurrent _CHAINS mutation needs to land mid-iteration. Unsigned receipts
+    # short-circuit that call and the outer loop is too fast to observe the race.
+    os.environ["GATEWAY_SIGNING_KEY"] = base64.b64encode(b"9" * 32).decode()
+    _reset_receipts()
+    # Seed a fixed set of signed projects so the aggregation's outer loop has real work.
+    for p in range(40):
+        receipts.seal(f"seed-{p}", kind="notebook", backend="forge", runtime="python3",
+                      inputs={"p": p}, outputs=[{"p": p}], status="ok", actor="t",
+                      epistemic_status="derived")
+
+    client = TestClient(server.app, raise_server_exceptions=False)
+    errors: list = []
+    stop = threading.Event()
+
+    def churner() -> None:
+        # Add a NEW project then drop it, so _CHAINS keeps CHANGING SIZE throughout the run
+        # while staying bounded (~41 keys) — snapshot_all() stays O(projects) and the test
+        # stays fast, but the dict is mutating on every pass, which is what the bare
+        # `for chain in _CHAINS.values()` cannot survive.
+        i = 0
+        while not stop.is_set():
+            receipts.seal(f"churn-{i}", kind="notebook", backend="forge", runtime="python3",
+                          inputs={"i": i}, outputs=[{"i": i}], status="ok", actor="t",
+                          epistemic_status="derived")
+            receipts._CHAINS.pop(f"churn-{i}", None)   # size oscillates 40 <-> 41
+            i += 1
+
+    def healther() -> None:
+        for _ in range(150):
+            r = client.get("/healthz")   # raise_server_exceptions=False -> a handler crash is a 500
+            if r.status_code != 200:
+                errors.append(r.status_code)
+                return
+
+    prev_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-5)  # force frequent thread switches to widen the race window
+    st = threading.Thread(target=churner)
+    ht = threading.Thread(target=healther)
+    try:
+        st.start(); ht.start()
+        ht.join()
+    finally:
+        stop.set(); st.join()
+        sys.setswitchinterval(prev_interval)
+        if prev_key is None:
+            os.environ.pop("GATEWAY_SIGNING_KEY", None)
+        else:
+            os.environ["GATEWAY_SIGNING_KEY"] = prev_key
+
+    assert not errors, f"/healthz returned non-200 while _CHAINS was mutating concurrently: {errors[:3]}"

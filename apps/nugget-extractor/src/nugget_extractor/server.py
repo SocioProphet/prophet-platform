@@ -237,8 +237,11 @@ def extract_endpoint(req: ExtractRequest, _: None = Depends(require_token)) -> d
     # counted, nothing was extracted, no state was mutated below this point.
     if result.status == "degraded":
         with _LOCK:
-            STATE["hellgraph_ok"] = result.hellgraph_ok
-            STATE["gateway_ok"] = result.gateway_ok
+            # A degraded refusal attempted no drain (result.attempted is False), so it is
+            # NOT a fresh observation of dependency health — do not overwrite
+            # hellgraph_ok/gateway_ok here (the success path applies the same attempted
+            # rule). Record only the back-pressure error; the 503 body still carries the
+            # emitter's last-observed dependency health for accurate client attribution.
             STATE["last_error"] = result.reason or "pending queue full"
             STATE["last_error_at"] = time.time()
         raise HTTPException(status_code=503, detail={

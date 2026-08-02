@@ -176,6 +176,12 @@ class NuggetEmitter:
     # RLock, not Lock: submit() drains while already holding it. One writer at a time is
     # the whole point — see the CONCURRENCY note in the module docstring.
     _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
+    # Last drain's observed dependency health. A back-pressure refusal (queue at the cap)
+    # contacts NOTHING, so it must not invent an attribution — it reports the last real
+    # drain observation instead of hardcoding "hellgraph down". Updated only by a drain
+    # that actually attempted work.
+    _last_hellgraph_ok: bool = field(default=True, repr=False)
+    _last_gateway_ok: bool = field(default=True, repr=False)
 
     # ── boot ──
     def startup_check(self) -> None:
@@ -213,17 +219,28 @@ class NuggetEmitter:
         # upstream outage into an OOM crash. Match device-service's skip-with-reason
         # posture — no partial batch, no counted work, an explicit reason string.
         if len(self._pending) >= MAX_PENDING:
+            # A refusal contacts NOTHING (attempted stays False), so it must not claim a
+            # fresh observation. Attribute the stall to whichever dependency the LAST drain
+            # saw fail — the queue fills at the compute-gateway receipt step just as readily
+            # as at a hellgraph write, and hardcoding "hellgraph down" misdirects the
+            # operator when the gateway is the wedged side.
+            stalled = []
+            if not self._last_hellgraph_ok:
+                stalled.append("hellgraph")
+            if not self._last_gateway_ok:
+                stalled.append("the compute-gateway receipt step")
+            who = " and ".join(stalled) if stalled else "the drain target (hellgraph or the gateway)"
             reason = (
                 "nugget-extractor pending queue full "
-                f"({len(self._pending)}/{MAX_PENDING}) — hellgraph downstream may be "
-                "unavailable; retry after drain")
+                f"({len(self._pending)}/{MAX_PENDING}) — {who} is not keeping up; retry after drain")
             log.warning("submit REFUSED — %s (doc=%s)", reason, doc_ref)
             return BatchResult(
                 documents=0, extracted=0, emitted=0, validation_failures=0,
                 pending=sum(len(b.nuggets) for b in self._pending),
                 status="degraded", reason=reason,
-                hellgraph_ok=False,   # the cap only trips when drain is stalled
-                gateway_ok=False,
+                attempted=False,   # explicit: this refusal observed nothing
+                hellgraph_ok=self._last_hellgraph_ok,
+                gateway_ok=self._last_gateway_ok,
             )
         built = nugget_builder.build(
             extraction, doc_ref=doc_ref, run_ref=run_ref, clock=self.clock,
@@ -351,6 +368,11 @@ class NuggetEmitter:
             self._pending.pop(0)
 
         result.pending = sum(len(b.nuggets) for b in self._pending)
+        if result.attempted:
+            # Remember which dependency (if any) was observed stalling, so a later
+            # back-pressure refusal attributes the outage from a real observation.
+            self._last_hellgraph_ok = result.hellgraph_ok
+            self._last_gateway_ok = result.gateway_ok
         return result
 
     @property
