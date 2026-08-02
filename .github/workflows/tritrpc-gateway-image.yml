@@ -39,7 +39,10 @@ jobs:
         with:
           python-version: '3.11'
       - id: decide
-        name: Decide build-vs-skip from source content-digest
+        name: Decide build-vs-skip from source content-digest (+ image-exists, INV-DEP-6)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           set +e
           python3 tools/compute_source_content_digest.py decide \
@@ -47,6 +50,7 @@ jobs:
             --path libs/go/tritrpcbridge \
             --path .github/workflows/tritrpc-gateway-image.yml \
             --lock releases/images/tritrpc-gateway.image-lock.json \
+            --verify-image-exists \
             --allow-missing
           rc=$?
           if [ "$rc" != "0" ] && [ "$rc" != "10" ]; then exit "$rc"; fi

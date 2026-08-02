@@ -78,3 +78,51 @@ def test_missing_source_path_is_fail_closed(tmp_path) -> None:
         assert "does not exist" in str(exc)
     else:
         raise AssertionError("a missing source path must ERROR, not hash a partial tree")
+
+
+# ── INV-DEP-6: a SKIP requires BOTH source-match AND the pinned image existing ─────────────
+# The wave-deploy incident: the lock recorded a source_content_digest next to a `digest` that
+# was never pushed. Source matched, so the old logic SKIPPED and "reused" a phantom digest.
+
+def _lock(image="ghcr.io/x/svc", digest="sha256:" + ("a" * 64), content_digest=""):
+    return {"image": image, "digest": digest, "source_content_digest": content_digest}
+
+
+def test_decide_build_when_source_matches_but_image_missing() -> None:
+    """recorded-source-matches-but-image-missing => BUILD, not SKIP (INV-DEP-6)."""
+    current = "sha256:" + ("c" * 64)
+    lock = _lock(content_digest=current)  # source content DOES match
+    rc, msg = MOD.decide_build(current, lock, verify_image=True,
+                               image_checker=lambda img, dig: "absent")
+    assert rc == 10, "a matching source but a non-existent pinned digest must BUILD, never SKIP"
+    assert "does NOT exist" in msg
+
+
+def test_decide_skip_when_source_matches_and_image_exists() -> None:
+    current = "sha256:" + ("c" * 64)
+    lock = _lock(content_digest=current)
+    rc, msg = MOD.decide_build(current, lock, verify_image=True,
+                               image_checker=lambda img, dig: "exists")
+    assert rc == 0, "source match + real image => SKIP"
+    assert "SKIP" in msg
+
+
+def test_decide_build_when_source_matches_but_registry_unreachable() -> None:
+    current = "sha256:" + ("c" * 64)
+    lock = _lock(content_digest=current)
+    rc, msg = MOD.decide_build(current, lock, verify_image=True,
+                               image_checker=lambda img, dig: "unreachable")
+    assert rc == 10, "cannot PROVE the image exists => fail-closed, BUILD"
+    assert "could not confirm" in msg
+
+
+def test_verify_image_disabled_keeps_pure_content_skip() -> None:
+    # Without --verify-image-exists the checker is never consulted (would raise if it were).
+    current = "sha256:" + ("c" * 64)
+    lock = _lock(content_digest=current)
+
+    def _boom(image, digest):
+        raise AssertionError("image checker must not run when verify_image=False")
+
+    rc, _ = MOD.decide_build(current, lock, verify_image=False, image_checker=_boom)
+    assert rc == 0

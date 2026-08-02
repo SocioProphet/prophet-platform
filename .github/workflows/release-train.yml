@@ -42,6 +42,7 @@ on:
 
 permissions:
   contents: read
+  packages: read   # INV-DEP-6: HEAD ghcr/zot manifests to prove each frozen digest exists
 
 concurrency:
   # Only one train at a time; QUEUE trains, never cancel one mid-promotion (INV-DEP-5).
@@ -101,6 +102,18 @@ jobs:
 
       - name: Validate frozen manifest (fail-closed — INV-DEP-1/2)
         run: python3 tools/validate_release_train_manifest.py "${{ steps.freeze.outputs.manifest }}"
+
+      # INV-DEP-6 — a frozen digest that names bytes the registry does not have is worse than a
+      # moving tag: it looks immutable, passes every shape check, then ImagePullBackOffs on the
+      # cluster (the wave-deploy incident: search-orchestrator@sha256:bbfea6e4… was frozen +
+      # promoted but never pushed). REFUSE to freeze a digest with no manifest. Fail-closed: an
+      # unreachable registry (auth/DNS/5xx) is treated as "not proven to exist" and also fails —
+      # distinctly from ABSENT — never a silent pass.
+      - name: Assert every frozen digest EXISTS in the registry (fail-closed — INV-DEP-6)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: python3 tools/verify_pinned_digest_exists.py manifest "${{ steps.freeze.outputs.manifest }}"
 
       # In production the freeze commits the manifest via a values-only PR the way
       # gitops-promote.yml does (so the wave jobs, which check out the repo, can read it).
