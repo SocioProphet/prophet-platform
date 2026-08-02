@@ -129,20 +129,20 @@ components:
     runtime_base: unknown_existing
     runtime_base_justification: Existing image workflow predates substrate hardening; verify and migrate to scratch/distroless/Wolfi/UBI-minimal as appropriate.
     host_substrate: fcos_silverblue_ostree_fedora_family
-    image_registry: ghcr.io/socioprophet/prophet-platform
+    image_registry: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet
     image_name: search-orchestrator
     tags:
       - main
       - sha
     workflow: .github/workflows/search-orchestrator-image.yml
-    current_status: existing_buildx_ghcr_digest_evidence
+    current_status: buildx_gar_wif_digest_evidence
     digest_required: true
     sbom_required: true
     provenance_required: true
     vulnerability_scan_required: true
     evaluation_record_required: true
     angel_required: conditional
-    notes: Existing workflow builds and pushes to GHCR and emits digest evidence. SBOM/provenance/scan gates should be added or verified in follow-up.
+    notes: Builds and pushes to GCP Artifact Registry (GAR) via WIF and emits digest evidence. The GKE nodes have WIF auth to GAR and NONE to ghcr, so ghcr was an apply-time ImagePull 401 (the retarget incident). SBOM/provenance/scan gates should be added or verified in follow-up.
 
   - id: socioprophet_api
     name: SocioProphet API

@@ -149,3 +149,80 @@ def test_manifest_rollup_reads_components(tmp_path) -> None:
     m.write_text(json.dumps({"components": [{"image": IMAGE, "digest": DIGEST}]}), encoding="utf-8")
     rc = MOD._verify_all(MOD._components_from_manifest(m), http=_http([(200, {}, b"{}")]))
     assert rc == MOD.EXIT_OK
+
+
+# ── GAR (GCP Artifact Registry) — the estate's real GKE registry ────────────────────────────
+
+GAR_IMAGE = "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator"
+
+
+def _recording_http(responses):
+    """Like _http, but records the request (method, url, headers) of every call so a test can
+    assert HOW the registry was queried (e.g. that a GAR Bearer was presented)."""
+    calls = iter(responses)
+    seen: list[tuple] = []
+
+    def fn(method, url, headers):
+        seen.append((method, url, dict(headers)))
+        item = next(calls)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    fn.seen = seen  # type: ignore[attr-defined]
+    return fn
+
+
+def test_gar_host_is_detected() -> None:
+    assert MOD._is_gar("us-central1-docker.pkg.dev")
+    assert MOD._is_gar("europe-west1-docker.pkg.dev")
+    assert not MOD._is_gar("ghcr.io")
+    assert not MOD._is_gar("registry.socioprophet.ai")
+
+
+def test_gar_env_token_presented_as_bearer_and_exists(monkeypatch) -> None:
+    monkeypatch.setenv("GAR_ACCESS_TOKEN", "ya29.FAKE-WIF-TOKEN")
+    http = _recording_http([(200, {}, b"{}")])
+    r = MOD.check_manifest(GAR_IMAGE, DIGEST, http=http)
+    assert r.status == MOD.EXISTS
+    # The GAR access token must have gone out as a raw Bearer on the FIRST request — no
+    # anonymous 401 round-trip needed for a private GAR digest.
+    _, url, headers = http.seen[0]  # type: ignore[attr-defined]
+    assert url.startswith("https://us-central1-docker.pkg.dev/v2/")
+    assert headers.get("Authorization") == "Bearer ya29.FAKE-WIF-TOKEN"
+
+
+def test_gar_fabricated_digest_absent(monkeypatch) -> None:
+    monkeypatch.setenv("GAR_ACCESS_TOKEN", "ya29.FAKE-WIF-TOKEN")
+    body = b'{"errors":[{"code":"MANIFEST_UNKNOWN","message":"manifest unknown"}]}'
+    r = MOD.check_manifest(GAR_IMAGE, DIGEST, http=_http([(404, {}, body)]))
+    assert r.status == MOD.ABSENT, "an authenticated GAR 404 is the fabricated-digest verdict"
+
+
+def test_gar_unreachable_is_distinct_from_absent(monkeypatch) -> None:
+    monkeypatch.setenv("GAR_ACCESS_TOKEN", "ya29.FAKE-WIF-TOKEN")
+    r = MOD.check_manifest(GAR_IMAGE, DIGEST, http=_http([(503, {}, b"upstream error")]))
+    assert r.status == MOD.UNREACHABLE
+
+
+def test_gar_no_token_then_challenge_exchange_with_oauth2accesstoken(monkeypatch) -> None:
+    # No direct-bearer env token, but the token realm accepts the resolved GAR identity via the
+    # standard WWW-Authenticate exchange. The exchange must present username `oauth2accesstoken`.
+    monkeypatch.delenv("GAR_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("GOOGLE_OAUTH_ACCESS_TOKEN", raising=False)
+    monkeypatch.delenv("CLOUDSDK_AUTH_ACCESS_TOKEN", raising=False)
+    challenge = {"www-authenticate":
+                 'Bearer realm="https://us-central1-docker.pkg.dev/v2/token",'
+                 'service="us-central1-docker.pkg.dev"'}
+    http = _recording_http([
+        (401, challenge, b""),                                # anonymous HEAD -> challenge
+        (200, {}, json.dumps({"token": "GARTOK"}).encode()),  # token endpoint
+        (200, {}, b"{}"),                                     # retried HEAD -> exists
+    ])
+    r = MOD.check_manifest(GAR_IMAGE, DIGEST, username=MOD._GAR_USERNAME, password="ya29.X",
+                           http=http)
+    assert r.status == MOD.EXISTS
+    # the Basic auth to the token realm must carry oauth2accesstoken:...
+    import base64
+    _, _, tok_headers = http.seen[1]  # type: ignore[attr-defined]
+    assert base64.b64encode(b"oauth2accesstoken:ya29.X").decode() in tok_headers.get("Authorization", "")

@@ -117,6 +117,27 @@ stamps `digest_provenance`) — `test_build_lock_refuses_placeholder_digest`,
 `test_build_lock_carries_source_content_digest_from_the_same_build`; INV-DEP-6 catches any lock
 digest that slips through and does not actually exist.
 
+## INV-DEP-8 — The pinned registry MUST be one the target nodes can pull from
+
+A digest-pinned ref MUST name a registry the deploying cluster is authorized to pull from. For
+GKE that is **GCP Artifact Registry** (`us-central1-docker.pkg.dev/socioprophet-platform/socioprophet`,
+WIF-authed) or the sovereign zot (`registry.socioprophet.ai`) — **never ghcr**, which the GKE
+nodes have no credential for. INV-DEP-6 proves the bytes exist in *some* registry; INV-DEP-8
+proves they exist in *the one the nodes can reach*. Both must hold: a digest that a public HEAD
+resolves but the cluster cannot pull still `ImagePull`s at apply.
+
+*Rationale.* The 2026-08-02 apply-caught incident: the wave-deploy plane built+pinned+promoted
+`ghcr.io/socioprophet/prophet-platform/search-orchestrator`. Every shape/existence gate passed
+(the public ghcr digest even resolved EXISTS), yet the real `fogstack-federal` apply `401`'d —
+the nodes pull `search-orchestrator` from GAR and hold no ghcr auth. A registry mismatch that
+only a real apply, not dry-run, surfaces.
+
+*Enforced by.* `tools/preflight_deploy_contract.py` (`OUR_REGISTRIES` = GAR + zot; a first-party
+image ref pointing at ghcr is flagged `wrong-registry` in CI, not just at apply). The build path
+(`search-orchestrator-image.yml`) pushes to GAR via `google-github-actions/auth` WIF, and
+`verify_pinned_digest_exists.py` authenticates GAR HEADs with the WIF access token
+(`GAR_ACCESS_TOKEN`) so INV-DEP-6 verifies against the registry the nodes actually use.
+
 ---
 
 ## Conformance checklist
@@ -129,5 +150,6 @@ digest that slips through and does not actually exist.
 | 4 | Overlays render, all `@sha256:` | `kubectl kustomize infra/k8s/search-orchestrator/overlays/promote/{dev,canary,prod}` |
 | 5 | Skip + queue/cancel contract | `python3 -m pytest -q tools/tests/test_compute_source_content_digest.py tools/tests/test_release_train_manifest.py` |
 | 6 | Workflows lint | `actionlint .github/workflows/{release-train,wave-promote,*-image}.yml` |
-| 7 | Every frozen digest exists in the registry (INV-DEP-6) | `python3 tools/verify_pinned_digest_exists.py manifest releases/manifests/release-train.<label>.manifest.json` |
-| 8 | Digest-exists + lock-provenance gates, both ways (INV-DEP-6/7) | `python3 -m pytest -q tools/tests/test_verify_pinned_digest_exists.py tools/tests/test_apply_search_orchestrator_image_lock.py` |
+| 7 | Every frozen digest exists in the registry (INV-DEP-6) — GAR needs a WIF token | `GAR_ACCESS_TOKEN="$(gcloud auth print-access-token)" python3 tools/verify_pinned_digest_exists.py manifest releases/manifests/release-train.<label>.manifest.json` |
+| 8 | Digest-exists (incl. GAR) + lock-provenance gates, both ways (INV-DEP-6/7) | `python3 -m pytest -q tools/tests/test_verify_pinned_digest_exists.py tools/tests/test_apply_search_orchestrator_image_lock.py` |
+| 9 | First-party refs point at a pullable registry — GAR/zot, not ghcr (INV-DEP-8) | `python3 tools/preflight_deploy_contract.py` |

@@ -6,7 +6,9 @@ import re
 from pathlib import Path
 
 DIGEST_RE = re.compile(r"^sha256:[a-fA-F0-9]{64}$")
-IMAGE = "ghcr.io/socioprophet/prophet-platform/search-orchestrator"
+# GCP Artifact Registry — the estate's real GKE registry (WIF-authed). The GKE nodes trust GAR,
+# not ghcr, so the deployed image ref MUST be the GAR path. Mirrors images.yml's default registry.
+IMAGE = "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator"
 
 
 def load_json(path: Path) -> dict:

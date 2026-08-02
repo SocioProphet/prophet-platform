@@ -22,7 +22,9 @@ REQUIRED_TEXT = {
     ],
     ".github/workflows/search-orchestrator-image.yml": [
         "docker/build-push-action",
-        "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+        # GAR, not ghcr — the estate's real GKE registry (WIF-authed).
+        "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator",
+        "google-github-actions/auth",
         "steps.build.outputs.digest",
         "search-orchestrator-image-evidence",
     ],
@@ -65,8 +67,10 @@ def main() -> int:
                 raise SystemExit(f"{rel} missing required term {term}")
 
     lock = json.loads((ROOT / "releases/images/search-orchestrator.image-lock.example.json").read_text(encoding="utf-8"))
-    if not str(lock.get("pinned_ref", "")).startswith("ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:"):
-        raise SystemExit("image lock pinned_ref must use digest form")
+    if not str(lock.get("pinned_ref", "")).startswith(
+        "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:"
+    ):
+        raise SystemExit("image lock pinned_ref must use the GAR digest form")
 
     print("search-orchestrator image release artifacts validated")
     return 0

@@ -80,7 +80,7 @@ The base deployment still uses a development image tag as a placeholder.
 Production release must replace that image with a digest-pinned reference before production rollout. Example target shape:
 
 ```text
-ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:<digest>
+us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:<digest>
 ```
 
 Do not use floating tags for production rollout.
