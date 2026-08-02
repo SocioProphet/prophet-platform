@@ -592,3 +592,13 @@ canary-slo-gate-check:
 # turning a flag nothing read into an enforced control. tools/check_fips_conformance.py.
 fips-conformance-check:
 	python3 tools/check_fips_conformance.py
+
+.PHONY: imageschemanet-grounding-check
+# ImageSchemaNet cartridge (apps/hellgraph-service/ontology/imageschemanet.ttl): the
+# embodied-commonsense grounding layer. Verifies the cartridge is structurally sound
+# (every image schema has core spatial primitives; every lexical activator activates a
+# known schema) and that golden NL->image-schema groundings resolve. Owns its rdflib dep.
+imageschemanet-grounding-check:
+	python3 -m pip install --quiet 'rdflib==7.6.0' 'pytest>=8,<9'
+	python3 tools/imageschema_ground.py
+	python3 -m pytest -q tools/tests/test_imageschema_ground.py

@@ -104,6 +104,7 @@ jobs:
           - trustops-art-runner-smoke
           - canary-slo-gate-check
           - fips-conformance-check
+          - imageschemanet-grounding-check
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Go
