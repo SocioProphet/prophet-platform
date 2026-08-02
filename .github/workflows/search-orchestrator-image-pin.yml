@@ -6,26 +6,99 @@ on:
       - search-orchestrator-image
     types:
       - completed
+  # Until now nothing could fire this workflow from its own source file. It
+  # succeeded once (2026-04-26) and was then rejected at run creation nine times
+  # (2026-07-03 .. 2026-07-20) without one character of it changing, because the
+  # repo's Actions allowlist moved underneath it on 2026-06-23. No review could
+  # have caught that: no pull request ever ran this file. These two triggers close
+  # the hole — a change to the workflow, or to the script it now depends on, has
+  # to prove itself before it merges.
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/search-orchestrator-image-pin.yml"
+      - "scripts/ci/open-image-pin-pr.sh"
+      - "scripts/ci/test-open-image-pin-pr.sh"
+  # Also the operator handle for re-pinning after a missed or failed build,
+  # without re-running the image build to get there.
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "search-orchestrator-image run to pin from (blank = latest successful run on main)"
+        required: false
 
 permissions:
   contents: write
   pull-requests: write
-  actions: read
+  # `write`, not `read`. The pin PR is opened with GITHUB_TOKEN, and a PR opened
+  # that way never starts a `pull_request` run, so the required `diagnostics-gate`
+  # check never appears and the PR can never merge. scripts/ci/open-image-pin-pr.sh
+  # dispatches the gate explicitly to fix that, and `gh workflow run` needs
+  # actions: write. The script and gitops-promote.yml carry the measurements.
+  actions: write
 
 jobs:
+  # No network, no secrets, seconds to run — and the only reason a pull_request
+  # event reaches this file at all. This is the leg that would have caught the
+  # 2026-06-23 breakage.
+  self-test:
+    name: self-test / pin PR logic
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no-op, scoping, create, refresh and dispatch-failure behaviour
+        run: scripts/ci/test-open-image-pin-pr.sh
+
   pin:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    needs: self-test
+    # Deliberately never on pull_request: a PR must not force-push automation
+    # branches or open pull requests of its own.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
+      - name: Resolve the image build to pin from
+        id: source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Via env, not `${{ }}` inside the script: inputs.run_id is operator-supplied
+          # and direct interpolation would splice it into the shell before bash sees it.
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          set -euo pipefail
+          run_id="${WORKFLOW_RUN_ID:-}"
+          [ -n "$run_id" ] || run_id="${INPUT_RUN_ID:-}"
+          # It is about to become part of an API path; digits only.
+          if [ -n "$run_id" ] && ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::run_id must be numeric, got: $run_id"
+            exit 1
+          fi
+          if [ -z "$run_id" ]; then
+            run_id="$(gh run list --workflow=search-orchestrator-image.yml --branch main \
+                        --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+            [ -n "$run_id" ] || {
+              echo "::error::no successful search-orchestrator-image run on main to pin from"
+              exit 1
+            }
+            echo "no run id supplied; using the latest successful build on main: $run_id"
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
       - uses: actions/download-artifact@v4
         with:
           name: search-orchestrator-image-evidence
           path: image-evidence
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Apply image lock
@@ -39,32 +112,12 @@ jobs:
         run: |
           python3 tools/validate_search_orchestrator_image_release.py
 
-      - name: Create pinning pull request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: automation/search-orchestrator-image-pin
-          delete-branch: true
-          title: "release(search): pin search orchestrator image digest"
-          commit-message: "release(search): pin search orchestrator image digest"
-          body: |
-            ## Summary
-
-            Pins the Search Orchestrator image digest from the successful `search-orchestrator-image` workflow run.
-
-            ## Scope
-
-            - Updates `releases/images/search-orchestrator.image-lock.json`
-            - Updates the digest-pinned Kustomize image patch
-            - Keeps the example lock unchanged
-
-            ## Safety posture
-
-            - Digest pin only
-            - No runtime route behavior change
-            - No learner action execution
-            - No Canon promotion
-            - No policy grant creation
-            - No memory writeback
-          add-paths: |
-            releases/images/search-orchestrator.image-lock.json
-            infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml
+      # Was `peter-evans/create-pull-request@v6`. That action is Marketplace-listed
+      # but its creator carries no verified badge, so this repo's
+      # `allowed_actions: selected` policy blocks it and every run was rejected
+      # before any job started. See the script for the full account, the rejected
+      # settings-change alternative, and why it dispatches the diagnostics gate.
+      - name: Open the pinning pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/ci/open-image-pin-pr.sh
