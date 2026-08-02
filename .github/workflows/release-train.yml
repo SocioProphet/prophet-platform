@@ -1,0 +1,144 @@
+# release-train — the SCHEDULED train that drives build-once-promote-many to prod.
+#
+# Deploys to prod happen on the TRAIN, not per-merge (INV-DEP-4). The train FREEZES the exact
+# immutable digest set once (from releases/images/*.image-lock.json + component-inventory),
+# then advances that ONE frozen set wave by wave — dev -> canary -> prod — each wave gated,
+# fail-closed, by wave-promote.yml. Nothing is rebuilt between waves (INV-DEP-2); a wave only
+# re-pins the already-built, already-signed sha256 into the next env overlay.
+#
+# Triggers:
+#   * schedule       — the regular train (weekday cadence below).
+#   * release         — a published GitHub release tag freezes + ships that tag's digest set.
+#   * workflow_dispatch — an operator-run train (choose the freeze label + which waves).
+#
+# DRY-RUN / GITOPS: this workflow freezes + validates + promotes into committed overlays and
+# uploads rendered evidence. It never `kubectl apply`s. ArgoCD reconciles the committed,
+# digest-pinned overlays onto the cluster (Michael's gated apply) — the train produces desired
+# state, it does not push it.
+name: release-train
+
+on:
+  schedule:
+    # 09:00 UTC Tue/Thu — deliberately NOT on every merge (INV-DEP-4). Deploys ride the train.
+    - cron: "0 9 * * 2,4"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "Release-train label (freeze id). Blank = today's date."
+        type: string
+        required: false
+      component:
+        description: "Component to promote through the waves"
+        type: string
+        required: true
+        default: search-orchestrator
+      through_wave:
+        description: "Furthest wave to promote to this run"
+        type: choice
+        options: [dev, canary, prod]
+        default: canary
+
+permissions:
+  contents: read
+
+concurrency:
+  # Only one train at a time; QUEUE trains, never cancel one mid-promotion (INV-DEP-5).
+  group: release-train
+  cancel-in-progress: false
+
+jobs:
+  # ── FREEZE ────────────────────────────────────────────────────────────────────────────
+  # Freeze the exact digest set ONCE. Everything downstream promotes this frozen manifest.
+  freeze:
+    runs-on: ubuntu-latest
+    outputs:
+      manifest: ${{ steps.freeze.outputs.manifest }}
+      component: ${{ steps.vars.outputs.component }}
+      through_wave: ${{ steps.vars.outputs.through_wave }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install --quiet pyyaml
+
+      - name: Resolve run vars
+        id: vars
+        run: |
+          set -euo pipefail
+          # A release tag freezes+ships all the way to prod; schedule goes to canary and waits
+          # for an operator to run the prod wave; dispatch takes the operator's choice.
+          case "${{ github.event_name }}" in
+            release)          tw=prod ;;
+            schedule)         tw=canary ;;
+            workflow_dispatch) tw="${{ inputs.through_wave }}" ;;
+            *)                tw=canary ;;
+          esac
+          comp="${{ inputs.component }}"; comp="${comp:-search-orchestrator}"
+          echo "through_wave=$tw" >> "$GITHUB_OUTPUT"
+          echo "component=$comp" >> "$GITHUB_OUTPUT"
+
+      - name: Freeze the release-train image set (one digest per component)
+        id: freeze
+        run: |
+          set -euo pipefail
+          label="${{ inputs.label }}"
+          if [ -z "$label" ]; then
+            if [ "${{ github.event_name }}" = "release" ]; then
+              label="${{ github.event.release.tag_name }}"
+            else
+              label="$(date -u +%Y-%m-%d)"
+            fi
+          fi
+          # sanitize label for a filename (tags like v1.2.3 are fine)
+          label="$(echo "$label" | tr -c 'A-Za-z0-9._-' '-')"
+          python3 tools/freeze_release_train_manifest.py --label "$label"
+          manifest="releases/manifests/release-train.${label}.manifest.json"
+          echo "manifest=$manifest" >> "$GITHUB_OUTPUT"
+          echo "froze $manifest"
+
+      - name: Validate frozen manifest (fail-closed — INV-DEP-1/2)
+        run: python3 tools/validate_release_train_manifest.py "${{ steps.freeze.outputs.manifest }}"
+
+      # In production the freeze commits the manifest via a values-only PR the way
+      # gitops-promote.yml does (so the wave jobs, which check out the repo, can read it).
+      # Scaffolded here as an uploaded artifact — no auto-commit in the dry-run.
+      - name: Upload frozen manifest (train artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-train-frozen-manifest
+          path: ${{ steps.freeze.outputs.manifest }}
+
+  # ── WAVE 1: dev ─────────────────────────────────────────────────────────────────────────
+  dev:
+    needs: freeze
+    uses: ./.github/workflows/wave-promote.yml
+    with:
+      manifest: ${{ needs.freeze.outputs.manifest }}
+      wave: dev
+      component: ${{ needs.freeze.outputs.component }}
+      workload_kind: Deployment
+
+  # ── WAVE 2: canary ──────────────────── gated on dev (INV-DEP-3) ─────────────────────────
+  canary:
+    needs: [freeze, dev]
+    if: needs.freeze.outputs.through_wave == 'canary' || needs.freeze.outputs.through_wave == 'prod'
+    uses: ./.github/workflows/wave-promote.yml
+    with:
+      manifest: ${{ needs.freeze.outputs.manifest }}
+      wave: canary
+      component: ${{ needs.freeze.outputs.component }}
+      workload_kind: Deployment
+
+  # ── WAVE 3: prod ─────────────── blue-green, gated on canary (INV-DEP-3) ─────────────────
+  prod:
+    needs: [freeze, canary]
+    if: needs.freeze.outputs.through_wave == 'prod'
+    uses: ./.github/workflows/wave-promote.yml
+    with:
+      manifest: ${{ needs.freeze.outputs.manifest }}
+      wave: prod
+      component: ${{ needs.freeze.outputs.component }}
+      workload_kind: Rollout

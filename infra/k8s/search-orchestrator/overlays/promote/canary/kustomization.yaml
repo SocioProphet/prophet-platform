@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# WAVE 2 (canary) of the build-once-promote-many release train.
+# SAME digest as dev/prod (INV-DEP-2). Canary is where the fail-closed Argo Rollouts
+# slo-gate (infra/k8s/rollouts/base/analysistemplate-slo.yaml) runs — an empty Prometheus
+# series ABORTS, never promotes ("no data" != "healthy"). Prod cutover is gated on canary
+# passing (INV-DEP-3). See docs/DEPLOY-WAVE-STRATEGY.md.
+namespace: prophet-platform-canary
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "21"
+  socioprophet.io/release-wave: canary
+resources:
+  - ../../../base
+patches:
+  - path: image-patch.yaml

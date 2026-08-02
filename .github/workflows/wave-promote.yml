@@ -1,0 +1,138 @@
+# wave-promote — promote ONE wave of a frozen release train (build-once-promote-many).
+#
+# This is the reusable engine the scheduled release-train.yml calls once per wave
+# (dev -> canary -> prod). It performs NO image build. It reads the frozen digest set,
+# re-pins the SAME immutable sha256 into the target wave's kustomize overlay (INV-DEP-2),
+# renders the overlay, and passes it through the fail-closed between-wave gates
+# (INV-DEP-3). A gate failure aborts the wave — and, because the train drives waves in
+# series, every downstream wave with it. See docs/DEPLOY-WAVE-STRATEGY.md.
+#
+# DRY-RUN by design: this workflow renders + gates + uploads the promoted overlay as an
+# artifact. It does NOT `kubectl apply` to any cluster. Live application is ArgoCD syncing
+# the committed overlay (Michael's gated apply), never this job.
+name: wave-promote
+
+on:
+  workflow_call:
+    inputs:
+      manifest:
+        description: "Path to the frozen release-train manifest to promote from"
+        type: string
+        required: true
+      wave:
+        description: "Wave to promote (dev | canary | prod)"
+        type: string
+        required: true
+      component:
+        description: "Component id in the frozen manifest to promote"
+        type: string
+        required: false
+        default: search-orchestrator
+      overlay_dir:
+        description: "Kustomize overlay root; the wave is appended (…/promote/<wave>)"
+        type: string
+        required: false
+        default: infra/k8s/search-orchestrator/overlays/promote
+      workload_kind:
+        description: "Deployment (dev/canary) or Rollout (prod blue-green)"
+        type: string
+        required: false
+        default: Deployment
+    outputs:
+      pinned_ref:
+        description: "The immutable digest promoted into this wave"
+        value: ${{ jobs.promote.outputs.pinned_ref }}
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize promotions of the same component+wave; never cancel an in-flight promotion —
+  # a half-applied wave is worse than a queued one (INV-DEP-5, release side = queue).
+  group: wave-promote-${{ inputs.component }}-${{ inputs.wave }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    outputs:
+      pinned_ref: ${{ steps.pin.outputs.pinned_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install --quiet pyyaml
+
+      # GATE 0 — the frozen set must be legal to promote (digest-pinned, one digest/image).
+      - name: Validate frozen release-train manifest (fail-closed)
+        run: python3 tools/validate_release_train_manifest.py "${{ inputs.manifest }}"
+
+      # PROMOTE-MANY — re-pin the SAME frozen digest into this wave's overlay. No build.
+      - name: Promote frozen digest into the wave overlay (no rebuild)
+        id: pin
+        run: |
+          set -euo pipefail
+          out="${{ inputs.overlay_dir }}/${{ inputs.wave }}/image-patch.yaml"
+          python3 tools/apply_wave_promotion.py \
+            --manifest "${{ inputs.manifest }}" \
+            --component "${{ inputs.component }}" \
+            --deployment "${{ inputs.component }}" \
+            --container "${{ inputs.component }}" \
+            --kind "${{ inputs.workload_kind }}" \
+            --output "$out"
+          ref="$(grep -oE '[^ ]+@sha256:[0-9a-f]{64}' "$out" | head -1)"
+          echo "pinned_ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "wave ${{ inputs.wave }} pinned to $ref"
+
+      - name: Install kustomize (kubectl)
+        uses: azure/setup-kubectl@v4
+
+      # GATE 1 — the rendered overlay must be valid and carry a digest, never a moving tag.
+      - name: Render + assert digest-pinned (INV-DEP-1)
+        run: |
+          set -euo pipefail
+          rendered="$(kubectl kustomize "${{ inputs.overlay_dir }}/${{ inputs.wave }}")"
+          echo "$rendered" | tee rendered-${{ inputs.wave }}.yaml >/dev/null
+          if echo "$rendered" | grep -E 'image:' | grep -vqE 'image: [^ ]+@sha256:[0-9a-f]{64}'; then
+            echo "::error::a container image in the ${{ inputs.wave }} overlay is not digest-pinned (INV-DEP-1)"
+            echo "$rendered" | grep -E 'image:'
+            exit 1
+          fi
+          echo "all images digest-pinned in wave ${{ inputs.wave }}"
+
+      # GATE 2 — preflight deploy contract: what we deploy must reference something built.
+      - name: Preflight deploy contract (fail-closed)
+        run: python3 tools/preflight_deploy_contract.py
+
+      # GATE 3 — the canary/SLO gate must itself be fail-closed (no-data aborts). This is the
+      # SAME check the required validate-target-diagnostics gate runs; a wave cannot promote
+      # while the SLO analysis it relies on could silently pass on an empty series.
+      - name: Canary SLO gate is fail-closed (INV-DEP-3)
+        run: python3 tools/check_canary_slo_gate.py
+
+      # GATE 4 — the prod wave (blue-green cutover) must carry the SLO prePromotionAnalysis.
+      # A prod cutover with no analysis gate is a time-based promotion; refuse it.
+      - name: Prod cutover must be SLO-gated (blue-green)
+        if: inputs.wave == 'prod'
+        run: |
+          set -euo pipefail
+          if ! grep -q 'templateName: slo-gate' rendered-prod.yaml; then
+            echo "::error::prod blue-green Rollout has no slo-gate prePromotionAnalysis (INV-DEP-3)"
+            exit 1
+          fi
+          if ! grep -q 'autoPromotionEnabled: false' rendered-prod.yaml; then
+            echo "::error::prod cutover must be gated (autoPromotionEnabled:false), not auto/time-based"
+            exit 1
+          fi
+          echo "prod cutover is blue-green + SLO-gated"
+
+      - name: Upload promoted (dry-run) overlay evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: wave-promote-${{ inputs.component }}-${{ inputs.wave }}
+          path: |
+            rendered-${{ inputs.wave }}.yaml
+            ${{ inputs.overlay_dir }}/${{ inputs.wave }}/image-patch.yaml

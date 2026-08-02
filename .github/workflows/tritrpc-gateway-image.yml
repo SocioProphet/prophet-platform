@@ -21,8 +21,39 @@ permissions:
   contents: read
   packages: write
 
+# COST GUARD 2 (queue vs cancel) — see socioprophet-api-image.yml for the full note.
+# main QUEUES (cancel-in-progress:false); feature branches/PRs CANCEL superseded runs (INV-DEP-5).
+concurrency:
+  group: tritrpc-gateway-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
+  # COST GUARD 1 (change-detection skip) — byte-identical source reuses the pinned digest.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      build_needed: ${{ steps.decide.outputs.build_needed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - id: decide
+        name: Decide build-vs-skip from source content-digest
+        run: |
+          set +e
+          python3 tools/compute_source_content_digest.py decide \
+            --path apps/gateway \
+            --path libs/go/tritrpcbridge \
+            --path .github/workflows/tritrpc-gateway-image.yml \
+            --lock releases/images/tritrpc-gateway.image-lock.json \
+            --allow-missing
+          rc=$?
+          if [ "$rc" != "0" ] && [ "$rc" != "10" ]; then exit "$rc"; fi
+
   image:
+    needs: changes
+    if: needs.changes.outputs.build_needed == 'true' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +76,8 @@ jobs:
           file: apps/gateway/Dockerfile
           push: false
           tags: ghcr.io/socioprophet/prophet-platform/tritrpc-gateway:pr-${{ github.event.pull_request.number }}
+          cache-from: type=gha,scope=tritrpc-gateway
+          cache-to: type=gha,mode=max,scope=tritrpc-gateway
 
       - name: Build and push image
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -57,6 +90,18 @@ jobs:
           tags: |
             ghcr.io/socioprophet/prophet-platform/tritrpc-gateway:main
             ghcr.io/socioprophet/prophet-platform/tritrpc-gateway:${{ github.sha }}
+          cache-from: type=gha,scope=tritrpc-gateway
+          cache-to: type=gha,mode=max,scope=tritrpc-gateway
+
+      - name: Compute source content-digest (record for next run's skip decision)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: content
+        run: |
+          cd="$(python3 tools/compute_source_content_digest.py digest \
+            --path apps/gateway \
+            --path libs/go/tritrpcbridge \
+            --path .github/workflows/tritrpc-gateway-image.yml)"
+          echo "content_digest=$cd" >> "$GITHUB_OUTPUT"
 
       - name: Emit digest evidence
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -69,6 +114,7 @@ jobs:
             "source_sha": "${{ github.sha }}",
             "digest": "${{ steps.build.outputs.digest }}",
             "pinned_ref": "ghcr.io/socioprophet/prophet-platform/tritrpc-gateway@${{ steps.build.outputs.digest }}",
+            "source_content_digest": "${{ steps.content.outputs.content_digest }}",
             "runtime_base": "scratch",
             "host_substrate_target": "fcos_silverblue_ostree_fedora_family"
           }
