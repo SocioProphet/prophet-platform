@@ -15,13 +15,28 @@
 # only mirrors a gate that actually ran and passed. So it is a real check with teeth,
 # not a green rubber stamp.
 #
-# VERIFY LIVE AFTER MERGE (workflow_run check-runs attaching to a PR head as a
-# required context is the one behaviour that cannot be tested off-GitHub): open a
-# throwaway PR, confirm `gate / check` posts and that a passing gate clears BLOCKED
-# without --admin. If it does not surface as the required context, the fallback is to
-# retire the legacy `gate / check` from branch protection (the ruleset's
-# `diagnostics-gate` already enforces the same thing) — but that is a branch-
-# protection change held for explicit sign-off.
+# VERIFIED LIVE 2026-08-02: the throwaway-PR check above passed (a human-pushed
+# branch's pull_request-triggered diagnostics run mirrors correctly), but that is not
+# the only path that produces a validate-target-diagnostics run. gitops-promote.yml's
+# own PRs (bot-authored, opened with GITHUB_TOKEN) hit a SEPARATE, already-documented
+# problem: their pull_request-triggered diagnostics run is parked at
+# conclusion=action_required by the fork-pr-contributor-approval gate and never
+# executes, so gitops-promote dispatches validate-target-diagnostics itself via
+# workflow_dispatch and publishes `diagnostics-gate` manually (see that workflow's
+# comments). This job's filter originally excluded 'workflow_dispatch', so those
+# dispatched runs — real, green, and the ONLY diagnostics run that ever completes for
+# a promote branch — were silently never mirrored onto `gate / check`. Measured on
+# #1209 and #1210: both promote PRs sat MERGEABLE-but-BLOCKED with `diagnostics-gate`
+# satisfied and `gate / check` stuck at "Expected", because no gate.yml run ever fired
+# for their workflow_dispatch completions (confirmed via the Actions API: zero gate.yml
+# runs exist for either promote branch's head SHA). Including 'workflow_dispatch' below
+# closes that gap the same way gitops-promote already closes it for `diagnostics-gate` —
+# by trusting the same real, green run regardless of which trigger produced it.
+#
+# The fallback if this ever needs reverting is to retire the legacy `gate / check` from
+# branch protection (the ruleset's `diagnostics-gate` already enforces the same thing)
+# — but that is a branch-protection change held for explicit sign-off, so mirroring
+# workflow_dispatch is the smaller, in-scope fix.
 name: gate
 
 on:
@@ -39,10 +54,13 @@ permissions:
 
 jobs:
   check:
-    # Only mirror runs that actually gate a change (PRs and pushes to main).
+    # Only mirror runs that actually gate a change: PRs, pushes to main, and the
+    # workflow_dispatch runs gitops-promote uses to work around its own PRs' parked
+    # pull_request diagnostics (see comment above).
     if: >-
       github.event.workflow_run.event == 'pull_request' ||
-      github.event.workflow_run.event == 'push'
+      github.event.workflow_run.event == 'push' ||
+      github.event.workflow_run.event == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Mirror the diagnostics gate verdict onto 'gate / check'
