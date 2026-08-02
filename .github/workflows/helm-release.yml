@@ -13,10 +13,57 @@ on:
     paths:
       - 'charts/**'
       - '.github/workflows/helm-release.yml'
+      - 'scripts/ci/install-chart-releaser.sh'
+      - 'scripts/ci/release-charts.sh'
+  pull_request:
+    branches: [main]
+    paths:
+      # A change to this workflow, or to the scripts it now depends on, has to be
+      # exercised before it merges. Every run from 2026-06-23 to 2026-07-29 was a
+      # startup_failure (17/17), and nothing triggered on the workflow file
+      # itself, so no PR could ever have revealed that. The pull_request path
+      # runs the package job only — it never publishes.
+      - 'charts/**'
+      - '.github/workflows/helm-release.yml'
+      - 'scripts/ci/install-chart-releaser.sh'
+      - 'scripts/ci/release-charts.sh'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  # Runs on every event, including pull_request. Read-only: it proves the pinned
+  # toolchain installs and the charts package, without cutting a release.
+  package:
+    name: Package charts (no publish)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      # helm/chart-releaser-action cannot run here: this repo restricts actions
+      # to github-owned + verified-Marketplace + an explicit pattern allowlist
+      # (dtolnay/*, Swatinem/*, oven-sh/*, tauri-apps/*). The action *is*
+      # Marketplace-listed, which makes it look allowed, but its publisher `helm`
+      # carries no verified-creator badge and it matches no pattern. The run was
+      # rejected before any job started, which is why every run was a
+      # startup_failure with nothing in the logs.
+      # See scripts/ci/install-chart-releaser.sh for the checksum pinning that
+      # replaces it.
+      - name: Install chart-releaser
+        run: scripts/ci/install-chart-releaser.sh
+
+      - name: Package every chart
+        run: scripts/ci/release-charts.sh --package-only
+
   release:
+    name: Publish charts
+    needs: package
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write    # chart-releaser: create releases + push gh-pages
@@ -33,11 +80,12 @@ jobs:
 
       - uses: azure/setup-helm@v4
 
+      - name: Install chart-releaser
+        run: scripts/ci/install-chart-releaser.sh
+
       # 1. Public chart repo on GitHub Pages (helm repo add).
       - name: Release charts to GitHub Pages
-        uses: helm/chart-releaser-action@v1.6.0
-        with:
-          charts_dir: charts
+        run: scripts/ci/release-charts.sh
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
