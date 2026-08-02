@@ -50,9 +50,11 @@ def main() -> int:
     args = ap.parse_args()
 
     spec = lib.load_spec(args.spec)
-    boards = lib.boards_with_items(spec)
-    if args.owner:
-        boards = [b for b in boards if b["owner_org"] == args.owner]
+    try:
+        boards = lib.select_boards(spec, args.owner)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return 2  # not "green with nothing checked"
     drift = compute_drift(boards, lib.project_issue_numbers)
 
     if args.json:

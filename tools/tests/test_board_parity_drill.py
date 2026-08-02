@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import board_parity_drill as drill  # noqa: E402
+import board_spec_lib as lib  # noqa: E402
 
 BOARDS = [
     {"title": "Product Surfaces", "owner_org": "SocioProphet", "github_number": 9,
@@ -45,7 +46,28 @@ def test_silent_when_in_parity() -> None:
     print("PASS: drill stays silent when GitHub matches the spec")
 
 
+def test_empty_selection_refuses_green() -> None:
+    # An owner that matches no board must raise, not yield an empty (green) check.
+    spec = {"boards": BOARDS}
+    try:
+        lib.select_boards(spec, owner="NoSuchOrg")
+    except ValueError:
+        print("PASS: select_boards refuses to check nothing (no false green)")
+        return
+    raise AssertionError("select_boards returned for an owner with no boards")
+
+
+def test_selection_returns_matching() -> None:
+    spec = {"boards": BOARDS}
+    got = lib.select_boards(spec, owner="SocioProphet")
+    assert len(got) == 2, got
+    print("PASS: select_boards returns the matching boards")
+
+
 if __name__ == "__main__":
     test_fires_on_drift()
     test_silent_when_in_parity()
-    print("\nBoth directions proven: the drill detects drift and stays quiet on parity.")
+    test_empty_selection_refuses_green()
+    test_selection_returns_matching()
+    print("\nBoth directions proven: the drill detects drift, stays quiet on parity, "
+          "and refuses to report green when it would check nothing.")
