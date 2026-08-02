@@ -23,7 +23,12 @@ spec:
           # foundation: memoryd (dense recall) and sherlock-engine (hybrid search) both
           # already declare this endpoint; the search plane silently degrades to lexical-only
           # without it, rather than failing loudly -- see the KMASS baseline readout.
-          - { name: qdrant, path: infra/k8s/mesh-qdrant/overlays/p0-lab, tier: foundation }
+          # name MUST equal the infra/k8s/<name> directory (tools/preflight_deploy_contract.py's
+          # check_kustomize_images resolves ROOT/infra/k8s/<name> literally, matching the zot
+          # precedent's {name: zot, path: infra/k8s/zot/...}) -- name: qdrant here would make
+          # preflight look at a directory that doesn't exist and silently skip image validation
+          # instead of failing, caught by preflight itself before this line existed.
+          - { name: mesh-qdrant, path: infra/k8s/mesh-qdrant/overlays/p0-lab, tier: foundation }
   template:
     metadata:
       name: 'vector-store-{{.name}}'
