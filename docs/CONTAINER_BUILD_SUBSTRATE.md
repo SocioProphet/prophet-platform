@@ -38,7 +38,7 @@ This repository already contains at least one container image build workflow:
 
 - `.github/workflows/search-orchestrator-image.yml`
 - `services/search-orchestrator/Dockerfile`
-- GHCR image naming under `ghcr.io/socioprophet/prophet-platform/search-orchestrator`
+- GAR image naming under `us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator` (WIF-authed; the GKE nodes pull from GAR, not ghcr)
 - digest evidence emitted as an uploaded artifact
 - pinned image reference emitted as `image@digest`
 

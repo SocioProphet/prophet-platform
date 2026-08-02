@@ -22,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: search-orchestrator
-          image: ghcr.io/socioprophet/prophet-platform/search-orchestrator:dev
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator:dev
           imagePullPolicy: IfNotPresent
           command: ["uvicorn"]
           args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]

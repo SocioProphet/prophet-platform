@@ -151,6 +151,37 @@ grep -q "BLOCKED" <<<"$OUT" || fail "the warning must say the PR will be BLOCKED
 unset STUB_DISPATCH_RC
 [ "$failures" -eq 0 ] && pass "dispatch failure: 3 attempts, warns, does not fail the job"
 
+echo "case 6: the pinned digest propagates into the promote overlays + manifest (INV-DEP-2)"
+new_case propagate
+echo '{"digest":"sha256:new"}' >"$LOCK"
+echo 'image: new' >"$PATCH"
+# Simulate what the workflow's propagate step produced before calling the script:
+# the three promote overlays re-rendered to the new digest, and a re-frozen manifest.
+DEV="infra/k8s/search-orchestrator/overlays/promote/dev/image-patch.yaml"
+CAN="infra/k8s/search-orchestrator/overlays/promote/canary/image-patch.yaml"
+PROD="infra/k8s/search-orchestrator/overlays/promote/prod/image-patch.yaml"
+MAN="releases/manifests/release-train.2026-08-02.manifest.json"
+mkdir -p "$(dirname "$DEV")" "$(dirname "$CAN")" "$(dirname "$PROD")" "$(dirname "$MAN")"
+# Seed them at the OLD digest, commit, then update to NEW so the pin has a real change.
+for f in "$DEV" "$CAN" "$PROD"; do echo 'image: old@sha256:old' >"$f"; done
+echo '{"digest":"sha256:old"}' >"$MAN"
+git add -A && git commit --quiet -m "seed promote overlays"
+git push --quiet origin main >/dev/null 2>&1
+for f in "$DEV" "$CAN" "$PROD"; do echo 'image: new@sha256:new' >"$f"; done
+echo '{"digest":"sha256:new"}' >"$MAN"
+export PIN_EXTRA_PATHS="$MAN"
+run_script
+unset PIN_EXTRA_PATHS
+[ "$RC" -eq 0 ] || fail "expected exit 0, got $RC — $OUT"
+committed="$(git -C "$CASE_DIR/work" show --name-only --format= HEAD | sort | tr '\n' ' ')"
+for want in "$DEV" "$CAN" "$PROD" "$MAN"; do
+  case "$committed" in
+    *"$want"*) : ;;
+    *) fail "the pin did not propagate into $want; committed [$committed]" ;;
+  esac
+done
+[ "$failures" -eq 0 ] && pass "propagate: lock + policy + dev/canary/prod overlays + manifest all committed"
+
 echo
 if [ "$failures" -ne 0 ]; then
   echo "$failures check(s) FAILED"

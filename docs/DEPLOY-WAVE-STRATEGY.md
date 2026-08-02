@@ -73,9 +73,28 @@ promotes: INV-DEP-6 refuses it at freeze and at every wave until a real Wave-0 p
 ## Wave 0 — build once → registry
 
 Per-component image workflows (`socioprophet-api-image.yml`, `tritrpc-gateway-image.yml`,
-`search-orchestrator-image.yml`) and the matrix `images.yml` build → push to the sovereign
-zot registry (`registry.socioprophet.ai`, cutover in progress) / GHCR / GAR → record the
+`search-orchestrator-image.yml`) and the matrix `images.yml` build → push → record the
 immutable digest in `releases/images/<component>.image-lock.json`.
+
+**Target registry = GCP Artifact Registry (GAR), WIF-authed — NOT ghcr.** The estate's real
+GKE registry is `us-central1-docker.pkg.dev/socioprophet-platform/socioprophet` (the default in
+`images.yml`; the same path `helm-release.yml` pushes charts to). The GKE nodes hold Workload
+Identity Federation auth to GAR and **none** to ghcr, so a ghcr digest — placeholder *or* real —
+`401`s on pull at apply time. `search-orchestrator-image.yml` therefore authenticates with
+`google-github-actions/auth` (WIF → access token) and `docker login us-central1-docker.pkg.dev -u
+oauth2accesstoken`, mirroring the canonical pattern. (`registry.socioprophet.ai` / zot is the
+sovereign registry the wider cutover moves to per-component; search-orchestrator is on GAR.)
+
+> **Lesson — an apply-caught registry mismatch (2026-08-02).** The wave-deploy plane
+> (#1225/#1226) built, pinned and promoted `ghcr.io/socioprophet/prophet-platform/search-orchestrator`.
+> Every dry-run/CI gate was green — the ref is a legal `<image>@sha256:…`, the overlays render
+> digest-pinned, INV-DEP-6 resolved the *public* ghcr digest as EXISTS. Only a **real cluster
+> apply** surfaced it: `fogstack-federal` pulls `search-orchestrator` from **GAR** and the nodes
+> have no ghcr credential, so the apply `401`'d on both the placeholder and the real ghcr digest.
+> Dry-run "the digest exists in *a* registry" is not "the cluster can pull it from *this*
+> registry." The registry the pin names must be the one the nodes are authorized to pull from —
+> now asserted statically by `preflight_deploy_contract.py`'s `OUR_REGISTRIES` (GAR + zot, ghcr
+> excluded) so a ghcr search-orchestrator ref fails CI, not just the apply.
 
 **INV-DEP-7 — the build is the ONLY writer of a lock digest.** The lock's `digest` comes only
 from a real `docker buildx …--push` (`steps.build.outputs.digest`), carried through the digest
@@ -84,17 +103,23 @@ evidence artifact and applied by `tools/apply_search_orchestrator_image_lock.py`
 is never hand-authored or computed — that is the class of failure the `bbfea6e4…` incident was.
 
 To actually produce a real search-orchestrator digest (Wave 0), dispatch the build on `main`
-(it pushes to GHCR, uploads the digest evidence, and the pin workflow opens the lock PR):
+(it WIF-auths to GAR, pushes `us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator:main`
++ `:sha-<commit>`, uploads the GAR digest evidence, and the pin workflow opens the lock PR that
+propagates the digest into the policy + dev/canary/prod overlays):
 
 ```bash
-# 1) Build + push, recording the REAL registry digest (main only pushes; PRs build without push):
+# 1) Build + push to GAR via WIF, recording the REAL GAR digest (main only pushes; PRs build without push):
 gh workflow run search-orchestrator-image.yml --ref main
-# 2) After it succeeds, pin the lock + overlay from that run's digest evidence (auto-fires on the
-#    build's success; run explicitly to pin a specific/older successful run):
+# 2) After it succeeds, pin the lock + ALL overlays from that run's GAR digest evidence (auto-fires on
+#    the build's success; run explicitly to pin a specific/older successful run):
 gh workflow run search-orchestrator-image-pin.yml --ref main         # latest successful build
 #    or:  gh workflow run search-orchestrator-image-pin.yml --ref main -f run_id=<BUILD_RUN_ID>
-# 3) Verify the freshly-pinned digest really resolves (the same gate the train runs):
-python3 tools/verify_pinned_digest_exists.py locks 'releases/images/search-orchestrator.image-lock.json'
+# 3) Verify the freshly-pinned GAR digest really resolves (the same gate the train runs). Locally,
+#    supply a GAR access token so the private HEAD authenticates (CI's `changes` job does this via WIF):
+GAR_ACCESS_TOKEN="$(gcloud auth print-access-token)" \
+  python3 tools/verify_pinned_digest_exists.py locks 'releases/images/search-orchestrator.image-lock.json'
+#    (Until step 1 runs, the committed lock still carries the retired ghcr push digest, which is
+#     genuinely absent from GAR — INV-DEP-6 fails closed against it by design; the real push replaces it.)
 ```
 
 - **COST GUARD 1 — change-detection skip (now image-exists-aware, INV-DEP-6).** A `changes`

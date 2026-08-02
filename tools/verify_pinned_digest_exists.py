@@ -30,9 +30,11 @@ Three outcomes, kept DISTINCT (so callers can tell "you shipped a fabricated dig
 
 Registries supported
 ---------------------
-  * ghcr.io                         (GitHub Container Registry)
-  * registry.socioprophet.ai / zot  (the sovereign zot registry)
-  * any Registry-HTTP-API-v2 host    (generic Bearer / Basic token flow)
+  * ghcr.io                            (GitHub Container Registry)
+  * *-docker.pkg.dev / GAR             (GCP Artifact Registry — the estate's real GKE registry,
+                                        e.g. us-central1-docker.pkg.dev/socioprophet-platform/socioprophet)
+  * registry.socioprophet.ai / zot     (the sovereign zot registry)
+  * any Registry-HTTP-API-v2 host       (generic Bearer / Basic token flow)
 
 Auth
 ----
@@ -43,6 +45,9 @@ credential and the tool performs the standard ``WWW-Authenticate: Bearer`` token
   * env ``REGISTRY_USERNAME`` / ``REGISTRY_PASSWORD`` (or ``GITHUB_ACTOR`` / ``GITHUB_TOKEN``
     for ghcr.io) are picked up automatically when the flags are absent.
   * ``--token`` supplies a ready Bearer token directly (skips the exchange).
+  * GAR (``*-docker.pkg.dev``): a GCP OAuth2 access token from the WIF auth step is picked up
+    from env ``GAR_ACCESS_TOKEN`` (or ``GOOGLE_OAUTH_ACCESS_TOKEN`` / ``CLOUDSDK_AUTH_ACCESS_TOKEN``)
+    and presented as a raw Bearer; locally, ``--token "$(gcloud auth print-access-token)"``.
 
 Usage
 -----
@@ -73,6 +78,28 @@ from typing import Callable
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 REF_RE = re.compile(r"^(?P<registry>[^/]+)/(?P<repo>.+?)@(?P<digest>sha256:[0-9a-f]{64})$")
+
+# GCP Artifact Registry (GAR) hosts: <location>-docker.pkg.dev. Its v2 manifest endpoint
+# takes a GCP OAuth2 access token — either as a raw Bearer (fast path) or minted through the
+# standard WWW-Authenticate exchange with username `oauth2accesstoken` (the same identity
+# `helm registry login us-central1-docker.pkg.dev -u oauth2accesstoken` uses). The token comes
+# from the estate's WIF auth step (`google-github-actions/auth` -> access_token) or, locally,
+# `gcloud auth print-access-token`, surfaced via one of these env vars.
+_GAR_HOST_RE = re.compile(r"(^|\.)pkg\.dev$")
+_GAR_TOKEN_ENVS = ("GAR_ACCESS_TOKEN", "GOOGLE_OAUTH_ACCESS_TOKEN", "CLOUDSDK_AUTH_ACCESS_TOKEN")
+_GAR_USERNAME = "oauth2accesstoken"
+
+
+def _is_gar(registry: str) -> bool:
+    return bool(_GAR_HOST_RE.search(registry.split(":")[0]))
+
+
+def _gar_access_token() -> str | None:
+    for env in _GAR_TOKEN_ENVS:
+        tok = os.environ.get(env)
+        if tok:
+            return tok.strip()
+    return None
 
 # The manifest media types a registry may answer with. We must Accept all of them or a
 # multi-arch image (an OCI index / manifest list) HEAD can 404 under a too-narrow Accept.
@@ -181,6 +208,12 @@ def _resolve_credentials(registry: str, username: str | None,
     pw = os.environ.get("REGISTRY_PASSWORD")
     if user or pw:
         return user, pw
+    # GAR mints a pull Bearer from Basic `oauth2accesstoken:<access_token>` at its token realm
+    # (the WWW-Authenticate fallback if the raw-Bearer fast path was absent/rejected).
+    if _is_gar(registry):
+        gtok = _gar_access_token()
+        if gtok:
+            return _GAR_USERNAME, gtok
     # ghcr.io reads the standard Actions identity by default.
     if registry == "ghcr.io" and os.environ.get("GITHUB_TOKEN"):
         return os.environ.get("GITHUB_ACTOR", "x-access-token"), os.environ.get("GITHUB_TOKEN")
@@ -204,6 +237,14 @@ def check_manifest(image: str, digest: str, *,
     headers = {"Accept": _MANIFEST_ACCEPT}
     if bearer:
         headers["Authorization"] = f"Bearer {bearer}" if not bearer.lower().startswith("bearer") else bearer
+    elif _is_gar(registry):
+        # GAR fast path: present the GCP access token directly as a Bearer, so a private GAR
+        # digest resolves without first eating an anonymous 401 (which, unauthenticated, would
+        # classify UNREACHABLE — fail-closed but noisy). If the token is absent the request goes
+        # out anonymous and the 401 -> token-exchange fallback below still runs.
+        gtok = _gar_access_token()
+        if gtok:
+            headers["Authorization"] = f"Bearer {gtok}"
 
     def _classify(status: int, hdrs: dict, body: bytes) -> Result | None:
         if 200 <= status < 300:

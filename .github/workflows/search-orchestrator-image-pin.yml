@@ -108,6 +108,44 @@ jobs:
             --lock-output releases/images/search-orchestrator.image-lock.json \
             --patch-output infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml
 
+      # PROPAGATE THE PINNED DIGEST INTO THE PROMOTE OVERLAYS (INV-DEP-2, the item-5 fix).
+      # Before this, the pin wrote only the lock + policy patch, so the dev/canary/prod
+      # promote overlays kept the PREVIOUS digest — the wave-deploy divergence (lock on one
+      # digest, promote overlays on the never-pushed sha256:bbfea6e4…). Re-freeze the manifest
+      # from the just-updated lock and re-render every wave overlay from it, so the pin PR
+      # carries the same digest end-to-end. No build, no rebuild — a pure re-pin of the frozen
+      # sha256. The apply-time INV-DEP-6 digest-exists gate still fails-closed on a bad digest.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Propagate the pinned digest into the promote overlays (dev/canary/prod)
+        id: propagate
+        run: |
+          set -euo pipefail
+          pip install --quiet pyyaml
+          # Re-freeze in place: reuse the newest existing manifest label so the pin refreshes
+          # that manifest rather than proliferating a new date-labelled file each build.
+          # shellcheck disable=SC2012 # manifest filenames are sanitized labels (date/tag); ls is safe here
+          label="$(ls releases/manifests/release-train.*.manifest.json 2>/dev/null \
+                    | sed -E 's#.*release-train\.(.*)\.manifest\.json#\1#' | sort | tail -1)"
+          [ -n "$label" ] || label="$(date -u +%Y-%m-%d)"
+          python3 tools/freeze_release_train_manifest.py --label "$label"
+          manifest="releases/manifests/release-train.${label}.manifest.json"
+          for wave in dev canary; do
+            python3 tools/apply_wave_promotion.py \
+              --manifest "$manifest" --component search-orchestrator \
+              --deployment search-orchestrator --container search-orchestrator \
+              --kind Deployment \
+              --output "infra/k8s/search-orchestrator/overlays/promote/${wave}/image-patch.yaml"
+          done
+          python3 tools/apply_wave_promotion.py \
+            --manifest "$manifest" --component search-orchestrator \
+            --deployment search-orchestrator --container search-orchestrator \
+            --kind Rollout \
+            --output "infra/k8s/search-orchestrator/overlays/promote/prod/image-patch.yaml"
+          echo "manifest=$manifest" >> "$GITHUB_OUTPUT"
+          echo "propagated the pinned digest into dev/canary/prod overlays + $manifest"
+
       - name: Validate image release artifacts
         run: |
           python3 tools/validate_search_orchestrator_image_release.py
@@ -120,4 +158,7 @@ jobs:
       - name: Open the pinning pull request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Carry the re-frozen manifest (date-labelled filename) into the pin commit
+          # alongside the static lock/policy/promote paths.
+          PIN_EXTRA_PATHS: ${{ steps.propagate.outputs.manifest }}
         run: scripts/ci/open-image-pin-pr.sh

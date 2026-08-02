@@ -27,8 +27,10 @@
 #
 # BEHAVIOUR (matching what the action did, minus the third party)
 # ---------------------------------------------------------------
-#   * Commits ONLY the two pin paths — the action's `add-paths`. The evidence
-#     artifact downloaded into image-evidence/ never enters the commit.
+#   * Commits ONLY the pin paths — the lock, the policy patch, the three promote
+#     overlays (dev/canary/prod) and the re-frozen manifest (PIN_EXTRA_PATHS). The
+#     evidence artifact downloaded into image-evidence/ never enters the commit.
+#     Absent paths are filtered out, so this stays the `add-paths` guarantee.
 #   * No digest change is the normal case, and is a silent success, not a failure.
 #   * The automation branch is reused and reset, so repeated builds refresh one
 #     pull request instead of opening a pile of them.
@@ -61,22 +63,49 @@ DIAGNOSTICS_WORKFLOW="${PIN_PR_DIAGNOSTICS_WORKFLOW:-validate-target-diagnostics
 # Overridable so the self-test does not spend 20 real seconds proving the retry.
 RETRY_SLEEP="${PIN_PR_RETRY_SLEEP:-10}"
 
+# The pin no longer stops at the lock + policy patch. A pin that updated ONLY those
+# left the PROMOTE overlays (dev/canary/prod) carrying the previous digest — the exact
+# divergence behind the wave-deploy incident (lock/policy on one digest, promote overlays
+# on the never-pushed sha256:bbfea6e4…). So the pin propagates the new digest all the way
+# into the promote overlays too (the workflow re-freezes the manifest and re-renders them
+# before calling this script), and PIN_EXTRA_PATHS carries the re-frozen manifest. Paths
+# that do not exist (or did not change) are filtered out below, so a repo without the
+# promote overlays present still pins cleanly.
 PIN_PATHS=(
   "releases/images/search-orchestrator.image-lock.json"
   "infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml"
+  "infra/k8s/search-orchestrator/overlays/promote/dev/image-patch.yaml"
+  "infra/k8s/search-orchestrator/overlays/promote/canary/image-patch.yaml"
+  "infra/k8s/search-orchestrator/overlays/promote/prod/image-patch.yaml"
 )
+# The re-frozen release-train manifest has a date-labelled filename, so the workflow passes
+# it (space-separated) via PIN_EXTRA_PATHS rather than hard-coding a name here.
+read -r -a _extra_paths <<<"${PIN_EXTRA_PATHS:-}"
+[ "${#_extra_paths[@]}" -gt 0 ] && PIN_PATHS+=("${_extra_paths[@]}")
+
+# Only stage paths that actually exist in the tree — the promote overlays / manifest are
+# absent in the unit-test repo and in first-bootstrap runs, and `git add` of a missing
+# pathspec errors under `set -e`. Filter once, use the filtered set for status AND add.
+present_paths=()
+for p in "${PIN_PATHS[@]}"; do
+  [ -n "$p" ] && [ -e "$p" ] && present_paths+=("$p")
+done
+if [ "${#present_paths[@]}" -eq 0 ]; then
+  echo "no pin paths present in the tree; nothing to open"
+  exit 0
+fi
 
 # ── Nothing to pin ───────────────────────────────────────────────────────────
 # The digest already matches. This is the common outcome for a rebuild of an
 # unchanged tree, and it must not look like a failure.
-if [ -z "$(git status --porcelain -- "${PIN_PATHS[@]}")" ]; then
-  echo "no digest change: the lock and the Kustomize patch already match this build"
+if [ -z "$(git status --porcelain -- "${present_paths[@]}")" ]; then
+  echo "no digest change: the lock, the policy patch and the promote overlays already match this build"
   echo "nothing to open"
   exit 0
 fi
 
 echo "digest change detected in:"
-git status --porcelain -- "${PIN_PATHS[@]}" | sed 's/^/  /'
+git status --porcelain -- "${present_paths[@]}" | sed 's/^/  /'
 
 # ── Commit, on a reset automation branch ─────────────────────────────────────
 git config user.name "search-orchestrator-image-pin"
@@ -85,7 +114,7 @@ git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git checkout -b "$BRANCH"
 # Explicit pathspec, never `git commit -a`: image-evidence/ and anything else the
 # job leaves in the tree stays out. This is the `add-paths` guarantee.
-git add -- "${PIN_PATHS[@]}"
+git add -- "${present_paths[@]}"
 git commit -m "$TITLE"
 
 # --force: this is a reusable automation ref that may still hold a now-stale
@@ -112,9 +141,16 @@ workflow run.
 
 ## Scope
 
-- Updates `releases/images/search-orchestrator.image-lock.json`
-- Updates the digest-pinned Kustomize image patch
+- Updates `releases/images/search-orchestrator.image-lock.json` (GAR digest)
+- Updates the policy digest-pinned Kustomize image patch
+- Propagates the SAME digest into the promote overlays (dev/canary/prod) and the
+  re-frozen release-train manifest, so no wave is left on a stale digest
 - Keeps the example lock unchanged
+
+The promote overlays are still gated at apply: the wave-promote / release-train
+INV-DEP-6 digest-exists gate fails closed if this digest is not really in GAR, and
+ArgoCD only syncs the committed overlay under the gated apply. Writing the desired
+state here does not bypass those gates — it stops the overlays diverging from the lock.
 
 ## Safety posture
 

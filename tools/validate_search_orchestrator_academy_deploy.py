@@ -45,7 +45,9 @@ REQUIRED_TEXT = {
     ],
     ".github/workflows/search-orchestrator-image.yml": [
         "docker/build-push-action",
-        "ghcr.io/socioprophet/prophet-platform/search-orchestrator",
+        # GAR, not ghcr — the estate's real GKE registry (WIF-authed).
+        "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator",
+        "google-github-actions/auth",
         "steps.build.outputs.digest",
         "search-orchestrator-image-evidence",
     ],

@@ -53,7 +53,7 @@ spec:
       containers:
         - name: search-orchestrator
           # OVERWRITTEN by image-patch.yaml with the frozen digest — do not hand-edit.
-          image: ghcr.io/socioprophet/prophet-platform/search-orchestrator:PLACEHOLDER
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator:PLACEHOLDER
           imagePullPolicy: IfNotPresent
           command: ["uvicorn"]
           args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]
