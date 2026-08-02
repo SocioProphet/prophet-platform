@@ -586,3 +586,11 @@ validate-isota-tournament:
 # the validate-target-diagnostics matrix so it rides the repo's required gate.
 canary-slo-gate-check:
 	python3 tools/check_canary_slo_gate.py
+
+.PHONY: fips-conformance-check
+# FIPS algorithm conformance in the declared crypto boundary (security/fips-boundary.yaml):
+# no non-FIPS algorithm (BLAKE2/3, MD5, SHA-1) may be called inside the boundary, and a
+# deployment that declares require_fips_validated_crypto: true must have this gate wired —
+# turning a flag nothing read into an enforced control. tools/check_fips_conformance.py.
+fips-conformance-check:
+	python3 tools/check_fips_conformance.py

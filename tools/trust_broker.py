@@ -7,7 +7,7 @@ catalogs — the TUF-style delegation threshold. Every verification is recorded 
 an append-only transparency log.
 
 Signature verification is pluggable. The lab default (D16: trusted-lab stance)
-implements a real keyed MAC (`hmac-blake2b`, stdlib only — no heavy deps).
+implements a real keyed MAC (`hmac-sha256`, stdlib only — no heavy deps; FIPS-approved).
 Asymmetric algorithms (ed25519 / ecdsa-p256 / sigstore-keyless) require keys and
 infrastructure; in the lab they report `verifier_unavailable` rather than
 pretending to verify. Swap in a production verifier behind the same interface.
@@ -59,8 +59,8 @@ class KeyRegistry:
 
 
 def mac_sign(payload: bytes, secret: bytes) -> str:
-    """Lab signature: keyed blake2b MAC, hex."""
-    return hashlib.blake2b(payload, key=secret).hexdigest()
+    """Lab signature: keyed HMAC-SHA256 MAC, hex (FIPS 198-1 + SHA-256 FIPS 180-4)."""
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
 
 
 # Algorithms with a real (production) verifier interface, pending keys/infra.
@@ -94,7 +94,7 @@ def verify_signature(sig_block: dict[str, Any], payload: bytes, registry: KeyReg
     # signer must be hashable/str (registry lookup), and sig/signed_at present strings.
     if not isinstance(signer, str) or not isinstance(sig, str) or not sig or not isinstance(signed_at, str):
         return False, "malformed_signature"
-    if algo == "hmac-blake2b":
+    if algo == "hmac-sha256":
         key = registry.get(signer)
         if key is None:
             return False, "unknown_signer"

@@ -23,7 +23,7 @@
         "required": ["signer", "algorithm", "signature", "signed_at"],
         "properties": {
           "signer": { "type": "string" },
-          "algorithm": { "enum": ["ed25519", "ecdsa-p256", "sigstore-keyless", "hmac-blake2b"] },
+          "algorithm": { "enum": ["ed25519", "ecdsa-p256", "sigstore-keyless", "hmac-sha256"] },
           "signature": { "type": "string" },
           "cert_ref": { "type": "string" },
           "signed_at": { "type": "string" }

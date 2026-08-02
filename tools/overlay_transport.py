@@ -34,7 +34,7 @@ def _try_parse(ts: object) -> Optional[datetime]:
 
 
 def _entry_hash(prev_hash: str, writer: str, seq: int, clock: int, data: str) -> str:
-    h = hashlib.blake2b(digest_size=32)
+    h = hashlib.sha256()  # FIPS 180-4 (was BLAKE2b — not FIPS-approved); both emit 32 bytes
     h.update(f"{prev_hash}|{writer}|{seq}|{clock}|".encode("utf-8"))
     h.update(data.encode("utf-8"))
     return h.hexdigest()

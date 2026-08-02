@@ -18,13 +18,13 @@ schemas frozen in Phase 1.
 ## Pluggable, staged crypto (D16)
 
 Signature verification is an interface. The **lab default** implements a real
-keyed MAC — `hmac-blake2b`, stdlib only, no heavy dependency — so trust is
+keyed MAC — `hmac-sha256`, stdlib only, no heavy dependency — so trust is
 genuinely enforced in the trusted-lab stance. **Asymmetric** algorithms
 (`ed25519`, `ecdsa-p256`, `sigstore-keyless`) require production keys/infra and
 report `verifier_unavailable` rather than pretending to verify. Swap in a
 production verifier behind the same interface for the hardened stance.
 
-`hmac-blake2b` was added to the three manifest algorithm enums as a deliberate,
+`hmac-sha256` was added to the three manifest algorithm enums as a deliberate,
 additive extension (existing values unchanged).
 
 ## Relationship to the capability broker (Phase 2)
