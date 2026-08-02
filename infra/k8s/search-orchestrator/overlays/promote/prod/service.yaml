@@ -1,0 +1,28 @@
+# BLUE (active) and GREEN (preview) Services the blueGreen Rollout flips between at cutover.
+# Argo Rollouts owns the selectors (it stamps the rollouts-pod-template-hash), so these carry
+# only the app selector; the controller adds the hash that pins each Service to blue or green.
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-orchestrator
+spec:
+  selector:
+    app: search-orchestrator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-orchestrator-preview
+spec:
+  selector:
+    app: search-orchestrator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP

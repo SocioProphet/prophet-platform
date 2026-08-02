@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# WAVE 3 (prod) of the build-once-promote-many release train — BLUE-GREEN cutover.
+# Self-contained (a Rollout, not the base Deployment) because the production cutover uses
+# Argo Rollouts blueGreen + the shared slo-gate AnalysisTemplate. Same frozen digest as
+# dev/canary (INV-DEP-2); the image-patch below injects it (INV-DEP-1, digest-pinned).
+# Highest sync-wave — prod syncs last, after canary is Healthy (INV-DEP-3).
+namespace: prophet-platform-prod
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "22"
+  socioprophet.io/release-wave: prod
+resources:
+  - rollout.yaml
+  - service.yaml
+patches:
+  # Strategic-merge the frozen digest onto the Rollout (kind: Rollout, name/container match).
+  - path: image-patch.yaml
