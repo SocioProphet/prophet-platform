@@ -1,0 +1,93 @@
+name: board-parity
+
+# Fail-closed parity between the program boards' source of truth
+# (sociosphere registry/board-spec.yaml) and GitHub Projects.
+#
+#   schedule        -> DRILL: assert GitHub matches the spec; red on drift.
+#   workflow_dispatch -> DRILL (default) or RECONCILE (converge GitHub to spec).
+#
+# Governed by git-ops-standards controls this estate just adopted:
+#   * ops-workflows-run-from-default-branch — this operational workflow runs
+#     from the default branch (GitHub only fires `schedule` from the default
+#     branch), never a feature ref.
+#   * ci-secrets-minted-never-static-pat — auth is a MINTED GitHub App
+#     installation token (actions/create-github-app-token), never a static
+#     PAT. A minted App token is single-org, so the MVP scopes to the App's
+#     org (SocioProphet, where all but one board item live); extending to
+#     SourceOS-Linux / SociOS-Linux = install the App there and drop --owner.
+#
+# No-op (green) until the org App is configured, exactly like estate-ci-health.
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # daily drill
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "drill (assert only) or reconcile (converge GitHub to spec)"
+        type: choice
+        options: [drill, reconcile]
+        default: drill
+
+permissions:
+  contents: read
+
+concurrency:
+  group: board-parity
+  cancel-in-progress: false
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint org App token (never a static PAT)
+        id: app-token
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.GH_OPS_APP_ID }}
+          private-key: ${{ secrets.GH_OPS_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Skip until the App is configured
+        if: ${{ vars.GH_OPS_APP_CONFIGURED != 'true' }}
+        run: |
+          echo "GH_OPS_APP_CONFIGURED != true — board-parity needs a minted App token"
+          echo "(App must have org Projects write). Skipping (green, not a failure)."
+
+      - uses: actions/checkout@v4
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+
+      - name: Fetch board-spec.yaml (source of truth) from sociosphere
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sociosphere
+          path: _sociosphere
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: actions/setup-python@v5
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        with:
+          python-version: "3.12"
+      - if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        run: pip install pyyaml
+
+      - name: Prove the drill fires both ways
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        run: python3 tools/tests/test_board_parity_drill.py
+
+      - name: Run parity (drill by default; reconcile on dispatch)
+        if: ${{ vars.GH_OPS_APP_CONFIGURED == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SPEC: _sociosphere/registry/board-spec.yaml
+          OWNER: ${{ github.repository_owner }}
+          MODE: ${{ github.event.inputs.mode || 'drill' }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "reconcile" ]; then
+            python3 tools/reconcile_program_boards.py --spec "$SPEC" --owner "$OWNER"
+          fi
+          # Always finish with the fail-closed drill (also the post-reconcile assertion).
+          python3 tools/board_parity_drill.py --spec "$SPEC" --owner "$OWNER"
