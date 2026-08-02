@@ -9,6 +9,7 @@ the walking skeleton of "any compute, one contract".
 from __future__ import annotations
 
 import os
+import secrets
 from typing import Any, Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -22,11 +23,33 @@ app = FastAPI(title="compute-gateway", version="0.1.0")
 
 GATEWAY_TOKEN = os.getenv("GATEWAY_TOKEN", "")
 
+# The one app scope served without a token. Anything else is a SELECTOR, and a selector
+# that needs no credential is an enumeration primitive — see config_snapshot().
+DEFAULT_APP = "noetica"
+
+
+def _bearer(authorization: str) -> str:
+    """The presented credential, or "" if this is not a well-formed Bearer header.
+
+    RFC 7235 makes the auth scheme case-insensitive, so `bearer x` is as valid as
+    `Bearer x`; `removeprefix("Bearer ")` matched one casing and silently treated the
+    whole header as the token for every other input. Returning "" for a malformed
+    header keeps the "no credential" and "wrong credential" paths identical.
+
+    Split on any run of whitespace rather than a literal space: RFC 7235 spells the
+    separator `1*SP`, so HTAB is not strictly conformant, but rejecting `Bearer<TAB>token`
+    buys no safety and costs a confusing 401.
+    """
+    parts = authorization.strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return ""
+    return parts[1].strip()
+
 
 def require_token(authorization: str = Header(default="")) -> None:
     if not GATEWAY_TOKEN:
         raise HTTPException(status_code=503, detail="gateway token not configured (fail-closed)")
-    if authorization.removeprefix("Bearer ").strip() != GATEWAY_TOKEN:
+    if not secrets.compare_digest(_bearer(authorization), GATEWAY_TOKEN):
         raise HTTPException(status_code=401, detail="unauthorized")
 
 
@@ -318,19 +341,33 @@ class ConfigSetBody(BaseModel):
 
 
 @app.get("/v1/config")
-def config_snapshot(app: str = "noetica", model: str | None = None,
+def config_snapshot(app: str = DEFAULT_APP, model: str | None = None,
                     org: str | None = None,
                     authorization: str = Header(default="")) -> dict:
     """The flag snapshot a client caches.
 
     The DEFAULT scope is deliberately unauthenticated: a client that cannot reach the plane
     falls back to its last cached snapshot, so gating the common read would only deepen an
-    outage. But org/model SELECTORS are a different matter — leaving them open let any
-    caller enumerate other tenants' snapshots by guessing identifiers (raised in review), so
-    a scoped read requires the token. Open where openness helps, closed where it leaks.
+    outage. But a SELECTOR is a different matter — leaving one open lets any caller
+    enumerate other tenants' snapshots by guessing identifiers, so a scoped read requires
+    the token. Open where openness helps, closed where it leaks.
+
+    `app` is a selector too. The first pass at this gated `model`/`org` and left `app`
+    open, which still allowed enumerating every other app's snapshot by guessing the
+    name — `scope_key(app, ...)` proves the scope is real. All three are gated now.
+
+    And the gate is require_token, not a second hand-rolled comparison. The local copy
+    fail-OPEN when GATEWAY_TOKEN was unset (`"" != ""` is False, so an absent header
+    authenticated against an unconfigured service) — the exact inverse of the 503 every
+    other route answers. One parsing path, one failure mode.
+
+    The test is `is not None`, not truthiness: `?model=` arrives as "", which is falsy.
+    Today that collapses to the default scope anyway (scope_key does `model or "*"`), so
+    it discloses nothing — but the gate would be relying on a falsiness convention in a
+    different module to stay closed. Gate on presence and the two stay independent.
     """
-    if (model or org) and authorization.removeprefix("Bearer ").strip() != GATEWAY_TOKEN:
-        raise HTTPException(status_code=401, detail="scoped config reads require a token")
+    if model is not None or org is not None or app != DEFAULT_APP:
+        require_token(authorization)
     return config_plane.get_snapshot(app=app, model=model, org=org)
 
 

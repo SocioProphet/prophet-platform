@@ -113,6 +113,62 @@ def test_scoped_reads_require_a_token_so_tenants_cannot_be_enumerated():
         assert client.get("/v1/config", params={"model": "qwen2.5:7b"}).status_code == 401
 
 
+def test_the_app_selector_is_gated_too():
+    """The org/model half of this was fixed and `app` was left open, which still allowed
+    enumerating any other app's snapshot by guessing the name (Copilot #1029, :292/:303)."""
+    # Literal, not server.DEFAULT_APP: this must fail on the RESPONSE when the gate is
+    # reverted, not on a missing attribute.
+    with durable():
+        assert client.get("/v1/config", params={"app": "noetica"}).status_code == 200, \
+            "the default app is the open scope"
+        assert client.get("/v1/config", params={"app": "someone-elses-app"}).status_code == 401
+        assert client.get("/v1/config", params={"app": "someone-elses-app"},
+                          headers=AUTH).status_code == 200, "a token still reads any scope"
+
+
+def test_a_scoped_read_fails_closed_when_no_token_is_configured():
+    """The hand-rolled check compared against GATEWAY_TOKEN directly, so an UNCONFIGURED
+    gateway ("" != "" is False) authenticated an anonymous scoped read — fail-open, the
+    inverse of the 503 every require_token route answers."""
+    with durable():
+        prev = server.GATEWAY_TOKEN
+        server.GATEWAY_TOKEN = ""
+        try:
+            r = client.get("/v1/config", params={"org": "someone-else"})
+            assert r.status_code == 503, f"unconfigured gateway must refuse, got {r.status_code}"
+        finally:
+            server.GATEWAY_TOKEN = prev
+
+
+def test_the_bearer_scheme_is_matched_case_insensitively():
+    """RFC 7235 makes the scheme case-insensitive; removeprefix("Bearer ") matched exactly
+    one casing and fed the whole header through as the token for every other input."""
+    with durable():
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "bearer t"}).status_code == 200
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "BEARER t"}).status_code == 200
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "Basic t"}).status_code == 401, \
+            "a non-Bearer scheme is not a credential"
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "t"}).status_code == 401, \
+            "a raw token with no scheme is not a credential — removeprefix() accepted this"
+        assert client.get("/v1/config", params={"org": "kyroga"},
+                          headers={"Authorization": "Bearer\tt"}).status_code == 200, \
+            "HTAB between scheme and credential is tolerated, not a confusing 401"
+
+
+def test_an_empty_selector_is_still_a_selector():
+    """`?model=` arrives as "" and is falsy. It collapses to the default scope today, so
+    nothing leaks — but gating on truthiness would make this endpoint's security depend on
+    a falsiness convention in config_plane. Gate on presence instead (Copilot on #1085)."""
+    with durable():
+        assert client.get("/v1/config", params={"model": ""}).status_code == 401
+        assert client.get("/v1/config", params={"org": ""}).status_code == 401
+        assert client.get("/v1/config", params={"model": ""}, headers=AUTH).status_code == 200
+
+
 def test_a_model_kill_switch_must_be_a_real_boolean():
     """bool("false") is True — coercing a string here could flip a switch the wrong way."""
     with durable():
