@@ -13,4 +13,17 @@ config:
   QDRANT_COLLECTION: "sherlock-corpus"
   EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
+  # KMASS baseline (2026-08-01) found the tantivy index was create_in_ram over a static
+  # in-image fixture with no ingest path -- corpus resets to the same 12 docs on every
+  # restart. This is the persistent doc store: seeded once from the fixture on first boot,
+  # then grown via POST /ingest and reloaded from here on every subsequent boot.
+  SHERLOCK_DATA_DIR: "/data"
 autoscaling: { enabled: false }
+replicaCount: 1
+# JSONL doc store is a single-writer file; same reasoning as compute-gateway's SQLite store
+# (see that values file) — RollingUpdate with maxSurge 0 behaves like Recreate for one
+# replica (old pod releases the RWO PD before the new one claims it) without the
+# apply-time "rollingUpdate may not be specified when type is Recreate" conflict on an
+# existing Deployment.
+strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
+persistence: { enabled: true, storageClass: dynamic-rwo, size: 2Gi, mountPath: /data }

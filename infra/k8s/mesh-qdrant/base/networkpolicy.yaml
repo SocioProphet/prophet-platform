@@ -3,9 +3,13 @@ kind: NetworkPolicy
 metadata:
   name: mesh-qdrant-baseline
 spec:
+  # Must match the StatefulSet's actual pod template label (statefulset.yaml sets
+  # `app: mesh-qdrant`, not `app.kubernetes.io/name`) -- caught before first deploy:
+  # a selector matching zero pods would have left this StatefulSet with no effective
+  # ingress/egress restriction at all while looking, on read, like a locked-down policy.
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: mesh-qdrant
+      app: mesh-qdrant
   policyTypes:
     - Ingress
     - Egress

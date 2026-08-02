@@ -4,16 +4,26 @@
 //   fusion:  Reciprocal Rank Fusion (RRF) of the two ranked lists
 // Dense tier is OPTIONAL: if EMBEDDINGS_URL / QDRANT_URL are unset or unreachable, it degrades to
 // BM25-only (never fails the query). Riding the shared mesh-qdrant — not a new vector store.
-use serde::Deserialize;
+//
+// Corpus durability (KMASS baseline 2026-08-01 found TAB.TEXT.SCALE=12 docs, a static
+// in-image fixture with no way to grow it): the tantivy index itself stays in-RAM and is
+// rebuilt on every boot -- fast at these scales, and it sidesteps a second store that could
+// drift from the doc list. What persists is the DOC LIST: if SHERLOCK_DATA_DIR is set (wired
+// to a PVC in deploy/values/sherlock-engine.yaml), documents live in an append-only JSONL file
+// there, seeded once from the static corpus on first boot, and grown via POST /ingest. Without
+// SHERLOCK_DATA_DIR set, behavior is unchanged from before this fix: static in-image corpus only.
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
+use std::io::Write as _;
+use std::path::PathBuf;
 use std::time::Duration;
 use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::{OwnedValue, Schema, FAST, STORED, STRING, TEXT};
 use tantivy::{doc, Index, TantivyDocument};
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Serialize, Clone)]
 struct Doc {
     id: String,
     title: String,
@@ -22,6 +32,74 @@ struct Doc {
     region: String,
     score: f64,
     body: String,
+}
+
+fn docs_store_path() -> Option<PathBuf> {
+    std::env::var("SHERLOCK_DATA_DIR")
+        .ok()
+        .filter(|d| !d.is_empty())
+        .map(|d| PathBuf::from(d).join("docs.jsonl"))
+}
+
+/// Loads the working doc set and, when SHERLOCK_DATA_DIR is configured, the path an
+/// ingested document must be appended to for it to survive a restart. On first boot
+/// against an empty/absent store, seeds it from the static corpus so the persistent
+/// copy becomes the source of truth going forward -- the image's corpus file is only
+/// ever read once per volume's lifetime.
+fn load_docs(corpus_path: &str) -> (Vec<Doc>, Option<PathBuf>) {
+    let seed = || -> Vec<Doc> {
+        let data = std::fs::read_to_string(corpus_path).expect("read corpus");
+        serde_json::from_str(&data).expect("parse corpus")
+    };
+
+    let Some(store_path) = docs_store_path() else {
+        return (seed(), None);
+    };
+
+    if let Ok(data) = std::fs::read_to_string(&store_path) {
+        let docs: Vec<Doc> = data
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .filter_map(|l| serde_json::from_str(l).ok())
+            .collect();
+        if !docs.is_empty() {
+            eprintln!("loaded {} doc(s) from persistent store {store_path:?}", docs.len());
+            return (docs, Some(store_path));
+        }
+    }
+
+    let docs = seed();
+    if let Some(parent) = store_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    // Copilot review on #1207: the previous version returned Some(store_path)
+    // regardless of whether this write actually succeeded, so /healthz could
+    // report persistent:true for a corpus that would NOT survive a restart --
+    // exactly the claimed-durability-that-isn't-real bug this fix exists to
+    // stop. Track every fallible step (create, and each line write) and only
+    // report a persistent store if the whole bootstrap actually landed on disk.
+    let bootstrap_ok = (|| -> std::io::Result<()> {
+        let mut f = std::fs::File::create(&store_path)?;
+        for d in &docs {
+            writeln!(f, "{}", serde_json::to_string(d).unwrap())?;
+        }
+        Ok(())
+    })();
+    match bootstrap_ok {
+        Ok(()) => {
+            eprintln!("bootstrapped {} seed doc(s) into persistent store {store_path:?}", docs.len());
+            (docs, Some(store_path))
+        }
+        Err(e) => {
+            eprintln!("WARN: could not bootstrap persistent store {store_path:?}: {e} -- corpus will not survive a restart");
+            (docs, None)
+        }
+    }
+}
+
+fn append_doc(store_path: &PathBuf, d: &Doc) -> std::io::Result<()> {
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(store_path)?;
+    writeln!(f, "{}", serde_json::to_string(d).unwrap())
 }
 
 fn qparam(url: &str, key: &str) -> Option<String> {
@@ -126,8 +204,7 @@ fn main() {
 
     let corpus_path =
         std::env::var("SHERLOCK_CORPUS").unwrap_or_else(|_| "corpus/frontier-labs.json".into());
-    let data = std::fs::read_to_string(&corpus_path).expect("read corpus");
-    let docs: Vec<Doc> = serde_json::from_str(&data).expect("parse corpus");
+    let (mut docs, store_path) = load_docs(&corpus_path);
     for (i, d) in docs.iter().enumerate() {
         writer
             .add_document(doc!(
@@ -186,9 +263,11 @@ fn main() {
         }
     }
 
-    let facet = |key: &dyn Fn(&Doc) -> String| -> BTreeMap<String, usize> {
+    // Takes docs explicitly rather than capturing it, so ingest (below) can mutably
+    // borrow docs to push a new document without fighting a live capture of it here.
+    let facet = |docs: &[Doc], key: &dyn Fn(&Doc) -> String| -> BTreeMap<String, usize> {
         let mut m: BTreeMap<String, usize> = BTreeMap::new();
-        for d in &docs {
+        for d in docs {
             *m.entry(key(d)).or_insert(0) += 1;
         }
         m
@@ -201,18 +280,60 @@ fn main() {
     let server = tiny_http::Server::http(format!("0.0.0.0:{}", port)).unwrap();
     eprintln!("sherlock-engine on :{} — {} docs, mode={}", port, docs.len(), if dense { "hybrid (tantivy+qdrant/RRF)" } else { "tantivy BM25" });
 
-    for request in server.incoming_requests() {
+    for mut request in server.incoming_requests() {
         let url = request.url().to_string();
-        let path = url.split('?').next().unwrap_or("/");
+        let path = url.split('?').next().unwrap_or("/").to_string();
+        let method = request.method().clone();
         let body_str: String = if path == "/healthz" {
-            json!({"ok": true, "service": "sherlock-engine", "engine": "tantivy", "dense": dense, "docs": docs.len()}).to_string()
+            json!({"ok": true, "service": "sherlock-engine", "engine": "tantivy", "dense": dense, "docs": docs.len(), "persistent": store_path.is_some()}).to_string()
         } else if path == "/facets" {
             json!({
-                "doctype": serde_json::to_value(facet(&|d| d.doctype.clone())).unwrap(),
-                "category": serde_json::to_value(facet(&|d| d.category.clone())).unwrap(),
-                "region": serde_json::to_value(facet(&|d| d.region.clone())).unwrap()
+                "doctype": serde_json::to_value(facet(&docs, &|d| d.doctype.clone())).unwrap(),
+                "category": serde_json::to_value(facet(&docs, &|d| d.category.clone())).unwrap(),
+                "region": serde_json::to_value(facet(&docs, &|d| d.region.clone())).unwrap()
             })
             .to_string()
+        } else if path == "/ingest" && method == tiny_http::Method::Post {
+            let mut raw_body = String::new();
+            let read_ok = request.as_reader().read_to_string(&mut raw_body).is_ok();
+            if !read_ok {
+                json!({"ok": false, "error": "could not read request body"}).to_string()
+            } else {
+                match serde_json::from_str::<Doc>(&raw_body) {
+                    Err(e) => json!({"ok": false, "error": format!("invalid document: {e}")}).to_string(),
+                    Ok(d) => {
+                        let idx = docs.len();
+                        // Persist first: if this fails, the doc must not become searchable
+                        // and silently vanish on the next restart (fail closed, not quiet).
+                        // Named doc_persisted, not persisted/persistent, to stay unambiguous
+                        // next to /healthz's "persistent" (Copilot review on #1207): that one
+                        // reports whether the persistence subsystem is configured and working
+                        // at all; this one reports whether THIS document survived the write.
+                        let doc_persisted = match &store_path {
+                            Some(p) => match append_doc(p, &d) {
+                                Ok(()) => true,
+                                Err(e) => {
+                                    eprintln!("WARN: ingest not persisted: {e}");
+                                    false
+                                }
+                            },
+                            None => false, // no SHERLOCK_DATA_DIR configured -- in-memory only, by design
+                        };
+                        writer
+                            .add_document(doc!(
+                                f_id => d.id.clone(),
+                                f_idx => idx as u64,
+                                f_title => d.title.clone(),
+                                f_body => d.body.clone()
+                            ))
+                            .unwrap();
+                        writer.commit().unwrap();
+                        let _ = reader.reload();
+                        docs.push(d);
+                        json!({"ok": true, "idx": idx, "docs": docs.len(), "doc_persisted": doc_persisted}).to_string()
+                    }
+                }
+            }
         } else if path == "/search" {
             let raw = qparam(&url, "q").unwrap_or_default();
             let q = sanitize(&raw);

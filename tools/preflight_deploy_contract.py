@@ -96,6 +96,7 @@ NON_CHART_SERVICES = {
     "commons-search",  # open-chat commons aggregator, deploys from infra/k8s/commons-search (kustomize)
     "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
     "studio-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for lattice-studio (Studio BFF)
+    "mesh-qdrant",  # shared platform vector store, deploys from infra/k8s/mesh-qdrant (kustomize)
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere

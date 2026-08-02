@@ -14,4 +14,18 @@ config:
   # falls back to the hashing embedder — never mixes vector spaces. See infra/k8s/embeddings/base.
   EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
+  # KMASS baseline (2026-08-01): mesh-qdrant (infra/k8s/mesh-qdrant) existed but was never
+  # registered with ArgoCD, so this was always false against an unreachable URL. The code
+  # already gates cleanly on QDRANT_ENABLED and bool(QDRANT_URL) -- see main.py -- so this
+  # is config only, no app change needed.
+  QDRANT_ENABLED: "true"
+  QDRANT_URL: "http://mesh-qdrant.socioprophet.svc.cluster.local:6333"
+  QDRANT_COLLECTION: "memorymesh-recall"
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
+# MEMORYMESH_STORE_URI stays memory:// for now -- the primary resource/event store is a
+# SEPARATE gap from the vector-recall layer above. postgres_store.py already supports a
+# postgresql:// DSN, and a shared, already-running Postgres exists at deploy/datastores/postgres
+# (postgres-0, serves socbase auth/rest/workspace/eval-fabric) -- but pointing memoryd at it
+# needs a dedicated schema/database and a CI-minted credential Secret first (see this
+# estate's "secrets minted in CI, never typed by hand" rule), not just an env var flip.
+# Tracked as WO-KMASS-01.01b, deliberately not rushed in the same change as the Qdrant wiring.
