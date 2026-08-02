@@ -19,3 +19,8 @@ config:
 autoscaling: { enabled: false }
 replicaCount: 1
 persistence: { enabled: true, storageClass: dynamic-rwo, size: 1Gi, mountPath: /data }
+# Single-writer on a ReadWriteOnce PVC: the default RollingUpdate (maxSurge 25%)
+# can deadlock — the new pod is created before the old pod releases the RWO volume.
+# Recreate tears the old pod down first, per the chart's guidance for persistent
+# single-writer services.
+strategy: { type: Recreate }
