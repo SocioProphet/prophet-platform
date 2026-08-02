@@ -116,7 +116,7 @@ components:
     vulnerability_scan_required: false
     evaluation_record_required: true
     angel_required: conditional
-    notes: Safety boundary is explicit: no artifact fetching, host mutation, disk writes, kexec, or execution plans with execute=true.
+    notes: "Safety boundary is explicit: no artifact fetching, host mutation, disk writes, kexec, or execution plans with execute=true."
 
   - id: search_orchestrator
     name: Search Orchestrator
