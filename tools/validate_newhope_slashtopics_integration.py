@@ -12,7 +12,12 @@ Checks:
   (the platform's provenance invariant — replaces the cross-repo LICENSE check).
 - Slash Topics pack schema, MembraneDecision schema, and Model Selection policy
   hold their expected invariants.
-- The landed integration example fixtures validate against the mirrored schemas.
+- All 4 landed example fixtures parse as JSON; the 2 that bind to a MIRRORED
+  slash-topics schema (slash_topics_pack_min, membrane_decision_allow) are also
+  schema-validated against it. The other 2 (newhope_message_posted,
+  embedding_receipt_lsi) bind to New Hope schemas, imported by pinned manifest
+  only — not mirrored into this tree — so this gate parse-checks them and stops
+  there; it does not claim to schema-validate all 4.
 
 Exit non-zero on any violation.
 """
@@ -25,7 +30,7 @@ from pathlib import Path
 
 import yaml
 from jsonschema import Draft202012Validator
-from jsonschema.exceptions import ValidationError
+from jsonschema.exceptions import SchemaError, ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 SLASH = ROOT / "contracts" / "imported" / "slash-topics"
@@ -65,6 +70,24 @@ def assert_no_junk() -> None:
     ok("No .DS_Store/__MACOSX junk under landed paths")
 
 
+def confine(base: Path, rel: str, *, allow_absolute: bool = False) -> Path:
+    """Resolve `rel` under `base` and REFUSE if the result escapes `base`.
+
+    Pure and side-effect-free (raises ValueError, never exits) so it can be tested in
+    isolation from the full ROOT tree. Two escape shapes are closed:
+      - `rel` is absolute: pathlib's `/` operator DISCARDS `base` entirely when the
+        right-hand side is absolute (`Path("/a") / "/etc/passwd" == Path("/etc/passwd")`),
+        so an absolute `rel` would otherwise resolve wherever it points, silently.
+      - `rel` contains `..` segments that walk back out of `base` after `.resolve()`.
+    """
+    if not allow_absolute and Path(rel).is_absolute():
+        raise ValueError(f"expected a path relative to {base}, got an absolute path: {rel}")
+    resolved = (base / rel).resolve()
+    if resolved != base and base not in resolved.parents:
+        raise ValueError(f"{rel!r} resolves outside {base}: {resolved}")
+    return resolved
+
+
 def assert_import_provenance() -> None:
     try:
         manifest = yaml.safe_load(IMPORT_MANIFEST.read_text(encoding="utf-8"))
@@ -72,6 +95,11 @@ def assert_import_provenance() -> None:
         fail(f"Required file missing: {IMPORT_MANIFEST.relative_to(ROOT)}")
     except yaml.YAMLError as e:
         fail(f"Could not parse {IMPORT_MANIFEST.relative_to(ROOT)}: {e}")
+    except (OSError, UnicodeDecodeError) as e:
+        # FileNotFoundError/YAMLError above are the expected shapes; a PermissionError,
+        # a directory-where-a-file-is-expected, or a bad-encoding manifest must still
+        # produce this tool's own [FAIL], never an uncaught traceback bypassing it.
+        fail(f"Could not read {IMPORT_MANIFEST.relative_to(ROOT)}: {e}")
     if not isinstance(manifest, dict) or not isinstance(manifest.get("imports"), list):
         fail("IMPORT_MANIFEST malformed: expected a mapping with an 'imports' list")
     by_repo = {i.get("repo"): i for i in manifest["imports"] if isinstance(i, dict)}
@@ -83,13 +111,26 @@ def assert_import_provenance() -> None:
             fail(f"IMPORT_MANIFEST entry for {repo} has no pin (provenance required)")
     ok("IMPORT_MANIFEST declares new-hope + slash-topics, both pinned")
 
-    # Enforce slash-topics required_objects: each must resolve under its local_path.
+    # Enforce slash-topics required_objects: each must resolve under its local_path,
+    # and local_path itself must resolve under ROOT. Both values come from a file this
+    # PR itself lands (IMPORT_MANIFEST.yaml), so a malicious or malformed entry — an
+    # absolute local_path (which pathlib's `/` operator lets silently DISCARD ROOT
+    # entirely), or a `../`-laden required_object — must not let the check "pass" by
+    # probing or reading a path outside the mirror directory. Confine both, fail-closed.
     st = by_repo["SocioProphet/slash-topics"]
-    local_path = ROOT / st.get("local_path", "contracts/imported/slash-topics/")
+    raw_local_path = st.get("local_path", "contracts/imported/slash-topics/")
+    try:
+        local_path = confine(ROOT, raw_local_path)
+    except ValueError as e:
+        fail(f"slash-topics local_path is unsafe: {e}")
     for obj in st.get("required_objects", []):
-        if not (local_path / obj).is_file():
-            fail(f"slash-topics required_object not mirrored: {(local_path / obj)}")
-    ok("slash-topics required_objects all resolve under local_path")
+        try:
+            resolved = confine(local_path, obj)
+        except ValueError as e:
+            fail(f"slash-topics required_object is unsafe: {e}")
+        if not resolved.is_file():
+            fail(f"slash-topics required_object not mirrored: {resolved.relative_to(ROOT)}")
+    ok("slash-topics required_objects all resolve under local_path (confined to ROOT)")
 
 
 def assert_schema_invariants() -> None:
@@ -120,7 +161,15 @@ def assert_schema_invariants() -> None:
 
 def _schema_validate(instance: dict, schema: dict, label: str) -> None:
     try:
-        Draft202012Validator(schema).validate(instance)
+        validator = Draft202012Validator(schema)
+    except SchemaError as e:
+        # The SCHEMA itself is malformed (not the instance under test) — a mirrored
+        # spec that fails to compile is exactly the kind of drift this gate exists to
+        # catch, so it must produce [FAIL], not an uncaught constructor exception.
+        fail(f"{label}'s schema is invalid Draft 2020-12: {e.message}")
+        return
+    try:
+        validator.validate(instance)
     except ValidationError as e:
         loc = "/".join(str(p) for p in e.absolute_path) or "<root>"
         fail(f"{label} failed schema validation at {loc}: {e.message}")
