@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 import sys
 
 try:
@@ -87,6 +88,63 @@ def require_set_contains(values: object, required: set[str], label: str) -> int:
     return 0
 
 
+# Estate refs are written `<org>/<repo>:<path>`. The org is matched against a
+# known set rather than any `<a>/<b>:` shape so that an unrecognised prefix
+# falls through to the LOCAL side, where it gets stat'd and fails loudly if it
+# is not there. The costly direction of a misclassification is the other one:
+# anything routed to the cross-repo side is skipped, and a wrongly-skipped ref
+# is precisely the unverified-declaration gap this check exists to close. If a
+# new estate org appears, adding it here is a deliberate act.
+ESTATE_ORGS = frozenset({"SocioProphet"})
+CROSS_REPO_REF = re.compile(r"^(?P<org>[A-Za-z0-9._-]+)/[A-Za-z0-9._-]+:.+$")
+
+
+def is_cross_repo_ref(ref: str) -> bool:
+    """True for refs that name another estate repo, e.g. `SocioProphet/x:path`.
+
+    Cross-repo refs point outside this checkout, so their target cannot be
+    stat'd from here -- see require_declared_paths_exist().
+    """
+    match = CROSS_REPO_REF.match(ref)
+    return match is not None and match.group("org") in ESTATE_ORGS
+
+
+def require_declared_paths_exist(required: set[str], label: str) -> int:
+    """Stat the in-repo evidence this manifest claims alignment against.
+
+    require_set_contains() only proves the manifest *lists* a path. Listing is
+    a declaration about the world; this function checks the world. Without it
+    the manifest can claim contract alignment against files that were deleted
+    or never existed, and the tool still prints its OK banner and exits 0.
+
+    Cross-repo refs (`SocioProphet/<repo>:<path>`) resolve into peer repos that
+    are not present in this checkout, so they CANNOT be verified here and are
+    skipped deliberately. The skip is printed rather than silent: an unreported
+    skip is how a declared-but-unverified ref creeps back in. Verifying those
+    belongs to the owning repo's own validator.
+    """
+    local_refs = sorted(r for r in required if not is_cross_repo_ref(r))
+    skipped = sorted(r for r in required if is_cross_repo_ref(r))
+
+    if skipped:
+        print(
+            f"SKIP: {label}: {len(skipped)} cross-repo ref(s) not stat-able from this "
+            f"checkout, not verified here: {skipped}"
+        )
+
+    missing = [ref for ref in local_refs if not (ROOT / ref).exists()]
+    if missing:
+        for ref in missing:
+            print(
+                f"ERR: {label} declares {ref!r} but that path does not exist in this repo",
+                file=sys.stderr,
+            )
+        return 1
+
+    print(f"OK: {label}: {len(local_refs)} in-repo evidence path(s) exist on disk")
+    return 0
+
+
 def main() -> int:
     if not MANIFEST.exists():
         return fail(f"missing {MANIFEST.relative_to(ROOT)}")
@@ -156,13 +214,26 @@ def main() -> int:
     bad += require_set_contains(owner_repos, {"SocioProphet/prophet-workspace"}, "workspaceOS.ownerRepos")
     bad += require_set_contains(workspace_os.get("contractPaths", []), REQUIRED_WORKSPACE_OS_CONTRACTS, "workspaceOS.contractPaths")
     bad += require_set_contains(workspace_os.get("controlRefs", []), REQUIRED_WORKSPACE_OS_CONTROLS, "workspaceOS.controlRefs")
+
+    # The two require_set_contains() calls above only prove the manifest LISTS
+    # these refs. Stat the in-repo ones so "contract-aligned" cannot be claimed
+    # against files that are no longer there. Driven off the same constants the
+    # listing checks use, so the two can never drift apart.
+    bad += require_declared_paths_exist(REQUIRED_WORKSPACE_OS_CONTRACTS, "workspaceOS.contractPaths")
+    bad += require_declared_paths_exist(REQUIRED_WORKSPACE_OS_CONTROLS, "workspaceOS.controlRefs")
     bad += require_set_contains(workspace_os.get("recoveredSubstrateRefs", []), REQUIRED_RECOVERED_REFS, "workspaceOS.recoveredSubstrateRefs")
 
     claim_boundary = data.get("claimBoundary", [])
     bad += require_set_contains(claim_boundary, set(CLAIM_BOUNDARY_REQUIREMENTS), "claimBoundary")
 
-    demo_required = data.get("demoAcceptance", {}).get("required") if isinstance(data.get("demoAcceptance"), dict) else None
-    if not expect_nonempty_list(demo_required, "demoAcceptance.required"):
+    # Route the shape check through expect_mapping() like every other field.
+    # The old inline ternary collapsed a non-mapping demoAcceptance to None and
+    # then blamed "demoAcceptance.required", naming a field that is not the
+    # problem. Same fail-closed outcome, correct diagnosis.
+    demo_acceptance = data.get("demoAcceptance")
+    if not expect_mapping(demo_acceptance, "demoAcceptance"):
+        bad += 1
+    elif not expect_nonempty_list(demo_acceptance.get("required"), "demoAcceptance.required"):
         bad += 1
 
     if bad:
