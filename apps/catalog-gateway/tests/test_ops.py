@@ -34,6 +34,16 @@ def _events(tmp_path) -> list[dict]:
     return [json.loads(p.read_text()) for p in sorted(ev.glob("*.event.json"))] if ev.exists() else []
 
 
+def test_emit_is_best_effort_on_nonserializable_record(monkeypatch, tmp_path):
+    # A non-JSON-serializable value (e.g. a set) must not raise into the caller —
+    # emit() returns None rather than breaking the read path it observes.
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    monkeypatch.setenv("CATALOG_OPS_CAPTURE", "true")
+    from app import ops
+    assert ops.emit("catalog.resolved.v0", {"kind": "asset", "bad": {1, 2, 3}}) is None
+    assert _events(tmp_path) == []
+
+
 def test_resolve_hit_is_captured(monkeypatch, tmp_path):
     _seed(monkeypatch, tmp_path)
     assert client.get("/v1/catalog/asset/asset-ops-001").status_code == 200

@@ -44,7 +44,10 @@ def _resolve_or_404(kind: str, entry_id: str) -> dict:
 def asset_dcat(entry_id: str) -> JSONResponse:
     entry = _resolve_or_404("asset", entry_id)
     doc = asset_to_dcat(entry)
-    ops.record_dcat_emitted(entry_id, doc.get("dct:accessRights", ""),
+    # Log the entry's OWN asset_id (what the DCAT doc is identified by), falling
+    # back to the request path — so the ops event can never disagree with the
+    # emitted document when the stored asset_id differs from the path.
+    ops.record_dcat_emitted(entry.get("asset_id") or entry_id, doc.get("dct:accessRights", ""),
                             distribution_class=entry.get("distribution_class"))
     return JSONResponse(content=doc, media_type="application/ld+json")
 

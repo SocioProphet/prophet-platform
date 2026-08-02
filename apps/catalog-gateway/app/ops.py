@@ -51,7 +51,10 @@ def emit(event_type: str, record: dict[str, Any]) -> str | None:
             json.dumps({"event_type": event_type, "event": record}, indent=2), encoding="utf-8"
         )
         return event_id
-    except OSError:
+    except (OSError, TypeError, ValueError):
+        # Best-effort: a filesystem error (OSError) OR a non-serializable record
+        # (json.dumps -> TypeError/ValueError, e.g. circular refs) must never
+        # break the read path this capture is observing.
         return None
 
 
