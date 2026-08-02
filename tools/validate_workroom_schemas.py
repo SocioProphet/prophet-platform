@@ -59,7 +59,22 @@ def fail(label: str, reason: str) -> None:
     results.append(False)
 
 
-for path in sorted(FIXTURES.glob("*.json")):
+# Minimum-count assertion. An empty glob is a FAILURE, not a pass: every workroom
+# check below is driven by these files, so "zero matched" means this validator ran and
+# verified nothing while still printing success. The floor is the number that ships
+# today — deleting or relocating fixtures has to trip this, not slip past it.
+MIN_FIXTURES = 2
+fixture_paths = sorted(FIXTURES.glob("*.json"))
+if len(fixture_paths) < MIN_FIXTURES:
+    print(
+        f"ERR: expected at least {MIN_FIXTURES} *.json fixtures under "
+        f"{FIXTURES.relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
+        f"silently disables this validator",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+for path in fixture_paths:
     try:
         data = json.loads(path.read_text())
     except json.JSONDecodeError as e:

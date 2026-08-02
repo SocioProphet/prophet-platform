@@ -76,7 +76,22 @@ def check_artifact(artifact: dict, label: str) -> list[str]:
     return violations
 
 
-for path in sorted(EXAMPLES.glob("*.json")):
+# Minimum-count assertion. An empty glob is a FAILURE, not a pass: every proof-artifact
+# check below is driven by these files, so "zero matched" means this validator ran and
+# verified nothing while still printing success. The floor is the number that ships
+# today — deleting or relocating fixtures has to trip this, not slip past it.
+MIN_FIXTURES = 7
+fixture_paths = sorted(EXAMPLES.glob("*.json"))
+if len(fixture_paths) < MIN_FIXTURES:
+    print(
+        f"ERR: expected at least {MIN_FIXTURES} *.json fixtures under "
+        f"{EXAMPLES.relative_to(ROOT)}, found {len(fixture_paths)} — an empty or thinned fixture set "
+        f"silently disables this validator",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+for path in fixture_paths:
     try:
         data = json.loads(path.read_text())
     except json.JSONDecodeError as e:
