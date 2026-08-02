@@ -128,6 +128,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Node built-in-test-runner suites under apps/* (health-twin, hellgraph-service,
+          # lifecycle-warden, …). ONE leg iterates them all (Actions is spend-capped), each
+          # under a hard per-app timeout so a hang is RED, never a silently cancelled job.
+          # The whole charter lives in .github/app-ci/run-node-app-tests.sh so it is testable
+          # and does not need tools/. It fails on zero matches and on a growing quarantine.
+          - name: node-app-suites
+            working-directory: .
+            install: node --version && npm --version
+            test: bash .github/app-ci/run-node-app-tests.sh
           - name: eval-fabric-api
             working-directory: apps/eval-fabric-api
             install: pip install -r requirements.txt -r requirements-test.txt
@@ -190,6 +199,11 @@ jobs:
       - name: Create virtualenv
         working-directory: ${{ matrix.working-directory }}
         run: python3 -m venv .venv
+      - name: Setup Node
+        if: matrix.name == 'node-app-suites'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Install app/tool test dependencies
         working-directory: ${{ matrix.working-directory }}
         run: |
