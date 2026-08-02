@@ -7,5 +7,5 @@ spec:
     spec:
       containers:
         - name: search-orchestrator
-          image: ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:bbfea6e4a7ea432d77766a37464dfa666242dfe2621fc0e586ca2bde80c52066
+          image: ghcr.io/socioprophet/prophet-platform/search-orchestrator@sha256:dd342da260dc1d5953f4588f02aca319c2a357240c5b55d3ab3137b3e96a864b
           imagePullPolicy: IfNotPresent
