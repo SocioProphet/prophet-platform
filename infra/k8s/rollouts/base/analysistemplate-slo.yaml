@@ -2,6 +2,18 @@
 # the rollout if the SLOs breach — reading the exact recording rules shipped in
 # Wave 1 (infra/k8s/observability). This is what makes promotion metric-gated
 # rather than time-based.
+#
+# FAIL-CLOSED ON NO DATA — do not "simplify" this back to a failureCondition-only
+# metric. Each metric declares BOTH a successCondition that requires the series to
+# EXIST and be healthy (len(result) > 0 && ...) and a failureCondition that fires
+# when the series is ABSENT (len(result) == 0 || ...). A Prometheus query that
+# returns an empty vector — the normal state for a service that does not (yet)
+# export these recording rules — is NOT "healthy". With a failureCondition-only
+# metric an empty result never satisfies the threshold, so Argo Rollouts scores the
+# step Successful and promotes a release that nothing measured ("no data" read as
+# "healthy"). Requiring data presence to succeed, and treating an empty series as a
+# failure, makes a metrics gap ABORT the rollout instead of silently promoting it.
+# Enforced by tools/check_canary_slo_gate.py in the validate-target-diagnostics gate.
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -14,8 +26,10 @@ spec:
     - name: error-ratio
       interval: 1m
       count: 5
-      # Fail the canary if the 5xx ratio exceeds 5% (matches HighErrorRatio SLO).
-      failureCondition: result[0] >= 0.05
+      # Promote only while the series EXISTS and the 5xx ratio < 5% (HighErrorRatio SLO).
+      successCondition: len(result) > 0 && result[0] < 0.05
+      # Abort on breach OR on absent data — an empty series is not "healthy".
+      failureCondition: len(result) == 0 || result[0] >= 0.05
       failureLimit: 1
       provider:
         prometheus:
@@ -25,8 +39,10 @@ spec:
     - name: latency-p99
       interval: 1m
       count: 5
-      # Fail if p99 latency exceeds 1.5s.
-      failureCondition: result[0] >= 1.5
+      # Promote only while the series EXISTS and p99 < 1.5s.
+      successCondition: len(result) > 0 && result[0] < 1.5
+      # Abort if p99 breaches OR the series is absent.
+      failureCondition: len(result) == 0 || result[0] >= 1.5
       failureLimit: 1
       provider:
         prometheus:

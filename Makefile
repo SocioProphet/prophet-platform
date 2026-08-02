@@ -577,3 +577,12 @@ validate-capability-membrane:
 validate-isota-tournament:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && python tools/isota_tournament.py && pytest -q tests/platform_stubs/test_isota_tournament.py
+
+.PHONY: canary-slo-gate-check
+# Fail-closed Argo Rollouts SLO gates: an empty Prometheus series must ABORT a
+# canary, not promote it ("no data" != "healthy"). tools/check_canary_slo_gate.py
+# requires every result-thresholding AnalysisTemplate metric to declare both a
+# data-presence successCondition and an absent-data failureCondition. Wired into
+# the validate-target-diagnostics matrix so it rides the repo's required gate.
+canary-slo-gate-check:
+	python3 tools/check_canary_slo_gate.py
