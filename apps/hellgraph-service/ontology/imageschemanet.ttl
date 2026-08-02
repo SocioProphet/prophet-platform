@@ -1,0 +1,130 @@
+@prefix isn:  <https://ontology.socioprophet.ai/imageschemanet#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+
+#
+# ImageSchemaNet cartridge (SocioProphet, estate-authored — seed).
+#
+# CLEAN-ROOM. This is an ORIGINAL, MIT-licensed re-implementation of the image-schema
+# taxonomy and the `:activates` grounding model, authored from the open-access (CC-BY 4.0)
+# paper below. It does NOT vendor the ISAAC/ImageSchemaNet repository, which ships no
+# LICENSE file (absence = all-rights-reserved) — so per the estate's permissive-only rule
+# we re-author the (uncopyrightable) taxonomy and cite the source rather than copy it.
+#
+# It is a SEED: the six best-documented image schemas, their spatial primitives, the
+# activation-property hierarchy, and a starter set of lexical activators. It provides the
+# grounding MECHANISM; the full FrameNet/WordNet-populated activation set is later work.
+#
+# Grounding: tools/imageschema_ground.py (lexical unit / frame -> image schema(s)).
+#
+isn: a owl:Ontology ;
+    rdfs:label "ImageSchemaNet cartridge (SocioProphet seed)" ;
+    dct:source "De Giorgis, Gangemi & Gromann (2022/2024), 'ImageSchemaNet: A Framester graph for embodied commonsense knowledge', Semantic Web 15:1417-1441, IOS Press (CC-BY 4.0). Taxonomy after Johnson (1987) and Mandler & Pagán Cánovas (2014)." ;
+    dct:license <https://opensource.org/licenses/MIT> ;
+    rdfs:comment "Clean-room re-authoring; not a copy of the ISAAC repository." .
+
+########################  Image schemas (gestalt structures)  ########################
+
+isn:ImageSchema a owl:Class ;
+    rdfs:label "Image Schema" ;
+    rdfs:comment "A recurring dynamic pattern of sensorimotor experience giving coherence and structure to cognition (Johnson 1987). A gestalt composed of >= 2 spatial primitives." .
+
+isn:CONTAINMENT      a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "CONTAINMENT" ;
+    rdfs:comment "Boundedness: an interior, an exterior, and a boundary." .
+isn:CENTER_PERIPHERY a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "CENTER_PERIPHERY" ;
+    rdfs:comment "A center on which a dependent periphery relies (not vice versa)." .
+isn:SOURCE_PATH_GOAL a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "SOURCE_PATH_GOAL" ;
+    rdfs:comment "A source, a goal, and a series of contiguous locations connecting them, with movement." .
+isn:PART_WHOLE       a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "PART_WHOLE" ;
+    rdfs:comment "A whole consisting of parts in a configuration." .
+isn:SUPPORT          a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "SUPPORT" ;
+    rdfs:comment "Contact in the vertical dimension: a supporter bears a supported." .
+isn:BLOCKAGE         a owl:Class ; rdfs:subClassOf isn:ImageSchema ; rdfs:label "BLOCKAGE" ;
+    rdfs:comment "A force vector encountering a barrier that resists or redirects it." .
+
+########################  Spatial primitives (first building blocks)  ################
+
+isn:SpatialPrimitive a owl:Class ; rdfs:label "Spatial Primitive" ;
+    rdfs:comment "A preverbal building block; image schemas are composed of these (Mandler & Pagán Cánovas 2014)." .
+
+isn:Interior  a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Interior" .
+isn:Exterior  a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Exterior" .
+isn:Boundary  a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Boundary" .
+isn:Center    a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Center" .
+isn:Periphery a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Periphery" .
+isn:Source    a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Source" .
+isn:Path      a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Path" .
+isn:Goal      a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Goal" .
+isn:Part      a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Part" .
+isn:Whole     a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Whole" .
+isn:Supporter a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Supporter" .
+isn:Supported a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Supported" .
+isn:Force     a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Force" .
+isn:Barrier   a owl:Class ; rdfs:subClassOf isn:SpatialPrimitive ; rdfs:label "Barrier" .
+
+########################  Gestalt composition (IS requires core SPs)  ################
+
+isn:hasCoreSP a owl:ObjectProperty ; rdfs:label "has core spatial primitive" ;
+    rdfs:domain isn:ImageSchema ; rdfs:range isn:SpatialPrimitive .
+
+isn:CONTAINMENT      isn:hasCoreSP isn:Interior, isn:Exterior, isn:Boundary .
+isn:CENTER_PERIPHERY isn:hasCoreSP isn:Center, isn:Periphery .
+isn:SOURCE_PATH_GOAL isn:hasCoreSP isn:Source, isn:Path, isn:Goal .
+isn:PART_WHOLE       isn:hasCoreSP isn:Part, isn:Whole .
+isn:SUPPORT          isn:hasCoreSP isn:Supporter, isn:Supported .
+isn:BLOCKAGE         isn:hasCoreSP isn:Force, isn:Barrier .
+
+########################  Activation property hierarchy (after paper §4.2)  ##########
+
+isn:activates a owl:ObjectProperty ; rdfs:label "activates" ;
+    rdfs:comment "An entity (lexical unit, sense, or frame) activates the cognitive substratum of an image schema or spatial primitive." .
+isn:lexicalSenseActivation a owl:ObjectProperty ; rdfs:subPropertyOf isn:activates ;
+    rdfs:label "lexical sense activation" .
+isn:coreSPActivation       a owl:ObjectProperty ; rdfs:subPropertyOf isn:activates ;
+    rdfs:label "core spatial-primitive activation" .
+isn:gestaltActivation      a owl:ObjectProperty ; rdfs:subPropertyOf isn:activates ;
+    rdfs:label "gestalt activation" .
+isn:closeMatchActivation   a owl:ObjectProperty ; rdfs:subPropertyOf isn:activates ;
+    rdfs:label "close-match activation" .
+
+isn:LexicalActivator a owl:Class ; rdfs:label "Lexical Activator" ;
+    rdfs:comment "A lemma/lexical unit that activates one or more image schemas." .
+
+########################  Seed lexical activators (lemma -> image schema)  ###########
+
+isn:lu_contain   a isn:LexicalActivator ; rdfs:label "contain"   ; isn:lexicalSenseActivation isn:CONTAINMENT .
+isn:lu_container a isn:LexicalActivator ; rdfs:label "container" ; isn:lexicalSenseActivation isn:CONTAINMENT .
+isn:lu_inside    a isn:LexicalActivator ; rdfs:label "inside"    ; isn:lexicalSenseActivation isn:CONTAINMENT .
+isn:lu_within    a isn:LexicalActivator ; rdfs:label "within"    ; isn:lexicalSenseActivation isn:CONTAINMENT .
+isn:lu_enclose   a isn:LexicalActivator ; rdfs:label "enclose"   ; isn:lexicalSenseActivation isn:CONTAINMENT .
+
+isn:lu_enter     a isn:LexicalActivator ; rdfs:label "enter"     ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+isn:lu_agreement a isn:LexicalActivator ; rdfs:label "agreement" ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+isn:lu_journey   a isn:LexicalActivator ; rdfs:label "journey"   ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+isn:lu_through   a isn:LexicalActivator ; rdfs:label "through"   ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+isn:lu_arrive    a isn:LexicalActivator ; rdfs:label "arrive"    ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+isn:lu_travel    a isn:LexicalActivator ; rdfs:label "travel"    ; isn:lexicalSenseActivation isn:SOURCE_PATH_GOAL .
+
+isn:lu_support   a isn:LexicalActivator ; rdfs:label "support"   ; isn:lexicalSenseActivation isn:SUPPORT .
+isn:lu_hold      a isn:LexicalActivator ; rdfs:label "hold"      ; isn:lexicalSenseActivation isn:SUPPORT .
+isn:lu_rest      a isn:LexicalActivator ; rdfs:label "rest"      ; isn:lexicalSenseActivation isn:SUPPORT .
+isn:lu_carry     a isn:LexicalActivator ; rdfs:label "carry"     ; isn:lexicalSenseActivation isn:SUPPORT .
+
+isn:lu_block     a isn:LexicalActivator ; rdfs:label "block"     ; isn:lexicalSenseActivation isn:BLOCKAGE .
+isn:lu_obstacle  a isn:LexicalActivator ; rdfs:label "obstacle"  ; isn:lexicalSenseActivation isn:BLOCKAGE .
+isn:lu_barrier   a isn:LexicalActivator ; rdfs:label "barrier"   ; isn:lexicalSenseActivation isn:BLOCKAGE .
+isn:lu_resist    a isn:LexicalActivator ; rdfs:label "resist"    ; isn:lexicalSenseActivation isn:BLOCKAGE .
+isn:lu_prevent   a isn:LexicalActivator ; rdfs:label "prevent"   ; isn:lexicalSenseActivation isn:BLOCKAGE .
+
+isn:lu_center    a isn:LexicalActivator ; rdfs:label "center"    ; isn:lexicalSenseActivation isn:CENTER_PERIPHERY .
+isn:lu_core      a isn:LexicalActivator ; rdfs:label "core"      ; isn:lexicalSenseActivation isn:CENTER_PERIPHERY .
+isn:lu_periphery a isn:LexicalActivator ; rdfs:label "periphery" ; isn:lexicalSenseActivation isn:CENTER_PERIPHERY .
+isn:lu_margin    a isn:LexicalActivator ; rdfs:label "margin"    ; isn:lexicalSenseActivation isn:CENTER_PERIPHERY .
+
+isn:lu_part      a isn:LexicalActivator ; rdfs:label "part"      ; isn:lexicalSenseActivation isn:PART_WHOLE .
+isn:lu_whole     a isn:LexicalActivator ; rdfs:label "whole"     ; isn:lexicalSenseActivation isn:PART_WHOLE .
+isn:lu_member    a isn:LexicalActivator ; rdfs:label "member"    ; isn:lexicalSenseActivation isn:PART_WHOLE .
+isn:lu_component a isn:LexicalActivator ; rdfs:label "component" ; isn:lexicalSenseActivation isn:PART_WHOLE .

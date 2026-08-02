@@ -87,3 +87,40 @@ KBpedia's published licence for version 2.10 and are recorded here as the govern
 4. Update `RC_GZ_SHA256`, `RC_N3_SHA256`, `RC_N3_BYTES`, `RC_SOURCE` in
    `src/ontology-provenance.ts` **and** the header above.
 5. `node scripts/check-ontology-digest.mjs && npm test` — both must pass on the new digests.
+
+---
+
+# ImageSchemaNet cartridge — CLEAN-ROOM (authored, not vendored)
+
+**File:** `imageschemanet.ttl` · **Namespace:** `https://ontology.socioprophet.ai/imageschemanet#`
+**Status:** estate-authored SEED · **License:** **MIT** (ours — this is original work).
+
+## What it is
+The embodied-commonsense grounding layer: the image-schema taxonomy (CONTAINMENT,
+CENTER_PERIPHERY, SOURCE_PATH_GOAL, PART_WHOLE, SUPPORT, BLOCKAGE), their spatial
+primitives, the `:activates` property hierarchy, and a starter set of lexical activators.
+Grounding function: `tools/imageschema_ground.py` (lexical unit / sentence → image schema).
+
+## Why clean-room, not vendored
+The reference implementation — **`StenDoipanni/ISAAC`** (ImageSchemaNet, the module network
+of the paper below) — **ships no `LICENSE` file** (checked 2026-08-02; the GitHub license API
+returns 404 and neither README declares terms). Under the estate's permissive-only rule,
+absence of a licence = all-rights-reserved, so we do **not** copy or vendor its artifacts
+(`isnet_correct.owl`, `isaac_improvements.ttl`, …). The **taxonomy and activation model are
+uncopyrightable facts**, re-authored here from the open-access paper and cited.
+
+## Source cited (not copied)
+De Giorgis, Gangemi & Gromann, *"ImageSchemaNet: A Framester graph for embodied commonsense
+knowledge"*, **Semantic Web 15 (2024) 1417–1441**, IOS Press — **CC-BY 4.0**. Taxonomy after
+Johnson (1987) and Mandler & Pagán Cánovas (2014).
+
+## Where it is ENFORCED
+`make imageschemanet-grounding-check` (a `validate-target-diagnostics` matrix target):
+structural conformance (every image schema has core spatial primitives; every activator
+activates a known schema — fail-closed) + golden NL→image-schema groundings. Proven able to
+go red by `tools/tests/test_imageschema_ground.py`.
+
+## Growing it (later phases)
+This SEED gives the grounding mechanism + starter activators. The full FrameNet/WordNet/VerbNet
+activation set is P1-follow-on, populated via Framester alignment — authored/derived, still not
+copied from the unlicensed repo. If upstream adds a permissive licence, re-evaluate vendoring.
