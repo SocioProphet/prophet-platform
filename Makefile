@@ -601,6 +601,6 @@ fips-conformance-check:
 # (every image schema has core spatial primitives; every lexical activator activates a
 # known schema) and that golden NL->image-schema groundings resolve. Owns its rdflib dep.
 imageschemanet-grounding-check:
-	python3 -m pip install --quiet rdflib pytest
+	python3 -m pip install --quiet 'rdflib==7.6.0' 'pytest>=8,<9'
 	python3 tools/imageschema_ground.py
 	python3 -m pytest -q tools/tests/test_imageschema_ground.py

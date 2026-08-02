@@ -134,7 +134,8 @@ _GOLDEN: list[tuple[str, str]] = [
 def selftest(g: Graph) -> list[str]:
     out: list[str] = []
     for text, expected in _GOLDEN:
-        found = set().union(*ground_text(g, text).values()) if ground_text(g, text) else set()
+        annot = ground_text(g, text)
+        found = set().union(*annot.values()) if annot else set()
         if expected not in found:
             out.append(f"grounding {text!r} -> {sorted(found) or 'nothing'}, expected {expected}")
     return out
@@ -142,7 +143,7 @@ def selftest(g: Graph) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="ImageSchemaNet grounding")
-    ap.add_argument("--cartridge", default=str(CARTRIDGE), type=Path)
+    ap.add_argument("--cartridge", default=str(CARTRIDGE))  # coerced to Path at use (consistent str default)
     ap.add_argument("--verify", action="store_true")
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--ground", metavar="TEXT", help="annotate a sentence with image schemas")
