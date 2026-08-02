@@ -1,0 +1,21 @@
+# catalog-gateway — the unified read/resolve/lineage + DCAT interop seam over the
+# Crystal Atlas catalog families (docs/strategy/PROPHET_DATA_CATALOG_DESIGN.md). The
+# GMS-equivalent: resolve source|asset|model|workflow entries, walk lineage, emit the
+# first real DCAT/schema.org projection (the CKAN/DataHub/CK.org harvest seam), and
+# capture its own operational events (catalog.*.v0) into the shared file-state.
+#
+# Reference tier: a replaceable catalog surface over the crystal-atlas contracts
+# (the foundation). First-party ⇒ built by images.yml, so no image.registry override
+# (inherits the platform default; the preflight contract asserts that claim).
+#
+# tag:latest is the bootstrap for a brand-new service; gitops-promote sha-pins it
+# after the first images.yml build.
+image: { repository: catalog-gateway, tag: latest }
+service: { port: 8080, portName: http }
+# app serves @app.get('/healthz') — the chart default — so no probes override needed.
+config:
+  SOCIOPROFIT_STATE_HOME: "/data"
+  CATALOG_OPS_CAPTURE: "true"
+autoscaling: { enabled: false }
+replicaCount: 1
+persistence: { enabled: true, storageClass: dynamic-rwo, size: 1Gi, mountPath: /data }

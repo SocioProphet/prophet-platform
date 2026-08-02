@@ -34,6 +34,7 @@ spec:
           - { name: hellgraph-service, tier: foundation }        # graph kernel — the spine every graph consumer speaks to
           - { name: osm-map-api, tier: reference }               # geo tiles/lookup — swappable impl
           - { name: dashboard-bff, tier: reference }             # dashboard backend-for-frontend
+          - { name: catalog-gateway, tier: reference }           # Catalog Gateway — resolve/lineage/DCAT interop seam over crystal-atlas + ops-event capture
           - { name: reasoning-failure-runner, tier: reference }  # chaos/resilience orchestrator
           - { name: search-orchestrator, tier: reference }       # search orchestration impl
           - { name: search-gateway, tier: reference }            # public search edge for the search product
