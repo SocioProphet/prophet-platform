@@ -1,0 +1,49 @@
+# FIPS crypto boundary (Build 1 — federal enforcement).
+#
+# When a deployment declares `require_fips_validated_crypto: true` (see
+# apps/cloudshell-fog/deployment-inventory.federal*.yaml), the ALGORITHMS used inside
+# `scope` below must be FIPS-approved. tools/check_fips_conformance.py reads this file
+# and fails if a banned algorithm call appears in scope (unless allowlisted) — turning
+# a flag that nothing read into an enforced control.
+#
+# Two dimensions, kept separate on purpose:
+#   * ALGORITHM conformance — enforced now (this file), red/green.
+#   * MODULE validation (CMVP / FIPS-mode) — a distinct dimension (OpenSSL FIPS
+#     provider, Go BoringCrypto, Rust ring->aws-lc-rs). Tracked as Build 2; NOT
+#     asserted here, because an approved algorithm on an unvalidated module is a
+#     module problem, not an algorithm one. The detailed per-service module gap
+#     inventory is kept in the private FIPS audit, not in this public repo.
+version: 0.1
+
+# Security-critical crypto inside the federal FIPS boundary today. Add a path here
+# the moment it signs, MACs, hashes-for-integrity, or encrypts under the federal tier.
+scope:
+  - tools/trust_broker.py
+  - tools/overlay_transport.py
+  - apps/compute-gateway/src/compute_gateway
+
+# Non-FIPS-approved algorithms. Patterns match a CALL (a bare mention in a comment
+# does not count), applied to source under `scope`.
+banned_algorithms:
+  - id: blake2
+    pattern: '(?:hashlib\.)?blake2[bs]\s*\('
+    why: "BLAKE2 is not a FIPS-approved hash (use SHA-256/384/512 or SHA-3)"
+  - id: blake3
+    pattern: 'blake3\s*\(|blake3::'
+    why: "BLAKE3 is not a FIPS-approved hash"
+  - id: md5
+    pattern: "hashlib\\.md5\\s*\\(|createHash\\(\\s*['\"]md5"
+    why: "MD5 is not FIPS-approved"
+  - id: sha1
+    pattern: "hashlib\\.sha1\\s*\\(|createHash\\(\\s*['\"]sha1"
+    why: "SHA-1 is not FIPS-approved for security use"
+
+# Documented non-security uses. Each entry must carry a justification. An allowlisted
+# match is reported but does not fail. (Kept empty deliberately — earn each entry.)
+allowlist: []
+
+# Build 2 (module CMVP validation) — informational only, not enforced here.
+module_validation_pending:
+  - "python: route hashlib/cryptography through the OpenSSL 3 FIPS provider (FIPS mode)"
+  - "go: build with BoringCrypto (GOEXPERIMENT=boringcrypto)"
+  - "rust: migrate ring -> aws-lc-rs (FIPS-capable) across the boundary services"

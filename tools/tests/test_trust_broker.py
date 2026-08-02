@@ -21,7 +21,7 @@ def _registry(*signers):
     return r
 
 
-def _signed_manifest(mid="capman-1", *, expiry=FUTURE, revoked=False, signer="root", signed_at=NOW, algo="hmac-blake2b"):
+def _signed_manifest(mid="capman-1", *, expiry=FUTURE, revoked=False, signer="root", signed_at=NOW, algo="hmac-sha256"):
     m = {
         "manifest_id": mid, "kind": "capability", "provider": "mcp://x",
         "capabilities": [{"name": "drive.search"}], "expiry": expiry,
@@ -77,9 +77,9 @@ def _signed_catalog(threshold, n_valid, n_invalid=0):
     payload = tb.canonical_signing_bytes(entry, exclude=("signatures",))
     sigs = []
     for i in range(n_valid):
-        sigs.append({"signer": f"s{i}", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW})
+        sigs.append({"signer": f"s{i}", "algorithm": "hmac-sha256", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW})
     for i in range(n_invalid):
-        sigs.append({"signer": f"bad{i}", "algorithm": "hmac-blake2b", "signature": "deadbeef", "signed_at": NOW})
+        sigs.append({"signer": f"bad{i}", "algorithm": "hmac-sha256", "signature": "deadbeef", "signed_at": NOW})
     entry["signatures"] = sigs
     return entry
 
@@ -134,15 +134,15 @@ def test_catalog_max_age_enforced():
     payload = tb.canonical_signing_bytes(entry, exclude=("signatures",))
     old = "2026-07-31T20:00:00+00:00"  # >1h before NOW
     entry["signatures"] = [
-        {"signer": "s0", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(tb.signing_input(payload, old), SECRET), "signed_at": old},
-        {"signer": "s1", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(tb.signing_input(payload, old), SECRET), "signed_at": old},
+        {"signer": "s0", "algorithm": "hmac-sha256", "signature": tb.mac_sign(tb.signing_input(payload, old), SECRET), "signed_at": old},
+        {"signer": "s1", "algorithm": "hmac-sha256", "signature": tb.mac_sign(tb.signing_input(payload, old), SECRET), "signed_at": old},
     ]
     d = broker.verify_catalog(entry, NOW)
     assert not d.trusted and any("insufficient_signatures" in r for r in d.reasons)
     # Fresh signatures (re-signed over NOW, since signed_at is authenticated) -> trusted.
     entry["signatures"] = [
-        {"signer": "s0", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW},
-        {"signer": "s1", "algorithm": "hmac-blake2b", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW},
+        {"signer": "s0", "algorithm": "hmac-sha256", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW},
+        {"signer": "s1", "algorithm": "hmac-sha256", "signature": tb.mac_sign(tb.signing_input(payload, NOW), SECRET), "signed_at": NOW},
     ]
     assert broker.verify_catalog(entry, NOW).trusted
 
@@ -161,7 +161,7 @@ def test_nonstring_signer_does_not_crash():
     broker = tb.TrustBroker(_registry("root"))
     m = {"manifest_id": "m", "kind": "capability", "provider": "p",
          "capabilities": [{"name": "x"}], "expiry": FUTURE,
-         "signature": {"signer": {"not": "a-string"}, "algorithm": "hmac-blake2b",
+         "signature": {"signer": {"not": "a-string"}, "algorithm": "hmac-sha256",
                        "signature": "x", "signed_at": NOW}}
     d = broker.verify_manifest(m, NOW)  # must not raise (unhashable signer)
     assert not d.trusted and "malformed_signature" in d.reasons

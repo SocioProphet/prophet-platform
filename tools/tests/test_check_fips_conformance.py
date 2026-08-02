@@ -1,0 +1,85 @@
+"""Teeth for the FIPS conformance check (Build 1).
+
+Proves the check goes red on (a) a banned-algorithm CALL in the boundary and (b) a
+`require_fips_validated_crypto: true` deployment with the check un-wired — and that a
+bare mention in a comment does NOT trip it. Plus: the shipped repo is conformant.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import check_fips_conformance as fips  # noqa: E402
+
+_BOUNDARY = {
+    "version": 0.1,
+    "scope": ["tools/x.py"],
+    "banned_algorithms": [
+        {"id": "blake2", "pattern": r"(?:hashlib\.)?blake2[bs]\s*\(", "why": "BLAKE2 not FIPS"},
+    ],
+    "allowlist": [],
+}
+
+
+def _mkroot(tmp_path: Path, *, scope_body: str, wired: bool = True, fed_flag: bool = True) -> Path:
+    (tmp_path / "security").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "security/fips-boundary.yaml").write_text(yaml.safe_dump(_BOUNDARY), encoding="utf-8")
+    (tmp_path / "tools").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "tools/x.py").write_text(scope_body, encoding="utf-8")
+    wf = tmp_path / ".github/workflows"
+    wf.mkdir(parents=True, exist_ok=True)
+    target = "fips-conformance-check" if wired else "something-else"
+    (wf / "validate-target-diagnostics.yml").write_text(
+        f"jobs:\n  v:\n    steps:\n      - run: make {target}\n", encoding="utf-8"
+    )
+    if fed_flag:
+        inv = tmp_path / "apps/cloudshell-fog"
+        inv.mkdir(parents=True, exist_ok=True)
+        (inv / "deployment-inventory.federal.example.yaml").write_text(
+            "profile:\n  require_fips_validated_crypto: true\n", encoding="utf-8"
+        )
+    return tmp_path
+
+
+def _run(root: Path):
+    b = fips.load_boundary(root)
+    return fips.check_flag_enforced(root, b) + fips.scan_scope(root, b)
+
+
+def test_clean_boundary_passes(tmp_path):
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n")
+    assert _run(root) == []
+
+
+def test_banned_algo_call_in_boundary_is_rejected(tmp_path):
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.blake2b(digest_size=32)\n")
+    v = _run(root)
+    assert any("non-FIPS algorithm 'blake2'" in x for x in v), v
+
+
+def test_comment_mention_is_not_a_call(tmp_path):
+    root = _mkroot(tmp_path, scope_body="# FIPS 180-4 (was BLAKE2b — not FIPS)\nimport hashlib\nh = hashlib.sha256()\n")
+    assert _run(root) == []
+
+
+def test_declared_flag_but_check_unwired_fails(tmp_path):
+    # The keystone: the federal flag is true but the check is not in the CI gate.
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", wired=False)
+    v = _run(root)
+    assert any("not wired into" in x for x in v), v
+
+
+def test_no_federal_flag_needs_no_enforcement(tmp_path):
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", wired=False, fed_flag=False)
+    assert _run(root) == []
+
+
+def test_shipped_repo_boundary_is_conformant():
+    root = Path(fips.ROOT)
+    b = fips.load_boundary(root)
+    assert fips.scan_scope(root, b) == [], "shipped boundary must have no non-FIPS algorithm calls"
+    assert fips.check_flag_enforced(root, b) == [], "federal FIPS flag must be enforced + wired"
