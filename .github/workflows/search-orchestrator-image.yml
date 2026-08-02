@@ -33,6 +33,12 @@ jobs:
   # COST GUARD 1 (change-detection skip) — this component has a committed image-lock carrying a
   # source_content_digest, so an unchanged services/search-orchestrator tree SKIPS the build and
   # reuses the already-pinned digest (releases/images/search-orchestrator.image-lock.json).
+  #
+  # BUT a SKIP is only safe if the recorded digest STILL EXISTS in the registry. The wave-deploy
+  # incident proved the failure: the lock recorded a source_content_digest next to a digest that
+  # was never pushed, so an unchanged tree would SKIP forever and "reuse" a phantom digest. So the
+  # decide step runs with --verify-image-exists (INV-DEP-6): SKIP requires BOTH the source-content
+  # match AND the pinned image resolving to a real manifest; a missing/unverifiable image BUILDs.
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -43,13 +49,17 @@ jobs:
         with:
           python-version: '3.11'
       - id: decide
-        name: Decide build-vs-skip from source content-digest
+        name: Decide build-vs-skip from source content-digest (+ image-exists, INV-DEP-6)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           set +e
           python3 tools/compute_source_content_digest.py decide \
             --path services/search-orchestrator \
             --path .github/workflows/search-orchestrator-image.yml \
             --lock releases/images/search-orchestrator.image-lock.json \
+            --verify-image-exists \
             --allow-missing
           rc=$?
           if [ "$rc" != "0" ] && [ "$rc" != "10" ]; then exit "$rc"; fi

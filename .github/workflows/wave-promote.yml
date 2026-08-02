@@ -45,6 +45,7 @@ on:
 
 permissions:
   contents: read
+  packages: read   # INV-DEP-6: HEAD ghcr/zot manifests to prove the promoted digest exists
 
 concurrency:
   # Serialize promotions of the same component+wave; never cancel an in-flight promotion —
@@ -69,6 +70,17 @@ jobs:
       # GATE 0 — the frozen set must be legal to promote (digest-pinned, one digest/image).
       - name: Validate frozen release-train manifest (fail-closed)
         run: python3 tools/validate_release_train_manifest.py "${{ inputs.manifest }}"
+
+      # GATE 0b (INV-DEP-6) — the digest about to be promoted must actually EXIST in the
+      # registry. Shape-valid is not enough: search-orchestrator@sha256:bbfea6e4… promoted
+      # cleanly through every wave and ImagePullBackOff'd because Wave 0 never pushed it. A
+      # promotion of a non-existent digest is refused here, before any overlay is re-pinned.
+      # Fail-closed: an unreachable registry counts as "not proven to exist", never a pass.
+      - name: Assert the promoted digest EXISTS in the registry (fail-closed — INV-DEP-6)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: python3 tools/verify_pinned_digest_exists.py manifest "${{ inputs.manifest }}"
 
       # PROMOTE-MANY — re-pin the SAME frozen digest into this wave's overlay. No build.
       - name: Promote frozen digest into the wave overlay (no rebuild)

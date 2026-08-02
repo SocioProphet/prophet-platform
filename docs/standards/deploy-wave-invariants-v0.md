@@ -71,6 +71,52 @@ the `concurrency.cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}` blo
 per-component image workflow; `type=gha` scoped layer cache;
 `test_image_workflows_queue_on_main_cancel_on_feature` / `test_release_and_wave_workflows_never_cancel`.
 
+## INV-DEP-6 — A promoted digest MUST exist in the registry
+
+A digest MUST NOT be frozen or promoted unless it resolves to a real manifest in its registry
+(Registry HTTP API v2 `HEAD`/`GET …/manifests/<digest>` returns the manifest). "Digest-shaped"
+(INV-DEP-1) and "one digest per image" (INV-DEP-2) are necessary but NOT sufficient: a
+never-pushed placeholder is a perfectly-shaped `sha256:<64hex>` that `ImagePullBackOff`s on the
+cluster. A **skip** is likewise only safe if the recorded digest still exists — an unchanged
+source that "reuses" a phantom digest is the same failure via the cost guard.
+
+*Rationale.* A wave-deploy froze + promoted `search-orchestrator@sha256:bbfea6e4…` through every
+overlay — every shape/ordering gate green — and it `ImagePullBackOff`'d on the live cluster
+because Wave 0 (the real build+push) never ran. Every prior gate checked the *shape* of the
+reference; none checked that the bytes it names EXIST.
+
+*Fail-closed distinction.* The check returns three DISTINCT outcomes — EXISTS (pass), ABSENT
+(registry answered 404/`MANIFEST_UNKNOWN` — the fabricated/never-pushed case), and UNREACHABLE
+(DNS/TLS/timeout/5xx/auth-challenge-unsatisfiable). Both ABSENT and UNREACHABLE FAIL the gate
+(existence was not proven), but they are reported distinctly so an operator is never told
+"fabricated digest" when the real problem is reachability.
+
+*Enforced by.* `tools/verify_pinned_digest_exists.py` (unit-tested both ways, `check_manifest`);
+`release-train.yml`'s freeze step and `wave-promote.yml`'s GATE 0b both call it and REFUSE to
+freeze/promote a digest with no manifest; `compute_source_content_digest.py decide
+--verify-image-exists` forces BUILD when a source-matched lock's pinned digest is missing
+(`test_decide_build_when_source_matches_but_image_missing`).
+
+## INV-DEP-7 — A lock digest is only ever a real push output
+
+The `digest` recorded in a `releases/images/<component>.image-lock.json` MUST come from an actual
+`docker buildx …--push` (the registry's own content digest, `steps.build.outputs.digest`). It is
+NEVER hand-authored and NEVER *computed*. The image build workflow — via its digest-evidence
+artifact — is the SOLE writer of the lock's `digest`; the applier stamps `digest_provenance:
+buildx-push` and refuses evidence whose digest is empty or a placeholder sentinel. A lock without
+that provenance, or carrying a `source_content_digest` divorced from a real push, is illegitimate.
+
+*Rationale.* The `bbfea6e4…` incident began as a lock whose `digest` (and its neighbouring
+`source_content_digest`) were entered by hand, with no push behind either. Making the build the
+only writer removes the class of failure at the source: there is no code path that puts a
+non-push digest into a lock.
+
+*Enforced by.* `tools/apply_search_orchestrator_image_lock.py` (sole lock writer; refuses a
+non-`sha256:<64hex>` / placeholder evidence digest, carries the build's `source_content_digest`,
+stamps `digest_provenance`) — `test_build_lock_refuses_placeholder_digest`,
+`test_build_lock_carries_source_content_digest_from_the_same_build`; INV-DEP-6 catches any lock
+digest that slips through and does not actually exist.
+
 ---
 
 ## Conformance checklist
@@ -83,3 +129,5 @@ per-component image workflow; `type=gha` scoped layer cache;
 | 4 | Overlays render, all `@sha256:` | `kubectl kustomize infra/k8s/search-orchestrator/overlays/promote/{dev,canary,prod}` |
 | 5 | Skip + queue/cancel contract | `python3 -m pytest -q tools/tests/test_compute_source_content_digest.py tools/tests/test_release_train_manifest.py` |
 | 6 | Workflows lint | `actionlint .github/workflows/{release-train,wave-promote,*-image}.yml` |
+| 7 | Every frozen digest exists in the registry (INV-DEP-6) | `python3 tools/verify_pinned_digest_exists.py manifest releases/manifests/release-train.<label>.manifest.json` |
+| 8 | Digest-exists + lock-provenance gates, both ways (INV-DEP-6/7) | `python3 -m pytest -q tools/tests/test_verify_pinned_digest_exists.py tools/tests/test_apply_search_orchestrator_image_lock.py` |

@@ -41,3 +41,38 @@ def test_image_lock_applier_writes_lock_and_patch(tmp_path, monkeypatch) -> None
     rendered = patch_path.read_text(encoding="utf-8")
     assert "image: " + IMAGE + "@" + digest in rendered
     assert "name: search-orchestrator" in rendered
+    # INV-DEP-7: a lock minted from a real push output is stamped with its provenance.
+    assert lock["digest_provenance"] == "buildx-push"
+
+
+# ── INV-DEP-7: the lock digest is ONLY EVER a real push output ─────────────────────────────
+
+def test_build_lock_refuses_placeholder_digest() -> None:
+    for bad in ("", "sha256:REPLACE_WITH_IMAGE_DIGEST", "ghcr.io/x:latest", "sha256:" + ("z" * 64)):
+        try:
+            MODULE.build_lock({"digest": bad, "source_sha": "abc", "pinned_ref": "x"})
+        except SystemExit as exc:
+            assert "INV-DEP-7" in str(exc)
+        else:
+            raise AssertionError(f"a non-push digest {bad!r} must be refused (INV-DEP-7)")
+
+
+def test_build_lock_refuses_placeholder_source_sha() -> None:
+    digest = "sha256:" + ("b" * 64)
+    try:
+        MODULE.build_lock({"digest": digest, "source_sha": "REPLACE_WITH_GIT_SHA",
+                           "pinned_ref": IMAGE + "@" + digest})
+    except SystemExit as exc:
+        assert "INV-DEP-7" in str(exc)
+    else:
+        raise AssertionError("a placeholder source_sha must be refused (INV-DEP-7)")
+
+
+def test_build_lock_carries_source_content_digest_from_the_same_build() -> None:
+    digest = "sha256:" + ("b" * 64)
+    scd = "sha256:" + ("c" * 64)
+    lock = MODULE.build_lock({"digest": digest, "source_sha": "abc",
+                              "pinned_ref": IMAGE + "@" + digest,
+                              "source_content_digest": scd})
+    assert lock["source_content_digest"] == scd, "the content-digest must ride the real build"
+    assert lock["digest_provenance"] == "buildx-push"
