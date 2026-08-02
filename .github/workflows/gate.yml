@@ -1,0 +1,63 @@
+# Revives the orphaned `gate / check` status context.
+#
+# The classic branch-protection on `main` requires a status context literally named
+# `gate / check` (app_id 15368 = GitHub Actions) — i.e. a workflow named `gate` with
+# a job named `check`. That workflow has NEVER existed in this repo's history, so the
+# context is permanently "Expected — waiting for status to be reported": every PR
+# reads BLOCKED and merges only via admin bypass. Meanwhile the REAL required check
+# (the `main-required-checks` ruleset) is `diagnostics-gate`, produced by
+# validate-target-diagnostics.yml.
+#
+# Rather than delete the legacy context, this un-orphans it: `gate / check` now
+# reports the SAME verdict as the real gate. It is fail-closed — anything other than
+# a `success` conclusion from validate-target-diagnostics (failure, cancelled,
+# timed_out, or a missing run) fails `gate / check`. It cannot pass on its own; it
+# only mirrors a gate that actually ran and passed. So it is a real check with teeth,
+# not a green rubber stamp.
+#
+# VERIFY LIVE AFTER MERGE (workflow_run check-runs attaching to a PR head as a
+# required context is the one behaviour that cannot be tested off-GitHub): open a
+# throwaway PR, confirm `gate / check` posts and that a passing gate clears BLOCKED
+# without --admin. If it does not surface as the required context, the fallback is to
+# retire the legacy `gate / check` from branch protection (the ruleset's
+# `diagnostics-gate` already enforces the same thing) — but that is a branch-
+# protection change held for explicit sign-off.
+name: gate
+
+on:
+  workflow_run:
+    workflows: ["validate-target-diagnostics"]
+    types: [completed]
+
+# One verdict per head SHA; a newer run supersedes an in-flight mirror.
+concurrency:
+  group: gate-check-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # Only mirror runs that actually gate a change (PRs and pushes to main).
+    if: >-
+      github.event.workflow_run.event == 'pull_request' ||
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror the diagnostics gate verdict onto 'gate / check'
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          echo "validate-target-diagnostics for ${HEAD_SHA} concluded: ${CONCLUSION}"
+          echo "run: ${RUN_URL}"
+          # Fail-closed: only an explicit success passes. A skipped/cancelled/failed
+          # gate, or a null conclusion, must block — never treat absence as success.
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "::error::the real diagnostics gate did not pass (${CONCLUSION}); gate/check fails closed"
+            exit 1
+          fi
+          echo "diagnostics gate passed — gate/check is green for ${HEAD_SHA}"
