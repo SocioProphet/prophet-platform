@@ -2,12 +2,11 @@
   "image_lock_id": "search-orchestrator-image-lock",
   "component": "services/search-orchestrator",
   "image": "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator",
-  "source_sha": "ef36835d7d40af34352e0dc3be15bf19a5b47ed3",
-  "digest": "sha256:dd342da260dc1d5953f4588f02aca319c2a357240c5b55d3ab3137b3e96a864b",
-  "pinned_ref": "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:dd342da260dc1d5953f4588f02aca319c2a357240c5b55d3ab3137b3e96a864b",
-  "source_content_digest": "sha256:c2119c07b2741df6f30dc86007f275e80e01edb075ce64ff87b5ca53f8cb511a",
+  "source_sha": "d122d9c0a56f09c938b62add82074c99421f7b22",
+  "digest": "sha256:f5b051131d2bc451c4bdd710daaa5261aee45182cc68a840c8ea7539d9d97201",
+  "pinned_ref": "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:f5b051131d2bc451c4bdd710daaa5261aee45182cc68a840c8ea7539d9d97201",
+  "source_content_digest": "sha256:b068f97d18a36eb5fb96fe0121224b380a1bfdb82d183ffbd816c1e927b84cbc",
   "workflow": ".github/workflows/search-orchestrator-image.yml",
   "digest_provenance": "buildx-push",
-  "stale_digest_pending_gar_push": "This digest was produced by the retired ghcr push and is NOT in GAR; INV-DEP-6 will (correctly) fail against GAR until search-orchestrator-image.yml pushes to GAR and search-orchestrator-image-pin.yml re-applies the real GAR digest. Registry retargeted here; digest is replaced by the first real GAR push.",
   "status": "pinned"
 }

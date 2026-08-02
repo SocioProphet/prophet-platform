@@ -9,5 +9,5 @@ spec:
     spec:
       containers:
         - name: search-orchestrator
-          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:dd342da260dc1d5953f4588f02aca319c2a357240c5b55d3ab3137b3e96a864b
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:f5b051131d2bc451c4bdd710daaa5261aee45182cc68a840c8ea7539d9d97201
           imagePullPolicy: IfNotPresent
