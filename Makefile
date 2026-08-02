@@ -585,6 +585,16 @@ validate-isota-tournament:
 canary-slo-gate-check:
 	python3 tools/check_canary_slo_gate.py
 
+.PHONY: rollout-analysis-refs-check
+# Self-contained overlays (INV-DEP-9): a Rollout may only reference an AnalysisTemplate the
+# overlay renders (namespaced, same ns) or a declared ClusterAnalysisTemplate (clusterScope).
+# A dangling ref renders clean under `kubectl kustomize` but the LIVE Rollout controller rejects
+# it (InvalidSpec: AnalysisTemplate not found, Degraded/no pods) — the wave-deploy prod incident.
+# tools/verify_rollout_analysis_refs.py renders each promote overlay and proves every analysis
+# ref resolves. Wired into the validate-target-diagnostics matrix so it rides the required gate.
+rollout-analysis-refs-check:
+	python3 tools/verify_rollout_analysis_refs.py
+
 .PHONY: fips-conformance-check
 # FIPS algorithm conformance in the declared crypto boundary (security/fips-boundary.yaml):
 # no non-FIPS algorithm (BLAKE2/3, MD5, SHA-1) may be called inside the boundary, and a

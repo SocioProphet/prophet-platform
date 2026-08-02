@@ -1,6 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# The AnalysisTemplate deploys (shared canary gate). The Rollout itself is no longer a
+# The ClusterAnalysisTemplate deploys (shared, cluster-scoped canary gate — INV-DEP-9: one
+# definition resolvable from every wave/service namespace, referenced with clusterScope: true).
+# This base carries NO `namespace:` transformer — a ClusterAnalysisTemplate is cluster-scoped
+# and must not be namespaced. The Rollout itself is no longer a
 # standalone manifest here — as of explore/rollouts-hellgraph-pilot (2026-07-31) it's rendered
 # by charts/socioprophet-service (templates/rollout.yaml + rollout-services.yaml) when a
 # service's deploy/values/<name>.yaml sets rollout.enabled: true, e.g. deploy/values/

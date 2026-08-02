@@ -103,6 +103,7 @@ jobs:
           - validate-storage-suite
           - trustops-art-runner-smoke
           - canary-slo-gate-check
+          - rollout-analysis-refs-check
           - fips-conformance-check
           - imageschemanet-grounding-check
     steps:
@@ -112,6 +113,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
+      - name: Setup kubectl (renders overlays for the analysis-ref gate, INV-DEP-9)
+        if: matrix.target == 'rollout-analysis-refs-check'
+        uses: azure/setup-kubectl@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

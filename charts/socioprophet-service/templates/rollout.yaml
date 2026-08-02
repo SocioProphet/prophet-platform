@@ -43,6 +43,12 @@ spec:
       analysis:
         templates:
           - templateName: {{ .templateName }}
+            {{- /* clusterScope: true resolves a ClusterAnalysisTemplate (the estate's shared
+                   slo-gate is cluster-scoped, INV-DEP-9) so a Rollout in ANY service namespace
+                   resolves it — a namespaced AnalysisTemplate only resolves in its own ns. */}}
+            {{- if .clusterScope }}
+            clusterScope: true
+            {{- end }}
         {{- with .args }}
         args:
           {{- toYaml . | nindent 10 }}

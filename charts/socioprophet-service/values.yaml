@@ -127,6 +127,11 @@ rollout:
   steps: []
   analysis:
     templateName: ""   # e.g. "slo-gate" (infra/k8s/rollouts/base/analysistemplate-slo.yaml)
+    # slo-gate is a ClusterAnalysisTemplate (cluster-scoped) so it resolves from THIS service's
+    # namespace — a namespaced AnalysisTemplate only resolves in its own ns (INV-DEP-9). Leave
+    # true when pointing at the shared cluster gate; set false only for a same-namespace
+    # AnalysisTemplate this chart also renders.
+    clusterScope: true
     args: []            # [{ name: service, value: <job label the AnalysisTemplate queries> }]
     startingStep: 1
   trafficRouting:

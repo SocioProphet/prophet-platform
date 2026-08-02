@@ -125,6 +125,15 @@ jobs:
       - name: Canary SLO gate is fail-closed (INV-DEP-3)
         run: python3 tools/check_canary_slo_gate.py
 
+      # GATE 3b — every Rollout analysis ref in THIS overlay must resolve where it deploys
+      # (INV-DEP-9). A namespaced AnalysisTemplate only resolves in its own namespace, so a
+      # Rollout in a fresh wave namespace that names one the overlay does not render renders
+      # clean here yet InvalidSpec's on the live controller (Degraded, no pods — the wave-deploy
+      # prod incident). Renders the overlay (kubectl kustomize) and proves each ref points at a
+      # rendered namespaced template or a declared ClusterAnalysisTemplate.
+      - name: Overlay analysis refs are self-contained (INV-DEP-9)
+        run: python3 tools/verify_rollout_analysis_refs.py "${{ inputs.overlay_dir }}/${{ inputs.wave }}"
+
       # GATE 4 — the prod wave (blue-green cutover) must carry the SLO prePromotionAnalysis.
       # A prod cutover with no analysis gate is a time-based promotion; refuse it.
       - name: Prod cutover must be SLO-gated (blue-green)
