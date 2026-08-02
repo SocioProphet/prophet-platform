@@ -176,3 +176,115 @@ def test_spark_routes_live_with_receipt_and_warrant():
     assert r["epistemic_status"] == "derived"
     assert r["outputs"][0]["type"] == "table"
     assert r["receipt"]["kind"] == "spark"               # same universal receipt
+
+
+# ── ZEROTRUST_ENFORCE: the flag must MEAN what the estate spells ──
+# Regression: the flag was `os.getenv(...).lower() == "true"`, so ZEROTRUST_ENFORCE=1 — the
+# estate's dominant spelling (NOETICA_SHACL_ENFORCE, BROKER_REQUIRE_KEY, SERVICE_REGISTER_STRICT,
+# PREMERGE_STRICT) — parsed as False and the gate was silently OFF. With it off, grant_check()
+# validates nothing against the store: a revoked grant returns valid=True on entitlement alone.
+
+def _reimport_with(value: str | None):
+    """Re-import zerotrust with ZEROTRUST_ENFORCE set (or unset) — it is read at import."""
+    prev = os.environ.get("ZEROTRUST_ENFORCE")
+    if value is None:
+        os.environ.pop("ZEROTRUST_ENFORCE", None)
+    else:
+        os.environ["ZEROTRUST_ENFORCE"] = value
+    try:
+        return importlib.reload(zerotrust).ZEROTRUST_ENFORCE
+    finally:
+        if prev is None:
+            os.environ.pop("ZEROTRUST_ENFORCE", None)
+        else:
+            os.environ["ZEROTRUST_ENFORCE"] = prev
+        importlib.reload(zerotrust)
+        zerotrust.ZEROTRUST_ENFORCE = False
+
+
+def test_enforce_flag_accepts_the_conventional_truthy_set():
+    for spelling in ("1", "true", "TRUE", "True", "yes", "YES", "on", "ON", " true ", " 1 "):
+        assert _reimport_with(spelling) is True, f"{spelling!r} must enable enforcement"
+    for spelling in ("0", "false", "no", "off", "", "  ", "maybe"):
+        assert _reimport_with(spelling) is False, f"{spelling!r} must NOT enable enforcement"
+    assert _reimport_with(None) is False, "absent stays off — the default is not being flipped here"
+
+
+def test_enforce_via_numeric_one_actually_refuses_a_revoked_grant():
+    """The whole point: `=1` must not just parse True, it must reach the enforcement block."""
+    gr = client.post("/v1/grants", json={"kind": "graph-query", "project": "demo"},
+                     headers=AUTH).json()
+    gid = gr["grant"]["grant_id"]
+    client.post(f"/v1/grants/{gid}/revoke", headers=AUTH)
+
+    prev = os.environ.get("ZEROTRUST_ENFORCE")
+    os.environ["ZEROTRUST_ENFORCE"] = "1"
+    try:
+        importlib.reload(zerotrust)
+        assert zerotrust.ZEROTRUST_ENFORCE is True
+        check, permitted = zerotrust.grant_check(project="demo", kind="graph-query",
+                                                 backend="hellgraph", actor="a",
+                                                 grant_id=gid, entitled=True)
+        assert permitted is False, "a revoked grant must be refused when ZEROTRUST_ENFORCE=1"
+        assert check["result"]["revoked"] is True
+        assert check["result"]["valid"] is False
+
+        # ...and a VALID grant still passes: this is a gate, not a wall.
+        ok = client.post("/v1/grants", json={"kind": "graph-query", "project": "demo"},
+                         headers=AUTH).json()["grant"]["grant_id"]
+        _c2, permitted2 = zerotrust.grant_check(project="demo", kind="graph-query",
+                                                backend="hellgraph", actor="a",
+                                                grant_id=ok, entitled=True)
+        assert permitted2 is True, "a live grant must still be admitted"
+    finally:
+        if prev is None:
+            os.environ.pop("ZEROTRUST_ENFORCE", None)
+        else:
+            os.environ["ZEROTRUST_ENFORCE"] = prev
+        importlib.reload(zerotrust)
+        zerotrust.ZEROTRUST_ENFORCE = False
+
+
+def test_disabled_enforcement_leaks_a_revoked_grant_and_says_so_out_loud():
+    """Pin BOTH halves of the silent-wrong: the leak is real, and it is now announced."""
+    gr = client.post("/v1/grants", json={"kind": "graph-query", "project": "demo"},
+                     headers=AUTH).json()
+    gid = gr["grant"]["grant_id"]
+    client.post(f"/v1/grants/{gid}/revoke", headers=AUTH)
+
+    zerotrust.ZEROTRUST_ENFORCE = False
+    _check, permitted = zerotrust.grant_check(project="demo", kind="graph-query",
+                                              backend="hellgraph", actor="a",
+                                              grant_id=gid, entitled=True)
+    assert permitted is True, "documents the cost of off: a revoked grant passes on entitlement"
+
+    said: list[str] = []
+    assert zerotrust.warn_if_unenforced(said.append) is True
+    assert len(said) == 1, "exactly one WARN (auth.ts / membrane.ts discipline)"
+    msg = said[0]
+    assert "ZEROTRUST_ENFORCE" in msg and "OFF" in msg
+    assert "REVOKED" in msg, "the warning must name what it costs, not just that a flag is off"
+
+    zerotrust.ZEROTRUST_ENFORCE = True
+    said2: list[str] = []
+    assert zerotrust.warn_if_unenforced(said2.append) is False
+    assert said2 == [], "enforced startup is quiet"
+    zerotrust.ZEROTRUST_ENFORCE = False
+
+
+def test_env_flag_helper_is_the_one_convention():
+    prev = os.environ.get("_ZT_PROBE")
+    try:
+        for v, want in (("1", True), ("true", True), ("yes", True), ("on", True),
+                        ("ON", True), (" 1 ", True), ("0", False), ("off", False),
+                        ("", False), ("nope", False)):
+            os.environ["_ZT_PROBE"] = v
+            assert zerotrust.env_flag("_ZT_PROBE") is want, f"{v!r}"
+        os.environ.pop("_ZT_PROBE", None)
+        assert zerotrust.env_flag("_ZT_PROBE") is False
+        assert zerotrust.env_flag("_ZT_PROBE", "on") is True, "callers may default to on"
+    finally:
+        if prev is None:
+            os.environ.pop("_ZT_PROBE", None)
+        else:
+            os.environ["_ZT_PROBE"] = prev
