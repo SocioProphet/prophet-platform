@@ -1,0 +1,17 @@
+{
+  "name": "@socioprophet/embeddings-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The one client for the estate's sovereign embedding service (prophet-platform apps/embeddings). Speaks the sourceos-spec EmbeddingRequest shape and fails closed on model/dimension drift — the runtime guard against silently-incomparable vector spaces.",
+  "type": "commonjs",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  }
+}
