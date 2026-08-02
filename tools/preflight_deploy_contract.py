@@ -181,6 +181,11 @@ KNOWN_BROKEN = {
         "declarations -> fail-closed-validated DeviceReadings) added to CI this PR. Pin tag:latest -> the sha- "
         "tag after the first CI build; no sha exists until merge."
     ),
+    "catalog-gateway:moving-tag": (
+        "New service — Catalog Gateway (apps/catalog-gateway: resolve/lineage/DCAT interop seam over "
+        "crystal-atlas + operational-event capture) added to CI this PR. Pin tag:latest -> the sha- tag "
+        "after the first CI build; no sha exists until merge."
+    ),
     # health-twin pinned to a sha- tag by gitops-promote after its first CI build (#932) → removed
     # from the ratchet (it only shrinks).
     # portfolio-agent pinned to a sha- tag by gitops-promote after its first CI build (#925,
