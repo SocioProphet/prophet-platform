@@ -105,7 +105,14 @@ rollout:
     - setWeight: 20
     - pause: { duration: 5m }
     - analysis:
-        templateName: slo-gate
+        # A canary step's analysis takes a LIST of templates. The bare
+        # `templateName: slo-gate` here was schema-invalid — ArgoCD server-side-apply
+        # rejected the Rollout for 27h (".spec.strategy.canary.steps[2].analysis.
+        # templateName: field not declared in schema"), so the Rollout was never
+        # created and the canary never ran once. Enforced now by
+        # tools/check_canary_slo_gate.py.
+        templates:
+          - templateName: slo-gate
         args:
           - { name: service, value: hellgraph-service }
     - setWeight: 50

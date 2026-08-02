@@ -78,7 +78,50 @@ def test_missing_absence_clause_alone_is_rejected():
     assert any("absent data" in v for v in violations)
 
 
-def test_shipped_slo_gate_is_fail_closed():
-    # The AnalysisTemplate this PR ships must itself pass the check on real data.
+# --- canary step structure: the bug that kept the Rollout from ever being created ---
+
+_VALUES_BARE = textwrap.dedent(
+    """
+    rollout:
+      enabled: true
+      steps:
+        - setWeight: 20
+        - analysis:
+            templateName: slo-gate
+            args:
+              - { name: service, value: hellgraph-service }
+        - setWeight: 100
+    """
+)
+
+_VALUES_TEMPLATES = textwrap.dedent(
+    """
+    rollout:
+      enabled: true
+      steps:
+        - setWeight: 20
+        - analysis:
+            templates:
+              - templateName: slo-gate
+            args:
+              - { name: service, value: hellgraph-service }
+        - setWeight: 100
+    """
+)
+
+
+def test_bare_templateName_step_is_rejected():
+    # This is the exact shape that made ArgoCD reject the hellgraph Rollout for 27h.
+    violations = chk.scan_text(_VALUES_BARE, "hellgraph-service.yaml")
+    assert any("bare `templateName`" in v for v in violations), violations
+
+
+def test_templates_list_step_passes():
+    assert chk.scan_text(_VALUES_TEMPLATES, "hellgraph-service.yaml") == []
+
+
+def test_shipped_repo_is_clean():
+    # Everything this PR ships — the fail-closed AnalysisTemplate AND the corrected
+    # hellgraph rollout step — must pass the check on real repo data.
     root = Path(chk.ROOT)
-    assert chk.scan_repo(root) == [], "shipped AnalysisTemplates must be fail-closed on no-data"
+    assert chk.scan_repo(root) == [], "shipped Rollouts/AnalysisTemplates must pass the canary gate check"

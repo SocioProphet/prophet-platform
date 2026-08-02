@@ -89,11 +89,57 @@ def template_violations(doc: dict[str, Any], where: str) -> list[str]:
     return out
 
 
+def _canary_steps_of(doc: dict[str, Any]) -> Any:
+    """The canary steps of a Rollout manifest, or of a Helm values file whose
+    rollout.steps block the shared chart renders raw into a Rollout."""
+    if doc.get("kind") == "Rollout":
+        strat = ((doc.get("spec") or {}).get("strategy") or {}).get("canary") or {}
+        return strat.get("steps")
+    ro = doc.get("rollout")
+    if isinstance(ro, dict):
+        return ro.get("steps")
+    return None
+
+
+def analysis_step_violations(steps: Any, where: str) -> list[str]:
+    """A canary step's ``analysis`` takes a LIST of templates. A bare
+    ``templateName`` is schema-invalid: ArgoCD server-side-apply rejects the whole
+    Rollout (".spec.strategy.canary.steps[N].analysis.templateName: field not
+    declared in schema"), so the Rollout is never created and the canary never runs
+    — silently, because the app can still report Healthy from its other objects."""
+    out: list[str] = []
+    if not isinstance(steps, list):
+        return out
+    for i, step in enumerate(steps):
+        if not isinstance(step, dict):
+            continue
+        analysis = step.get("analysis")
+        if not isinstance(analysis, dict):
+            continue
+        templates = analysis.get("templates")
+        if not isinstance(templates, list) or not templates:
+            if "templateName" in analysis:
+                out.append(
+                    f"{where}: canary step[{i}].analysis uses a bare `templateName` — the Argo "
+                    f"Rollouts schema requires `templates: [{{templateName: ...}}]`. Server-side "
+                    f"apply rejects a bare templateName, so the Rollout is never created and the "
+                    f"canary never runs (a control that cannot fire)."
+                )
+            else:
+                out.append(
+                    f"{where}: canary step[{i}].analysis declares no `templates` list — nothing gates this step."
+                )
+    return out
+
+
 def scan_text(text: str, where: str) -> list[str]:
     out: list[str] = []
     for doc in _iter_docs(text):
         if doc.get("kind") in ANALYSIS_KINDS:
             out.extend(template_violations(doc, where))
+        steps = _canary_steps_of(doc)
+        if steps is not None:
+            out.extend(analysis_step_violations(steps, where))
     return out
 
 
@@ -107,8 +153,8 @@ def scan_repo(root: Path) -> list[str]:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        # Cheap prefilter — the kind check inside scan_text is authoritative.
-        if "AnalysisTemplate" not in text:
+        # Cheap prefilter — the kind/shape checks inside scan_text are authoritative.
+        if not any(k in text for k in ("AnalysisTemplate", "Rollout", "rollout:")):
             continue
         out.extend(scan_text(text, str(path.relative_to(root))))
     return out
