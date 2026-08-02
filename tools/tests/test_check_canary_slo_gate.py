@@ -125,3 +125,31 @@ def test_shipped_repo_is_clean():
     # hellgraph rollout step — must pass the check on real repo data.
     root = Path(chk.ROOT)
     assert chk.scan_repo(root) == [], "shipped Rollouts/AnalysisTemplates must pass the canary gate check"
+
+
+# --- fail-closed on malformed input (Copilot review, PR #1201): a checker that
+#     silently swallows bad input is itself a control that cannot fail ---
+
+def test_malformed_yaml_naming_a_template_fails_closed():
+    bad = "kind: AnalysisTemplate\nspec: metrics: [ this: is not: valid yaml : :\n"
+    violations = chk.scan_text(bad, "broken.yaml")
+    assert violations, "a malformed YAML naming an AnalysisTemplate must NOT pass silently"
+    assert "not valid YAML" in violations[0]
+
+
+def test_go_templated_helm_file_is_skipped_not_flagged():
+    tmpl = "{{- if .Values.rollout.enabled }}\nkind: Rollout\nspec: {{ toYaml .x }}\n{{- end }}"
+    assert chk.scan_text(tmpl, "charts/x/templates/rollout.yaml") == []
+
+
+def test_non_list_metrics_fails_closed():
+    doc = textwrap.dedent(
+        """
+        kind: AnalysisTemplate
+        metadata: { name: bad-shape }
+        spec:
+          metrics: { error-ratio: { failureCondition: "result[0] >= 0.05" } }
+        """
+    )
+    violations = chk.scan_text(doc, "bad-shape.yaml")
+    assert any("non-list `spec.metrics`" in v for v in violations)

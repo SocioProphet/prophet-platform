@@ -27,7 +27,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
@@ -43,14 +43,14 @@ _PRESENCE = re.compile(r"len\s*\(\s*result\s*\)\s*(?:>\s*0|>=\s*1)")
 _ABSENCE = re.compile(r"len\s*\(\s*result\s*\)\s*(?:==\s*0|<\s*1|<=\s*0)")
 
 
-def _iter_docs(text: str) -> Iterable[dict[str, Any]]:
+def _load_docs(text: str) -> tuple[list[dict[str, Any]], str | None]:
+    """Parse every YAML doc. Returns (docs, error_name). Fail-closed: a parse error is
+    surfaced to the caller, never swallowed — a manifest that will not parse cannot be
+    certified fail-closed (swallowing it would let a malformed gate pass silently)."""
     try:
-        docs = yaml.safe_load_all(text)
-        for doc in docs:
-            if isinstance(doc, dict):
-                yield doc
-    except yaml.YAMLError:
-        return
+        return [d for d in yaml.safe_load_all(text) if isinstance(d, dict)], None
+    except yaml.YAMLError as e:
+        return [], type(e).__name__
 
 
 def metric_violations(metric: dict[str, Any], where: str) -> list[str]:
@@ -78,10 +78,18 @@ def metric_violations(metric: dict[str, Any], where: str) -> list[str]:
 
 def template_violations(doc: dict[str, Any], where: str) -> list[str]:
     md_name = (doc.get("metadata") or {}).get("name", "?")
-    metrics = ((doc.get("spec") or {}).get("metrics")) or []
+    metrics = (doc.get("spec") or {}).get("metrics")
     out: list[str] = []
-    if not metrics:
+    if metrics is None or (isinstance(metrics, list) and not metrics):
         out.append(f"{where}: AnalysisTemplate '{md_name}' declares no metrics")
+        return out
+    if not isinstance(metrics, list):
+        # Fail-closed on a malformed template: a non-list `spec.metrics` (e.g. a
+        # mapping) would otherwise be iterated as keys and pass with zero violations.
+        out.append(
+            f"{where}: AnalysisTemplate '{md_name}' has a non-list `spec.metrics` "
+            f"({type(metrics).__name__}) — cannot verify it fails closed"
+        )
         return out
     for m in metrics:
         if isinstance(m, dict):
@@ -127,14 +135,28 @@ def analysis_step_violations(steps: Any, where: str) -> list[str]:
                 )
             else:
                 out.append(
-                    f"{where}: canary step[{i}].analysis declares no `templates` list — nothing gates this step."
+                    f"{where}: canary step[{i}].analysis has no non-empty `templates` list "
+                    f"(missing or empty) — nothing gates this step."
                 )
     return out
 
 
 def scan_text(text: str, where: str) -> list[str]:
+    # Helm/Go-templated files are not plain YAML; they are validated by rendering, not
+    # here (the rendered inputs that matter — deploy/values/*.yaml — are checked
+    # directly). Everything else that names these kinds MUST parse.
+    if "{{" in text and "}}" in text:
+        return []
+    docs, err = _load_docs(text)
+    if err is not None:
+        # Fail CLOSED: a file that names a Rollout/AnalysisTemplate but will not parse
+        # cannot be certified fail-closed — flag it, never silently skip it.
+        return [
+            f"{where}: names a Rollout/AnalysisTemplate but is not valid YAML ({err}) "
+            f"— cannot verify it fails closed on no-data"
+        ]
     out: list[str] = []
-    for doc in _iter_docs(text):
+    for doc in docs:
         if doc.get("kind") in ANALYSIS_KINDS:
             out.extend(template_violations(doc, where))
         steps = _canary_steps_of(doc)
