@@ -1,0 +1,89 @@
+name: semantic-coordinate-algebra
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/semantic_algebra.py'
+      - 'tools/agent_coordinate_vector.py'
+      - 'tools/boundary_transition_actants.py'
+      - 'tools/abstraction_level_gate.py'
+      - 'tools/intent_address.py'
+      - 'tools/spectral_grounding.py'
+      - 'tools/market_paradigm.py'
+      - 'tools/check_cleanroom.py'
+      - 'tools/tests/test_semantic_algebra*.py'
+      - 'tools/tests/test_agent_coordinate_vector.py'
+      - 'tools/tests/test_boundary_transition_actants.py'
+      - 'tools/tests/test_abstraction_level_gate.py'
+      - 'tools/tests/test_intent_address.py'
+      - 'tools/tests/test_spectral_grounding.py'
+      - 'tools/tests/test_market_paradigm.py'
+      - 'tools/tests/test_check_cleanroom.py'
+      - 'tools/tests/test_contract_schemas.py'
+      - 'contracts/AgentCoordinateVector.v0.1.json'
+      - 'contracts/BoundaryTransition.v0.2.json'
+      - 'docs/SEMANTIC_COORDINATE_ALGEBRA.md'
+      - 'docs/SEMANTIC_LAYER_ADJUNCTION.md'
+      - '.github/workflows/semantic-coordinate-algebra.yml'
+  pull_request:
+    paths:
+      - 'tools/semantic_algebra.py'
+      - 'tools/agent_coordinate_vector.py'
+      - 'tools/boundary_transition_actants.py'
+      - 'tools/abstraction_level_gate.py'
+      - 'tools/intent_address.py'
+      - 'tools/spectral_grounding.py'
+      - 'tools/market_paradigm.py'
+      - 'tools/check_cleanroom.py'
+      - 'tools/tests/test_semantic_algebra*.py'
+      - 'tools/tests/test_agent_coordinate_vector.py'
+      - 'tools/tests/test_boundary_transition_actants.py'
+      - 'tools/tests/test_abstraction_level_gate.py'
+      - 'tools/tests/test_intent_address.py'
+      - 'tools/tests/test_spectral_grounding.py'
+      - 'tools/tests/test_market_paradigm.py'
+      - 'tools/tests/test_check_cleanroom.py'
+      - 'tools/tests/test_contract_schemas.py'
+      - 'contracts/AgentCoordinateVector.v0.1.json'
+      - 'contracts/BoundaryTransition.v0.2.json'
+      - 'docs/SEMANTIC_COORDINATE_ALGEBRA.md'
+      - 'docs/SEMANTIC_LAYER_ADJUNCTION.md'
+      - '.github/workflows/semantic-coordinate-algebra.yml'
+
+jobs:
+  semantic-coordinate-algebra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install jsonschema pytest
+
+      # The clean-room check runs FIRST and independently of the test suite: it
+      # is the control that keeps encumbered vocabulary out of the kernel, and a
+      # green test run must never be mistaken for a clean provenance result.
+      - name: Clean-room provenance check
+        run: python3 tools/check_cleanroom.py
+
+      - name: Algebra, contracts, and market paradigm tests
+        run: |
+          pytest -q \
+            tools/tests/test_semantic_algebra.py \
+            tools/tests/test_semantic_algebra_adjunction.py \
+            tools/tests/test_semantic_algebra_deltas.py \
+            tools/tests/test_agent_coordinate_vector.py \
+            tools/tests/test_boundary_transition_actants.py \
+            tools/tests/test_abstraction_level_gate.py \
+            tools/tests/test_intent_address.py \
+            tools/tests/test_spectral_grounding.py \
+            tools/tests/test_market_paradigm.py \
+            tools/tests/test_check_cleanroom.py \
+            tools/tests/test_contract_schemas.py
