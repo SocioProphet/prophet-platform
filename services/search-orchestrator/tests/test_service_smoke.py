@@ -43,9 +43,14 @@ def test_query_endpoint_returns_normalized_response_shape() -> None:
     assert payload['query_id'] == 'q1'
     assert payload['actor_id'] == 'user-1'
     assert payload['mode'] == 'HYBRID'
-    assert len(payload['results']) == 1
-    assert payload['results'][0]['source'] == 'PLATFORM'
-    assert payload['results'][0]['path_or_uri'] == 'workspace://documents/budget'
+    # Copilot review on #1208: asserting an exact result count would make this
+    # test brittle against any future change that enables an additional source
+    # by default. What this test needs to prove is narrower and more durable:
+    # the platform-workspace placeholder specifically fires (it did not, before
+    # this PR's fix, for a request with no scope field).
+    platform_results = [r for r in payload['results'] if r['source'] == 'PLATFORM']
+    assert len(platform_results) == 1
+    assert platform_results[0]['path_or_uri'] == 'workspace://documents/budget'
 
 
 def test_query_endpoint_omitting_scope_is_not_silently_disabled() -> None:

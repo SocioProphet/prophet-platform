@@ -107,14 +107,19 @@ def test_policy_gate_fires_on_the_request_path_both_ways() -> None:
     reset()
     assert client.post("/v1/search/ingest/academy", json=restricted_academy_record()).status_code == 200
 
+    # Copilot review on #1208: asserting policy_decision_local_total specifically
+    # couples this test to which evaluator happens to run (LocalVisibilityPolicyEvaluator
+    # vs HttpPolicyFabricEvaluator, selected by whether
+    # SEARCH_ORCHESTRATOR_POLICY_FABRIC_ENDPOINT is set in the environment this test
+    # runs in). debug_config() explicitly documents both as valid modes. What this
+    # test needs to prove is evaluator-independent: the gate reaches a verdict at all,
+    # and distinguishes allow from deny -- not which code path served it.
     _query(actor_id="allowed-user", query_id="q-allow")
     allowed_metrics = client.get("/v1/search/debug/metrics").json()["metrics"]
     assert allowed_metrics["policy_decision_allow_total"] == 1
     assert allowed_metrics["policy_decision_deny_total"] == 0
-    assert allowed_metrics["policy_decision_local_total"] == 1
 
     _query(actor_id="other-user", query_id="q-deny")
     denied_metrics = client.get("/v1/search/debug/metrics").json()["metrics"]
     assert denied_metrics["policy_decision_allow_total"] == 1
     assert denied_metrics["policy_decision_deny_total"] == 1
-    assert denied_metrics["policy_decision_local_total"] == 2
