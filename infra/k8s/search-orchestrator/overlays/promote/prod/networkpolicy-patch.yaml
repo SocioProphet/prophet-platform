@@ -1,0 +1,34 @@
+# Re-scope the baseline NetworkPolicy from the base namespace (prophet-platform) to the
+# prod namespace. The base policy hardcodes `kubernetes.io/metadata.name: prophet-platform`
+# in its ingress source and its :8080 egress target; in prod both must point at
+# prophet-platform-prod or the policy silently blocks/allows the wrong namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: search-orchestrator-baseline
+spec:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: prophet-platform-prod
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: prophet-platform-prod
+      ports:
+        - protocol: TCP
+          port: 8080

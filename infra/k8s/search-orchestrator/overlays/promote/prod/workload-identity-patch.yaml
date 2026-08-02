@@ -1,0 +1,10 @@
+# Binds the search-orchestrator KSA to its IaC-provisioned Workload Identity GSA.
+# The GSA + IAM policy binding are declared in infra/tofu/envs/shared/main.tf
+# (module.wi_cicd bindings → "search-orchestrator"); this annotation is the K8s side.
+# One-click: no engineer sets this by hand — tofu apply mints the GSA, this overlay wires it.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: search-orchestrator
+  annotations:
+    iam.gke.io/gcp-service-account: search-orchestrator@socioprophet-platform.iam.gserviceaccount.com

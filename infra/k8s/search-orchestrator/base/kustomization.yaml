@@ -2,9 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: prophet-platform
 resources:
+  # Supporting resources (SA/RBAC, ConfigMap, PVC, NetworkPolicy) live in base-support so
+  # the prod blue-green overlay can compose them WITHOUT the base Deployment (it runs a
+  # Rollout instead). Kustomize's load-restrictor forbids an overlay from listing individual
+  # files above its own dir, so they must be a referenceable directory kustomization.
+  - ../base-support
   - deployment.yaml
   - service.yaml
-  - configmap.yaml
-  - serviceaccount-rbac.yaml
-  - pvc.yaml
-  - networkpolicy.yaml

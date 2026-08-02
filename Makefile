@@ -595,6 +595,17 @@ canary-slo-gate-check:
 rollout-analysis-refs-check:
 	python3 tools/verify_rollout_analysis_refs.py
 
+.PHONY: overlay-self-contained-check
+# Self-contained overlays (INV-DEP-10): a workload (Deployment/Rollout) may only reference a
+# ServiceAccount / ConfigMap / PVC the overlay also renders. A dangling ref renders clean under
+# `kubectl kustomize` but the LIVE cluster FailedCreate's at pod-create ('serviceaccount not
+# found', 0 pods) — the wave-deploy prod incident where the "Self-contained" prod overlay shipped
+# a Rollout but not its SA/ConfigMap/PVC. tools/verify_overlay_self_contained.py renders each
+# promote overlay and proves every pod-template ref resolves. In the validate-target-diagnostics
+# matrix so it rides the required gate; one-click deploy depends on it.
+overlay-self-contained-check:
+	python3 tools/verify_overlay_self_contained.py
+
 .PHONY: fips-conformance-check
 # FIPS algorithm conformance in the declared crypto boundary (security/fips-boundary.yaml):
 # no non-FIPS algorithm (BLAKE2/3, MD5, SHA-1) may be called inside the boundary, and a
