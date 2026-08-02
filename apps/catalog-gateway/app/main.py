@@ -14,6 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
+from . import ops
 from .dcat import asset_to_dcat
 from .store import KINDS, SERVICE, get_entry, is_valid_id
 
@@ -42,7 +43,13 @@ def _resolve_or_404(kind: str, entry_id: str) -> dict:
 @app.get("/v1/catalog/asset/{entry_id}.dcat.json")
 def asset_dcat(entry_id: str) -> JSONResponse:
     entry = _resolve_or_404("asset", entry_id)
-    return JSONResponse(content=asset_to_dcat(entry), media_type="application/ld+json")
+    doc = asset_to_dcat(entry)
+    # Log the entry's OWN asset_id (what the DCAT doc is identified by), falling
+    # back to the request path — so the ops event can never disagree with the
+    # emitted document when the stored asset_id differs from the path.
+    ops.record_dcat_emitted(entry.get("asset_id") or entry_id, doc.get("dct:accessRights", ""),
+                            distribution_class=entry.get("distribution_class"))
+    return JSONResponse(content=doc, media_type="application/ld+json")
 
 
 @app.get("/v1/catalog/{kind}/{entry_id}/lineage")
@@ -60,4 +67,11 @@ def lineage(kind: str, entry_id: str) -> dict:
 
 @app.get("/v1/catalog/{kind}/{entry_id}")
 def resolve(kind: str, entry_id: str) -> dict:
-    return {"kind": kind, "entry": _resolve_or_404(kind, entry_id)}
+    try:
+        entry = _resolve_or_404(kind, entry_id)
+    except HTTPException as exc:
+        if exc.status_code == 404 and kind in KINDS:
+            ops.record_resolved(kind, entry_id, hit=False)  # capture misses too
+        raise
+    ops.record_resolved(kind, entry_id, hit=True)
+    return {"kind": kind, "entry": entry}
