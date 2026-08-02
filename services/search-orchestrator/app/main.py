@@ -60,8 +60,10 @@ def _actions_for(item) -> SearchResultActions:
 def search_query(body: SearchRequest) -> dict[str, object]:
     increment("search_query_total")
     results: list[dict[str, object]] = []
-    scope = body.scope or None
-    enabled = scope is not None and scope.cloud_workspace
+    # body.scope is never None (SearchRequest.scope defaults to SearchScope()) --
+    # simplified from the old `scope is not None and scope.cloud_workspace`, which
+    # was live dead code once scope stopped being Optional.
+    enabled = body.scope.cloud_workspace
 
     for item in query_platform_workspace(text=body.text, enabled=enabled):
         result = SearchResult(

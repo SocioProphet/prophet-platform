@@ -17,7 +17,16 @@ class SearchRequest(BaseModel):
     limit: int
     workspace_id: str | None = None
     jurisdiction_id: str | None = None
-    scope: SearchScope | None = None
+    # KMASS baseline (2026-08-01): defaulted to None, and main.py reads
+    # `scope is not None and scope.cloud_workspace` -- so a caller that omits
+    # scope entirely (every baseline probe did; nothing in the API surface
+    # signals it's required) got zero results from every query path, silently,
+    # with no error. SearchScope's OWN fields already default cloud_workspace
+    # to True; a request with no scope object should behave identically to
+    # one with an empty scope object, not to one that explicitly disabled
+    # everything. This was invisible to the existing test suite because every
+    # test happens to send scope explicitly (see test_academy_visibility.py).
+    scope: SearchScope = Field(default_factory=SearchScope)
 
 
 class SearchResultScore(BaseModel):
