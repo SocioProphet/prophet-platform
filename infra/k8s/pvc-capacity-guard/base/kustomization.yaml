@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+labels:
+  - includeSelectors: false
+    pairs:
+      app: pvc-capacity-guard
+      app.kubernetes.io/part-of: platform-ops
+resources:
+  - rbac.yaml
+  - cronjob.yaml
+
+# Generated rather than hand-written, for the same reason zot's config is (see
+# infra/k8s/zot/base/kustomization.yaml): the generator's name hash changes the pod spec
+# whenever the script or the policy changes. For a CronJob the stakes are lower than for a
+# long-lived process — each run mounts the ConfigMap fresh — but the hash also makes an
+# edit to guard.py or policy.json visible as a diff on the CronJob itself, so a policy
+# change shows up in ArgoCD as a change to the workload rather than a silent ConfigMap
+# mutation nobody reviews.
+configMapGenerator:
+  - name: pvc-capacity-guard
+    files:
+      - guard.py
+      - policy.json

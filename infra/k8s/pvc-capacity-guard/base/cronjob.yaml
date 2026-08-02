@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pvc-capacity-guard
+  namespace: observability
+spec:
+  # Every 15 minutes. Paired with thresholdPct 75 this is the real safety margin: the guard
+  # must notice and finish expanding before the remaining 25% is consumed. For the registry
+  # volume at 100Gi that is 25Gi of headroom per cycle — far more than any plausible burst
+  # of image-layer pushes in 15 minutes.
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: pvc-capacity-guard
+        spec:
+          serviceAccountName: pvc-capacity-guard
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: guard
+              # Pulled DIRECTLY from docker.io, deliberately not through
+              # registry.socioprophet.ai. This guard's whole job is to keep the volume that
+              # backs the registry from filling; routing its own image through that registry
+              # would mean the recovery path fails in exactly the circumstance it exists for.
+              # Same rule the zot README states: never make zot the only path to its own
+              # recovery. Stdlib-only script, so a bare python image needs no pip install.
+              image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+              command: ["python3", "/opt/guard/guard.py"]
+              env:
+                - name: GCP_PROJECT
+                  value: socioprophet-platform
+                - name: POLICY_PATH
+                  value: /etc/guard/policy.json
+                - name: ALERTMANAGER_URL
+                  value: http://kube-prometheus-stack-alertmanager.observability.svc:9093
+              volumeMounts:
+                - name: guard
+                  mountPath: /opt/guard/guard.py
+                  subPath: guard.py
+                  readOnly: true
+                - name: guard
+                  mountPath: /etc/guard/policy.json
+                  subPath: policy.json
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: guard
+              configMap:
+                name: pvc-capacity-guard
+                defaultMode: 0555
