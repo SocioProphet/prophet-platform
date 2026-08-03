@@ -507,8 +507,60 @@ async def cite(req: CiteRequest, authorization: str = Header(default="")) -> dic
                               "description": f"Proof-carrying record. epistemic_mode={prov['epistemic_mode']}; content_hash={h}; provenance={prov['extractor']}."}],
         },
     }
+    # HONEST boundary: this is a sovereign, DataCite-FORMAT identifier minted locally. It is only a
+    # globally-resolvable doi.org DOI once DATACITE_PREFIX is a registered prefix and the DataCite API
+    # path (/api/studio/datacite/register) is used. Surface that so callers never assume it resolves.
+    datacite_live = bool(os.getenv("DATACITE_PREFIX")) and STUDIO_DOI_PREFIX not in ("10.82044", "10.0000", "10.5072")
     return {"pid": pid, "doi": doi, "resolve": resolve_url, "content_hash": h, "created_at": created,
-            "citation": citation, "bibtex": bibtex, "datacite": datacite, "proof_carrying": True, "node_id": node_id}
+            "citation": citation, "bibtex": bibtex, "datacite": datacite, "proof_carrying": True,
+            "node_id": node_id, "datacite_live": datacite_live,
+            "note": None if datacite_live else "sovereign DOI-format id; not resolvable at doi.org until a DataCite prefix is registered"}
+
+
+class DataCiteRegisterRequest(BaseModel):
+    kind: str = "dataset"              # dataset | ml-model | application | service | notebook | graph
+    concept_key: str                  # stable identity key for the concept (e.g. "demo-csv")
+    version: str                      # this deposition's version (e.g. "1.0.0")
+    title: str
+    creators: list[str] = []
+    # immutable content-addressed binding (zot OCI / workspace-minio) + its SHA-256 receipt
+    storage: str = "zot"              # zot | workspace-minio
+    locator: str                      # OCI ref / s3 URI to the immutable artifact
+    digest: str                       # "sha256:<64 hex>" content address (FIPS-180-4 algorithm)
+    receipt_sha256: str               # "sha256:<64 hex>" SHA-256 of the deposition receipt
+    media_type: str = "application/octet-stream"
+
+
+@app.post("/api/studio/datacite/register")
+async def datacite_register(req: DataCiteRegisterRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Mint a REAL, globally-resolvable concept+version DOI PAIR via the DataCite REST API, each bound to an
+    immutable content-addressed artifact + its SHA-256 receipt. Fail-closed (503) with a precise reason when
+    DATACITE_PREFIX is unregistered/placeholder or credentials are unset — it is NOT live until the prefix is
+    registered (see the tracking issue). Uses the config/secret; hardcodes no prefix."""
+    _require_write_token(authorization)
+    from lattice_studio.datacite import DataCiteClient, DataCiteError, ImmutableArtifactRef
+
+    artifact = ImmutableArtifactRef(
+        storage=req.storage, locator=req.locator, digest=req.digest,
+        receipt_sha256=req.receipt_sha256, media_type=req.media_type,
+    )
+    client = DataCiteClient()
+    try:
+        pair = await client.mint_concept_and_version(
+            kind=req.kind, title=req.title, creators=req.creators, concept_key=req.concept_key,
+            version=req.version, concept_artifact=artifact, version_artifact=artifact,
+        )
+    except DataCiteError as exc:
+        # config/credential/artifact validity failures are a precondition failure, not a server bug
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    concept, version = pair["concept"], pair["version"]
+    return {
+        "live": True,
+        "concept": {"doi": concept.doi, "resolver": concept.resolver_url(), "state": concept.state},
+        "version": {"doi": version.doi, "resolver": version.resolver_url(), "state": version.state,
+                    "version": version.version, "is_version_of": concept.doi},
+        "content_digest": version.artifact_digest, "receipt_sha256": version.receipt_sha256,
+    }
 
 
 @app.get("/api/studio/resolve")
