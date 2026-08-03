@@ -119,9 +119,11 @@ spec:
           # socbase-auth / socbase-rest are third-party images (supabase/gotrue,
           # postgrest/postgrest) with tags pinned directly in their values files —
           # NOT touched by the build-image/gitops-promote SHA pipeline above, since
-          # we don't build them. Install the charts/socbase-schema Job (separately;
-          # it isn't part of this ApplicationSet — see its NOTES.txt) AFTER
-          # socbase-auth is live, since it waits on GoTrue's auth schema.
+          # we don't build them. The charts/socbase-schema bootstrap Job is NOT
+          # here (this ApplicationSet renders charts/socioprophet-service per
+          # element and has no Job/hook shape) — it is registered in
+          # deploy/argocd/socbase-services.yaml at sync-wave 1. It used to say
+          # "install separately", which meant it never ran at all.
           - { name: socbase-auth, tier: foundation }             # sovereign auth (GoTrue) — the identity door
           - { name: socbase-rest, tier: foundation }             # sovereign data surface (PostgREST) — the data door
   template:

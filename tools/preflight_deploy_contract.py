@@ -97,6 +97,10 @@ NON_CHART_SERVICES = {
     "search-gateway-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for search-gateway
     "studio-ingress",  # public HTTPS edge (ManagedCertificate + Ingress) for lattice-studio (Studio BFF)
     "mesh-qdrant",  # shared platform vector store, deploys from infra/k8s/mesh-qdrant (kustomize)
+    "schema",  # socbase-schema bootstrap Job (deploy/argocd/socbase-services.yaml): a bare
+               # `charts/socbase-schema` path element, not deploy/values/schema.yaml-shaped.
+               # Its image is the stock `postgres:16-alpine` (charts/socbase-schema/templates/
+               # schema-job.yaml) — no first-party image to check against `built`.
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere
@@ -137,10 +141,11 @@ KNOWN_BROKEN = {
     # sha-9fd245401789 (#1017) after its first CI build, exactly as this entry predicted.
     # The ratchet only shrinks, and it had already begun FAILING the gate on main for
     # this reason: fixed → removed, so the warden can never silently regress to `:latest`.
-    # RESOLVED 2026-08-03: entity-resolution — sha-pinned after its first CI build, so its
-    # moving-tag entry now passes. The ratchet caught it as "now passes" on an UNRELATED PR
-    # (the Kyverno controller install), exactly the lifecycle-warden precedent above: caught on an
-    # unrelated PR; fixed → removed, so it can never silently regress to `:latest`.
+    # RESOLVED 2026-08-03: entity-resolution — deploy/values/entity-resolution.yaml is
+    # sha-pinned (sha-b5af12022446b831d2641701c7f3e59836c639ad) after its first CI build.
+    # The ratchet caught it as "now passes" on an UNRELATED PR (the Kyverno controller
+    # install), exactly the lifecycle-warden precedent above: caught on an unrelated PR;
+    # fixed → removed, so it can never silently regress to `:latest`.
     # RESOLVED 2026-07-31: agent-activity-ledger and gbrg-containment both got sha-pinned
     # (their first CI builds landed) after these entries were written. The ratchet caught
     # both as "now passes — delete from KNOWN_BROKEN" on an unrelated PR; fixed → removed,
