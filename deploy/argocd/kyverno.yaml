@@ -1,0 +1,41 @@
+# Kyverno controller — AUDIT-FIRST, HELD install.
+#
+# Closes the controller half of the sovereign-registry-policy-enforced gap (git-ops-standards
+# control): the estate has a committed image-signature ClusterPolicy
+# (infra/policy/cloudshell-fog/kyverno/verify-signed-images.yaml, delivered by the cloudshell-fog
+# stack) but NO Kyverno controller, so nothing admits or evaluates it — signing is *declared, not
+# enforced*.
+#
+# HELD by design: no `syncPolicy.automated`, so merging this changes NOTHING live. ArgoCD registers
+# the app OutOfSync and waits. The operator syncs it deliberately (audit-first rollout, not an
+# auto-apply on merge). This app lives under deploy/argocd/ (the tofu root app-of-apps only
+# recurses deploy/argocd — infra/argocd/ is never reconciled by it).
+#
+# Rollout: sync this app -> confirm the controller is Ready -> ensure the cloudshell-fog policy
+# stack reconciles the ClusterPolicy (it ships validationFailureAction: Audit — non-blocking) ->
+# observe Audit logs -> flip verify-signed-images to Enforce in a follow-up PR.
+# Full runbook: infra/policy/cloudshell-fog/kyverno/ROLLOUT.md
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"   # controller + CRDs are foundation, before any ClusterPolicy
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  source:
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    targetRevision: 3.8.2   # appVersion v1.18.2 (latest stable; confirmed via the kyverno helm index)
+    helm:
+      releaseName: kyverno
+  syncPolicy:
+    # HELD: no `automated` — installs only on a deliberate operator sync (audit-first).
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # Kyverno CRDs exceed the client-side apply annotation-size limit
