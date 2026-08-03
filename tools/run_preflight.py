@@ -10,6 +10,7 @@ INCLUDED (fast + hermetic, laptop-runnable in minutes):
   * validate-repo, drift-check, standards-check, topology-check   — repo/standards/topology gates
   * rollout-analysis-refs-check, overlay-self-contained-check     — static ref-resolution (INV-DEP-9/10)
   * no-dangling-path-refs-check                                   — blast-radius on refactor (INV-DEP-12)
+  * evidence-refs-check                                           — evidence-reference verification (INV-DEP-13)
   * test-tools                                                    — the tools/ pytest suite
 
 DELIBERATELY EXCLUDED — these stay in CI, never in preflight:
@@ -41,6 +42,7 @@ LEGS: list[str] = [
     "overlay-self-contained-check",
     "manifest-completeness-check",
     "no-dangling-path-refs-check",
+    "evidence-refs-check",
     "test-tools",
 ]
 

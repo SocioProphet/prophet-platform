@@ -34,6 +34,15 @@ on path boundaries so `base/configmap.yaml` does not hit inside `xbase/configmap
 
 Fail-closed: if git is unavailable, or the merge-base / diff cannot be computed, the gate exits
 non-zero with a clear message. A gate that cannot compute blast-radius must not silently pass.
+
+Auto-remediation (L6): when a derived gate KNOWS the mechanical fix, offer the patch, not just the
+refusal. A RENAME reports the git-detected rename target (`git diff --diff-filter=R -M`), so each
+surviving reference to the old path carries a concrete "→ <new path>" suggestion; `--fix` rewrites
+the UNAMBIGUOUS full-path cases in place (literal old → new, on the same path boundaries) and prints
+a summary. DELETIONS have no rename target, so they are reported but NEVER auto-rewritten — there is
+no safe path to point at. `--fix` is a developer convenience; CI never runs it (CI stays report-
+only and fail-closed). The default (no `--fix`) report behaviour is unchanged: report-only, exits
+non-zero on any surviving reference, modifies nothing.
 """
 from __future__ import annotations
 
@@ -76,15 +85,23 @@ def _compile(needle: str) -> re.Pattern[str]:
     return re.compile(r"(?<![\w./-])" + re.escape(needle) + r"(?![\w./-])")
 
 
-def scan(removed_paths: Iterable[str], tree_files) -> list[str]:
+def scan(removed_paths: Iterable[str], tree_files, renames: Mapping[str, str] | None = None) -> list[str]:
     """Return violation messages for every removed path still referenced in the current tree.
 
     `tree_files`: a mapping {path: text} or an iterable of (path, text) pairs. A `text` of
     None is skipped (binary/unreadable). Each violation carries `file:line` and the missing
-    path, deduped per (removed_path, file, line)."""
+    path, deduped per (removed_path, file, line).
+
+    `renames`: an optional {old_path: new_path} map for paths that were RENAMED (not deleted). When
+    a surviving reference points at a renamed old path, the violation carries a concrete suggestion
+    — "→ <new path>" — because the mechanical fix is known (that is L6, auto-remediation: `--fix`
+    rewrites the unambiguous full-path cases). A DELETED path has no rename target, so it gets NO
+    suggestion (there is nothing safe to point at). When `renames` is empty/None the output is
+    byte-identical to the report-only default — the suggestion is purely additive for renames."""
     removed = [p for p in dict.fromkeys(removed_paths) if p]  # de-dupe, keep order, drop empties
     if not removed:
         return []
+    renames = renames or {}
     removed_set = set(removed)
     patterns = {p: [_compile(n) for n in _needles(p)] for p in removed}
 
@@ -111,12 +128,62 @@ def scan(removed_paths: Iterable[str], tree_files) -> list[str]:
                     if key in seen:
                         continue
                     seen.add(key)
+                    new_path = renames.get(removed_path)
+                    if new_path:
+                        suggestion = (
+                            f" It was RENAMED to '{new_path}' — update the reference to that path "
+                            f"(auto-fixable: rerun with --fix)."
+                        )
+                    else:
+                        suggestion = ""
                     violations.append(
                         f"{path}:{lineno}: references '{removed_path}', but that path was "
                         f"DELETED or RENAMED away in this PR and no longer exists — update or "
-                        f"remove the reference (blast-radius of the refactor)."
+                        f"remove the reference (blast-radius of the refactor).{suggestion}"
                     )
     return violations
+
+
+def plan_fixes(renames: Mapping[str, str], tree_files) -> tuple[dict[str, str], list[str]]:
+    """Compute the in-place rewrites for RENAME cases only, without touching disk (pure — the
+    testable core of `--fix`).
+
+    For each `old -> new` rename, every surviving reference to the FULL old path is rewritten to
+    the FULL new path, matched on the SAME path boundaries the detector uses (so `base/pvc.yaml`
+    is not rewritten inside `xbase/pvc.yaml` or `pvc.yaml.bak`). This is deliberately bounded to
+    the UNAMBIGUOUS full-path form: a bare-suffix reference (e.g. `base/pvc.yaml` on its own) has
+    no single safe new target, so it is left for a human (it is still reported by `scan`).
+
+    DELETIONS are never passed here (a deleted path has no rename target), so nothing a delete
+    touched is ever auto-rewritten.
+
+    Returns ({path: new_text} for files that changed, [human-readable summary lines])."""
+    rmap = {o: n for o, n in renames.items() if o and n}
+    if not rmap:
+        return {}, []
+    # Full-path, boundary-bounded pattern per old path — NOT the >=2-segment suffixes (those are
+    # ambiguous to rewrite). Longer old paths first so a rewrite is stable if one is a suffix of
+    # another.
+    pats = {o: _compile(o) for o in sorted(rmap, key=len, reverse=True)}
+
+    items = tree_files.items() if isinstance(tree_files, Mapping) else tree_files
+    changed: dict[str, str] = {}
+    summary: list[str] = []
+    for path, text in items:
+        if text is None or path in rmap:
+            continue
+        new_text = text
+        per_file: list[tuple[str, str, int]] = []
+        for old, pat in pats.items():
+            new = rmap[old]
+            new_text, count = pat.subn(lambda _m, _n=new: _n, new_text)
+            if count:
+                per_file.append((old, new, count))
+        if per_file:
+            changed[path] = new_text
+            for old, new, count in per_file:
+                summary.append(f"{path}: rewrote {count} full-path reference(s) '{old}' -> '{new}'")
+    return changed, summary
 
 
 # --------------------------------------------------------------------------------------------
@@ -154,6 +221,34 @@ def compute_removed_paths(root: Path, base: str, head: str = "HEAD") -> list[str
     """Old paths DELETED (D) or RENAMED-away (R) between `base` and `head`."""
     out = _git(["diff", "--diff-filter=DR", "--name-status", "-z", base, head], root)
     return _parse_name_status_z(out)
+
+
+def compute_rename_map(root: Path, base: str, head: str = "HEAD") -> dict[str, str]:
+    """{old_path: new_path} for paths RENAMED (R) between `base` and `head`. `-M` asks git to
+    detect renames; a pure delete has no entry here, so it can never receive an auto-fix target."""
+    out = _git(["diff", "--diff-filter=R", "-M", "--name-status", "-z", base, head], root)
+    return _parse_rename_map_z(out)
+
+
+def _parse_rename_map_z(out: str) -> dict[str, str]:
+    """Parse `git diff --diff-filter=R --name-status -z`: each R record is
+    `Rnnn\\0oldpath\\0newpath`. Returns {old: new}."""
+    fields = out.split("\0")
+    renames: dict[str, str] = {}
+    i = 0
+    while i < len(fields):
+        status = fields[i]
+        if not status:
+            i += 1
+            continue
+        if status[0] == "R" and i + 2 < len(fields):
+            old, new = fields[i + 1], fields[i + 2]
+            if old and new:
+                renames[old] = new
+            i += 3
+        else:
+            i += 2
+    return renames
 
 
 def _parse_name_status_z(out: str) -> list[str]:
@@ -207,11 +302,22 @@ def main(argv: list[str] | None = None) -> int:
         default="origin/main",
         help="ref to diff against for removed/renamed paths (default: origin/main)",
     )
+    ap.add_argument(
+        "--fix",
+        action="store_true",
+        help=(
+            "auto-remediation (L6): for RENAME cases only, rewrite surviving full-path references "
+            "to the old path in-place (old -> new) and print a summary. DELETIONS are reported but "
+            "NEVER rewritten (no safe target). A developer convenience — CI never runs --fix; it "
+            "stays report-only and fail-closed."
+        ),
+    )
     args = ap.parse_args(argv)
 
     try:
         base = merge_base(ROOT, args.base_ref)
         removed = compute_removed_paths(ROOT, base)
+        renames = compute_rename_map(ROOT, base)
     except GitError as e:
         # Fail-closed: a gate that cannot compute blast-radius must not pass.
         print(f"no-dangling-path-refs check FAILED (INV-DEP-12): {e}", file=sys.stderr)
@@ -226,7 +332,35 @@ def main(argv: list[str] | None = None) -> int:
         print("OK: no paths deleted or renamed in this PR — nothing to check for dangling refs.")
         return 0
 
-    violations = scan(removed, read_tracked_files(ROOT))
+    if args.fix:
+        # L6: rewrite the unambiguous rename cases in place, then re-check what remains. Deletions
+        # (and any bare-suffix rename refs) are left for a human and still fail the gate.
+        tree = dict(read_tracked_files(ROOT))
+        changed, summary = plan_fixes(renames, tree)
+        for rel, new_text in changed.items():
+            (ROOT / rel).write_text(new_text, encoding="utf-8")
+            tree[rel] = new_text
+        if summary:
+            print(f"--fix: auto-remediated {len(changed)} file(s) for {len(renames)} rename(s):")
+            for line in summary:
+                print(f"  - {line}")
+        else:
+            print("--fix: no full-path rename references to rewrite.")
+        remaining = scan(removed, tree, renames)
+        if remaining:
+            print("no-dangling-path-refs check FAILED (INV-DEP-12) — remaining after --fix:", file=sys.stderr)
+            print(
+                "  the following are DELETIONS or ambiguous (bare-suffix) rename refs that --fix "
+                "cannot safely rewrite; resolve them by hand:",
+                file=sys.stderr,
+            )
+            for v in remaining:
+                print(f"  - {v}", file=sys.stderr)
+            return 1
+        print("OK: all dangling references were rename cases and have been rewritten in place.")
+        return 0
+
+    violations = scan(removed, read_tracked_files(ROOT), renames)
     if violations:
         print("no-dangling-path-refs check FAILED (INV-DEP-12):", file=sys.stderr)
         print(

@@ -127,6 +127,7 @@ jobs:
           - overlay-self-contained-check
           - manifest-completeness-check
           - no-dangling-path-refs-check
+          - evidence-refs-check
           - fips-conformance-check
           - imageschemanet-grounding-check
     steps:

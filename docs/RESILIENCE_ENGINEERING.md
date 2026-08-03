@@ -1,7 +1,9 @@
 # Resilience Engineering — deploy-time failure classes and the layered gates that close them
 
-Status: Phase 1 (L1 + L2) and Phase 2 (L3 + L5) shipped. L4, L6, and the cross-cutting
-last-fired gate registry are declared, not yet built.
+Status: Phase 1 (L1 + L2), Phase 2 (L3 + L5), and Phase 3 (L4 + L6) shipped. L4
+(evidence-reference verification, INV-DEP-13) is shipped; L6 (auto-remediation) is shipped for the
+RENAME case (`--fix` rewrites the unambiguous old→new references; deletions remain human judgment).
+The cross-cutting last-fired gate registry is declared, not yet built.
 
 ## The failure class we are automating away
 
@@ -31,9 +33,9 @@ continuous gate, not a thing we learn in prod.
 | **L1** | **Ephemeral real-apply preflight.** Stand up a hermetic `kind` cluster, install argo-rollouts CRDs + controller, ACTUALLY apply each promote overlay to a throwaway namespace, and assert the create/spec failure class does not occur. The effect-canary as a continuous gate. | **shipped** |
 | **L2** | **Derived reference completeness (INV-DEP-11).** One checker that derives and resolves the reference types the point-gates do NOT cover (Secrets, image digest-pinning), so a novel ref type can't reach prod before someone hand-writes a gate for it. | **shipped** |
 | **L3** | **Blast-radius-on-refactor (INV-DEP-12).** A git-diff-aware gate: when a PR deletes or renames a path, fail if any tracked file still references the old path — the exact break that moving `base/configmap.yaml` → `base-support/` caused (the academy-deploy validator hardcoded the old path). `make no-dangling-path-refs-check`. | **shipped** |
-| L4 | **Evidence-ref verification.** Every claim a gate makes (a digest exists, a series is present, a receipt is sealed) must resolve to real evidence, not a string that looks right — extend the "reference resolves" discipline from cluster objects to evidence artifacts. | future |
+| **L4** | **Evidence-ref verification (INV-DEP-13).** Every claim a release/evidence artifact makes must resolve to real evidence, not a string that looks right — extend the "reference resolves" discipline from cluster objects to the EVIDENCE surface under `releases/`. Every repo-path ref (paths, lock refs, validation-record refs) must exist + parse; every `evidence://`/`file://` URI must resolve; every digest-evidence claim (`bundle_digest`/`rulepack_digest`) must equal `sha256(the file it names)`. `make evidence-refs-check`. | **shipped** |
 | **L5** | **Local == CI parity (`make preflight`).** One target runs the fast, hermetic required-matrix legs locally (validate-repo, drift/standards/topology, the INV-DEP-9/10/11/12 gates, tools tests) so path-breaks and gate failures surface before push, not after. Opt-in `.githooks/pre-push` runs it. Infra-heavy legs (kind, go, docker) stay CI-only. | **shipped** |
-| L6 | **Auto-remediation.** When a derived gate knows the fix (render the missing SA, pin the floating tag), offer/produce the patch, not just the refusal. | future |
+| **L6** | **Auto-remediation.** When a derived gate KNOWS the mechanical fix, offer the patch, not just the refusal. Shipped for the RENAME case of the blast-radius gate (INV-DEP-12): a rename reports its git-detected target, so each surviving reference gets a concrete "→ `<new path>`" suggestion, and `verify_no_dangling_path_refs.py --fix` rewrites the unambiguous full-path references in place. DELETIONS have no safe target and are never auto-rewritten (human judgment). `--fix` is a developer convenience — CI stays report-only, fail-closed. | **shipped (rename); deletion = human judgment** |
 | — | **Last-fired gate registry (cross-cutting).** A control that has never fired is suspect. Every gate here records when it last actually FAILED on something (the negative fixtures included), so a gate that has only ever passed is flagged for an adversarial review rather than trusted. L1's negative fixture is the first entry. | future |
 
 ## How the invariants + ephemeral-apply map onto it
@@ -49,6 +51,8 @@ set", and L1 is the *proof by construction* that the live API agrees.
 | **INV-DEP-9** | Rollout → AnalysisTemplate (namespaced) / ClusterAnalysisTemplate (clusterScope) | `InvalidSpec: AnalysisTemplate not found` (Degraded) | `tools/verify_rollout_analysis_refs.py` |
 | **INV-DEP-10** | Workload → ServiceAccount / ConfigMap / PVC rendered in-overlay | `FailedCreate: serviceaccount not found` (0 pods) | `tools/verify_overlay_self_contained.py` |
 | **INV-DEP-11** | Workload → Secret (rendered or allowlisted) **+** every image digest-pinned | `secret not found` (FailedMount) / `ImagePullBackOff` (placeholder/floating) | `tools/verify_manifest_completeness.py` |
+| **INV-DEP-12** | A refactor (move/rename/delete) → no surviving tracked reference to the OLD repo path | consumer dereferences a path that no longer exists (validator RED after push) | `tools/verify_no_dangling_path_refs.py` (`--fix` for renames) |
+| **INV-DEP-13** | A release/evidence artifact → every repo-path / `evidence://` / digest-evidence claim resolves to a real, well-formed file | a fabricated `evidence://` URI or placeholder digest that "validates" green but resolves to nothing | `tools/verify_evidence_refs.py` |
 | **ephemeral-apply (L1)** | ALL of the above, proven against a live API server, not derived | any create/spec-time rejection | `.github/workflows/ephemeral-apply-preflight.yml` + `.github/app-ci/ephemeral-apply-assert.sh` |
 
 INV-DEP-9/10 are **point gates**: each was written after an incident named its one reference type.
@@ -66,7 +70,7 @@ overlay does not render — and the workflow applies ONLY that fixture and fails
 detector reports the `FailedCreate` (returns non-zero). A gate that has only ever passed proves
 nothing; the fixture is the standing proof that this one can still fail.
 
-## Runbook — the shipped Phase 2 gates
+## Runbook — the shipped Phase 2 + Phase 3 gates
 
 ## L3 — `make no-dangling-path-refs-check` (INV-DEP-12)
 
@@ -84,8 +88,50 @@ if any surviving tracked file still references one of those old paths.
   `kustomization.yaml`, which unrelated files legitimately share.
 - **Fail-closed.** If git is unavailable or the diff cannot be computed, it exits non-zero. In CI
   it needs full history, so its matrix leg checks out with `fetch-depth: 0`.
-- **Testable seam.** The core is `scan(removed_paths, tree_files)` — pure, git-free, unit-tested
-  both ways in `tools/tests/test_verify_no_dangling_path_refs.py`.
+- **Testable seam.** The core is `scan(removed_paths, tree_files, renames=None)` — pure, git-free,
+  unit-tested both ways in `tools/tests/test_verify_no_dangling_path_refs.py`.
+- **Auto-remediation (L6, rename case).** When the removed path is a **rename** (git reports the
+  new target via `--diff-filter=R -M`), each surviving reference carries a concrete suggestion
+  "→ `<new path>`", and `--fix` rewrites the **unambiguous full-path** references in place
+  (`old` → `new`, on the same path boundaries) and prints a summary:
+
+  ```
+  python3 tools/verify_no_dangling_path_refs.py --fix   # rewrites rename cases, reports the rest
+  ```
+
+  **Deletions are never auto-rewritten** — a deleted path has no safe target to point at, so it is
+  reported (no suggestion) and remains human judgment. A **bare-suffix** reference to a renamed
+  path (e.g. `base/pvc.yaml` on its own) is likewise ambiguous to rewrite, so `--fix` reports it
+  but leaves it for a human. `--fix` is a **developer convenience — CI never runs it**; the CI leg
+  stays report-only and fail-closed. The default (no `--fix`) behaviour is unchanged: it reports
+  and exits non-zero, modifying nothing.
+
+## L4 — `make evidence-refs-check` (INV-DEP-13)
+
+Evidence-reference verification. Extends "a reference must resolve" from cluster objects
+(INV-DEP-9/10) and repo paths (INV-DEP-12) to the **evidence surface** under `releases/`
+(`releases/manifests/*.json`, `releases/evidence/*.json`, `releases/images/*image-lock*.json`).
+Every reference an artifact makes must prove itself, not merely pass schema shape.
+
+- **The ghost it prevents.** A claim that looks right but resolves to nothing: a fabricated
+  `evidence://` URI that "validated" (agent-registry #56), a placeholder digest rendered green.
+  Schema-shape is necessary but never sufficient.
+- **What it resolves.** (1) **Repo-path refs** — a whitespace-free string with ≥ 2 `/`-segments
+  whose first segment is a real top-level repo entry MUST exist; a `.json`/`.yaml` target must also
+  parse. (2) **`evidence://`/`file://` URIs** — the scheme is stripped and the target resolved.
+  (3) **Digest-evidence** — a `<name>_digest` field whose sibling `<name>` names an existing repo
+  file is verified by content: `sha256(file)` must equal the claimed digest (`bundle_digest`,
+  `rulepack_digest`). Image digests (`digest`, `pinned_ref`, `source_content_digest`) name registry
+  blobs, not repo files, and are covered by INV-DEP-6/7 — this gate does not touch them.
+- **Deny-closed, no false positives.** Prose that merely contains a slash, a registry ref
+  (`us-central1-docker.pkg.dev/…`), and an org/repo (`SocioProphet/prophet-platform`) are not
+  repo-path refs and are left alone. An explicit `REPLACE_WITH_…`/`PLACEHOLDER` string in an
+  `*.example.*` / `*.template.*` artifact is an unfilled slot, not a live claim — the ghost is a
+  placeholder shaped like a REAL ref, which still fails, while templates stay green.
+- **Testable seam.** The core is `scan(manifest_obj, resolver)` — pure over a `Resolver` boundary,
+  unit-tested both ways in `tools/tests/test_verify_evidence_refs.py` (a resolvable ref passes; a
+  missing file, a digest mismatch, and a fabricated `evidence://` URI each fail; a placeholder is
+  skipped; the shipped `releases/` artifacts pass). Pure-filesystem: no kubectl, no cluster.
 
 ## L5 — `make preflight` (local == CI parity)
 
@@ -98,8 +144,9 @@ make preflight
 ```
 
 Included legs: `validate-repo`, `drift-check`, `standards-check`, `topology-check`,
-`rollout-analysis-refs-check`, `overlay-self-contained-check`, `no-dangling-path-refs-check`,
-`test-tools`. It prints a PASS / what-to-fix summary and exits non-zero if any leg fails.
+`rollout-analysis-refs-check`, `overlay-self-contained-check`, `manifest-completeness-check`,
+`no-dangling-path-refs-check`, `evidence-refs-check`, `test-tools`. It prints a PASS / what-to-fix
+summary and exits non-zero if any leg fails.
 
 **Deliberately excluded** (they stay in CI, never in preflight): the L1 real-apply / digest-exists
 preflight and the `wave-promote` GATE chain (need registry/cluster credentials); `kind`,

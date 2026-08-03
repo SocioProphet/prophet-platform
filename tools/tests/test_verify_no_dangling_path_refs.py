@@ -153,3 +153,88 @@ def test_parse_name_status_z_handles_delete_and_rename():
     payload = "D\0old/one.yaml\0R100\0old/two.yaml\0new/two.yaml\0D\0old/three.yaml\0"
     removed = chk._parse_name_status_z(payload)
     assert removed == ["old/one.yaml", "old/two.yaml", "old/three.yaml"]
+
+
+# ---------------------------------------------------------------------------------------------
+# L6 — auto-remediation for the rename case. A rename gets a concrete "-> new path" suggestion and
+# `--fix` rewrites the unambiguous full-path references; a delete gets NO suggestion and is never
+# rewritten. Proven both ways.
+# ---------------------------------------------------------------------------------------------
+
+# _parse_rename_map_z picks up only R records as {old: new}.
+def test_parse_rename_map_z():
+    payload = "R100\0infra/base/pvc.yaml\0infra/base-support/pvc.yaml\0"
+    assert chk._parse_rename_map_z(payload) == {
+        "infra/base/pvc.yaml": "infra/base-support/pvc.yaml"
+    }
+
+
+# RENAME -> the violation carries the concrete new-path suggestion.
+def test_rename_emits_suggestion():
+    old = "infra/k8s/search-orchestrator/base/pvc.yaml"
+    new = "infra/k8s/search-orchestrator/base-support/pvc.yaml"
+    tree = {"releases/manifests/m.json": f'  "{old}",\n'}
+    violations = chk.scan([old], tree, renames={old: new})
+    assert len(violations) == 1, violations
+    assert new in violations[0]
+    assert "RENAMED to" in violations[0]
+    assert "--fix" in violations[0]
+
+
+# DELETE -> NO rename suggestion (there is no safe target to point at).
+def test_delete_emits_no_suggestion():
+    old = "infra/k8s/search-orchestrator/base/gone.yaml"
+    tree = {"tools/consumer.py": f'"{old}"\n'}
+    violations = chk.scan([old], tree, renames={})  # delete: not in the rename map
+    assert len(violations) == 1, violations
+    assert "RENAMED to" not in violations[0]
+    assert "--fix" not in violations[0]
+
+
+# `--fix` rewrites the unambiguous full-path rename reference; after it, scan is clean.
+def test_fix_rewrites_full_path_rename():
+    old = "infra/k8s/search-orchestrator/base/pvc.yaml"
+    new = "infra/k8s/search-orchestrator/base-support/pvc.yaml"
+    tree = {
+        "releases/manifests/m.json": f'    "{old}",\n',
+        "docs/UNRELATED.md": "nothing to do here\n",
+    }
+    changed, summary = chk.plan_fixes({old: new}, tree)
+    assert set(changed) == {"releases/manifests/m.json"}, changed
+    assert new in changed["releases/manifests/m.json"]
+    assert old not in changed["releases/manifests/m.json"]
+    assert any("rewrote" in s and old in s and new in s for s in summary)
+    # applying the rewrite makes the tree clean
+    tree.update(changed)
+    assert chk.scan([old], tree, renames={old: new}) == []
+
+
+# `--fix` leaves a DELETION untouched and it still fails (a delete is never passed to plan_fixes).
+def test_fix_leaves_delete_untouched_and_still_fails():
+    old = "infra/k8s/search-orchestrator/base/gone.yaml"
+    tree = {"tools/consumer.py": f'"{old}"\n'}
+    # deletions carry no rename target, so plan_fixes (renames={}) changes nothing
+    changed, summary = chk.plan_fixes({}, tree)
+    assert changed == {} and summary == []
+    # the reference is untouched and the gate still fails on it
+    assert tree["tools/consumer.py"] == f'"{old}"\n'
+    assert len(chk.scan([old], tree, renames={})) == 1
+
+
+# `--fix` rewrite respects path boundaries — it must not corrupt a look-alike path.
+def test_fix_respects_path_boundaries():
+    old = "k8s/base/pvc.yaml"
+    new = "k8s/base-support/pvc.yaml"
+    tree = {"a.txt": "k8s/base/pvc.yaml.bak\nxk8s/base/pvc.yaml\n"}
+    changed, _ = chk.plan_fixes({old: new}, tree)
+    assert changed == {}, "a boundary-glued look-alike must not be rewritten"
+
+
+# Default behaviour is unchanged when no renames are supplied (report-only, identical message).
+def test_default_output_unchanged_without_renames():
+    old = "infra/k8s/search-orchestrator/base/configmap.yaml"
+    tree = {"tools/x.py": f'"{old}"\n'}
+    v_default = chk.scan([old], tree)
+    v_explicit_empty = chk.scan([old], tree, renames={})
+    assert v_default == v_explicit_empty
+    assert "RENAMED to" not in v_default[0]
