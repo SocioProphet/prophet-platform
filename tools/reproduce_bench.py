@@ -12,9 +12,13 @@ number defensible:
 
 WHAT IT GUARANTEES.
   1. DISPATCH. One entrypoint routes BENCH -> the correct suite runner (dispatch
-     table below). In-repo arms are re-derived in-process (real computation);
-     external arms (MMLU exam, hellgraph) carry the exact one-command reproduce
-     path and are dispatched, never faked.
+     table below). In-repo arms are re-derived in-process (real computation). The
+     external suites (MMLU exam via run-exam.sh, hellgraph via cargo) need real
+     corpora/weights not present in CI, so they are made gate-enforceable via a
+     DETERMINISTIC REPLAY: the gate re-derives the headline in-process from a
+     hash-verified captured artifact (contracts/reproduce/<bench>/*.{exam,bench}.json),
+     so epsilon/exact tolerance BITES on the replayed headline (no dispatch-only
+     silent pass). The live in-process re-run stays the documented external_command.
   2. LEDGER, MANDATED. Every run emits a `repro-ledger-entry` (schema
      schemas/eval/repro-ledger-entry.schema.json) that is content-addressed and
      CHAINED to a receipt spine (append-only JSONL, prev_entry_digest links each
@@ -100,6 +104,73 @@ def _rerun_external(args: dict) -> float:  # pragma: no cover - guarded by tests
     )
 
 
+class ArtifactIntegrityError(Exception):
+    """A captured replay artifact failed hash verification (bytes tampered, wrong
+    file, or a stale record). NOT a RuntimeError -> it is never swallowed by the
+    dispatch-only handler; the gate fails closed rather than silently passing."""
+
+
+def _load_verified_artifact(args: dict) -> dict:
+    """Load a captured artifact and FAIL CLOSED unless its exact committed bytes
+    match the pinned `artifact_sha256` in the record (SHA-256 / FIPS 180-4 algorithm,
+    stdlib hashlib; NOT a FIPS 140 module). This is what makes replay defensible:
+    the number is re-derived from bytes we have proven are the ones we recorded."""
+    rel = args.get("artifact")
+    if not rel:
+        raise ArtifactIntegrityError("replay record has no rerun.args.artifact path")
+    path = ROOT / rel
+    if not path.exists():
+        raise ArtifactIntegrityError("captured artifact missing: %s" % path)
+    raw = path.read_bytes()
+    got = hashlib.sha256(raw).hexdigest()
+    want = args.get("artifact_sha256", "")
+    if not want:
+        raise ArtifactIntegrityError("replay record has no rerun.args.artifact_sha256")
+    if got != want:
+        raise ArtifactIntegrityError(
+            "artifact hash mismatch for %s: recorded %s != observed %s" % (rel, want, got)
+        )
+    return json.loads(raw)
+
+
+def _replay_mmlu_route_accuracy(args: dict) -> float:
+    """Observed = ROUTE-arm accuracy RE-DERIVED from the hash-verified captured
+    Noetica MMLU/ST026 exam artifact (correct/total), NOT copied from the headline.
+    Fails closed if the clean-eval contamination certificate hash does not match the
+    recorded `contamination_cert_sha256` or the certificate is not status=clean."""
+    art = _load_verified_artifact(args)
+    cert = art.get("clean_eval_certificate")
+    if not isinstance(cert, dict) or cert.get("status") != "clean":
+        raise ArtifactIntegrityError(
+            "MMLU replay refused: clean-eval certificate absent or status!='clean'"
+        )
+    want_cert = args.get("contamination_cert_sha256", "")
+    if not want_cert:
+        raise ArtifactIntegrityError("replay record has no rerun.args.contamination_cert_sha256")
+    got_cert = canonical_digest(cert)
+    if got_cert != want_cert:
+        raise ArtifactIntegrityError(
+            "contamination-cert hash mismatch: recorded %s != observed %s" % (want_cert, got_cert)
+        )
+    arm = art["arms"][art.get("headline_arm", "route")]
+    total = int(arm["total"])
+    if total <= 0:
+        raise ArtifactIntegrityError("MMLU replay: route arm total must be > 0")
+    return int(arm["correct"]) / total
+
+
+def _replay_hellgraph(args: dict) -> float:
+    """Observed = query resolution rate RE-DERIVED from the hash-verified captured
+    hellgraph-bench artifact (per-query resolved flags). Deterministic bench -> the
+    gate asserts EXACT reproduction of this headline."""
+    art = _load_verified_artifact(args)
+    queries = art["queries"]
+    if not queries:
+        raise ArtifactIntegrityError("hellgraph replay: empty query suite")
+    resolved = sum(int(q["resolved"]) for q in queries)
+    return resolved / len(queries)
+
+
 # ---------------------------------------------------------------------------
 # DISPATCH TABLE — one front door over the three reproduce paths.
 #   in_process: the re-runner kind -> callable used by the gate.
@@ -115,12 +186,22 @@ DISPATCH: dict[str, dict] = {
     },
     "mmlu": {
         # Noetica MMLU / ST026 exam — pinned seed, clean-eval certificate attached.
+        # Gate-enforceable via deterministic replay of the hash-verified exam artifact;
+        # `external` remains for the live out-of-band re-run.
         "command": "bash agent-machine/scripts/run-exam.sh   # MMLU_SEED pinned",
-        "in_process": {"external": _rerun_external},
+        "in_process": {
+            "replay_mmlu_route_accuracy": _replay_mmlu_route_accuracy,
+            "external": _rerun_external,
+        },
     },
     "hellgraph": {
+        # Deterministic graph query bench. Gate-enforceable via deterministic replay
+        # of the hash-verified bench artifact; `external` remains for the live re-run.
         "command": "cargo run -p hellgraph-bench",
-        "in_process": {"external": _rerun_external},
+        "in_process": {
+            "replay_hellgraph": _replay_hellgraph,
+            "external": _rerun_external,
+        },
     },
 }
 
@@ -322,6 +403,11 @@ def run(bench: str, run_id: str, gate: bool, inject: float | None = None) -> int
 
     try:
         observed = observe(record, override=inject)
+    except ArtifactIntegrityError as e:
+        # A replay artifact failed hash/certificate verification. FAIL CLOSED:
+        # never treat a tampered/stale artifact as a reproduced number.
+        print("ARTIFACT INTEGRITY FAIL (fail-closed): %s" % e, file=sys.stderr)
+        return 1
     except RuntimeError as e:
         # external arm: dispatch-only. Emit a ledger entry recording the dispatch,
         # do NOT fabricate a reproduced number.

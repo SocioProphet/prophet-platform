@@ -1,0 +1,19 @@
+{
+  "bench": "hellgraph",
+  "determinism": "deterministic",
+  "external_command": "cargo run -p hellgraph-bench -- --suite query-suite-r1",
+  "headline_metric_id": "hg.query_resolution_rate",
+  "headline_value": 0.9,
+  "notes": "hellgraph-bench query suite. REPLAY-CAPABLE: the gate re-derives the query resolution rate in-process from the hash-verified captured bench artifact, so the gate BITES with EXACT-match (deterministic bench). The live in-process cargo re-run (vendored crate, not built in CI) is filed as a follow-up; external_command is the out-of-band live path.",
+  "rerun": {
+    "args": {
+      "artifact": "contracts/reproduce/hellgraph/query-suite-r1.bench.json",
+      "artifact_sha256": "337593c45fae5519edae2c3ed23be94d6dafaa1fc34b1b8df392a5b8ffb46057"
+    },
+    "kind": "replay_hellgraph"
+  },
+  "round_id": "hellgraph-query-r1",
+  "run_id": "query-suite-r1",
+  "seed_policy": "none (deterministic graph query bench)",
+  "version": "v1"
+}
