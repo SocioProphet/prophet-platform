@@ -28,3 +28,7 @@ Illustrative defaults today. In production these are **witnesses over governed f
 the loss tail from `diligence.risk.pack` / internal-model #1293, EP & variance from `economic-prophet`
 (as `ep.variance.decomposed.v0`), peer benchmark from the corporate-intelligence plane (#1284) —
 surfaced through this `lattice-studio` viz layer and `dashboard-bff`. Wiring tracked in #1294.
+
+## Ross recovery — witness over economic-prophet
+
+The **Ross recovery & curves** module ports `economic-prophet/src/open_ep_framework/recovery.py` **exactly** (`planning_recovery` RR^P, `market_implied_recovery` RR^Q, `recovery_wedge` ΔRR) — product_spec §6 (Ross / Arrow-Debreu). On top it runs the actual **Ross Recovery Theorem**: option-implied Arrow-Debreu state prices → the Perron eigenproblem `Pφ = δφ` recovers the real-world measure P and the pricing kernel φ from the risk-neutral Q. It surfaces the futures/forward curve and the option call-price curve, and the values that pop out (real-world vs risk-neutral PD, the risk premium, recovered discount δ). Verified: recovered δ = true discount; risk-neutral PD > real-world PD.

@@ -1,0 +1,27 @@
+{
+  "$comment": "Cockpit surfaces the dashboard-shell composes into navigation. Reviewed 2026-08-03; risk/profit visualization wave.",
+  "surfaces": [
+    {
+      "id": "credit-risk-thesis",
+      "title": "Credit Risk & Economic Capital",
+      "group": "Risk & Profit",
+      "kind": "viz",
+      "source": "apps/lattice-studio/viz/credit-risk-thesis.html",
+      "summary": "13-module thesis: EL (PD·LGD·EAD), Vasicek Monte-Carlo loss sim, risk measures, capital stack, EP waterfalls, FTP, recovery, EAD, aggregation, DCF, credit-model taxonomy, and Ross recovery (state-price → real-world measure + futures/options curves).",
+      "data_source": "illustrative; production = diligence.risk.pack/#1293 + economic-prophet (recovery surface, ep.variance)",
+      "wiring_issue": 1294,
+      "status": "review"
+    },
+    {
+      "id": "profit-risk-drilldown",
+      "title": "Economic Profit & Risk — drilldown",
+      "group": "Risk & Profit",
+      "kind": "viz",
+      "source": "apps/lattice-studio/viz/profit-risk-drilldown.html",
+      "summary": "EP & RAROC additive drilldown Firm→LOB→Segment→Product→Client→Transaction, with EP-variance waterfall and economic-capital loss distribution.",
+      "data_source": "illustrative; production = economic-prophet + diligence.risk.pack",
+      "wiring_issue": 1294,
+      "status": "review"
+    }
+  ]
+}

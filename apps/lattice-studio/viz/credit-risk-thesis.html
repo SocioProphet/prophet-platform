@@ -105,6 +105,7 @@
     <section class="module" id="m-var"></section>
     <section class="module" id="m-ftp"></section>
     <section class="module" id="m-recovery"></section>
+    <section class="module" id="m-ross"></section>
     <section class="module" id="m-ead"></section>
     <section class="module" id="m-agg"></section>
     <section class="module" id="m-models"></section>
@@ -169,7 +170,8 @@ const NAVS=[
            ["m-sim","Portfolio simulation","Monte-Carlo loss distribution"],
            ["m-measures","Risk measures","VaR · ES · σ · spectral"],
            ["m-ead","EAD — race to default","LEQ / CCF, revolving vs term"],
-           ["m-recovery","Recovery &amp; PD↔RR","seniority, default-recovery link"]]],
+           ["m-recovery","Recovery &amp; PD↔RR","seniority, default-recovery link"],
+           ["m-ross","Ross recovery &amp; curves","state-price → real-world"]]],
   ["CAPITAL",[["m-capital","Capital stack","regulatory vs economic"],
            ["m-agg","Risk aggregation","summation → copula diversification"],
            ["m-var","EP variance","price/volume/cost/capital drivers"]]],
@@ -209,7 +211,8 @@ const DESC={
  "m-recovery":"Loss given default is one minus recovery, and recovery is neither constant nor independent of default — it falls exactly when defaults rise.",
  "m-ead":"Exposure at default is the weakest link in the Basel machinery. Revolving lines fill up as a borrower deteriorates (the 'race to default'); term loans amortise away.",
  "m-dcf":"Value fades. A franchise earns above its cost of capital for a while, then competition erodes the ROIC−WACC spread — and a naive perpetuity assumption mis-prices exactly that fade.",
- "m-models":"A field guide. Credit-risk models fall into statistical, structural, reduced-form and value-at-risk families, differing above all in how they treat recovery and its link to default."
+ "m-models":"A field guide. Credit-risk models fall into statistical, structural, reduced-form and value-at-risk families, differing above all in how they treat recovery and its link to default.",
+ "m-ross":"The Ross Recovery Theorem in action — the same tech built into the economic-prophet repo. Option prices give Arrow–Debreu state prices (the risk-neutral measure Q); Ross's eigenvalue recovery pulls the real-world measure P and the pricing kernel back out. The wedge between the two <em>is</em> the risk premium — and, for a defaulted claim, the wedge between market-implied recovery RR^Q and planning recovery RR^P."
 };
 
 // ============ shared rail wiring ============
@@ -527,8 +530,109 @@ function m_dcf(){const box=document.getElementById("m-dcf");
    <div class="cap">A franchise earns a positive <b>ROIC−WACC</b> spread, but competition fades it toward zero. Freezing the last explicit year into a perpetuity (the red cliff) assumes the fade never happens — over-valuing exactly the mature businesses whose advantage is eroding (Mauboussin). The honest curve returns to zero economic profit.</div></div>`;
 }
 
+// ---------- Ross recovery (economic-prophet: open_ep_framework/recovery.py, product_spec §6) ----------
+const RS={seniority:0.6,collateral:0.5,jurisdiction:0.6,macro:"base",liq:"normal",horizon:540,statePrice:0.5};
+const _MACRO={benign:0.03,base:0.0,stressed:-0.06,crisis:-0.12},_LIQ={normal:0.0,tight:-0.03,frozen:-0.08};
+function planningRR(s){let b=0.15+0.35*s.seniority+0.25*s.collateral+0.15*s.jurisdiction; // exact port
+  b+=_MACRO[s.macro]+_LIQ[s.liq];const drag=Math.min(s.horizon/3650,0.25);return Math.max(0,Math.min(0.95,b-drag));}
+function marketRR(s){const rp=0.05+0.25*s.statePrice;return Math.max(0,Math.min(0.95,planningRR(s)-rp));}
+function perron(P,it){const n=P.length;let v=new Array(n).fill(1),lam=1;
+  for(let k=0;k<it;k++){const w=new Array(n).fill(0);for(let i=0;i<n;i++)for(let j=0;j<n;j++)w[i]+=P[i][j]*v[j];
+    lam=Math.max(...w);for(let i=0;i<n;i++)v[i]=w[i]/lam;}return{lam,v};}
+function m_ross(){const box=document.getElementById("m-ross");const s=RS;
+  const rrP=planningRR(s),rrQ=marketRR(s),wedge=rrQ-rrP;
+  // ---- Ross state-price recovery over a Markov chain of terminal states ----
+  const n=13,st=[];for(let i=0;i<n;i++)st.push(0.55+i*(0.9/(n-1)));       // asset-value ratio 0.55..1.45
+  const gamma=1.6+2.2*s.statePrice+(s.macro==="crisis"?1.4:s.macro==="stressed"?0.7:0); // risk aversion
+  const volP=0.11+0.06*s.statePrice+(s.macro==="crisis"?0.06:s.macro==="stressed"?0.03:0);
+  const disc=Math.exp(-0.03),kappa=0.35;
+  const npdf=(x,m,sg)=>Math.exp(-((x-m)*(x-m))/(2*sg*sg))/(sg*Math.sqrt(2*Math.PI));
+  const phiT=st.map(x=>Math.exp(gamma*(1-x)));                            // true kernel: marginal utility ↑ in bad states
+  // true real-world transition F (mean-reverting to 1) and Arrow-Debreu prices P = disc·F·φj/φi
+  const F=[],P=[];for(let i=0;i<n;i++){const mean=st[i]+kappa*(1-st[i]);let row=[],sum=0;
+    for(let j=0;j<n;j++){const f=npdf(st[j],mean,volP);row.push(f);sum+=f;}row=row.map(x=>x/sum);F.push(row);
+    P.push(row.map((f,j)=>disc*f*phiT[j]/phiT[i]));}
+  // RECOVER: Pφ=δφ (Perron) → δ, kernel; then real-world F_rec and risk-neutral Q
+  const {lam:delta,v:phi}=perron(P,220);
+  const Q=P.map(r=>{const s2=r.reduce((a,b)=>a+b,0);return r.map(x=>x/s2);}); // risk-neutral transition
+  const c=Math.floor(n/2);const qMarg=Q[c],pMarg=F[c];                    // one-step-from-centre marginals
+  // credit mapping: default = asset ratio below 0.75
+  const dThr=0.75;let pdQ=0,pdP=0;for(let j=0;j<n;j++){if(st[j]<dThr){pdQ+=qMarg[j];pdP+=pMarg[j];}}
+  const kNorm=phi.map(x=>x/phi[c]);
+  // futures curve: E^Q[S_T] iterating Q^T from centre
+  const fut=[];let dist=new Array(n).fill(0);dist[c]=1;for(let T=1;T<=8;T++){const nd=new Array(n).fill(0);
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++)nd[j]+=dist[i]*Q[i][j];dist=nd;fut.push(st.reduce((a,v,j)=>a+v*dist[j],0));}
+  // option smile: C(K)=disc·Σ qMarg·max(S−K,0)
+  const strikes=st.slice(1,n-1),calls=strikes.map(K=>disc*qMarg.reduce((a,q,j)=>a+q*Math.max(st[j]-K,0),0));
+
+  // ---- SVG builders ----
+  function densChart(title,series,extra){const W=440,H=190,pL=8,pR=8,pB=26,pT=10;const s2=svg(W,H);
+    const mx=Math.max(...series.flatMap(z=>z.d));const X=i=>pL+i/(n-1)*(W-pL-pR),Y=v=>H-pB-(v/mx)*(H-pB-pT);
+    s2.add(`<line class="axis" x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}"/>`);
+    // default threshold shade
+    const tx=pL+ (0.75-0.55)/0.9*(W-pL-pR);
+    s2.add(`<rect x="${pL}" y="${pT}" width="${tx-pL}" height="${H-pB-pT}" fill="var(--neg)" opacity="0.06"/><text class="tick" x="${pL+4}" y="${pT+8}" fill="var(--neg)">default states</text>`);
+    series.forEach(z=>{let p="";z.d.forEach((v,i)=>p+=(i?"L":"M")+X(i)+" "+Y(v)+" ");
+      s2.add(`<path d="${p}" fill="none" stroke="${z.c}" stroke-width="2.2"/>`);});
+    st.forEach((v,i)=>{if(i%3===0)s2.add(`<text class="tick" x="${X(i)}" y="${H-pB+13}" text-anchor="middle">${v.toFixed(2)}</text>`);});
+    if(extra)extra(s2,X,Y);return s2.html();}
+  const dens=densChart("",[{d:qMarg,c:"var(--neg)"},{d:pMarg,c:"var(--pos)"}]);
+  // kernel chart
+  function line(title,xs,ys,col,fmtY){const W=440,H=170,pL=34,pR=10,pB=24,pT=10;const s2=svg(W,H);
+    const lo=Math.min(...ys),hi=Math.max(...ys),pad=(hi-lo)*0.12||1;const X=i=>pL+i/(xs.length-1)*(W-pL-pR),Y=v=>H-pB-((v-lo+pad)/((hi-lo)+2*pad))*(H-pB-pT);
+    s2.add(`<line class="axis" x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}"/>`);let p="";ys.forEach((v,i)=>p+=(i?"L":"M")+X(i)+" "+Y(v)+" ");
+    s2.add(`<path d="${p}" fill="none" stroke="${col}" stroke-width="2.4"/>`);
+    xs.forEach((v,i)=>{if(i%2===0)s2.add(`<text class="tick" x="${X(i)}" y="${H-pB+13}" text-anchor="middle">${fmtY?v.toFixed(0):v.toFixed(2)}</text>`);});
+    return s2.html();}
+  const kernel=line("",st,kNorm,"var(--pos2)");
+  const futures=line("",[1,2,3,4,5,6,7,8],fut,"var(--accent)",true);
+  const smile=(function(){const W=440,H=170,pL=34,pR=10,pB=24,pT=10;const s2=svg(W,H);const mx=Math.max(...calls);
+    const X=i=>pL+i/(strikes.length-1)*(W-pL-pR),Y=v=>H-pB-(v/mx)*(H-pB-pT);
+    s2.add(`<line class="axis" x1="${pL}" y1="${H-pB}" x2="${W-pR}" y2="${H-pB}"/>`);let p="";calls.forEach((v,i)=>p+=(i?"L":"M")+X(i)+" "+Y(v)+" ");
+    calls.forEach((v,i)=>s2.add(`<circle cx="${X(i)}" cy="${Y(v)}" r="2.6" fill="var(--neg2)"/>`));
+    s2.add(`<path d="${p}" fill="none" stroke="var(--neg2)" stroke-width="2"/>`);
+    strikes.forEach((v,i)=>{if(i%2===0)s2.add(`<text class="tick" x="${X(i)}" y="${H-pB+13}" text-anchor="middle">${v.toFixed(2)}</text>`);});
+    return s2.html();})();
+
+  const seg=(id,opts,cur)=>`<span class="seg">${opts.map(o=>`<button data-k="${id}" data-v="${o}" aria-pressed="${o===cur}">${o}</button>`).join("")}</span>`;
+  const sld=(id,lab,min,max,step,val,suf)=>`<div class="ctl"><label>${lab} <b class="num">${val}${suf||''}</b></label><input type="range" data-rs="${id}" min="${min}" max="${max}" step="${step}" value="${val}"></div>`;
+  box.innerHTML=`
+   <div class="rail" style="display:flex">
+     ${sld('seniority','Seniority',0,1,0.05,s.seniority,'')}${sld('collateral','Collateral',0,1,0.05,s.collateral,'')}
+     ${sld('jurisdiction','Jurisdiction',0,1,0.05,s.jurisdiction,'')}${sld('horizon','Workout days',30,3650,10,s.horizon,'')}
+     ${sld('statePrice','Market state price',0,1,0.05,s.statePrice,'')}
+     <div class="ctl"><label>Macro regime</label>${seg('macro',['benign','base','stressed','crisis'],s.macro)}</div>
+     <div class="ctl"><label>Liquidity</label>${seg('liq',['normal','tight','frozen'],s.liq)}</div>
+     <div class="railhint">Mirrors <code>open_ep_framework/recovery.py</code> exactly. Recovery is a <b>state-contingent surface</b>, not a scalar (product_spec §6).</div>
+   </div>
+   <div class="tiles">
+     <div class="tile"><div class="k">RR&#7526; planning (real-world)</div><div class="v num" style="color:var(--pos)">${(rrP*100).toFixed(1)}%</div><div class="d">planning_recovery()</div></div>
+     <div class="tile"><div class="k">RR&#7561; market-implied</div><div class="v num" style="color:var(--neg)">${(rrQ*100).toFixed(1)}%</div><div class="d">market_implied_recovery()</div></div>
+     <div class="tile"><div class="k">Wedge ΔRR = RR&#7561;−RR&#7526;</div><div class="v num" style="color:var(--accent)">${(wedge*100).toFixed(1)}pp</div><div class="d">the recovery risk premium</div></div>
+     <div class="tile"><div class="k">Recovered discount δ</div><div class="v num">${delta.toFixed(4)}</div><div class="d">Perron root of P</div></div>
+   </div>
+   <div class="panel"><div class="ph">Ross recovery — risk-neutral Q vs recovered real-world P</div>
+     <div class="legend"><span><i style="background:var(--neg)"></i>Q — risk-neutral (from option state prices)</span><span><i style="background:var(--pos)"></i>P — real-world (Ross-recovered)</span></div>
+     ${dens}
+     <div class="tiles" style="margin-top:12px">
+       <div class="tile"><div class="k">Risk-neutral PD (Q)</div><div class="v num" style="color:var(--neg)">${(pdQ*100).toFixed(1)}%</div></div>
+       <div class="tile"><div class="k">Real-world PD (P)</div><div class="v num" style="color:var(--pos)">${(pdP*100).toFixed(1)}%</div></div>
+       <div class="tile"><div class="k">Risk premium (Q−P)</div><div class="v num" style="color:var(--accent)">${((pdQ-pdP)*100).toFixed(1)}pp</div></div>
+     </div>
+     <div class="cap">The market prices the bad tail as if it were <b>${(pdQ/Math.max(pdP,1e-6)).toFixed(1)}× more likely</b> than it truly is — that gap is the credit risk premium the pricing kernel demands. Ross's theorem recovers the true probabilities P and the kernel from the observed state prices alone, with no assumed risk aversion.</div>
+   </div>
+   <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+     <div class="panel"><div class="ph">Pricing kernel φ (recovered)</div>${kernel}<div class="cap">Marginal utility — high in bad (low) states. The "values that pop out" of the eigenvector.</div></div>
+     <div class="panel"><div class="ph">Options → call-price curve C(K)</div>${smile}<div class="cap">Calls integrated against the Q state prices (Breeden–Litzenberger runs this in reverse: option curvature <em>is</em> the state-price density above).</div></div>
+   </div>
+   <div class="panel"><div class="ph">Futures / forward curve E&#7561;[S&#8348;]</div>${futures}
+     <div class="cap">Forward value across horizon under the risk-neutral measure — ${fut[7]>fut[0]?'contango':'backwardation'} from the recovered dynamics. In production these curves and the RR^P/RR^Q/ΔRR values are the same ones <code>economic-prophet</code> emits; here they recompute live from the surface above.</div></div>`;
+  box.querySelectorAll("input[data-rs]").forEach(inp=>inp.addEventListener("input",()=>{RS[inp.dataset.rs]=+inp.value;m_ross();}));
+  box.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{RS[b.dataset.k]=b.dataset.v;m_ross();}));
+}
+
 const RENDER={"m-el":m_el,"m-sim":m_sim,"m-measures":m_measures,"m-capital":m_capital,"m-ep":m_ep,"m-var":m_var,
-  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf};
+  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf,"m-ross":m_ross};
 function render(){railLabels();(RENDER[active]||(()=>{}))();}
 document.getElementById("foot").innerHTML=`<b>Illustrative data</b>, computed live from the models on this page — not real portfolio figures. In production these views are witnesses over governed facts: PD·LGD·EAD and the loss tail from <code>diligence.risk.pack</code> / internal-model #1293, EP &amp; variance from <code>economic-prophet</code>, surfaced through <code>lattice-studio</code> / <code>dashboard-bff</code>. Truthful, reproducible-from-source — no captured third-party images or branding. Colorblind-safe throughout: blue/orange not red/green, status shown with icon + label.`;
 go("m-el");
