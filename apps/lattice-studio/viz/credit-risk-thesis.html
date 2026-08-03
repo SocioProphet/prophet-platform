@@ -697,5 +697,14 @@ const RENDER={"m-el":m_el,"m-sim":m_sim,"m-measures":m_measures,"m-capital":m_ca
 function render(){railLabels();(RENDER[active]||(()=>{}))();}
 document.getElementById("foot").innerHTML=`<b>Illustrative data</b>, computed live from the models on this page — not real portfolio figures. In production these views are witnesses over governed facts: PD·LGD·EAD and the loss tail from <code>diligence.risk.pack</code> / internal-model #1293, EP &amp; variance from <code>economic-prophet</code>, surfaced through <code>lattice-studio</code> / <code>dashboard-bff</code>. Truthful, reproducible-from-source — no captured third-party images or branding. Colorblind-safe throughout: blue/orange not red/green, status shown with icon + label.`;
 go("m-el");
+// Governed-data hydration: when served next to dashboard-bff, fetch real facts and badge them.
+// In the CSP-locked artifact this fetch simply fails and the page stays on illustrative defaults.
+(function(){try{fetch('/v1/risk/portfolio-facts').then(r=>r.ok?r.json():null).then(d=>{
+  if(!d||!d.facts)return;const g={};d.facts.forEach(f=>g[f.name]=f.value);
+  if(g.pd!=null)S.pd=+(g.pd*100).toFixed(1);if(g.lgd!=null)S.lgd=Math.round(g.lgd*100);if(g.ead!=null)S.ead=Math.round(g.ead);
+  const b=document.createElement('div');b.textContent='● governed data — dashboard-bff';
+  b.style.cssText='position:fixed;bottom:10px;right:12px;z-index:80;font:600 11px ui-sans-serif;color:var(--good);background:var(--good-bg);border:1px solid var(--line);padding:4px 10px;border-radius:999px';
+  document.body.appendChild(b);ranges.forEach(k=>{const el=document.getElementById(k);if(el)el.value=S[k];});render();
+}).catch(function(){});}catch(e){}})();
 })();
 </script>

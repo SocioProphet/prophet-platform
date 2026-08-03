@@ -100,3 +100,24 @@ class VdtResponse(BaseModel):
     epistemic_status: dict
     provenance: dict
     headline: str
+
+
+class RiskFactView(BaseModel):
+    """One governed risk / EP / inflation fact with its trust provenance, so the UI can badge
+    'reproduced by us' vs 'reconstructed methodology' rather than presenting all numbers as equal."""
+    name: str
+    value: float
+    unit: str
+    source_trust_class: str
+    reproduced_by_us: bool
+    reconstructed: bool = False
+
+
+class RiskEpFactsResponse(BaseModel):
+    """Governed portfolio risk / economic-profit / alternative-inflation facts for the credit-risk
+    visualization thesis. Risk/EP facts are reproduced from economic-prophet's model; the
+    alternative-inflation facts are reconstructed (vendor series proprietary) and flagged as such."""
+    service: str
+    portfolio_id: str
+    facts: list[RiskFactView]
+    provenance: dict
