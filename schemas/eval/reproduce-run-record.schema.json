@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/reproduce-run-record.schema.json",
+  "title": "ReproduceRunRecord",
+  "description": "A recorded benchmark run that the reproduce/tolerance gate re-runs and asserts against. The headline metric must reproduce within epsilon for bounded_nondeterministic arms, or EXACTLY for deterministic arms. Rounds are versioned (round_id + version).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "bench",
+    "round_id",
+    "version",
+    "determinism",
+    "headline_metric_id",
+    "headline_value",
+    "rerun"
+  ],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "bench": {"type": "string", "minLength": 1, "description": "Dispatch key into the reproduce dispatch table (e.g. isota, mmlu, hellgraph)."},
+    "round_id": {"type": "string", "minLength": 1, "description": "Versioned round identifier; stamped onto every repro-ledger spine record."},
+    "version": {"type": "string", "minLength": 1, "description": "Round schema/methodology version, e.g. v1."},
+    "determinism": {
+      "enum": ["deterministic", "bounded_nondeterministic"],
+      "description": "deterministic -> exact match required; bounded_nondeterministic -> abs(observed-recorded) <= epsilon."
+    },
+    "epsilon": {"type": "number", "minimum": 0, "description": "Declared tolerance. REQUIRED (and > 0 in practice) for bounded_nondeterministic; ignored for deterministic (exact match)."},
+    "headline_metric_id": {"type": "string", "minLength": 1},
+    "headline_value": {"type": "number", "description": "The recorded headline value the gate must reproduce."},
+    "seed_policy": {"type": "string", "description": "How seeds are pinned for this run (e.g. MMLU_SEED=1729)."},
+    "rerun": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["kind"],
+      "description": "How the gate re-derives the observed headline. kind selects the in-process re-runner in the dispatch table.",
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "args": {"type": "object", "additionalProperties": true}
+      }
+    },
+    "external_command": {"type": "string", "description": "Documentary: the one-command path a human runs to reproduce out-of-band (e.g. bash agent-machine/scripts/run-exam.sh). External arms are dispatched, not executed in-process by the gate."},
+    "notes": {"type": "string"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"determinism": {"const": "bounded_nondeterministic"}}},
+      "then": {"required": ["epsilon"]}
+    }
+  ]
+}

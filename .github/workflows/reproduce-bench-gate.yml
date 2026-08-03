@@ -1,0 +1,51 @@
+# The reproduce/tolerance GATE, fired as a real control: it re-runs a recorded
+# benchmark run and asserts the headline metric reproduces — EXACT for deterministic
+# arms, within the declared epsilon for bounded_nondeterministic arms — and FAILS
+# CLOSED on drift. The teeth are proven both ways (within-tolerance PASSES, injected
+# drift beyond epsilon FAILS). Path-scoped so it actually runs when the gate, the
+# recorded runs, the schemas, or the tests move — a control that never fires is worse
+# than none. SHA-256 here is the FIPS 180-4 algorithm via stdlib hashlib, NOT a FIPS
+# 140-validated module.
+name: reproduce-bench-gate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/reproduce_bench.py'
+      - 'tools/isota_tournament.py'
+      - 'contracts/reproduce/**'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_reproduce_bench_gate.py'
+      - '.github/workflows/reproduce-bench-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/reproduce_bench.py'
+      - 'tools/isota_tournament.py'
+      - 'contracts/reproduce/**'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_reproduce_bench_gate.py'
+      - '.github/workflows/reproduce-bench-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        # rfc3339-validator lets jsonschema's FormatChecker actually enforce
+        # "format": date-time rather than silently skip it.
+        run: python -m pip install --upgrade pip jsonschema rfc3339-validator pytest
+      - name: Reproduce gate — deterministic arm (exact)
+        run: python tools/reproduce_bench.py --bench isota --run opus-class-r1 --gate
+      - name: Reproduce gate — bounded_nondeterministic arm (within epsilon)
+        run: python tools/reproduce_bench.py --bench isota --run sampled-headline-r1 --gate
+      - name: Teeth — gate PASSES within tolerance and FAILS closed on injected drift
+        run: pytest -q tests/platform_stubs/test_reproduce_bench_gate.py
