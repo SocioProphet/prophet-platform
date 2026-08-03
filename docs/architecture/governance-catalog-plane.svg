@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1000" font-family="'IBM Plex Sans',Segoe UI,Helvetica,Arial,sans-serif">
+  <style>
+    :root{color-scheme:light dark}
+    .bg{fill:#ffffff}
+    .panel{fill:#f4f4f4;stroke:#0f62fe;stroke-width:2}
+    .col{fill:#ffffff;stroke:#e0e0e0;stroke-width:1}
+    .tier{fill:#161616;font-size:22px;font-weight:600}
+    .head{fill:#0f62fe;font-size:15px;font-weight:600}
+    .item{fill:#393939;font-size:12.5px}
+    .sub{fill:#6f6f6f;font-size:11px;font-style:italic}
+    .feed{fill:#0f62fe}
+    .feedt{fill:#ffffff;font-size:13px;font-weight:600}
+    .arrow{stroke:#0f62fe;stroke-width:2.5;fill:none}
+    @media (prefers-color-scheme:dark){
+      .bg{fill:#161616}.panel{fill:#262626;stroke:#4589ff}.col{fill:#161616;stroke:#393939}
+      .tier{fill:#f4f4f4}.head{fill:#78a9ff}.item{fill:#e0e0e0}.sub{fill:#a8a8a8}
+      .feed{fill:#4589ff}.arrow{stroke:#4589ff}
+    }
+  </style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0f62fe"/></marker></defs>
+  <rect class="bg" x="0" y="0" width="1280" height="1000"/>
+
+  <!-- ================= TIER 1: GOVERNANCE (control access) ================= -->
+  <text class="tier" x="30" y="44">Data policies — control access to data · <tspan font-style="italic" font-weight="400" font-size="18">the Governance plane</tspan></text>
+  <rect class="panel" x="30" y="58" width="1220" height="320" rx="4"/>
+
+  <rect class="col" x="50" y="78" width="378" height="282" rx="3"/>
+  <text class="head" x="70" y="108">Users — governance roles</text>
+  <text class="item" x="70" y="140">SourceOS / SociOS / SocioProphet admins</text>
+  <text class="item" x="70" y="162">Catalog admins · steward / warden roles</text>
+  <text class="sub"  x="70" y="188">org-role-architecture · L5 governance warden</text>
+
+  <rect class="col" x="450" y="78" width="378" height="282" rx="3"/>
+  <text class="head" x="470" y="108">Artifacts — policies &amp; glossary</text>
+  <text class="item" x="470" y="140">Canonical contracts — semantic-serdes</text>
+  <text class="sub"  x="470" y="158">admissibility RAW→VALIDATED→GOVERNED→CANONICAL</text>
+  <text class="item" x="470" y="184">Business glossary — frontier-authored</text>
+  <text class="sub"  x="470" y="202">vocabulary/data-governance · TF-Lattice</text>
+  <text class="item" x="470" y="228">Policies — Truth = Law × Evidence</text>
+  <text class="item" x="470" y="250">Purpose-bound consent · Lawful-Learning inv.</text>
+
+  <rect class="col" x="850" y="78" width="380" height="282" rx="3"/>
+  <text class="head" x="870" y="108">Tools for</text>
+  <text class="item" x="870" y="140">Authoring &amp; enforcing policies</text>
+  <text class="sub"  x="870" y="158">purpose-bound consent (role×surface×space×tool)</text>
+  <text class="item" x="870" y="184">capability membrane — gate → receipt</text>
+  <text class="item" x="870" y="212">Monitoring policies</text>
+  <text class="sub"  x="870" y="230">validate_repo_governance_* · governance ledger</text>
+  <text class="item" x="870" y="256">GBRG blast-radius · agent-activity + containment</text>
+  <text class="item" x="870" y="284">Managing business terms — glossary/vocab CI</text>
+
+  <!-- access control flows down -->
+  <path class="arrow" marker-end="url(#a)" d="M640,378 L640,432"/>
+  <text class="sub" x="656" y="410">policies govern the catalog · access control flows down</text>
+
+  <!-- ================= TIER 2: CATALOG (index & find) ================= -->
+  <text class="tier" x="30" y="474">Catalogs — index and find assets · <tspan font-style="italic" font-weight="400" font-size="18">catalog-gateway + HellGraph index</tspan></text>
+  <rect class="panel" x="30" y="488" width="1220" height="330" rx="4"/>
+
+  <rect class="col" x="50" y="508" width="378" height="292" rx="3"/>
+  <text class="head" x="70" y="538">Collaborators</text>
+  <text class="item" x="70" y="570">Admins</text>
+  <text class="item" x="70" y="592">Editors</text>
+  <text class="item" x="70" y="614">Viewers</text>
+  <text class="sub"  x="70" y="642">catalog-gateway ACLs · membrane-scoped</text>
+
+  <rect class="col" x="450" y="508" width="378" height="292" rx="3"/>
+  <text class="head" x="470" y="538">Data &amp; analytic assets</text>
+  <text class="item" x="470" y="570">Data files · Connections</text>
+  <text class="item" x="470" y="592">Connected data · Notebooks</text>
+  <text class="sub"  x="470" y="616">evidence-intake-kernel · ingestion contract</text>
+  <text class="sub"  x="470" y="634">lattice-studio / lattice-forge notebook plane</text>
+  <text class="sub"  x="470" y="652">ReceiptCatalogEntry contract · deploy/values catalog</text>
+
+  <rect class="col" x="850" y="508" width="380" height="292" rx="3"/>
+  <text class="head" x="870" y="538">Tools for</text>
+  <text class="item" x="870" y="568">Data discovery — sherlock / holmes / search-orch</text>
+  <text class="item" x="870" y="590">Data classification — metadata-standards validator</text>
+  <text class="sub"  x="870" y="608">learned predictors, not static dictionaries</text>
+  <text class="item" x="870" y="632">Recommendations — fibered-retrieval router</text>
+  <text class="item" x="870" y="654">Controlling access — capability membrane</text>
+  <text class="item" x="870" y="676">Monitoring usage — telemetry/liveness · agent-ledger</text>
+  <text class="item" x="870" y="698">Profiling structured &amp; unstructured</text>
+  <text class="sub"  x="870" y="716">embeddings · entity-resolution · measurement/resource contract</text>
+
+  <!-- feeders -->
+  <path class="arrow" marker-end="url(#a)" d="M300,900 L300,860 Q300,845 360,845 L620,845 Q636,845 636,822"/>
+  <path class="arrow" marker-end="url(#a)" d="M640,900 L640,824"/>
+  <path class="arrow" marker-end="url(#a)" d="M980,860 Q980,845 920,845 L660,845 Q644,845 644,822"/>
+
+  <rect class="feed" x="150" y="900" width="300" height="52" rx="3"/>
+  <text class="feedt" x="300" y="932" text-anchor="middle">Your data sources</text>
+  <rect class="feed" x="490" y="900" width="300" height="52" rx="3"/>
+  <text class="feedt" x="640" y="932" text-anchor="middle">Commons / Agora community</text>
+  <rect class="col"  x="830" y="900" width="300" height="52" rx="3"/>
+  <text class="item" x="980" y="931" text-anchor="middle" font-weight="600" font-size="13">Projects to work with assets</text>
+
+  <text class="sub" x="30" y="982">Truthful reproduction of the two-tier governance⟷catalog pattern, mapped to real SocioProphet estate components. Reproducible from source; no external branding.</text>
+</svg>
