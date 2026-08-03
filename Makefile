@@ -623,6 +623,38 @@ validate-reproduce-bench-gate:
 		python tools/reproduce_bench.py --bench isota --run sampled-headline-r1 --gate && \
 		pytest -q tests/platform_stubs/test_reproduce_bench_gate.py
 
+.PHONY: recipe-proof recipe-proof-verify validate-recipe-proof
+# CK/CM PROOF + TRUST layer — bind a recipe execution to a portable, reproducible,
+# citable proof with a trust attestation (the Collective-Knowledge parity/beat).
+# ASSEMBLE runs the recipe via reproduce_bench (emits the hash-chained receipt +
+# repro-ledger) and writes a schema-valid RecipeProof.
+#   make recipe-proof BENCH=isota RUN=opus-class-r1 RECIPE=internal-model:isota-tournament DIVISION=CLOSED \
+#        SUBMISSION=schemas/eval/examples/recipe-proof/submission.closed.example.json OUT=build/recipe-proof/rp.json
+recipe-proof:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator >/dev/null && \
+		python tools/recipe_proof.py assemble --bench $(BENCH) --run $(RUN) --recipe $(RECIPE) \
+			--division $(DIVISION) --submission $(SUBMISSION) --out $(OUT)
+
+# INDEPENDENTLY verify a RecipeProof (fail-closed): chain intact + metric within
+# epsilon + division gates pass + trust gates pass + recipe_ref resolvable.
+#   make recipe-proof-verify PROOF=schemas/eval/examples/recipe-proof/recipe-proof.example.json
+recipe-proof-verify:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator >/dev/null && \
+		python tools/recipe_proof.py verify $(PROOF) $(if $(REGISTER),--register $(REGISTER),)
+
+# The teeth: PROOF verifies (soft + register-resolved) AND rejects a tampered
+# receipt / metric drift / failed division gate / unresolvable recipe_ref. Also
+# runs the assemble->verify pipeline over the example. Mirrors CI.
+validate-recipe-proof:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && \
+		python tools/recipe_proof.py verify schemas/eval/examples/recipe-proof/recipe-proof.example.json && \
+		python tools/recipe_proof.py verify schemas/eval/examples/recipe-proof/recipe-proof.example.json \
+			--register tests/platform_stubs/fixtures/crystal-atlas-register.fixture.json && \
+		pytest -q tests/platform_stubs/test_recipe_proof.py
+
 .PHONY: canary-slo-gate-check
 # Fail-closed Argo Rollouts SLO gates: an empty Prometheus series must ABORT a
 # canary, not promote it ("no data" != "healthy"). tools/check_canary_slo_gate.py

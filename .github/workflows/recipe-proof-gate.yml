@@ -1,0 +1,77 @@
+# The CK/CM PROOF + TRUST gate, fired as a real control. It BINDS a recipe
+# execution to a portable, reproducible, citable RecipeProof and then verifies
+# that proof INDEPENDENTLY — chain intact + headline within epsilon + open/closed
+# division gates pass + trust attestation (clean-eval + provider-neutrality +
+# no-laundering) proven + recipe_ref resolvable. Proven BOTH ways: the committed
+# example VERIFIES (soft recipe_ref and register-resolved) and the teeth prove a
+# tampered receipt / metric drift / failed division gate / unresolvable recipe_ref
+# are REJECTED. A control that never fires is worse than none, so both signs fire.
+#
+# This is the Collective-Knowledge parity/beat: a portable recipe becomes a
+# reproducible + citable + trust-attested proof. It CONSUMES (does not fork)
+# reproduce_bench (#1269), the repro-ledger schema + receipt spine, division rules
+# / validate-submission (#1271), and references the crystal-atlas recipe register
+# (#1287, OPEN) by a soft recipe_ref (binding activates when the register lands).
+#
+# Path-scoped so it runs when the proof layer, its schema, the consumed gates, the
+# recorded runs, or the example/fixtures move. SHA-256 here is the FIPS 180-4
+# algorithm via stdlib hashlib, NOT a FIPS 140-validated module.
+name: recipe-proof-gate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/recipe_proof.py'
+      - 'tools/reproduce_bench.py'
+      - 'tools/validate_submission.py'
+      - 'tools/isota_tournament.py'
+      - 'schemas/eval/**'
+      - 'contracts/reproduce/**'
+      - 'tests/platform_stubs/test_recipe_proof.py'
+      - 'tests/platform_stubs/fixtures/**'
+      - '.github/workflows/recipe-proof-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/recipe_proof.py'
+      - 'tools/reproduce_bench.py'
+      - 'tools/validate_submission.py'
+      - 'tools/isota_tournament.py'
+      - 'schemas/eval/**'
+      - 'contracts/reproduce/**'
+      - 'tests/platform_stubs/test_recipe_proof.py'
+      - 'tests/platform_stubs/fixtures/**'
+      - '.github/workflows/recipe-proof-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  recipe-proof-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        # rfc3339-validator lets jsonschema's FormatChecker enforce date-time.
+        run: python -m pip install --upgrade pip jsonschema rfc3339-validator pytest
+      - name: Pipeline — assemble a RecipeProof from the recipe (receipt + ledger)
+        run: |
+          python tools/recipe_proof.py assemble \
+            --bench isota --run opus-class-r1 \
+            --recipe internal-model:isota-tournament --division CLOSED \
+            --submission schemas/eval/examples/recipe-proof/submission.closed.example.json \
+            --out build/recipe-proof/assembled.json
+          python tools/recipe_proof.py verify build/recipe-proof/assembled.json
+      - name: Verify — committed example VERIFIES standalone (soft recipe_ref)
+        run: python tools/recipe_proof.py verify schemas/eval/examples/recipe-proof/recipe-proof.example.json
+      - name: Verify — recipe_ref HARD-resolves against the register fixture
+        run: |
+          python tools/recipe_proof.py verify \
+            schemas/eval/examples/recipe-proof/recipe-proof.example.json \
+            --register tests/platform_stubs/fixtures/crystal-atlas-register.fixture.json
+      - name: Teeth — positives VERIFY and negatives are REJECTED (fail-closed)
+        run: pytest -q tests/platform_stubs/test_recipe_proof.py

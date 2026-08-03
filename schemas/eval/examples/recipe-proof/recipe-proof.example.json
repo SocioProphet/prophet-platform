@@ -1,0 +1,74 @@
+{
+  "bench": "isota",
+  "division": "CLOSED",
+  "doi_ref": {
+    "concept_doi": "10.5555/socioprophet.isota.concept",
+    "version_doi": "10.5555/socioprophet.isota.v1"
+  },
+  "headline": {
+    "determinism_class": "deterministic",
+    "metric_id": "md.isota.tournament_composite",
+    "value": 88.79
+  },
+  "notes": "Self-contained CK/CM PROOF+TRUST example: deterministic iSOTA composite reproduced (88.79), receipt hash-chained on the committed ledger, CLOSED division + trust gates pass. recipe_ref resolves against the crystal-atlas register once #1287 lands (pending_register without a --register).",
+  "receipt_ref": "901d3d966358c4ea5678b82f439388627300381ddc50a0246cd08c9208c36f46",
+  "recipe_proof_id": "rp.isota.opus-class-r1",
+  "recipe_ref": {
+    "recipe_id": "internal-model:isota-tournament"
+  },
+  "repro_ledger_ref": {
+    "ledger_path": "schemas/eval/examples/recipe-proof/repro-ledger.isota.jsonl",
+    "repro_ledger_entry_id": "rle.isota.opus-class-r1.2026-08-03T09:44:24.958918Z"
+  },
+  "run_id": "opus-class-r1",
+  "submission": {
+    "benchmark_contract_id": "bc.sherlock.stage2",
+    "candidate_id": "cand.internal-runner",
+    "clean_eval_certificate": {
+      "certificate_id": "ce-isota-1",
+      "checked_at": "2026-08-03T00:00:00Z",
+      "corpus_ref": "corpus://sherlock",
+      "status": "clean"
+    },
+    "division": "CLOSED",
+    "governance": {
+      "api": true,
+      "auth": true,
+      "cost": true,
+      "observability": true,
+      "rate": true
+    },
+    "metric_facts": [
+      {
+        "is_headline": true,
+        "metric_definition_id": "md.isota.tournament_composite",
+        "reproduced_by_us": true,
+        "source_trust_class": "internal_reproduced",
+        "trial_count": 30
+      }
+    ],
+    "minimum_trial_count": 30,
+    "provider_neutrality": {
+      "provider_terms_in_scoring": false,
+      "scored_by": "internal_runner"
+    },
+    "repro_ledger_entry": {
+      "environment_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "methodology_snapshot_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "replay_artifact_id": "replay-isota-1",
+      "repro_ledger_entry_id": "rl-isota-1",
+      "run_id": "opus-class-r1",
+      "seed_policy": "none (pure composite)"
+    },
+    "submission_id": "sub.isota.opus-class-r1",
+    "task_manifest": {
+      "declared_deviations": [],
+      "unchanged": true
+    }
+  },
+  "trust_attestation": {
+    "clean_eval": true,
+    "no_laundering": true,
+    "provider_neutrality": true
+  }
+}

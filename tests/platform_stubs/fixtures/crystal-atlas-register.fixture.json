@@ -1,0 +1,8 @@
+{
+  "register": "crystal-atlas/internal-models",
+  "description": "FIXTURE ONLY — a minimal stand-in for the crystal-atlas internal-model register (PR #1287, OPEN). Used by the RecipeProof teeth to exercise HARD recipe_ref resolution (resolvable / unresolvable / digest-mismatch) without depending on #1287 landing on main. The real register is contracts/crystal-atlas/registry/internal-models.v0.json once #1287 merges; the id contract (model_id ^internal-model:[a-z0-9-]+$) is identical.",
+  "models": [
+    {"model_id": "internal-model:next-best-action", "display_name": "Next best action", "family": "recommendation", "task_type": "ranking", "status": "GAP", "verified": false, "governance": {"admissibility_tier": "GOVERNED", "provenance_required": true}},
+    {"model_id": "internal-model:isota-tournament", "display_name": "iSOTA tournament composite", "family": "eval", "task_type": "scoring", "status": "REALIZED", "verified": true, "governance": {"admissibility_tier": "GOVERNED", "provenance_required": true}}
+  ]
+}
