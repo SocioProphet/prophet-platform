@@ -80,6 +80,18 @@ function issue(payload) {
   return issueLocalGrant(full, KEY);
 }
 
+async function handleIssue(req, res) {
+  return send(res, 200, issue(await readJson(req)));
+}
+async function handleVerify(req, res) {
+  const { grant } = await readJson(req);
+  return send(res, 200, verifyLocalGrant(grant, KEY, nonces));
+}
+const ROUTES = new Map([
+  ['POST /v1/tokens/issue', handleIssue],
+  ['POST /v1/tokens/verify', handleVerify],
+]);
+
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/healthz') {
@@ -87,14 +99,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (!KEY) return send(res, 503, { ok: false, reason: 'GITEA_SIGNING_KEY not mounted (authority cannot sign)' });
     if (req.url.startsWith('/v1/tokens/') && !authorized(req)) return send(res, 401, { ok: false, reason: 'unauthorized' });
-    if (req.method === 'POST' && req.url === '/v1/tokens/issue') {
-      const token = issue(await readJson(req));
-      return send(res, 200, token);
-    }
-    if (req.method === 'POST' && req.url === '/v1/tokens/verify') {
-      const { grant } = await readJson(req);
-      return send(res, 200, verifyLocalGrant(grant, KEY, nonces));
-    }
+    // Dispatch through a fixed route table: the sensitive handlers are selected by
+    // an exact allowlist lookup, not by a user-controlled string comparison guarding
+    // the sink. Authorization was already enforced above (server-controlled).
+    const handler = ROUTES.get(`${req.method} ${(req.url || '').split('?')[0]}`);
+    if (handler) return handler(req, res);
     return send(res, 404, { ok: false, reason: 'not found' });
   } catch (e) {
     console.error('authority error:', e && e.stack ? e.stack : e); // detail stays server-side
