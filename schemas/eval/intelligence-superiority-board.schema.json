@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/intelligence-superiority-board.schema.json",
+  "title": "IntelligenceSuperiorityBoard",
+  "description": "Governed, receipted competitive-intelligence contract: the estate's Intelligence-Superiority feature-board. For every capability category it declares the top competitors, the litmus features that decide the category (each with a definition and pass criteria), and a scored estate-vs-each verdict (BEAT|MEET|PARTIAL|GAP) carrying its evidence, maturity (live|spec) and assessment_basis (self_assessed|externally_certified). This is the machine-readable dataset the cockpit boards render; validate_intelligence_superiority_board.py applies the teeth and seals it with a SHA-256 receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["board_id", "title", "generated_ts", "spec_version", "categories"],
+  "properties": {
+    "board_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "generated_ts": {"type": "string", "format": "date-time"},
+    "spec_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "notes": {"type": "string"},
+    "categories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/category"}
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category_id", "name", "description", "competitors", "litmus_features", "scores"],
+      "properties": {
+        "category_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "competitors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "litmus_features": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/litmus_feature"}
+        },
+        "scores": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/score"}
+        }
+      }
+    },
+    "litmus_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "name", "definition", "criteria"],
+      "properties": {
+        "feature_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "name": {"type": "string", "minLength": 1},
+        "definition": {"type": "string", "minLength": 1},
+        "criteria": {"type": "string", "minLength": 1}
+      }
+    },
+    "score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["feature_id", "competitor", "verdict", "maturity", "assessment_basis"],
+      "properties": {
+        "feature_id": {"type": "string", "pattern": "^[a-z0-9_]+$"},
+        "competitor": {"type": "string", "minLength": 1},
+        "verdict": {"enum": ["BEAT", "MEET", "PARTIAL", "GAP"]},
+        "maturity": {"enum": ["live", "spec"]},
+        "assessment_basis": {"enum": ["self_assessed", "externally_certified"]},
+        "provisional": {"type": "boolean"},
+        "cert_ref": {"type": "string"},
+        "rationale": {"type": "string"},
+        "evidence_ref": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A pointer to the estate artifact backing an estate claim. At least one of repo/path/pr/memory must be present; the validator enforces that a BEAT/MEET score carries a non-empty evidence_ref.",
+      "properties": {
+        "repo": {"type": "string"},
+        "path": {"type": "string"},
+        "pr": {"type": "string"},
+        "memory": {"type": "string"},
+        "note": {"type": "string"}
+      },
+      "anyOf": [
+        {"required": ["repo"]},
+        {"required": ["path"]},
+        {"required": ["pr"]},
+        {"required": ["memory"]}
+      ]
+    }
+  }
+}
