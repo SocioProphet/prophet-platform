@@ -59,6 +59,7 @@ spec:
           - { name: cloud-twin, tier: reference }                # Cloud-Twin as a Service — genesis/twin lifecycle (GenesisSeed → verified Twin → replayable events)
           - { name: memoryd, tier: foundation }                  # memory-plane daemon — contract other services call
           - { name: embeddings, tier: reference }                # swappable embedder (fogstack literally swaps it out)
+          - { name: receipt-gateway, tier: reference }           # governed inference seam — fronts embeddings, emits a hash-chained InferenceReceipt per call
           - { name: regis-acr-api, tier: reference }             # registry ACR product API
           - { name: node-commander, tier: foundation }           # node runtime command door — compute-doctrine control contract
           - { name: liberty-stack-readout, tier: reference }     # readout/reporting surface

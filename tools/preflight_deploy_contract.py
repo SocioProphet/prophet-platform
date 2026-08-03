@@ -168,6 +168,12 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
+    "receipt-gateway:moving-tag": (
+        "New service — first-party receipt-gateway image (apps/receipt-gateway: transparent OpenAI-compatible "
+        "proxy that fronts embeddings and emits a hash-chained InferenceReceipt per call) gets its Dockerfile + "
+        "images.yml build entry in this PR. Pin tag:latest -> the sha- tag after the first CI build; none exists "
+        "until merge."
+    ),
     "catalog-gateway:moving-tag": (
         "New service — first-party catalog-gateway image (apps/catalog-gateway: the read/resolve/lineage + DCAT "
         "interop seam over the Crystal Atlas catalog families) gets its Dockerfile + images.yml build entry in "

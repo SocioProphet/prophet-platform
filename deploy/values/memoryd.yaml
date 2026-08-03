@@ -10,9 +10,12 @@ config:
   # resize to this), so the store MUST match the embedder or inserts mismatch. HashingEmbedder honours it
   # too, so this is safe whether the semantic endpoint is reachable at boot or not.
   MEMORYMESH_VECTOR_SIZE: "768"
-  # Sovereign semantic embeddings (Ollama /v1/embeddings). If unreachable at startup, memoryd logs and
-  # falls back to the hashing embedder — never mixes vector spaces. See infra/k8s/embeddings/base.
-  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  # Sovereign semantic embeddings, routed through the receipt-gateway (deploy/values/receipt-gateway.yaml)
+  # so every embedding call gets a governed, hash-chained InferenceReceipt — the gateway forwards
+  # transparently to the `embeddings` service and returns the same /v1/embeddings response, so memoryd is
+  # unchanged. If unreachable at startup, memoryd logs and falls back to the hashing embedder — never mixes
+  # vector spaces. See infra/k8s/embeddings/base and apps/receipt-gateway.
+  EMBEDDINGS_URL: "http://receipt-gateway.socioprophet.svc.cluster.local:8898/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
   # KMASS baseline (2026-08-01): mesh-qdrant (infra/k8s/mesh-qdrant) existed but was never
   # registered with ArgoCD, so this was always false against an unreachable URL. The code

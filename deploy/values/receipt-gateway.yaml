@@ -1,0 +1,40 @@
+# receipt-gateway — the estate's governed inference seam. A transparent OpenAI-compatible proxy that
+# fronts the sovereign `embeddings` service (apps/embeddings, /v1/embeddings) and emits a schema-conformant,
+# hash-chained InferenceReceipt for every embedding call (SEAM-011: durable, non-local ledger). memoryd's
+# EMBEDDINGS_URL points here instead of straight at `embeddings`, so semantic vectors become receipted with
+# NO app code change — the same "eat our own dogfood" governance the model-plane spec mandates.
+#
+# Reference tier: a replaceable governance surface in FRONT of the embedder. First-party ⇒ built by
+# images.yml, so no image.registry override (inherits the platform default; the preflight contract asserts it).
+# tag:latest is the bootstrap for a brand-new service; gitops-promote sha-pins it after the first build.
+image: { repository: receipt-gateway, tag: latest }
+
+# The gateway listens on 8898 (its Dockerfile default). memoryd + any other consumer reach it here.
+service: { port: 8898, portName: http }
+
+config:
+  # Forward to the sovereign embedder. Non-inference paths pass straight through. FQDN (matches memoryd's
+  # convention) so it resolves regardless of the gateway pod's namespace.
+  RECEIPT_GATEWAY_BACKEND: "http://embeddings.socioprophet.svc.cluster.local:8080"
+  RECEIPT_GATEWAY_HOST: "0.0.0.0"
+  RECEIPT_GATEWAY_PORT: "8898"
+  # Hash-chained ledger on the persistent volume (SEAM-011). readOnlyRootFilesystem ⇒ the ledger MUST live
+  # on the mounted PVC, not the image FS.
+  RECEIPT_GATEWAY_LEDGER: "/var/lib/receipt-gateway/ledger.jsonl"
+  # Model→digest map so each receipt records the REAL served model digest (not a guessed single value).
+  # NOTE: this is the upstream nomic-embed-text registry digest; gitops should pin it to the digest baked
+  # into the `embeddings` image's model manifest once that is surfaced (tracked as a follow-up). A receipt
+  # with a stale/foreign digest still proves "an embedding happened", but digest fidelity is the goal.
+  RECEIPT_GATEWAY_MODEL_DIGESTS: '{"nomic-embed-text":"sha256:970aa74c0a90ef7482477cf803618e776e173c007bf957f635f1015bfcfef0e6"}'
+
+# Durable ledger. Single-writer append-only file on a ReadWriteOnce PVC.
+persistence: { enabled: true, storageClass: dynamic-rwo, size: 1Gi, mountPath: /var/lib/receipt-gateway }
+# Single-writer on an RWO PVC: RollingUpdate can deadlock (new pod created before the old releases the
+# volume). Recreate tears the old pod down first — the chart's guidance for persistent single-writer services.
+strategy: { type: Recreate }
+autoscaling: { enabled: false }
+replicaCount: 1
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits:   { cpu: 500m, memory: 256Mi }
