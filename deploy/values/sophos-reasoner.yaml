@@ -11,7 +11,7 @@
 #     us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/owl-reasoner:sha-09b1f336d566e4b0a8dfb778bc61663d967c6628 \
 #     us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/sophos-reasoner:sha-09b1f336d566e4b0a8dfb778bc61663d967c6628
 # After merge, images.yml builds sophos-reasoner fresh and gitops-promote bumps this tag as usual.
-image: { repository: sophos-reasoner, tag: sha-09b1f336d566e4b0a8dfb778bc61663d967c6628 }
+image: { repository: sophos-reasoner, tag: sha-85d830cd278ee7584e7b1ebad0dd78f6be476c4e }
 service: { port: 8080, portName: http }
 config:
   LATTICE_STUDIO_URL: "http://lattice-studio:8080"
