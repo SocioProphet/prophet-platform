@@ -32,3 +32,7 @@ surfaced through this `lattice-studio` viz layer and `dashboard-bff`. Wiring tra
 ## Ross recovery — witness over economic-prophet
 
 The **Ross recovery & curves** module ports `economic-prophet/src/open_ep_framework/recovery.py` **exactly** (`planning_recovery` RR^P, `market_implied_recovery` RR^Q, `recovery_wedge` ΔRR) — product_spec §6 (Ross / Arrow-Debreu). On top it runs the actual **Ross Recovery Theorem**: option-implied Arrow-Debreu state prices → the Perron eigenproblem `Pφ = δφ` recovers the real-world measure P and the pricing kernel φ from the risk-neutral Q. It surfaces the futures/forward curve and the option call-price curve, and the values that pop out (real-world vs risk-neutral PD, the risk premium, recovered discount δ). Verified: recovered δ = true discount; risk-neutral PD > real-world PD.
+
+## Alternative inflation — BPP & ShadowStats (witness over economic-prophet)
+
+The **Alternative inflation** module ports `economic-prophet/src/open_ep_framework/inflation.py`: a Billion-Prices-Project chained **Jevons** online-price index and a **ShadowStats** alternate CPI (official + reversed BLS methodology add-backs, 1980/1990 bases), plus the exact-Fisher **real rate** that reprices every book. The vendor series are proprietary (PriceStats commercial, ShadowStats subscription) so the methodologies are **reconstructed** — flagged as such; wire a real feed for the genuine index. economic-prophet PR #40.
