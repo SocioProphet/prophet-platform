@@ -1,0 +1,86 @@
+# Superiority-march move #3 — metric-gated progressive delivery, gated ALSO on our sealed verdict.
+# Closes gap #2 (progressive-delivery-auto-rollback, 6 competitors ahead). Argo Rollouts runs a
+# canary with live Prometheus analysis (from move #2) that auto-promotes or auto-aborts+rolls-back
+# with no human — AND a governance metric that runs our fail-closed promotion gate on the sealed
+# review verdict. Auto-rollback (their capability) AND sealed provenance (ours), in one analysis.
+# Sovereign OSS (Argo Rollouts). Apply to a cluster to activate.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: canary-slo-and-governance
+  namespace: prophet
+  labels: {app.kubernetes.io/part-of: superiority-march, march.move: "3-progressive-delivery"}
+spec:
+  args:
+    - name: service-name
+    - name: verdict-secret     # the sealed review verdict, mounted for the governance gate
+  metrics:
+    # --- their capability: live metric analysis, auto-abort on breach ---
+    - name: error-rate
+      interval: 1m
+      count: 5
+      failureLimit: 1          # one breach aborts the rollout (auto-rollback)
+      successCondition: result < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus.observability.svc:9090
+          query: job:request_error_rate:ratio5m{job="{{args.service-name}}"}
+    - name: latency-p99
+      interval: 1m
+      count: 5
+      failureLimit: 1
+      successCondition: result < 0.5
+      provider:
+        prometheus:
+          address: http://prometheus.observability.svc:9090
+          query: job:request_latency:p99_5m{job="{{args.service-name}}"}
+    # --- our differentiator: promotion is also gated on a fail-closed SEALED verdict ---
+    - name: sealed-governance-gate
+      count: 1
+      successCondition: result == "0"     # promotion_gate exits 0 only on a sealed APPROVE
+      provider:
+        job:
+          spec:
+            backoffLimit: 0
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: promotion-gate
+                    image: ghcr.local/socioprophet/prophet-platform:pinned   # our image, digest-pinned in CI
+                    command: [python3, tools/promotion_gate.py, --verdict, /verdict/verdict.json]
+                    volumeMounts: [{name: verdict, mountPath: /verdict, readOnly: true}]
+                volumes:
+                  - name: verdict
+                    secret: {secretName: "{{args.verdict-secret}}"}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: hellgraph-service
+  namespace: prophet
+  labels: {app.kubernetes.io/part-of: superiority-march, march.move: "3-progressive-delivery"}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: hellgraph-service}}
+  template:
+    metadata: {labels: {app: hellgraph-service}}
+    spec:
+      containers:
+        - name: hellgraph-service
+          image: ghcr.local/socioprophet/hellgraph-service:pinned
+          ports: [{containerPort: 8080}]
+  strategy:
+    canary:
+      analysis:
+        templates: [{templateName: canary-slo-and-governance}]
+        args:
+          - {name: service-name, value: hellgraph-service}
+          - {name: verdict-secret, value: hellgraph-service-review-verdict}
+      steps:
+        - setWeight: 20
+        - pause: {duration: 2m}     # bake, then analysis runs against live SLO metrics
+        - setWeight: 50
+        - pause: {duration: 2m}
+        - setWeight: 100

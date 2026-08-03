@@ -1,0 +1,58 @@
+# Superiority-march move #5 — service mesh: mTLS everywhere + header routing (the MeshSpace pattern).
+# Closes the "mesh net-new" item (readiness diagram: only NetworkPolicy + NGINX today) and realizes
+# the Nocalhost MeshSpace / Control-plane header-routing reference diagrams: a request carrying a
+# trace header is redirected to a shadow/canary version sharing the base services; everything else
+# hits stable. Sovereign OSS (Istio). Apply to a cluster (with istio-injection=enabled) to activate.
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls-strict
+  namespace: prophet
+  labels: {app.kubernetes.io/part-of: superiority-march, march.move: "5-mesh"}
+spec:
+  mtls: {mode: STRICT}     # zero-trust: no plaintext between workloads, ever
+---
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: hellgraph-service
+  namespace: prophet
+  labels: {march.move: "5-mesh"}
+spec:
+  host: hellgraph-service.prophet.svc.cluster.local
+  trafficPolicy: {tls: {mode: ISTIO_MUTUAL}}
+  subsets:
+    - {name: stable, labels: {version: stable}}
+    - {name: canary, labels: {version: canary}}
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: hellgraph-service
+  namespace: prophet
+  labels: {march.move: "5-mesh"}
+spec:
+  hosts: [hellgraph-service.prophet.svc.cluster.local]
+  http:
+    # MeshSpace: a dev/trace header shares the base services but is redirected to the canary
+    # version — the header-routing pattern from the reference diagrams (uberctx-trace=dev / a=2).
+    - match:
+        - headers: {x-sourceos-track: {exact: dev}}
+      route:
+        - {destination: {host: hellgraph-service.prophet.svc.cluster.local, subset: canary}}
+    - route:      # everyone else -> stable
+        - {destination: {host: hellgraph-service.prophet.svc.cluster.local, subset: stable}}
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: prophet-gateway
+  namespace: prophet
+  labels: {march.move: "5-mesh"}
+spec:
+  selector: {istio: ingressgateway}
+  servers:
+    - port: {number: 443, name: https, protocol: HTTPS}
+      tls: {mode: SIMPLE, credentialName: prophet-tls}
+      hosts: ["*.prophet.socioprophet.internal"]
