@@ -51,6 +51,22 @@ module "wi_cicd" {
         "roles/container.developer",
       ]
     }
+    # Runtime identity for the prod search-orchestrator workload (blue-green Rollout).
+    # Minted by tofu so the prod overlay's KSA annotation
+    # (iam.gke.io/gcp-service-account: search-orchestrator@…) resolves to a real GSA —
+    # one-click deploy, no engineer wires this by hand.
+    #
+    # roles = [] BY DESIGN (least privilege): the workload calls NO GCP APIs — config is
+    # in a ConfigMap, image-pull is the node SA, the PVC is storageclass-provisioned. The
+    # identity exists (audit/VPC-SC/future use) but grants nothing. When the app first needs
+    # a GCP API, add the SINGLE matching role here (e.g. roles/secretmanager.secretAccessor)
+    # — that is the only change, and it stays one-click.
+    search-orchestrator = {
+      sa_name       = "search-orchestrator"
+      k8s_namespace = "prophet-platform-prod"
+      k8s_sa_name   = "search-orchestrator"
+      roles         = []
+    }
   }
 }
 
