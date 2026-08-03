@@ -7,13 +7,18 @@ This document defines the first real repo-backed Prophet Understand / Repo Intel
 The fixture-backed slice proves the platform contract locally. The repo-backed slice proves that the sibling repos can cooperate:
 
 ```text
-Smart Tree emits artifact
+Prophet Understand emitter emits artifact
 -> Prophet Platform validates artifact
 -> Lampstand indexes artifact
 -> Sherlock searches index
 -> Policy Fabric evaluates artifact
 -> Delivery Excellence scores artifact
 ```
+
+> Provenance note: the repo-intelligence emitter (`tools/emit_prophet_understanding.py`) is
+> prophet-platform-owned and stdlib-only. It was severed from the third-party-derived
+> `smart-tree` tool; the pipeline no longer depends on a `smart-tree` checkout or its `st`
+> binary. See `docs/adr` / the sever changelog for history.
 
 ## Script
 
@@ -22,16 +27,17 @@ Run from `SocioProphet/prophet-platform`:
 ```bash
 python3 tools/run_prophet_understand_repo_backed_slice.py \
   --dev-root "$HOME/dev" \
-  --target-repo smart-tree \
-  --target-full-name SocioProphet/smart-tree \
+  --target-repo prophet-platform \
+  --target-full-name SocioProphet/prophet-platform \
   --query "what depends on this contract?"
 ```
+
+`--target-repo` may be any repo under `--dev-root` you want to scan.
 
 ## Required sibling repos
 
 The script expects these directories under `--dev-root`:
 
-- `smart-tree`
 - `prophet-platform`
 - `lampstand`
 - `sherlock-search`
@@ -42,7 +48,7 @@ The script expects these directories under `--dev-root`:
 
 The repo-backed slice calls:
 
-- `smart-tree/tools/emit_prophet_understanding.py`
+- `prophet-platform/tools/emit_prophet_understanding.py`
 - `prophet-platform/tools/validate_prophet_understand.py`
 - `lampstand/tools/index_prophet_understanding.py`
 - `sherlock-search/tools/search_prophet_understanding.py`
@@ -65,14 +71,14 @@ prophet-platform/build/prophet-understand/repo-backed/logs/*.log
 The emitted graph artifact is written into the scanned repo:
 
 ```text
-smart-tree/.prophet/prophet-understanding.json
+<target-repo>/.prophet/prophet-understanding.json
 ```
 
 ## Pass condition
 
 The slice passes when:
 
-- Smart Tree emits `.prophet/prophet-understanding.json`.
+- The emitter writes `.prophet/prophet-understanding.json`.
 - Prophet Platform validates the emitted artifact against the v0 contract.
 - Lampstand creates deterministic index records.
 - Sherlock returns at least a valid query response object.
@@ -92,7 +98,6 @@ The slice passes when:
 After the slice passes:
 
 1. Commit a reviewed fixture or generated artifact only where useful.
-2. Wire Smart Tree into the real CLI instead of the Python helper.
-3. Promote the Lampstand/Sherlock/Policy/Delivery helpers into package-level commands.
-4. Render the produced artifact in the SocioProphet `/repo-map` workbench.
-5. Add branch-protection-aware PR impact reports for graph-affecting changes.
+2. Promote the Lampstand/Sherlock/Policy/Delivery helpers into package-level commands.
+3. Render the produced artifact in the SocioProphet `/repo-map` workbench.
+4. Add branch-protection-aware PR impact reports for graph-affecting changes.

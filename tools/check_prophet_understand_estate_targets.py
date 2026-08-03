@@ -9,7 +9,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOS = {
-    "smart-tree": ["make", "prophet-understand-smoke"],
+    "prophet-platform": ["make", "prophet-understand-smoke"],
     "lampstand": ["make", "prophet-understand-smoke"],
     "sherlock-search": ["make", "prophet-understand-smoke"],
     "policy-fabric": ["make", "prophet-understand-smoke"],
