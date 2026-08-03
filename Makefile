@@ -655,6 +655,30 @@ validate-recipe-proof:
 			--register tests/platform_stubs/fixtures/crystal-atlas-register.fixture.json && \
 		pytest -q tests/platform_stubs/test_recipe_proof.py
 
+.PHONY: validate-leaderboard-round validate-oais-deposition validate-eval-surfaces
+# The public ranked/tiered leaderboard round surface (#1263 feature 4, #1272): a
+# round is PUBLISHABLE iff every entry's submission passes validate_submission
+# (#1271); a round with a failed-gate entry is REJECTED. Proven both ways.
+# Mirrors .github/workflows/eval-surfaces-gate.yml.
+validate-leaderboard-round:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && \
+		python tools/publish_leaderboard_round.py schemas/eval/examples/leaderboard-round.closed.example.json && \
+		pytest -q tests/platform_stubs/test_publish_leaderboard_round.py
+
+# The OAIS preservation/curation vault check (#1263 feature 9, #1272): an accepted
+# submission produces a citable AIP (SHA-256 fixity + preservation metadata +
+# OAI-PMH record); an AIP missing fixity/metadata, a non-SHA-256 algorithm, a
+# tampered content digest, or a DIP that does not match its AIP is REJECTED.
+# SHA-256 is the FIPS 180-4 algorithm via stdlib hashlib, NOT a FIPS 140 module.
+validate-oais-deposition:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && \
+		python tools/oais_deposition.py verify schemas/eval/examples/oais-deposition.example.json && \
+		pytest -q tests/platform_stubs/test_oais_deposition.py
+
+validate-eval-surfaces: validate-leaderboard-round validate-oais-deposition
+
 .PHONY: canary-slo-gate-check
 # Fail-closed Argo Rollouts SLO gates: an empty Prometheus series must ABORT a
 # canary, not promote it ("no data" != "healthy"). tools/check_canary_slo_gate.py
