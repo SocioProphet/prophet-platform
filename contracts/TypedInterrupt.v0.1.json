@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/TypedInterrupt.v0.1.json",
+  "title": "TypedInterrupt",
+  "description": "A typed interrupt raised by the agentic shell. All interrupts are typed; only a `critical` interrupt may invade the operator's focus (messenger-style overlays and unrelated surfaces must never cover the decision workspace during task review). Generalizes the estate's single ESCALATE primitive into the spec's FYI/Review/Blocked/Critical taxonomy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "interrupt_id", "type", "invades_focus", "task_ref", "created_at", "message"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "interrupt_id": { "type": "string" },
+    "type": { "type": "string", "enum": ["fyi", "review_requested", "blocked", "critical"] },
+    "invades_focus": { "type": "boolean", "description": "MUST be false unless type=critical" },
+    "task_ref": { "type": "string", "pattern": "^urn:srcos:task:[0-9a-f-]{8,}$" },
+    "action_ref": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "message": { "type": "string", "minLength": 1 },
+    "requires_ack": { "type": "boolean" }
+  }
+}

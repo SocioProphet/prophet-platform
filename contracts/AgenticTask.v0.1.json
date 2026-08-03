@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/AgenticTask.v0.1.json",
+  "title": "AgenticTask",
+  "description": "The first-class task object for the agentic supervisory shell: an explicit, persisted object with scope, policy envelope, autonomy level, budget, lifecycle state, staged actions, evidence, and approval requirements. This is the object the shell organizes supervision around (objective bar, status strip, worksets, timeline). audit_log entries reference AutonomyAdmissionReceipt seals — the task's decisions are backed by the estate's hash-sealed autonomy receipts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "task_id", "goal", "scope", "autonomy_level", "owner", "state", "created_at", "updated_at", "hash", "hash_algo"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "task_id": { "type": "string", "pattern": "^urn:srcos:task:[0-9a-f-]{8,}$" },
+    "goal": { "type": "string", "minLength": 1, "description": "the operator's stated objective (natural language + structured tokens)" },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "explicit scope selector — what the task may touch",
+      "properties": {
+        "orgs": { "type": "array", "items": { "type": "string" } },
+        "repos": { "type": "array", "items": { "type": "string" } },
+        "groups": { "type": "array", "items": { "type": "string" } },
+        "selector": { "type": "string", "description": "natural-language or structured scope query" }
+      }
+    },
+    "policies": { "type": "array", "items": { "type": "string" }, "description": "policy-envelope refs (consent-plane / policy-fabric); e.g. policy://sourceos/terminal/v1" },
+    "autonomy_level": { "type": "string", "pattern": "^L[0-5]$", "description": "canonical autonomy ladder L0-L5, aligned with AutonomyAdmissionReceipt" },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wall_seconds": { "type": "integer", "minimum": 0 },
+        "tokens": { "type": "integer", "minimum": 0 },
+        "usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "owner": { "type": "string", "description": "responsible principal (human:* or urn:srcos:agent:*)" },
+    "state": {
+      "type": "string",
+      "enum": ["drafting", "ready", "running", "waiting_for_evidence", "waiting_for_approval", "blocked", "completed", "aborted", "rolled_back"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "actions": {
+      "type": "array",
+      "description": "recommended/staged actions with their own lifecycle + risk tier",
+      "items": { "$ref": "#/$defs/recommendedAction" }
+    },
+    "outputs": { "type": "array", "items": { "type": "object" }, "description": "produced artifacts (issue drafts, MRs, diffs, reports)" },
+    "audit_log": {
+      "type": "array",
+      "description": "ordered, append-only audit entries; receipt_ref links to an AutonomyAdmissionReceipt seal",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "event"],
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "event": { "type": "string", "description": "e.g. state:running, action:approved, interrupt:critical" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "actor": { "type": "string" },
+          "receipt_ref": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "confidence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "uncertainty": { "type": "number", "minimum": 0, "maximum": 1 },
+        "basis": { "type": "string" }
+      }
+    },
+    "approval_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "requires_human"],
+      "properties": {
+        "tier": { "type": "string", "enum": ["low", "medium", "high"] },
+        "requires_human": { "type": "boolean" },
+        "reason": { "type": "string", "description": "WHY this tier (the shell must always state it)" }
+      }
+    },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "hash_algo": { "const": "sha256" }
+  },
+  "$defs": {
+    "recommendedAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "capability", "state", "risk_tier"],
+      "properties": {
+        "action_id": { "type": "string" },
+        "capability": { "type": "string", "description": "e.g. issue.draft, mr.open, dependency.update, config.prod-change" },
+        "args": { "type": "object" },
+        "state": {
+          "type": "string",
+          "enum": ["proposed", "staged", "approved", "executing", "succeeded", "failed", "reverted"]
+        },
+        "risk_tier": { "type": "string", "enum": ["low", "medium", "high"] },
+        "why": { "type": "string", "description": "WHY the action fell into its risk tier (mandatory per the approval model)" },
+        "evidence_refs": { "type": "array", "items": { "type": "string" }, "description": "ShellEvidencePacket evidence_ids supporting this action" },
+        "blast_radius": { "type": "string" },
+        "rollback_path": { "type": "string" }
+      }
+    }
+  }
+}
