@@ -327,6 +327,13 @@ fogstack-parity-readiness:
 prophet-artifact-smoke:
 	python3 tools/smoke_prophet_artifact_runner.py
 
+.PHONY: prophet-understand-smoke
+# Self-contained smoke for the Prophet Understand repo-intelligence emitter.
+# The emitter is prophet-platform-owned, stdlib-only, and has no dependency on
+# the third-party-derived smart-tree tool.
+prophet-understand-smoke:
+	python3 tools/smoke_prophet_understanding_emitter.py
+
 .PHONY: validate-workspace-prophet-membrane-e2e
 validate-workspace-prophet-membrane-e2e:
 	python3 tools/validate_workspace_prophet_membrane_e2e.py

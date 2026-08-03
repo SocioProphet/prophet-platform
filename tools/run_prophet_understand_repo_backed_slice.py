@@ -9,8 +9,10 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+# Prophet Understand is emitted by prophet-platform's own, self-contained
+# stdlib emitter (tools/emit_prophet_understanding.py). The pipeline no longer
+# depends on the third-party-derived smart-tree checkout being present.
 DEFAULT_REPOS = {
-    "smart_tree": "smart-tree",
     "prophet_platform": "prophet-platform",
     "lampstand": "lampstand",
     "sherlock_search": "sherlock-search",
@@ -58,8 +60,8 @@ def load_json(path: Path) -> Any:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the real repo-backed Prophet Understand vertical slice across sibling repos.")
     parser.add_argument("--dev-root", default=str(Path.home() / "dev"), help="Directory containing the SocioProphet repos")
-    parser.add_argument("--target-repo", default="smart-tree", help="Repo directory to scan")
-    parser.add_argument("--target-full-name", default="SocioProphet/smart-tree", help="owner/name for the scanned repo")
+    parser.add_argument("--target-repo", default="prophet-platform", help="Repo directory to scan")
+    parser.add_argument("--target-full-name", default="SocioProphet/prophet-platform", help="owner/name for the scanned repo")
     parser.add_argument("--query", default="what depends on this contract?", help="Sherlock query to run against the generated index")
     parser.add_argument("--out-dir", default=str(ROOT / "build/prophet-understand/repo-backed"), help="Output directory for generated artifacts")
     args = parser.parse_args()
@@ -75,7 +77,7 @@ def main() -> None:
     for label, path in paths.items():
         require_repo(path, label)
 
-    smart_emitter = paths["smart_tree"] / "tools/emit_prophet_understanding.py"
+    emitter = paths["prophet_platform"] / "tools/emit_prophet_understanding.py"
     platform_validator = paths["prophet_platform"] / "tools/validate_prophet_understand.py"
     lampstand_indexer = paths["lampstand"] / "tools/index_prophet_understanding.py"
     sherlock_searcher = paths["sherlock_search"] / "tools/search_prophet_understanding.py"
@@ -83,7 +85,7 @@ def main() -> None:
     delivery_scorer = paths["delivery_excellence"] / "tools/score_prophet_understand.py"
 
     for label, path in {
-        "smart_tree emitter": smart_emitter,
+        "prophet-understand emitter": emitter,
         "platform validator": platform_validator,
         "lampstand indexer": lampstand_indexer,
         "sherlock searcher": sherlock_searcher,
@@ -101,9 +103,9 @@ def main() -> None:
 
     steps = [
         run(
-            "01-smart-tree-emit",
-            [sys.executable, str(smart_emitter), "--repo", str(target_repo), "--out", str(artifact), "--repo-full-name", args.target_full_name],
-            paths["smart_tree"],
+            "01-emit",
+            [sys.executable, str(emitter), "--repo", str(target_repo), "--out", str(artifact), "--repo-full-name", args.target_full_name],
+            paths["prophet_platform"],
             log_dir,
         ),
         run(

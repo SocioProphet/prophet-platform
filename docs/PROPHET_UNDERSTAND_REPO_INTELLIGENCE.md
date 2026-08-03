@@ -35,7 +35,7 @@ A repository may also publish compatibility aliases such as `sociograph.json`, b
     "artifact_hash": "<sha256>"
   },
   "generator": {
-    "name": "smart-tree",
+    "name": "prophet-understand",
     "version": "<semver-or-commit>",
     "parser_versions": {}
   },
@@ -200,7 +200,10 @@ Missing graph artifacts should default to `warn` or `require_review` in v0, not 
 
 ## Cross-repo responsibilities
 
-`smart-tree` owns structural scanning and deterministic graph emission.
+`prophet-platform` owns structural scanning and deterministic graph emission via the
+prophet-platform-owned, stdlib-only Prophet Understand emitter
+(`tools/emit_prophet_understanding.py`). This capability was severed from the
+third-party-derived `smart-tree` tool and no longer depends on it.
 
 `lampstand` owns local indexing and retrieval over graph artifacts.
 
