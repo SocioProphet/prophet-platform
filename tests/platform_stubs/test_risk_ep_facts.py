@@ -1,10 +1,13 @@
-"""Teeth for the governed risk/EP/inflation producer + the dashboard-bff endpoint."""
+"""Teeth + DOGFOOD proof: the bff producer computes its numbers from the vendored
+open_ep_framework (single source of truth), not hand-mirrored formulas."""
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "third_party"))
 
 
 def _load(name):
@@ -19,36 +22,51 @@ def _val(out, name):
     return next(f["value"] for f in out["facts"] if f["name"] == name)
 
 
-def test_expected_loss_is_pd_lgd_ead():
-    out = emit({"pd": 0.02, "lgd": 0.45, "ead": 100.0, "rho": 0.15, "confidence": 0.999})
-    assert abs(_val(out, "expected_loss") - 0.02 * 0.45 * 100.0) < 1e-9
+def test_dogfood_numbers_come_from_the_vendored_framework():
+    # the producer's numbers must EQUAL the vendored functions called directly — one source of truth
+    from open_ep_framework import expected_loss, regulatory_capital
+    from open_ep_framework.domain import ExpectedLossInputs
+    p = {"pd": 0.02, "lgd": 0.45, "ead": 100.0}
+    out = emit(p)
+    assert abs(_val(out, "expected_loss")
+               - expected_loss.expected_loss_amount(ExpectedLossInputs(0.02, 0.45, 100.0))) < 1e-9
+    assert abs(_val(out, "regulatory_capital_credit")
+               - regulatory_capital.irb_regulatory_capital(0.02, 0.45, 100.0)["regulatory_capital"]) < 1e-6
+    assert out["provenance"]["dogfood"] is True
+    assert "vendored" in out["provenance"]["engine"]
 
 
-def test_economic_capital_positive_and_var_exceeds_el():
+def test_irb_and_oprisk_facts_present_and_sane():
     out = emit()
-    assert _val(out, "credit_var") > _val(out, "expected_loss")
-    assert _val(out, "economic_capital") > 0
+    assert 0.12 <= _val(out, "irb_correlation") <= 0.24
+    assert _val(out, "regulatory_capital_credit") > 0
+    assert _val(out, "oprisk_capital_ama") > 0
+    assert _val(out, "regulatory_capital_total") > _val(out, "regulatory_capital_credit")
 
 
-def test_recovery_wedge_negative_market_below_planning():
+def test_reg_vs_economic_comparison_in_detail():
     out = emit()
-    assert _val(out, "recovery_market_rr_q") < _val(out, "recovery_planning_rr_p")
-    assert _val(out, "recovery_wedge") < 0
+    cc = out["detail"]["capital_comparison"]
+    assert cc["regulatory"]["total"] > 0 and cc["economic"]["total"] > 0
+    assert cc["divergence"]["binding_constraint"] in ("economic", "regulatory")
 
 
-def test_shadowstats_above_official_and_lowers_real_rate():
+def test_marketing_infotheory_for_our_companies():
     out = emit()
-    assert _val(out, "shadowstats_inflation") > _val(out, "official_cpi_inflation")
+    mk = out["detail"]["marketing"]
+    assert any(c["company"] == "SocioProphet" for c in mk)
+    for co in mk:
+        shares = [ch["info_share"] for ch in co["channels"].values()]
+        assert abs(sum(shares) - 1.0) < 1e-6          # info-gain attribution sums to 1
+        assert co["mutual_information_bits"] >= 0
+        assert co["blended_cac"] > 0
+
+
+def test_inflation_reconstructed_flagged():
+    out = emit()
+    ss = next(f for f in out["facts"] if f["name"] == "shadowstats_inflation")
+    assert ss["reconstructed"] and not ss["reproduced_by_us"]
     assert _val(out, "real_rate_shadowstats") < _val(out, "real_rate_official")
-
-
-def test_provenance_flags_reconstructed_vs_reproduced():
-    out = emit()
-    infl = {f["name"]: f for f in out["facts"] if "inflation" in f["name"] and f["name"] != "official_cpi_inflation"}
-    assert all(f["reconstructed"] and not f["reproduced_by_us"] for f in infl.values())
-    risk = next(f for f in out["facts"] if f["name"] == "economic_capital")
-    assert risk["reproduced_by_us"] and not risk["reconstructed"]
-    assert out["provenance"]["governed"] is True
 
 
 def test_endpoint_returns_governed_facts():
@@ -59,5 +77,5 @@ def test_endpoint_returns_governed_facts():
     r = client.get("/v1/risk/portfolio-facts")
     assert r.status_code == 200
     body = r.json()
-    assert body["provenance"]["governed"] is True
-    assert any(f["name"] == "expected_loss" for f in body["facts"])
+    assert body["provenance"]["dogfood"] is True
+    assert body["detail"]["marketing"]

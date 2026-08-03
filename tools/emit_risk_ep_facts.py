@@ -1,133 +1,113 @@
-"""Producer: governed portfolio risk / economic-profit / alternative-inflation facts.
+"""Producer: governed portfolio risk / capital / inflation / marketing facts.
 
-Feeds the dashboard-bff `/v1/risk/portfolio-facts` endpoint so the credit-risk visualization thesis
-(apps/lattice-studio/viz) renders over GOVERNED facts instead of its illustrative in-browser
-defaults. The computations mirror `economic-prophet/src/open_ep_framework` exactly — expected loss
-(PD·LGD·EAD), the Vasicek IRB capital formula, the economic-profit identity, the recovery surface
-(planning RR^P / market-implied RR^Q / wedge), and the alternative-inflation reconstructions
-(Billion Prices Project Jevons index, ShadowStats add-backs, Fisher real rate).
-
-Every emitted fact carries its trust provenance, per the estate discipline: risk/EP facts are
-`reproduced_by_us` (we compute them from the governed model); the alternative-inflation facts are
-`reconstructed` (the vendor series are proprietary, the methodology is rebuilt) — so the UI can badge
-them honestly rather than presenting every number as equal. Stdlib only.
+Feeds the dashboard-bff `/v1/risk/portfolio-facts` endpoint. **Dogfood:** every number is computed by
+the estate's own governed library — the vendored `open_ep_framework` (third_party/, single source of
+truth with economic-prophet), not hand-mirrored formulas. Risk/EP/capital/marketing facts are
+`reproduced_by_us` (our model); the alternative-inflation facts are `reconstructed` (vendor series
+proprietary), flagged so the UI badges provenance honestly.
 """
 from __future__ import annotations
 
 import json
-import math
+import sys
 from pathlib import Path
-from statistics import NormalDist
 
-_N = NormalDist()
 _ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_ROOT / "third_party"))          # dogfood: run our own governed package
+
+from open_ep_framework import (                          # noqa: E402  (the vendored framework)
+    expected_loss as _el, recovery as _rec, inflation as _inf,
+    regulatory_capital as _rc, conversion_infotheory as _cvt,
+)
+from open_ep_framework.domain import ExpectedLossInputs, RecoverySurfaceInputs  # noqa: E402
+
 _FIXTURE = _ROOT / "apps" / "dashboard-bff" / "data" / "risk_ep_portfolio.json"
 HURDLE = 0.12
 
-# ShadowStats methodology add-backs (pp/yr) — mirrors inflation.MethodologyAddbacks
-_ADDBACKS = {"substitution_geometric_weighting": 0.7, "hedonic_quality_adjustment": 0.5,
-             "owners_equivalent_rent": 0.3, "intervention_analysis": 0.2}
-_MACRO = {"benign": 0.03, "base": 0.0, "stressed": -0.06, "crisis": -0.12}
-_LIQ = {"normal": 0.0, "tight": -0.03, "frozen": -0.08}
 
-
-def _load_portfolio() -> dict:
-    if _FIXTURE.exists():
-        return json.loads(_FIXTURE.read_text())
-    return {}
-
-
-def _vasicek_wcdr(pd: float, rho: float, conf: float) -> float:
-    return _N.cdf((_N.inv_cdf(pd) + math.sqrt(rho) * _N.inv_cdf(conf)) / math.sqrt(1 - rho))
-
-
-def _planning_rr(s: dict) -> float:  # exact port of recovery.planning_recovery
-    b = 0.15 + 0.35 * s["seniority"] + 0.25 * s["collateral_quality"] + 0.15 * s["jurisdiction_score"]
-    b += _MACRO.get(s["macro_regime"], 0.0) + _LIQ.get(s["liquidity_regime"], 0.0)
-    return max(0.0, min(0.95, b - min(s["workout_horizon_days"] / 3650.0, 0.25)))
-
-
-def _market_rr(s: dict) -> float:
-    return max(0.0, min(0.95, _planning_rr(s) - (0.05 + 0.25 * s["market_state_price"])))
-
-
-def _jevons_index(panel: list[dict]) -> tuple[float, float]:
-    idx = 100.0
-    for t in range(1, len(panel)):
-        prev, cur = panel[t - 1], panel[t]
-        m = [k for k in cur if prev.get(k, 0) > 0 and cur[k] > 0]
-        rel = math.exp(sum(math.log(cur[k] / prev[k]) for k in m) / len(m)) if m else 1.0
-        idx *= rel
-    periods = max(1, len(panel) - 1)
-    ann = (idx / 100.0) ** (12.0 / periods) - 1.0
-    return idx, ann
+def _load() -> dict:
+    return json.loads(_FIXTURE.read_text()) if _FIXTURE.exists() else {}
 
 
 def _fact(name, value, unit, trust="reproduced", reconstructed=False):
-    return {"name": name, "value": round(value, 6), "unit": unit,
-            "source_trust_class": "REPRODUCED" if trust == "reproduced" else "RECONSTRUCTED",
+    return {"name": name, "value": round(float(value), 6), "unit": unit,
+            "source_trust_class": "RECONSTRUCTED" if reconstructed else "REPRODUCED",
             "reproduced_by_us": trust == "reproduced", "reconstructed": reconstructed}
 
 
 def emit(portfolio: dict | None = None) -> dict:
-    p = portfolio or _load_portfolio()
+    p = portfolio or _load()
     pd = p.get("pd", 0.02); lgd = p.get("lgd", 0.45); ead = p.get("ead", 100.0)
-    rho = p.get("rho", 0.15); conf = p.get("confidence", 0.999)
+    maturity = p.get("maturity", 2.5); own_rho = p.get("rho", 0.15)
+    conf = p.get("confidence", 0.999)
 
-    el = pd * lgd * ead
-    wcdr = _vasicek_wcdr(pd, rho, conf)
-    var = wcdr * lgd * ead
-    econ_cap = var - el
-    # Expected shortfall: mean WCDR beyond conf
-    steps = [conf + (1 - conf) * i / 40 for i in range(40)]
-    es = (sum(_vasicek_wcdr(pd, rho, min(a, 0.99999)) for a in steps) / len(steps)) * lgd * ead
-    spread = p.get("margin_income", 0.045 * ead)
-    rorac = (spread - el) / econ_cap if econ_cap > 0 else 0.0
+    # --- credit: EL + Basel IRB-Advanced regulatory capital (real funcs) ---
+    el = _el.expected_loss_amount(ExpectedLossInputs(pd, lgd, ead))
+    irb = _rc.irb_regulatory_capital(pd, lgd, ead, maturity)
 
-    # economic profit
-    rev = p.get("revenue", 0.075 * ead); exp = p.get("expenses", 0.02 * ead)
-    fund = p.get("funding_cost", 0.028 * ead); cred = p.get("funding_credits", 0.012 * ead)
-    tax = (rev - el - exp - fund + cred) * p.get("tax_rate", 0.25)
-    cap_charge = econ_cap * HURDLE
-    ep = rev - el - exp - fund + cred - tax - cap_charge
+    # --- operational risk (AMA / LDA) ---
+    cells_cfg = p.get("oprisk_cells") or [
+        {"event_type": t, "annual_frequency": 2.0, "severity_mu": 0.0, "severity_sigma": 1.0}
+        for t in _rc.OPRISK_EVENT_TYPES]
+    cells = [_rc.OpRiskCell(**c) for c in cells_cfg]
 
+    # --- reg vs economic (both, quantitatively) ---
+    reg_econ = _rc.economic_vs_regulatory(
+        pd, lgd, ead, maturity=maturity, own_rho=own_rho, own_confidence=conf,
+        oprisk_cells=cells, market_capital=p.get("market_capital", 5.0),
+        diversification=p.get("diversification", 0.15))
+
+    # --- recovery surface (Ross / Arrow-Debreu) ---
     surf = p.get("recovery_surface", {"seniority": 0.6, "collateral_quality": 0.5,
             "jurisdiction_score": 0.6, "macro_regime": "base", "liquidity_regime": "normal",
             "workout_horizon_days": 540, "market_state_price": 0.5})
-    rr_p, rr_q = _planning_rr(surf), _market_rr(surf)
+    rsi = RecoverySurfaceInputs(**surf)
+    rr_p = _rec.planning_recovery(rsi); rr_q = _rec.market_implied_recovery(rsi)
+    wedge = _rec.recovery_wedge(rsi)
 
-    # inflation
+    # --- inflation (reconstructed) + real rate ---
     off = p.get("official_cpi", 0.031); nominal = p.get("nominal_rate", 0.055)
-    ss_add = sum(v for k, v in _ADDBACKS.items() if k != "intervention_analysis") / 100.0
-    ss = off + ss_add
     panel = p.get("online_price_panel") or []
-    if panel:
-        _, bpp = _jevons_index(panel)
-    else:
-        bpp = off + 0.006  # no panel wired -> small default wedge
-    fisher = lambda n, i: (1 + n) / (1 + i) - 1
+    bpp = _inf.billion_prices_index(panel)["annualized_inflation"] if panel else off + 0.006
+    ss = _inf.shadowstats_alt_cpi(off, basis=p.get("shadowstats_basis", "1990"))["alt_inflation"]
+
+    # --- marketing / conversion (information-theoretic) for our own companies ---
+    companies = p.get("companies", [])
+    marketing = []
+    for co in companies:
+        ch = {k: _cvt.ChannelStats(**v) for k, v in co["channels"].items()}
+        eff = _cvt.marketing_efficiency(ch, co["spend"], ltv=co.get("ltv", 400.0),
+                                        monthly_margin=co.get("monthly_margin", 30.0))
+        marketing.append({"company": co["name"], **eff})
 
     facts = [
         _fact("expected_loss", el, "usd_m"),
         _fact("pd", pd, "ratio"), _fact("lgd", lgd, "ratio"), _fact("ead", ead, "usd_m"),
-        _fact("credit_var", var, "usd_m"), _fact("expected_shortfall", es, "usd_m"),
-        _fact("economic_capital", econ_cap, "usd_m"), _fact("rorac", rorac, "ratio"),
-        _fact("economic_profit", ep, "usd_m"), _fact("capital_charge", cap_charge, "usd_m"),
-        _fact("recovery_planning_rr_p", rr_p, "ratio"), _fact("recovery_market_rr_q", rr_q, "ratio"),
-        _fact("recovery_wedge", rr_q - rr_p, "ratio"),
-        _fact("official_cpi_inflation", off, "ratio", reconstructed=False),
+        _fact("irb_correlation", irb["correlation_R"], "ratio"),
+        _fact("irb_rwa", irb["rwa"], "usd_m"),
+        _fact("regulatory_capital_credit", irb["regulatory_capital"], "usd_m"),
+        _fact("oprisk_capital_ama", reg_econ["regulatory"]["operational"], "usd_m"),
+        _fact("regulatory_capital_total", reg_econ["regulatory"]["total"], "usd_m"),
+        _fact("economic_capital_total", reg_econ["economic"]["total"], "usd_m"),
+        _fact("econ_pct_of_regulatory", reg_econ["divergence"]["economic_pct_of_regulatory"] or 0, "pct"),
+        _fact("recovery_planning_rr_p", rr_p, "ratio"),
+        _fact("recovery_market_rr_q", rr_q, "ratio"),
+        _fact("recovery_wedge", wedge, "ratio"),
+        _fact("official_cpi_inflation", off, "ratio"),
         _fact("billion_prices_inflation", bpp, "ratio", trust="reconstructed", reconstructed=True),
         _fact("shadowstats_inflation", ss, "ratio", trust="reconstructed", reconstructed=True),
-        _fact("real_rate_official", fisher(nominal, off), "ratio"),
-        _fact("real_rate_shadowstats", fisher(nominal, ss), "ratio"),
+        _fact("real_rate_official", _inf.real_rate(nominal, off), "ratio"),
+        _fact("real_rate_shadowstats", _inf.real_rate(nominal, ss), "ratio"),
     ]
     return {
         "service": "dashboard-bff",
         "portfolio_id": p.get("portfolio_id", "illustrative-default"),
         "facts": facts,
+        "detail": {"capital_comparison": reg_econ, "marketing": marketing},
         "provenance": {
-            "risk_ep_source": "economic-prophet/open_ep_framework (formulas mirrored)",
-            "inflation_source": "reconstructed — Billion Prices Project & ShadowStats vendor series proprietary",
+            "engine": "open_ep_framework (vendored, single source of truth with economic-prophet)",
+            "dogfood": True,
+            "inflation_source": "reconstructed — Billion Prices Project & ShadowStats proprietary",
             "governed": True,
             "reproduced_fact_count": sum(1 for f in facts if f["reproduced_by_us"]),
             "reconstructed_fact_count": sum(1 for f in facts if f["reconstructed"]),

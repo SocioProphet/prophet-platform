@@ -120,4 +120,5 @@ class RiskEpFactsResponse(BaseModel):
     service: str
     portfolio_id: str
     facts: list[RiskFactView]
+    detail: dict = {}
     provenance: dict
