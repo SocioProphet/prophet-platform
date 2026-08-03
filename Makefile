@@ -606,6 +606,19 @@ rollout-analysis-refs-check:
 overlay-self-contained-check:
 	python3 tools/verify_overlay_self_contained.py
 
+.PHONY: manifest-completeness-check
+# DERIVED reference completeness (INV-DEP-11): the reference classes INV-DEP-9 (analysis templates)
+# and INV-DEP-10 (SA/ConfigMap/PVC) do NOT cover — Secret refs and image digest-pinning — so a
+# novel ref type can't render clean under `kubectl kustomize` and then FailedMount / ImagePullBackOff
+# on the live apply before someone hand-writes the next point gate. For every workload in each
+# promote overlay: every referenced Secret (secret volumes, envFrom.secretRef, env.secretKeyRef,
+# projected secret sources, imagePullSecrets) must be rendered in-set or listed in
+# infra/k8s/search-orchestrator/external-secrets.allowlist.yaml, and every image (initContainers +
+# containers) must be pinned to a real @sha256 digest (no floating tag, no placeholder digest).
+# tools/verify_manifest_completeness.py — sibling of 9/10, in the validate-target-diagnostics matrix.
+manifest-completeness-check:
+	python3 tools/verify_manifest_completeness.py
+
 .PHONY: fips-conformance-check
 # FIPS algorithm conformance in the declared crypto boundary (security/fips-boundary.yaml):
 # no non-FIPS algorithm (BLAKE2/3, MD5, SHA-1) may be called inside the boundary, and a

@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# NEGATIVE FIXTURE for the L1 ephemeral real-apply gate — NOT a deploy target.
+#
+# This overlay renders perfectly under `kubectl kustomize` (dry-run green) but is DELIBERATELY
+# broken the way the 2026-08-02 prod wave-deploy was: its Rollout references a ServiceAccount
+# (`search-orchestrator-selftest-missing`) that the overlay does NOT render. On a real apply the
+# ReplicaSet controller cannot create the pod and the namespace gets a `FailedCreate` Event
+# ("serviceaccount not found", 0 pods).
+#
+# .github/workflows/ephemeral-apply-preflight.yml applies ONLY this fixture and asserts the detector
+# REPORTS that failure (returns non-zero). A gate that has never fired is suspect: if the detector
+# PASSES this fixture, the job fails — proving the effect-canary has teeth.
+#
+# It is intentionally kept OUT of the INV-DEP-9/10/11 DEFAULT_OVERLAYS (those target promote/dev|
+# canary|prod only), and its parent dir starts with `_` so it is never mistaken for a promote wave.
+namespace: selftest-broken
+resources:
+  - rollout.yaml

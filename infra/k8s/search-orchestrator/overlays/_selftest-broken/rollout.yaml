@@ -1,0 +1,32 @@
+# NEGATIVE FIXTURE (see kustomization.yaml). A blue-green-style Rollout that names a ServiceAccount
+# this overlay never renders — the exact 2026-08-02 shape. Renders clean; FailedCreate's on a real
+# apply. The image IS a real digest so the ONLY defect is the dangling ServiceAccount (the failure
+# the L1 gate must catch); do not "fix" the SA — that would disarm the self-test.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: search-orchestrator-selftest
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: search-orchestrator-selftest
+  strategy:
+    canary:
+      steps:
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: search-orchestrator-selftest
+    spec:
+      # DELIBERATELY dangling: no ServiceAccount 'search-orchestrator-selftest-missing' is rendered
+      # by this overlay, so pod-create is forbidden -> FailedCreate (0 pods).
+      serviceAccountName: search-orchestrator-selftest-missing
+      containers:
+        - name: search-orchestrator
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/search-orchestrator@sha256:f5b051131d2bc451c4bdd710daaa5261aee45182cc68a840c8ea7539d9d97201
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
