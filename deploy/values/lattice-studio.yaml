@@ -6,7 +6,7 @@
 # (#48), the pay-gated execution plane (#31), ontology-typed + SHACL-validated actions (#49/#830/#831), GAIA
 # stewardship + world-signals (#50/#51), the HDT twin (#52). NB there is NO gitops-promote workflow, so this pin
 # was never auto-bumped after those merges — hence a stale deploy. A promote job is the real fix (flagged).
-image: { repository: lattice-studio, tag: sha-15221040ff2d9780ec9f307c7f386db84f432e37 }
+image: { repository: lattice-studio, tag: sha-d38b7bae5b341ccc11ed655d650f0c0f5eef0e13 }
 service: { port: 8080, portName: http }
 # server serves /healthz (chart default) — no probes.path override.
 config:

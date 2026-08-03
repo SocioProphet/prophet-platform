@@ -13,7 +13,7 @@
 # 26.11, which this image does not carry — that mismatch is what left it in
 # ImagePullBackOff). This is the very standard tools/preflight_deploy_contract.py now
 # enforces: "Immutable tag = the commit SHA the GitOps promotion writes."
-image: { repository: dashboard-bff, tag: sha-dcfa461391ff888aef29d7361f61ab63586a7a5b }
+image: { repository: dashboard-bff, tag: sha-d38b7bae5b341ccc11ed655d650f0c0f5eef0e13 }
 service: { port: 8080, portName: http }
 # main.py serves @app.get('/health'), NOT the chart default /healthz. Asserted by the
 # probe-contract gate.
