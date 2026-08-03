@@ -124,11 +124,16 @@ def check_consumers_atomic(receipt: dict, root: Path) -> tuple[bool, dict]:
 
 
 def check_scope_contained(receipt: dict, changed_paths: list[str] | None) -> tuple[bool, dict]:
-    """If a diff of changed paths is supplied, a re-vendor may only touch vendored tarballs,
-    the engine dependency pin, and the engine floor. Anything else rides in on the change and
-    is rejected. Without a diff this is advisory (the executor is trusted to have that scope)."""
+    """A re-vendor may only touch vendored tarballs, the engine dependency pin, and the engine
+    floor. Anything else rides in on the change and is rejected.
+
+    Fail-closed: without a diff, scope CANNOT be verified, so it is not a pass. Trusting the
+    executor's own receipt to bound its scope would be circular — the whole point is to catch
+    a change that also touched something the receipt does not mention. A promotion-grade review
+    must therefore be handed the actual changed paths; absent them, this is REJECT, not APPROVE."""
     if changed_paths is None:
-        return True, {"note": "no diff supplied; scope check advisory only"}
+        return False, {"reason": "no changed-paths diff supplied — scope cannot be verified; "
+                                 "a promotion-grade review must be given the diff"}
     allowed = re.compile(r"apps/[^/]+/(vendor/socioprophet-hellgraph-[\d.]+\.tgz|package\.json|scripts/check-engine-version\.mjs)$")
     out_of_scope = [p for p in changed_paths if not allowed.fullmatch(p)]
     return (not out_of_scope), {"out_of_scope": out_of_scope, "changed_count": len(changed_paths)}

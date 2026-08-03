@@ -81,12 +81,28 @@ def _check(v, name):
     return next(c for c in v["checks"] if c["check"] == name)
 
 
+def _valid_changed():
+    """The exact paths a faithful 0.4.45 re-vendor of both consumers touches."""
+    return [f"apps/{c}/vendor/socioprophet-hellgraph-0.4.45.tgz" for c in CONSUMERS] \
+        + [f"apps/{c}/package.json" for c in CONSUMERS] \
+        + [f"apps/{c}/scripts/check-engine-version.mjs" for c in CONSUMERS]
+
+
 def test_faithful_revendor_is_approved(tmp_path):
     root = _fixture(tmp_path)
-    v = review_gate.review(_applied(root), root)
+    v = review_gate.review(_applied(root), root, changed_paths=_valid_changed())
     assert v["verdict"] == review_gate.APPROVE, json.dumps(v, indent=2)
     assert all(c["ok"] for c in v["checks"])
     assert v["review_digest"].startswith("sha256:")
+
+
+def test_scope_unverified_without_diff_is_rejected(tmp_path):
+    # Fail-closed: no diff -> scope cannot be verified -> REJECT, not a silent pass.
+    root = _fixture(tmp_path)
+    v = review_gate.review(_applied(root), root)
+    assert v["verdict"] == review_gate.REJECT
+    assert not _check(v, "scope_contained")["ok"]
+    assert "no changed-paths diff" in _check(v, "scope_contained")["evidence"]["reason"]
 
 
 def test_tampered_seal_is_rejected(tmp_path):
@@ -158,14 +174,14 @@ def test_model_concern_needs_human(tmp_path):
         def judge(self, receipt, findings):
             return {"verdict": "concern", "rationale": "a semantic smell the checks can't see"}
 
-    v = review_gate.review(receipt, root, model=Concerned())
+    v = review_gate.review(receipt, root, model=Concerned(), changed_paths=_valid_changed())
     assert v["deterministic_ok"] is True
     assert v["verdict"] == review_gate.NEEDS_HUMAN
 
 
 def test_review_seal_is_tamper_evident(tmp_path):
     root = _fixture(tmp_path)
-    v = review_gate.review(_applied(root), root)
+    v = review_gate.review(_applied(root), root, changed_paths=_valid_changed())
     sealed = v["review_digest"]
     v["verdict"] = "APPROVE-tampered"
     assert review_gate._seal_review(dict(v))["review_digest"] != sealed
