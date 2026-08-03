@@ -38,6 +38,12 @@ on:
 env:
   ARGO_ROLLOUTS_VERSION: v1.7.2
   KIND_CLUSTER: ephemeral-apply-preflight
+  # kind is installed via a pinned, checksum-verified download rather than a third-party
+  # action: the SocioProphet org enforces allowed_actions=selected, and helm/kind-action is
+  # not on the allowlist (a workflow using it fails at startup). Shell-install keeps L1 on
+  # the estate's allowed publishers only and pins exactly what runs (no moving `latest`).
+  KIND_VERSION: v0.23.0
+  KIND_SHA256: 1d86e3069ffbe3da9f1a918618aecbc778e00c75f838882d0dfa2d363bc4a68c
 
 jobs:
   ephemeral-apply:
@@ -52,10 +58,16 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
+      - name: Install kind (pinned + checksum-verified; no third-party action per org allowlist)
+        run: |
+          set -euo pipefail
+          curl -fsSLo ./kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  ./kind" | sha256sum -c -
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+          kind version
       - name: Create hermetic kind cluster
-        uses: helm/kind-action@v1.10.0
-        with:
-          cluster_name: ${{ env.KIND_CLUSTER }}
+        run: kind create cluster --name "${KIND_CLUSTER}" --wait 120s
       - name: Install argo-rollouts CRDs + controller
         run: |
           set -euo pipefail
