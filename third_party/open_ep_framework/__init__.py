@@ -4,7 +4,6 @@ __all__ = [
     "expected_loss",
     "recovery",
     "capital",
-    "pricing",
     "attribution",
     "audit",
     "heller_mesh",

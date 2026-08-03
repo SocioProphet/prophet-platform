@@ -233,7 +233,6 @@ def propagate(
 
     # Only well-formed edges participate; the abstention log names the rest.
     adj: dict[str, list[Edge]] = {}
-    endpoint_ids = {e.from_ref for e in edge_list} | {e.to_ref for e in edge_list}
     for e in edge_list:
         # Filter edges the invariant pass would have complained about.
         if e.from_ref == e.to_ref:

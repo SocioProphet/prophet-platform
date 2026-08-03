@@ -5,7 +5,7 @@ Vendored copy of the estate's economic-profit / risk framework so prophet-platfo
 own dogfood.
 
 - **Upstream:** SocioProphet/economic-prophet — package `open-ep-framework` (`src/open_ep_framework/`)
-- **Commit:** `32281bcb1402946e00d3ff267579141b79e09817`
+- **Commit:** `4c761fa35b3aaf25ad9d8a9a51f7b4f057af776b`
 - **License:** Apache-2.0 — the upstream `LICENSE` is vendored verbatim alongside the source
   (`third_party/open_ep_framework/LICENSE`), as Apache-2.0 §4 requires for redistribution. Estate
   policy is MIT/Apache only; this satisfies it.

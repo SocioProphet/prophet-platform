@@ -1,6 +1,5 @@
 import math
 from functools import reduce
-from operator import mul
 from typing import Iterable, Mapping, Sequence
 
 

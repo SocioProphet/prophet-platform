@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from .policy_simulation import load_policy_simulation_profile, summarize_policy_simulation_profile
-from .validation import validate_json_file
 
 
 class PolicySimulationMeasuredEntityError(ValueError):
