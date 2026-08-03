@@ -12,7 +12,10 @@ metadata:
       runtime and service images. Images are signed by the estate's reusable
       GitHub Actions build workflow via OIDC — no long-lived key to manage.
 spec:
-  validationFailureAction: Enforce
+  # AUDIT-FIRST rollout: logs signature violations, blocks nothing. Flip to Enforce in a
+  # follow-up PR once the Audit logs are clean (see ROLLOUT.md). The controller is installed
+  # HELD via deploy/argocd/kyverno.yaml.
+  validationFailureAction: Audit
   background: false
   webhookTimeoutSeconds: 30
   rules:

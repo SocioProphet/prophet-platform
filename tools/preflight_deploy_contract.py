@@ -137,9 +137,10 @@ KNOWN_BROKEN = {
     # sha-9fd245401789 (#1017) after its first CI build, exactly as this entry predicted.
     # The ratchet only shrinks, and it had already begun FAILING the gate on main for
     # this reason: fixed → removed, so the warden can never silently regress to `:latest`.
-    "entity-resolution:moving-tag": (
-        "New service — Dockerfile + images.yml entry added this PR. Pin tag:latest -> sha- after first CI build."
-    ),
+    # RESOLVED 2026-08-03: entity-resolution — sha-pinned after its first CI build, so its
+    # moving-tag entry now passes. The ratchet caught it as "now passes" on an UNRELATED PR
+    # (the Kyverno controller install), exactly the lifecycle-warden precedent above: caught on an
+    # unrelated PR; fixed → removed, so it can never silently regress to `:latest`.
     # RESOLVED 2026-07-31: agent-activity-ledger and gbrg-containment both got sha-pinned
     # (their first CI builds landed) after these entries were written. The ratchet caught
     # both as "now passes — delete from KNOWN_BROKEN" on an unrelated PR; fixed → removed,
