@@ -1,0 +1,19 @@
+name: ShellBackendAdapter
+on:
+  pull_request:
+    paths: ["contracts/ShellBackendAdapter.v0.1.json", "contracts/adapters/*.adapter.json", "tools/validate_shell_backend_adapter.py", "tools/tests/test_shell_backend_adapter.py"]
+  push:
+    branches: [main]
+    paths: ["contracts/adapters/*.adapter.json", "tools/validate_shell_backend_adapter.py"]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python -m pip install jsonschema pytest
+      - run: python3 tools/validate_shell_backend_adapter.py
+      - run: python3 -m pytest tools/tests/test_shell_backend_adapter.py -q

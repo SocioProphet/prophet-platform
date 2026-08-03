@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ShellBackendAdapter.v0.1.json",
+  "title": "ShellBackendAdapter",
+  "description": "The capability contract that makes the agentic shell backend-abstract: the shell talks to this adapter surface, so GitHub today and sovereign Gitea tomorrow is a CONFIG CHANGE, not a rewrite (the same pattern as goose-adapters' WorkspaceAdapter). A backend manifest declares its base URL, its CI-minted auth model (never a static PAT), and how each shell operation maps to a backend endpoint.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "backend", "base_url", "auth", "capabilities"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "backend": { "type": "string", "enum": ["github", "gitea"] },
+    "base_url": { "type": "string" },
+    "sovereign": { "type": "boolean", "description": "true when the backend is user-owned (Gitea/Zot), false for GitHub" },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "token_ref", "scopes"],
+      "properties": {
+        "model": { "type": "string", "enum": ["ci-minted-app-token", "ci-minted-oauth", "wif"], "description": "secrets minted in CI only — never a laptop PAT" },
+        "token_ref": { "type": "string", "description": "the CI secret / vault ref the token is minted into (never the token)" },
+        "scopes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "the shell operations this backend implements",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["op", "method", "endpoint"],
+        "properties": {
+          "op": { "type": "string", "enum": ["list_repositories", "repo_signals", "ci_status", "security_alerts", "activity", "ownership", "create_issue_draft", "create_mr_draft", "apply_labels"] },
+          "method": { "type": "string", "enum": ["GET", "POST", "PATCH", "PUT"] },
+          "endpoint": { "type": "string", "description": "path template, e.g. /repos/{owner}/{repo}/statuses" },
+          "mutating": { "type": "boolean" },
+          "consent_purpose": { "type": "string", "enum": ["discover", "implement", "verify", "ship", "operate", "egress", "administer"], "description": "the consent-plane purpose this op requires; mutating ops (ship/operate/egress) are consent-gated + governor-approved" }
+        }
+      }
+    }
+  }
+}
