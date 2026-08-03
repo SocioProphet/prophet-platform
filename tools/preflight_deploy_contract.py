@@ -168,27 +168,14 @@ KNOWN_BROKEN = {
         "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
         "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
     ),
-    "receipt-gateway:moving-tag": (
-        "New service — first-party receipt-gateway image (apps/receipt-gateway: transparent OpenAI-compatible "
-        "proxy that fronts embeddings and emits a hash-chained InferenceReceipt per call) gets its Dockerfile + "
-        "images.yml build entry in this PR. Pin tag:latest -> the sha- tag after the first CI build; none exists "
-        "until merge."
-    ),
-    "catalog-gateway:moving-tag": (
-        "New service — first-party catalog-gateway image (apps/catalog-gateway: the read/resolve/lineage + DCAT "
-        "interop seam over the Crystal Atlas catalog families) gets its Dockerfile + images.yml build entry in "
-        "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
-    ),
-    "nugget-extractor:moving-tag": (
-        "New service — Seal-the-Walls W6.2 extraction spine (apps/nugget-extractor: documents -> warrant-typed "
-        "KnowledgeNuggets) added to CI this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha "
-        "exists until merge."
-    ),
-    "device-service:moving-tag": (
-        "New service — FOG & CITIZEN PLANE W8.7 southbound device plane (apps/device-service: DeviceProfile "
-        "declarations -> fail-closed-validated DeviceReadings) added to CI this PR. Pin tag:latest -> the sha- "
-        "tag after the first CI build; no sha exists until merge."
-    ),
+    # RESOLVED 2026-08-03: receipt-gateway, catalog-gateway, nugget-extractor and
+    # device-service were all sha-pinned by gitops-promote after their first CI builds
+    # (receipt-gateway → sha-d3566908…, catalog-gateway → sha-e6301c68…, nugget-extractor
+    # → sha-b221f89b…, device-service → sha-350c63fb…), exactly as each entry predicted.
+    # The ratchet only shrinks and had begun FAILING the gate on main ("now passes —
+    # delete it") because these deferrals outlived their first build: fixed → removed,
+    # so none can silently regress to `:latest` again. (catalog-gateway closes out the
+    # deploy that PR #1214 was meant to land — the image is built, pinned, and deployed.)
     # wordops-{mcp-gateway,capability-broker,room-factory} + gbrg-engine were sha-pinned
     # by gitops-promote after their first CI build (#1171/#1189) → removed from the
     # ratchet (it only shrinks; leaving them would let the gate FAIL "now passes").
@@ -216,9 +203,11 @@ KNOWN_BROKEN = {
         "delete this line. Do it per-service and verify the rollout: pinning changes "
         "which digest actually runs, because the node cache may be older than `latest`."
     ) for svc in [
-        "api", "agentic-os-api", "eval-fabric-api",
+        "api", "agentic-os-api",
         "evidence-receipts", "gateway", "osm-map-api",
     ]},  # hellgraph-service + evidence-console + search-orchestrator (academy sha-pin) → removed from the ratchet
+    # eval-fabric-api sha-pinned by gitops-promote (sha-e72d47ce…) after its first CI
+    # build → removed from the ratchet 2026-08-03 (it only shrinks; leaving it FAILs "now passes").
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is
