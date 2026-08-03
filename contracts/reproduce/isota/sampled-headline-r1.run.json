@@ -1,0 +1,17 @@
+{
+  "run_id": "sampled-headline-r1",
+  "bench": "isota",
+  "round_id": "isota-2026Q3-r1",
+  "version": "v1",
+  "determinism": "bounded_nondeterministic",
+  "epsilon": 0.05,
+  "headline_metric_id": "md.isota.sampled_headline",
+  "headline_value": 79.522944,
+  "seed_policy": "SEED=1729 pinned",
+  "rerun": {
+    "kind": "isota_seeded_headline",
+    "args": {"seed": 1729, "n": 256, "base": 80.0}
+  },
+  "external_command": "SEED=1729 python3 tools/isota_tournament.py --results build/eval/sampled.results.json",
+  "notes": "Bounded-nondeterministic arm (stand-in for a sampled eval mean). Pinned seed reproduces within epsilon=0.05; the gate exercises the tolerance path, not exact match."
+}

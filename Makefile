@@ -598,6 +598,31 @@ validate-isota-tournament:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && python tools/isota_tournament.py && pytest -q tests/platform_stubs/test_isota_tournament.py
 
+.PHONY: reproduce-bench reproduce-bench-gate validate-reproduce-bench-gate
+# UNIFIED one-command reproduce path over the three suite runners (isota / mmlu /
+# hellgraph). Dispatches BENCH=<name> RUN=<id> to the correct runner and MANDATES a
+# content-addressed, hash-chained repro-ledger-entry per run.
+#   make reproduce-bench BENCH=isota RUN=opus-class-r1
+reproduce-bench:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator >/dev/null && python tools/reproduce_bench.py --bench $(BENCH) --run $(RUN)
+
+# Same dispatch, but FAIL CLOSED on metric drift: deterministic arms require an exact
+# reproduce, bounded_nondeterministic arms must fall within the declared epsilon.
+#   make reproduce-bench-gate BENCH=isota RUN=opus-class-r1
+reproduce-bench-gate:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator >/dev/null && python tools/reproduce_bench.py --bench $(BENCH) --run $(RUN) --gate
+
+# The teeth: the reproduce/tolerance gate proven both ways (within-tolerance PASSES,
+# injected drift beyond epsilon FAILS). Mirrors .github/workflows/reproduce-bench-gate.yml.
+validate-reproduce-bench-gate:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip jsonschema rfc3339-validator pytest >/dev/null && \
+		python tools/reproduce_bench.py --bench isota --run opus-class-r1 --gate && \
+		python tools/reproduce_bench.py --bench isota --run sampled-headline-r1 --gate && \
+		pytest -q tests/platform_stubs/test_reproduce_bench_gate.py
+
 .PHONY: canary-slo-gate-check
 # Fail-closed Argo Rollouts SLO gates: an empty Prometheus series must ABORT a
 # canary, not promote it ("no data" != "healthy"). tools/check_canary_slo_gate.py

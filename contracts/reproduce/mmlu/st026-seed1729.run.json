@@ -1,0 +1,14 @@
+{
+  "run_id": "st026-seed1729",
+  "bench": "mmlu",
+  "round_id": "mmlu-st026-r1",
+  "version": "v1",
+  "determinism": "bounded_nondeterministic",
+  "epsilon": 0.02,
+  "headline_metric_id": "md.mmlu.route_accuracy",
+  "headline_value": 0.0,
+  "seed_policy": "MMLU_SEED=1729 pinned; clean-eval contamination certificate attached",
+  "rerun": {"kind": "external"},
+  "external_command": "bash agent-machine/scripts/run-exam.sh   # MMLU_SEED=1729 MMLU_ARMS=baseline,brain,compute,route",
+  "notes": "External arm (Noetica MMLU/ST026 exam). DISPATCH-ONLY: the in-process gate records the dispatch and the one-command reproduce path; it does NOT fabricate a reproduced number. headline_value=0.0 is a placeholder until the exam headline is captured out-of-band and pinned. Full in-process collapse is filed as a follow-up issue."
+}

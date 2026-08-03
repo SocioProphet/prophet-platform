@@ -1,0 +1,21 @@
+{
+  "run_id": "opus-class-r1",
+  "bench": "isota",
+  "round_id": "isota-2026Q3-r1",
+  "version": "v1",
+  "determinism": "deterministic",
+  "headline_metric_id": "md.isota.tournament_composite",
+  "headline_value": 88.79,
+  "seed_policy": "none (pure composite over pinned axis scores)",
+  "rerun": {
+    "kind": "isota_composite",
+    "args": {
+      "scores": {
+        "case_action": 89, "groundedness": 93, "citation": 91, "tool_use": 90,
+        "instruction": 92, "retrieval": 88, "cost": 62, "latency": 74, "observability": 85
+      }
+    }
+  },
+  "external_command": "python3 tools/isota_tournament.py --results build/eval/opus-class.results.json",
+  "notes": "Deterministic arm: iSOTA Sherlock-weighted composite for the opus-class candidate. Re-run must reproduce EXACTLY (epsilon ignored)."
+}
