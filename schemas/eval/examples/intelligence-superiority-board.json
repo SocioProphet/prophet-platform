@@ -309,13 +309,17 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "82",
               "note": "embedding-space pin"
             },
             {
-              "pr": "602"
+              "repo": "Noetica",
+              "pr": "602",
+              "note": "unblock nextjs — embed RAG queries in the pinned 768 corpus space"
             },
             {
+              "repo": "Noetica",
               "pr": "605",
               "note": "EmbeddingSpaceMismatchError, CORPUS_EMBED_DIM pin, embed-space-contract.test.ts, reindexIfDimMismatch"
             }
@@ -329,13 +333,17 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "82",
               "note": "embedding-space pin"
             },
             {
-              "pr": "602"
+              "repo": "Noetica",
+              "pr": "602",
+              "note": "unblock nextjs — embed RAG queries in the pinned 768 corpus space"
             },
             {
+              "repo": "Noetica",
               "pr": "605",
               "note": "EmbeddingSpaceMismatchError, CORPUS_EMBED_DIM pin, embed-space-contract.test.ts, reindexIfDimMismatch"
             }
@@ -349,13 +357,17 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "82",
               "note": "embedding-space pin"
             },
             {
-              "pr": "602"
+              "repo": "Noetica",
+              "pr": "602",
+              "note": "unblock nextjs — embed RAG queries in the pinned 768 corpus space"
             },
             {
+              "repo": "Noetica",
               "pr": "605",
               "note": "EmbeddingSpaceMismatchError, CORPUS_EMBED_DIM pin, embed-space-contract.test.ts, reindexIfDimMismatch"
             }
@@ -369,13 +381,17 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "82",
               "note": "embedding-space pin"
             },
             {
-              "pr": "602"
+              "repo": "Noetica",
+              "pr": "602",
+              "note": "unblock nextjs — embed RAG queries in the pinned 768 corpus space"
             },
             {
+              "repo": "Noetica",
               "pr": "605",
               "note": "EmbeddingSpaceMismatchError, CORPUS_EMBED_DIM pin, embed-space-contract.test.ts, reindexIfDimMismatch"
             }
@@ -389,13 +405,17 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "82",
               "note": "embedding-space pin"
             },
             {
-              "pr": "602"
+              "repo": "Noetica",
+              "pr": "602",
+              "note": "unblock nextjs — embed RAG queries in the pinned 768 corpus space"
             },
             {
+              "repo": "Noetica",
               "pr": "605",
               "note": "EmbeddingSpaceMismatchError, CORPUS_EMBED_DIM pin, embed-space-contract.test.ts, reindexIfDimMismatch"
             }
@@ -859,10 +879,12 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "607",
               "note": "contextual-retrieval: merged + tested, NOT wired into live ingest/query"
             },
             {
+              "repo": "Noetica",
               "pr": "604",
               "note": "query-variant RAG-Fusion: merged + tested, not live-wired"
             }
@@ -878,10 +900,12 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "607",
               "note": "contextual-retrieval: merged + tested, NOT wired into live ingest/query"
             },
             {
+              "repo": "Noetica",
               "pr": "604",
               "note": "query-variant RAG-Fusion: merged + tested, not live-wired"
             }
@@ -897,10 +921,12 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "607",
               "note": "contextual-retrieval: merged + tested, NOT wired into live ingest/query"
             },
             {
+              "repo": "Noetica",
               "pr": "604",
               "note": "query-variant RAG-Fusion: merged + tested, not live-wired"
             }
@@ -916,10 +942,12 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "607",
               "note": "contextual-retrieval: merged + tested, NOT wired into live ingest/query"
             },
             {
+              "repo": "Noetica",
               "pr": "604",
               "note": "query-variant RAG-Fusion: merged + tested, not live-wired"
             }
@@ -935,10 +963,12 @@
           "assessment_basis": "self_assessed",
           "evidence_ref": [
             {
+              "repo": "Noetica",
               "pr": "607",
               "note": "contextual-retrieval: merged + tested, NOT wired into live ingest/query"
             },
             {
+              "repo": "Noetica",
               "pr": "604",
               "note": "query-variant RAG-Fusion: merged + tested, not live-wired"
             }
