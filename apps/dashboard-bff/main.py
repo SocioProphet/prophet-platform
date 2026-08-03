@@ -37,6 +37,8 @@ _gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py',
 _company_financials = _load_module(ROOT / 'tools' / 'emit_company_financials.py', 'emit_company_financials')
 _studio = _load_module(ROOT / 'tools' / 'emit_studio_valuation.py', 'emit_studio_valuation')
 _governance_test = _load_module(ROOT / 'tools' / 'emit_governance_test.py', 'emit_governance_test')
+_risk_ep = _load_module(ROOT / 'tools' / 'emit_risk_ep_facts.py', 'emit_risk_ep_facts')
+RiskEpFactsResponse = _contracts.RiskEpFactsResponse
 
 app = FastAPI(title='dashboard-bff')
 
@@ -59,6 +61,14 @@ def overview() -> object:
         trace_required=True,
         evidence_required=True,
     )
+
+
+@app.get('/v1/risk/portfolio-facts', response_model=RiskEpFactsResponse)
+def risk_portfolio_facts() -> object:
+    """Governed portfolio risk / EP / alternative-inflation facts for the credit-risk viz thesis.
+    Risk/EP mirror economic-prophet's model (reproduced_by_us); inflation is reconstructed (vendor
+    series proprietary) and flagged, so the UI badges provenance rather than treating all as equal."""
+    return RiskEpFactsResponse(**_risk_ep.emit())
 
 
 def _fact_view(fact: dict):

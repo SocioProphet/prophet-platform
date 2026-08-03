@@ -1,0 +1,10 @@
+{
+  "portfolio_id": "wave1-illustrative",
+  "pd": 0.02, "lgd": 0.45, "ead": 100.0, "rho": 0.15, "confidence": 0.999,
+  "revenue": 7.5, "expenses": 2.0, "funding_cost": 2.8, "funding_credits": 1.2,
+  "tax_rate": 0.25, "margin_income": 4.5,
+  "recovery_surface": {"seniority": 0.6, "collateral_quality": 0.5, "jurisdiction_score": 0.6,
+    "macro_regime": "base", "liquidity_regime": "normal", "workout_horizon_days": 540, "market_state_price": 0.5},
+  "official_cpi": 0.031, "nominal_rate": 0.055,
+  "_comment": "Governed input the risk/EP/inflation producer reads. Illustrative until a real feed is wired; replace with diligence.risk.pack + economic-prophet outputs."
+}
