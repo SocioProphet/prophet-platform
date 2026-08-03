@@ -8,6 +8,7 @@ because each corresponds to a way this has gone wrong before.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -148,21 +149,124 @@ def test_receipt_seal_is_tamper_evident(tmp_path):
     assert eng._seal(dict(receipt))["receipt_digest"] != sealed
 
 
-def test_from_effect_request_maps_the_contract(tmp_path):
-    tgz = _engine_tarball(tmp_path / "e.tgz", "0.4.46", with_marker=True)
-    doc = {
-        "type": "EffectRequest", "capability": "vendor.revendor",
-        "requestedByEventRef": "evt-123",
-        "parameters": {"toVersion": "0.4.46", "tarball": str(tgz), "versionMarker": MARKER},
+def _real_effect_request(to="0.4.46", consumer="hellgraph-service", crossings=False):
+    """Shaped exactly as sociosphere tools/detect_vendor_freshness.py emits it (the merged
+    EffectRequest.json 0.1.0): versionMarker is an OBJECT, the consumer rides in consumerApp,
+    idempotencyKey/requiresHumanApproval are top-level, and there is NO tarball field."""
+    return {
+        "type": "EffectRequest", "specVersion": "0.1.0", "effectKind": "update",
+        "capability": "vendor.revendor",
+        "target": {"kind": "vendor-pin", "identifier": f"hellgraph-engine@{consumer}",
+                   "location": f"prophet-platform/apps/{consumer}/vendor"},
+        "idempotencyKey": f"hellgraph-engine@{consumer}@0.4.40->{to}",
+        "requestedByEventRef": "vendor-freshness-observation/2026-07-30/hellgraph-engine",
+        "requiresHumanApproval": crossings,
+        "riskLabels": ["contract-crossing"] if crossings else [],
+        "parameters": {
+            "artifactId": f"hellgraph-engine@{consumer}", "consumerApp": consumer,
+            "toVersion": to, "fromVersion": "0.4.40",
+            "versionMarker": {"marker": MARKER, "presentIn": to, "absentIn": "0.4.40",
+                              "assertInside": "package/ts/dist/index.js", "note": None},
+        },
     }
-    plan = eng.RevendorPlan.from_effect_request(doc)
-    assert plan.to_version == "0.4.46" and plan.expect_markers == [MARKER]
-    assert plan.idempotency_key == "engine@0.4.46" and plan.requested_by_event_ref == "evt-123"
 
 
-def test_wrong_capability_is_rejected():
+def test_from_effect_request_maps_the_real_contract(tmp_path):
+    tgz = _engine_tarball(tmp_path / "e.tgz", "0.4.46", with_marker=True)
+    plan = eng.RevendorPlan.from_effect_request(_real_effect_request(), tgz)
+    assert plan.to_version == "0.4.46"
+    assert plan.expect_markers == [MARKER]                        # versionMarker.marker (object), not the object
+    assert plan.consumers == ["hellgraph-service"]                # consumerApp — one per request, not both
+    assert plan.member == "package/ts/dist/index.js"             # versionMarker.assertInside
+    assert plan.idempotency_key == "hellgraph-engine@hellgraph-service@0.4.40->0.4.46"  # request's own key
+    assert plan.requires_human_approval is False
+    assert plan.tarball == tgz                                    # supplied separately (not in the request)
+
+
+def test_from_effect_request_rejects_a_bare_string_marker(tmp_path):
+    # The old bug: treating parameters.versionMarker as a string. The real field is an object.
+    tgz = _engine_tarball(tmp_path / "e.tgz", "0.4.46", with_marker=True)
+    doc = _real_effect_request()
+    doc["parameters"]["versionMarker"] = MARKER
+    with pytest.raises(ValueError, match="versionMarker.marker"):
+        eng.RevendorPlan.from_effect_request(doc, tgz)
+
+
+def test_from_effect_request_requires_consumer_app(tmp_path):
+    tgz = _engine_tarball(tmp_path / "e.tgz", "0.4.46", with_marker=True)
+    doc = _real_effect_request()
+    del doc["parameters"]["consumerApp"]
+    with pytest.raises(ValueError, match="consumerApp"):
+        eng.RevendorPlan.from_effect_request(doc, tgz)
+
+
+def test_wrong_capability_is_rejected(tmp_path):
+    tgz = _engine_tarball(tmp_path / "e.tgz", "0.4.46", with_marker=True)
     with pytest.raises(ValueError, match="vendor.revendor"):
-        eng.RevendorPlan.from_effect_request({"capability": "something.else", "parameters": {}})
+        eng.RevendorPlan.from_effect_request({"capability": "something.else", "parameters": {}}, tgz)
+
+
+def test_requires_human_approval_blocks_apply_until_approved(tmp_path):
+    root = _fixture(tmp_path)
+    plan = eng.RevendorPlan.from_effect_request(_real_effect_request(to="0.4.45", crossings=True), REAL_045)
+    blocked = eng.execute(plan, root, apply=True)
+    assert blocked["status"] == "blocked_pending_human_approval" and blocked["requires_human_approval"] is True
+    # nothing was touched — the old 0.4.40 tarball is still in place for the targeted consumer
+    assert (root / "apps" / "hellgraph-service" / "vendor" / "socioprophet-hellgraph-0.4.40.tgz").exists()
+    # an approving EffectDecision (human_approved) lets it proceed
+    approved = eng.execute(plan, root, apply=True, human_approved=True)
+    assert approved["status"] in ("applied", "noop")
+
+
+# ── resolve_tarball: pull the digest-pinned artifact the request only names ──────────
+
+def _fake_registry(tarball_bytes, media="application/vnd.oci.image.layer.v1.tar+gzip"):
+    """An injectable http_get that serves a one-layer OCI manifest + the blob."""
+    digest = "sha256:" + hashlib.sha256(tarball_bytes).hexdigest()
+
+    def http_get(url, headers):
+        if "/manifests/" in url:
+            return json.dumps({"layers": [{"mediaType": media, "digest": digest,
+                                           "size": len(tarball_bytes)}]}).encode()
+        if url.endswith(digest):
+            return tarball_bytes
+        raise AssertionError(f"unexpected url: {url}")
+
+    return http_get, digest
+
+
+def test_resolve_tarball_pulls_and_verifies(tmp_path):
+    data = b"pretend-this-is-a-gzipped-tar"
+    http_get, _ = _fake_registry(data)
+    doc = {"parameters": {"toVersion": "0.4.46", "packageName": "hellgraph"}}
+    out = eng.resolve_tarball(doc, tmp_path, http_get=http_get)
+    assert out.read_bytes() == data
+    assert out.name == "socioprophet-hellgraph-0.4.46.tgz"
+
+
+def test_resolve_tarball_refuses_a_digest_mismatch(tmp_path):
+    # The manifest attests a digest the returned blob does NOT hash to — never vendor it.
+    wrong_digest = "sha256:" + hashlib.sha256(b"a different artifact").hexdigest()
+
+    def http_get(url, headers):
+        if "/manifests/" in url:
+            return json.dumps({"layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                                           "digest": wrong_digest}]}).encode()
+        return b"the actual bytes, which do not match wrong_digest"
+
+    with pytest.raises(ValueError, match="digest mismatch"):
+        eng.resolve_tarball({"parameters": {"toVersion": "0.4.46"}}, tmp_path, http_get=http_get)
+
+
+def test_resolve_tarball_requires_exactly_one_tar_layer(tmp_path):
+    with pytest.raises(ValueError, match="one tarball layer"):
+        eng.resolve_tarball({"parameters": {"toVersion": "0.4.46"}}, tmp_path,
+                            http_get=lambda url, headers: json.dumps({"layers": []}).encode())
+
+
+def test_resolve_tarball_requires_to_version(tmp_path):
+    with pytest.raises(ValueError, match="toVersion"):
+        eng.resolve_tarball({"parameters": {}}, tmp_path, http_get=lambda url, headers: b"")
 
 
 # ── Copilot #1062 round 2: fail-closed AND receipt-producing ──────────────────

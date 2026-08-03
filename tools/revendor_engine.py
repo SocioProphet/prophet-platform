@@ -29,13 +29,16 @@ performs the file changes; --open-pr additionally opens the (idempotent) re-vend
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -52,6 +55,70 @@ def _load_marker_tool():
 
 
 marker_tool = _load_marker_tool()
+
+
+# ── resolving the artifact the EffectRequest names but does not carry ────────────────
+
+_OCI_MANIFEST_ACCEPT = ("application/vnd.oci.image.manifest.v1+json, "
+                        "application/vnd.docker.distribution.manifest.v2+json")
+
+
+def _oci_auth_header() -> dict:
+    """Bearer token, or HTTP Basic — the same secrets the publisher uses (OCI_TOKEN, or
+    OCI_USERNAME/OCI_PASSWORD; in CI the ZOT_CI_* repository secrets)."""
+    token = os.environ.get("OCI_TOKEN")
+    if token:
+        return {"Authorization": f"Bearer {token}"}
+    user, password = os.environ.get("OCI_USERNAME"), os.environ.get("OCI_PASSWORD")
+    if user and password:
+        return {"Authorization": "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode()}
+    return {}
+
+
+def _http_get(url: str, headers: dict) -> bytes:
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as resp:
+        return resp.read()
+
+
+def resolve_tarball(effect_request: dict, dest_dir: Path, *, http_get=_http_get) -> Path:
+    """Obtain the digest-pinned engine tarball an EffectRequest NAMES but does not carry, from
+    the sovereign registry (zot). The plane publishes the artifact (sociosphere
+    tools/publish_vendor_artifact_oci.py); this fetches it by the same coordinates:
+
+        registry = $OCI_REGISTRY, scheme = $OCI_SCHEME (https in prod),
+        repo     = $OCI_REPO or "socioprophet/<packageName>", reference = parameters.toVersion.
+
+    It pulls the OCI manifest, takes the single gzipped-tar layer, fetches that blob, and
+    VERIFIES sha256(blob) == the layer digest before writing. A mismatch is fatal: the whole
+    point of a pinned artifact is that you never re-vendor bytes you did not verify against the
+    digest the registry attests. `http_get(url, headers) -> bytes` is injectable for tests."""
+    p = effect_request.get("parameters") or {}
+    to_version = p.get("toVersion")
+    if not to_version:
+        raise ValueError("EffectRequest parameters.toVersion is required to resolve the artifact")
+    package = p.get("packageName") or (p.get("sourceRepo") or "").split("/")[-1] or "hellgraph"
+    registry = os.environ.get("OCI_REGISTRY", "localhost:15000")
+    scheme = os.environ.get("OCI_SCHEME", "http")
+    repo = os.environ.get("OCI_REPO", f"socioprophet/{package}")
+    base = f"{scheme}://{registry}/v2/{repo}"
+    auth = _oci_auth_header()
+
+    manifest = json.loads(http_get(f"{base}/manifests/{to_version}", {"Accept": _OCI_MANIFEST_ACCEPT, **auth}))
+    layers = [layer for layer in manifest.get("layers", []) if layer.get("digest")]
+    tar_layers = [layer for layer in layers if "tar" in layer.get("mediaType", "").lower()] or layers
+    if len(tar_layers) != 1:
+        raise ValueError(f"expected exactly one tarball layer in {repo}:{to_version}, found {len(tar_layers)}")
+    digest = tar_layers[0]["digest"]  # e.g. "sha256:abcd…"
+    blob = http_get(f"{base}/blobs/{digest}", dict(auth))
+    algo, _, want_hex = digest.partition(":")
+    got_hex = hashlib.new(algo, blob).hexdigest()
+    if got_hex != want_hex:
+        raise ValueError(f"digest mismatch for {repo}:{to_version} — manifest attests {digest}, "
+                         f"blob is {algo}:{got_hex}; refusing to vendor unverified bytes")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    out = dest_dir / f"socioprophet-{package}-{to_version}.tgz"
+    out.write_bytes(blob)
+    return out
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -82,10 +149,16 @@ class RevendorPlan:
     forbid_markers: list[str] = field(default_factory=list)
     member: str = marker_tool.DEFAULT_MEMBER
     requested_by_event_ref: str | None = None
+    # Honoured only when the plan came from an EffectRequest:
+    requires_human_approval: bool = False
+    idempotency_key_override: str | None = None
 
     @property
     def idempotency_key(self) -> str:
-        return f"engine@{self.to_version}"
+        # Prefer the EffectRequest's own key (artifact@from->to) so a re-emitted finding
+        # collides with its prior PR; the manual/CLI path with no request falls back to a
+        # version-scoped key.
+        return self.idempotency_key_override or f"engine@{self.to_version}"
 
     def __post_init__(self):
         if not SEMVER.match(self.to_version):
@@ -95,21 +168,48 @@ class RevendorPlan:
             raise ValueError("at least one expect marker is required — a version field is not evidence")
 
     @classmethod
-    def from_effect_request(cls, doc: dict) -> "RevendorPlan":
-        """Build from the EffectRequest the plane emits (schema specVersion 0.1.0):
-        capability vendor.revendor, parameters carry from/to versions, the register's
-        version_marker rides in parameters.expectMarkers."""
+    def from_effect_request(cls, doc: dict, tarball: Path) -> "RevendorPlan":
+        """Build from the EffectRequest the vendor-freshness plane actually emits
+        (EffectRequest.json specVersion 0.1.0, as produced by sociosphere
+        tools/detect_vendor_freshness.py). Field mapping, verified against that emitter:
+
+          - capability            == "vendor.revendor"
+          - parameters.toVersion  -> to_version
+          - parameters.versionMarker.marker      -> the discriminating marker (an OBJECT,
+            not a string: {marker, presentIn, absentIn, assertInside, note})
+          - parameters.versionMarker.assertInside -> the dist member to read
+          - parameters.consumerApp -> the ONE consumer this request targets (the detector
+            emits one EffectRequest per stale artifact == per consumer)
+          - idempotencyKey         -> the request's key (top-level), honoured verbatim
+          - requiresHumanApproval  -> top-level; a true value blocks apply (see execute)
+
+        The request does NOT carry the tarball — the plane's `parameters` are evidence, not a
+        payload. The digest-pinned artifact is obtained from the sovereign registry (zot) in a
+        separate resolution step and passed in here, so this method takes `tarball` explicitly."""
         if doc.get("capability") != "vendor.revendor":
             raise ValueError(f"not a vendor.revendor EffectRequest (capability={doc.get('capability')!r})")
-        p = doc.get("parameters", {})
-        markers = p.get("expectMarkers") or ([p["versionMarker"]] if p.get("versionMarker") else [])
+        p = doc.get("parameters") or {}
+        version_marker = p.get("versionMarker")
+        # versionMarker is an object {marker, presentIn, ...}; a bare string is the old
+        # wrong shape and must fail loudly, not AttributeError.
+        marker = version_marker.get("marker") if isinstance(version_marker, dict) else None
+        if not marker:
+            raise ValueError("EffectRequest parameters.versionMarker.marker is required — a version field is not evidence")
+        consumer = p.get("consumerApp")
+        if not consumer:
+            raise ValueError("EffectRequest parameters.consumerApp is required to know which consumer to re-vendor")
+        to_version = p.get("toVersion")
+        if not to_version:
+            raise ValueError("EffectRequest parameters.toVersion is required")
         return cls(
-            to_version=p["toVersion"],
-            tarball=Path(p["tarball"]),
-            expect_markers=list(markers),
-            forbid_markers=list(p.get("forbidMarkers", [])),
-            consumers=list(p.get("consumers", ["hellgraph-service", "lifecycle-warden"])),
+            to_version=to_version,
+            tarball=tarball,
+            expect_markers=[marker],
+            consumers=[consumer],
+            member=version_marker.get("assertInside") or marker_tool.DEFAULT_MEMBER,
             requested_by_event_ref=doc.get("requestedByEventRef"),
+            requires_human_approval=bool(doc.get("requiresHumanApproval")),
+            idempotency_key_override=doc.get("idempotencyKey"),
         )
 
 
@@ -333,7 +433,7 @@ def _rollback(state: dict) -> None:
                 f.unlink()
 
 
-def execute(plan: RevendorPlan, root: Path, apply: bool = False) -> dict:
+def execute(plan: RevendorPlan, root: Path, apply: bool = False, human_approved: bool = False) -> dict:
     """Run the disciplined re-vendor. Returns a sealed receipt. Fail-closed AND atomic under
     apply: read-only proofs (marker, precheck) run before any mutation, and if a later step
     fails — including verify_guard, which necessarily runs against the mutated files — every
@@ -351,6 +451,17 @@ def execute(plan: RevendorPlan, root: Path, apply: bool = False) -> dict:
 
     def record(step: str, ok: bool, evidence: dict):
         receipt["steps"].append({"step": step, "ok": ok, "evidence": evidence})
+
+    # Fail-closed on human approval. A contract-crossing re-vendor carries
+    # requiresHumanApproval=true on its EffectRequest; the membrane's EffectDecision grants
+    # it. Until an approving decision is passed through (human_approved), apply refuses to
+    # touch anything. Dry-run still plans, so the decision has a receipt to weigh.
+    if apply and plan.requires_human_approval and not human_approved:
+        receipt["requires_human_approval"] = True
+        receipt["status"] = "blocked_pending_human_approval"
+        receipt["note"] = ("this effect requires human approval (e.g. contract-crossing); "
+                           "re-run under an approving EffectDecision")
+        return _seal(receipt)
 
     # Marker proof first: it never mutates and it is the gate on everything after it.
     try:
@@ -458,10 +569,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", type=Path, default=_HERE.parent, help="repo root (default: this repo)")
     ap.add_argument("--apply", action="store_true", help="perform the file changes (default: dry-run)")
     ap.add_argument("--open-pr", action="store_true", help="open the idempotent re-vendor PR (implies --apply)")
+    ap.add_argument("--human-approved", action="store_true",
+                    help="an approving EffectDecision is present; permits applying an effect whose "
+                         "EffectRequest set requiresHumanApproval")
     args = ap.parse_args(argv)
 
     if args.from_effect_request:
-        plan = RevendorPlan.from_effect_request(json.loads(args.from_effect_request.read_text()))
+        doc = json.loads(args.from_effect_request.read_text())
+        # The request carries no tarball; resolve the digest-pinned artifact from the sovereign
+        # registry (zot) unless one was supplied explicitly (tests / air-gapped runs).
+        tarball = args.tarball or resolve_tarball(doc, args.root / ".revendor-cache")
+        plan = RevendorPlan.from_effect_request(doc, tarball)
     elif args.to_version and args.tarball:
         plan = RevendorPlan(to_version=args.to_version, tarball=args.tarball, expect_markers=args.expect,
                             forbid_markers=args.forbid,
@@ -470,7 +588,7 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("provide --from-effect-request, or both --to-version and --tarball")
 
     apply = args.apply or args.open_pr
-    receipt = execute(plan, args.root, apply=apply)
+    receipt = execute(plan, args.root, apply=apply, human_approved=args.human_approved)
     if receipt["status"] == "applied" and args.open_pr:
         # Copilot #1062 round 2: the receipt IS the deliverable. If open_pr raises
         # (RevendorAbort for a non-applied state, subprocess.CalledProcessError from
