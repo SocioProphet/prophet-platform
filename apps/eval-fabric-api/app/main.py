@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import FastAPI, Response, status
 
 from . import governance_repositories, intelligence_repositories, lifecycle_bundle, repositories
+from .agent_eval_metrics import compute_all_from_payload, gate_breaches
 from .db import ch_health, pg_health
 from .receipts import maybe_emit_artifacts
 
@@ -231,3 +232,40 @@ def radar(response: Response) -> dict:
         metrics={"competitor_count": len(payload["competitors"])}
     )
     return payload
+
+
+@app.post("/v1/agent-eval/metrics")
+def agent_eval_metrics(payload: dict, response: Response) -> dict:
+    """Compute the five agentic_workbench agent metrics server-side (issue #1244).
+
+    The workbench sources these live rather than baking constants into the UI.
+    The response carries the versioned metric contract plus the fail-closed gate
+    verdict: a breach of ``refusalScore`` (below floor) or ``anomalyStatus``
+    (anomalous) sets ``gate.passed = false`` and returns 422 so a consumer
+    promoting on this result fails closed too.
+    """
+    result = compute_all_from_payload(payload)
+    breaches = gate_breaches(result)
+    result["gate"] = {"passed": not breaches, "breaches": breaches}
+    if breaches:
+        response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    _emit(
+        response,
+        event_type="eval.fabric.agent_eval.metrics.compute",
+        action="AgentEvalMetricsCompute",
+        subject_ref=f"agent://{result.get('agent_id') or 'unknown'}",
+        payload=result,
+        classifiers=[
+            "route:agent-eval-metrics",
+            f"anomaly:{result['metrics']['anomalyStatus']}",
+            f"gate:{'pass' if not breaches else 'fail'}",
+        ],
+        metrics={
+            "eigenStability": result["metrics"]["eigenStability"],
+            "typologyScore": result["metrics"]["typologyScore"],
+            "interactionQuality": result["metrics"]["interactionQuality"],
+            "refusalScore": result["metrics"]["refusalScore"],
+            "sample_count": result["sample_count"],
+        },
+    )
+    return result
