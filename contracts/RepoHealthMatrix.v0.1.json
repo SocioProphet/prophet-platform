@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/RepoHealthMatrix.v0.1.json",
+  "title": "RepoHealthMatrix",
+  "description": "The agentic shell's center-canvas health matrix: a per-repo scorecard across operational dimensions (CI health, security posture, docs freshness, last activity, agent finding, proposed action). Materializes Workflow A (group health audit). Each row carries a risk_tier that maps to the AgenticTask approval model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "generated_at", "scope", "dimensions", "rows"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "scope": { "type": "object", "description": "orgs/repos/selector this matrix covers" },
+    "dimensions": { "type": "array", "items": { "type": "string" } },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/row" } }
+  },
+  "$defs": {
+    "status": { "type": "string", "enum": ["ok", "warn", "fail", "unknown"] },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resource", "ci_health", "security_posture", "docs_freshness", "last_activity", "agent_finding", "proposed_action", "risk_tier"],
+      "properties": {
+        "resource": { "type": "string" },
+        "owner": { "type": ["string", "null"] },
+        "ci_health": { "$ref": "#/$defs/status" },
+        "security_posture": { "$ref": "#/$defs/status" },
+        "docs_freshness": { "$ref": "#/$defs/status" },
+        "last_activity": { "$ref": "#/$defs/status" },
+        "agent_finding": { "type": "string" },
+        "proposed_action": { "type": "string" },
+        "risk_tier": { "type": "string", "enum": ["low", "medium", "high"] },
+        "evidence_refs": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

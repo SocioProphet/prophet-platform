@@ -1,0 +1,17 @@
+{
+  "scope": {"orgs": ["SocioProphet"], "selector": "group:Developers"},
+  "signals": [
+    {"resource": "SocioProphet/healthy-svc", "owner": "team-a", "has_codeowners": true,
+     "latest_ci_conclusion": "success", "open_security_alerts": 0, "has_readme": true,
+     "readme_age_days": 30, "pushed_age_days": 5},
+    {"resource": "SocioProphet/ci-broken", "owner": "team-b", "has_codeowners": true,
+     "latest_ci_conclusion": "failure", "open_security_alerts": 0, "has_readme": true,
+     "readme_age_days": 60, "pushed_age_days": 10, "evidence_refs": ["ev:ci-1"]},
+    {"resource": "SocioProphet/vuln-svc", "owner": "team-c", "has_codeowners": true,
+     "latest_ci_conclusion": "success", "open_security_alerts": 9, "has_readme": true,
+     "readme_age_days": 40, "pushed_age_days": 3},
+    {"resource": "SocioProphet/orphan-lib", "owner": null, "has_codeowners": false,
+     "latest_ci_conclusion": "success", "open_security_alerts": 0, "has_readme": false,
+     "pushed_age_days": 400}
+  ]
+}
