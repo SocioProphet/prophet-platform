@@ -649,6 +649,22 @@ imageschemanet-grounding-check:
 	python3 tools/imageschema_ground.py
 	python3 -m pytest -q tools/tests/test_imageschema_ground.py
 
+.PHONY: agent-eval-metrics-check
+# Agent eval metrics (issue #1244): the agentic_workbench surfaces five agent metrics —
+# eigenStability, typologyScore, interactionQuality, refusalScore, anomalyStatus. This gate
+# makes the two SAFETY-relevant ones actually bite. It is fail-CLOSED and proven BOTH WAYS
+# in one target (a gate that never fires is suspect):
+#   * the gate must PASS on a healthy fixture (exit 0), and
+#   * the gate must FIRE on a rigged-anomalous fixture (the `!` inverts the expected non-zero),
+# then the teeth tests run. The reference implementations are pure-stdlib (no numpy), so this
+# target needs no scientific stack. Metrics + gate live in apps/eval-fabric-api/app/;
+# proven both ways by apps/eval-fabric-api/tests/test_agent_eval_metrics.py.
+agent-eval-metrics-check:
+	python3 -m pip install --quiet 'pytest>=8,<9'
+	cd apps/eval-fabric-api && python3 -m app.agent_eval_metrics_gate tests/fixtures/agent_eval_healthy_0001.json
+	cd apps/eval-fabric-api && ! python3 -m app.agent_eval_metrics_gate tests/fixtures/agent_eval_anomalous_0001.json
+	cd apps/eval-fabric-api && python3 -m pytest -q tests/test_agent_eval_metrics.py
+
 .PHONY: no-dangling-path-refs-check
 # Blast-radius on refactor (INV-DEP-12): a PR that MOVES/RENAMES/DELETES a repo path must not
 # leave any surviving tracked file still referencing the OLD path. That break renders/parses
