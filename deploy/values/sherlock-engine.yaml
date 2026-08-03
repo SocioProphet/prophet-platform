@@ -11,7 +11,9 @@ config:
   # NOTE: consumed once the engine's dense-rerank path lands; declared here so the binding is explicit.
   QDRANT_URL: "http://mesh-qdrant.socioprophet.svc.cluster.local:6333"
   QDRANT_COLLECTION: "sherlock-corpus"
-  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  # Routed through the receipt-gateway (deploy/values/receipt-gateway.yaml) so every embedding call is
+  # receipted; it forwards transparently to the `embeddings` service and returns the same response.
+  EMBEDDINGS_URL: "http://receipt-gateway.socioprophet.svc.cluster.local:8898/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
   # KMASS baseline (2026-08-01) found the tantivy index was create_in_ram over a static
   # in-image fixture with no ingest path -- corpus resets to the same 12 docs on every

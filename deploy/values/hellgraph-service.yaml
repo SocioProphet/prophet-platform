@@ -27,7 +27,10 @@ config:
   # nomic-embed-text's 768-dim vectors as-is), so no fixed vector-size var is needed here — unlike
   # memoryd's MEMORYMESH_VECTOR_SIZE. The fogstack (federal/standard) tiers override EMBEDDINGS_URL
   # to "" in the appset so a sovereign tier never reaches this socioprophet-namespace service.
-  EMBEDDINGS_URL: "http://embeddings.socioprophet.svc.cluster.local:8080/v1/embeddings"
+  # Routed through the receipt-gateway (deploy/values/receipt-gateway.yaml) so every embedding call is
+  # receipted; it forwards transparently to the `embeddings` service. The fogstack "" override still wins
+  # (an empty EMBEDDINGS_URL disables the call entirely), so this only affects the socioprophet tier.
+  EMBEDDINGS_URL: "http://receipt-gateway.socioprophet.svc.cluster.local:8898/v1/embeddings"
   EMBEDDINGS_MODEL: "nomic-embed-text"
   # Load the ~55k KBpedia reference concepts at startup (the RC ABox under KKO, vendored gzipped in
   # the image). Activates the KKO coherence ranker in /api/graph/enrich and gives semantic entity
