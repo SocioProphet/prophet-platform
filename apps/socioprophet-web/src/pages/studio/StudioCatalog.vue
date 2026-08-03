@@ -8,6 +8,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { loadCatalog, EPISTEMIC_COLORS, type Dataset } from '../../services/studioApi';
 import Sparkline from '../../components/Sparkline.vue';
 import FactsheetDrawer from './FactsheetDrawer.vue';
+import { attestFacts } from './factsheetAttest';
 
 const props = defineProps<{ project: string }>();
 
@@ -59,13 +60,10 @@ function openSheet(d: Dataset) { sheet.value = d; }
 // Attested factsheet — a deterministic, recomputable summary built from the dataset's OWN facts
 // (not model-generated prose), with a content-id receipt = a hash of those facts. Honest "attested
 // AI": the attestation is real (recompute the hash to verify), the text is extractive/templated.
-function djb2(s: string): string { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) & 0xffffffff; return (h >>> 0).toString(16).padStart(8, '0'); }
+// Hashing logic lives in factsheetAttest.ts (pure + unit-tested): the receipt must cover every fact
+// the summary reports, or two differing summaries can share one receipt (Copilot #930).
 function attest(d: Dataset): { summary: string; receipt: string; live: boolean } {
-  const s = series(d);
-  const dir = s.length > 1 ? (s[s.length - 1] > s[0] ? 'rising' : s[s.length - 1] < s[0] ? 'falling' : 'flat') : 'flat';
-  const summary = `${d.name} is a ${d.epistemic_mode} dataset${d.connector ? ` ingested via ${d.connector}` : ''} with ${d.columns.length} column${d.columns.length === 1 ? '' : 's'}${d.labels.length ? ` (${d.labels.join(', ')})` : ''}. Ingest volume is ${dir} across the ${s.length} most recent snapshots.`;
-  const receipt = `fs-${djb2([d.id, d.connector || '', d.epistemic_mode, String(d.columns.length), dir].join('|'))}`;
-  return { summary, receipt, live: isLive(d) };
+  return { ...attestFacts(d, series(d)), live: isLive(d) };
 }
 </script>
 
