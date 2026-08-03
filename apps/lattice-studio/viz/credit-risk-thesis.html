@@ -106,6 +106,7 @@
     <section class="module" id="m-ftp"></section>
     <section class="module" id="m-recovery"></section>
     <section class="module" id="m-ross"></section>
+    <section class="module" id="m-inflation"></section>
     <section class="module" id="m-ead"></section>
     <section class="module" id="m-agg"></section>
     <section class="module" id="m-models"></section>
@@ -178,6 +179,7 @@ const NAVS=[
   ["VALUE",[["m-ep","Economic profit","EP waterfall"],
            ["m-ftp","Funds-transfer pricing","matched-maturity FTP"],
            ["m-dcf","DCF life-cycle","ROIC−WACC fade"]]],
+  ["MACRO",[["m-inflation","Alternative inflation","BPP · ShadowStats · real rate"]]],
   ["REFERENCE",[["m-models","Credit-model taxonomy","PD models × LGD treatment"]]]
 ];
 const META={};NAVS.forEach(([g,items])=>items.forEach(([id,t,d])=>META[id]={g,t,d}));
@@ -212,7 +214,8 @@ const DESC={
  "m-ead":"Exposure at default is the weakest link in the Basel machinery. Revolving lines fill up as a borrower deteriorates (the 'race to default'); term loans amortise away.",
  "m-dcf":"Value fades. A franchise earns above its cost of capital for a while, then competition erodes the ROIC−WACC spread — and a naive perpetuity assumption mis-prices exactly that fade.",
  "m-models":"A field guide. Credit-risk models fall into statistical, structural, reduced-form and value-at-risk families, differing above all in how they treat recovery and its link to default.",
- "m-ross":"The Ross Recovery Theorem in action — the same tech built into the economic-prophet repo. Option prices give Arrow–Debreu state prices (the risk-neutral measure Q); Ross's eigenvalue recovery pulls the real-world measure P and the pricing kernel back out. The wedge between the two <em>is</em> the risk premium — and, for a defaulted claim, the wedge between market-implied recovery RR^Q and planning recovery RR^P."
+ "m-ross":"The Ross Recovery Theorem in action — the same tech built into the economic-prophet repo. Option prices give Arrow–Debreu state prices (the risk-neutral measure Q); Ross's eigenvalue recovery pulls the real-world measure P and the pricing kernel back out. The wedge between the two <em>is</em> the risk premium — and, for a defaulted claim, the wedge between market-implied recovery RR^Q and planning recovery RR^P.",
+ "m-inflation":"Which inflation is real? The official CPI, the Billion Prices Project's online-price index, and the ShadowStats alternate CPI disagree — and the gap reprices every book, because the real rate (and the discount, hurdle and EP capital charge) is nominal minus <em>whichever inflation you trust</em>. Reconstructed methodologies (the vendor series are proprietary), witnesses over economic-prophet's <code>inflation.py</code>."
 };
 
 // ============ shared rail wiring ============
@@ -631,8 +634,66 @@ function m_ross(){const box=document.getElementById("m-ross");const s=RS;
   box.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{RS[b.dataset.k]=b.dataset.v;m_ross();}));
 }
 
+// ---------- Alternative inflation (economic-prophet: open_ep_framework/inflation.py) ----------
+const INF={official:3.1,basis:"1990",nominal:5.5};
+const _ADDBACKS={sub:0.7,hed:0.5,oer:0.3,interv:0.2};                 // ShadowStats magnitudes (pp/yr)
+const fisher=(nom,inf)=>(1+nom/100)/(1+inf/100)-1;                    // exact Fisher real rate
+function jevons(prev,cur){const m=Object.keys(cur).filter(k=>prev[k]>0&&cur[k]>0);
+  return m.length?Math.exp(m.reduce((a,k)=>a+Math.log(cur[k]/prev[k]),0)/m.length):1;}
+function m_inflation(){const box=document.getElementById("m-inflation");const s=INF;const T=24,np=40;
+  // ShadowStats add-back (ports shadowstats_alt_cpi)
+  const add90=_ADDBACKS.sub+_ADDBACKS.hed+_ADDBACKS.oer;
+  const add80=add90+_ADDBACKS.interv+(_ADDBACKS.sub+_ADDBACKS.oer);
+  const ssAdd=(s.basis==="1980"?add80:add90);const ssInf=s.official+ssAdd;
+  // BPP: build a deterministic online-price panel, chained Jevons (ports billion_prices_index)
+  let seed=42;const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+  const mOff=s.official/100/12;const panel=[{}];for(let p=0;p<np;p++)panel[0]["p"+p]=10+rnd()*40;
+  for(let t=1;t<T;t++){const snap={};for(let p=0;p<np;p++){const drift=mOff*1.18+(rnd()-0.5)*0.006;snap["p"+p]=panel[t-1]["p"+p]*(1+drift);}panel.push(snap);}
+  let bppIdx=[100];for(let t=1;t<T;t++)bppIdx.push(bppIdx[t-1]*jevons(panel[t-1],panel[t]));
+  const bppInf=(Math.pow(bppIdx[T-1]/100,12/(T-1))-1)*100;
+  // index series (base 100) for official & shadowstats (compound monthly)
+  const offIdx=[100],ssIdx=[100];for(let t=1;t<T;t++){offIdx.push(offIdx[t-1]*(1+mOff));ssIdx.push(ssIdx[t-1]*(1+ssInf/100/12));}
+  const rOff=fisher(s.nominal,s.official)*100,rBpp=fisher(s.nominal,bppInf)*100,rSs=fisher(s.nominal,ssInf)*100;
+  // ---- charts ----
+  const W=640,H=210,pL=38,pR=90,pB=26,pT=12;const s2=svg(W,H);
+  const all=offIdx.concat(bppIdx,ssIdx);const lo=Math.min(...all),hi=Math.max(...all);
+  const X=i=>pL+i/(T-1)*(W-pL-pR),Y=v=>H-pB-((v-lo)/(hi-lo||1))*(H-pB-pT);
+  for(let g=0;g<=3;g++){const gv=lo+(hi-lo)*g/3;s2.add(`<line class="gridline" x1="${pL}" y1="${Y(gv)}" x2="${W-pR}" y2="${Y(gv)}"/><text class="tick" x="${pL-5}" y="${Y(gv)+3}" text-anchor="end">${gv.toFixed(0)}</text>`);}
+  const series=[["Official CPI",offIdx,"var(--muted)",s.official],["Billion Prices (online)",bppIdx,"var(--pos)",bppInf],["ShadowStats "+s.basis,ssIdx,"var(--neg)",ssInf]];
+  series.forEach(z=>{let p="";z[1].forEach((v,i)=>p+=(i?"L":"M")+X(i)+" "+Y(v)+" ");
+    s2.add(`<path d="${p}" fill="none" stroke="${z[2]}" stroke-width="2.3"/>`);
+    s2.add(`<text class="vlab num" x="${W-pR+6}" y="${Y(z[1][T-1])+3}" fill="${z[2]}">${z[0].split(' ')[0]} ${z[3].toFixed(1)}%</text>`);});
+  s2.add(`<text class="lbl" x="${pL}" y="${H-pB+15}">month 0</text><text class="lbl" x="${W-pR}" y="${H-pB+15}" text-anchor="end">month ${T-1}</text>`);
+  // real-rate bars
+  const W2=640,H2=120,bx0=150,bx1=W2-70;const rr=svg(W2,H2);const rows=[["Nominal rate",s.nominal,"var(--accent)"],["Real (official)",rOff,"var(--muted)"],["Real (BPP)",rBpp,"var(--pos)"],["Real (ShadowStats)",rSs,"var(--neg)"]];
+  const mxr=Math.max(...rows.map(r=>Math.abs(r[1])));const zero=bx0+(bx1-bx0)*(mxr)/(2*mxr);
+  rows.forEach((r,i)=>{const y=i*28+18;const w=(bx1-bx0)/2*(r[1]/mxr);
+    rr.add(`<text class="lbl" x="0" y="${y+4}" style="font-weight:600;fill:var(--ink)">${r[0]}</text>`);
+    rr.add(`<rect x="${w>=0?zero:zero+w}" y="${y-8}" width="${Math.max(2,Math.abs(w))}" height="16" rx="3" fill="${r[2]}" opacity="0.85"/>`);
+    rr.add(`<text class="vlab num" x="${(w>=0?zero+w:zero)+ (w>=0?7:-7)}" y="${y+4}" text-anchor="${w>=0?'start':'end'}" fill="var(--muted)">${r[1].toFixed(2)}%</text>`);});
+  const seg=(id,opts,cur)=>`<span class="seg">${opts.map(o=>`<button data-k="${id}" data-v="${o}" aria-pressed="${o===cur}">${o}</button>`).join("")}</span>`;
+  box.innerHTML=`
+   <div class="rail" style="display:flex">
+     <div class="ctl"><label>Official CPI (YoY) <b class="num">${s.official}%</b></label><input type="range" data-inf="official" min="0" max="12" step="0.1" value="${s.official}"></div>
+     <div class="ctl"><label>Nominal rate <b class="num">${s.nominal}%</b></label><input type="range" data-inf="nominal" min="0" max="12" step="0.1" value="${s.nominal}"></div>
+     <div class="ctl"><label>ShadowStats basis</label>${seg('basis',['1990','1980'],s.basis)}</div>
+     <div class="railhint">Ports <code>inflation.py</code> — BPP chained Jevons over an online-price panel; ShadowStats = official + methodology add-backs (${ssAdd.toFixed(1)}pp, ${s.basis}). <b>Reconstructed</b> — vendor series proprietary.</div>
+   </div>
+   <div class="tiles">
+     <div class="tile"><div class="k">Billion Prices inflation</div><div class="v num" style="color:var(--pos)">${bppInf.toFixed(1)}%</div><div class="d">+${(bppInf-s.official).toFixed(1)}pp vs official</div></div>
+     <div class="tile"><div class="k">ShadowStats inflation</div><div class="v num" style="color:var(--neg)">${ssInf.toFixed(1)}%</div><div class="d">+${ssAdd.toFixed(1)}pp add-back (${s.basis})</div></div>
+     <div class="tile"><div class="k">Real rate spread</div><div class="v num">${(rOff-rSs).toFixed(1)}pp</div><div class="d">official vs ShadowStats</div></div>
+   </div>
+   <div class="panel"><div class="ph">Price indices — official vs online (BPP) vs ShadowStats <span style="color:var(--faint)">base 100</span></div>${s2.html()}
+     <div class="cap">The online index (BPP/PriceStats) turns faster because it has no substitution or seasonal smoothing; ShadowStats runs highest by adding back the BLS methodology changes. Feed real scraped prices / a real CPI series and these become the genuine indices.</div></div>
+   <div class="panel"><div class="ph">Real rate = nominal − inflation (exact Fisher) — the number that reprices every book</div>${rr.html()}
+     <div class="cap">The real rate drives the discount, the hurdle and the EP capital charge. Trust ShadowStats over official and the same book's economic profit and DCF value fall sharply — which is exactly why the choice of inflation measure is a first-order risk decision, not a footnote.</div></div>`;
+  box.querySelectorAll("input[data-inf]").forEach(inp=>inp.addEventListener("input",()=>{INF[inp.dataset.inf]=+inp.value;m_inflation();}));
+  box.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{INF[b.dataset.k]=b.dataset.v;m_inflation();}));
+}
+
 const RENDER={"m-el":m_el,"m-sim":m_sim,"m-measures":m_measures,"m-capital":m_capital,"m-ep":m_ep,"m-var":m_var,
-  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf,"m-ross":m_ross};
+  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf,"m-ross":m_ross,"m-inflation":m_inflation};
 function render(){railLabels();(RENDER[active]||(()=>{}))();}
 document.getElementById("foot").innerHTML=`<b>Illustrative data</b>, computed live from the models on this page — not real portfolio figures. In production these views are witnesses over governed facts: PD·LGD·EAD and the loss tail from <code>diligence.risk.pack</code> / internal-model #1293, EP &amp; variance from <code>economic-prophet</code>, surfaced through <code>lattice-studio</code> / <code>dashboard-bff</code>. Truthful, reproducible-from-source — no captured third-party images or branding. Colorblind-safe throughout: blue/orange not red/green, status shown with icon + label.`;
 go("m-el");
