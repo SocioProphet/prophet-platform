@@ -64,6 +64,7 @@ jobs:
           - { image: regis-acr-api,         context: apps/regis-acr-api,        dockerfile: Dockerfile }
           - { image: commons-search,        context: apps/commons-search,       dockerfile: Dockerfile }
           - { image: embeddings,           context: apps/embeddings,           dockerfile: Dockerfile }
+          - { image: receipt-gateway,      context: apps/receipt-gateway,      dockerfile: Dockerfile }
           - { image: reasoning-failure-runner, context: apps/reasoning-failure-runner, dockerfile: Dockerfile }
           - { image: search-gateway,        context: apps/search-gateway,        dockerfile: Dockerfile }
           - { image: sherlock-engine,       context: apps/sherlock-engine,       dockerfile: Dockerfile }

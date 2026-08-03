@@ -1,0 +1,360 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.srcos.ai/v2/InferenceReceipt.json",
+  "title": "InferenceReceipt",
+  "description": "VENDORED from SourceOS-Linux/sourceos-spec (Tranche 7, canonical owner). Provenance receipt emitted for every model-plane completion (Tranche 7 / Model Plane). Identifies the tier, the content-addressed base model / adapter / tokenizer digests, the serving daemon and provider, the data-residency class the request was served under, and the escalation chain if any. This is the provenance primitive that makes on-device inference auditable: it references the existing Model Carry family (InferenceProvider, ModelResidency, SourceOSModelCarryRef) rather than restating it. Receipts are ledger-bound; a local-only ledger is not permitted (SEAM-011).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "specVersion",
+    "issuedAt",
+    "providerDaemon",
+    "tier",
+    "baseModelDigest",
+    "task",
+    "inputHash",
+    "outputHash",
+    "dataResidencyClass",
+    "ledgerSeq"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^urn:srcos:inference-receipt:",
+      "description": "Stable URN identifier. Pattern: urn:srcos:inference-receipt:<local-id>"
+    },
+    "type": {
+      "const": "InferenceReceipt",
+      "description": "Discriminator constant \u2014 always \"InferenceReceipt\"."
+    },
+    "specVersion": {
+      "type": "string",
+      "description": "Spec version of this document, e.g. \"2.1.0\"."
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the completion finished and the receipt was issued."
+    },
+    "requestingAgentRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:agent-passport:",
+      "description": "AgentPassport URN of the agent that requested the inference. Null only for internal system-initiated inference."
+    },
+    "requestingAgentClass": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "system_core",
+        "intelligence_automation",
+        "app_helper",
+        "legacy_bridge",
+        "third_party",
+        null
+      ],
+      "description": "Mirror of the requesting agent's AgentPassport.agent_class, for at-a-glance audit. Authoritative source is the referenced passport."
+    },
+    "capabilityLeaseRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:lease:",
+      "description": "AgentCapabilityLease URN authorizing this provider connection. Null is only valid for on_device_only T0 system inference; any non-on_device_only receipt MUST carry a lease (enforced below)."
+    },
+    "providerDaemon": {
+      "type": "string",
+      "enum": [
+        "inferenced",
+        "embeddingd",
+        "visiond",
+        "distilld"
+      ],
+      "description": "The model-plane serving daemon that produced this completion. Note: modelplaned is a catalog authority and does not perform inference, so it never emits an InferenceReceipt."
+    },
+    "providerRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:inference-provider:",
+      "description": "InferenceProvider URN backing the serving daemon."
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "T0",
+        "T1",
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "description": "Placement tier that served the request. Tier boundaries are data-residency boundaries (Model Plane \u00a7II)."
+    },
+    "baseModelDigest": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Content-addressed digest of the base model weights that served the request."
+    },
+    "adapterDigest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Content-addressed digest of the active LoRA adapter, or null when the base model served the request with no adapter."
+    },
+    "tokenizerDigest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Content-addressed digest of the tokenizer used."
+    },
+    "modelCarryRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:model-carry-ref:",
+      "description": "SourceOSModelCarryRef URN under which the model was carried/authorized."
+    },
+    "modelResidencyRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^urn:srcos:model-residency:",
+      "description": "ModelResidency URN observed at serving time."
+    },
+    "task": {
+      "type": "string",
+      "description": "Task label the request was routed as, e.g. summarization, embedding, agent_classification, ocr-recognize."
+    },
+    "inputHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Hash of the canonical input. The receipt records that an inference occurred and over what, not the content."
+    },
+    "inputTokenCount": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "Input token count, or null for non-text modalities."
+    },
+    "outputHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Hash of the canonical output."
+    },
+    "outputTokenCount": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "Output token count, or null for non-text modalities."
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Model-reported confidence used for the escalation trigger, or null when not estimated."
+    },
+    "confidenceMethod": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "logit-entropy",
+        "verbalized",
+        "calibration-head",
+        "downstream-validation",
+        "none",
+        null
+      ],
+      "description": "How `confidence` was derived. REVIEW HARDENING (Model Plane OQ1 / finding: confidence is the load-bearing escalation gate and is self-reported): recording the method makes the number auditable and lets downstream calibration checks run. A null method with a non-null confidence should be treated as uncalibrated."
+    },
+    "latencyMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "description": "End-to-end serving latency in milliseconds."
+    },
+    "escalatedFrom": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "T0",
+        "T1",
+        "T2",
+        "T3",
+        null
+      ],
+      "description": "The tier this request was escalated FROM, or null if served at first placement. Must be null when dataResidencyClass is on_device_only (enforced below)."
+    },
+    "escalationChain": {
+      "type": "array",
+      "description": "Ordered EscalationDecision URNs recording each tier/residency boundary this request crossed. Empty when served at first placement.",
+      "items": {
+        "type": "string",
+        "pattern": "^urn:srcos:escalation-decision:"
+      }
+    },
+    "dataResidencyClass": {
+      "type": "string",
+      "enum": [
+        "on_device_only",
+        "sovereign_cluster",
+        "external_permitted"
+      ],
+      "description": "The residency class this completion was served under. Any class other than on_device_only means the input crossed a data boundary and MUST be accompanied by a lease and a non-empty escalation chain (enforced below; SEAM-015)."
+    },
+    "computeDevice": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "ane",
+        "gpu",
+        "cpu",
+        "npu",
+        "remote",
+        null
+      ],
+      "description": "Hardware path that executed the compute."
+    },
+    "ledgerSeq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic sequence number of this receipt in the append-only ledger."
+    },
+    "ledgerPrevHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "REVIEW HARDENING (finding: the ledger is the trust anchor for every Model Plane provenance claim but `ledgerSeq` alone does not bind entry N to N-1). Hash of the prior ledger entry, making the ledger tamper-evident/hash-chained so an enumerated contribution list cannot be retroactively rewritten."
+    },
+    "evidenceHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[a-fA-F0-9]{64}$",
+      "description": "Hash of the canonical receipt evidence payload."
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "description": "Additional evidence URNs or content hashes.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "$comment": "SEAM-015: a completion served off-device (not on_device_only) must carry both an authorizing capability lease and a non-empty escalation chain. Possession of the output is not authorization for the crossing.",
+      "if": {
+        "properties": {
+          "dataResidencyClass": {
+            "enum": [
+              "sovereign_cluster",
+              "external_permitted"
+            ]
+          }
+        },
+        "required": [
+          "dataResidencyClass"
+        ]
+      },
+      "then": {
+        "required": [
+          "capabilityLeaseRef",
+          "escalatedFrom",
+          "escalationChain"
+        ],
+        "properties": {
+          "capabilityLeaseRef": {
+            "type": "string"
+          },
+          "escalatedFrom": {
+            "type": "string",
+            "enum": [
+              "T0",
+              "T1",
+              "T2",
+              "T3"
+            ]
+          },
+          "escalationChain": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "$comment": "An on_device_only completion cannot have been escalated from a lower tier.",
+      "if": {
+        "properties": {
+          "dataResidencyClass": {
+            "const": "on_device_only"
+          }
+        },
+        "required": [
+          "dataResidencyClass"
+        ]
+      },
+      "then": {
+        "properties": {
+          "escalatedFrom": {
+            "const": null
+          }
+        }
+      }
+    },
+    {
+      "$comment": "REVIEW HARDENING (ledger tamper-evidence): any non-genesis entry (ledgerSeq >= 1) must carry the prior entry's hash, so the append-only ledger is hash-chained and an enumerated contribution list cannot be retroactively rewritten.",
+      "if": {
+        "properties": {
+          "ledgerSeq": {
+            "minimum": 1
+          }
+        },
+        "required": [
+          "ledgerSeq"
+        ]
+      },
+      "then": {
+        "required": [
+          "ledgerPrevHash"
+        ],
+        "properties": {
+          "ledgerPrevHash": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}
