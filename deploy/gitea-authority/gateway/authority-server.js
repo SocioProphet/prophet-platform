@@ -18,6 +18,19 @@ const { issueLocalGrant, verifyLocalGrant } = require('../core/local-authority')
 const { NonceStore } = require('../core/nonce-store');
 
 const KEY = process.env.GITEA_SIGNING_KEY;
+const CALLER_TOKEN = process.env.AUTHORITY_CALLER_TOKEN || '';
+
+// Server-controlled authorization: the token endpoints require a bearer that
+// matches AUTHORITY_CALLER_TOKEN (a mounted secret). Fail-closed — with no caller
+// token configured the authority signs nothing. The security decision relies on a
+// server secret, never on user-controlled input (the request path).
+function authorized(req) {
+  if (!CALLER_TOKEN) return false;
+  const presented = String(req.headers['authorization'] || '').replace(/^Bearer /, '');
+  const a = Buffer.from(presented);
+  const b = Buffer.from(CALLER_TOKEN);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 const PORT = Number(process.env.PORT || 8081);
 const ISSUER = process.env.ISSUER_NODE || 'org-primary';
 const nonces = new NonceStore();
@@ -73,6 +86,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true, service: 'gitea-sovereign-authority', key_loaded: Boolean(KEY) });
     }
     if (!KEY) return send(res, 503, { ok: false, reason: 'GITEA_SIGNING_KEY not mounted (authority cannot sign)' });
+    if (req.url.startsWith('/v1/tokens/') && !authorized(req)) return send(res, 401, { ok: false, reason: 'unauthorized' });
     if (req.method === 'POST' && req.url === '/v1/tokens/issue') {
       const token = issue(await readJson(req));
       return send(res, 200, token);

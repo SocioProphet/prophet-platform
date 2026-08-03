@@ -19,6 +19,8 @@ spec:
               valueFrom: { secretKeyRef: { name: gitea-signing-key, key: key } }  # minted by provision-secrets
             - name: ISSUER_NODE
               value: org-primary
+            - name: AUTHORITY_CALLER_TOKEN
+              valueFrom: { secretKeyRef: { name: authority-caller-token, key: token } }
           readinessProbe: { httpGet: { path: /healthz, port: 8081 }, initialDelaySeconds: 3 }
           resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 128Mi } }
 ---
