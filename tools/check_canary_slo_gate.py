@@ -109,12 +109,23 @@ def _canary_steps_of(doc: dict[str, Any]) -> Any:
     return None
 
 
-def analysis_step_violations(steps: Any, where: str) -> list[str]:
+def analysis_step_violations(
+    steps: Any, where: str, template_kinds: dict[str, str] | None = None
+) -> list[str]:
     """A canary step's ``analysis`` takes a LIST of templates. A bare
     ``templateName`` is schema-invalid: ArgoCD server-side-apply rejects the whole
     Rollout (".spec.strategy.canary.steps[N].analysis.templateName: field not
     declared in schema"), so the Rollout is never created and the canary never runs
-    — silently, because the app can still report Healthy from its other objects."""
+    — silently, because the app can still report Healthy from its other objects.
+
+    Also checks ``clusterScope`` consistency against every AnalysisTemplate /
+    ClusterAnalysisTemplate kind declared elsewhere in the repo (``template_kinds``,
+    from ``collect_template_kinds``). A step referencing a ClusterAnalysisTemplate
+    without ``clusterScope: true`` makes Argo Rollouts look for a namespaced
+    AnalysisTemplate instead, find none, and reject the Rollout as InvalidSpec
+    forever — the bug that outlived PR #1229 (which promoted slo-gate to
+    cluster-scoped but left this reference unset), keeping hellgraph-service at
+    zero pods after the fix everyone thought had already closed the outage."""
     out: list[str] = []
     if not isinstance(steps, list):
         return out
@@ -138,17 +149,82 @@ def analysis_step_violations(steps: Any, where: str) -> list[str]:
                     f"{where}: canary step[{i}].analysis has no non-empty `templates` list "
                     f"(missing or empty) — nothing gates this step."
                 )
+            continue
+        if not template_kinds:
+            continue
+        for t in templates:
+            if not isinstance(t, dict):
+                continue
+            name = t.get("templateName")
+            kind = template_kinds.get(name)
+            if kind is None:
+                continue
+            cluster_scope = bool(t.get("clusterScope", False))
+            if kind == "ClusterAnalysisTemplate" and not cluster_scope:
+                out.append(
+                    f"{where}: canary step[{i}] references '{name}', declared as a "
+                    f"ClusterAnalysisTemplate, without `clusterScope: true` — Argo Rollouts "
+                    f"will look for a namespaced AnalysisTemplate instead, find none, and "
+                    f"reject the Rollout as InvalidSpec with zero pods."
+                )
+            elif kind == "AnalysisTemplate" and cluster_scope:
+                out.append(
+                    f"{where}: canary step[{i}] references '{name}' with `clusterScope: true`, "
+                    f"but it is declared as a namespaced AnalysisTemplate, not a "
+                    f"ClusterAnalysisTemplate — Argo Rollouts will look in the wrong scope "
+                    f"and reject the Rollout as InvalidSpec."
+                )
     return out
 
 
-def scan_text(text: str, where: str) -> list[str]:
-    # Helm/Go-templated files are not plain YAML; they are validated by rendering, not
-    # here (the rendered inputs that matter — deploy/values/*.yaml — are checked
-    # directly). Everything else that names these kinds MUST parse.
-    if "{{" in text and "}}" in text:
-        return []
+def collect_template_kinds(root: Path) -> dict[str, str]:
+    """Map every AnalysisTemplate/ClusterAnalysisTemplate name declared anywhere in
+    the repo to its kind, so canary steps can be checked for clusterScope
+    consistency against the real declaration instead of trusting the reference."""
+    kinds: dict[str, str] = {}
+    for path in sorted(root.rglob("*.y*ml")):
+        s = str(path)
+        if "/node_modules/" in s or "/vendor/" in s or "/.git/" in s:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if not any(k in text for k in ANALYSIS_KINDS):
+            continue
+        docs, err = _load_docs(text)
+        if err is not None:
+            if any(m in text for m in _HELM_TEMPLATE_MARKERS):
+                continue
+            continue  # unparseable + no Helm markers: not our concern here, scan_text flags it
+        for doc in docs:
+            if doc.get("kind") in ANALYSIS_KINDS:
+                name = (doc.get("metadata") or {}).get("name")
+                if isinstance(name, str):
+                    kinds[name] = doc["kind"]
+    return kinds
+
+
+_HELM_TEMPLATE_MARKERS = ("{{-", "{{.Values", "{{ .Values", "{{include", "{{ include", "{{toYaml", "{{ toYaml", "{{if", "{{ if", "{{range", "{{ range", "{{end", "{{ end")
+
+
+def scan_text(
+    text: str, where: str, template_kinds: dict[str, str] | None = None
+) -> list[str]:
     docs, err = _load_docs(text)
     if err is not None:
+        # A real Helm/go-template file breaks plain YAML parsing by design — it is
+        # validated by rendering, not here. But Argo Rollouts' OWN `{{args.x}}`
+        # metric-templating syntax (used inside quoted strings in AnalysisTemplate
+        # queries) does NOT break YAML parsing, so a bare `{{`/`}}` substring check
+        # here would (and for years silently did) skip the real shipped slo-gate
+        # AnalysisTemplate entirely — a false negative that made
+        # test_shipped_repo_is_clean pass for the wrong reason. Only skip when the
+        # parse actually failed AND the text carries a real Helm control-flow
+        # marker; otherwise a file that names these kinds and won't parse is
+        # flagged, never silently skipped.
+        if any(m in text for m in _HELM_TEMPLATE_MARKERS):
+            return []
         # Fail CLOSED: a file that names a Rollout/AnalysisTemplate but will not parse
         # cannot be certified fail-closed — flag it, never silently skip it.
         return [
@@ -161,11 +237,12 @@ def scan_text(text: str, where: str) -> list[str]:
             out.extend(template_violations(doc, where))
         steps = _canary_steps_of(doc)
         if steps is not None:
-            out.extend(analysis_step_violations(steps, where))
+            out.extend(analysis_step_violations(steps, where, template_kinds))
     return out
 
 
 def scan_repo(root: Path) -> list[str]:
+    template_kinds = collect_template_kinds(root)
     out: list[str] = []
     for path in sorted(root.rglob("*.y*ml")):
         s = str(path)
@@ -178,7 +255,7 @@ def scan_repo(root: Path) -> list[str]:
         # Cheap prefilter — the kind/shape checks inside scan_text are authoritative.
         if not any(k in text for k in ("AnalysisTemplate", "Rollout", "rollout:")):
             continue
-        out.extend(scan_text(text, str(path.relative_to(root))))
+        out.extend(scan_text(text, str(path.relative_to(root)), template_kinds))
     return out
 
 

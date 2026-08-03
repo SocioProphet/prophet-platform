@@ -114,8 +114,19 @@ rollout:
         # templateName: field not declared in schema"), so the Rollout was never
         # created and the canary never ran once. Enforced now by
         # tools/check_canary_slo_gate.py.
+        #
+        # clusterScope: true is REQUIRED — slo-gate is a ClusterAnalysisTemplate
+        # (infra/k8s/rollouts/base/analysistemplate-slo.yaml, cluster-scoped per
+        # PR #1229/INV-DEP-9 so the same gate resolves from every wave/service
+        # namespace). Without this flag Argo Rollouts looks for a NAMESPACED
+        # AnalysisTemplate named "slo-gate" instead, finds none, and the Rollout
+        # sits InvalidSpec forever with zero pods — exactly what happened here:
+        # the kind was promoted to cluster-scoped but this reference was never
+        # updated to match, so the outage outlived the fix meant to close it.
+        # Enforced now by tools/check_canary_slo_gate.py's clusterscope check.
         templates:
           - templateName: slo-gate
+            clusterScope: true
         args:
           - { name: service, value: hellgraph-service }
     - setWeight: 50
