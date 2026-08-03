@@ -150,30 +150,13 @@ KNOWN_BROKEN = {
     # (their first CI builds landed) after these entries were written. The ratchet caught
     # both as "now passes — delete from KNOWN_BROKEN" on an unrelated PR; fixed → removed,
     # same precedent as lifecycle-warden above.
-    "liberty-stack-readout:moving-tag": (
-        "New service — liberty-stack-readout vendored into prophet-platform CI this PR. Pin tag:latest -> the "
-        "sha- tag after the first build; none exists until merge."
-    ),
-    "node-commander:moving-tag": (
-        "New service — node-commander (node runtime control API) vendored into prophet-platform CI this PR. "
-        "Pin tag:latest -> the sha- tag after the first build; none exists until merge."
-    ),
-    "regis-acr-api:moving-tag": (
-        "Build-orphan fixed — regis-acr-api already BUILT in CI but was never in the ApplicationSet; this PR "
-        "adds the deploy. Pin tag:latest -> the sha- tag after the next build; none exists for the deploy yet."
-    ),
-    "memoryd:moving-tag": (
-        "New service — memory-mesh's memoryd vendored into prophet-platform CI this PR, so it BUILDS with the "
-        "estate WIF. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
-    ),
-    "tritfabric-consumption-api:moving-tag": (
-        "New service — TritFabric consumption API containerized + wired to prophet-platform CI this PR (it had "
-        "app code but no image build). Pin tag:latest -> the sha- tag after the first CI build; none exists yet."
-    ),
-    "embeddings:moving-tag": (
-        "New service — first-party embeddings image (apps/embeddings, FastAPI + nomic-embed-text) added to CI "
-        "this PR. Pin tag:latest -> the sha- tag after the first CI build; no sha exists until merge."
-    ),
+    # RESOLVED 2026-08-03: liberty-stack-readout, node-commander, regis-acr-api, memoryd,
+    # tritfabric-consumption-api and embeddings were all sha-pinned in deploy/values/<svc>.yaml
+    # to the sha- tag matching each service's CURRENTLY-RUNNING digest (verified against the
+    # live cluster: kubectl imageID → the GAR sha- tag on that exact digest). Pinning to the
+    # running digest is a NO-OP rollout — it makes the implicit explicit without changing which
+    # bytes run — which is why this batch was safe to do together (see the block below). The
+    # ratchet only shrinks: fixed → removed so none can silently regress to `:latest` again.
     # RESOLVED 2026-08-03: receipt-gateway, catalog-gateway, nugget-extractor and
     # device-service were all sha-pinned by gitops-promote after their first CI builds
     # (receipt-gateway → sha-d3566908…, catalog-gateway → sha-e6301c68…, nugget-extractor
@@ -198,20 +181,22 @@ KNOWN_BROKEN = {
     # sha-32f5996a06f6) after their first CI build, so they no longer violate — the
     # ratchet requires removing them here (it only shrinks).
     # The chart has said "Immutable tag = the commit SHA" since it was written; these
-    # 9 predate the check. Pinning them is mechanical BUT NOT SAFE TO BATCH: `latest`
-    # + IfNotPresent means nodes may be running an older cached digest than `latest`
-    # now resolves to, so pinning ROLLS each service to whatever the newest build is.
-    # That is the correct end state and exactly how a latent breakage surfaces — which
-    # is why it wants a deliberate pass with per-service verification, not one commit
-    # that rolls 9 services at once. Each line here is removed as its service is pinned.
+    # predate the check. The earlier worry was that pinning ROLLS each service to whatever
+    # the newest build is (because `latest` + IfNotPresent means a node may cache an older
+    # digest than `latest` now resolves to). That risk is avoided entirely by pinning to the
+    # digest EACH SERVICE IS ALREADY RUNNING, resolved from the live cluster — a no-op
+    # rollout, not a roll to newest. api, agentic-os-api, evidence-receipts and osm-map-api
+    # were pinned that way 2026-08-03 and removed from the ratchet.
+    # gateway remains: its values still say `tag: latest` AND its pod is NOT Ready (already
+    # running a sha- tag out of sync with values) — a separate crash to fix, not a moving-tag
+    # pin, so it stays tracked here until that is resolved.
     **{f"{svc}:moving-tag": (
-        "Pre-existing `tag: latest`. Pin to the sha- tag the build publishes, then "
-        "delete this line. Do it per-service and verify the rollout: pinning changes "
-        "which digest actually runs, because the node cache may be older than `latest`."
+        "Pre-existing `tag: latest`, and the pod is NOT Ready — a crash to resolve before "
+        "pinning (values already disagree with the running sha- tag). Not a clean moving-tag "
+        "pin; fix the crash, then pin to the running digest and delete this line."
     ) for svc in [
-        "api", "agentic-os-api",
-        "evidence-receipts", "gateway", "osm-map-api",
-    ]},  # hellgraph-service + evidence-console + search-orchestrator (academy sha-pin) → removed from the ratchet
+        "gateway",
+    ]},
     # eval-fabric-api sha-pinned by gitops-promote (sha-e72d47ce…) after its first CI
     # build → removed from the ratchet 2026-08-03 (it only shrinks; leaving it FAILs "now passes").
 }
