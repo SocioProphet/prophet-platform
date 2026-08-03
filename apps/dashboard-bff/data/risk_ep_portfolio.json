@@ -1,10 +1,33 @@
 {
-  "portfolio_id": "wave1-illustrative",
-  "pd": 0.02, "lgd": 0.45, "ead": 100.0, "rho": 0.15, "confidence": 0.999,
-  "revenue": 7.5, "expenses": 2.0, "funding_cost": 2.8, "funding_credits": 1.2,
-  "tax_rate": 0.25, "margin_income": 4.5,
+  "portfolio_id": "socioprophet-estate-wave1",
+  "pd": 0.02, "lgd": 0.45, "ead": 100.0, "rho": 0.15, "confidence": 0.999, "maturity": 2.5,
+  "market_capital": 5.0, "diversification": 0.15,
   "recovery_surface": {"seniority": 0.6, "collateral_quality": 0.5, "jurisdiction_score": 0.6,
     "macro_regime": "base", "liquidity_regime": "normal", "workout_horizon_days": 540, "market_state_price": 0.5},
-  "official_cpi": 0.031, "nominal_rate": 0.055,
-  "_comment": "Governed input the risk/EP/inflation producer reads. Illustrative until a real feed is wired; replace with diligence.risk.pack + economic-prophet outputs."
+  "oprisk_cells": [
+    {"event_type": "internal_fraud", "annual_frequency": 0.5, "severity_mu": -0.5, "severity_sigma": 1.1},
+    {"event_type": "external_fraud", "annual_frequency": 3.0, "severity_mu": -1.0, "severity_sigma": 1.0},
+    {"event_type": "clients_products_business", "annual_frequency": 1.5, "severity_mu": 0.2, "severity_sigma": 1.2},
+    {"event_type": "execution_delivery", "annual_frequency": 5.0, "severity_mu": -1.5, "severity_sigma": 0.9},
+    {"event_type": "business_disruption", "annual_frequency": 1.0, "severity_mu": -0.5, "severity_sigma": 1.0}
+  ],
+  "official_cpi": 0.031, "nominal_rate": 0.055, "shadowstats_basis": "1990",
+  "companies": [
+    {"name": "SocioProphet", "ltv": 900, "monthly_margin": 60,
+     "channels": {"organic": {"visitors": 12000, "conversions": 540}, "paid_search": {"visitors": 8000, "conversions": 200},
+                  "content": {"visitors": 6000, "conversions": 330}, "social": {"visitors": 9000, "conversions": 135},
+                  "referral": {"visitors": 3000, "conversions": 210}},
+     "spend": {"organic": 8000, "paid_search": 45000, "content": 15000, "social": 22000, "referral": 4000}},
+    {"name": "SourceOS", "ltv": 1400, "monthly_margin": 95,
+     "channels": {"organic": {"visitors": 5000, "conversions": 260}, "paid_search": {"visitors": 4000, "conversions": 80},
+                  "content": {"visitors": 7000, "conversions": 420}, "social": {"visitors": 3000, "conversions": 36},
+                  "referral": {"visitors": 2000, "conversions": 150}},
+     "spend": {"organic": 6000, "paid_search": 30000, "content": 20000, "social": 9000, "referral": 3000}},
+    {"name": "BearBrowser", "ltv": 240, "monthly_margin": 14,
+     "channels": {"organic": {"visitors": 30000, "conversions": 900}, "paid_search": {"visitors": 10000, "conversions": 250},
+                  "content": {"visitors": 8000, "conversions": 320}, "social": {"visitors": 25000, "conversions": 500},
+                  "referral": {"visitors": 4000, "conversions": 160}},
+     "spend": {"organic": 5000, "paid_search": 40000, "content": 10000, "social": 30000, "referral": 3000}}
+  ],
+  "_comment": "Governed input for the risk/capital/inflation/marketing producer. Our own estate companies dogfood the marketing/conversion info-theory. Illustrative until real feeds wired."
 }

@@ -107,6 +107,7 @@
     <section class="module" id="m-recovery"></section>
     <section class="module" id="m-ross"></section>
     <section class="module" id="m-inflation"></section>
+    <section class="module" id="m-marketing"></section>
     <section class="module" id="m-ead"></section>
     <section class="module" id="m-agg"></section>
     <section class="module" id="m-models"></section>
@@ -173,9 +174,10 @@ const NAVS=[
            ["m-ead","EAD — race to default","LEQ / CCF, revolving vs term"],
            ["m-recovery","Recovery &amp; PD↔RR","seniority, default-recovery link"],
            ["m-ross","Ross recovery &amp; curves","state-price → real-world"]]],
-  ["CAPITAL",[["m-capital","Capital stack","regulatory vs economic"],
+  ["CAPITAL",[["m-capital","Regulatory vs economic","IRB-A credit + AMA op-risk"],
            ["m-agg","Risk aggregation","summation → copula diversification"],
            ["m-var","EP variance","price/volume/cost/capital drivers"]]],
+  ["MARKETING",[["m-marketing","Conversion & CAC","info-theoretic attribution · our companies"]]],
   ["VALUE",[["m-ep","Economic profit","EP waterfall"],
            ["m-ftp","Funds-transfer pricing","matched-maturity FTP"],
            ["m-dcf","DCF life-cycle","ROIC−WACC fade"]]],
@@ -205,7 +207,8 @@ const DESC={
  "m-el":"The mortgage-calculator of credit risk. Expected loss is the mean loss a lender prices into every deal — covered by earnings, not capital. Move the three levers and watch it compose.",
  "m-sim":"The deeper engine. A single-factor (Vasicek) portfolio: every obligor shares a systematic factor with correlation ρ. We Monte-Carlo thousands of economies; the tail — not the mean — is what capital must survive.",
  "m-measures":"Four ways to name the same tail. Standard deviation, Value-at-Risk, Expected Shortfall and a spectral measure read the identical loss distribution differently — coherence is the property that separates them.",
- "m-capital":"Two answers to 'how much capital'. The regulator sets a floor from risk-weighted assets and Basel III buffers; the bank's own model sets economic capital from its loss tail. They rarely agree.",
+ "m-capital":"Two answers to 'how much capital', both computed. Regulatory is the genuine Basel IRB-Advanced credit risk-weight plus AMA operational risk (loss-distribution Monte-Carlo); economic capital is the bank's own model, less a cross-risk diversification benefit. The gap decides who binds.",
+ "m-marketing":"Which channel actually earns its budget? We attribute conversions by <em>information gain</em> — a channel matters to the degree that knowing it reduces uncertainty about converting (mutual information), not by last-touch. Then we set that against CAC and spend share: the channels carrying the information aren't always the ones getting the money. Dogfooded on our own companies.",
  "m-agg":"Diversification is a discount. Roll several risk types into one number and the method chosen — naive summation to a full copula simulation — decides how much diversification benefit you are allowed to claim.",
  "m-var":"Why did economic profit move? Decompose ΔEP into after-tax P&L drivers then balance-sheet drivers adjusted for capital cost.",
  "m-ep":"Economic profit is what's left after the cost of the capital at risk: Revenue − EL − Expenses − Funding + Credits − Taxes − Capital charge.",
@@ -327,31 +330,48 @@ function m_measures(){const box=document.getElementById("m-measures");const sim=
      </tbody></table>`;
 }
 
-function m_capital(){const m=metrics();const box=document.getElementById("m-capital");
-  // regulatory stack (Basel III) as % of RWA; economic from sim
-  const reg=[["CET1 minimum",4.5,"var(--pos)"],["Additional Tier 1",1.5,"var(--pos2)"],["Tier 2",2.0,"var(--neg2)"],
-    ["Capital conservation",2.5,"var(--accent)"],["Countercyclical",1.0,"var(--warn)"],["G-SIB surcharge",1.5,"var(--neg)"]];
-  const regTot=reg.reduce((a,r)=>a+r[1],0);
-  const sim=runSim();const el=sim.losses.reduce((a,b)=>a+b,0)/sim.M;const varq=quant(sim.sorted,P(S.conf));
-  const econPct=(varq-el)*100/0.08*8/ (S.ead*0)||0; // display econ capital as % of exposure scaled
-  const econCapPctRWA=Math.max(2,(varq-el)*100* (S.lgd>0?1:1) * (100/ (S.pd*S.lgd/100+8)) *0+ (varq-el)*100*1.2/1);
-  const econ=Math.min(24,Math.max(3,(varq-el)*100*1.35+2)); // illustrative econ capital as % RWA
-  const W=640,H=210,colW=150,gap=90,x0=90;const maxPct=Math.max(regTot,econ)*1.15;
-  const s=svg(W,H);const baseY=H-34;const scale=(baseY-16)/maxPct;
-  function stack(cx,items,label){let y=baseY;items.forEach(([nm,v,col])=>{const hh=v*scale;y-=hh;
-    s.add(`<rect x="${cx}" y="${y}" width="${colW}" height="${Math.max(1,hh-1.5)}" rx="2" fill="${col}" opacity="0.9"><title>${nm}: ${v}% of RWA</title></rect>`);
-    if(hh>15)s.add(`<text class="vlab num" x="${cx+colW/2}" y="${y+hh/2+3}" text-anchor="middle" fill="#fff">${v}%</text>`);});
+function m_capital(){const box=document.getElementById("m-capital");
+  // Basel IRB-Advanced corporate risk-weight (the genuine formula) — mirrors economic-prophet regulatory_capital
+  const pd=Math.min(Math.max(P(S.pd),1e-6),0.9999),lgd=P(S.lgd),ead=S.ead,rho=P(S.rho),conf=P(S.conf),mat=2.5,market=5.0,DIV=0.15;
+  const R=0.12*(1-Math.exp(-50*pd))/(1-Math.exp(-50))+0.24*(1-(1-Math.exp(-50*pd))/(1-Math.exp(-50)));
+  const b=Math.pow(0.11852-0.05478*Math.log(pd),2);
+  const cond=N(Math.pow(1-R,-0.5)*Ninv(pd)+Math.pow(R/(1-R),0.5)*Ninv(0.999));
+  const K=Math.max(0,(lgd*cond-pd*lgd)*(1/(1-1.5*b))*(1+(mat-2.5)*b));
+  const regCredit=K*ead;
+  // AMA operational risk — LDA Monte-Carlo, cached (independent of the credit sliders)
+  if(!m_capital._op)m_capital._op=(function(){const cells=[[0.5,-0.5,1.1],[3,-1,1],[1.5,0.2,1.2],[5,-1.5,0.9],[1,-0.5,1]];
+    let sd=7;const rnd=()=>{sd=(sd*1103515245+12345)&0x7fffffff;return sd/0x7fffffff;};
+    const g=()=>{let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+    const po=l=>{let L=Math.exp(-l),k=0,p=1;do{k++;p*=rnd();}while(p>L);return k-1;};
+    const Sy=5000,ls=[];for(let y=0;y<Sy;y++){let t=0;for(const[l,mu,sg]of cells){const n=po(l);for(let i=0;i<n;i++)t+=Math.exp(mu+sg*g());}ls.push(t);}
+    ls.sort((a,x)=>a-x);const mn=ls.reduce((a,x)=>a+x,0)/Sy;const v9=ls[Math.floor(0.999*Sy)];return {mean:mn,cap:v9-mn,var999:v9};})();
+  const op=m_capital._op;
+  // economic credit capital: own confidence + own correlation (this is what diverges from the floor)
+  const wcdr=N((Ninv(pd)+Math.sqrt(rho)*Ninv(conf))/Math.sqrt(1-rho));
+  const econCredit=(wcdr-pd)*lgd*ead;
+  const regTot=regCredit+op.cap+market;
+  const econStand=econCredit+op.cap+market, econTot=econStand*(1-DIV);
+  const bind=econTot>regTot?'Economic':'Regulatory';
+  // stacks in $m
+  const W=640,H=232,colW=150,gap=110,x0=110;const maxV=Math.max(regTot,econStand)*1.12;
+  const s=svg(W,H);const baseY=H-40;const scale=(baseY-16)/maxV;
+  function stack(cx,items,label,tot){let y=baseY;items.forEach(([nm,v,col])=>{if(v<=0)return;const hh=v*scale;y-=hh;
+    s.add(`<rect x="${cx}" y="${y}" width="${colW}" height="${Math.max(1,hh-1.5)}" rx="2" fill="${col}" opacity="0.9"><title>${nm}: $${v.toFixed(1)}m</title></rect>`);
+    if(hh>15)s.add(`<text class="vlab num" x="${cx+colW/2}" y="${y+hh/2+3}" text-anchor="middle" fill="#fff">${v.toFixed(1)}</text>`);});
     s.add(`<text class="lbl" x="${cx+colW/2}" y="${baseY+16}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${label}</text>`);
-    const tot=items.reduce((a,i)=>a+i[1],0);s.add(`<text class="vlab num" x="${cx+colW/2}" y="${baseY+30}" text-anchor="middle" fill="var(--muted)">${tot.toFixed(1)}% RWA</text>`);}
-  stack(x0,reg,"Regulatory (Basel III)");
-  stack(x0+colW+gap,[["Economic capital (from tail)",econ,"var(--neg)"]],"Economic (own model)");
+    s.add(`<text class="vlab num" x="${cx+colW/2}" y="${baseY+30}" text-anchor="middle" fill="var(--muted)">$${tot.toFixed(1)}m</text>`);}
+  stack(x0,[["IRB credit",regCredit,"var(--pos)"],["AMA op-risk",op.cap,"var(--neg)"],["Market",market,"var(--neg2)"]],"Regulatory (IRB-A + AMA)",regTot);
+  stack(x0+colW+gap,[["Credit EC",econCredit*(1-DIV),"var(--pos)"],["Op-risk",op.cap*(1-DIV),"var(--neg)"],["Market",market*(1-DIV),"var(--neg2)"]],"Economic (own model)",econTot);
   box.innerHTML=`<div class="tiles">
-     <div class="tile"><div class="k">Regulatory minimum</div><div class="v num">${regTot.toFixed(1)}%</div><div class="d">of risk-weighted assets</div></div>
-     <div class="tile"><div class="k">Economic capital</div><div class="v num">${econ.toFixed(1)}%</div><div class="d">from your loss tail</div></div>
-     <div class="tile"><div class="k">Binding constraint</div><div class="v num" style="font-size:19px">${econ>regTot?'Economic':'Regulatory'}</div><div class="d">the higher one bites</div></div>
+     <div class="tile"><div class="k">Regulatory capital</div><div class="v num">$${regTot.toFixed(1)}m</div><div class="d">IRB $${regCredit.toFixed(1)} + op-risk $${op.cap.toFixed(1)} + mkt</div></div>
+     <div class="tile"><div class="k">Economic capital</div><div class="v num">$${econTot.toFixed(1)}m</div><div class="d">own model · ${(DIV*100)|0}% diversification</div></div>
+     <div class="tile"><div class="k">Economic ÷ regulatory</div><div class="v num">${(econTot/regTot*100).toFixed(0)}%</div><div class="d"><span class="pill ${bind==='Regulatory'?'down':'up'}">${bind==='Regulatory'?dn():up()}${bind} binds</span></div></div>
+     <div class="tile"><div class="k">IRB risk weight</div><div class="v num">${(K*12.5*100).toFixed(0)}%</div><div class="d">R=${(R*100).toFixed(0)}% supervisory corr.</div></div>
    </div>
-   <div class="panel"><div class="ph">Regulatory vs economic capital <span style="color:var(--faint)">% of RWA</span></div>${s.html()}
-     <div class="cap">The regulator builds capital bottom-up from Basel III minimums and buffers (CET1 4.5% → Tier-1 6% → Total 8%, plus conservation, countercyclical and G-SIB). The bank's own model sizes <b>economic capital</b> from the loss tail you're simulating. When ρ or PD rises, economic capital can exceed the regulatory floor — the McKinsey "R-Cap vs E-Cap" divergence.</div></div>`;
+   <div class="panel"><div class="ph">Regulatory (IRB-A + AMA) vs economic capital <span style="color:var(--faint)">$m · live from PD·LGD·EAD·ρ</span></div>
+   <div class="legend"><span><i style="background:var(--pos)"></i>credit</span><span><i style="background:var(--neg)"></i>operational (AMA)</span><span><i style="background:var(--neg2)"></i>market</span></div>
+   ${s.html()}
+   <div class="cap">Regulatory capital is the genuine <b>Basel IRB-Advanced</b> corporate risk-weight (supervisory correlation R(PD)=${(R*100).toFixed(0)}%, maturity adjustment) for credit <em>plus</em> <b>AMA operational risk</b> (loss-distribution Monte-Carlo, 99.9% over the 7 Basel event types) — additive, no diversification. Economic capital uses the bank's own ρ=${S.rho}% and confidence, less a ${(DIV*100)|0}% cross-risk diversification benefit. Raise ρ or PD and economic capital climbs toward — and can exceed — the floor. Same formulas economic-prophet's regulatory_capital module emits.</div></div>`;
 }
 
 function waterfall(id,steps,scope){
@@ -692,8 +712,62 @@ function m_inflation(){const box=document.getElementById("m-inflation");const s=
   box.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>{INF[b.dataset.k]=b.dataset.v;m_inflation();}));
 }
 
+// ---------- Marketing & conversion (info-theoretic) — economic-prophet conversion_infotheory ----------
+const COMPANIES=[
+ {name:"SocioProphet",ltv:900,margin:60,ch:{organic:[12000,540],paid_search:[8000,200],content:[6000,330],social:[9000,135],referral:[3000,210]},spend:{organic:8000,paid_search:45000,content:15000,social:22000,referral:4000}},
+ {name:"SourceOS",ltv:1400,margin:95,ch:{organic:[5000,260],paid_search:[4000,80],content:[7000,420],social:[3000,36],referral:[2000,150]},spend:{organic:6000,paid_search:30000,content:20000,social:9000,referral:3000}},
+ {name:"BearBrowser",ltv:240,margin:14,ch:{organic:[30000,900],paid_search:[10000,250],content:[8000,320],social:[25000,500],referral:[4000,160]},spend:{organic:5000,paid_search:40000,content:10000,social:30000,referral:3000}}];
+let MKco=0;
+const _log2=x=>x>0?Math.log2(x):0;
+const Hb=ps=>{const t=ps.reduce((a,b)=>a+b,0);return t<=0?0:-ps.reduce((a,p)=>a+(p>0?(p/t)*_log2(p/t):0),0);};
+function klb(p,q){const sp=p[0]+p[1],sq=q[0]+q[1];let o=0;for(let i=0;i<2;i++){const pn=p[i]/sp,qn=q[i]/sq;if(pn>0){if(qn<=0)return Infinity;o+=pn*Math.log2(pn/qn);}}return Math.max(0,o);}
+function analyzeCo(co){const names=Object.keys(co.ch);let V=0,Kc=0;names.forEach(n=>{V+=co.ch[n][0];Kc+=co.ch[n][1];});
+  const base=Kc/V,hy=Hb([base,1-base]);let hyc=0;names.forEach(n=>{const[v,k]=co.ch[n];hyc+=(v/V)*Hb([k/v,1-k/v]);});
+  const mi=Math.max(0,hy-hyc);let tot=0;const per={};
+  names.forEach(n=>{const[v,k]=co.ch[n],cr=k/v,info=(v/V)*klb([cr,1-cr],[base,1-base]);
+    per[n]={cr,info,spend:co.spend[n],cac:co.spend[n]/(k||1),roas:(k*co.ltv)/(co.spend[n]||1),lift:cr/base};tot+=info;});
+  const totSpend=names.reduce((a,n)=>a+co.spend[n],0);
+  names.forEach(n=>{per[n].infoShare=tot>0?per[n].info/tot:1/names.length;per[n].spendShare=co.spend[n]/totSpend;});
+  return {names,base,mi,per,blendedCac:totSpend/Kc,ltvCac:co.ltv/(totSpend/Kc),spendDiv:Hb(names.map(n=>co.spend[n])),totSpend,Kc};
+}
+function m_marketing(){const box=document.getElementById("m-marketing");const co=COMPANIES[MKco];const a=analyzeCo(co);
+  // info-share vs spend-share grouped bars — "are we spending where the information is?"
+  const W=660,H=250,padL=70,padR=12,padB=44,padT=12;const s=svg(W,H);const n=a.names.length;
+  const gw=(W-padL-padR)/n;const mx=Math.max(...a.names.flatMap(nm=>[a.per[nm].infoShare,a.per[nm].spendShare]))*1.15;
+  const Y=v=>H-padB-(v/mx)*(H-padB-padT);
+  for(let g=0;g<=4;g++){const gv=mx*g/4;s.add(`<line class="gridline" x1="${padL}" y1="${Y(gv)}" x2="${W-padR}" y2="${Y(gv)}"/><text class="tick" x="${padL-6}" y="${Y(gv)+3}" text-anchor="end">${(gv*100).toFixed(0)}%</text>`);}
+  s.add(`<line class="axis" x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}"/>`);
+  a.names.forEach((nm,i)=>{const x=padL+i*gw,bw=gw*0.32,p=a.per[nm];
+    s.add(`<rect x="${x+gw*0.12}" y="${Y(p.infoShare)}" width="${bw}" height="${H-padB-Y(p.infoShare)}" rx="2" fill="var(--pos)"><title>${nm} info share ${(p.infoShare*100).toFixed(0)}%</title></rect>`);
+    s.add(`<rect x="${x+gw*0.12+bw+3}" y="${Y(p.spendShare)}" width="${bw}" height="${H-padB-Y(p.spendShare)}" rx="2" fill="var(--accent)"><title>${nm} spend share ${(p.spendShare*100).toFixed(0)}%</title></rect>`);
+    const over=p.spendShare>p.infoShare*1.4;
+    s.add(`<text class="lbl" x="${x+gw/2}" y="${H-padB+15}" text-anchor="middle" ${over?'fill="var(--bad)" style="font-weight:600"':''}>${nm.replace('_',' ')}</text>`);
+    if(over)s.add(`<text class="tick" x="${x+gw/2}" y="${H-padB+27}" text-anchor="middle" fill="var(--bad)">overspend</text>`);});
+  const rows=a.names.map(nm=>{const p=a.per[nm];return `<tr><td><b>${nm.replace('_',' ')}</b></td><td class="num">${(p.cr*100).toFixed(1)}%</td>
+    <td class="num">$${(p.spend/1000).toFixed(0)}k</td><td class="num">$${p.cac.toFixed(0)}</td><td class="num">${p.roas.toFixed(1)}×</td>
+    <td class="num">${(p.infoShare*100).toFixed(0)}%</td><td><span class="pill ${p.lift>=1?'up':'down'}">${p.lift>=1?up():dn()}${p.lift.toFixed(1)}×</span></td></tr>`;}).join("");
+  box.innerHTML=`
+   <div class="seg" role="group" aria-label="Company">${COMPANIES.map((c,i)=>`<button data-co="${i}" aria-pressed="${i===MKco}">${c.name}</button>`).join("")}</div>
+   <div class="tiles">
+     <div class="tile"><div class="k">Blended CAC</div><div class="v num">$${a.blendedCac.toFixed(0)}</div><div class="d">${a.Kc.toLocaleString()} conversions</div></div>
+     <div class="tile"><div class="k">LTV : CAC</div><div class="v num">${a.ltvCac.toFixed(1)}×</div><div class="d"><span class="pill ${a.ltvCac>=3?'up':'down'}">${a.ltvCac>=3?up():dn()}${a.ltvCac>=3?'healthy':'thin'}</span></div></div>
+     <div class="tile"><div class="k">Mutual information</div><div class="v num">${a.mi.toFixed(3)}</div><div class="d">bits — channel↔conversion</div></div>
+     <div class="tile"><div class="k">Spend diversity</div><div class="v num">${a.spendDiv.toFixed(2)}</div><div class="d">bits — allocation entropy</div></div>
+   </div>
+   <div class="panel"><div class="ph">Information share vs spend share — ${co.name}</div>
+     <div class="legend"><span><i style="background:var(--pos)"></i>information gain (attribution)</span><span><i style="background:var(--accent)"></i>share of spend</span></div>
+     ${s.html()}
+     <div class="cap">A channel's <b>information share</b> is its contribution to reducing uncertainty about conversion — a principled, non-linear attribution (mutual information), not last-touch. Where the <b>spend</b> bar towers over the <b>information</b> bar, budget is going to a channel that isn't moving conversions: reallocate. This runs economic-prophet's <code>conversion_infotheory</code> on our own companies.</div>
+   </div>
+   <div class="panel"><div class="ph">Channels — ${co.name}</div>
+     <table><thead><tr><th>Channel</th><th>CR</th><th>Spend</th><th>CAC</th><th>ROAS</th><th>Info share</th><th>Lift</th></tr></thead>
+     <tbody>${rows}</tbody></table></div>`;
+  box.querySelectorAll(".seg button").forEach(bt=>bt.addEventListener("click",()=>{MKco=+bt.dataset.co;m_marketing();}));
+}
+
 const RENDER={"m-el":m_el,"m-sim":m_sim,"m-measures":m_measures,"m-capital":m_capital,"m-ep":m_ep,"m-var":m_var,
-  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf,"m-ross":m_ross,"m-inflation":m_inflation};
+  "m-ftp":m_ftp,"m-recovery":m_recovery,"m-ead":m_ead,"m-agg":m_agg,"m-models":m_models,"m-dcf":m_dcf,"m-ross":m_ross,
+  "m-inflation":m_inflation,"m-marketing":m_marketing};
 function render(){railLabels();(RENDER[active]||(()=>{}))();}
 document.getElementById("foot").innerHTML=`<b>Illustrative data</b>, computed live from the models on this page — not real portfolio figures. In production these views are witnesses over governed facts: PD·LGD·EAD and the loss tail from <code>diligence.risk.pack</code> / internal-model #1293, EP &amp; variance from <code>economic-prophet</code>, surfaced through <code>lattice-studio</code> / <code>dashboard-bff</code>. Truthful, reproducible-from-source — no captured third-party images or branding. Colorblind-safe throughout: blue/orange not red/green, status shown with icon + label.`;
 go("m-el");
