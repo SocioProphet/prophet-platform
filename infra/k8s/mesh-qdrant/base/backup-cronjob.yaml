@@ -20,6 +20,13 @@ spec:
           containers:
             - name: qdrant-snapshot
               image: curlimages/curl:8.6.0
+              env:
+                # Retention: keep the newest N snapshots per collection; older ones are
+                # DELETEd each run (see the pruning block below). Snapshots are full copies
+                # living on the same volume they back up, so unbounded accumulation would
+                # eventually take out the thing it is backing up.
+                - name: RETAIN
+                  value: "7"
               args:
                 - /bin/sh
                 - -c
@@ -52,6 +59,27 @@ spec:
                       echo "Snapshotting collection: $col"
                       # Not piped -- set -e already catches a bare failing command like this.
                       curl -sf -X POST "http://mesh-qdrant:6333/collections/${col}/snapshots"
+
+                      # Retention (salvaged from #1114): main's #1207 only ever POSTed -- it
+                      # never called DELETE /collections/{c}/snapshots/{s}, so snapshots would
+                      # accumulate forever. Keep the newest $RETAIN, delete the rest. Reuse the
+                      # same no-jq grep/sed extraction as the collections list above; snapshot
+                      # names carry a timestamp and sort chronologically, so the oldest sort
+                      # first. Pruning is best-effort: a failed listing or DELETE is logged and
+                      # skipped, never fatal -- creating a snapshot matters more than reclaiming
+                      # the old one, and the snapshot above already succeeded.
+                      SNAPS=$(curl -sf "http://mesh-qdrant:6333/collections/${col}/snapshots" | grep -o '"name":"[^"]*"' | sed 's/"name":"//;s/"$//' || true)
+                      TOTAL=$(printf '%s\n' "$SNAPS" | grep -c . || true)
+                      if [ "$TOTAL" -gt "$RETAIN" ]; then
+                        DROP=$((TOTAL - RETAIN))
+                        echo "Retention: $col has $TOTAL snapshots, deleting $DROP oldest (keep $RETAIN)"
+                        printf '%s\n' "$SNAPS" | sort | head -n "$DROP" | while read -r snap; do
+                          [ -z "$snap" ] && continue
+                          echo "Retention: deleting $col/$snap"
+                          curl -sf -X DELETE "http://mesh-qdrant:6333/collections/${col}/snapshots/${snap}" \
+                            || echo "WARN: could not delete $col/$snap" >&2
+                        done
+                      fi
                     done
                   fi
                   echo "Backup run complete"
