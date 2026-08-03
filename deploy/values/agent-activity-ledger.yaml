@@ -5,7 +5,7 @@
 # `zot-pull` dockerconfigjson secret (namespace socioprophet).
 #
 # New-service bootstrap: tag starts at `latest`; gitops-promote pins the immutable `sha-<commit>` tag
-# on the first successful build+merge (same new-service pattern as holmes/synapse-bridge/owl-reasoner).
+# on the first successful build+merge (same new-service pattern as holmes/synapse-bridge/sophos-reasoner).
 # The pin lands before Argo ever syncs, so the moving-tag + IfNotPresent trap does not apply once merged.
 #
 # The cockpit's Executions Ledger reads /executions; nginx routes /svc/executions → this service.

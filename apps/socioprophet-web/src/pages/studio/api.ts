@@ -44,7 +44,7 @@ export const graph = {
   ask: (question: string) => call<any>(CFG.hellgraph, '/api/graph/ask', { method: 'POST', body: JSON.stringify({ question }) }),
 }
 
-// ── owl-reasoner ─────────────────────────────────────────────────────────────────
+// ── sophos-reasoner ─────────────────────────────────────────────────────────────────
 export const reasoner = {
   reason: (turtle: string, inference = 'rdfs', explain = true, shapes?: string) =>
     call<any>(CFG.reason, '/reason', { method: 'POST', body: JSON.stringify({ turtle, inference, explain, shapes }) }),
@@ -62,7 +62,7 @@ export interface Health { name: string; ok: boolean; detail?: string }
 export async function health(): Promise<Health[]> {
   const probes: [string, string, string][] = [
     ['hellgraph', CFG.hellgraph, '/healthz'],
-    ['owl-reasoner', CFG.reason, '/healthz'],
+    ['sophos-reasoner', CFG.reason, '/healthz'],
     ['entity-resolution', CFG.er, '/healthz'],
     ['lattice-studio', CFG.studio, '/healthz'],
   ]

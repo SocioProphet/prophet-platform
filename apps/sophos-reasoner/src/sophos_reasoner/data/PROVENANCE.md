@@ -1,4 +1,4 @@
-# KKO — KBpedia Knowledge Ontology (vendored into owl-reasoner)
+# KKO — KBpedia Knowledge Ontology (vendored into sophos-reasoner)
 
 **File:** `kko-2.10.n3`
 **SHA-256:** `d907919fb40f20ed39a7fde0e8d114027449d9354a1976ce8248db5634cb7b07`
@@ -38,11 +38,11 @@ engine's copy instead was considered and REJECTED on three concrete grounds:
 1. **The engine does not ship it.** `@socioprophet/hellgraph`'s `package.json` publishes
    `files: ["ts/dist", "bin"]`. The `.n3` is not in the tarball at any version. The engine ships
    the ontology *pre-parsed* as `ts/src/kko-data.ts`, a TypeScript literal — not RDF.
-2. **No runtime to read it with.** owl-reasoner is `python:3.12-slim` + rdflib. Consuming the
+2. **No runtime to read it with.** sophos-reasoner is `python:3.12-slim` + rdflib. Consuming the
    engine's copy means either adding Node to a Python image to evaluate a `.ts` module, or
    re-serialising a TS literal back into RDF — replacing a verified file with a lossy transform.
-3. **Docker build contexts are per-app.** `apps/owl-reasoner/Dockerfile` builds from
-   `apps/owl-reasoner`. A path into `apps/hellgraph-service` or into `node_modules` is not
+3. **Docker build contexts are per-app.** `apps/sophos-reasoner/Dockerfile` builds from
+   `apps/sophos-reasoner`. A path into `apps/hellgraph-service` or into `node_modules` is not
    reachable from that context without widening it to the monorepo root.
 
 So the copy stays — and the duplication is made SAFE rather than merely tolerated: every copy pins

@@ -18,7 +18,7 @@ config:
   HT_IE_URL: "http://ie-engine.socioprophet.svc.cluster.local:8080"                # free-text → facts (spaCy)
   HT_HOLMES_URL: "http://holmes.socioprophet.svc.cluster.local:8091"               # claim grounding (anti-Watson)
   HT_HELLGRAPH_URL: "http://hellgraph-service.socioprophet.svc.cluster.local:8090" # land + hybrid semantic search
-  HT_OWL_URL: "http://owl-reasoner.socioprophet.svc.cluster.local:8080"            # TTL → entailments
+  HT_OWL_URL: "http://sophos-reasoner.socioprophet.svc.cluster.local:8080"            # TTL → entailments
   # Routed through the receipt-gateway (deploy/values/receipt-gateway.yaml) so every embedding call is
   # receipted; it forwards transparently to the `embeddings` service and returns the same response.
   HT_EMBEDDINGS_URL: "http://receipt-gateway.socioprophet.svc.cluster.local:8898/v1/embeddings"

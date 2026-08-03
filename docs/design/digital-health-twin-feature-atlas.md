@@ -225,7 +225,7 @@
 ## 9 · Reasoning & twin intelligence (AI-first)
 *Edge ✦: ontology-typed, proof-carrying, epistemic-labeled reasoning — cited, never a black box.*
 191. Ontology-typed facts (SNOMED/LOINC/RxNorm/health:) ✦`[0]`
-192. OWL/RDFS reasoning over the twin (owl-reasoner) ✦`[1]`
+192. OWL/RDFS reasoning over the twin (sophos-reasoner) ✦`[1]`
 193. Cross-system correlation surfacing (informational) ✦`[2]`
 194. Plain-language record summarization (extractive, cited) ✦`[1]`
 195. "Explain this result / condition / med" (cited, non-dx) ✦`[1]`

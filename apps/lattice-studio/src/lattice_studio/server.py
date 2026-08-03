@@ -59,7 +59,7 @@ SPARK_RUNNER_URL = os.getenv("SPARK_RUNNER_URL", "")
 SPARK_RUNNER_TOKEN = os.getenv("SPARK_RUNNER_TOKEN", "")
 RECEIPT_SERVICES = [s.strip() for s in os.getenv(
     "STUDIO_RECEIPT_SERVICES",
-    "hellgraph-service,lattice-studio,search-orchestrator,owl-reasoner,entity-resolution,eval-fabric-api",
+    "hellgraph-service,lattice-studio,search-orchestrator,sophos-reasoner,entity-resolution,eval-fabric-api",
 ).split(",") if s.strip()]
 # Notebook runtime (lattice-forge, in the isolated sovereign-runtime namespace).
 FORGE_URL = os.getenv("FORGE_URL", "http://lattice-forge.sovereign-runtime.svc.cluster.local:8870")

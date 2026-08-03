@@ -1,7 +1,7 @@
-"""owl-reasoner — RDFS/OWL entailment + SHACL, over KKO-typed Turtle."""
+"""sophos-reasoner — RDFS/OWL entailment + SHACL, over KKO-typed Turtle."""
 from fastapi.testclient import TestClient
-from owl_reasoner.server import app
-from owl_reasoner.reasoner import reason
+from sophos_reasoner.server import app
+from sophos_reasoner.reasoner import reason
 
 client = TestClient(app)
 
@@ -47,7 +47,7 @@ def test_reason_project_degrades_when_studio_unreachable():
 
 
 def test_tbox_graph_extracts_classes_and_edges():
-    from owl_reasoner.ontology_graph import tbox_graph
+    from sophos_reasoner.ontology_graph import tbox_graph
     ttl = """@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix ex: <http://ex/> .
@@ -80,7 +80,7 @@ ex:owns a owl:ObjectProperty ; rdfs:label "owns" ; rdfs:domain ex:Person ; rdfs:
 
 
 def test_extract_ontology_model():
-    from owl_reasoner.ontology_doc import extract_ontology
+    from sophos_reasoner.ontology_doc import extract_ontology
     m = extract_ontology(DOC_TTL)
     assert m["header"]["title"] == "Example Ontology" and m["header"]["version"] == "1.0"
     dog = next(c for c in m["classes"] if c["label"] == "Dog")
@@ -195,7 +195,7 @@ def test_with_kko_endpoint():
 
 
 def test_tabular_rdf_maps_rows_with_class_and_predicates():
-    from owl_reasoner.tabular_rdf import map_rows
+    from sophos_reasoner.tabular_rdf import map_rows
     rows = [
         {"id": "1", "full_name": "Jane Doe", "employer": "acme"},
         {"id": "2", "full_name": "John Roe", "employer": "acme"},
@@ -242,7 +242,7 @@ def test_virtualize_400_without_subject_template():
 
 
 def test_kko_status_separates_requested_from_loaded():
-    from owl_reasoner.reasoner import KKO_SHA256, kko_tbox_status
+    from sophos_reasoner.reasoner import KKO_SHA256, kko_tbox_status
 
     assert kko_tbox_status(False, 0) == {"requested": False, "loaded": False, "triples": 0}
     # A LOADED TBox additionally carries the digest + source of the bytes the closure ran over,
@@ -254,7 +254,7 @@ def test_kko_status_separates_requested_from_loaded():
 
 
 def test_kko_status_refuses_to_claim_loaded_with_no_triples():
-    from owl_reasoner.reasoner import kko_tbox_status
+    from sophos_reasoner.reasoner import kko_tbox_status
 
     s = kko_tbox_status(True, 0)
     assert s["requested"] is True
@@ -268,7 +268,7 @@ def test_kko_reports_not_loaded_when_the_tbox_file_is_absent(monkeypatch):
     Point _KKO_PATH at a file that does not exist, clear the lru_cache, and confirm the
     reasoner reports loaded=False instead of echoing the request.
     """
-    from owl_reasoner import reasoner as R
+    from sophos_reasoner import reasoner as R
     from pathlib import Path
 
     R._kko_tbox.cache_clear()
@@ -284,7 +284,7 @@ def test_kko_reports_not_loaded_when_the_tbox_file_is_absent(monkeypatch):
 
 
 def test_kko_actually_loads_from_the_repo_checkout():
-    from owl_reasoner import reasoner as R
+    from sophos_reasoner import reasoner as R
 
     R._kko_tbox.cache_clear()
     out = R.reason("<urn:a> a <urn:B> .", with_kko=True)
@@ -301,5 +301,5 @@ def test_kko_tbox_is_declared_as_package_data():
 
     root = Path(__file__).resolve().parents[1]
     cfg = tomllib.loads((root / "pyproject.toml").read_text())
-    patterns = cfg["tool"]["setuptools"]["package-data"]["owl_reasoner"]
+    patterns = cfg["tool"]["setuptools"]["package-data"]["sophos_reasoner"]
     assert any(p.endswith(".n3") for p in patterns), f"the TBox must ship in the wheel; got {patterns}"

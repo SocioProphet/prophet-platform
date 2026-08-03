@@ -366,22 +366,22 @@ def test_moat_header_computes_epistemic_and_verified(monkeypatch):
 
 def test_receipts_aggregate_across_the_evidence_fabric(monkeypatch):
     import lattice_studio.server as srv
-    monkeypatch.setattr(srv, "RECEIPT_SERVICES", ["hellgraph-service", "owl-reasoner", "down-svc"])
+    monkeypatch.setattr(srv, "RECEIPT_SERVICES", ["hellgraph-service", "sophos-reasoner", "down-svc"])
 
     async def fake_req(client, method, url, json=None):
         if "service=hellgraph-service" in url:
             return ({"items": [{"correlation_id": "hg-1", "received_at": "2026-07-17T10:00:00Z", "verdict": "ok"}]}, None)
-        if "service=owl-reasoner" in url:
+        if "service=sophos-reasoner" in url:
             return ({"items": [{"correlation_id": "owl-1", "received_at": "2026-07-17T11:00:00Z", "receipt": {"verdict": "sound"}}]}, None)
         return (None, "connection refused")   # down-svc degrades only itself
     monkeypatch.setattr(srv, "_req", fake_req)
 
     b = client.get("/api/studio/receipts").json()
     assert b["count"] == 2 and b["services_reachable"] == 2
-    assert b["services"] == {"hellgraph-service": True, "owl-reasoner": True, "down-svc": False}
+    assert b["services"] == {"hellgraph-service": True, "sophos-reasoner": True, "down-svc": False}
     # newest first + nested verdict extracted + a replayable bundle ref
     assert b["receipts"][0]["correlation_id"] == "owl-1" and b["receipts"][0]["verdict"] == "sound"
-    assert b["receipts"][0]["bundle_ref"] == "/v1/receipts/owl-reasoner/owl-1"
+    assert b["receipts"][0]["bundle_ref"] == "/v1/receipts/sophos-reasoner/owl-1"
     assert b["receipts"][1]["correlation_id"] == "hg-1" and b["receipts"][1]["verdict"] == "ok"
 
 

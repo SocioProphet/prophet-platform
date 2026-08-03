@@ -30,7 +30,7 @@ async function postAt<T>(base: string, p: string, body: unknown): Promise<T> {
   const r = await fetch(`${base}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`${p} ${r.status}`); return r.json();
 }
-// owl-reasoner — type-system / ontology entailment
+// sophos-reasoner — type-system / ontology entailment
 export const reason = (turtle: string, inference = 'rdfs') =>
   postAt<{ input_triples: number; entailed_triples: number; entailments: any[] }>('/svc/reason', '/reason', { turtle, inference });
 // entity-resolution — resolve mentions → golden records

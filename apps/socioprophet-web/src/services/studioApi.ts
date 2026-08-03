@@ -257,10 +257,10 @@ export interface Receipts { receipts: Receipt[]; count: number; services: Record
 const STUB_RECEIPTS: Receipts = {
   receipts: [
     { service: "hellgraph-service", correlation_id: "hg-9f2a", received_at: "just now", verdict: "ok", kind: "graph-write", bundle_ref: "/v1/receipts/hellgraph-service/hg-9f2a" },
-    { service: "owl-reasoner", correlation_id: "owl-71c", received_at: "2m ago", verdict: "sound", kind: "reason", bundle_ref: "/v1/receipts/owl-reasoner/owl-71c" },
+    { service: "sophos-reasoner", correlation_id: "owl-71c", received_at: "2m ago", verdict: "sound", kind: "reason", bundle_ref: "/v1/receipts/sophos-reasoner/owl-71c" },
     { service: "entity-resolution", correlation_id: "er-33b", received_at: "6m ago", verdict: "merged", kind: "resolve", bundle_ref: "/v1/receipts/entity-resolution/er-33b" },
   ],
-  count: 3, services: { "hellgraph-service": true, "owl-reasoner": true, "entity-resolution": true }, services_reachable: 3,
+  count: 3, services: { "hellgraph-service": true, "sophos-reasoner": true, "entity-resolution": true }, services_reachable: 3,
   detail_endpoint: "/v1/receipts/{service}/{correlation_id}",
 };
 
