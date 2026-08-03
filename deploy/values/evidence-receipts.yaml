@@ -1,3 +1,3 @@
 # evidence-receipts
-image: { repository: evidence-receipts, tag: latest }
+image: { repository: evidence-receipts, tag: sha-d3566908a3d0aea902e5649aff772fa9abfa9d3a }
 service: { port: 8080, portName: http }
