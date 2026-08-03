@@ -31,6 +31,23 @@ function readJson(req) {
 }
 function send(res, code, obj) { const b = JSON.stringify(obj); res.writeHead(code, { 'content-type': 'application/json' }); res.end(b); }
 
+const ALLOWED_OPS = new Set(['read', 'commit', 'pr-open']);
+const FORCED_DENY = ['.env', '**/*secret*', 'prod/**', 'node_modules/**', 'dist/**'];
+function constrainScope(requested) {
+  // The AUTHORITY bounds what a token may do, never the caller. Requested ops are
+  // intersected with a fixed allowlist and protected paths are always denied, so a
+  // caller-supplied scope cannot escalate what the signed token grants.
+  const s = (requested && typeof requested === 'object') ? requested : {};
+  const ops = (Array.isArray(s.ops) ? s.ops.filter((o) => ALLOWED_OPS.has(o)) : []);
+  return {
+    repos: Array.isArray(s.repos) ? s.repos.slice(0, 200) : [],
+    branches: Array.isArray(s.branches) ? s.branches.slice(0, 50) : ['work/*'],
+    ops: ops.length ? ops : ['read'],
+    paths_allow: Array.isArray(s.paths_allow) ? s.paths_allow.slice(0, 100) : ['**'],
+    paths_deny: [...new Set([...(Array.isArray(s.paths_deny) ? s.paths_deny : []), ...FORCED_DENY])],
+  };
+}
+
 function issue(payload) {
   // fill server-authoritative fields; the caller supplies scope/intent/policy refs
   const sha = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
@@ -39,7 +56,7 @@ function issue(payload) {
     session_id: payload.session_id || crypto.randomUUID(),
     agent_id: payload.agent_id || crypto.randomUUID(),
     issuer_node: ISSUER,
-    scope: payload.scope || { repos: [], branches: [], ops: ['read'], paths_allow: [], paths_deny: [] },
+    scope: constrainScope(payload.scope),
     intent_hash: payload.intent_hash || sha('agentic-shell'),
     policy_decision_ref: payload.policy_decision_ref || 'policy-fabric://decisions/source-control/agentic-shell',
     grant_ref: payload.grant_ref || 'mcp-a2a://grants/source-control/agentic-shell',
@@ -66,7 +83,8 @@ const server = http.createServer(async (req, res) => {
     }
     return send(res, 404, { ok: false, reason: 'not found' });
   } catch (e) {
-    return send(res, 400, { ok: false, reason: String(e.message || e) });
+    console.error('authority error:', e && e.stack ? e.stack : e); // detail stays server-side
+    return send(res, 400, { ok: false, reason: 'bad request' });               // generic to the client
   }
 });
 
