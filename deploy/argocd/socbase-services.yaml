@@ -24,7 +24,26 @@
 # Prereqs (created out of band, NOT in git — same convention as zot):
 #   * `zot-pull` secret — the gateway image is pulled through zot
 #   * socbase-auth / socbase-rest running (platform-services)
-# Sync-wave 2 so the gateway lands after the services it fronts.
+#   * `postgres-admin` secret (key: password) — schema Job connects as admin
+#   * `socbase-authenticator` secret (key: password) — the login role PostgREST
+#     uses. Generate: openssl rand -base64 24. WITHOUT THIS THE SCHEMA JOB FAILS.
+#
+# Sync waves: 1 = schema bootstrap, 2 = gateway (lands after the services it
+# fronts, and after the roles the data door needs exist).
+#
+# WHY THE SCHEMA JOB IS HERE. It was previously left as a MANUAL step — the only
+# reference to charts/socbase-schema anywhere in deploy/ was a comment in
+# platform-services.yaml saying to "install it separately". Nobody did, so the
+# authenticator/anon/service_role roles were never created and socbase has been
+# reported DOWN (see docs/design/estate-unified-sso.md). A bootstrap step that
+# depends on someone remembering is not a bootstrap step. It could not join the
+# platform-services ApplicationSet because that one renders the generic
+# charts/socioprophet-service chart per element and has no Job/hook shape; this
+# ApplicationSet takes a path per element, and ArgoCD detects the Helm chart from
+# its Chart.yaml, so it fits here without changing either chart.
+#
+# Re-running is SAFE: socbase-schema.sql guards every role with
+# `if not exists (select 1 from pg_roles ...)`, so selfHeal cannot corrupt state.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -38,6 +57,10 @@ spec:
         elements:
           # foundation: the ONE base URL contract @supabase/supabase-js requires
           # (/auth/v1 + /rest/v1) — the auth/data door in front of socbase-auth/rest.
+          # foundation: creates authenticator/anon/service_role + app tables and
+          # RLS. Waits for GoTrue to create auth.users first (the Job polls, it
+          # does not assume ordering), so wave 1 is safe even on a cold cluster.
+          - { name: schema, path: charts/socbase-schema, wave: "1", tier: foundation }
           - { name: gateway, path: infra/k8s/socbase-gateway/base, wave: "2", tier: foundation }
   template:
     metadata:
