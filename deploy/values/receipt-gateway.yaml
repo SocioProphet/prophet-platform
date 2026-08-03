@@ -7,7 +7,7 @@
 # Reference tier: a replaceable governance surface in FRONT of the embedder. First-party ⇒ built by
 # images.yml, so no image.registry override (inherits the platform default; the preflight contract asserts it).
 # tag:latest is the bootstrap for a brand-new service; gitops-promote sha-pins it after the first build.
-image: { repository: receipt-gateway, tag: latest }
+image: { repository: receipt-gateway, tag: sha-d3566908a3d0aea902e5649aff772fa9abfa9d3a }
 
 # The gateway listens on 8898 (its Dockerfile default). memoryd + any other consumer reach it here.
 service: { port: 8898, portName: http }
