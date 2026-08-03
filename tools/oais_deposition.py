@@ -12,9 +12,11 @@ content address a DataCite version DOI binds to (#1267).
 
 TEETH — a deposition is ACCEPTED iff:
   1. the AIP fixity is SHA-256 with a 64-hex digest (missing/other -> REJECTED);
-  2. when SIP content bytes are resolvable, the AIP fixity digest MATCHES the
-     SHA-256 of those bytes (tampered content -> REJECTED — fixity is verified,
-     not merely present);
+  2. a PATH-shaped SIP content_locator MUST resolve and the AIP fixity digest
+     MATCHES the SHA-256 of those bytes (tampered content -> REJECTED, and a path
+     locator that does not resolve -> REJECTED — fixity is verified, not merely
+     present; an opaque "(inline:…)" SIP has no in-tree bytes to re-hash and is
+     trusted on its ingest-time fixity);
   3. the AIP carries the required preservation-metadata keys (missing -> REJECTED);
   4. the AIP carries an OAI-PMH-shaped record (missing/wrong prefix -> REJECTED);
   5. if a DIP is present, its fixity MATCHES the AIP fixity exactly
@@ -85,10 +87,15 @@ def verify_deposition(dep: dict, root: Path | None = None) -> DepositionVerdict:
     # 1. AIP fixity shape
     aip_fixity_ok = _check_fixity_shape(aip_fixity, "AIP", reasons)
 
-    # 2. fixity actually verifies the SIP bytes when they are resolvable
+    # 2. fixity actually verifies the SIP bytes. A PATH-shaped content_locator is an
+    #    in-tree object reference and MUST resolve: an asserted-but-absent object
+    #    leaves the fixity unverifiable and fails closed ("no bytes" != "faithful
+    #    fixity"). An opaque/inline SIP (the "(inline:Nb)" sentinel from ingest_sip,
+    #    or any parenthesized handle) carries no in-tree path to re-hash — its fixity
+    #    was computed from the bytes at ingest — so the byte re-check is skipped.
     sip = dep.get("sip") or {}
     locator = sip.get("content_locator")
-    if aip_fixity_ok and locator:
+    if aip_fixity_ok and locator and not locator.startswith("("):
         candidate = (root / locator) if not Path(locator).is_absolute() else Path(locator)
         if candidate.is_file():
             actual = sha256_hex(candidate.read_bytes())
@@ -96,6 +103,10 @@ def verify_deposition(dep: dict, root: Path | None = None) -> DepositionVerdict:
                 reasons.append(
                     f"AIP: fixity digest does not match SIP content bytes "
                     f"(declared {aip_fixity['digest'][:12]}..., actual {actual[:12]}...) — content tampered or wrong")
+        else:
+            reasons.append(
+                f"AIP: SIP content_locator {locator!r} does not resolve to a file "
+                "— fixity is unverifiable (fail-closed)")
 
     # 3. preservation metadata
     pm = aip.get("preservation_metadata") or {}

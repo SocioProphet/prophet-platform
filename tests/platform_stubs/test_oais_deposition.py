@@ -98,6 +98,18 @@ def test_tampered_content_is_rejected():
     assert v.accepted is False and any("does not match SIP content bytes" in r for r in v.reasons)
 
 
+# ── TEETH 6b: a content_locator that does not resolve is REJECTED ──
+# Fail-closed: content_locator is contract-required and points in-tree, so a
+# deposition pointing at bytes which are not there leaves the fixity unverifiable
+# and must not silently pass ("no bytes" != "faithful fixity").
+def test_unresolvable_content_locator_is_rejected():
+    mod = _mod()
+    dep = _dep()
+    dep["sip"]["content_locator"] = "schemas/eval/examples/oais-content/does-not-exist.txt"
+    v = mod.verify_deposition(dep, root=ROOT)
+    assert v.accepted is False and any("does not resolve to a file" in r for r in v.reasons)
+
+
 # ── TEETH 7: ingest_sip -> self-consistent, ACCEPTED, schema-valid AIP ──
 def test_ingest_roundtrips_and_is_accepted():
     mod = _mod()
