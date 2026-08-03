@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.ai/crystal-atlas/analytic-model-catalog-entry.v0.schema.json",
+  "title": "analytic-model-catalog-entry.v0",
+  "description": "A reusable INTERNAL analytic/ML model as a governed Crystal Atlas catalog entry. Distinct from model-catalog-entry.v0 (which catalogs LLM inference providers): this catalogs decisioning/predictive/analytic models (fraud, recommenders, churn, forecasting, ...). Every entry is a governed artifact — its output is an emitted-fact contract, and per the effect-canary discipline a model is only 'verified' when a named eval fixture passes (a card without a passing fixture is unverified, never silently trusted).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model_id", "family", "task_type", "status", "verified", "governance"],
+  "properties": {
+    "model_id": { "type": "string", "pattern": "^internal-model:[a-z0-9-]+$" },
+    "display_name": { "type": "string" },
+    "family": {
+      "type": "string",
+      "enum": ["fraud", "recommender", "predictive", "forecasting", "risk", "pricing", "nlp", "matching", "resolution", "retrieval", "extraction"]
+    },
+    "task_type": {
+      "type": "string",
+      "enum": ["classification", "regression", "ranking", "clustering", "anomaly-detection", "forecasting", "retrieval", "extraction", "matching", "optimization"]
+    },
+    "inputs": { "type": "array", "items": { "type": "string" } },
+    "output_contract": {
+      "type": ["string", "null"],
+      "description": "The emitted-fact contract this model produces (existing for HAVE/PARTIAL; a proposed target name for GAP)."
+    },
+    "output_contract_exists": { "type": "boolean" },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admissibility_tier", "provenance_required"],
+      "properties": {
+        "admissibility_tier": { "type": "string", "enum": ["RAW", "VALIDATED", "GOVERNED", "CANONICAL"] },
+        "provenance_required": { "type": "boolean" }
+      }
+    },
+    "eval_fixture": {
+      "type": ["string", "null"],
+      "description": "Path/ref to the governed eval fixture that must pass for this model to be 'verified' (effect-canary)."
+    },
+    "verified": {
+      "type": "boolean",
+      "description": "TRUE only when eval_fixture is set AND realizing_component is set. Enforced by the validator."
+    },
+    "status": { "type": "string", "enum": ["HAVE", "PARTIAL", "GAP"] },
+    "realizing_component": {
+      "type": ["string", "null"],
+      "description": "Service/app that realizes the model today (null for GAP)."
+    },
+    "grounded_issue": { "type": ["integer", "null"] },
+    "notes": { "type": "string" }
+  }
+}
