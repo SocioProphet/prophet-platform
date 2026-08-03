@@ -1,0 +1,99 @@
+{
+  "version": "0.1",
+  "task_id": "urn:srcos:task:586b338634674f6b8907771cfc21e0ec",
+  "goal": "Audit all repos in Developers for failing CI, stale dependencies, and missing owners. Draft issues but do not open them.",
+  "scope": {
+    "orgs": [
+      "SocioProphet"
+    ],
+    "selector": "group:Developers"
+  },
+  "policies": [
+    "policy://sourceos/terminal/v1",
+    "consent-plane/001"
+  ],
+  "autonomy_level": "L2",
+  "budget": {
+    "wall_seconds": 900
+  },
+  "owner": "human:mdheller",
+  "state": "waiting_for_approval",
+  "created_at": "2026-08-03T02:51:55.018823Z",
+  "updated_at": "2026-08-03T02:51:55.019152Z",
+  "actions": [
+    {
+      "action_id": "act:94372dcccea8",
+      "capability": "issue.draft",
+      "args": {},
+      "state": "staged",
+      "risk_tier": "low",
+      "why": "drafting an issue is reversible and does not open it",
+      "evidence_refs": [
+        "ev:ci-fail-001"
+      ]
+    },
+    {
+      "action_id": "act:f80602280da5",
+      "capability": "dependency.update",
+      "args": {},
+      "state": "proposed",
+      "risk_tier": "medium",
+      "why": "touches build config; needs contextual review",
+      "evidence_refs": [
+        "ev:dep-stale-002"
+      ]
+    }
+  ],
+  "outputs": [],
+  "audit_log": [
+    {
+      "at": "2026-08-03T02:51:55.018823Z",
+      "event": "state:drafting",
+      "to": "drafting",
+      "actor": "human:mdheller"
+    },
+    {
+      "at": "2026-08-03T02:51:55.019055Z",
+      "event": "action:staged",
+      "to": "staged",
+      "actor": "system",
+      "reason": "drafting an issue is reversible and does not open it"
+    },
+    {
+      "at": "2026-08-03T02:51:55.019091Z",
+      "event": "action:proposed",
+      "to": "proposed",
+      "actor": "system",
+      "reason": "touches build config; needs contextual review"
+    },
+    {
+      "at": "2026-08-03T02:51:55.019118Z",
+      "event": "state:ready",
+      "from": "drafting",
+      "to": "ready",
+      "actor": "human:mdheller"
+    },
+    {
+      "at": "2026-08-03T02:51:55.019136Z",
+      "event": "state:running",
+      "from": "ready",
+      "to": "running",
+      "actor": "system"
+    },
+    {
+      "at": "2026-08-03T02:51:55.019152Z",
+      "event": "state:waiting_for_approval",
+      "from": "running",
+      "to": "waiting_for_approval",
+      "actor": "system",
+      "reason": "medium-risk action staged"
+    }
+  ],
+  "approval_requirements": {
+    "tier": "medium",
+    "requires_human": true,
+    "reason": "a medium-risk action requires contextual review"
+  },
+  "hash_algo": "sha256",
+  "hash": "sha256:7a7b13d83a18e3fc4cb530d07131106987e8b2e158a0142e6f089723476b0707"
+}

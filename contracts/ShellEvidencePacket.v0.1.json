@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.org/contracts/ShellEvidencePacket.v0.1.json",
+  "title": "ShellEvidencePacket",
+  "description": "Evidence backing a task/action finding, in the supervisory-shell shape (resource -> claim -> confidence -> freshness -> policy relevance). Distinct from prophet-platform's science-claim evidence_packet; this is the trust-surface (right-inspector) evidence the operator inspects before approving an action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "evidence_id", "resource_id", "source_type", "source_pointer", "extracted_claim", "confidence", "freshness"],
+  "properties": {
+    "version": { "const": "0.1" },
+    "evidence_id": { "type": "string" },
+    "resource_id": { "type": "string", "description": "the repo/service/entity this evidence is about" },
+    "source_type": { "type": "string", "enum": ["ci", "security-scan", "dependency", "ownership", "activity", "docs", "policy", "other"] },
+    "source_pointer": { "type": "string", "description": "URL / path / query that produced the claim (reproducible)" },
+    "extracted_claim": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "freshness": { "type": "string", "format": "date-time", "description": "when the underlying signal was observed" },
+    "policy_relevance": { "type": "array", "items": { "type": "string" }, "description": "policy refs this evidence bears on" }
+  }
+}

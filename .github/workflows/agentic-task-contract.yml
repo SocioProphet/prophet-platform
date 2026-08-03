@@ -1,0 +1,33 @@
+name: AgenticTask contract
+on:
+  pull_request:
+    paths:
+      - "contracts/AgenticTask.v0.1.json"
+      - "contracts/TypedInterrupt.v0.1.json"
+      - "contracts/ShellEvidencePacket.v0.1.json"
+      - "tools/agentic_task.py"
+      - "tools/validate_agentic_task.py"
+      - "tools/tests/test_agentic_task.py"
+      - "examples/agentic_task_example.json"
+  push:
+    branches: [main]
+    paths:
+      - "contracts/AgenticTask.v0.1.json"
+      - "tools/agentic_task.py"
+      - "tools/validate_agentic_task.py"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python -m pip install jsonschema pytest
+      - name: Validator self-test (fail-closed semantics + tamper detection)
+        run: python3 tools/validate_agentic_task.py
+      - name: Validate the example task
+        run: python3 tools/validate_agentic_task.py examples/agentic_task_example.json
+      - name: State-machine tests
+        run: python3 -m pytest tools/tests/test_agentic_task.py -q
