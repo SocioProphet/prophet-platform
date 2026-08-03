@@ -35,6 +35,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
 from lattice_studio import gaia, hdt, ontology, product_spine, shacl
+from lattice_studio.inference_gateway_leaderboard import notebook_fixture
 
 SERVICE_VERSION = "0.2.0"
 HELLGRAPH_URL = os.getenv("HELLGRAPH_URL", "http://hellgraph-service:8090")
@@ -134,6 +135,14 @@ def _sherlock_request(project: str) -> dict[str, Any]:
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
     return {"ok": True, "service": "lattice-studio", "version": SERVICE_VERSION}
+
+
+@app.get("/api/model-board")
+def model_board(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The sovereign model board — foundation + business models, sovereignty-ranked, with the
+    champion/challenger leaderboard. The render surface the lattice UI consumes (one board,
+    cloud ∩ local, on the shared InferenceGateway catalog)."""
+    return notebook_fixture()
 
 
 @app.get("/api/studio")
