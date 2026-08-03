@@ -9,6 +9,13 @@ layout (as used by `crystal-atlas-contract-intel` / `evidence-receipts`), and �
 increments — lattice-studio's DataCite/PROV-O/lineage logic, compute-gateway receipts,
 and the masking PDP.
 
+## Where this fits
+
+catalog-gateway is the **catalog tier** (index & find assets) of the estate's two-tier
+governance⟷catalog architecture — governed from above by the policy tier (semantic-serdes
+admissibility ladder, capability membrane, governance ledger). See the reference map:
+[`docs/architecture/governance-catalog-plane`](../../docs/architecture/governance-catalog-plane.md).
+
 ## First increment (read-only)
 
 | Endpoint | Purpose |
