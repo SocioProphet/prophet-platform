@@ -8,10 +8,14 @@ preflight means those legs will be green in CI too.
 
 INCLUDED (fast + hermetic, laptop-runnable in minutes):
   * validate-repo, drift-check, standards-check, topology-check   — repo/standards/topology gates
-  * rollout-analysis-refs-check, overlay-self-contained-check     — static ref-resolution (INV-DEP-9/10)
+  * rollout-analysis-refs-check, overlay-self-contained-check,
+    manifest-completeness-check                                   — static ref-resolution (INV-DEP-9/10/11)
   * no-dangling-path-refs-check                                   — blast-radius on refactor (INV-DEP-12)
   * evidence-refs-check                                           — evidence-reference verification (INV-DEP-13)
-  * test-tools                                                    — the tools/ pytest suite
+  * gate-registry-check                                           — meta-gate: every gate proves it can fire
+  * test-tools-hermetic                                           — the tools/ pytest suite, `-k 'not fogstack'`
+                                                                     (the fogstack integration tests need a
+                                                                     cluster; they run in CI's full test-tools)
 
 DELIBERATELY EXCLUDED — these stay in CI, never in preflight:
   * the ephemeral real-apply / digest-exists preflight and the wave-promote GATE chain (need
@@ -43,7 +47,12 @@ LEGS: list[str] = [
     "manifest-completeness-check",
     "no-dangling-path-refs-check",
     "evidence-refs-check",
-    "test-tools",
+    "gate-registry-check",
+    # Hermetic subset (`-k 'not fogstack'`): the fogstack integration tests in the full
+    # `test-tools` shell out to `kubectl apply --dry-run`, which fails locally on a
+    # gke-gcloud-auth-plugin kubectl when no cluster credential is present (green in CI).
+    # Preflight must be laptop-safe; CI still runs the full `test-tools`.
+    "test-tools-hermetic",
 ]
 
 # Legs that shell out to `kubectl kustomize` to render overlays. Without kubectl they fail

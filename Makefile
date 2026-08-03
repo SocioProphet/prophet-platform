@@ -222,6 +222,18 @@ test-tools:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests
 
+.PHONY: test-tools-hermetic
+# The hermetic subset of the tools test suite, for `make preflight` (L5). The full `test-tools`
+# runs in CI; the fogstack integration tests it also runs shell out to
+# `kubectl apply --dry-run` and, on a laptop whose kubectl is a gke-gcloud-auth-plugin
+# dispatcher wrapper, that fires the credential plugin even for a client-side dry-run — so an
+# absent or expired cluster credential makes them fail LOCALLY though they are green in CI.
+# Deselecting `fogstack` is the boundary proven green with no cluster (593 pass / 0 fail); it
+# keeps preflight laptop-safe (its purpose) without weakening CI, which still runs everything.
+test-tools-hermetic:
+	test -d .venv-tools || python3 -m venv .venv-tools
+	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests -k 'not fogstack'
+
 trustops-art-runner-smoke:
 	PYTHONPATH=apps/trustops-art-runner/src python3 tools/smoke_trustops_art_runner.py
 
@@ -663,6 +675,17 @@ no-dangling-path-refs-check:
 # tools/tests/test_verify_evidence_refs.py. In the validate-target-diagnostics matrix + preflight.
 evidence-refs-check:
 	python3 tools/verify_evidence_refs.py
+
+.PHONY: gate-registry-check
+# Meta-gate (never-fired == suspect): every deploy/resilience gate must PROVE it can fire.
+# tools/gate_registry.yaml registers each gate with a teeth-test that exercises a real failure;
+# tools/check_gate_registry.py fails closed if a registered gate has no negative-case test, and —
+# the ratchet — if ANY tools/verify_*.py is neither registered with teeth nor booked as explicit
+# debt under known_unproven. A control that has only ever passed is theater until it is shown to
+# deny. Pure-python, no kubectl; proven both ways by tools/tests/test_check_gate_registry.py.
+# In the validate-target-diagnostics matrix + preflight.
+gate-registry-check:
+	python3 tools/check_gate_registry.py
 
 .PHONY: preflight
 # Local == CI parity (L5): run the fast, hermetic subset of the REQUIRED validate-target-

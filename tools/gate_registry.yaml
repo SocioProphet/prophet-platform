@@ -1,0 +1,78 @@
+# Gate registry — the meta-gate for "never-fired == suspect".
+#
+# A control that has never actually caught anything is suspect (feedback_control_that_cannot_fail):
+# the estate's oldest failure is a gate that passes because it can't fail, not because the thing it
+# guards is sound. This registry makes "provably fireable" a REQUIREMENT: every deploy/resilience
+# gate must be registered here WITH a teeth-test that exercises a real failure (a negative case that
+# proves the gate denies). tools/check_gate_registry.py fails closed if:
+#   * a registered pytest gate's tool or teeth-test is missing, or the teeth-test has no negative case;
+#   * a registered workflow gate's negative fixture / toothless-guard is missing;
+#   * ANY tools/verify_*.py exists that is neither registered below NOR listed in known_unproven.
+# That last rule is the ratchet: a NEW gate cannot land without either proving it can fire or being
+# explicitly booked as debt in full view of review.
+
+gates:
+  - id: INV-DEP-6
+    name: A promoted digest exists in the registry the nodes pull from
+    kind: pytest
+    tool: tools/verify_pinned_digest_exists.py
+    teeth_test: tools/tests/test_verify_pinned_digest_exists.py
+    min_negative_tests: 1
+
+  - id: INV-DEP-9
+    name: Rollout analysis refs resolve (namespaced/clusterScope)
+    kind: pytest
+    tool: tools/verify_rollout_analysis_refs.py
+    teeth_test: tools/tests/test_verify_rollout_analysis_refs.py
+    min_negative_tests: 1
+
+  - id: INV-DEP-10
+    name: Overlay self-contained — SA/ConfigMap/PVC rendered in-overlay
+    kind: pytest
+    tool: tools/verify_overlay_self_contained.py
+    teeth_test: tools/tests/test_verify_overlay_self_contained.py
+    min_negative_tests: 1
+
+  - id: INV-DEP-11
+    name: Manifest completeness — Secrets resolve + images digest-pinned
+    kind: pytest
+    tool: tools/verify_manifest_completeness.py
+    teeth_test: tools/tests/test_verify_manifest_completeness.py
+    min_negative_tests: 1
+
+  - id: INV-DEP-12
+    name: No dangling repo-path reference after a move/rename/delete
+    kind: pytest
+    tool: tools/verify_no_dangling_path_refs.py
+    teeth_test: tools/tests/test_verify_no_dangling_path_refs.py
+    min_negative_tests: 1
+
+  - id: INV-DEP-13
+    name: Evidence references resolve to real, well-formed artifacts
+    kind: pytest
+    tool: tools/verify_evidence_refs.py
+    teeth_test: tools/tests/test_verify_evidence_refs.py
+    min_negative_tests: 1
+
+  - id: L1-ephemeral-apply
+    name: Ephemeral real-apply preflight (live create/spec-admission)
+    kind: workflow
+    workflow: .github/workflows/ephemeral-apply-preflight.yml
+    negative_fixture: infra/k8s/search-orchestrator/overlays/_selftest-broken
+    # The workflow applies ONLY the broken fixture and fails the job unless the detector reports
+    # the FailedCreate — the standing proof the effect-canary can still fire.
+    toothless_guard_marker: toothless
+
+# Acknowledged debt: gates that exist but have NOT yet proven they can fire (no teeth-test with a
+# negative case). Surfaced by this registry rather than hidden. Each owes a teeth-test; until then
+# it is treated as unproven, not trusted. Adding an entry here is a deliberate, reviewable act.
+known_unproven:
+  - tool: tools/verify_fogstack_manifest_signature.py
+    reason: signature verifier; no negative-case test proving it rejects a bad/absent signature yet
+    teeth_owed: true
+  - tool: tools/verify_fogstack_release_seal_signature.py
+    reason: release-seal signature verifier; no negative-case test proving rejection yet
+    teeth_owed: true
+  - tool: tools/verify_probe_contract.py
+    reason: probe-contract verifier; no negative-case test proving it rejects a violating probe yet
+    teeth_owed: true
