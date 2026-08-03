@@ -1556,3 +1556,16 @@ def test_hdt_ontology_closes_the_three_twin_triangle():
     assert deliv["epistemic_human"] == "attested" and deliv["canonical"]
     assert set(b["three_twins_closed"]) >= {"knowledge", "human", "earth"}
     assert set(b["kfs_triad"]) == {"CBD", "CGT", "NHY"}
+
+
+def test_model_board_endpoint_serves_the_sovereign_board():
+    r = client.get("/api/model-board")
+    assert r.status_code == 200
+    b = r.json()
+    assert b["kind"] == "ModelBoardNotebook"
+    assert b["entryCount"] >= 8
+    lb = b["leaderboard"]
+    assert lb[0]["rank"] == 1
+    by = {row["model_id"]: row for row in lb}
+    # sovereign-local outranks the vendor-cloud model — the thesis, served
+    assert by["gemma-2-9b-it"]["score"] > by["claude-opus-4-8"]["score"]
