@@ -1,0 +1,421 @@
+<title>Economic Profit &amp; Risk — drilldown</title>
+<style>
+  :root{
+    --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#161a20; --muted:#5c6570; --faint:#8b93a1;
+    --line:#dfe3e9; --grid:#e9ecf1;
+    --accent:#b8860b; --accent-soft:#f3e6c4;
+    --pos:#0f62fe; --neg:#e8590c;           /* CVD-safe blue vs orange */
+    --good:#1a7f37; --bad:#c9372c; --warn:#9a6700;
+    --good-bg:#e6f4ea; --bad-bg:#fbe9e7;
+    --shadow:0 1px 2px rgba(16,22,32,.06),0 6px 20px rgba(16,22,32,.05);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0e1116; --surface:#171b22; --surface-2:#1e232c;
+    --ink:#e6e9ee; --muted:#98a1ae; --faint:#6b7480;
+    --line:#272d37; --grid:#232833;
+    --accent:#b0821a; --accent-soft:#3a3320;
+    --pos:#3b7fe4; --neg:#c95109;
+    --good:#3fb950; --bad:#f85149; --warn:#d29922;
+    --good-bg:#132a1b; --bad-bg:#2c1615;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 28px rgba(0,0,0,.35);
+  }}
+  :root[data-theme="light"]{
+    --ground:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5;
+    --ink:#161a20; --muted:#5c6570; --faint:#8b93a1; --line:#dfe3e9; --grid:#e9ecf1;
+    --accent:#b8860b; --accent-soft:#f3e6c4; --pos:#0f62fe; --neg:#e8590c;
+    --good:#1a7f37; --bad:#c9372c; --warn:#9a6700; --good-bg:#e6f4ea; --bad-bg:#fbe9e7;
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1116; --surface:#171b22; --surface-2:#1e232c;
+    --ink:#e6e9ee; --muted:#98a1ae; --faint:#6b7480; --line:#272d37; --grid:#232833;
+    --accent:#b0821a; --accent-soft:#3a3320; --pos:#3b7fe4; --neg:#c95109;
+    --good:#3fb950; --bad:#f85149; --warn:#d29922; --good-bg:#132a1b; --bad-bg:#2c1615;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .num{font-family:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+  .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;color:var(--faint);font-weight:600}
+  h1{font-size:22px;margin:.15em 0 .1em;font-weight:650;letter-spacing:-.01em;text-wrap:balance}
+  .sub{color:var(--muted);font-size:13px;max-width:66ch}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+  .horizon{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px}
+  .horizon button{font:inherit;font-size:12px;font-weight:600;color:var(--muted);background:none;border:0;
+    padding:6px 12px;border-radius:6px;cursor:pointer}
+  .horizon button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+  .horizon button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  nav.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin:22px 0 14px;font-size:13px}
+  nav.crumbs button{font:inherit;background:none;border:0;color:var(--accent);cursor:pointer;padding:3px 5px;border-radius:5px;font-weight:600}
+  nav.crumbs button:last-child{color:var(--ink);cursor:default;font-weight:650}
+  nav.crumbs button:not(:last-child):hover{background:var(--surface-2)}
+  nav.crumbs .sep{color:var(--faint);font-size:12px}
+  nav.crumbs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow)}
+  .tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);font-weight:600;display:flex;gap:6px;align-items:center}
+  .tile .v{font-size:25px;font-weight:600;margin-top:6px}
+  .tile .d{font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;line-height:1.5}
+  .pill svg{width:11px;height:11px}
+  .pill.up{background:var(--good-bg);color:var(--good)}
+  .pill.down{background:var(--bad-bg);color:var(--bad)}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin-bottom:16px}
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:650;
+    margin:0;padding:13px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .panel h2 .hint{text-transform:none;letter-spacing:0;color:var(--faint);font-weight:500;font-size:11px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);font-weight:600;
+    text-align:right;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+  thead th:first-child{text-align:left}
+  tbody tr{cursor:pointer;transition:background .08s}
+  tbody tr:hover{background:var(--surface-2)}
+  tbody tr:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--grid);text-align:right;vertical-align:middle}
+  tbody td:first-child{text-align:left}
+  tbody tr:last-child td{border-bottom:0}
+  .name{display:flex;align-items:center;gap:9px}
+  .name .chev{color:var(--faint);flex:none}
+  .leaf .chev{visibility:hidden}
+  .name b{font-weight:600}
+  .name .tag{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.05em}
+  .epcell{position:relative;min-width:120px}
+  .epbar{height:6px;border-radius:3px;margin-top:5px;background:var(--pos);opacity:.9}
+  .epbar.n{background:var(--neg)}
+  .raroc{display:inline-flex;flex-direction:column;align-items:flex-end;gap:3px}
+  .rbar-wrap{position:relative;width:88px;height:7px;background:var(--surface-2);border-radius:4px;overflow:visible}
+  .rbar{position:absolute;left:0;top:0;height:100%;border-radius:4px;background:var(--accent)}
+  .hurdle{position:absolute;top:-3px;width:2px;height:13px;background:var(--ink);opacity:.55;border-radius:1px}
+  .bench{font-size:11px;color:var(--muted)}
+
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:16px}
+  figure{margin:0;padding:14px 16px 18px}
+  .cap{font-size:11px;color:var(--faint);padding:0 16px 14px;margin-top:-4px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .axis{stroke:var(--line)}
+  .gridline{stroke:var(--grid)}
+  .tick{fill:var(--faint);font-size:10px}
+  .wlabel{fill:var(--muted);font-size:10.5px}
+  .wval{font-size:10px;font-weight:600}
+
+  .tooltip{position:fixed;pointer-events:none;z-index:50;background:var(--surface);border:1px solid var(--line);
+    box-shadow:var(--shadow);border-radius:8px;padding:8px 10px;font-size:12px;opacity:0;transition:opacity .1s;max-width:240px}
+  .tooltip .tt-k{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+  .tooltip b{font-weight:650}
+  .legend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);padding:0 16px 4px;flex-wrap:wrap}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+  .foot{color:var(--faint);font-size:11.5px;margin-top:22px;line-height:1.6;border-top:1px solid var(--line);padding-top:14px}
+  .foot code{font-family:ui-monospace,monospace;color:var(--muted)}
+  @media (max-width:760px){.tiles{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}
+    .col-hide{display:none}.wrap{padding:20px 14px 48px}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">Value-based management · illustrative</div>
+      <h1>Economic Profit &amp; Risk — drilldown</h1>
+      <p class="sub">Economic Profit is additive: it rolls up Transaction → Client → Product → Segment → LOB → Firm, with RAROC measured against the hurdle at every level. Click any row to drill in; the variance waterfall shows <em>why</em> EP moved.</p>
+    </div>
+    <div class="horizon" role="group" aria-label="Horizon">
+      <button data-h="actual" aria-pressed="true">Actual (YoY)</button>
+      <button data-h="forecast" aria-pressed="false">Forecast</button>
+    </div>
+  </div>
+
+  <nav class="crumbs" id="crumbs" aria-label="Drilldown path"></nav>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="panel">
+    <h2>Drill down — one level below <span id="lvlName"></span> <span class="hint">click a row to descend · RAROC bar vs hurdle marker</span></h2>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>Business</th>
+          <th class="col-hide">Revenue</th>
+          <th>Economic&nbsp;Profit</th>
+          <th>RAROC vs hurdle</th>
+          <th class="col-hide">Econ.&nbsp;capital</th>
+          <th>vs peer</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>EP variance <span class="hint" id="wfScope"></span></h2>
+      <div class="legend">
+        <span><i style="background:var(--pos)"></i>increases EP</span>
+        <span><i style="background:var(--neg)"></i>decreases EP</span>
+        <span><i style="background:var(--accent)"></i>EP level</span>
+      </div>
+      <figure><svg id="waterfall" viewBox="0 0 560 300" role="img" aria-label="Economic Profit variance waterfall"></svg></figure>
+      <p class="cap">P&amp;L drivers (price · volume · cost · productivity) after tax, then balance-sheet drivers adjusted for capital cost.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Economic capital <span class="hint">loss distribution</span></h2>
+      <figure><svg id="loss" viewBox="0 0 440 300" role="img" aria-label="Portfolio loss distribution with expected loss and economic capital"></svg></figure>
+      <p class="cap">EL = PD·LGD·EAD (covered by pricing). Economic capital covers the unexpected-loss tail to the confidence interval.</p>
+    </section>
+  </div>
+
+  <p class="foot">
+    <b>Illustrative data</b>, generated deterministically so children always sum to their parent (EP additivity) — not real portfolio figures.
+    In production this drilldown is driven by governed facts: EP/variance from <code>economic-prophet</code>, risk (PD·LGD·EAD → EL → economic capital → RAROC) from <code>diligence.risk.pack</code> / model&nbsp;#1293, and the peer benchmark from the corporate-intelligence plane — surfaced through <code>dashboard-bff</code>. RAROC status is shown with icon + label, never color alone (colorblind-safe); positive/negative variance uses blue/orange, not red/green.
+  </p>
+</div>
+
+<div class="tooltip" id="tt" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  // ---- deterministic PRNG (mulberry32) ----
+  function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+
+  const HURDLE=0.12; // cost of capital
+  const LEVELS=["Firm","Line of business","Segment","Product","Client","Transaction"];
+  const TAGS=["firm","LOB","segment","product","client","transaction"];
+  const CHILDREN={
+    "Firm":["Retail Banking","Corporate Banking","Markets & Treasury","Wealth & Asset Mgmt"],
+    "Line of business":["Deposits","Cards","Mortgages","SME Lending","Transaction Banking"],
+    "Segment":["Mass Market","Affluent","Small Business","Mid-Corporate","Institutional"],
+    "Product":["Term Loan","Revolver","FX Forward","Cash Mgmt","Trade Finance"],
+    "Client":["Client A","Client B","Client C","Client D","Client E","Client F"]
+  };
+
+  // Build a node with additive economics. Leaf economics are primitive; parents = sum of children.
+  function makeLeaf(seed){
+    const r=rng(seed);
+    const econCap=0.4+r()*4.2;                 // $bn economic capital
+    const rarocDraw=HURDLE+(r()-0.42)*0.16;    // around hurdle
+    const rar=rarocDraw*econCap;                // risk-adjusted return
+    const ep=rar-HURDLE*econCap;                // EP = RAR - capital charge
+    const el=econCap*(0.18+r()*0.5);            // expected loss ~ f(cap)
+    const revenue=rar+el+econCap*(0.8+r()*1.4); // gross
+    const peer=HURDLE+(r()-0.5)*0.12;           // peer-median RAROC
+    // variance drivers (sum to ΔEP), scaled to node size
+    const s=ep>=0?1:-1, mag=(0.25+r()*0.9)*Math.max(0.15,Math.abs(ep));
+    const dr={price:(r()-0.45)*mag,volume:(r()-0.3)*mag,cost:-(r()*0.8)*mag,productivity:(r()-0.35)*mag,
+              invIncome:(r()-0.4)*mag*0.8,lendCapital:(r()-0.4)*mag,financing:-(r()*0.7)*mag,opAssets:-(r()*0.6)*mag};
+    return {econCap,rar,ep,el,revenue,peer,dr,_leaf:true};
+  }
+  function agg(children){
+    const o={econCap:0,rar:0,ep:0,el:0,revenue:0,dr:{price:0,volume:0,cost:0,productivity:0,invIncome:0,lendCapital:0,financing:0,opAssets:0}};
+    let peerW=0;
+    for(const c of children){o.econCap+=c.econCap;o.rar+=c.rar;o.ep+=c.ep;o.el+=c.el;o.revenue+=c.revenue;
+      peerW+=c.peer*c.econCap;for(const k in o.dr)o.dr[k]+=c.dr[k];}
+    o.peer=peerW/(o.econCap||1);
+    return o;
+  }
+  // node cache keyed by path
+  const cache=new Map();
+  function build(path){
+    const key=path.join("/");
+    if(cache.has(key))return cache.get(key);
+    const depth=path.length-1;                 // 0=Firm
+    const levelName=LEVELS[depth];
+    const node={path:path.slice(),depth,levelName,name:path[path.length-1],children:[]};
+    if(depth>=LEVELS.length-1){                 // Transaction = leaf
+      Object.assign(node,makeLeaf(hash(key)));node.children=null;
+    }else{
+      const names=CHILDREN[levelName]||[];
+      const seedBase=hash(key);
+      const kids=names.map((nm,i)=>build(path.concat(nm)));
+      Object.assign(node,agg(kids.map(k=>economics(k))));
+      node.children=kids;
+    }
+    cache.set(key,node);return node;
+  }
+  function economics(n){return {econCap:n.econCap,rar:n.rar,ep:n.ep,el:n.el,revenue:n.revenue,peer:n.peer,dr:n.dr};}
+  const raroc=n=>n.rar/(n.econCap||1e-9);
+
+  // ---- horizon (forecast tilts drivers upward, widens tail) ----
+  let horizon="actual";
+  function hz(n){
+    if(horizon==="actual")return n;
+    // forward view: modest uplift on P&L, higher capital — non-destructive copy
+    const f={...n,dr:{...n.dr}};
+    f.rar=n.rar*1.06; f.econCap=n.econCap*1.03; f.ep=f.rar-HURDLE*f.econCap;
+    f.el=n.el*1.08; f.revenue=n.revenue*1.05;
+    for(const k in f.dr)f.dr[k]*=1.15;
+    return f;
+  }
+
+  // ---- formatting ----
+  const bn=v=>(v>=0?"":"−")+"$"+Math.abs(v).toFixed(v>=100||v<=-100?0:2)+"bn";
+  const mm=v=>(v>=0?"":"−")+"$"+Math.abs(v*1000).toFixed(0)+"m";
+  const pct=v=>(v*100).toFixed(1)+"%";
+  const money=v=>Math.abs(v)>=1?bn(v):mm(v);
+
+  // ---- state ----
+  let path=["Firm"];
+  const tt=document.getElementById("tt");
+  function showTip(html,x,y){tt.innerHTML=html;tt.style.opacity="1";
+    const r=tt.getBoundingClientRect();let nx=x+14,ny=y+14;
+    if(nx+r.width>innerWidth-8)nx=x-r.width-14; if(ny+r.height>innerHeight-8)ny=y-r.height-14;
+    tt.style.left=nx+"px";tt.style.top=ny+"px";}
+  const hideTip=()=>tt.style.opacity="0";
+
+  function iconUp(){return '<svg viewBox="0 0 12 12"><path d="M6 2 L10 8 L2 8 Z" fill="currentColor"/></svg>';}
+  function iconDown(){return '<svg viewBox="0 0 12 12"><path d="M6 10 L2 4 L10 4 Z" fill="currentColor"/></svg>';}
+
+  function render(){
+    const rawNode=build(path);
+    const node=hz(rawNode);
+    // crumbs
+    const cr=document.getElementById("crumbs");cr.innerHTML="";
+    path.forEach((p,i)=>{
+      if(i)cr.insertAdjacentHTML("beforeend",'<span class="sep">›</span>');
+      const b=document.createElement("button");b.textContent=p;
+      b.onclick=()=>{path=path.slice(0,i+1);render();};
+      cr.appendChild(b);
+    });
+    document.getElementById("lvlName").textContent=node.name;
+    document.getElementById("wfScope").textContent="· "+node.name;
+
+    // tiles
+    const rr=raroc(node), spread=rr-HURDLE, up=rr>=HURDLE;
+    const prevEP=node.ep - Object.values(node.dr).reduce((a,b)=>a+b,0);
+    const dEP=node.ep-prevEP, dpos=dEP>=0;
+    document.getElementById("tiles").innerHTML=`
+      <div class="tile"><div class="k">Economic Profit</div><div class="v num" style="color:var(--accent)">${money(node.ep)}</div>
+        <div class="d">RAR ${money(node.rar)} − capital charge</div></div>
+      <div class="tile"><div class="k">RAROC</div><div class="v num">${pct(rr)}</div>
+        <div class="d"><span class="pill ${up?'up':'down'}">${up?iconUp():iconDown()}${up?'above':'below'} hurdle</span><span class="num">${pct(HURDLE)} hurdle</span></div></div>
+      <div class="tile"><div class="k">Economic capital</div><div class="v num">${money(node.econCap)}</div>
+        <div class="d">EL ${money(node.el)} priced in</div></div>
+      <div class="tile"><div class="k">Δ EP ${horizon==='actual'?'YoY':'vs actual'}</div><div class="v num" style="color:${dpos?'var(--pos)':'var(--neg)'}">${(dpos?'+':'−')}${money(Math.abs(dEP)).replace('−','')}</div>
+        <div class="d">${dpos?'value created':'value destroyed'} this period</div></div>`;
+
+    renderRows(rawNode);
+    renderWaterfall(node);
+    renderLoss(node);
+  }
+
+  function renderRows(rawNode){
+    const tb=document.getElementById("rows");tb.innerHTML="";
+    if(!rawNode.children){tb.innerHTML='<tr class="leaf"><td colspan="6" style="color:var(--muted)">Transaction level — the most granular unit. Nothing further to drill.</td></tr>';return;}
+    const kids=rawNode.children.map(k=>({raw:k,n:hz(economics(k)),name:k.name,leaf:!k.children}));
+    const maxEP=Math.max(...kids.map(k=>Math.abs(k.n.ep)),0.01);
+    const maxRR=Math.max(...kids.map(k=>raroc(k.n)),HURDLE)*1.15;
+    kids.sort((a,b)=>b.n.ep-a.n.ep);
+    kids.forEach(k=>{
+      const rr=raroc(k.n),up=rr>=HURDLE,ep=k.n.ep;
+      const tr=document.createElement("tr");tr.tabIndex=0;if(k.leaf)tr.className="leaf";
+      const dPeer=rr-k.n.peer;
+      tr.innerHTML=`
+        <td><span class="name"><span class="chev">${k.leaf?'':'▸'}</span><b>${k.name}</b><span class="tag">${TAGS[k.raw.depth]}</span></span></td>
+        <td class="col-hide num">${money(k.n.revenue)}</td>
+        <td class="epcell"><span class="num">${money(ep)}</span><div class="epbar ${ep<0?'n':''}" style="width:${Math.max(4,Math.abs(ep)/maxEP*100)}%"></div></td>
+        <td><span class="raroc"><span class="num">${pct(rr)}</span>
+          <span class="rbar-wrap"><span class="rbar" style="width:${Math.min(100,rr/maxRR*100)}%;background:${up?'var(--good)':'var(--bad)'}"></span>
+          <span class="hurdle" style="left:${Math.min(100,HURDLE/maxRR*100)}%"></span></span></span></td>
+        <td class="col-hide num">${money(k.n.econCap)}</td>
+        <td><span class="pill ${dPeer>=0?'up':'down'}">${dPeer>=0?iconUp():iconDown()}${(dPeer>=0?'+':'−')}${Math.abs(dPeer*100).toFixed(1)}pp</span></td>`;
+      if(!k.leaf){tr.onclick=()=>{path=path.concat(k.name);render();};
+        tr.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();path=path.concat(k.name);render();}};}
+      tr.addEventListener("mousemove",e=>showTip(
+        `<div class="tt-k">${k.name}</div><b>EP ${money(ep)}</b> · RAROC ${pct(rr)}<br>
+         <span class="tt-k">econ capital</span> ${money(k.n.econCap)} · <span class="tt-k">EL</span> ${money(k.n.el)}<br>
+         <span class="tt-k">peer median RAROC</span> ${pct(k.n.peer)} (${dPeer>=0?'ahead':'behind'} ${Math.abs(dPeer*100).toFixed(1)}pp)${k.leaf?'':'<br><span class="tt-k">click to drill →</span>'}`,e.clientX,e.clientY));
+      tr.addEventListener("mouseleave",hideTip);
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderWaterfall(node){
+    const svg=document.getElementById("waterfall");const W=560,H=300,padL=44,padR=12,padB=64,padT=14;
+    const order=[["Price","price"],["Volume","volume"],["Cost","cost"],["Productivity","productivity"],
+                 ["Invest.","invIncome"],["Lending","lendCapital"],["Financing","financing"],["Op. assets","opAssets"]];
+    const start=node.ep-Object.values(node.dr).reduce((a,b)=>a+b,0);
+    let steps=[{label:"EP₀",v:start,type:"total",cum:start}];let cum=start;
+    order.forEach(([lab,k])=>{const dv=node.dr[k];steps.push({label:lab,v:dv,type:dv>=0?"pos":"neg",from:cum,cum:cum+dv});cum+=dv;});
+    steps.push({label:"EP₁",v:cum,type:"total",cum:cum});
+    const vals=steps.flatMap(s=>[s.cum,s.from||s.cum,0]);
+    let lo=Math.min(...vals),hi=Math.max(...vals);const pad=(hi-lo)*0.15||0.1;lo-=pad;hi+=pad;
+    const x=i=>padL+i*((W-padL-padR)/steps.length)+4;
+    const bw=(W-padL-padR)/steps.length-8;
+    const y=v=>padT+(1-(v-lo)/(hi-lo))*(H-padT-padB);
+    let h='';
+    // zero line + gridlines
+    for(let g=0;g<=4;g++){const gv=lo+(hi-lo)*g/4;const gy=y(gv);
+      h+=`<line class="gridline" x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}"/>`+
+         `<text class="tick" x="${padL-6}" y="${gy+3}" text-anchor="end">${gv.toFixed(1)}</text>`;}
+    if(lo<0&&hi>0)h+=`<line class="axis" x1="${padL}" y1="${y(0)}" x2="${W-padR}" y2="${y(0)}" stroke-width="1.2"/>`;
+    steps.forEach((s,i)=>{
+      const xi=x(i);let top,bot,fill;
+      if(s.type==="total"){top=y(Math.max(0,s.cum));bot=y(Math.min(0,s.cum));fill="var(--accent)";}
+      else{const a=s.from,b=s.cum;top=y(Math.max(a,b));bot=y(Math.min(a,b));fill=s.type==="pos"?"var(--pos)":"var(--neg)";}
+      const hh=Math.max(2,bot-top);
+      h+=`<rect x="${xi}" y="${top}" width="${bw}" height="${hh}" rx="2" fill="${fill}" data-i="${i}" style="cursor:default"/>`;
+      // connector
+      if(i<steps.length-1){const cy=y(s.cum);h+=`<line x1="${xi}" y1="${cy}" x2="${xi+bw+8}" y2="${cy}" stroke="var(--faint)" stroke-dasharray="2 2" stroke-width="1"/>`;}
+      h+=`<text class="wlabel" x="${xi+bw/2}" y="${H-padB+16}" text-anchor="middle" transform="rotate(28 ${xi+bw/2} ${H-padB+16})">${s.label}</text>`;
+      const vy=(s.type==="neg")?bot+12:top-5;
+      h+=`<text class="wval num" x="${xi+bw/2}" y="${vy}" text-anchor="middle" fill="var(--muted)">${s.type==="total"?money(s.cum):(s.v>=0?'+':'−')+money(Math.abs(s.v)).replace('−','')}</text>`;
+    });
+    svg.innerHTML=h;
+    svg.querySelectorAll("rect[data-i]").forEach(r=>{
+      const s=steps[+r.dataset.i];
+      r.addEventListener("mousemove",e=>showTip(`<div class="tt-k">${s.label}</div>`+
+        (s.type==="total"?`<b>${money(s.cum)}</b> economic profit`:`<b>${s.v>=0?'+':'−'}${money(Math.abs(s.v)).replace('−','')}</b> ${s.type==='pos'?'added to':'removed from'} EP<br><span class="tt-k">running EP</span> ${money(s.cum)}`),e.clientX,e.clientY));
+      r.addEventListener("mouseleave",hideTip);
+    });
+  }
+
+  function renderLoss(node){
+    const svg=document.getElementById("loss");const W=440,H=300,padL=10,padR=12,padB=46,padT=14;
+    const el=node.el, ec=node.econCap;                 // EL and economic capital ($bn)
+    const ul=ec;                                        // unexpected loss to CI ≈ econ capital
+    const xmax=el+ul*1.9+0.001;
+    const X=v=>padL+(v/xmax)*(W-padL-padR);
+    const base=H-padB;
+    // lognormal-ish loss density
+    const mu=Math.log(Math.max(0.05,el)), sigma=0.9;
+    const dens=v=>{if(v<=0)return 0;return Math.exp(-Math.pow(Math.log(v)-mu,2)/(2*sigma*sigma))/(v*sigma*Math.sqrt(2*Math.PI));};
+    let peak=0;for(let i=1;i<=240;i++){peak=Math.max(peak,dens(i/240*xmax));}
+    const Y=d=>base-(d/peak)*(H-padT-padB);
+    const varLine=el+ul;                               // VaR ≈ EL + economic capital
+    let path1="",fillTail="M "+X(varLine)+" "+base;
+    for(let i=0;i<=240;i++){const v=i/240*xmax;const px=X(v),py=Y(dens(v));path1+=(i?"L":"M")+px+" "+py+" ";if(v>=varLine)fillTail+=" L "+px+" "+py;}
+    fillTail+=" L "+X(xmax)+" "+base+" Z";
+    let h='';
+    h+=`<line class="axis" x1="${padL}" y1="${base}" x2="${W-padR}" y2="${base}"/>`;
+    // economic-capital tail shade
+    h+=`<path d="${fillTail}" fill="var(--neg)" opacity="0.16"/>`;
+    h+=`<path d="${path1}" fill="none" stroke="var(--ink)" stroke-width="1.6" opacity="0.75"/>`;
+    // EL marker
+    h+=`<line x1="${X(el)}" y1="${padT}" x2="${X(el)}" y2="${base}" stroke="var(--pos)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    h+=`<text class="tick" x="${X(el)}" y="${padT+2}" text-anchor="middle" fill="var(--pos)">EL ${money(el)}</text>`;
+    // VaR / econ capital marker
+    h+=`<line x1="${X(varLine)}" y1="${padT}" x2="${X(varLine)}" y2="${base}" stroke="var(--neg)" stroke-width="1.4"/>`;
+    h+=`<text class="tick" x="${X(varLine)}" y="${padT+2}" text-anchor="middle" fill="var(--neg)">VaR</text>`;
+    // econ capital span arrow
+    const ay=base+18;
+    h+=`<line x1="${X(el)}" y1="${ay}" x2="${X(varLine)}" y2="${ay}" stroke="var(--faint)" stroke-width="1"/>`;
+    h+=`<text class="wlabel" x="${(X(el)+X(varLine))/2}" y="${ay+13}" text-anchor="middle">economic capital ${money(ec)} (unexpected loss)</text>`;
+    h+=`<text class="wlabel" x="${padL}" y="${ay+13}" text-anchor="start">expected</text>`;
+    svg.innerHTML=h;
+  }
+
+  // horizon toggle
+  document.querySelectorAll(".horizon button").forEach(b=>{
+    b.onclick=()=>{horizon=b.dataset.h;document.querySelectorAll(".horizon button").forEach(x=>x.setAttribute("aria-pressed",x===b));render();};
+  });
+  render();
+})();
+</script>
