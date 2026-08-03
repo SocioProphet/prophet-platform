@@ -291,7 +291,7 @@ jobs:
           - lattice-studio-smoke
           - grlplus-service-smoke
           - grl-mesh-smoke
-          - owl-reasoner-smoke
+          - sophos-reasoner-smoke
           - entity-resolution-smoke
           - memoryd-smoke
           - node-commander-smoke

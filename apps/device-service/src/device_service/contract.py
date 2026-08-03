@@ -41,7 +41,7 @@ READING_SCHEMA_SHA256 = "261f1972cb16e3468e2b2eb6204748005f1c10c4dd9fb35e5dcba3a
 ABSENCE_SCHEMA_SHA256 = "9e51c264acec89efc8021e62e54e2e513e9890e85126f46f11ecf93a9936f84d"
 
 # KKO reference concepts, taken from the TBox this estate actually vendors
-# (apps/owl-reasoner/src/owl_reasoner/data/kko-2.10.n3, namespace
+# (apps/sophos-reasoner/src/sophos_reasoner/data/kko-2.10.n3, namespace
 # http://kbpedia.org/ontologies/kko#). BOTH terms were verified present in that file —
 # they are not invented URIs, and tests/test_kko.py re-verifies it against the vendored
 # TBox so an invented URI cannot survive CI.

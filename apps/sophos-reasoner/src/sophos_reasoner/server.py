@@ -1,4 +1,4 @@
-"""owl-reasoner service — RDFS/OWL-RL reasoning + SHACL validation over the estate's graph.
+"""sophos-reasoner service — RDFS/OWL-RL reasoning + SHACL validation over the estate's graph.
 
 Bridges Ontogenesis-class inference (rdflib/pyshacl/owlrl) onto HellGraph: reason over raw Turtle, or
 pull a project's KKO-typed graph straight from lattice-studio's /api/studio/graph.ttl and entail over
@@ -25,7 +25,7 @@ from .tabular_rdf import map_rows
 LATTICE_STUDIO_URL = os.getenv("LATTICE_STUDIO_URL", "http://lattice-studio:8080")
 TIMEOUT = float(os.getenv("OWL_TIMEOUT", "8"))
 
-app = FastAPI(title="owl-reasoner", version="0.1.0")
+app = FastAPI(title="sophos-reasoner", version="0.1.0")
 
 
 class ReasonRequest(BaseModel):
@@ -38,7 +38,7 @@ class ReasonRequest(BaseModel):
 
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
-    return {"ok": True, "service": "owl-reasoner"}
+    return {"ok": True, "service": "sophos-reasoner"}
 
 
 @app.post("/reason")

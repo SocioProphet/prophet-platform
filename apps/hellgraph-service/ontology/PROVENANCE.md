@@ -32,7 +32,7 @@ $ gunzip -c ontology/kbpedia-rc-2.10.n3.gz | shasum -a 256
 ## What it is, and why drift here is dangerous
 The **KBpedia reference-concept ABox**: ~55,124 reference concepts (RCs) with ~75k
 `rdfs:subClassOf` edges, the instance layer typed by the KKO upper ontology (the TBox, vendored
-separately — see `apps/owl-reasoner/src/owl_reasoner/data/PROVENANCE.md`).
+separately — see `apps/sophos-reasoner/src/sophos_reasoner/data/PROVENANCE.md`).
 
 This is **the vocabulary that `/api/graph/enrich` coherence-ranks against** and **the target
 vocabulary semantic entity typing resolves entities into** (engine `mapEntityToKkoSemantic`,

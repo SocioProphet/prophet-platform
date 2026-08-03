@@ -1,9 +1,0 @@
-# owl-reasoner — RDFS/OWL-RL reasoning + SHACL validation over HellGraph (apps/owl-reasoner). Bridges
-# Ontogenesis-class inference (rdflib/owlrl/pyshacl) onto the graph: entails knowledge derivable but not
-# stated, over the KKO upper ontology — Protégé/Stardog reasoner parity, proof-carrying. Reasons over raw
-# Turtle or pulls a project's KKO-typed graph from lattice-studio. sha-pinned (KKO-TBox build, PR #974); auto-promoted on subsequent builds.
-image: { repository: owl-reasoner, tag: sha-09b1f336d566e4b0a8dfb778bc61663d967c6628 }
-service: { port: 8080, portName: http }
-config:
-  LATTICE_STUDIO_URL: "http://lattice-studio:8080"
-autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

@@ -1,5 +1,5 @@
 [project]
-name = "owl-reasoner"
+name = "sophos-reasoner"
 version = "0.1.0"
 description = "OWL/RDFS reasoner + SHACL validation bridge over HellGraph (Ontogenesis inference)"
 requires-python = ">=3.11"
@@ -11,4 +11,4 @@ where = ["src"]
 # from any built wheel/sdist, _kko_tbox() silently returns an empty graph, and `with_kko`
 # becomes a no-op in every installed deployment while passing from a source checkout.
 [tool.setuptools.package-data]
-owl_reasoner = ["data/*.n3", "data/*.md"]
+sophos_reasoner = ["data/*.n3", "data/*.md"]

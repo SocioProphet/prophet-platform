@@ -64,7 +64,7 @@ SOURCE_WARRANTED = ("direct-quote", "computed", "inferred")
 CREATED_BY = "urn:srcos:agent:nugget-extractor"
 
 # KKO reference concepts, taken from the TBox this estate already vendors
-# (apps/owl-reasoner/src/owl_reasoner/data/kko-2.10.n3, namespace
+# (apps/sophos-reasoner/src/sophos_reasoner/data/kko-2.10.n3, namespace
 # http://kbpedia.org/ontologies/kko#). Both classes are present in that file — these are
 # not invented URIs. They are DECLARED type refs: nothing in this service resolves them
 # against a loaded KKO (the platform-wide KKO TBox binding is a separate, tracked gap),

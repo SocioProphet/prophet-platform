@@ -208,7 +208,7 @@ function bundle() {
   };
 }
 
-// Emit the twin as typed RDF (Turtle) the owl-reasoner can consume: the subject is a
+// Emit the twin as typed RDF (Turtle) the sophos-reasoner can consume: the subject is a
 // hdt:HumanDigitalTwin, each observation a hdt:Observation, each condition a health:Condition, each
 // localised to a health:Organ — importing the HDT health ontology (socioprophet.md). Loading this
 // alongside the ontology TBox lets a reasoner entail (e.g. conditions ⊑ hdt:FHIRResource) and drive
@@ -452,7 +452,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ── Reconciliation + reasoning plane — ORCHESTRATES existing estate services (entity-resolution,
-  // ie-engine, holmes, hellgraph-service, owl-reasoner). Every route degrades gracefully: a down
+  // ie-engine, holmes, hellgraph-service, sophos-reasoner). Every route degrades gracefully: a down
   // service never breaks the twin, it reports 'degraded'. Non-diagnostic throughout. ────────────────
 
   // What's connected — health of every estate service the twin reuses.
@@ -491,7 +491,7 @@ const server = http.createServer(async (req, res) => {
     return send(res, r.ok ? 200 : 200, r.ok ? r.data : { service: 'degraded', reason: r.reason, groundedNodes: [], citations: [] });
   }
 
-  // Reason over the twin's typed RDF via owl-reasoner → RDFS/OWL-RL entailments (conditions ⊑
+  // Reason over the twin's typed RDF via sophos-reasoner → RDFS/OWL-RL entailments (conditions ⊑
   // hdt:FHIRResource, drives correspondence promotion). Reuses the same twin.ttl the reasoner consumes.
   if (req.method === 'POST' && url.pathname === '/api/health/reason') {
     const r = await reasonTurtle(twinTtl(), 'rdfs');

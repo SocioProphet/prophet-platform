@@ -124,8 +124,8 @@ KNOWN_BROKEN = {
     # reasoning-failure-runner:moving-tag is RESOLVED — deploy/values/reasoning-failure-runner.yaml is now pinned
     # to a sha- tag (the Chaos & Resilience Fabric orchestrator, CHAOS_RESILIENCE_FABRIC_V0.md). The ratchet only
     # shrinks: fixed → removed from KNOWN_BROKEN so it can never silently regress to `:latest` again.
-    # owl-reasoner:moving-tag is RESOLVED — deploy/values/owl-reasoner.yaml was manually sha-pinned
-    # (KKO-TBox build, #974). The ratchet only shrinks: fixed → removed so it can't regress silently.
+    # sophos-reasoner:moving-tag is RESOLVED — deploy/values/sophos-reasoner.yaml (formerly owl-reasoner,
+    # renamed in PR #1273) is sha-pinned (KKO-TBox build, #974). The ratchet only shrinks: fixed → removed so it can't regress silently.
     # arcticdb-gateway:moving-tag + prophet-materializer-clickhouse:moving-tag are RESOLVED —
     # gitops-promote sha-pinned both values files after their first CI builds (arcticdb-gateway →
     # sha-8fbda01e…, prophet-materializer-clickhouse → sha-4df9dcbd…). The ratchet only shrinks:

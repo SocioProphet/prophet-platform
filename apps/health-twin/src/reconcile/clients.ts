@@ -83,16 +83,16 @@ export const graphGround = async (q: string, hops = 2): Promise<Call<GroundResul
   finally { clearTimeout(t); }
 };
 
-// ── owl-reasoner: TTL → RDFS/OWL-RL entailments (drives correspondence promotion + FHIRResource typing)
+// ── sophos-reasoner: TTL → RDFS/OWL-RL entailments (drives correspondence promotion + FHIRResource typing)
 export interface ReasonResult { input_triples: number; entailed_triples: number; inference: string; profile: string; entailments: string[] }
 export const reasonTurtle = (turtle: string, inference = 'rdfs') =>
-  callJson<ReasonResult>('owl-reasoner', `${SERVICES.owl}/reason`, { turtle, inference }, 8000);
+  callJson<ReasonResult>('sophos-reasoner', `${SERVICES.owl}/reason`, { turtle, inference }, 8000);
 
 // ── service health (for the surface: "what's connected") ──────────────────────────────────────────
 export async function serviceHealth() {
   return Promise.all([
     probe('ie-engine', SERVICES.ie), probe('entity-resolution', SERVICES.er),
     probe('embeddings', SERVICES.embeddings), probe('holmes', SERVICES.holmes),
-    probe('hellgraph', SERVICES.hellgraph), probe('owl-reasoner', SERVICES.owl),
+    probe('hellgraph', SERVICES.hellgraph), probe('sophos-reasoner', SERVICES.owl),
   ]);
 }

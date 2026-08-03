@@ -9,7 +9,7 @@
 #   ./scripts/dev-stack.sh --front  # also start the Prophet Studio + client-vue dev servers
 #   ./scripts/dev-stack.sh --stop   # stop everything this script started
 #
-# Ports:  agent-machine 8080 · hellgraph-service 8090 · owl-reasoner 8081 ·
+# Ports:  agent-machine 8080 · hellgraph-service 8090 · sophos-reasoner 8081 ·
 #         entity-resolution 8082 · lattice-studio 8083 · dashboard-bff 8077
 set -uo pipefail
 
@@ -59,7 +59,7 @@ echo "Booting SocioProphet dev stack…"
 # --- graph + knowledge backends ---------------------------------------------
 start agent-machine     8080 "cd '$NOETICA/agent-machine' && NOETICA_AM_PORT=8080 npx tsx server.ts"
 start hellgraph-service 8090 "cd '$APPS/hellgraph-service' && PORT=8090 npx tsx src/server.ts"
-start owl-reasoner      8081 "cd '$APPS/owl-reasoner'      && '$UVICORN' owl_reasoner.server:app      --app-dir src --host 127.0.0.1 --port 8081"
+start sophos-reasoner      8081 "cd '$APPS/sophos-reasoner'      && '$UVICORN' sophos_reasoner.server:app      --app-dir src --host 127.0.0.1 --port 8081"
 start entity-resolution 8082 "cd '$APPS/entity-resolution' && '$UVICORN' entity_resolution.server:app --app-dir src --host 127.0.0.1 --port 8082"
 start lattice-studio    8083 "cd '$APPS/lattice-studio'    && '$UVICORN' lattice_studio.server:app    --app-dir src --host 127.0.0.1 --port 8083"
 start dashboard-bff     8077 "cd '$APPS/dashboard-bff'     && '$UVICORN' main:app                     --host 127.0.0.1 --port 8077"
@@ -77,7 +77,7 @@ start sherlock-engine   8093 "cd '$SHERLOCK_ENGINE' && PORT=8093 ./target/debug/
 
 echo "Waiting for health…"
 wait_health hellgraph-service http://127.0.0.1:8090/healthz
-wait_health owl-reasoner      http://127.0.0.1:8081/healthz
+wait_health sophos-reasoner      http://127.0.0.1:8081/healthz
 wait_health entity-resolution http://127.0.0.1:8082/healthz
 wait_health lattice-studio    http://127.0.0.1:8083/healthz
 wait_health dashboard-bff     http://127.0.0.1:8077/health

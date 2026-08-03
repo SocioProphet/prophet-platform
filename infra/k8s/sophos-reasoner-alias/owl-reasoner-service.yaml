@@ -1,0 +1,29 @@
+# TRANSITIONAL alias — the former `owl-reasoner` service was renamed to `sophos-reasoner`
+# (PR #1273). This ExternalName Service keeps the old in-cluster DNS name
+# `owl-reasoner.socioprophet.svc.cluster.local` resolving (as a CNAME to the new service)
+# so out-of-repo callers that still hardcode it keep working during the cutover window.
+#
+# As of the rename, the ONLY known external caller is prophet-health
+# (deploy/values/health-twin.yaml → HT_OWL_URL). Once that repo is cut over to
+# `sophos-reasoner.socioprophet.svc.cluster.local`, DELETE this alias (remove the
+# deploy/argocd/sophos-reasoner-alias.yaml Application) — the ratchet only shrinks.
+#
+# ExternalName returns a CNAME; the caller's own :8080 is preserved through to the target,
+# which listens on 8080. No selector/port is used by an ExternalName Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: owl-reasoner
+  namespace: socioprophet
+  labels:
+    app.kubernetes.io/part-of: socioprophet
+    app.kubernetes.io/name: owl-reasoner
+    socioprophet.io/alias-for: sophos-reasoner
+  annotations:
+    socioprophet.io/deprecation: >-
+      Transitional CNAME alias for the former owl-reasoner service. Resolves to
+      sophos-reasoner.socioprophet.svc.cluster.local. Remove once prophet-health
+      HT_OWL_URL is repointed to the sophos-reasoner name.
+spec:
+  type: ExternalName
+  externalName: sophos-reasoner.socioprophet.svc.cluster.local

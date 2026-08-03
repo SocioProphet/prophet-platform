@@ -42,7 +42,7 @@ spec:
           - { name: lattice-studio, tier: reference }            # Studio BFF — product surface
           - { name: grlplus-service, tier: reference }           # GRL+ reasoning impl
           - { name: grl-mesh, tier: reference }                  # reasoning mesh impl
-          - { name: owl-reasoner, tier: reference }              # swappable OWL reasoner
+          - { name: sophos-reasoner, tier: reference }           # swappable OWL/RDFS reasoner (formerly owl-reasoner; renamed #1273). Old DNS name kept as ExternalName alias — see deploy/argocd/sophos-reasoner-alias.yaml
           - { name: entity-resolution, tier: foundation }        # identity/ER plane — the spine identity resolves through
           - { name: algo-engine, tier: reference }               # algo impl
           - { name: ie-engine, tier: reference }                 # information-extraction impl

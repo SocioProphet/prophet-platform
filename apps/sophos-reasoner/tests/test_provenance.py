@@ -17,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from owl_reasoner import reasoner
+from sophos_reasoner import reasoner
 
 SRC_ROOT = Path(reasoner.__file__).resolve().parents[1]     # .../src
-PKG_ROOT = SRC_ROOT / "owl_reasoner"
+PKG_ROOT = SRC_ROOT / "sophos_reasoner"
 
 
 def _reparent(blob: bytes) -> bytes:
@@ -108,11 +108,11 @@ def test_tampered_kko_tbox_kills_import_in_a_real_process(tmp_path: Path):
     """
     fake_src = tmp_path / "src"
     shutil.copytree(SRC_ROOT, fake_src, ignore=shutil.ignore_patterns("__pycache__", "*.egg-info"))
-    n3 = fake_src / "owl_reasoner" / "data" / "kko-2.10.n3"
+    n3 = fake_src / "sophos_reasoner" / "data" / "kko-2.10.n3"
     n3.write_bytes(_reparent(n3.read_bytes()))
 
     proc = subprocess.run(
-        [sys.executable, "-c", "import owl_reasoner.reasoner"],
+        [sys.executable, "-c", "import sophos_reasoner.reasoner"],
         cwd=fake_src, capture_output=True, text=True, timeout=120,
         env={**os.environ, "PYTHONPATH": str(fake_src)},
     )
@@ -129,7 +129,7 @@ def test_untampered_copy_still_imports(tmp_path: Path):
     fake_src = tmp_path / "src"
     shutil.copytree(SRC_ROOT, fake_src, ignore=shutil.ignore_patterns("__pycache__", "*.egg-info"))
     proc = subprocess.run(
-        [sys.executable, "-c", "import owl_reasoner.reasoner as r; print(r.KKO_INTEGRITY)"],
+        [sys.executable, "-c", "import sophos_reasoner.reasoner as r; print(r.KKO_INTEGRITY)"],
         cwd=fake_src, capture_output=True, text=True, timeout=120,
         env={**os.environ, "PYTHONPATH": str(fake_src)},
     )

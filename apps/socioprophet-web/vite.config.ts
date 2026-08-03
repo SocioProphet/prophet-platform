@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/hellgraph/, ''),
         },
-        // owl-reasoner (RDFS/OWL entailment) + entity-resolution — the Studio Reason & Resolve bench.
+        // sophos-reasoner (RDFS/OWL entailment) + entity-resolution — the Studio Reason & Resolve bench.
         '/svc/reason': {
           target: env.VITE_REASON_BASE || 'http://localhost:8081',
           changeOrigin: true,

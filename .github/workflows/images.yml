@@ -80,7 +80,7 @@ jobs:
           - { image: noetica-impair,        context: apps/noetica-impair,        dockerfile: Dockerfile }
           - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
-          - { image: owl-reasoner,         context: apps/owl-reasoner,         dockerfile: Dockerfile }
+          - { image: sophos-reasoner,      context: apps/sophos-reasoner,      dockerfile: Dockerfile }
           - { image: entity-resolution,     context: apps/entity-resolution,     dockerfile: Dockerfile }
           - { image: algo-engine,           context: apps/algo-engine,           dockerfile: Dockerfile }
           - { image: ie-engine,             context: apps/ie-engine,             dockerfile: Dockerfile }

@@ -3,7 +3,7 @@
 //   Extract   → spaCy NER + dependency relations + claims (ie-engine :8086)
 //   Glossary  → salient terms + definitions (ie-engine)
 //   Vectors   → embedding similarity (ie-engine)
-//   Type System → RDFS/OWL entailment authoring (owl-reasoner :8081)
+//   Type System → RDFS/OWL entailment authoring (sophos-reasoner :8081)
 //   Resolve   → entity resolution → golden records (entity-resolution :8082)
 // Extraction can be written into the canonical HellGraph. Sherlock / SynapseIQ / Holmes are surfaced
 // as suite tools (deeper wiring pending — they need their own build/boot).
@@ -68,7 +68,7 @@ const vecLines = computed(() => vecText.value.split('\n').map((s) => s.trim()).f
 const runVec = () => run(() => vectorize(vecLines.value), (v) => (sim.value = v.similarity));
 const heat = (x: number) => `rgba(75,191,115,${(x * 0.9).toFixed(2)})`;
 
-// Type System (owl-reasoner)
+// Type System (sophos-reasoner)
 const ttl = ref('@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix ex: <http://ex/> .\nex:Regulator rdfs:subClassOf ex:Institution .\nex:Institution rdfs:subClassOf ex:Agent .\nex:ODGB a ex:Regulator .');
 const ent = ref<{ input: number; entailed: number; rows: any[] } | null>(null);
 const runReason = () => run(() => reason(ttl.value, 'rdfs'), (r) => (ent.value = { input: r.input_triples, entailed: r.entailed_triples, rows: r.entailments || [] }));
@@ -187,7 +187,7 @@ const SUITE = [
           <div class="ie-sec-h">{{ ent.input }} asserted → <b>{{ ent.entailed }}</b> entailed triples</div>
           <div v-for="(r, i) in ent.rows.slice(0, 14)" :key="i" class="ie-rel"><span class="ie-rel-e mono">{{ (r.s || r.subject || '').split(/[#/]/).pop() }}</span><span class="ie-rel-v mono">{{ (r.p || r.predicate || '').split(/[#/]/).pop() }} →</span><span class="ie-rel-e mono">{{ (r.o || r.object || '').split(/[#/]/).pop() }}</span></div>
         </div>
-        <p v-else class="ie-empty">Author a type system → owl-reasoner infers the entailed class/instance triples.</p>
+        <p v-else class="ie-empty">Author a type system → sophos-reasoner infers the entailed class/instance triples.</p>
       </div>
     </div>
 

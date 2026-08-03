@@ -2,7 +2,7 @@
 
 An invented type ref is worse than no type ref: it looks resolvable, so nothing
 downstream questions it, and the failure surfaces only when a reasoner is finally
-pointed at it. This test reads the vendored KKO TBox from apps/owl-reasoner and asserts
+pointed at it. This test reads the vendored KKO TBox from apps/sophos-reasoner and asserts
 every URI this service declares is really in it.
 
 It is skipped, loudly, when the TBox is not reachable (an image build that copies only
@@ -20,10 +20,10 @@ import pytest
 
 from device_service import contract
 
-#: apps/device-service/tests/test_kko.py -> apps/owl-reasoner/.../kko-2.10.n3
+#: apps/device-service/tests/test_kko.py -> apps/sophos-reasoner/.../kko-2.10.n3
 TBOX = (
     Path(__file__).resolve().parents[2]
-    / "owl-reasoner" / "src" / "owl_reasoner" / "data" / "kko-2.10.n3"
+    / "sophos-reasoner" / "src" / "sophos_reasoner" / "data" / "kko-2.10.n3"
 )
 
 pytestmark = pytest.mark.skipif(

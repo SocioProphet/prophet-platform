@@ -54,7 +54,7 @@ async function load() {
 onMounted(() => { if (optedIn.value) load(); });
 
 // Sources & reconciliation — the ingest → reconcile → estate-services chain, made visible. The twin
-// ORCHESTRATES existing services (entity-resolution, ie-engine, holmes, hellgraph, owl-reasoner); it
+// ORCHESTRATES existing services (entity-resolution, ie-engine, holmes, hellgraph, sophos-reasoner); it
 // never rebuilds them. Every call degrades gracefully.
 const connectors = ref<ConnectorMeta[]>([]);
 const ingestSummary = ref<IngestSummary | null>(null);

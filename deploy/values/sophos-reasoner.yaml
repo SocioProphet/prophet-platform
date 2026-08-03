@@ -1,0 +1,18 @@
+# sophos-reasoner — RDFS/OWL-RL reasoning + SHACL validation over HellGraph (apps/sophos-reasoner).
+# Formerly `owl-reasoner`; renamed in PR #1273. The service still IS an OWL/RDFS reasoner — only the
+# deployment identity changed. Bridges Ontogenesis-class inference (rdflib/owlrl/pyshacl) onto the graph:
+# entails knowledge derivable but not stated, over the KKO upper ontology — Protégé/Stardog reasoner
+# parity, proof-carrying. Reasons over raw Turtle or pulls a project's KKO-typed graph from lattice-studio.
+#
+# TRANSITIONAL PIN (zero-downtime cutover): the tag below is the last proven owl-reasoner image sha. The
+# `sophos-reasoner` GAR repo starts empty, so BEFORE THIS PR MERGES an owner must retag the existing image
+# into the new repo so this pin resolves the instant Argo creates the new Application (no ImagePullBackOff):
+#   gcloud artifacts docker tags add \
+#     us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/owl-reasoner:sha-09b1f336d566e4b0a8dfb778bc61663d967c6628 \
+#     us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/sophos-reasoner:sha-09b1f336d566e4b0a8dfb778bc61663d967c6628
+# After merge, images.yml builds sophos-reasoner fresh and gitops-promote bumps this tag as usual.
+image: { repository: sophos-reasoner, tag: sha-09b1f336d566e4b0a8dfb778bc61663d967c6628 }
+service: { port: 8080, portName: http }
+config:
+  LATTICE_STUDIO_URL: "http://lattice-studio:8080"
+autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }

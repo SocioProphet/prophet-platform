@@ -1,0 +1,40 @@
+# Argo CD Application — TRANSITIONAL owl-reasoner → sophos-reasoner DNS alias.
+#
+# The service formerly deployed as `owl-reasoner` was renamed to `sophos-reasoner`
+# (platform-services.yaml entry + apps/sophos-reasoner + deploy/values/sophos-reasoner.yaml).
+# Renaming the ApplicationSet entry prunes the old ClusterIP Service `owl-reasoner`; this
+# Application re-creates that name as an ExternalName CNAME → sophos-reasoner so out-of-repo
+# callers keep resolving during cutover. See infra/k8s/sophos-reasoner-alias/ for the manifest.
+#
+# LIFECYCLE: delete this file once prophet-health (the only known external caller) is repointed
+# to sophos-reasoner.socioprophet.svc.cluster.local. It is a bridge, not a permanent fixture.
+#
+# NOTE (reviewer): the old ClusterIP `owl-reasoner` Service (owned by the pruned svc-owl-reasoner
+# Application) and this ExternalName share the name `owl-reasoner`; they cannot coexist. On the
+# rename sync Argo prunes the old and this Application adopts the name. For strictly-zero
+# prophet-health continuity, fast-follow with the prophet-health HT_OWL_URL cutover so nothing
+# depends on the old name at prune time — this alias then only backstops stragglers.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sophos-reasoner-alias
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: socioprophet
+  annotations:
+    # reference: a swappable, temporary compatibility shim — not part of the interoperability spine.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/sophos-reasoner-alias
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

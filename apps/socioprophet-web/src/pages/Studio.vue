@@ -3,7 +3,7 @@
 // governed Notebooks + Universal Compute Plane (from app-vue) and the full knowledge-engineering
 // bench (Graph Explorer, Query, Analytics, GraphRAG, Resource Browser, Reasoner, Entity Resolution,
 // Ontology — from Prophet Studio). One surface, one design system (.studio-scope), reading the
-// canonical hellgraph-service / owl-reasoner / entity-resolution backends via /svc/*.
+// canonical hellgraph-service / sophos-reasoner / entity-resolution backends via /svc/*.
 import { ref, computed, watch, markRaw } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import './studio/studio-tokens.css';

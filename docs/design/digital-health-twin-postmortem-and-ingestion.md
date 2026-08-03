@@ -181,7 +181,7 @@ that already exist and ship in `prophet-platform/apps/` (`src/reconcile/`):
 | **Unstructured → facts** | `ie-engine` (spaCy) | `POST /extract` | C-CDA narrative / discharge summary / OCR'd PDF → candidate entities + claims, surfaced at **tier=hypothesis** (never promoted without clinician attestation). |
 | **Verify generated claims** | `holmes` | `POST /verify` | Any summary the twin generates has its claims verified against HellGraph — the **anti-Watson guard** (no assertion sold as truth without grounding). |
 | **Semantic search over records** | `hellgraph-service` | `POST /api/graph/node`, `GET /api/graph/ground` | Land records as typed nodes, then hybrid **HNSW⊕BM25 RRF** cited retrieval. |
-| **Entailments / promotion** | `owl-reasoner` | `POST /reason` | Reason over the twin's `twin.ttl` → RDFS/OWL-RL closure (conditions ⊑ `hdt:FHIRResource`, drives correspondence promotion). |
+| **Entailments / promotion** | `sophos-reasoner` | `POST /reason` | Reason over the twin's `twin.ttl` → RDFS/OWL-RL closure (conditions ⊑ `hdt:FHIRResource`, drives correspondence promotion). |
 | **Vectors** | `embeddings` | `POST /v1/embeddings` | 768-dim nomic vectors (L2-normalized, cosine=dot) for direct analyte-similarity when needed. |
 
 Every reconcile route **degrades gracefully**: a down service reports `degraded` and the twin keeps
