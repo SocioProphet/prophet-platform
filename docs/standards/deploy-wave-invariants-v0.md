@@ -285,3 +285,4 @@ still fails).
 | 14 | Local == CI parity: the fast required matrix, run locally (L5) | `make preflight` |
 | 15 | Every release/evidence reference resolves to a real, well-formed artifact (INV-DEP-13) | `python3 tools/verify_evidence_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_evidence_refs.py`) |
 | 16 | Blast-radius auto-remediation for renames (L6): suggestion + in-place fix, deletions untouched | `python3 tools/verify_no_dangling_path_refs.py --fix` (+ `python3 -m pytest -q tools/tests/test_verify_no_dangling_path_refs.py`) |
+| 17 | Meta-gate — every gate proves it can fire; no unregistered/teeth-less gate (never-fired == suspect) | `make gate-registry-check` (+ `python3 -m pytest -q tools/tests/test_check_gate_registry.py`) |

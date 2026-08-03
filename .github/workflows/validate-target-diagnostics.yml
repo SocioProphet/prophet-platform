@@ -128,6 +128,7 @@ jobs:
           - manifest-completeness-check
           - no-dangling-path-refs-check
           - evidence-refs-check
+          - gate-registry-check
           - fips-conformance-check
           - imageschemanet-grounding-check
     steps:

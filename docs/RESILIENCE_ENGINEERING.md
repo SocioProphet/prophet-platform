@@ -3,7 +3,8 @@
 Status: Phase 1 (L1 + L2), Phase 2 (L3 + L5), and Phase 3 (L4 + L6) shipped. L4
 (evidence-reference verification, INV-DEP-13) is shipped; L6 (auto-remediation) is shipped for the
 RENAME case (`--fix` rewrites the unambiguous old→new references; deletions remain human judgment).
-The cross-cutting last-fired gate registry is declared, not yet built.
+The cross-cutting gate registry (never-fired == suspect) is shipped: every gate must prove it can
+fire. **L1–L6 and the meta-gate are all live.**
 
 ## The failure class we are automating away
 
@@ -36,7 +37,7 @@ continuous gate, not a thing we learn in prod.
 | **L4** | **Evidence-ref verification (INV-DEP-13).** Every claim a release/evidence artifact makes must resolve to real evidence, not a string that looks right — extend the "reference resolves" discipline from cluster objects to the EVIDENCE surface under `releases/`. Every repo-path ref (paths, lock refs, validation-record refs) must exist + parse; every `evidence://`/`file://` URI must resolve; every digest-evidence claim (`bundle_digest`/`rulepack_digest`) must equal `sha256(the file it names)`. `make evidence-refs-check`. | **shipped** |
 | **L5** | **Local == CI parity (`make preflight`).** One target runs the fast, hermetic required-matrix legs locally (validate-repo, drift/standards/topology, the INV-DEP-9/10/11/12 gates, tools tests) so path-breaks and gate failures surface before push, not after. Opt-in `.githooks/pre-push` runs it. Infra-heavy legs (kind, go, docker) stay CI-only. | **shipped** |
 | **L6** | **Auto-remediation.** When a derived gate KNOWS the mechanical fix, offer the patch, not just the refusal. Shipped for the RENAME case of the blast-radius gate (INV-DEP-12): a rename reports its git-detected target, so each surviving reference gets a concrete "→ `<new path>`" suggestion, and `verify_no_dangling_path_refs.py --fix` rewrites the unambiguous full-path references in place. DELETIONS have no safe target and are never auto-rewritten (human judgment). `--fix` is a developer convenience — CI stays report-only, fail-closed. | **shipped (rename); deletion = human judgment** |
-| — | **Last-fired gate registry (cross-cutting).** A control that has never fired is suspect. Every gate here records when it last actually FAILED on something (the negative fixtures included), so a gate that has only ever passed is flagged for an adversarial review rather than trusted. L1's negative fixture is the first entry. | future |
+| **meta** | **Gate registry — never-fired == suspect (cross-cutting).** `tools/gate_registry.yaml` registers every gate with the teeth-test that proves it can DENY; `tools/check_gate_registry.py` fails closed if a registered gate has no negative-case test, and — the ratchet — if any `tools/verify_*.py` is neither registered with teeth nor booked as explicit debt under `known_unproven`. On first run it surfaced 3 estate gates with no teeth (fogstack signature ×2, probe-contract), now booked as acknowledged debt. A new gate cannot land without proving it fires or being visibly recorded as debt. | **shipped** |
 
 ## How the invariants + ephemeral-apply map onto it
 
