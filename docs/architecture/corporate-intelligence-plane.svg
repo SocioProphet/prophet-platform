@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1180" font-family="'IBM Plex Sans',Segoe UI,Helvetica,Arial,sans-serif">
+  <style>
+    :root{color-scheme:light dark}
+    .bg{fill:#ffffff}
+    .p1{fill:#edf5ff;stroke:#0f62fe;stroke-width:2}   /* ingredients */
+    .p2{fill:#e8daff;stroke:#8a3ffc;stroke-width:2}   /* recipes */
+    .p3{fill:#d9fbfb;stroke:#007d79;stroke-width:2}   /* capabilities */
+    .p4{fill:#f4f4f4;stroke:#161616;stroke-width:2}   /* markets */
+    .chip{fill:#ffffff;stroke:#c6c6c6;stroke-width:1}
+    .tier{fill:#161616;font-size:20px;font-weight:600}
+    .lede{fill:#525252;font-size:12px;font-style:italic}
+    .item{fill:#161616;font-size:12px}
+    .gap{fill:#a2191f;font-size:12px;font-weight:600}
+    .arrow{stroke:#0f62fe;stroke-width:2.5;fill:none}
+    @media (prefers-color-scheme:dark){
+      .bg{fill:#161616}
+      .p1{fill:#001d6c;stroke:#4589ff}.p2{fill:#31135e;stroke:#be95ff}.p3{fill:#022b30;stroke:#3ddbd9}.p4{fill:#262626;stroke:#c6c6c6}
+      .chip{fill:#161616;stroke:#525252}.tier{fill:#f4f4f4}.lede{fill:#a8a8a8}.item{fill:#f4f4f4}
+      .gap{fill:#ff8389}.arrow{stroke:#4589ff}
+    }
+    text{dominant-baseline:middle}
+  </style>
+  <defs><marker id="a" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#0f62fe"/></marker></defs>
+  <rect class="bg" x="0" y="0" width="1300" height="1180"/>
+  <text class="tier" x="30" y="34" font-size="23">Corporate Intelligence plane — governed ingredients → recipes → product capabilities → markets</text>
+  <text class="lede" x="30" y="58">Our Stardust/BI-equivalent. Value flows bottom→up: governed data ingredients, refined by governed recipes, expressed as product capabilities, sold into market use-cases. Every box is a real estate component; <tspan class="gap">red = gap</tspan>.</text>
+
+  <!-- ===== TIER 4 (top): MARKETS / USE-CASES ===== -->
+  <text class="tier" x="30" y="96">④ Markets &amp; use-cases</text>
+  <rect class="p4" x="30" y="108" width="1240" height="96" rx="4"/>
+  <text class="item" x="55" y="132" font-weight="600" fill="#0043ce">GROWTH</text>
+  <text class="item" x="55" y="152">Corporate Dev · Product Mgmt</text>
+  <text class="item" x="55" y="172">B2B Sales Intel · Marketing · Recruiting</text>
+  <text class="item" x="500" y="132" font-weight="600" fill="#0043ce">RELATIONSHIP</text>
+  <text class="item" x="500" y="152">Investor Relations · Account Mgmt</text>
+  <text class="item" x="500" y="172">Corporate Research</text>
+  <text class="item" x="880" y="132" font-weight="600" fill="#0043ce">RISK</text>
+  <text class="item" x="880" y="152">Supply Chain · Compliance / Risk</text>
+  <text class="item" x="880" y="172">Diligence · Conflict / barriers</text>
+  <text class="lede" x="55" y="192">cross-industry · maps to the intent grid 23×6</text>
+
+  <path class="arrow" marker-end="url(#a)" d="M650,300 L650,206"/>
+
+  <!-- ===== TIER 3: PRODUCT CAPABILITIES (Stardust-equivalent) ===== -->
+  <text class="tier" x="30" y="238">③ Product capabilities <tspan class="lede" font-size="12">— the features that are sold (governed emitted-fact contracts + services)</tspan></text>
+  <rect class="p3" x="30" y="250" width="1240" height="176" rx="4"/>
+  <rect class="chip" x="48" y="266" width="230" height="66" rx="3"/>
+  <text class="item" x="62" y="288" font-weight="600">Discovery &amp; search</text>
+  <text class="item" x="62" y="310" font-size="11">sherlock-engine · holmes</text>
+  <rect class="chip" x="290" y="266" width="230" height="66" rx="3"/>
+  <text class="item" x="304" y="288" font-weight="600">Company profile &amp; people</text>
+  <text class="item" x="304" y="310" font-size="11">identity-prime · entity-resolution</text>
+  <rect class="chip" x="532" y="266" width="230" height="66" rx="3"/>
+  <text class="item" x="546" y="288" font-weight="600">Value drivers &amp; scorecards</text>
+  <text class="item" x="546" y="310" font-size="11">intel.value_driver.scored · scorecard</text>
+  <rect class="chip" x="774" y="266" width="238" height="66" rx="3"/>
+  <text class="item" x="788" y="288" font-weight="600">Risk / opportunity / diligence</text>
+  <text class="item" x="788" y="310" font-size="11">diligence.risk.pack · conflict-check</text>
+  <rect class="chip" x="1024" y="266" width="230" height="66" rx="3"/>
+  <text class="item" x="1038" y="288" font-weight="600">Web intelligence</text>
+  <text class="item" x="1038" y="310" font-size="11">web-intel-metrics · webintel.*</text>
+
+  <rect class="chip" x="48" y="344" width="290" height="66" rx="3"/>
+  <text class="item" x="62" y="366" font-weight="600">Contract &amp; procurement intel</text>
+  <text class="item" x="62" y="388" font-size="11">contract.clauses.compared · procurement.substitution · entitlement.adjacency</text>
+  <rect class="chip" x="350" y="344" width="230" height="66" rx="3"/>
+  <text class="item" x="364" y="366" font-weight="600">Conversational discovery</text>
+  <text class="item" x="364" y="388" font-size="11">synapse-bridge · conv-mesh #458</text>
+  <rect class="chip" x="592" y="344" width="200" height="66" rx="3"/>
+  <text class="gap" x="606" y="366">Company News / analysis</text>
+  <text class="gap" x="606" y="388" font-size="11">GAP — verify vs news product</text>
+  <rect class="chip" x="804" y="344" width="200" height="66" rx="3"/>
+  <text class="gap" x="818" y="366">Company comparison</text>
+  <text class="gap" x="818" y="388" font-size="11">GAP — ground</text>
+  <rect class="chip" x="1016" y="344" width="238" height="66" rx="3"/>
+  <text class="gap" x="1030" y="366">Predictive / prescriptive · Social</text>
+  <text class="gap" x="1030" y="388" font-size="11">GAP — ground</text>
+
+  <path class="arrow" marker-end="url(#a)" d="M650,520 L650,428"/>
+
+  <!-- ===== TIER 2: GOVERNED RECIPES ===== -->
+  <text class="tier" x="30" y="460">② Governed recipes <tspan class="lede" font-size="12">— the transforms that turn ingredients into intelligence-ready assets (sp-orchestrator DAGs)</tspan></text>
+  <rect class="p2" x="30" y="472" width="1240" height="72" rx="4"/>
+  <rect class="chip" x="48" y="486" width="220" height="44" rx="3"/><text class="item" x="60" y="508" font-size="11.5">ingestion contract · connectors</text>
+  <rect class="chip" x="280" y="486" width="200" height="44" rx="3"/><text class="item" x="292" y="508" font-size="11.5">enrichment.emitted</text>
+  <rect class="chip" x="492" y="486" width="240" height="44" rx="3"/><text class="item" x="504" y="508" font-size="11.5">entity-resolution · canonicalization</text>
+  <rect class="chip" x="744" y="486" width="220" height="44" rx="3"/><text class="item" x="756" y="508" font-size="11.5">doc.clauses.extracted · nugget-extractor</text>
+  <rect class="chip" x="976" y="486" width="278" height="44" rx="3"/><text class="item" x="988" y="508" font-size="11.5">catalog.resolved · catalog.dcat.emitted</text>
+
+  <path class="arrow" marker-end="url(#a)" d="M650,636 L650,546"/>
+
+  <!-- ===== TIER 1 (bottom): GOVERNED INGREDIENTS ===== -->
+  <text class="tier" x="30" y="580">① Governed ingredients <tspan class="lede" font-size="12">— sources as Crystal Atlas catalog entries under the governance plane (see governance-catalog-plane)</tspan></text>
+  <rect class="p1" x="30" y="592" width="1240" height="72" rx="4"/>
+  <rect class="chip" x="48" y="606" width="150" height="44" rx="3"/><text class="item" x="60" y="628" font-size="11.5">Company data</text>
+  <rect class="chip" x="210" y="606" width="120" height="44" rx="3"/><text class="item" x="222" y="628" font-size="11.5">People</text>
+  <rect class="chip" x="342" y="606" width="120" height="44" rx="3"/><text class="item" x="354" y="628" font-size="11.5">News &amp; media</text>
+  <rect class="chip" x="474" y="606" width="130" height="44" rx="3"/><text class="item" x="486" y="628" font-size="11.5">Financials</text>
+  <rect class="chip" x="616" y="606" width="180" height="44" rx="3"/><text class="item" x="628" y="628" font-size="11.5">Internal (CRM/docs)</text>
+  <rect class="chip" x="808" y="606" width="120" height="44" rx="3"/><text class="item" x="820" y="628" font-size="11.5">Social</text>
+  <rect class="chip" x="940" y="606" width="314" height="44" rx="3"/><text class="item" x="952" y="628" font-size="11.5">Web · CEDP-style pillars (financial/client/offering/legal…)</text>
+
+  <text class="lede" x="30" y="700">Governance (roles · admissibility RAW→CANONICAL · membrane · ledger) wraps every tier — the "sold" product is always a governed artifact with provenance. Companion: governance-catalog-plane.svg.</text>
+</svg>
