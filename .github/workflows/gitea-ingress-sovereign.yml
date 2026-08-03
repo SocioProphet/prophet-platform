@@ -1,0 +1,48 @@
+name: gitea-ingress-sovereign
+
+# Make the sovereign Gitea reachable with NO vendor lock-in: install the CNCF
+# OSS ingress-nginx controller (portable, not GKE gce), point the gitea ingress
+# at it, and report the resolved LB address + gitea pod health. DNS
+# (gitea.sourceos.dev -> the address printed) stays external. cert-manager TLS
+# is a follow-up (issue #1255).
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  ingress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c # v2.3.5
+        with:
+          cluster_name: ${{ vars.GKE_CLUSTER || 'prophet-platform' }}
+          location: ${{ vars.GKE_LOCATION || 'us-central1' }}
+      - name: Install ingress-nginx (CNCF OSS, idempotent) if absent
+        run: |
+          set -euo pipefail
+          if ! kubectl get ns ingress-nginx >/dev/null 2>&1; then
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
+            kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=180s
+          else
+            echo "ingress-nginx already present"
+          fi
+      - name: Point the gitea ingress at ingress-nginx
+        run: |
+          set -euo pipefail
+          kubectl -n socioprophet patch ingress gitea --type merge -p '{"spec":{"ingressClassName":"nginx"}}' || true
+          kubectl -n socioprophet annotate ingress gitea kubernetes.io/ingress.class- 2>/dev/null || true
+      - name: Diagnose (gitea readiness, pvc, ingress address, events)
+        run: |
+          set +e
+          echo "── gitea pod:";      kubectl -n socioprophet get pods -l app=gitea -o wide
+          echo "── gitea describe:";  kubectl -n socioprophet describe pod -l app=gitea | tail -30
+          echo "── pvc:";            kubectl -n socioprophet get pvc
+          echo "── ingress:";        kubectl -n socioprophet get ingress gitea -o wide
+          echo "── nginx LB address (point gitea.sourceos.dev DNS here):"
+          kubectl -n ingress-nginx get svc ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}{"\n"}'
+          echo "── recent events:";  kubectl -n socioprophet get events --sort-by=.lastTimestamp | tail -15
