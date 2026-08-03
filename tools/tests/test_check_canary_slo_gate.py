@@ -153,3 +153,70 @@ def test_non_list_metrics_fails_closed():
     )
     violations = chk.scan_text(doc, "bad-shape.yaml")
     assert any("non-list `spec.metrics`" in v for v in violations)
+
+
+# --- clusterScope consistency: the bug that outlived PR #1229 (kind promoted to
+#     ClusterAnalysisTemplate, but the Rollout step referencing it was never
+#     updated), keeping hellgraph-service at zero pods after the "fix" landed ---
+
+_CLUSTER_KINDS = {"slo-gate": "ClusterAnalysisTemplate"}
+_NAMESPACED_KINDS = {"slo-gate": "AnalysisTemplate"}
+
+
+def test_cluster_template_without_clusterscope_is_rejected():
+    # Exactly deploy/values/hellgraph-service.yaml's shape before this fix: a
+    # ClusterAnalysisTemplate referenced with a bare templateName, no clusterScope.
+    violations = chk.scan_text(_VALUES_TEMPLATES, "hellgraph-service.yaml", _CLUSTER_KINDS)
+    assert any("without `clusterScope: true`" in v for v in violations), violations
+
+
+def test_cluster_template_with_clusterscope_passes():
+    doc = textwrap.dedent(
+        """
+        rollout:
+          enabled: true
+          steps:
+            - setWeight: 20
+            - analysis:
+                templates:
+                  - templateName: slo-gate
+                    clusterScope: true
+                args:
+                  - { name: service, value: hellgraph-service }
+            - setWeight: 100
+        """
+    )
+    assert chk.scan_text(doc, "hellgraph-service.yaml", _CLUSTER_KINDS) == []
+
+
+def test_namespaced_template_with_clusterscope_true_is_rejected():
+    # The opposite mismatch: clusterScope: true pointed at a template that is
+    # actually namespaced — Argo Rollouts would look in the wrong scope either way.
+    doc = textwrap.dedent(
+        """
+        rollout:
+          enabled: true
+          steps:
+            - setWeight: 20
+            - analysis:
+                templates:
+                  - templateName: slo-gate
+                    clusterScope: true
+                args:
+                  - { name: service, value: hellgraph-service }
+            - setWeight: 100
+        """
+    )
+    violations = chk.scan_text(doc, "some-service.yaml", _NAMESPACED_KINDS)
+    assert any("declared as a namespaced AnalysisTemplate" in v for v in violations), violations
+
+
+def test_unknown_template_name_is_not_flagged():
+    # A template this repo doesn't declare (e.g. shared cross-repo) can't be
+    # verified here — must not produce a false positive.
+    assert chk.scan_text(_VALUES_TEMPLATES, "hellgraph-service.yaml", {}) == []
+
+
+def test_collect_template_kinds_matches_live_repo_shape():
+    kinds = chk.collect_template_kinds(Path(chk.ROOT))
+    assert kinds.get("slo-gate") == "ClusterAnalysisTemplate"
