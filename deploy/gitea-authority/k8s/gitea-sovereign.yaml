@@ -1,0 +1,77 @@
+# Sovereign source-control plane (L1): the token authority (signs with the minted
+# gitea-signing-key, never exposed) + a Gitea instance behind an Ingress. Apply
+# via .github/workflows/deploy-authority.yml (WIF), never out-of-band kubectl.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: gitea-authority, namespace: socioprophet, labels: { app: gitea-authority } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: gitea-authority } }
+  template:
+    metadata: { labels: { app: gitea-authority } }
+    spec:
+      containers:
+        - name: authority
+          image: IMAGE_PLACEHOLDER
+          ports: [{ containerPort: 8081 }]
+          env:
+            - name: GITEA_SIGNING_KEY
+              valueFrom: { secretKeyRef: { name: gitea-signing-key, key: key } }  # minted by provision-secrets
+            - name: ISSUER_NODE
+              value: org-primary
+          readinessProbe: { httpGet: { path: /healthz, port: 8081 }, initialDelaySeconds: 3 }
+          resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 128Mi } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: gitea-authority, namespace: socioprophet }
+spec:
+  selector: { app: gitea-authority }
+  ports: [{ port: 8081, targetPort: 8081 }]   # ClusterIP: the shell calls this in-cluster; never public
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: gitea, namespace: socioprophet, labels: { app: gitea } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: gitea } }
+  template:
+    metadata: { labels: { app: gitea } }
+    spec:
+      containers:
+        - name: gitea
+          image: gitea/gitea:1.26.2-rootless
+          ports: [{ containerPort: 3000 }, { containerPort: 22 }]
+          env:
+            - { name: GITEA__server__ROOT_URL, value: "https://gitea.sourceos.dev/" }
+            - { name: GITEA__security__INSTALL_LOCK, value: "true" }
+            - { name: GITEA__service__DISABLE_REGISTRATION, value: "true" }
+            - { name: GITEA__actions__ENABLED, value: "true" }
+          volumeMounts: [{ name: data, mountPath: /var/lib/gitea }]
+          resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: "1", memory: 1Gi } }
+      volumes: [{ name: data, persistentVolumeClaim: { claimName: gitea-data } }]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: gitea-data, namespace: socioprophet }
+spec: { accessModes: [ReadWriteOnce], resources: { requests: { storage: 20Gi } } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: gitea, namespace: socioprophet }
+spec: { selector: { app: gitea }, ports: [{ name: http, port: 3000, targetPort: 3000 }] }
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitea
+  namespace: socioprophet
+  annotations: { kubernetes.io/ingress.class: "nginx" }
+spec:
+  rules:
+    - host: gitea.sourceos.dev   # the one external step: point this DNS A/CNAME at the ingress
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: gitea, port: { number: 3000 } } }

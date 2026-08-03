@@ -1,0 +1,46 @@
+name: deploy-gitea-authority
+
+# Build the sovereign authority image and deploy the L1 source-control plane
+# (authority + Gitea) to the estate GKE cluster — via the same WIF + Artifact
+# Registry provision-secrets/images use. The cluster pulls from AR via its node
+# identity (no imagePullSecret). Prereq satisfied: gitea-signing-key Secret is in
+# namespace socioprophet. The ONE external step this can't do: point
+# gitea.sourceos.dev DNS at the ingress.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Build + push authority image to Artifact Registry
+        run: |
+          set -euo pipefail
+          IMG="${REGISTRY}/gitea-authority:sha-${GITHUB_SHA::12}"
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build -t "$IMG" deploy/gitea-authority
+          docker push "$IMG"
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          echo "✔ pushed $IMG"
+      - uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c # v2.3.5
+        with:
+          cluster_name: ${{ vars.GKE_CLUSTER || 'prophet-platform' }}
+          location: ${{ vars.GKE_LOCATION || 'us-central1' }}
+      - name: Apply the L1 plane (authority + gitea + ingress)
+        run: |
+          set -euo pipefail
+          sed "s#IMAGE_PLACEHOLDER#${IMG}#" deploy/gitea-authority/k8s/gitea-sovereign.yaml | kubectl apply -f -
+          kubectl -n socioprophet rollout status deploy/gitea-authority --timeout=180s
+          echo "── authority ready. Gitea + ingress:"
+          kubectl -n socioprophet get deploy/gitea svc/gitea-authority ingress/gitea -o wide || true
+          echo "→ Point gitea.sourceos.dev DNS at the ingress address to finish."
