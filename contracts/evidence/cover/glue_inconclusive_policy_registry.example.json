@@ -1,0 +1,18 @@
+{
+  "evidence_cover_graph_version": 1,
+  "claim_id": "HSM_NON_ESCAPE",
+  "tier_policy": { "tier_order": ["PUBLIC", "OPERATOR", "AUDITOR"] },
+  "evidence_items": [
+    { "id": "ev:kernel_audit", "type": "KERNEL_AUDIT_LOG", "digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "id": "ev:policy_reg_committee", "type": "POLICY_REGISTRY_SNAPSHOT", "digest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+    { "id": "ev:prov_cites", "type": "PROVENANCE_CITATIONS", "digest_sha256": "6666666666666666666666666666666666666666666666666666666666666666" },
+    { "id": "ev:policy_reg_prov", "type": "POLICY_REGISTRY_SNAPSHOT", "digest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+  ],
+  "covers": [
+    { "cover_id": "cover:containment", "claim_id": "HSM_NON_ESCAPE", "tier": "OPERATOR", "evidence_item_ids": ["ev:kernel_audit", "ev:policy_reg_committee"] },
+    { "cover_id": "cover:provenance", "claim_id": "HSM_NON_ESCAPE", "tier": "AUDITOR", "evidence_item_ids": ["ev:prov_cites", "ev:policy_reg_prov"] }
+  ],
+  "overlap_requirements": [
+    { "overlap_id": "ov:policy_registry_consistency", "covers": ["cover:containment", "cover:provenance"], "must_agree_on": ["POLICY_REGISTRY_SNAPSHOT.digest_sha256"] }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "evidence_cover_graph_version": 1,
+  "claim_id": "HSM_NON_ESCAPE",
+  "evidence_items": [
+    { "id": "ev:kernel_audit", "type": "KERNEL_AUDIT_LOG", "digest_sha256": "1111111111111111111111111111111111111111111111111111111111111111" },
+    { "id": "ev:kernel_audit", "type": "SCOPE_METADATA", "digest_sha256": "3333333333333333333333333333333333333333333333333333333333333333" }
+  ],
+  "covers": [
+    { "cover_id": "cover:containment", "claim_id": "HSM_NON_ESCAPE", "tier": "OPERATOR", "evidence_item_ids": ["ev:kernel_audit"] }
+  ]
+}
