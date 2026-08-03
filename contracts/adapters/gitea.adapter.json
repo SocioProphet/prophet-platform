@@ -1,0 +1,14 @@
+{
+  "version": "0.1", "backend": "gitea", "base_url": "https://gitea.sourceos.dev/api/v1", "sovereign": true,
+  "auth": { "model": "ci-minted-app-token", "token_ref": "secret://ci/GITEA_OPS_TOKEN", "scopes": ["read:repository", "write:issue", "write:pull_request"] },
+  "capabilities": [
+    { "op": "list_repositories", "method": "GET", "endpoint": "/orgs/{org}/repos", "consent_purpose": "discover" },
+    { "op": "ci_status", "method": "GET", "endpoint": "/repos/{owner}/{repo}/commits/{ref}/status", "consent_purpose": "discover" },
+    { "op": "security_alerts", "method": "GET", "endpoint": "/repos/{owner}/{repo}/dependency/alerts", "consent_purpose": "discover" },
+    { "op": "activity", "method": "GET", "endpoint": "/repos/{owner}/{repo}", "consent_purpose": "discover" },
+    { "op": "ownership", "method": "GET", "endpoint": "/repos/{owner}/{repo}/contents/CODEOWNERS", "consent_purpose": "discover" },
+    { "op": "create_issue_draft", "method": "POST", "endpoint": "/repos/{owner}/{repo}/issues", "mutating": true, "consent_purpose": "ship" },
+    { "op": "create_mr_draft", "method": "POST", "endpoint": "/repos/{owner}/{repo}/pulls", "mutating": true, "consent_purpose": "ship" },
+    { "op": "apply_labels", "method": "POST", "endpoint": "/repos/{owner}/{repo}/issues/{n}/labels", "mutating": true, "consent_purpose": "administer" }
+  ]
+}
