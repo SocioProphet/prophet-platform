@@ -233,6 +233,10 @@ jobs:
             working-directory: .
             install: pip install pytest pyyaml jsonschema
             test: pytest -q tools/tests
+          - name: identity-twin
+            working-directory: apps/identity-twin
+            install: pip install numpy cryptography pytest
+            test: pytest -q tests
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Python
