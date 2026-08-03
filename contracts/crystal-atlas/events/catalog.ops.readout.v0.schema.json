@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/catalog_ops_readout.schema.json",
+  "title": "catalog.ops.readout.v0",
+  "description": "Analysis-layer record: a fold of the captured catalog.resolved.v0 / catalog.dcat.emitted.v0 events into catalog KPIs (resolve hit/miss, hot entries, registration-candidate misses, DCAT coverage, cold sources). Derived and non-authoritative; crystallized into the shared file-state so the readout is itself observable and SLO-gateable (WO-2).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "readout_id", "generated_at", "producer", "window", "resolve", "hot_entries", "top_misses", "dcat", "sources"],
+  "properties": {
+    "schema_version": { "const": "crystal-atlas.catalog.ops.readout.v0" },
+    "readout_id": { "type": "string", "minLength": 8 },
+    "generated_at": { "type": "string" },
+    "producer": { "type": "string" },
+    "event_id": { "type": "string" },
+    "emitted_at": { "type": "string" },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events_scanned", "first_event_at", "last_event_at"],
+      "properties": {
+        "events_scanned": { "type": "integer", "minimum": 0 },
+        "first_event_at": { "type": ["string", "null"] },
+        "last_event_at": { "type": ["string", "null"] }
+      }
+    },
+    "resolve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "hits", "misses", "hit_rate", "by_kind"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "hits": { "type": "integer", "minimum": 0 },
+        "misses": { "type": "integer", "minimum": 0 },
+        "hit_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "by_kind": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["total", "hits", "misses"],
+            "properties": {
+              "total": { "type": "integer", "minimum": 0 },
+              "hits": { "type": "integer", "minimum": 0 },
+              "misses": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "hot_entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "entry_id", "resolves"],
+        "properties": {
+          "kind": { "type": "string" },
+          "entry_id": { "type": "string" },
+          "resolves": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "top_misses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "entry_id", "misses"],
+        "properties": {
+          "kind": { "type": "string" },
+          "entry_id": { "type": "string" },
+          "misses": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "dcat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emissions", "distinct_assets", "coverage_of_resolved_assets"],
+      "properties": {
+        "emissions": { "type": "integer", "minimum": 0 },
+        "distinct_assets": { "type": "integer", "minimum": 0 },
+        "coverage_of_resolved_assets": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cataloged", "read_in_window", "cold"],
+      "properties": {
+        "cataloged": { "type": "integer", "minimum": 0 },
+        "read_in_window": { "type": "integer", "minimum": 0 },
+        "cold": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
