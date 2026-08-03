@@ -32,7 +32,7 @@ image:
   # New service: no sha- tag exists until the first CI build. gitops-promote sha-pins this
   # on merge (market-replay / prophet-materializer-clickhouse precedent), and the
   # moving-tag ratchet entry in tools/preflight_deploy_contract.py is deleted then.
-  tag: sha-b221f89b3e57fba0359702c02609734f78daf3be
+  tag: sha-85d830cd278ee7584e7b1ebad0dd78f6be476c4e
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`;
   # harmless once promotion pins an immutable sha- tag (kubelet re-checks, digests match).
   pullPolicy: Always

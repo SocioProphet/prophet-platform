@@ -20,7 +20,7 @@ nameOverride: device-service
 image:
   repository: device-service
   # sha-pinned by gitops-promote after the first CI build (nugget-extractor precedent).
-  tag: sha-350c63fb9e8dd882d0a446ef0da82bc088f8962b
+  tag: sha-85d830cd278ee7584e7b1ebad0dd78f6be476c4e
   # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless
   # once promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
   pullPolicy: Always
