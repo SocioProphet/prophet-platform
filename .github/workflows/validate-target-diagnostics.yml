@@ -105,6 +105,7 @@ jobs:
           - canary-slo-gate-check
           - rollout-analysis-refs-check
           - overlay-self-contained-check
+          - manifest-completeness-check
           - fips-conformance-check
           - imageschemanet-grounding-check
     steps:
@@ -114,8 +115,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-      - name: Setup kubectl (renders overlays for the self-containment gates, INV-DEP-9/10)
-        if: matrix.target == 'rollout-analysis-refs-check' || matrix.target == 'overlay-self-contained-check'
+      - name: Setup kubectl (renders overlays for the completeness gates, INV-DEP-9/10/11)
+        if: matrix.target == 'rollout-analysis-refs-check' || matrix.target == 'overlay-self-contained-check' || matrix.target == 'manifest-completeness-check'
         uses: azure/setup-kubectl@v4
       - name: Setup Python
         uses: actions/setup-python@v5

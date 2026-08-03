@@ -1,0 +1,105 @@
+# ephemeral-apply-preflight — L1 of the resilience-engineering program (docs/RESILIENCE_ENGINEERING.md).
+#
+# THE FAILURE CLASS. On 2026-08-02 a prod blue-green deploy repeatedly reached the cluster with
+# manifests that `kubectl kustomize` rendered green but the LIVE cluster rejected at create/spec
+# time: an overlay referenced a ServiceAccount/ConfigMap/PVC it never rendered (FailedCreate,
+# 0 pods); a Rollout referenced a namespaced AnalysisTemplate not in its namespace (InvalidSpec,
+# Degraded). Dry-run kustomize could not see any of it — only the REAL apply did.
+#
+# WHAT THIS DOES. It stands up a hermetic `kind` cluster, installs the argo-rollouts CRDs +
+# controller, and ACTUALLY applies each promote overlay to a throwaway namespace, asserting the
+# create/spec failure class does NOT occur. The real GAR image cannot pull inside kind, so the gate
+# keys ONLY on create/spec-time signals (FailedCreate / InvalidSpec), never on image pull:
+# reaching Pending/ContainerCreating is a PASS (it proves SA/ConfigMap/PVC/AnalysisTemplate all
+# resolved); we do not wait for Ready. The apply+assert body lives in
+# .github/app-ci/ephemeral-apply-assert.sh so it is testable and not trapped in YAML.
+#
+# NEVER-FIRED == SUSPECT. Before trusting a green on the real overlays, the job first applies a
+# DELIBERATELY broken negative fixture (overlays/_selftest-broken — a Rollout naming a
+# ServiceAccount the overlay does not render) and asserts the detector REPORTS FailedCreate
+# (returns non-zero). If the detector PASSES the broken fixture, the effect-canary is toothless and
+# THIS JOB FAILS. That is the can-fail proof this whole gate rests on.
+#
+# This EXTENDS, does not replace, the static point-gates INV-DEP-9/10/11 (analysis / SA-ConfigMap-PVC
+# / Secret+digest). Those render and inspect YAML; this one proves the live cluster accepts it.
+name: ephemeral-apply-preflight
+
+on:
+  pull_request:
+    paths:
+      - 'infra/k8s/search-orchestrator/**'
+      - 'infra/k8s/rollouts/**'
+      - '.github/app-ci/ephemeral-apply-assert.sh'
+      - '.github/workflows/ephemeral-apply-preflight.yml'
+  workflow_dispatch:
+
+# Pinned so the ephemeral controller version is deterministic (a moving `latest` would let an
+# upstream change silently alter what "the cluster accepts" means).
+env:
+  ARGO_ROLLOUTS_VERSION: v1.7.2
+  KIND_CLUSTER: ephemeral-apply-preflight
+
+jobs:
+  ephemeral-apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Python (used by the apply-assert namespace rewrite + JSON verdicts)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pyyaml
+        run: python -m pip install --upgrade pip pyyaml
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+      - name: Create hermetic kind cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: ${{ env.KIND_CLUSTER }}
+      - name: Install argo-rollouts CRDs + controller
+        run: |
+          set -euo pipefail
+          kubectl create namespace argo-rollouts
+          kubectl apply -n argo-rollouts \
+            -f "https://github.com/argoproj/argo-rollouts/releases/download/${ARGO_ROLLOUTS_VERSION}/install.yaml"
+          # CRDs must be established before any Rollout / (Cluster)AnalysisTemplate applies.
+          kubectl wait --for condition=established --timeout=120s \
+            crd/rollouts.argoproj.io \
+            crd/analysistemplates.argoproj.io \
+            crd/clusteranalysistemplates.argoproj.io
+          # Controller must be running so it reconciles Rollouts (creates ReplicaSets/pods, and
+          # emits InvalidSpec) — otherwise the assert would time out with no signal.
+          kubectl rollout status deployment/argo-rollouts -n argo-rollouts --timeout=180s
+      - name: Install the shared slo-gate ClusterAnalysisTemplate
+        # The prod overlay's Rollout references slo-gate with clusterScope: true (INV-DEP-9). Install
+        # the repo's ClusterAnalysisTemplate so that ref resolves — otherwise the Rollout would be
+        # InvalidSpec here for a reason unrelated to the overlay under test.
+        run: kubectl apply -f infra/k8s/rollouts/base/analysistemplate-slo.yaml
+
+      # ---- CAN-FAIL PROOF FIRST: the detector must catch the broken fixture, or the gate is a lie.
+      - name: Prove the detector can FAIL (negative fixture — never-fired == suspect)
+        run: |
+          set -euo pipefail
+          # The fixture's Rollout names a ServiceAccount the overlay does not render. The detector
+          # MUST report the create-time failure (non-zero). A PASS here means the gate is toothless.
+          if bash .github/app-ci/ephemeral-apply-assert.sh \
+               infra/k8s/search-orchestrator/overlays/_selftest-broken selftest-broken ; then
+            echo "::error::negative fixture PASSED the detector — the ephemeral-apply gate is toothless"
+            exit 1
+          fi
+          echo "OK: detector correctly reported the create-time failure on the broken fixture"
+
+      # ---- REAL OVERLAYS: each must apply and schedule a pod with no create/spec-time failure.
+      - name: Apply each promote overlay and assert no create/spec-time failure
+        run: |
+          set -euo pipefail
+          for wave in dev canary prod; do
+            echo "::group::preflight overlays/promote/$wave"
+            bash .github/app-ci/ephemeral-apply-assert.sh \
+              "infra/k8s/search-orchestrator/overlays/promote/$wave" "preflight-$wave"
+            echo "::endgroup::"
+          done
+
+      - name: Tear down kind cluster
+        if: always()
+        run: kind delete cluster --name "${KIND_CLUSTER}" || true
