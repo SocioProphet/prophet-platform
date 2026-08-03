@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "spec_id": "eval/division-rules.v1",
+  "title": "SocioProphet Benchmark Submission Rules — Open vs Closed Divisions",
+  "description": "MLPerf-parity submission rules, spec-as-code. Names the OPEN and CLOSED divisions and the validity requirements per division by WIRING the gates that already exist in the estate (Stage-0 governance gate + provider-neutral scoring + no-laundering in tools/isota_tournament.py; clean-eval/contamination certificate; the repro-ledger-entry contract in schemas/eval/repro-ledger-entry.schema.json). A submission is VALID for a division iff every required gate for that division passes. Grounded in issue #1263 feature 2 ('closed vs open division; validity/audit review').",
+  "grounding": {
+    "issue": "SocioProphet/prophet-platform#1263",
+    "existing_mechanisms": {
+      "governance_gate": "tools/isota_tournament.py run_tournament() Stage 0 (fail-closed on governance.{api,rate,auth,cost,observability})",
+      "provider_neutrality": "tools/isota_tournament.py composite() — no provider term in scoring; verdict invariant to provider label permutation",
+      "no_laundering": "tools/isota_tournament.py — promotion rests only on reproduced-by-us facts, disjoint from cited provider numbers; schemas/eval/metric-fact.schema.json {reproduced_by_us, source_trust_class}",
+      "clean_eval_certificate": "pre-exam contamination/clean-eval certificate (Noetica-bench2 contamination_audit.py); asserted here as a required submission artifact",
+      "repro_ledger_entry": "schemas/eval/repro-ledger-entry.schema.json (run_id, environment_hash, methodology_snapshot_hash, seed_policy, replay_artifact_id)"
+    }
+  },
+  "gates": {
+    "governance_gate": "Stage-0 fail-closed governance floor (api, rate, auth, cost, observability all provisioned).",
+    "provider_neutrality": "Scoring carries no provider term; the headline is scored by our runner, not by provider-reported numbers.",
+    "no_laundering": "Every headline/promotion metric fact is reproduced-by-us and disjoint from cited provider numbers (no official_provider trust class as a headline).",
+    "clean_eval_certificate": "A pre-run contamination/clean-eval certificate with status 'clean' that covers the submission's eval corpus.",
+    "repro_ledger_entry": "A repro-ledger entry pinning environment_hash + methodology_snapshot_hash + seed_policy + replay_artifact_id.",
+    "fixed_task_manifest": "The submission runs the canonical benchmark contract unchanged (same dataset_ref / required_metric_definition_ids); deviations are disallowed.",
+    "minimum_trials_met": "trial_count >= the benchmark contract's minimum_trial_count."
+  },
+  "divisions": {
+    "CLOSED": {
+      "intent": "Strict, apples-to-apples comparability (MLPerf 'Closed'). The task manifest is fixed; results are directly comparable and rankable.",
+      "required_gates": [
+        "governance_gate",
+        "provider_neutrality",
+        "no_laundering",
+        "clean_eval_certificate",
+        "repro_ledger_entry",
+        "fixed_task_manifest",
+        "minimum_trials_met"
+      ],
+      "comparable": true
+    },
+    "OPEN": {
+      "intent": "Permits novel methods / modified task manifests (MLPerf 'Open'). Still honest and contamination-free, but NOT directly comparable to CLOSED; deviations must be declared.",
+      "required_gates": [
+        "governance_gate",
+        "provider_neutrality",
+        "no_laundering",
+        "clean_eval_certificate"
+      ],
+      "recommended_gates": [
+        "repro_ledger_entry",
+        "minimum_trials_met"
+      ],
+      "comparable": false
+    }
+  }
+}
