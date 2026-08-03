@@ -29,13 +29,16 @@ performs the file changes; --open-pr additionally opens the (idempotent) re-vend
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -52,6 +55,70 @@ def _load_marker_tool():
 
 
 marker_tool = _load_marker_tool()
+
+
+# ── resolving the artifact the EffectRequest names but does not carry ────────────────
+
+_OCI_MANIFEST_ACCEPT = ("application/vnd.oci.image.manifest.v1+json, "
+                        "application/vnd.docker.distribution.manifest.v2+json")
+
+
+def _oci_auth_header() -> dict:
+    """Bearer token, or HTTP Basic — the same secrets the publisher uses (OCI_TOKEN, or
+    OCI_USERNAME/OCI_PASSWORD; in CI the ZOT_CI_* repository secrets)."""
+    token = os.environ.get("OCI_TOKEN")
+    if token:
+        return {"Authorization": f"Bearer {token}"}
+    user, password = os.environ.get("OCI_USERNAME"), os.environ.get("OCI_PASSWORD")
+    if user and password:
+        return {"Authorization": "Basic " + base64.b64encode(f"{user}:{password}".encode()).decode()}
+    return {}
+
+
+def _http_get(url: str, headers: dict) -> bytes:
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as resp:
+        return resp.read()
+
+
+def resolve_tarball(effect_request: dict, dest_dir: Path, *, http_get=_http_get) -> Path:
+    """Obtain the digest-pinned engine tarball an EffectRequest NAMES but does not carry, from
+    the sovereign registry (zot). The plane publishes the artifact (sociosphere
+    tools/publish_vendor_artifact_oci.py); this fetches it by the same coordinates:
+
+        registry = $OCI_REGISTRY, scheme = $OCI_SCHEME (https in prod),
+        repo     = $OCI_REPO or "socioprophet/<packageName>", reference = parameters.toVersion.
+
+    It pulls the OCI manifest, takes the single gzipped-tar layer, fetches that blob, and
+    VERIFIES sha256(blob) == the layer digest before writing. A mismatch is fatal: the whole
+    point of a pinned artifact is that you never re-vendor bytes you did not verify against the
+    digest the registry attests. `http_get(url, headers) -> bytes` is injectable for tests."""
+    p = effect_request.get("parameters") or {}
+    to_version = p.get("toVersion")
+    if not to_version:
+        raise ValueError("EffectRequest parameters.toVersion is required to resolve the artifact")
+    package = p.get("packageName") or (p.get("sourceRepo") or "").split("/")[-1] or "hellgraph"
+    registry = os.environ.get("OCI_REGISTRY", "localhost:15000")
+    scheme = os.environ.get("OCI_SCHEME", "http")
+    repo = os.environ.get("OCI_REPO", f"socioprophet/{package}")
+    base = f"{scheme}://{registry}/v2/{repo}"
+    auth = _oci_auth_header()
+
+    manifest = json.loads(http_get(f"{base}/manifests/{to_version}", {"Accept": _OCI_MANIFEST_ACCEPT, **auth}))
+    layers = [layer for layer in manifest.get("layers", []) if layer.get("digest")]
+    tar_layers = [layer for layer in layers if "tar" in layer.get("mediaType", "").lower()] or layers
+    if len(tar_layers) != 1:
+        raise ValueError(f"expected exactly one tarball layer in {repo}:{to_version}, found {len(tar_layers)}")
+    digest = tar_layers[0]["digest"]  # e.g. "sha256:abcd…"
+    blob = http_get(f"{base}/blobs/{digest}", dict(auth))
+    algo, _, want_hex = digest.partition(":")
+    got_hex = hashlib.new(algo, blob).hexdigest()
+    if got_hex != want_hex:
+        raise ValueError(f"digest mismatch for {repo}:{to_version} — manifest attests {digest}, "
+                         f"blob is {algo}:{got_hex}; refusing to vendor unverified bytes")
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    out = dest_dir / f"socioprophet-{package}-{to_version}.tgz"
+    out.write_bytes(blob)
+    return out
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -508,10 +575,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     if args.from_effect_request:
-        if not args.tarball:
-            ap.error("--from-effect-request also needs --tarball: an EffectRequest carries no tarball; "
-                     "resolve the digest-pinned artifact from the sovereign registry (zot) first")
-        plan = RevendorPlan.from_effect_request(json.loads(args.from_effect_request.read_text()), args.tarball)
+        doc = json.loads(args.from_effect_request.read_text())
+        # The request carries no tarball; resolve the digest-pinned artifact from the sovereign
+        # registry (zot) unless one was supplied explicitly (tests / air-gapped runs).
+        tarball = args.tarball or resolve_tarball(doc, args.root / ".revendor-cache")
+        plan = RevendorPlan.from_effect_request(doc, tarball)
     elif args.to_version and args.tarball:
         plan = RevendorPlan(to_version=args.to_version, tarball=args.tarball, expect_markers=args.expect,
                             forbid_markers=args.forbid,

@@ -8,6 +8,7 @@ because each corresponds to a way this has gone wrong before.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -215,6 +216,57 @@ def test_requires_human_approval_blocks_apply_until_approved(tmp_path):
     # an approving EffectDecision (human_approved) lets it proceed
     approved = eng.execute(plan, root, apply=True, human_approved=True)
     assert approved["status"] in ("applied", "noop")
+
+
+# ── resolve_tarball: pull the digest-pinned artifact the request only names ──────────
+
+def _fake_registry(tarball_bytes, media="application/vnd.oci.image.layer.v1.tar+gzip"):
+    """An injectable http_get that serves a one-layer OCI manifest + the blob."""
+    digest = "sha256:" + hashlib.sha256(tarball_bytes).hexdigest()
+
+    def http_get(url, headers):
+        if "/manifests/" in url:
+            return json.dumps({"layers": [{"mediaType": media, "digest": digest,
+                                           "size": len(tarball_bytes)}]}).encode()
+        if url.endswith(digest):
+            return tarball_bytes
+        raise AssertionError(f"unexpected url: {url}")
+
+    return http_get, digest
+
+
+def test_resolve_tarball_pulls_and_verifies(tmp_path):
+    data = b"pretend-this-is-a-gzipped-tar"
+    http_get, _ = _fake_registry(data)
+    doc = {"parameters": {"toVersion": "0.4.46", "packageName": "hellgraph"}}
+    out = eng.resolve_tarball(doc, tmp_path, http_get=http_get)
+    assert out.read_bytes() == data
+    assert out.name == "socioprophet-hellgraph-0.4.46.tgz"
+
+
+def test_resolve_tarball_refuses_a_digest_mismatch(tmp_path):
+    # The manifest attests a digest the returned blob does NOT hash to — never vendor it.
+    wrong_digest = "sha256:" + hashlib.sha256(b"a different artifact").hexdigest()
+
+    def http_get(url, headers):
+        if "/manifests/" in url:
+            return json.dumps({"layers": [{"mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+                                           "digest": wrong_digest}]}).encode()
+        return b"the actual bytes, which do not match wrong_digest"
+
+    with pytest.raises(ValueError, match="digest mismatch"):
+        eng.resolve_tarball({"parameters": {"toVersion": "0.4.46"}}, tmp_path, http_get=http_get)
+
+
+def test_resolve_tarball_requires_exactly_one_tar_layer(tmp_path):
+    with pytest.raises(ValueError, match="one tarball layer"):
+        eng.resolve_tarball({"parameters": {"toVersion": "0.4.46"}}, tmp_path,
+                            http_get=lambda url, headers: json.dumps({"layers": []}).encode())
+
+
+def test_resolve_tarball_requires_to_version(tmp_path):
+    with pytest.raises(ValueError, match="toVersion"):
+        eng.resolve_tarball({"parameters": {}}, tmp_path, http_get=lambda url, headers: b"")
 
 
 # ── Copilot #1062 round 2: fail-closed AND receipt-producing ──────────────────
