@@ -47,6 +47,18 @@ resource "google_artifact_registry_repository_iam_member" "ci_push" {
   member     = "serviceAccount:sourceos-ci@socioprophet-platform.iam.gserviceaccount.com"
 }
 
+# Let GitHub Actions in SocioProphet/cybernetic-genesis impersonate the CI push identity via WIF,
+# so its release-train workflow can push the Inception image to GAR (which sourceos-ci already has
+# artifactregistry.writer on, above). Additive per-repo grant, mirroring the existing binding for
+# SocioProphet/prophet-platform. The sourceos-ci SA and the github-pool provider are shared-estate
+# identities defined out-of-band; this resource manages ONLY this repo's impersonation grant.
+# Provider condition (assertion.repository_owner == "SocioProphet") already admits the repo.
+resource "google_service_account_iam_member" "cybernetic_genesis_ci_impersonate" {
+  service_account_id = "projects/socioprophet-platform/serviceAccounts/sourceos-ci@socioprophet-platform.iam.gserviceaccount.com"
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/projects/400078206872/locations/global/workloadIdentityPools/github-pool/attribute.repository/SocioProphet/cybernetic-genesis"
+}
+
 # Dedicated, least-privilege node identity. The project's default compute SA was
 # deleted (hardening), so Autopilot can't fall back to it — and a custom node SA
 # is best practice regardless.
