@@ -20,7 +20,7 @@ A real rate then follows from whichever inflation measure you trust: `real_rate(
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import log, exp
 from typing import Sequence
 

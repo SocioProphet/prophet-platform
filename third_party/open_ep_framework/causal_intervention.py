@@ -40,18 +40,14 @@ from typing import Any, Iterable
 
 from .causal_graph import (
     Edge,
-    GraphInvariantError,
     Hypothesis,
-    PathContribution,
     Propagation,
-    enforce_invariants,
     propagate,
 )
 
 try:  # abduction is a sibling; counterfactual step 1 uses it when available.
-    from .causal_abduction import Abduction, abduce
+    from .causal_abduction import abduce
 except Exception:  # pragma: no cover - abduction is expected present in-tree
-    Abduction = None  # type: ignore
     abduce = None  # type: ignore
 
 
