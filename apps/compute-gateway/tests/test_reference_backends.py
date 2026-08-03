@@ -129,6 +129,34 @@ def test_au_reference_missing_row_cannot_reach_verified(tmp_path, monkeypatch):
     assert rec["warrant"] == "observed"                         # keeps its warrant, no promotion
 
 
+def test_au_reference_resolves_from_a_pre_migration_sink_missing_value_abs(tmp_path, monkeypatch):
+    """Copilot #961: a `reference_facts` table written before the `value_abs` column existed
+    raises `OperationalError: no such column: value_abs` on the SELECT, which the broad
+    `except Exception: return None` around it swallowed identically to "no such row" — a real
+    reference value already sitting in the sink silently vanished, with no error anywhere, and
+    reconcile just reported the fact as unreconciled/not-flagged. Build that exact pre-migration
+    schema by hand (no `value_abs` column at all) and confirm the value is still found."""
+    import sqlite3
+
+    db = tmp_path / "legacy.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE reference_facts (entity TEXT, period TEXT, field TEXT, value TEXT, "
+                "warrant TEXT, reference TEXT, within_tol INTEGER, source TEXT, loaded_at TEXT, "
+                "PRIMARY KEY(entity, period, field))")
+    con.execute("INSERT INTO reference_facts VALUES (?,?,?,?,?,?,?,?,?)",
+                ("GYG", "FY26", "revenue", "1204.0", "observed", None, 0, "asx-appendix-4e", "now"))
+    con.commit()
+    con.close()
+    monkeypatch.setattr(adapters, "SQL_LOAD_DSN", f"sqlite:///{db}")
+
+    r = _compute({"kind": "reconcile", "spec": {
+        "entity": {"asx": "GYG"}, "period": "FY26",
+        "facts": [{"field": "revenue", "value": 1204.0}]}})
+    rec = r["outputs"][0]["data"]["reconciliations"][0]
+    assert rec["reference"] == 1204.0            # found despite the missing value_abs column
+    assert rec["within_tol"] and rec["warrant"] == "verified"
+
+
 # ── unit normalization (the validate-stage unit check) ──
 def test_unit_scaling_to_absolute():
     assert adapters._fact_abs_value(1204, "m") == 1_204_000_000
