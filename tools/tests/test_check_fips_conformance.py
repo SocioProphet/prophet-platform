@@ -23,10 +23,15 @@ _BOUNDARY = {
         {"id": "blake2", "pattern": r"(?:hashlib\.)?blake2[bs]\s*\(", "why": "BLAKE2 not FIPS"},
     ],
     "allowlist": [],
+    "fips_modules": {  # Build 2 — the CMVP-validated module allowlist per runtime
+        "python": ["openssl-3-fips-provider"],
+        "node": ["openssl-3-fips-provider"],
+        "rust": ["aws-lc-rs"],
+    },
 }
 
 
-def _mkroot(tmp_path: Path, *, scope_body: str, wired: bool = True, fed_flag: bool = True) -> Path:
+def _mkroot(tmp_path: Path, *, scope_body: str, wired: bool = True, fed_flag: bool = True, modules: str = "valid") -> Path:
     (tmp_path / "security").mkdir(parents=True, exist_ok=True)
     (tmp_path / "security/fips-boundary.yaml").write_text(yaml.safe_dump(_BOUNDARY), encoding="utf-8")
     (tmp_path / "tools").mkdir(parents=True, exist_ok=True)
@@ -40,15 +45,21 @@ def _mkroot(tmp_path: Path, *, scope_body: str, wired: bool = True, fed_flag: bo
     if fed_flag:
         inv = tmp_path / "apps/cloudshell-fog"
         inv.mkdir(parents=True, exist_ok=True)
+        controls: dict = {"require_fips_validated_crypto": True}
+        if modules == "valid":
+            controls["fips_crypto_modules"] = {"python": "openssl-3-fips-provider", "rust": "aws-lc-rs"}
+        elif modules == "placeholder":
+            controls["fips_crypto_modules"] = {"python": "REPLACE_ME"}
+        # modules == "none" ⇒ omit fips_crypto_modules entirely (a flag with no warrant)
         (inv / "deployment-inventory.federal.example.yaml").write_text(
-            "profile:\n  require_fips_validated_crypto: true\n", encoding="utf-8"
+            yaml.safe_dump({"profile": "federal", "federal_controls": controls}), encoding="utf-8"
         )
     return tmp_path
 
 
 def _run(root: Path):
     b = fips.load_boundary(root)
-    return fips.check_flag_enforced(root, b) + fips.scan_scope(root, b)
+    return fips.check_flag_enforced(root, b) + fips.scan_scope(root, b) + fips.check_module_warrant(root, b)
 
 
 def test_clean_boundary_passes(tmp_path):
@@ -110,3 +121,22 @@ def test_shipped_repo_boundary_is_conformant():
     b = fips.load_boundary(root)
     assert fips.scan_scope(root, b) == [], "shipped boundary must have no non-FIPS algorithm calls"
     assert fips.check_flag_enforced(root, b) == [], "federal FIPS flag must be enforced + wired"
+    assert fips.check_module_warrant(root, b) == [], "federal deployments must name FIPS-validated modules"
+
+
+# --- Build 2: module CMVP warrant ---
+
+def test_federal_flag_without_named_modules_fails(tmp_path):
+    # require_fips_validated_crypto: true but no fips_crypto_modules — a claim with no warrant.
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", modules="none")
+    assert any("claim without a warrant" in v for v in _run(root)), _run(root)
+
+
+def test_federal_placeholder_module_is_rejected(tmp_path):
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", modules="placeholder")
+    assert any("not a FIPS-validated module" in v for v in _run(root)), _run(root)
+
+
+def test_federal_with_valid_named_modules_passes(tmp_path):
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", modules="valid")
+    assert _run(root) == []

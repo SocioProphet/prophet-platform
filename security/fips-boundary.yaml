@@ -42,8 +42,13 @@ banned_algorithms:
 # match is reported but does not fail. (Kept empty deliberately — earn each entry.)
 allowlist: []
 
-# Build 2 (module CMVP validation) — informational only, not enforced here.
-module_validation_pending:
-  - "python: route hashlib/cryptography through the OpenSSL 3 FIPS provider (FIPS mode)"
-  - "go: build with BoringCrypto (GOEXPERIMENT=boringcrypto)"
-  - "rust: migrate ring -> aws-lc-rs (FIPS-capable) across the boundary services"
+# Build 2 (module CMVP validation) — ENFORCED. The FIPS-validated crypto modules a federal
+# deployment must NAME: a deployment with require_fips_validated_crypto: true must declare
+# `fips_crypto_modules` in its inventory, choosing from this allowlist per runtime, with no
+# placeholders. An approved ALGORITHM (Build 1) on an unvalidated MODULE is not FIPS — the named
+# module is the warrant behind the flag. Enforced by check_fips_conformance.py::check_module_warrant.
+fips_modules:
+  python: [openssl-3-fips-provider]
+  node:   [openssl-3-fips-provider]
+  go:      [boringcrypto]
+  rust:    [aws-lc-rs]

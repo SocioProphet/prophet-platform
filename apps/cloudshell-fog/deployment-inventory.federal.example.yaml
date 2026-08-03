@@ -12,4 +12,10 @@ secrets:
 federal_controls:
   minimum_trust_tier: attested_fog
   require_fips_validated_crypto: true
+  # The named FIPS-validated crypto module per runtime — the warrant behind the flag above.
+  # Enforced against security/fips-boundary.yaml's allowlist by check_fips_conformance.py.
+  fips_crypto_modules:
+    python: openssl-3-fips-provider
+    node: openssl-3-fips-provider
+    rust: aws-lc-rs
   strict_egress: true
