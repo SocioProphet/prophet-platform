@@ -1,14 +1,21 @@
 {
-  "run_id": "st026-seed1729",
   "bench": "mmlu",
-  "round_id": "mmlu-st026-r1",
-  "version": "v1",
   "determinism": "bounded_nondeterministic",
   "epsilon": 0.02,
-  "headline_metric_id": "md.mmlu.route_accuracy",
-  "headline_value": 0.0,
-  "seed_policy": "MMLU_SEED=1729 pinned; clean-eval contamination certificate attached",
-  "rerun": {"kind": "external"},
   "external_command": "bash agent-machine/scripts/run-exam.sh   # MMLU_SEED=1729 MMLU_ARMS=baseline,brain,compute,route",
-  "notes": "External arm (Noetica MMLU/ST026 exam). DISPATCH-ONLY: the in-process gate records the dispatch and the one-command reproduce path; it does NOT fabricate a reproduced number. headline_value=0.0 is a placeholder until the exam headline is captured out-of-band and pinned. Full in-process collapse is filed as a follow-up issue."
+  "headline_metric_id": "md.mmlu.route_accuracy",
+  "headline_value": 0.8695906432748538,
+  "notes": "Noetica MMLU/ST026 exam. REPLAY-CAPABLE: the gate re-derives route accuracy in-process from the hash-verified captured exam artifact (rerun.args.artifact), so the epsilon gate BITES on the headline (no longer dispatch-only). The full live in-process exam re-run (real corpora/weights, not in CI) is filed as a follow-up; external_command is the out-of-band live path. Contamination certificate (status=clean) is hash-referenced via rerun.args.contamination_cert_sha256 and enforced fail-closed during replay.",
+  "rerun": {
+    "args": {
+      "artifact": "contracts/reproduce/mmlu/st026-seed1729.exam.json",
+      "artifact_sha256": "9eb7eb3a771722d52f2060587bf4d573fd26a47494b0c14d63b720aea5d7ef4a",
+      "contamination_cert_sha256": "957e3f7efebed0cc20102ac31e2bbdb84f5a07043457453db91f6787a131183d"
+    },
+    "kind": "replay_mmlu_route_accuracy"
+  },
+  "round_id": "mmlu-st026-r1",
+  "run_id": "st026-seed1729",
+  "seed_policy": "MMLU_SEED=1729 pinned; clean-eval contamination certificate attached (status=clean)",
+  "version": "v1"
 }

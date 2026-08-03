@@ -1,0 +1,31 @@
+{
+  "arms": {
+    "baseline": {
+      "correct": 1203,
+      "total": 1710
+    },
+    "brain": {
+      "correct": 1361,
+      "total": 1710
+    },
+    "compute": {
+      "correct": 1402,
+      "total": 1710
+    },
+    "route": {
+      "correct": 1487,
+      "total": 1710
+    }
+  },
+  "clean_eval_certificate": {
+    "certificate_id": "ce.noetica-mmlu-st026.seed1729",
+    "checked_at": "2026-08-01T00:00:00Z",
+    "corpus_ref": "noetica-mmlu-st026@seed1729",
+    "method": "n-gram + embedding overlap vs pretraining shards; 0 flagged items",
+    "status": "clean"
+  },
+  "exam": "noetica-mmlu-st026",
+  "headline_arm": "route",
+  "headline_metric_id": "md.mmlu.route_accuracy",
+  "seed": 1729
+}

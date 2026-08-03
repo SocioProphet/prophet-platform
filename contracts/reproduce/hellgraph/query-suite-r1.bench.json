@@ -1,0 +1,88 @@
+{
+  "bench": "hellgraph-bench",
+  "deterministic": true,
+  "headline_metric_id": "hg.query_resolution_rate",
+  "queries": [
+    {
+      "id": "q01",
+      "resolved": 1
+    },
+    {
+      "id": "q02",
+      "resolved": 1
+    },
+    {
+      "id": "q03",
+      "resolved": 1
+    },
+    {
+      "id": "q04",
+      "resolved": 1
+    },
+    {
+      "id": "q05",
+      "resolved": 0
+    },
+    {
+      "id": "q06",
+      "resolved": 1
+    },
+    {
+      "id": "q07",
+      "resolved": 1
+    },
+    {
+      "id": "q08",
+      "resolved": 1
+    },
+    {
+      "id": "q09",
+      "resolved": 1
+    },
+    {
+      "id": "q10",
+      "resolved": 1
+    },
+    {
+      "id": "q11",
+      "resolved": 1
+    },
+    {
+      "id": "q12",
+      "resolved": 0
+    },
+    {
+      "id": "q13",
+      "resolved": 1
+    },
+    {
+      "id": "q14",
+      "resolved": 1
+    },
+    {
+      "id": "q15",
+      "resolved": 1
+    },
+    {
+      "id": "q16",
+      "resolved": 1
+    },
+    {
+      "id": "q17",
+      "resolved": 1
+    },
+    {
+      "id": "q18",
+      "resolved": 1
+    },
+    {
+      "id": "q19",
+      "resolved": 1
+    },
+    {
+      "id": "q20",
+      "resolved": 1
+    }
+  ],
+  "suite": "query-suite-r1"
+}

@@ -47,5 +47,25 @@ jobs:
         run: python tools/reproduce_bench.py --bench isota --run opus-class-r1 --gate
       - name: Reproduce gate — bounded_nondeterministic arm (within epsilon)
         run: python tools/reproduce_bench.py --bench isota --run sampled-headline-r1 --gate
+      - name: Reproduce gate — MMLU/ST026 replay arm (route accuracy, within epsilon)
+        # Re-derives route accuracy in-process from the hash-verified captured exam
+        # artifact + contamination certificate; epsilon gate BITES (not dispatch-only).
+        run: python tools/reproduce_bench.py --bench mmlu --run st026-seed1729 --gate
+      - name: Reproduce gate — MMLU injected drift FAILS CLOSED (exit non-zero expected)
+        run: |
+          if python tools/reproduce_bench.py --bench mmlu --run st026-seed1729 --gate --inject-observed 0.95; then
+            echo "::error::MMLU gate did not fail closed on injected drift"; exit 1
+          else
+            echo "MMLU gate failed closed on injected drift, as required"
+          fi
+      - name: Reproduce gate — hellgraph replay arm (resolution rate, EXACT)
+        run: python tools/reproduce_bench.py --bench hellgraph --run query-suite-r1 --gate
+      - name: Reproduce gate — hellgraph injected drift FAILS CLOSED (exit non-zero expected)
+        run: |
+          if python tools/reproduce_bench.py --bench hellgraph --run query-suite-r1 --gate --inject-observed 0.90001; then
+            echo "::error::hellgraph gate did not fail closed on injected drift"; exit 1
+          else
+            echo "hellgraph gate failed closed on injected drift, as required"
+          fi
       - name: Teeth — gate PASSES within tolerance and FAILS closed on injected drift
         run: pytest -q tests/platform_stubs/test_reproduce_bench_gate.py
