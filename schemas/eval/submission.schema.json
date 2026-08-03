@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/submission.schema.json",
+  "title": "BenchmarkSubmission",
+  "description": "A single benchmark submission evaluated by tools/validate_submission.py against schemas/eval/division-rules.json. Carries the evidence each gate reads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["submission_id", "division", "candidate_id", "benchmark_contract_id", "governance", "provider_neutrality", "metric_facts", "clean_eval_certificate"],
+  "properties": {
+    "submission_id": {"type": "string", "minLength": 1},
+    "division": {"enum": ["OPEN", "CLOSED"]},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "benchmark_contract_id": {"type": "string", "minLength": 1},
+    "governance": {
+      "type": "object",
+      "description": "Stage-0 governance floor flags (same keys as isota_tournament).",
+      "additionalProperties": true,
+      "properties": {
+        "api": {"type": "boolean"},
+        "rate": {"type": "boolean"},
+        "auth": {"type": "boolean"},
+        "cost": {"type": "boolean"},
+        "observability": {"type": "boolean"}
+      }
+    },
+    "provider_neutrality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scored_by", "provider_terms_in_scoring"],
+      "properties": {
+        "scored_by": {"enum": ["internal_runner", "provider_reported", "independent_harness"]},
+        "provider_terms_in_scoring": {"type": "boolean"}
+      }
+    },
+    "metric_facts": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Headline metric facts. No-laundering reads reproduced_by_us + source_trust_class from each (schema://eval/metric-fact.schema.json).",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["metric_definition_id", "reproduced_by_us", "source_trust_class", "is_headline"],
+        "properties": {
+          "metric_definition_id": {"type": "string"},
+          "reproduced_by_us": {"type": "boolean"},
+          "source_trust_class": {
+            "enum": ["internal_reproduced", "internal_live", "independent_harness", "official_provider", "crowd_preference", "third_party_analytics"]
+          },
+          "is_headline": {"type": "boolean"},
+          "trial_count": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "clean_eval_certificate": {
+      "type": ["object", "null"],
+      "description": "Pre-run contamination/clean-eval certificate. null or status!='clean' fails the gate.",
+      "additionalProperties": true,
+      "properties": {
+        "certificate_id": {"type": "string"},
+        "status": {"enum": ["clean", "contaminated", "unknown"]},
+        "corpus_ref": {"type": "string"},
+        "checked_at": {"type": "string"}
+      }
+    },
+    "repro_ledger_entry": {
+      "type": ["object", "null"],
+      "description": "Conforms to schema://eval/repro-ledger-entry.schema.json when present.",
+      "additionalProperties": true
+    },
+    "task_manifest": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "unchanged": {"type": "boolean", "description": "true iff the canonical benchmark contract task manifest was run unmodified"},
+        "declared_deviations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "minimum_trial_count": {"type": "integer", "minimum": 1}
+  }
+}
