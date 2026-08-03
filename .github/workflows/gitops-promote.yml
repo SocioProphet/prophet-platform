@@ -25,8 +25,9 @@ permissions:
                          # branch (see the long note in the push step). The repo default workflow
                          # permission is read-only, so without this the dispatch 403s and every
                          # promote PR sits BLOCKED forever waiting for diagnostics-gate.
-  statuses: write        # REQUIRED to POST the `diagnostics-gate` commit status that the
-                         # `main-required-checks` ruleset actually reads (see the push step).
+  statuses: write        # REQUIRED to POST the BOTH required commit statuses the push step
+                         # publishes: `diagnostics-gate` (the main-required-checks ruleset)
+                         # AND `gate / check` (classic branch protection, app_id 15368).
                          # Without it the POST 403s and the PR sits BLOCKED — same symptom as
                          # before, so the step treats a failed POST as fatal rather than warning.
 
@@ -126,7 +127,43 @@ jobs:
           git push origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" \
             --title "gitops: promote${bumped} → sha-${SHA:0:12}" \
-            --body "Automated image-pin promotion (values-only). Auto-merges when diagnostics-gate passes."
+            --body "Automated image-pin promotion (values-only). Auto-merges when the required checks (diagnostics-gate + gate / check) pass."
+
+          # ── Genetic-superset self-selection: auto-close the promotes this one dominates ──
+          # gitops-promote opens one values-only PR per built commit. When a service is
+          # rebuilt again before its earlier promote PR merges, that earlier PR is strictly
+          # DOMINATED — every values file it touches is re-pinned here to a NEWER sha, so
+          # merging it later would land a stale pin, and it meanwhile occupies the (backed-up)
+          # self-hosted runner pool. Close every OPEN promote PR whose changed files are a
+          # subset of this one's: newest-per-service wins. The domination rule is pure and
+          # unit-tested in tools/gitops_supersede.py (tools/tests/test_gitops_supersede.py);
+          # this step only gathers live PR/file data and closes. Best-effort by design —
+          # run in a subshell so its `set +e` cannot leak into the fail-fast gate logic
+          # below, and never fatal: self-selection is an optimisation, not the merge gate.
+          select_superset() {
+            local NEW_PR new_files cand others_with_files verdict n files
+            NEW_PR="$(gh pr view "$BRANCH" --json number --jq '.number')" || return 0
+            [ -n "$NEW_PR" ] || return 0
+            new_files="$(printf '%s\n' $FILES | jq -R . | jq -cs '.')"
+            others_with_files='[]'
+            cand="$(gh pr list --state open --json number,title \
+                      --jq '.[] | select(.title|startswith("gitops: promote")) | .number' \
+                    | grep -vx "$NEW_PR")"
+            for n in $cand; do
+              files="$(gh pr view "$n" --json files --jq '[.files[].path]')"
+              [ -n "$files" ] || files='[]'
+              others_with_files="$(printf '%s' "$others_with_files" \
+                | jq -c --argjson number "$n" --argjson files "$files" '. + [{number:$number, files:$files}]')"
+            done
+            verdict="$(jq -cn --argjson new_files "$new_files" --argjson others "$others_with_files" \
+                        '{new_files:$new_files, others:$others}' | python3 tools/gitops_supersede.py)"
+            for n in $(printf '%s' "$verdict" | jq -r '.superseded[]'); do
+              echo "closing superseded promote PR #$n (dominated by #$NEW_PR)"
+              gh pr close "$n" --delete-branch \
+                --comment "Superseded by #$NEW_PR — a newer promote re-pins these services to a fresher image sha (genetic-superset self-selection)."
+            done
+          }
+          ( set +e; select_superset ) || echo "::warning::genetic-superset self-selection skipped (non-fatal)"
 
           # ── The required check must be PUBLISHED WHERE THE RULESET READS, not merely produced ──
           # A PR opened by this job never gets its required check on its own. Two failure modes
@@ -174,12 +211,33 @@ jobs:
           # yet have a diagnostics run to point at.
           PROMOTE_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           DIAG_URL=""
-          post_status() {   # $1=state $2=description
-            local url="${DIAG_URL:-$PROMOTE_URL}"
-            gh api -X POST "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
-              -f state="$1" -f context='diagnostics-gate' \
-              -f description="$(printf '%.140s' "$2")" \
-              -f target_url="$url" >/dev/null
+          # main requires TWO contexts, and a bot-authored promote PR gets NEITHER from an
+          # event-triggered run (GITHUB_TOKEN no-recursion):
+          #   • diagnostics-gate  — the main-required-checks ruleset
+          #   • gate / check      — classic branch protection, pinned to app_id 15368
+          # gitops-promote already dispatches the real validate-target-diagnostics run and
+          # reads its outcome; it MIRRORS that one verdict onto BOTH required contexts as
+          # commit statuses (part of the PR rollup by construction — the same mechanism that
+          # already makes diagnostics-gate land). Publishing only diagnostics-gate is exactly
+          # what left promote PRs at mergeStateStatus=UNKNOWN — auto-merge armed but never
+          # firing — until a human admin-merged them in batches (measured on #1313: every
+          # check green EXCEPT `gate / check`, which was simply ABSENT).
+          # gate.yml (the workflow_run mirror) can NOT cover this: a run dispatched via
+          # GITHUB_TOKEN emits no workflow_run event, so gate.yml never fires for a promote
+          # branch — measured, zero gate.yml runs on any gitops/promote-* head SHA. Because a
+          # commit status created with GITHUB_TOKEN is attributed to the github-actions app
+          # (15368), it satisfies the app_id-pinned `gate / check` just as it satisfies
+          # diagnostics-gate. Fail-closed is preserved: both contexts move in lockstep and
+          # only a measured green run downgrades them to success.
+          REQUIRED_CONTEXTS=('diagnostics-gate' 'gate / check')
+          post_status() {   # $1=state $2=description — drives BOTH required contexts in lockstep
+            local url="${DIAG_URL:-$PROMOTE_URL}" ctx
+            for ctx in "${REQUIRED_CONTEXTS[@]}"; do
+              gh api -X POST "repos/${{ github.repository }}/statuses/${HEAD_SHA}" \
+                -f state="$1" -f context="$ctx" \
+                -f description="$(printf '%.140s' "$2")" \
+                -f target_url="$url" >/dev/null
+            done
           }
           # Publish `pending` FIRST. If this job dies at any point below, the PR is left with an
           # explicitly pending required check (visibly blocked) rather than an absent one
