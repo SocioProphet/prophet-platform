@@ -40,6 +40,18 @@ def is_valid_id(entry_id: str) -> bool:
     return bool(_SAFE_ID.match(entry_id or "")) and ".." not in entry_id
 
 
+def list_ids(kind: str) -> list[str]:
+    """Return the ids of every catalog entry of `kind` (sorted, deterministic).
+    Empty on an unknown kind or an absent catalog root — never raises. This is the
+    denominator source for coverage KPIs (e.g. which cataloged sources are cold)."""
+    if kind not in KINDS:
+        return []
+    d = catalog_root() / kind
+    if not d.is_dir():
+        return []
+    return sorted(p.stem for p in d.glob("*.json") if p.is_file())
+
+
 def get_entry(kind: str, entry_id: str) -> dict[str, Any] | None:
     """Return the catalog entry, or None if the kind/id is invalid or absent.
     Fails closed on a bad id (path-traversal attempt) — returns None, never reads
