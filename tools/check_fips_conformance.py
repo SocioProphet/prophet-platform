@@ -169,13 +169,18 @@ def check_module_warrant(root: Path, boundary: dict[str, Any]) -> list[str]:
     allow = boundary.get("fips_modules") or {}
     out: list[str] = []
     for p in sorted(root.rglob("deployment-inventory*.y*ml")):
+        rel = str(p.relative_to(root))
         try:
             data = yaml.safe_load(p.read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError):
+        except OSError:
+            continue
+        except yaml.YAMLError as e:
+            # Fail CLOSED: a deployment inventory that will not parse cannot be certified — a
+            # malformed federal inventory must NOT silently escape the FIPS module warrant.
+            out.append(f"{rel}: deployment inventory is not valid YAML ({type(e).__name__}) — cannot verify FIPS module warrant")
             continue
         if not _key_is_true(data, "require_fips_validated_crypto"):
             continue
-        rel = str(p.relative_to(root))
         modules = _find_value(data, "fips_crypto_modules")
         if not isinstance(modules, dict) or not modules:
             out.append(

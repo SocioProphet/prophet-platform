@@ -140,3 +140,12 @@ def test_federal_placeholder_module_is_rejected(tmp_path):
 def test_federal_with_valid_named_modules_passes(tmp_path):
     root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n", modules="valid")
     assert _run(root) == []
+
+
+def test_malformed_inventory_fails_closed(tmp_path):
+    # A federal inventory that will not parse must NOT silently escape the module warrant.
+    root = _mkroot(tmp_path, scope_body="import hashlib\nh = hashlib.sha256()\n")
+    (root / "apps/cloudshell-fog/deployment-inventory.federal.example.yaml").write_text(
+        "{ this: : not yaml :\n", encoding="utf-8"
+    )
+    assert any("not valid YAML" in v for v in _run(root)), _run(root)
