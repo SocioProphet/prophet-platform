@@ -1,0 +1,10 @@
+{
+  "$comment": "Selects the ShellBackendAdapter manifest the agentic shell drives. Flip 'active' to 'gitea' once gitea-signing-key is provisioned (provision-secrets.yml) AND the Gitea endpoint is live. The shell refuses to select a backend whose manifest is not marked ready.",
+  "version": "0.1",
+  "active": "github",
+  "backends": {
+    "github": { "manifest": "contracts/adapters/github.adapter.json", "ready": true },
+    "gitea": { "manifest": "contracts/adapters/gitea.adapter.json", "ready": false,
+               "blocked_on": ["provision gitea-signing-key (provision-secrets.yml)", "live endpoint gitea.sourceos.dev/api/v1"] }
+  }
+}
