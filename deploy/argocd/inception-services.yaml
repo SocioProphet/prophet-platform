@@ -1,0 +1,54 @@
+# Argo CD Application — the Cybernetic Genesis **Inception** runtime.
+#
+# Lives in deploy/argocd/, the watched tree: the tofu-created root app-of-apps
+# (infra/tofu/environments/gcp-gke/argocd.tf) recurses deploy/argocd — an Application authored under
+# infra/argocd/ would deploy nothing. Same placement rule as alert-delivery.yaml / pvc-capacity-guard.yaml.
+#
+# DEPARTURE FROM THE HOUSE NORM — external source repo. Every other Application here has
+# repoURL = prophet-platform (kustomize/helm paths in THIS repo). Inception's deploy manifests are
+# owned by, and versioned in, the PUBLIC MIT repo SocioProphet/cybernetic-genesis (self-contained
+# kustomize: base + base-support + overlays/prod). So this Application points its source at THAT repo.
+# The digest pin therefore lives with the service that owns it (cybernetic-genesis
+# deploy/overlays/prod/kustomization.yaml `images:`), not in this file. Tradeoff + the alternative
+# (vendor the base into prophet-platform so preflight_deploy_contract.py can walk it) are in
+# adr/ADR-037-inception-deploy-wiring.md — reviewer decision requested there.
+#
+# HELD POSTURE — deploy-ready, not deployed. This PR is unmerged and nothing here is applied. Even so
+# the manifest is written conservative-by-default so an accidental adoption cannot cut traffic:
+#   * syncPolicy has NO `automated` block — first sync is MANUAL, owner-gated (unlike the estate norm
+#     of automated:{prune,selfHeal}). Flip to automated once the target namespace exists and the
+#     owner approves the first sync.
+#   * NO CreateNamespace — the `inception` namespace is provisioned by the owner out of band, not
+#     minted by a stray sync.
+#   * The overlay it targets is replicas 1, NO ingress, NO traffic.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inception
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: cybernetic-genesis
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # Required by tools/preflight_deploy_contract.py check 5. reference, NOT foundation: Inception is
+    # a new runtime service, not part of the interoperability spine, and it is built by its own repo
+    # (cybernetic-genesis/.github/workflows/image.yml), NOT prophet-platform's images.yml — so
+    # foundation (which check 6 requires be rebuildable HERE) would be the wrong, failing claim.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    # Provisioned by the owner out of band (no CreateNamespace below). The overlay also pins ns=inception.
+    namespace: inception
+  source:
+    # DEPARTURE (see header): external, public MIT repo that owns the Inception deploy manifests.
+    repoURL: https://github.com/SocioProphet/cybernetic-genesis
+    targetRevision: main
+    # Digest pin (sha256:423b4ae6…) is in this overlay's kustomize `images:`, not here.
+    path: deploy/overlays/prod
+  syncPolicy:
+    # DELIBERATELY no `automated:` — held/manual first sync (see header). Estate norm is
+    # automated:{prune,selfHeal}; that is the reviewer's call to enable on merge.
+    syncOptions:
+      - ServerSideApply=true
