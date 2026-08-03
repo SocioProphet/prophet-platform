@@ -190,13 +190,11 @@ KNOWN_BROKEN = {
     # gateway remains: its values still say `tag: latest` AND its pod is NOT Ready (already
     # running a sha- tag out of sync with values) — a separate crash to fix, not a moving-tag
     # pin, so it stays tracked here until that is resolved.
-    **{f"{svc}:moving-tag": (
-        "Pre-existing `tag: latest`, and the pod is NOT Ready — a crash to resolve before "
-        "pinning (values already disagree with the running sha- tag). Not a clean moving-tag "
-        "pin; fix the crash, then pin to the running digest and delete this line."
-    ) for svc in [
-        "gateway",
-    ]},
+    # RESOLVED 2026-08-03: gateway — pinned to sha-d3566908 (its running digest, a no-op
+    # pin like the other 10). The moving-tag ratchet is now EMPTY: no first-party service
+    # deploys a moving `latest` tag. gateway is healthy (1/1, 20h uptime); the earlier
+    # 'not ready' reading was a substring mismatch with arcticdb-gateway (a separate
+    # missing-secret crash, tracked elsewhere).
     # eval-fabric-api sha-pinned by gitops-promote (sha-e72d47ce…) after its first CI
     # build → removed from the ratchet 2026-08-03 (it only shrinks; leaving it FAILs "now passes").
 }
