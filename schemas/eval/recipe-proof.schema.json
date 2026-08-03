@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/recipe-proof.schema.json",
+  "title": "RecipeProof",
+  "description": "The CK/CM PROOF + TRUST binding: it turns a runnable recipe execution into a portable, reproducible, citable proof carrying a trust attestation. A RecipeProof REFERENCES a recipe by id (crystal-atlas internal-model register, PR #1287 — soft reference, binding activates when the register lands) and binds it to (a) a reproduced headline metric, (b) a SHA-256 hash-chained receipt on the repro-ledger spine (from tools/reproduce_bench.py, #1269), (c) a division verdict (open/closed, #1271 validate-submission), and (d) a trust attestation (clean-eval + provider-neutrality + no-laundering — the same estate gates). A third party VERIFIES a RecipeProof independently: chain intact + metric within epsilon + division/trust gates pass + recipe_ref resolvable. SHA-256 is the FIPS 180-4 algorithm (via stdlib hashlib), NOT a FIPS 140-validated module.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recipe_proof_id",
+    "recipe_ref",
+    "run_id",
+    "repro_ledger_ref",
+    "receipt_ref",
+    "headline",
+    "division",
+    "submission",
+    "trust_attestation"
+  ],
+  "properties": {
+    "recipe_proof_id": {"type": "string", "minLength": 1},
+    "recipe_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Soft reference to a recipe in the crystal-atlas register (PR #1287, OPEN). recipe_id follows the register's id contract; content_digest is OPTIONAL and, when present, must match the register entry's content address once the register is available. Until the register lands on main, resolution is deferred (pending_register) — the reference is format-checked but not bound.",
+      "required": ["recipe_id"],
+      "properties": {
+        "recipe_id": {
+          "type": "string",
+          "pattern": "^internal-model:[a-z0-9-]+$",
+          "description": "Matches the register's model_id contract (contracts/crystal-atlas/schemas/analytic-model-catalog-entry.v0.schema.json)."
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "OPTIONAL SHA-256 content address of the resolved register entry (FIPS 180-4 algorithm)."
+        }
+      }
+    },
+    "run_id": {"type": "string", "minLength": 1, "description": "The reproduce run id (contracts/reproduce/<bench>/<run>.run.json)."},
+    "bench": {"type": "string", "minLength": 1, "description": "Dispatch key into tools/reproduce_bench.py (e.g. isota)."},
+    "repro_ledger_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pointer into the append-only repro-ledger spine emitted by reproduce_bench.py.",
+      "required": ["ledger_path", "repro_ledger_entry_id"],
+      "properties": {
+        "ledger_path": {"type": "string", "minLength": 1, "description": "Repo-relative path to the repro-ledger JSONL (e.g. build/reproduce/isota/repro-ledger.jsonl)."},
+        "repro_ledger_entry_id": {"type": "string", "minLength": 1, "description": "The inner repro-ledger-entry id (repro-ledger-entry.schema.json)."}
+      }
+    },
+    "receipt_ref": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The SHA-256 entry_digest of the spine record on the repro-ledger that carries this run. The receipt is hash-chained (prev_entry_digest links each record to its predecessor); tampering breaks the chain."
+    },
+    "headline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "value", "determinism_class"],
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1},
+        "value": {"type": "number", "description": "The reproduced headline value bound by this proof."},
+        "epsilon": {"type": "number", "minimum": 0, "description": "Declared tolerance; REQUIRED for bounded_nondeterministic (exact match for deterministic)."},
+        "determinism_class": {"enum": ["deterministic", "bounded_nondeterministic"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"determinism_class": {"const": "bounded_nondeterministic"}}},
+          "then": {"required": ["epsilon"]}
+        }
+      ]
+    },
+    "division": {"enum": ["OPEN", "CLOSED"], "description": "MLPerf-parity division (#1271). CLOSED = strict apples-to-apples; OPEN = novel methods, not directly comparable."},
+    "submission": {
+      "type": "object",
+      "description": "The submission descriptor consumed by tools/validate_submission.py (#1271). The verifier runs the division gates over THIS descriptor; nothing here re-implements a gate.",
+      "required": ["division"],
+      "additionalProperties": true
+    },
+    "trust_attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The trust binding. These three gates are ALWAYS required for a RecipeProof to verify, independent of division: clean-eval certificate, provider-neutrality, no-laundering. Verified by re-running the estate gates over `submission` — the attestation asserts, the verifier proves.",
+      "required": ["clean_eval", "provider_neutrality", "no_laundering"],
+      "properties": {
+        "clean_eval": {"type": "boolean", "description": "Asserts a pre-run contamination/clean-eval certificate with status 'clean'."},
+        "provider_neutrality": {"type": "boolean", "description": "Asserts scoring carries no provider term (scored by our runner)."},
+        "no_laundering": {"type": "boolean", "description": "Asserts every headline fact is reproduced-by-us, disjoint from cited provider numbers."}
+      }
+    },
+    "doi_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OPTIONAL citable identity. concept_doi is the stable identity (latest version); version_doi is bound to this immutable proof. Minted via the DataCite concept/version client (#1267); referenced here, not minted here.",
+      "properties": {
+        "concept_doi": {"type": "string", "minLength": 1},
+        "version_doi": {"type": "string", "minLength": 1}
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

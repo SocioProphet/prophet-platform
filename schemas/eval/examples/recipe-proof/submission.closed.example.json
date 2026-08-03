@@ -1,0 +1,20 @@
+{
+  "submission_id": "sub.isota.opus-class-r1",
+  "division": "CLOSED",
+  "candidate_id": "cand.internal-runner",
+  "benchmark_contract_id": "bc.sherlock.stage2",
+  "governance": {"api": true, "rate": true, "auth": true, "cost": true, "observability": true},
+  "provider_neutrality": {"scored_by": "internal_runner", "provider_terms_in_scoring": false},
+  "metric_facts": [
+    {"metric_definition_id": "md.isota.tournament_composite", "reproduced_by_us": true,
+     "source_trust_class": "internal_reproduced", "is_headline": true, "trial_count": 30}
+  ],
+  "clean_eval_certificate": {"certificate_id": "ce-isota-1", "status": "clean",
+                             "corpus_ref": "corpus://sherlock", "checked_at": "2026-08-03T00:00:00Z"},
+  "repro_ledger_entry": {"repro_ledger_entry_id": "rl-isota-1", "run_id": "opus-class-r1",
+                         "environment_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                         "methodology_snapshot_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                         "seed_policy": "none (pure composite)", "replay_artifact_id": "replay-isota-1"},
+  "task_manifest": {"unchanged": true, "declared_deviations": []},
+  "minimum_trial_count": 30
+}
