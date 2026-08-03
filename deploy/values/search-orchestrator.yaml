@@ -1,5 +1,5 @@
 # search-orchestrator — search/index daemon
-image: { repository: search-orchestrator, tag: sha-d2b483f26f85e1550c6b229a123109c311c50aae }
+image: { repository: search-orchestrator, tag: sha-ea7aa441f1e9566f392a3d802c4a72c733bf5555 }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 4 }
 # Boot-seed the academy ingest with the bundled 8.01 corpus so the cockpit tutor's Cloud engine
