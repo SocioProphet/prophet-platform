@@ -24,6 +24,56 @@ spec:
             runAsUser: 1000
             seccompProfile:
               type: RuntimeDefault
+          # Make ONLY the backup DESTINATION writable by uid 1000. The
+          # workspace-mail-backup PVC is a freshly provisioned PD whose root is
+          # root:root 0755, so the unprivileged backup container cannot create the
+          # tarball in it (EACCES). This initContainer chowns that one mount.
+          #
+          # This deliberately does NOT use a pod-level `fsGroup`: fsGroup applies
+          # to EVERY volume the pod mounts, so it would also rewrite the read-only
+          # mail SOURCE volume's root group ownership (to root:1000) — and even
+          # `fsGroupChangePolicy: OnRootMismatch` re-applies it on the next run
+          # after the ownership is restored, so it would fight the lane restoring
+          # /var/mail/vhosts and dirty the source every night. This container
+          # never mounts the mail source, so the source's ownership is provably
+          # untouched by the backup job.
+          initContainers:
+            - name: init-backup-perms
+              image: registry.socioprophet.ai/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  # Non-recursive: the backup only needs to CREATE new tarballs in
+                  # the destination root. Existing backups keep their ownership;
+                  # the destination's own lost+found is left alone.
+                  chown 1000:1000 /backup
+                  echo "init: /backup now owned by 1000:1000 (destination only; mail source untouched)"
+              volumeMounts:
+                # DESTINATION ONLY. The mail source is intentionally absent here.
+                - name: backup-target
+                  mountPath: /backup
+              securityContext:
+                # Root ONLY to chown, with just CAP_CHOWN. The pod default is
+                # runAsNonRoot: true; it is overridden here for this one step. The
+                # main backup container still runs unprivileged as uid 1000.
+                runAsNonRoot: false
+                runAsUser: 0
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+                  add: ["CHOWN"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 50m
+                  memory: 32Mi
           containers:
             - name: mail-backup
               # Stock alpine, mirrored in our sovereign zot and pinned BY DIGEST.
@@ -34,9 +84,15 @@ spec:
               # one-liner, so it needs no first-party image at all — only a shell and tar.
               # Digest, not tag: zot carries library/alpine as :latest only, and a moving
               # tag on a backup job means the backup silently changes underfoot.
-              # Probe-verified in-cluster before this change (socioprophet namespace, this
-              # exact digest, uid 1000, caps dropped, seccomp RuntimeDefault): the pull
-              # succeeds and the one-liner produces a real, listable .tar.gz.
+              # PULL probe only (socioprophet namespace, this exact digest, uid 1000, caps
+              # dropped, seccomp RuntimeDefault): the pull succeeds and the shell+tar payload
+              # executes. Corrected from an earlier "produces a real, listable .tar.gz" claim:
+              # that could NOT have run against the real backup PVC. uid 1000 gets EACCES
+              # writing to a freshly provisioned destination PD (root:root 0755); any listable
+              # archive the probe produced was written to a throwaway writable dir, not
+              # workspace-mail-backup. A real archive is produced only after the
+              # init-backup-perms container below chowns the destination, and the size gate in
+              # the command rejects the trivially small (empty-maildir) case.
               image: registry.socioprophet.ai/library/alpine@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
               env:
                 # Keep 7 dailies. The source is a 10Gi mail volume against a 20Gi
@@ -51,6 +107,13 @@ spec:
                 # Refuse to start a backup that cannot fit. See below.
                 - name: MIN_FREE_MB
                   value: "3000"
+                # Floor for a NON-TRIVIAL archive, in bytes. An empty maildir tars
+                # to ~130 bytes and lists fine, so "readable" (step 5) is not
+                # enough to call it a backup. Below this the job FAILS instead of
+                # recording a meaningless green run. Raise once the maildir has a
+                # known floor of real mail.
+                - name: MIN_BACKUP_BYTES
+                  value: "1024"
               command:
                 - /bin/sh
                 - -c
@@ -112,7 +175,14 @@ spec:
                   fi
 
                   # --- 4. write ----------------------------------------------
-                  if ! tar czf "${OUT}" /maildata; then
+                  # Archive the maildir contents from inside the mount and skip
+                  # ext4's lost+found (root:root 0700 on a fresh PD). Excluding it
+                  # means the job never needs group access to the mount root just
+                  # to traverse lost+found, so the write does not lean on volume
+                  # ownership to READ the source -- only the destination needs the
+                  # initContainer chown to WRITE. `-C /maildata .` also drops the
+                  # /maildata/ prefix so a restore lands straight in the maildir root.
+                  if ! tar czf "${OUT}" -C /maildata --exclude=./lost+found .; then
                     log "FAILED: tar returned non-zero"
                     rm -f "${OUT}"
                     RC=1
@@ -126,6 +196,23 @@ spec:
                     log "FAILED: ${OUT} is not a readable gzip archive — removing"
                     rm -f "${OUT}"
                     RC=1
+                  fi
+
+                  # --- 5b. non-triviality gate -------------------------------
+                  # A readable archive can still be an EMPTY one. The maildir is
+                  # currently empty, and an empty maildir tars to ~130 bytes that
+                  # step 5 lists happily -- a green backup of nothing. Treat a
+                  # trivially small archive as a FAILURE so "the check that cannot
+                  # fail" cannot pass here either. Byte-precise (wc -c), unlike the
+                  # receipt's du -m which rounds a 130-byte file to 1MB.
+                  if [ "${RC}" -eq 0 ]; then
+                    BYTES=$(wc -c < "${OUT}" | tr -d ' ')
+                    log "size-gate: ${OUT} is ${BYTES} bytes, floor MIN_BACKUP_BYTES=${MIN_BACKUP_BYTES}"
+                    if [ "${BYTES}" -lt "${MIN_BACKUP_BYTES}" ]; then
+                      log "FAILED: ${OUT} is ${BYTES} bytes (< ${MIN_BACKUP_BYTES}) -- empty/near-empty maildir, refusing to record a trivial backup"
+                      rm -f "${OUT}"
+                      RC=1
+                    fi
                   fi
 
                   # --- 6. receipt --------------------------------------------

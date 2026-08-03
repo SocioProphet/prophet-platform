@@ -1,0 +1,66 @@
+# CronJob staleness -- fires for a scheduled CronJob that has not SUCCEEDED in
+# too long, INCLUDING one that has never succeeded even once.
+#
+# The obvious rule is silently wrong. The canonical form
+#     time() - kube_cronjob_status_last_successful_time > <threshold>
+# returns ZERO series for a job that has NEVER succeeded, because
+# kube_cronjob_status_last_successful_time has no series for that job at all --
+# so the jobs most in need of an alert (broken since creation: mail-backup and
+# minio-sync are both failing nightly and unalerted) are exactly the ones it
+# cannot see. Verified against live Prometheus: both are absent from that metric.
+#
+# The second, `unless`, arm is the fix: kube_cronjob_status_last_schedule_time
+# exists for every job that has ever been scheduled, so
+#     kube_cronjob_status_last_schedule_time * 0 unless kube_cronjob_status_last_successful_time
+# emits a 0-valued marker for every scheduled-but-never-succeeded job. `and on
+# (namespace,cronjob) (kube_cronjob_spec_suspend == 0)` drops deliberately
+# suspended jobs. A lane confirmed this expression returns both mail-backup and
+# minio-sync today.
+#
+# DELIVERY (read before assuming this pages anyone): the alert carries the
+# metric's own namespace label -- namespace=socioprophet for mail-backup. The
+# alert-sink AlertmanagerConfig added in #1112 is operator-scoped OnNamespace
+# and matches namespace=observability ONLY. Estate-wide delivery for
+# socioprophet/ instead depends on #1112's Alertmanager DEFAULT-route change
+# (deploy/argocd/observability-services.yaml), which is still `null` until that
+# Argo app syncs. So this rule is LIVE in Prometheus immediately (visible in the
+# UI and API) but is NOT delivered to a human until #1112 lands -- it fires into
+# the null sink today. It is intentionally NOT relabelled into observability:
+# that would misattribute a socioprophet CronJob to the observability namespace
+# just to borrow #1112's sub-route. Reference #1112's routing; do not fork it here.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cronjob-staleness
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack   # adopted by the stack's ruleSelector (ruleSelectorNilUsesHelmValues: false)
+spec:
+  groups:
+    - name: cronjob.staleness
+      rules:
+        - alert: CronJobNotSucceeding
+          # Arm (a): succeeded at least once, but not within 2 days -> stale.
+          # Arm (b): scheduled at least once but NEVER succeeded -> the `unless`
+          #          marker the naive last_successful_time rule is blind to.
+          # Both intersected with spec_suspend == 0 so a suspended job is silent.
+          expr: |
+            (
+              (time() - kube_cronjob_status_last_successful_time > 86400 * 2)
+              or
+              (kube_cronjob_status_last_schedule_time * 0 unless kube_cronjob_status_last_successful_time)
+            )
+            and on(namespace, cronjob) (kube_cronjob_spec_suspend == 0)
+          for: 1h
+          labels: { severity: warning }
+          annotations:
+            summary: "CronJob {{ $labels.namespace }}/{{ $labels.cronjob }} has not succeeded in over 2 days (or has never succeeded)"
+            description: >-
+              A scheduled, non-suspended CronJob has no successful completion in
+              the staleness window -- the never-succeeded case included, which the
+              naive `time() - kube_cronjob_status_last_successful_time` expression
+              cannot see because the metric has no series for a job that never
+              succeeded. Inspect the Job's pods and logs; a backup/sync job here
+              has been failing silently every night.
+            runbook: infra/k8s/observability/README.md
