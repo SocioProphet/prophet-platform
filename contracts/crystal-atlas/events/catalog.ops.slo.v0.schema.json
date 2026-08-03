@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/catalog_ops_slo.schema.json",
+  "title": "catalog.ops.slo.v0",
+  "description": "SLO-gate record: the Assay verdict (ok/sad/bad) for a catalog.ops.readout.v0, graded per-objective against ok/sad thresholds. Overall verdict is the WORST applicable objective (MEET/min, fail-closed). Objectives with fewer than min_n observations return insufficient_data and neither pass nor fail the gate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "slo_id", "generated_at", "producer", "verdict", "objectives", "window"],
+  "properties": {
+    "schema_version": { "const": "crystal-atlas.catalog.ops.slo.v0" },
+    "slo_id": { "type": "string", "minLength": 8 },
+    "generated_at": { "type": "string" },
+    "producer": { "type": "string" },
+    "event_id": { "type": "string" },
+    "emitted_at": { "type": "string" },
+    "readout_ref": { "type": ["string", "null"] },
+    "verdict": { "type": "string", "enum": ["ok", "sad", "bad", "insufficient_data"] },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "verdict", "value", "n", "thresholds", "note"],
+        "properties": {
+          "name": { "type": "string" },
+          "verdict": { "type": "string", "enum": ["ok", "sad", "bad", "insufficient_data"] },
+          "value": { "type": ["number", "null"] },
+          "n": { "type": "integer", "minimum": 0 },
+          "thresholds": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ok", "sad", "direction"],
+            "properties": {
+              "ok": { "type": "number" },
+              "sad": { "type": "number" },
+              "direction": { "type": "string", "enum": ["high", "low"] }
+            }
+          },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["events_scanned", "first_event_at", "last_event_at"],
+      "properties": {
+        "events_scanned": { "type": "integer", "minimum": 0 },
+        "first_event_at": { "type": ["string", "null"] },
+        "last_event_at": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

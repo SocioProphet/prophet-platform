@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 
-from . import ops, readout
+from . import ops, readout, slo
 from .dcat import asset_to_dcat
 from .store import KINDS, SERVICE, get_entry, is_valid_id
 
@@ -68,6 +68,20 @@ def ops_readout_emit(top_n: int = readout.DEFAULT_TOP_N) -> dict:
     scheduled readout job's endpoint). Returns the readout with the emitted event_id."""
     doc, event_id = readout.emit_readout(top_n=max(1, min(top_n, 100)))
     return {"readout": doc, "event_id": event_id}
+
+
+@app.get("/v1/catalog/ops/slo")
+def ops_slo() -> dict:
+    """Grade the current readout against the SLO → the Assay verdict (ok/sad/bad).
+    Read-only: does not crystallize an event (use POST)."""
+    return slo.evaluate()
+
+
+@app.post("/v1/catalog/ops/slo")
+def ops_slo_emit() -> dict:
+    """Evaluate AND crystallize the verdict as a catalog.ops.slo.v0 event."""
+    doc, event_id = slo.emit_slo()
+    return {"slo": doc, "event_id": event_id}
 
 
 @app.get("/v1/catalog/{kind}/{entry_id}/lineage")
