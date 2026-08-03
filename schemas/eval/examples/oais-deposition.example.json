@@ -1,0 +1,48 @@
+{
+  "deposition_id": "dep-sherlock-stage2-r1",
+  "submission_id": "sub-001",
+  "sip": {
+    "content_locator": "schemas/eval/examples/oais-content/sherlock-stage2-r1.txt",
+    "media_type": "text/plain",
+    "size_bytes": 171,
+    "submitted_at": "2026-08-03T00:00:00Z"
+  },
+  "aip": {
+    "aip_id": "aip-sherlock-stage2-r1",
+    "storage": "zot",
+    "fixity": {
+      "algorithm": "SHA-256",
+      "digest": "0eff070f2cff743f26f5ed856357d2171b272e047101ed1f81b9ee1f5e54d82e"
+    },
+    "preservation_metadata": {
+      "preservation_level": "full",
+      "retention_tier": "permanent",
+      "fixity_check_schedule": "P30D",
+      "format": "text/plain",
+      "created_at": "2026-08-03T00:00:00Z",
+      "provenance": "accepted submission sub-001 (validate_submission VALID, CLOSED); ingested by tools/oais_deposition.py"
+    },
+    "oai_pmh_record": {
+      "identifier": "oai:commons.socioprophet.ai:aip-sherlock-stage2-r1",
+      "datestamp": "2026-08-03T00:00:00Z",
+      "metadata_prefix": "oai_dc",
+      "dc": {
+        "title": "Sherlock Stage-2 CLOSED round v1 — archival object",
+        "creator": ["SocioProphet Knowledge Commons"],
+        "date": "2026-08-03",
+        "identifier": "sha256:0eff070f2cff743f26f5ed856357d2171b272e047101ed1f81b9ee1f5e54d82e",
+        "format": "text/plain",
+        "rights": "internal-commons"
+      }
+    }
+  },
+  "dip": {
+    "dip_id": "dip-sherlock-stage2-r1",
+    "fixity": {
+      "algorithm": "SHA-256",
+      "digest": "0eff070f2cff743f26f5ed856357d2171b272e047101ed1f81b9ee1f5e54d82e"
+    },
+    "access_url": "https://commons.socioprophet.ai/oai?verb=GetRecord&identifier=oai:commons.socioprophet.ai:aip-sherlock-stage2-r1&metadataPrefix=oai_dc",
+    "disseminated_at": "2026-08-03T00:00:00Z"
+  }
+}

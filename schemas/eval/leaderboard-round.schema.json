@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/leaderboard-round.schema.json",
+  "title": "LeaderboardRound",
+  "description": "A public, versioned, ranked-or-tiered leaderboard round for ONE division (MLPerf-parity versioned rounds; #1263 feature 4, follow-up #1272). A round names its division (OPEN or CLOSED, from schemas/eval/division-rules.json / #1271), a ranking rule, and an ordered set of entries. Each entry embeds the submission descriptor consumed by tools/validate_submission.py (#1271) and its headline metric; a round is PUBLISHABLE iff EVERY entry's submission passes the division's required gates. OPEN rounds are flagged non-comparable. An entry MAY reference a RecipeProof (schema://eval/recipe-proof.schema.json, PR #1296 OPEN — soft reference) and a citable DOI (DataCite concept/version, #1267). This contract does NOT re-implement any gate: publishing runs validate_submission over each entry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["round_id", "version", "division", "ranking_rule", "entries"],
+  "properties": {
+    "round_id": {"type": "string", "minLength": 1, "description": "Stable round identity (e.g. sherlock-stage2-2026Q3)."},
+    "version": {"type": "string", "minLength": 1, "description": "Round schema/methodology version, e.g. v1. Versioned rounds are the MLPerf-parity requirement."},
+    "division": {"enum": ["OPEN", "CLOSED"], "description": "The single division this round ranks. CLOSED = strict apples-to-apples comparability; OPEN = novel methods, NOT directly comparable (flagged)."},
+    "comparable": {"type": "boolean", "description": "OPTIONAL declared comparability. If present it MUST equal the division's `comparable` flag in division-rules.json (CLOSED=true, OPEN=false); the publisher enforces this."},
+    "published_at": {"type": "string", "description": "RFC3339 publish timestamp. Documentary."},
+    "ranking_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_id", "direction"],
+      "description": "How entries are ordered. The headline metric of every entry MUST be `metric_id`; entries are ranked by `direction` over that value.",
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1, "description": "The headline metric every entry is ranked on."},
+        "direction": {"enum": ["higher_is_better", "lower_is_better"]},
+        "mode": {"enum": ["ranked", "tiered"], "default": "ranked", "description": "ranked = strict order (rank 1..N); tiered = grouped bands. Both are surfaced per division."}
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry_id", "candidate_id", "headline", "submission"],
+        "properties": {
+          "entry_id": {"type": "string", "minLength": 1},
+          "candidate_id": {"type": "string", "minLength": 1, "description": "The model/system candidate this entry ranks."},
+          "rank": {"type": "integer", "minimum": 1, "description": "OPTIONAL declared rank. When present the publisher verifies it matches the rank it computes from ranking_rule (a declared rank that lies is REJECTED)."},
+          "tier": {"type": "string", "description": "OPTIONAL tier label when ranking_rule.mode is tiered."},
+          "headline": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["metric_id", "value"],
+            "description": "The headline metric this entry is ranked on. metric_id MUST equal ranking_rule.metric_id.",
+            "properties": {
+              "metric_id": {"type": "string", "minLength": 1},
+              "value": {"type": "number"}
+            }
+          },
+          "submission": {
+            "type": "object",
+            "description": "The submission descriptor consumed by tools/validate_submission.py (schema://eval/submission.schema.json). The publisher runs the division gates over THIS descriptor; an entry whose submission fails ANY required gate for the round's division makes the whole round non-publishable.",
+            "required": ["division"],
+            "additionalProperties": true
+          },
+          "recipe_proof_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "OPTIONAL soft reference to a RecipeProof (schema://eval/recipe-proof.schema.json, PR #1296 OPEN). Binds this entry to a portable/reproducible/citable proof; format-checked here, resolution deferred until #1296 lands.",
+            "required": ["recipe_proof_id"],
+            "properties": {
+              "recipe_proof_id": {"type": "string", "minLength": 1},
+              "receipt_ref": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "OPTIONAL SHA-256 entry_digest of the repro-ledger receipt the proof binds (FIPS 180-4 algorithm)."}
+            }
+          },
+          "doi_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "OPTIONAL citable identity (DataCite concept/version, #1267). Referenced, not minted here.",
+            "properties": {
+              "concept_doi": {"type": "string", "minLength": 1},
+              "version_doi": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    }
+  }
+}

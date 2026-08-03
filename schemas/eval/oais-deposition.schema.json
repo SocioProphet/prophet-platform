@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schema://eval/oais-deposition.schema.json",
+  "title": "OaisDeposition",
+  "description": "An OAIS-model preservation deposition for an accepted benchmark submission (#1263 feature 9, follow-up #1272). Models the OAIS information-package chain: SIP (Submission Information Package, what the depositor hands in) -> AIP (Archival Information Package, what is preserved: fixity + preservation metadata + a harvestable OAI-PMH record) -> DIP (Dissemination Information Package, what is served out). Fixity is SHA-256 (FIPS 180-4 algorithm via stdlib hashlib; NOT a claim of a FIPS 140-validated module). An AIP without fixity or preservation metadata is not archival; a DIP whose fixity does not match its AIP is not a faithful dissemination. tools/oais_deposition.py enforces both. The AIP is DOI-ready: its fixity digest is the content address a DataCite version DOI binds to (#1267).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["deposition_id", "sip", "aip"],
+  "properties": {
+    "deposition_id": {"type": "string", "minLength": 1},
+    "submission_id": {"type": "string", "description": "The accepted submission this deposition preserves (validate_submission verdict was VALID)."},
+    "sip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_locator", "media_type"],
+      "description": "Submission Information Package — the depositor's handoff.",
+      "properties": {
+        "content_locator": {"type": "string", "minLength": 1, "description": "Repo-relative path or storage URI of the deposited bytes (e.g. zot OCI ref or s3://). Fixity is computed over these bytes."},
+        "media_type": {"type": "string", "minLength": 1},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "submitted_at": {"type": "string", "description": "RFC3339."}
+      }
+    },
+    "aip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aip_id", "fixity", "preservation_metadata", "oai_pmh_record"],
+      "description": "Archival Information Package — what is preserved. MUST carry fixity + preservation metadata + a harvestable OAI-PMH record.",
+      "properties": {
+        "aip_id": {"type": "string", "minLength": 1},
+        "storage": {"enum": ["zot", "workspace-minio"], "description": "Content-addressed immutable backing store."},
+        "fixity": {"$ref": "#/$defs/fixity"},
+        "preservation_metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["preservation_level", "retention_tier", "fixity_check_schedule", "format", "created_at"],
+          "description": "PREMIS-shaped preservation metadata. Missing any required key makes the AIP non-archival (REJECTED).",
+          "properties": {
+            "preservation_level": {"enum": ["bit-level", "logical", "full"], "description": "OAIS preservation level."},
+            "retention_tier": {"enum": ["hot", "warm", "cold", "permanent"], "description": "Retention tier driving GC/lifecycle policy."},
+            "fixity_check_schedule": {"type": "string", "minLength": 1, "description": "Cadence of periodic fixity re-verification, e.g. 'P30D' (ISO-8601 duration)."},
+            "format": {"type": "string", "minLength": 1, "description": "Preserved object format / media type."},
+            "created_at": {"type": "string", "minLength": 1, "description": "RFC3339 AIP creation time."},
+            "provenance": {"type": "string", "description": "Preservation provenance note (agent, ingest process)."}
+          }
+        },
+        "oai_pmh_record": {"$ref": "#/$defs/oaiPmhRecord"}
+      }
+    },
+    "dip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dip_id", "fixity"],
+      "description": "Dissemination Information Package — what is served. Its fixity MUST match the AIP fixity (algorithm AND digest); otherwise the dissemination is not faithful to the archived object (REJECTED).",
+      "properties": {
+        "dip_id": {"type": "string", "minLength": 1},
+        "fixity": {"$ref": "#/$defs/fixity"},
+        "access_url": {"type": "string", "description": "Where the DIP is served (e.g. the OAI-PMH GetRecord landing / resolver)."},
+        "disseminated_at": {"type": "string"}
+      }
+    },
+    "doi_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OPTIONAL citable identity minted from the AIP fixity digest (DataCite concept/version, #1267). Referenced, not minted here.",
+      "properties": {
+        "concept_doi": {"type": "string", "minLength": 1},
+        "version_doi": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "$defs": {
+    "fixity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "digest"],
+      "description": "A content-integrity check. algorithm is fixed to SHA-256 (FIPS 180-4 algorithm); digest is 64 lowercase hex.",
+      "properties": {
+        "algorithm": {"const": "SHA-256"},
+        "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "oaiPmhRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identifier", "datestamp", "metadata_prefix", "dc"],
+      "description": "An OAI-PMH-shaped record (Open Archives Initiative Protocol for Metadata Harvesting) so the deposition is harvestable. Carries a Dublin Core (oai_dc) payload.",
+      "properties": {
+        "identifier": {"type": "string", "minLength": 1, "description": "OAI identifier, e.g. oai:commons.socioprophet.ai:<aip_id>."},
+        "datestamp": {"type": "string", "minLength": 1, "description": "RFC3339 / UTCdatetime record datestamp."},
+        "metadata_prefix": {"const": "oai_dc", "description": "Dublin Core metadata format."},
+        "dc": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": ["title", "identifier"],
+          "description": "Dublin Core elements.",
+          "properties": {
+            "title": {"type": "string", "minLength": 1},
+            "creator": {"type": "array", "items": {"type": "string"}},
+            "date": {"type": "string"},
+            "identifier": {"type": "string", "minLength": 1, "description": "Preferably the AIP fixity content address or the DOI once minted."},
+            "format": {"type": "string"},
+            "rights": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

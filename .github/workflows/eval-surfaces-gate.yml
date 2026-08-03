@@ -1,0 +1,55 @@
+# The two beyond-slice eval surfaces, fired as real controls (#1272):
+#   * the public ranked/tiered LEADERBOARD ROUND surface — a round PUBLISHES only
+#     when every entry's submission passes validate_submission (#1271); a round
+#     with a failed-gate entry is REJECTED. OPEN rounds are flagged non-comparable.
+#   * the OAIS PRESERVATION/CURATION VAULT check — an accepted submission produces
+#     a citable AIP (SHA-256 fixity + preservation metadata + OAI-PMH record); an
+#     AIP missing fixity/metadata, a non-SHA-256 algorithm, tampered content, or a
+#     DIP that doesn't match its AIP is REJECTED.
+# Teeth are proven BOTH ways in the pytest suites. Path-scoped so the gate runs
+# when the surfaces, their schemas, examples, or tests move — a control that never
+# fires is worse than none. SHA-256 here is the FIPS 180-4 algorithm via stdlib
+# hashlib, NOT a FIPS 140-validated module.
+name: eval-surfaces-gate
+
+on:
+  pull_request:
+    paths:
+      - 'tools/publish_leaderboard_round.py'
+      - 'tools/oais_deposition.py'
+      - 'tools/validate_submission.py'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_publish_leaderboard_round.py'
+      - 'tests/platform_stubs/test_oais_deposition.py'
+      - '.github/workflows/eval-surfaces-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/publish_leaderboard_round.py'
+      - 'tools/oais_deposition.py'
+      - 'tools/validate_submission.py'
+      - 'schemas/eval/**'
+      - 'tests/platform_stubs/test_publish_leaderboard_round.py'
+      - 'tests/platform_stubs/test_oais_deposition.py'
+      - '.github/workflows/eval-surfaces-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  eval-surfaces:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: python -m pip install --upgrade pip jsonschema rfc3339-validator pytest
+      - name: Leaderboard round — example PUBLISHES
+        run: python tools/publish_leaderboard_round.py schemas/eval/examples/leaderboard-round.closed.example.json
+      - name: OAIS deposition — example ACCEPTED
+        run: python tools/oais_deposition.py verify schemas/eval/examples/oais-deposition.example.json
+      - name: Teeth — surfaces PUBLISH/ACCEPT on valid input and REJECT on a broken gate/fixity
+        run: pytest -q tests/platform_stubs/test_publish_leaderboard_round.py tests/platform_stubs/test_oais_deposition.py

@@ -1,0 +1,2 @@
+SocioProphet benchmark AIP payload — sherlock-stage2 round v1 archival object.
+This file stands in for the immutable, content-addressed bytes preserved in the OAIS AIP.

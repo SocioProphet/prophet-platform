@@ -1,0 +1,68 @@
+{
+  "round_id": "sherlock-stage2-2026Q3",
+  "version": "v1",
+  "division": "CLOSED",
+  "comparable": true,
+  "published_at": "2026-08-03T00:00:00Z",
+  "ranking_rule": {
+    "metric_id": "md.isota.tournament_composite",
+    "direction": "higher_is_better",
+    "mode": "ranked"
+  },
+  "entries": [
+    {
+      "entry_id": "e-alpha",
+      "candidate_id": "cand.internal-runner-alpha",
+      "rank": 1,
+      "headline": {"metric_id": "md.isota.tournament_composite", "value": 0.842},
+      "recipe_proof_ref": {"recipe_proof_id": "rp-alpha-r1"},
+      "doi_ref": {"concept_doi": "10.71234/round.sherlock-stage2", "version_doi": "10.71234/round.sherlock-stage2.v1.alpha"},
+      "submission": {
+        "submission_id": "sub-alpha",
+        "division": "CLOSED",
+        "candidate_id": "cand.internal-runner-alpha",
+        "benchmark_contract_id": "bc.sherlock.stage2",
+        "governance": {"api": true, "rate": true, "auth": true, "cost": true, "observability": true},
+        "provider_neutrality": {"scored_by": "internal_runner", "provider_terms_in_scoring": false},
+        "metric_facts": [
+          {"metric_definition_id": "md.isota.tournament_composite", "reproduced_by_us": true,
+           "source_trust_class": "internal_reproduced", "is_headline": true, "trial_count": 30}
+        ],
+        "clean_eval_certificate": {"certificate_id": "ce-alpha", "status": "clean",
+                                    "corpus_ref": "corpus://sherlock", "checked_at": "2026-08-03T00:00:00Z"},
+        "repro_ledger_entry": {"repro_ledger_entry_id": "rl-alpha", "run_id": "run-alpha",
+                                "environment_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                                "methodology_snapshot_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                                "seed_policy": "fixed:1729", "replay_artifact_id": "replay-alpha"},
+        "task_manifest": {"unchanged": true, "declared_deviations": []},
+        "minimum_trial_count": 30
+      }
+    },
+    {
+      "entry_id": "e-beta",
+      "candidate_id": "cand.internal-runner-beta",
+      "rank": 2,
+      "headline": {"metric_id": "md.isota.tournament_composite", "value": 0.791},
+      "submission": {
+        "submission_id": "sub-beta",
+        "division": "CLOSED",
+        "candidate_id": "cand.internal-runner-beta",
+        "benchmark_contract_id": "bc.sherlock.stage2",
+        "governance": {"api": true, "rate": true, "auth": true, "cost": true, "observability": true},
+        "provider_neutrality": {"scored_by": "independent_harness", "provider_terms_in_scoring": false},
+        "metric_facts": [
+          {"metric_definition_id": "md.isota.tournament_composite", "reproduced_by_us": true,
+           "source_trust_class": "internal_reproduced", "is_headline": true, "trial_count": 32}
+        ],
+        "clean_eval_certificate": {"certificate_id": "ce-beta", "status": "clean",
+                                    "corpus_ref": "corpus://sherlock", "checked_at": "2026-08-03T00:00:00Z"},
+        "repro_ledger_entry": {"repro_ledger_entry_id": "rl-beta", "run_id": "run-beta",
+                                "environment_hash": "sha256:ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                                "methodology_snapshot_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                                "seed_policy": "fixed:1729", "replay_artifact_id": "replay-beta"},
+        "task_manifest": {"unchanged": true, "declared_deviations": []},
+        "minimum_trial_count": 30
+      }
+    }
+  ]
+}

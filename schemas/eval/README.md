@@ -19,3 +19,11 @@ These schemas are intentionally narrow starter anchors. They let the platform re
 - `judge-descriptor.schema.json` — `JudgeDescriptor`: descriptor for the judge (model, human, or hybrid) used in an eval run
 
 Example payloads for each governance/provenance schema are in the `examples/` subdirectory.
+
+## Submission validity and public surfaces (MLPerf / Zenodo parity)
+
+- `submission.schema.json` + `division-rules.json` — the submission descriptor and the OPEN/CLOSED division rules (#1271). `tools/validate_submission.py` composes the estate gates into ONE pass/fail verdict per division.
+- `leaderboard-round.schema.json` — `LeaderboardRound`: a versioned, ranked-or-tiered public round FOR ONE division (#1272). `tools/publish_leaderboard_round.py` publishes a round only when EVERY entry's submission passes `validate_submission`; OPEN rounds are flagged non-comparable. An entry may reference a `RecipeProof` (#1296) and a DOI (#1267).
+- `oais-deposition.schema.json` — `OaisDeposition`: the OAIS preservation/curation vault package chain SIP→AIP→DIP (#1272). `tools/oais_deposition.py` verifies SHA-256 fixity (FIPS 180-4 algorithm), PREMIS-shaped preservation metadata, an OAI-PMH (`oai_dc`) record, and that the DIP fixity matches the AIP. An accepted submission produces a citable, DOI-ready AIP (#1267).
+
+Examples: `examples/leaderboard-round.closed.example.json`, `examples/oais-deposition.example.json` (+ `examples/oais-content/`). Gate: `make validate-eval-surfaces` / `.github/workflows/eval-surfaces-gate.yml`.
