@@ -106,6 +106,7 @@ jobs:
           - rollout-analysis-refs-check
           - overlay-self-contained-check
           - manifest-completeness-check
+          - no-dangling-path-refs-check
           - fips-conformance-check
           - imageschemanet-grounding-check
     steps:
@@ -124,6 +125,18 @@ jobs:
           python-version: '3.11'
       - name: Install Python validator dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema
+      # The blast-radius gate (INV-DEP-12) diffs HEAD against the merge-base with origin/main, so
+      # it needs full history — the default checkout above is shallow (fetch-depth: 1). Deepen
+      # only for this one target so the other ~34 legs keep their cheap shallow clone. The gate
+      # is fail-closed, so an un-deepened repo would turn it RED rather than passing blindly.
+      - name: Deepen history for the blast-radius gate (INV-DEP-12 needs the merge-base)
+        if: matrix.target == 'no-dangling-path-refs-check'
+        run: |
+          set -euo pipefail
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --no-tags --unshallow origin || git fetch --no-tags --depth=1000 origin
+          fi
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
       - name: Run target
         run: make ${{ matrix.target }}
 

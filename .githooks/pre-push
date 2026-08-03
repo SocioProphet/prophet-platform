@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Example pre-push hook (L5): run `make preflight` before a push so path-breaks and gate
+# failures surface locally, in minutes, instead of in CI after a slow round-trip.
+#
+# This hook is NOT auto-installed. Opt in with:
+#
+#     git config core.hooksPath .githooks
+#
+# To bypass it for a single push (e.g. pushing a WIP branch on purpose):
+#
+#     git push --no-verify
+#
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "pre-push: running \`make preflight\` (local == CI parity) ..."
+if ! make preflight; then
+  echo "pre-push: preflight FAILED — push aborted. Fix the legs above, or bypass with 'git push --no-verify'." >&2
+  exit 1
+fi
+echo "pre-push: preflight passed."

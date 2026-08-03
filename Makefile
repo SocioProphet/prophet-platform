@@ -636,3 +636,28 @@ imageschemanet-grounding-check:
 	python3 -m pip install --quiet 'rdflib==7.6.0' 'pytest>=8,<9'
 	python3 tools/imageschema_ground.py
 	python3 -m pytest -q tools/tests/test_imageschema_ground.py
+
+.PHONY: no-dangling-path-refs-check
+# Blast-radius on refactor (INV-DEP-12): a PR that MOVES/RENAMES/DELETES a repo path must not
+# leave any surviving tracked file still referencing the OLD path. That break renders/parses
+# clean and only fails when the path is dereferenced — the same "looks fine, fails later" class
+# as INV-DEP-9/10, here for repo-path refs. It actually happened: moving
+# infra/k8s/search-orchestrator/base/configmap.yaml -> base-support/ silently broke
+# tools/validate_search_orchestrator_academy_deploy.py, which hard-coded the old base/ path;
+# only CI caught it, after push. tools/verify_no_dangling_path_refs.py diffs HEAD against the
+# merge-base with origin/main and fails on a surviving old-path reference (proven both ways by
+# tools/tests/test_verify_no_dangling_path_refs.py). NEEDS FULL GIT HISTORY — in CI, check out
+# with fetch-depth: 0 (or `git fetch --unshallow`); it is fail-closed if it cannot diff.
+no-dangling-path-refs-check:
+	python3 tools/verify_no_dangling_path_refs.py
+
+.PHONY: preflight
+# Local == CI parity (L5): run the fast, hermetic subset of the REQUIRED validate-target-
+# diagnostics matrix locally, in minutes, so path-breaks and gate failures surface BEFORE push
+# instead of only in CI after it. Includes the static ref-resolution + blast-radius gates
+# (INV-DEP-9/10/12) and the tools test suite; EXCLUDES the slow/infra-heavy legs (kind, go
+# build, per-app venvs, docker) and the CI-only real-apply/digest-exists preflight (those still
+# run in CI). Prints a PASS / what-to-fix summary and exits non-zero if any leg fails.
+# See docs/RESILIENCE_ENGINEERING.md. Opt into the pre-push hook: git config core.hooksPath .githooks
+preflight:
+	python3 tools/run_preflight.py

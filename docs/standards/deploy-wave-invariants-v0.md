@@ -173,6 +173,40 @@ any apply.
 
 ---
 
+## INV-DEP-12 — A refactor MUST NOT leave a dangling repo-path reference (blast-radius on move/rename/delete)
+
+A PR that MOVES, RENAMES, or DELETES a repo path MUST NOT leave any surviving tracked file still
+referencing that path by its **old** name. A hard-coded path is just a string: renaming the file
+it points at does not touch the string, so the reference silently rots. Nothing in the diff of
+the *moved* file can reveal the break — it only surfaces when something dereferences the path at
+run time. This is the same "renders/parses clean, fails on use" class as INV-DEP-9 (a namespaced
+cluster ref), lifted to *repo-path* references.
+
+*Rationale.* `infra/k8s/search-orchestrator/base/configmap.yaml` was correctly factored out to
+`.../base-support/configmap.yaml` so the prod blue-green overlay could render it. But
+`tools/validate_search_orchestrator_academy_deploy.py` had the old `.../base/configmap.yaml`
+path hard-coded in its required-files list. The move was invisible to that consumer; the
+validator only went RED in CI, AFTER push. A diff-time gate would have caught it before the push
+(and `make preflight`, L5, runs it locally).
+
+*Fail-closed / no-false-positive distinction.* The check computes the paths deleted or
+renamed-away between HEAD and the merge-base with `origin/main`, then searches the CURRENT tree
+(tracked files only) for a surviving literal reference to each old path — matching the full path
+OR a path suffix of ≥ 2 segments (e.g. `base/configmap.yaml`), on path boundaries, and NEVER a
+bare shared basename (`kustomization.yaml`) which two unrelated files can legitimately share. A
+surviving reference to a now-missing path FAILS with `file:line` and the missing path. If git is
+unavailable, or the merge-base / diff cannot be computed, the gate FAILS — a gate that cannot
+compute blast-radius must not pass. (In CI this needs full history: check out with
+`fetch-depth: 0`.)
+
+*Enforced by.* `tools/verify_no_dangling_path_refs.py` (pure `scan()` seam, proven both ways by
+`tools/tests/test_verify_no_dangling_path_refs.py` — a still-referenced removed path fails, an
+all-references-updated rename and a bare-basename collision are both clean); `make
+no-dangling-path-refs-check` in the required `validate-target-diagnostics` matrix (with
+`fetch-depth: 0`); and locally via `make preflight`. See also `docs/RESILIENCE_ENGINEERING.md`.
+
+---
+
 ## Conformance checklist
 
 | # | Check | Command |
@@ -187,3 +221,7 @@ any apply.
 | 8 | Digest-exists (incl. GAR) + lock-provenance gates, both ways (INV-DEP-6/7) | `python3 -m pytest -q tools/tests/test_verify_pinned_digest_exists.py tools/tests/test_apply_search_orchestrator_image_lock.py` |
 | 9 | First-party refs point at a pullable registry — GAR/zot, not ghcr (INV-DEP-8) | `python3 tools/preflight_deploy_contract.py` |
 | 10 | Overlays self-contained — every Rollout analysis ref resolves (INV-DEP-9) | `python3 tools/verify_rollout_analysis_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_rollout_analysis_refs.py`) |
+| 11 | Workloads self-contained — every SA/ConfigMap/PVC a pod names is rendered (INV-DEP-10) | `python3 tools/verify_overlay_self_contained.py` (+ `python3 -m pytest -q tools/tests/test_verify_overlay_self_contained.py`) |
+| 12 | Workloads complete — every Secret rendered/allowlisted + every image digest-pinned (INV-DEP-11) | `python3 tools/verify_manifest_completeness.py` (+ `python3 -m pytest -q tools/tests/test_verify_manifest_completeness.py`) |
+| 13 | No dangling repo-path reference after a move/rename/delete (INV-DEP-12) | `python3 tools/verify_no_dangling_path_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_no_dangling_path_refs.py`) |
+| 14 | Local == CI parity: the fast required matrix, run locally (L5) | `make preflight` |
