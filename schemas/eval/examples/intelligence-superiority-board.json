@@ -1302,7 +1302,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1327,7 +1327,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1352,7 +1352,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1377,7 +1377,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1402,7 +1402,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1427,7 +1427,7 @@
           "evidence_ref": [
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "5-class, T0-1, OS-process level"
             },
             {
@@ -1678,7 +1678,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
@@ -1697,7 +1697,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
@@ -1716,7 +1716,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
@@ -1735,7 +1735,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
@@ -1754,7 +1754,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
@@ -1773,7 +1773,7 @@
             },
             {
               "repo": "sourceos-spec",
-              "path": "AgentPassport.json",
+              "path": "schemas/AgentPassport.json",
               "note": "OS-process->authority binding"
             }
           ],
