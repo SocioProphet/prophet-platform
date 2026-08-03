@@ -3,6 +3,11 @@
 # read/write, no anonymous access. `sync` provides on-demand pull-through of upstream registries so the
 # cluster pulls docker.io/ghcr/gcr/k8s images THROUGH zot (the de-Google lever). S3 credentials are NOT
 # in this file — they come from env (AWS_ACCESS_KEY_ID/SECRET) sourced from the minio-credentials secret.
+#
+# storage.retention + gc bound the registry's growth so pull-through sync and CI pushes cannot fill the
+# MinIO bucket unattended: gc reclaims unreferenced blobs (gcDelay/gcInterval), and the retention policy
+# prunes untagged manifests and referrers while KEEPING `latest`, anything pulled within 90 days
+# (2160h), and the 100 most-recently-pushed tags per repo.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,6 +22,24 @@ data:
         "rootDirectory": "/var/lib/zot",
         "dedupe": false,
         "gc": true,
+        "gcDelay": "1h",
+        "gcInterval": "6h",
+        "retention": {
+          "dryRun": false,
+          "delay": "24h",
+          "policies": [
+            {
+              "repositories": ["**"],
+              "deleteReferrers": true,
+              "deleteUntagged": true,
+              "keepTags": [
+                { "patterns": ["^latest$"] },
+                { "patterns": [".*"], "pulledWithin": "2160h" },
+                { "patterns": [".*"], "mostRecentlyPushedCount": 100 }
+              ]
+            }
+          ]
+        },
         "storageDriver": {
           "name": "s3",
           "rootdirectory": "/zot",
