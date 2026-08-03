@@ -5,3 +5,17 @@ image: { repository: entity-resolution, tag: latest }
 service: { port: 8080, portName: http }
 autoscaling: { enabled: true, minReplicas: 1, maxReplicas: 2 }
 networkPolicy: { enabled: true, ports: [8080] }
+
+# Live spine wiring (added with the NER extract + /resolve/materialize endpoints):
+#   /resolve/materialize writes resolved nodes/edges to HellGraph and seals a
+#   SHA-256 hash-chained resolution receipt into the compute-gateway spine.
+config:
+  HELLGRAPH_URL: "http://hellgraph-service.socioprophet.svc.cluster.local:8090"
+  COMPUTE_GATEWAY_URL: "http://compute-gateway.socioprophet.svc.cluster.local:8080"
+  ER_RECEIPT_PROJECT: "entity-resolution"
+# compute-gateway is fail-closed on auth. Without this token, graph writes + the
+# local SHA-256 receipt still land; only remote sealing degrades (seal.sealed=false).
+# Provision the Secret out of band: kubectl -n socioprophet create secret generic \
+#   entity-resolution-receipt-token --from-literal=token=<GATEWAY_TOKEN>
+secretEnv:
+  COMPUTE_GATEWAY_TOKEN: { secretName: entity-resolution-receipt-token, key: token, optional: true }
