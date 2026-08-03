@@ -651,6 +651,19 @@ imageschemanet-grounding-check:
 no-dangling-path-refs-check:
 	python3 tools/verify_no_dangling_path_refs.py
 
+.PHONY: evidence-refs-check
+# Evidence-reference verification (INV-DEP-13): every reference a release/evidence artifact makes
+# to another repo artifact must RESOLVE — not merely look right. Generalises "a reference must
+# resolve" from cluster objects (INV-DEP-9/10) and repo paths (INV-DEP-12) to the EVIDENCE surface
+# under releases/: every repo-path ref (paths, lock refs, validation-record refs) must exist and
+# parse; every evidence://|file:// URI must resolve (the agent-registry #56 fabricated-URI ghost);
+# and every digest-evidence claim (bundle_digest/rulepack_digest) must equal sha256(the file it
+# names). Placeholders in *.example.*/*.template.* artifacts are explicit unfilled slots, not
+# claims. tools/verify_evidence_refs.py — pure-filesystem, no kubectl; proven both ways by
+# tools/tests/test_verify_evidence_refs.py. In the validate-target-diagnostics matrix + preflight.
+evidence-refs-check:
+	python3 tools/verify_evidence_refs.py
+
 .PHONY: preflight
 # Local == CI parity (L5): run the fast, hermetic subset of the REQUIRED validate-target-
 # diagnostics matrix locally, in minutes, so path-breaks and gate failures surface BEFORE push

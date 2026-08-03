@@ -207,6 +207,64 @@ no-dangling-path-refs-check` in the required `validate-target-diagnostics` matri
 
 ---
 
+## INV-DEP-13 — Every reference a release/evidence artifact makes MUST resolve to real evidence
+
+A reference a release-surface artifact (`releases/manifests/*.json`, `releases/evidence/*.json`,
+`releases/images/*image-lock*.json`) makes to another repo artifact MUST resolve to a real,
+well-formed file — not a string that merely passes schema shape. This is the same "renders/parses
+clean, fails on use" class as INV-DEP-9 (a namespaced cluster ref) and INV-DEP-12 (a repo-path
+ref), lifted to **evidence artifacts**: a claim is only worth what it resolves to.
+
+Concretely: (a) a **repo-path reference** (a whitespace-free string with ≥ 2 `/`-segments whose
+first segment is a real top-level repo entry — a path, a `lock` ref, a `validated_artifacts` entry)
+MUST exist, and a `.json`/`.yaml` target MUST also parse; (b) an **`evidence://` / `file://` URI**
+MUST resolve to an existing repo artifact; (c) a **digest-evidence claim** — a `<name>_digest` field
+whose sibling `<name>` names an existing repo file (`bundle_digest` ↔ `bundle`, `rulepack_digest` ↔
+`rulepack`) — MUST equal `sha256(that file)`. Image digests (`digest`, `pinned_ref`,
+`source_content_digest`) name registry blobs, not repo files, and are governed by INV-DEP-6/7.
+
+*Rationale.* The estate's oldest ghost is a claim that looks right but resolves to nothing: a
+fabricated `evidence://` URI passed schema validation (agent-registry #56); a placeholder digest
+rendered green. Both are perfectly-shaped and both back nothing. Building this gate also surfaced a
+LIVE instance: `search-orchestrator.academy-bridge.manifest.json` and its validation record still
+listed `infra/k8s/search-orchestrator/base/{serviceaccount-rbac,pvc,networkpolicy}.yaml` after those
+files were factored to `base-support/` (the INV-DEP-12 refactor, PR #1230) — evidence pointing at
+paths that no longer existed. The gate failed until the references were corrected.
+
+*Fail-closed / no-false-positive distinction.* A string with a resolvable ref SHAPE (a repo-rooted
+path or an evidence/file URI) is resolved and FAILS if it points at a repo artifact that does not
+exist or does not parse; a digest-evidence claim FAILS if the content hash no longer matches. Prose
+that merely contains a slash, a registry ref (`us-central1-docker.pkg.dev/…`), and an org/repo
+(`SocioProphet/prophet-platform`) are NOT repo-path refs. An explicit `REPLACE_WITH_…` /
+`PLACEHOLDER` string in an `*.example.*` / `*.template.*` artifact is an unfilled slot, not a live
+claim, and is skipped — the ghost is a placeholder shaped like a REAL ref, which still fails, while
+templates stay green. An artifact that will not itself parse is a fail-closed violation.
+
+*Enforced by.* `tools/verify_evidence_refs.py` (pure `scan(manifest_obj, resolver)` seam over a
+filesystem `Resolver`; proven both ways by `tools/tests/test_verify_evidence_refs.py` — a resolvable
+ref passes, a missing file / digest mismatch / fabricated `evidence://` URI each fail, a placeholder
+is skipped, and the shipped `releases/` artifacts pass); `make evidence-refs-check` in the required
+`validate-target-diagnostics` matrix; and locally via `make preflight`. Pure-filesystem (no
+kubectl/cluster/network). See also `docs/RESILIENCE_ENGINEERING.md`.
+
+---
+
+## Auto-remediation for INV-DEP-12 (L6, rename case)
+
+When a derived gate KNOWS the mechanical fix, it offers the patch, not just the refusal. For the
+blast-radius gate (INV-DEP-12), a **rename** is exactly such a case: git reports the new target
+(`git diff --diff-filter=R -M`), so every surviving reference to the old path gets a concrete
+"→ `<new path>`" suggestion, and `tools/verify_no_dangling_path_refs.py --fix` rewrites the
+**unambiguous full-path** references in place (`old` → `new`, on the same path boundaries the
+detector uses). **Deletions are never auto-rewritten** — a deleted path has no safe target — and a
+bare-suffix reference to a renamed path is ambiguous, so both are reported for a human. `--fix` is a
+developer convenience: **CI never runs it** (the CI leg stays report-only and fail-closed); the
+default no-`--fix` behaviour is unchanged. Proven by `tools/tests/test_verify_no_dangling_path_refs.py`
+(rename → suggestion emitted + `--fix` rewrites; delete → no suggestion, `--fix` leaves it and it
+still fails).
+
+---
+
 ## Conformance checklist
 
 | # | Check | Command |
@@ -225,3 +283,5 @@ no-dangling-path-refs-check` in the required `validate-target-diagnostics` matri
 | 12 | Workloads complete — every Secret rendered/allowlisted + every image digest-pinned (INV-DEP-11) | `python3 tools/verify_manifest_completeness.py` (+ `python3 -m pytest -q tools/tests/test_verify_manifest_completeness.py`) |
 | 13 | No dangling repo-path reference after a move/rename/delete (INV-DEP-12) | `python3 tools/verify_no_dangling_path_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_no_dangling_path_refs.py`) |
 | 14 | Local == CI parity: the fast required matrix, run locally (L5) | `make preflight` |
+| 15 | Every release/evidence reference resolves to a real, well-formed artifact (INV-DEP-13) | `python3 tools/verify_evidence_refs.py` (+ `python3 -m pytest -q tools/tests/test_verify_evidence_refs.py`) |
+| 16 | Blast-radius auto-remediation for renames (L6): suggestion + in-place fix, deletions untouched | `python3 tools/verify_no_dangling_path_refs.py --fix` (+ `python3 -m pytest -q tools/tests/test_verify_no_dangling_path_refs.py`) |
