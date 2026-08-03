@@ -270,23 +270,39 @@ def verify(proof: dict, register_path: Path | None = None,
     else:
         checks.append(Check("receipt_chain_intact", True, "hash-chain intact; receipt_ref present"))
 
-    # 3. metric within epsilon (bound to the receipt's reproduce outcome).
+    # 3. metric binds the receipt's reproduce outcome. The published headline MUST
+    #    BE the value the receipt reproduced — no fabrication. We bind EXACTLY to
+    #    the receipt's observed value and take the tolerance/rule/determinism FROM
+    #    THE RECEIPT, never from proof-declared fields. (A proof-declared epsilon is
+    #    attacker-controlled: widening it would let a fabricated headline that drifts
+    #    far from the reproduced number slip through. The receipt is the ground truth.)
     if spine is None:
         checks.append(Check("metric_within_epsilon", False, "no receipt to bind the metric to"))
     else:
         outcome = spine.get("reproduce_outcome") or {}
         recorded_metric = outcome.get("headline_metric_id")
-        eps = float(proof["headline"].get("epsilon", 0.0))
         det = proof["headline"]["determinism_class"]
-        drift = abs(float(proof["headline"]["value"]) - float(outcome.get("observed", "nan")))
-        within = (drift == 0.0) if det == "deterministic" else (drift <= eps)
-        metric_ok = bool(outcome.get("passed")) and within and recorded_metric == proof["headline"]["metric_id"] \
-            and spine.get("bench") == proof.get("bench") and outcome is not None \
+        observed = float(outcome.get("observed", "nan"))
+        value = float(proof["headline"]["value"])
+        # the published headline value is exactly the reproduced value on the receipt.
+        value_binds = (value == observed)  # NaN (external dispatch-only) never binds
+        # the determinism class the proof claims must match how the receipt was gated.
+        rule_expected = "exact" if det == "deterministic" else "within_epsilon"
+        class_binds = (outcome.get("rule") == rule_expected)
+        # for a bounded arm, the proof-declared epsilon must equal the receipt's
+        # recorded tolerance — the proof cannot misrepresent the tolerance either.
+        tol_binds = True
+        if det == "bounded_nondeterministic":
+            tol_binds = (float(proof["headline"].get("epsilon", 0.0)) == float(outcome.get("tolerance", -1.0)))
+        metric_ok = bool(outcome.get("passed")) and value_binds and class_binds and tol_binds \
+            and recorded_metric == proof["headline"]["metric_id"] \
+            and spine.get("bench") == proof.get("bench") \
             and spine["entry"]["run_id"] == proof["run_id"]
-        reason = ("reproduced within tolerance (drift=%g, rule=%s)" % (drift, outcome.get("rule"))
+        reason = ("headline binds the receipt (value=%g == observed, rule=%s)" % (value, outcome.get("rule"))
                   if metric_ok else
-                  "metric does not bind the receipt (passed=%s within=%s metric=%s vs %s run=%s)"
-                  % (outcome.get("passed"), within, recorded_metric, proof["headline"]["metric_id"], proof["run_id"]))
+                  "metric does not bind the receipt (passed=%s value_binds=%s class_binds=%s tol_binds=%s metric=%s vs %s run=%s)"
+                  % (outcome.get("passed"), value_binds, class_binds, tol_binds,
+                     recorded_metric, proof["headline"]["metric_id"], proof["run_id"]))
         checks.append(Check("metric_within_epsilon", metric_ok, reason))
 
     # 4. division gates pass (#1271, over the embedded submission descriptor).

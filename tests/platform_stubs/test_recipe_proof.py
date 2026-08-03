@@ -201,6 +201,36 @@ def test_lying_trust_attestation_rejected(isolated_ledger):
     assert "trust_attestation_proven" in verdict.failed()
 
 
+def test_fabricated_headline_value_rejected(isolated_ledger):
+    """RED-TEAM: a bounded-arm proof whose receipt chain is intact and whose
+    reproduction PASSED, but whose PUBLISHED headline value is inflated away from
+    the reproduced number — smuggled in by widening the proof-declared epsilon.
+    The published headline must BE the reproduced value; the tolerance is taken
+    from the receipt, not the proof, so this must be REJECTED."""
+    rp, rb, _ = isolated_ledger
+    proof = _assemble(rp, None, run_id="sampled-headline-r1")
+    proof = copy.deepcopy(proof)
+    # inflate the published headline far from the actual reproduced observed and
+    # widen the proof-declared epsilon to try to cover the drift.
+    proof["headline"]["value"] = proof["headline"]["value"] + 19.0
+    proof["headline"]["epsilon"] = 100.0
+    verdict, _ = _verify_assembled(rp, rb, proof)
+    assert verdict.verified is False
+    assert "metric_within_epsilon" in verdict.failed()
+
+
+def test_headline_epsilon_must_match_receipt_tolerance(isolated_ledger):
+    """RED-TEAM: even without changing the value, a proof cannot misrepresent the
+    tolerance — the declared epsilon must equal the receipt's recorded tolerance."""
+    rp, rb, _ = isolated_ledger
+    proof = _assemble(rp, None, run_id="sampled-headline-r1")
+    proof = copy.deepcopy(proof)
+    proof["headline"]["epsilon"] = proof["headline"]["epsilon"] + 1.0  # != receipt tolerance
+    verdict, _ = _verify_assembled(rp, rb, proof)
+    assert verdict.verified is False
+    assert "metric_within_epsilon" in verdict.failed()
+
+
 def test_schema_invalid_proof_rejected():
     rp = _rp()
     verdict = rp.verify({"recipe_proof_id": "bad", "recipe_ref": {"recipe_id": "NOT-A-VALID-ID"}})
