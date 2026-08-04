@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "graph-hyperedge.v0",
+  "description": "An N-ary typed relation over two or more graph nodes, each in a declared role — the AtomSpace/KKO hyperedge the binary graph-edge.v0 cannot express (e.g. a claim together with its premises and stance as ONE relation, not three edges). Tenant- and operational-set-scoped: isolation is a property of the relation itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hyperedge_id", "tenant_id", "hyperedge_type", "members", "created_at", "updated_at"],
+  "properties": {
+    "hyperedge_id": { "type": "string", "minLength": 3 },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "op_set": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Operational set / namespace within the tenant. Isolation boundary by default: a read scoped to one op_set never sees another."
+    },
+    "hyperedge_type": { "type": "string", "minLength": 1 },
+    "members": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The roled participants of the relation (>= 2). Order is not significant; the role carries the meaning.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "node_id"],
+        "properties": {
+          "role": { "type": "string", "minLength": 1 },
+          "node_id": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "attributes": { "type": "object", "additionalProperties": true },
+    "confidence": { "type": "number" },
+    "claim_refs": { "type": "array", "items": { "type": "string" } },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" }
+  }
+}
