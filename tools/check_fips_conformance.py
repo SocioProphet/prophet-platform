@@ -143,6 +143,60 @@ def check_flag_enforced(root: Path, boundary: dict[str, Any]) -> list[str]:
     return out
 
 
+def _find_value(obj: Any, key: str) -> Any:
+    """The first value found for `key` anywhere in a nested mapping/list, or None."""
+    if isinstance(obj, dict):
+        if key in obj:
+            return obj[key]
+        for v in obj.values():
+            r = _find_value(v, key)
+            if r is not None:
+                return r
+    elif isinstance(obj, list):
+        for v in obj:
+            r = _find_value(v, key)
+            if r is not None:
+                return r
+    return None
+
+
+def check_module_warrant(root: Path, boundary: dict[str, Any]) -> list[str]:
+    """Build 2 — module CMVP warrant. A deployment with require_fips_validated_crypto: true must
+    NAME its FIPS-validated crypto module per runtime (fips_crypto_modules), chosen from the
+    boundary's `fips_modules` allowlist. An approved algorithm (Build 1) on an unvalidated module
+    is not FIPS; a flag with no named validated module is a claim without a warrant. Placeholders
+    (e.g. REPLACE_ME) are not on the allowlist and therefore fail."""
+    allow = boundary.get("fips_modules") or {}
+    out: list[str] = []
+    for p in sorted(root.rglob("deployment-inventory*.y*ml")):
+        rel = str(p.relative_to(root))
+        try:
+            data = yaml.safe_load(p.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        except yaml.YAMLError as e:
+            # Fail CLOSED: a deployment inventory that will not parse cannot be certified — a
+            # malformed federal inventory must NOT silently escape the FIPS module warrant.
+            out.append(f"{rel}: deployment inventory is not valid YAML ({type(e).__name__}) — cannot verify FIPS module warrant")
+            continue
+        if not _key_is_true(data, "require_fips_validated_crypto"):
+            continue
+        modules = _find_value(data, "fips_crypto_modules")
+        if not isinstance(modules, dict) or not modules:
+            out.append(
+                f"{rel}: require_fips_validated_crypto: true but names no fips_crypto_modules — "
+                f"a FIPS flag without a named validated module is a claim without a warrant"
+            )
+            continue
+        for runtime, chosen in modules.items():
+            allowed = allow.get(runtime)
+            if allowed is None:
+                out.append(f"{rel}: fips_crypto_modules names runtime '{runtime}' with no FIPS-validated allowlist in {BOUNDARY}")
+            elif chosen not in allowed:
+                out.append(f"{rel}: fips_crypto_modules.{runtime}={chosen!r} is not a FIPS-validated module (allowed: {allowed})")
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Enforce FIPS algorithm conformance in the crypto boundary")
     ap.add_argument("--root", default=str(ROOT), type=Path)
@@ -157,18 +211,14 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print("fips-conformance-check: OK — no FIPS boundary declared and nothing requires one.")
         return 0
-    violations = check_flag_enforced(root, boundary) + scan_scope(root, boundary)
+    violations = check_flag_enforced(root, boundary) + scan_scope(root, boundary) + check_module_warrant(root, boundary)
     if violations:
         print("fips-conformance-check: FAIL — FIPS boundary is not conformant:")
         for v in violations:
             print(f"  - {v}")
         return 1
-    print("fips-conformance-check: OK — no non-FIPS algorithms in the boundary; the federal flag is enforced.")
-    pending = boundary.get("module_validation_pending") or []
-    if pending:
-        print("  (Build 2 — module CMVP validation still pending:)")
-        for m in pending:
-            print(f"    · {m}")
+    print("fips-conformance-check: OK — no non-FIPS algorithms in the boundary; the federal flag is "
+          "enforced and its FIPS-validated crypto modules are named (Build 1 algorithm + Build 2 module warrant).")
     return 0
 
 
