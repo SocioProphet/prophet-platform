@@ -1,0 +1,78 @@
+# Argo CD ApplicationSet — governed acquisition backend (acquire-worker + noetica-agent-machine).
+#
+# Backs the re-vendored sovereign cockpit's Data Catalogue / Governed Acquisition console
+# and the Noetica Control-Plane governance card (apps/socioprophet-web; PR #1428). Both
+# services carry their own NetworkPolicy (infra/k8s/{acquire-worker,noetica-agent-machine}/
+# base/networkpolicy.yaml), so — same house convention as socbase-gateway/zot/workspace —
+# they deploy via KUSTOMIZE, not the stateless-service Helm chart (platform-services.yaml
+# renders charts/socioprophet-service, which has no NetworkPolicy support).
+#
+# THIS FILE, NOT infra/k8s/argo-cd/appsets/socioprophet-appset.yaml: that file already
+# carried the same two elements (wave 14, "acquisition.worker"/"governance.agent-machine"
+# bundles) but lives outside deploy/argocd/, which is the only tree the root app-of-apps
+# recurses (`kubectl get application root -n argocd -o yaml` -> spec.source.path:
+# deploy/argocd, recurse: true) — so that file has never actually been synced by ArgoCD.
+# `kubectl get applicationset -n argocd` confirms only the deploy/argocd/*.yaml-rooted
+# sets exist live. This registers the same two services through the tree that is real.
+#
+# Wave 14: AFTER the cockpit (socioprophet-web, wave 13), not before, matching commit
+# 01c5dc5a's fix — the cockpit degrades gracefully without this backend (fail-closed
+# acquisition, fixture control-plane), so a Progressing/unbuilt backend must never gate
+# the UI from syncing.
+#
+# tier: reference for both — swappable feature backends behind a console the cockpit
+# already tolerates running without, not a REQUIRED INTEROPERABILITY FOUNDATION other
+# services depend on (tools/preflight_deploy_contract.py check 5/6 doctrine).
+#
+# Registry status, investigated 2026-08-04 (tools/preflight_deploy_contract.py's
+# check_kustomize_images / OUR_REGISTRIES / KNOWN_BROKEN):
+#   * acquire-worker: as of commit 0cf42af7 on this same branch, images.yml builds it
+#     in THIS repo (apps/acquire-worker) with no registry override, so it publishes to
+#     the Artifact Registry default (us-central1-docker.pkg.dev/socioprophet-platform/
+#     socioprophet/acquire-worker). infra/k8s/acquire-worker/base/deployment.yaml is
+#     repointed at that path (it still said ghcr.io/socioprophet/acquire-worker:latest,
+#     a leftover from before the images.yml entry existed — a real wrong-registry bug,
+#     now fixed, not a legitimate carve-out).
+#   * noetica-agent-machine: genuinely not built ANYWHERE yet. Verified against every
+#     workflow in SocioProphet/Noetica (.github/workflows/*.yml, .gitea/workflows/
+#     package.yml, agent-machine/docker/cloudbuild.yaml, agent-machine/deploy/
+#     broker-cloud-run.yaml): all of them either build the Tauri desktop app or publish
+#     sibling artifacts (board-base, broker) to Artifact Registry — none build
+#     agent-machine/Dockerfile into an image. Ratcheted in tools/preflight_deploy_contract.py's
+#     KNOWN_BROKEN (not carved out): the pod will sit ImagePullBackOff until Noetica CI
+#     actually ships the image, per this PR's own "honest dependencies" section.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: acquisition-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - { name: acquire-worker,        path: infra/k8s/acquire-worker/overlays/p0-lab,        wave: "14", tier: reference }
+          - { name: noetica-agent-machine, path: infra/k8s/noetica-agent-machine/overlays/p0-lab, wave: "14", tier: reference }
+  template:
+    metadata:
+      name: 'acquisition-{{.name}}'
+      labels:
+        app.kubernetes.io/part-of: governed-acquisition
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{.wave}}'
+        socioprophet.io/tier: '{{.tier}}'
+    spec:
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: socioprophet
+      source:
+        repoURL: https://github.com/SocioProphet/prophet-platform
+        targetRevision: main
+        path: '{{.path}}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

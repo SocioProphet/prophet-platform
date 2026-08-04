@@ -4,6 +4,7 @@ metadata:
   name: noetica-agent-machine
   labels:
     app: noetica-agent-machine
+    app.kubernetes.io/name: noetica-agent-machine
     bundle: governance.agent-machine
 spec:
   replicas: 1
@@ -14,6 +15,11 @@ spec:
     metadata:
       labels:
         app: noetica-agent-machine
+        # networkpolicy.yaml's podSelector matches on app.kubernetes.io/name, not app — without
+        # this label the policy silently selects zero pods and enforces nothing (found while
+        # verifying this manifest for deploy/argocd/acquisition-services.yaml; the same gap
+        # exists in several other infra/k8s/*/base pairs in this repo, tracked separately).
+        app.kubernetes.io/name: noetica-agent-machine
         bundle: governance.agent-machine
     spec:
       containers:

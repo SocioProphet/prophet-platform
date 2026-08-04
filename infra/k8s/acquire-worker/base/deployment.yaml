@@ -4,6 +4,7 @@ metadata:
   name: acquire-worker
   labels:
     app: acquire-worker
+    app.kubernetes.io/name: acquire-worker
     bundle: acquisition.worker
 spec:
   replicas: 1
@@ -14,6 +15,11 @@ spec:
     metadata:
       labels:
         app: acquire-worker
+        # networkpolicy.yaml's podSelector matches on app.kubernetes.io/name, not app — without
+        # this label the policy silently selects zero pods and enforces nothing (found while
+        # verifying this manifest for deploy/argocd/acquisition-services.yaml; the same gap
+        # exists in several other infra/k8s/*/base pairs in this repo, tracked separately).
+        app.kubernetes.io/name: acquire-worker
         bundle: acquisition.worker
     spec:
       securityContext:
@@ -23,7 +29,17 @@ spec:
           type: RuntimeDefault
       containers:
         - name: acquire-worker
-          image: ghcr.io/socioprophet/acquire-worker:latest
+          # us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/ is the platform's
+          # Artifact Registry default (charts/socioprophet-service/values.yaml, build-image.yml's
+          # `registry` default) -- this is where .github/workflows/images.yml's `acquire-worker`
+          # matrix entry (added alongside this manifest, no registry: override) actually publishes.
+          # This ref previously said ghcr.io/socioprophet/acquire-worker:latest, a leftover from
+          # before that images.yml entry existed; ghcr.io/socioprophet is not a registry this
+          # platform publishes to (tools/preflight_deploy_contract.py OUR_REGISTRIES), so the old
+          # ref could only ever ImagePullBackOff. tag:latest is the bootstrap for a brand-new
+          # service; gitops-promote sha-pins it after the first images.yml build (same convention
+          # as catalog-gateway/eval-fabric-api in deploy/values/).
+          image: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/acquire-worker:latest
           ports:
             - name: http
               containerPort: 8790
