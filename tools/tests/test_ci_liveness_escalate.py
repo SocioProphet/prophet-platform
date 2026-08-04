@@ -1,7 +1,11 @@
 """Martha measures; Mary escalates. These test the escalating half."""
+import json
+import subprocess
+from types import SimpleNamespace
+
 import pytest
 
-from tools.ci_liveness_escalate import MARKER, age_days, render, tier_for
+from tools.ci_liveness_escalate import MARKER, age_days, escalate, main, render, tier_for
 
 
 def alarm(workflow, why, verdict="STALE"):
@@ -74,3 +78,52 @@ def test_every_alarm_appears_in_the_table():
     _, body, _ = render("o/r", alarms, 14)
     for a in alarms:
         assert f"`{a['workflow']}`" in body
+
+
+def _fake_gh_that_fails_writes(args, capture_output, text):
+    """`gh issue list` (a read) succeeds with no existing issue; every mutating call
+    (create/edit/comment/close) fails, as if the token lacked `issues: write` or hit a
+    rate limit."""
+    if "list" in args:
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+    return SimpleNamespace(returncode=1, stdout="", stderr="HTTP 403: Resource not accessible")
+
+
+def test_a_failed_issue_write_raises_instead_of_reporting_success(monkeypatch):
+    """The gap this closes: escalate() used to call every mutating `gh` invocation with
+    check=False. A real write failure (bad token scope, rate limit, renamed repo) was
+    swallowed — the function returned an "opened"/"updated" string regardless, so the sweep
+    found an alarm, tried to make it land on someone, silently failed to, and reported
+    success. That is exactly the 'silence looks like health' pattern this whole tool exists
+    to catch, recreated one level up inside itself. A write failure must raise."""
+    monkeypatch.setattr(subprocess, "run", _fake_gh_that_fails_writes)
+    with pytest.raises(RuntimeError):
+        escalate("o/r", [alarm("CI", "last green 20d ago")], 14)
+
+
+def test_main_exits_nonzero_when_an_escalation_write_fails(monkeypatch, tmp_path):
+    monkeypatch.setattr(subprocess, "run", _fake_gh_that_fails_writes)
+    sweep_json = tmp_path / "sweep.json"
+    sweep_json.write_text(json.dumps({
+        "window_days": 14,
+        "results": [{"repo": "o/r"}],
+        "alarms": [alarm("CI", "last green 20d ago")],
+    }))
+    rc = main(["--sweep-json", str(sweep_json)])
+    assert rc == 1, "a repo whose escalation issue failed to write must not exit 0"
+
+
+def test_main_still_succeeds_when_writes_succeed(monkeypatch, tmp_path):
+    """Guards against over-correcting: a clean run (writes succeed, or there's nothing to
+    write because the repo is green) must still exit 0."""
+    def fake_ok(args, capture_output, text):
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+    monkeypatch.setattr(subprocess, "run", fake_ok)
+    sweep_json = tmp_path / "sweep.json"
+    sweep_json.write_text(json.dumps({
+        "window_days": 14,
+        "results": [{"repo": "o/r"}],
+        "alarms": [],
+    }))
+    rc = main(["--sweep-json", str(sweep_json)])
+    assert rc == 0

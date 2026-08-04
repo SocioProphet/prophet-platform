@@ -48,6 +48,26 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 tools/ci_liveness_escalate.py --sweep-json sweep.json
 
+      # Without this, the job reports green every day regardless of what the sweep found — the
+      # sweep step never passed --fail-on-alarm and escalate.py used to swallow its own write
+      # failures — which is the same "silence looks like health" pattern this tool exists to
+      # catch, recreated one level up in ci-liveness.yml's own run status. `if: always()` so a
+      # true alarm is still reported even if the escalate step above already failed the job.
+      - name: Fail loudly on any true alarm — a green run must mean nothing broke
+        if: always()
+        run: |
+          python3 -c "
+          import json, sys
+          d = json.load(open('sweep.json'))
+          alarms = d.get('alarms', [])
+          if alarms:
+              print(f'::error::ci-liveness found {len(alarms)} alarm(s) this run.')
+              for a in alarms:
+                  print(f\"::error::{a['repo']}: {a['workflow']} — {a['verdict']}: {a['why']}\")
+              sys.exit(1)
+          print(f\"ci-liveness: {d.get('checked', 0)} workflow(s) checked, 0 alarms.\")
+          "
+
       - name: Publish the sweep as an artifact
         if: always()
         uses: actions/upload-artifact@v4

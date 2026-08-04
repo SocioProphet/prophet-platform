@@ -117,14 +117,20 @@ def render(repo: str, alarms: list[dict], window_days: int) -> tuple[str, str, s
 
 
 def escalate(repo: str, alarms: list[dict], window_days: int, *, dry_run: bool = False) -> str:
+    """Note: the mutating `_gh` calls below deliberately do NOT pass `check=False`. A failed
+    issue write (bad scope, rate limit, repo renamed) used to be swallowed here — the sweep
+    would report alarms, the write to make them land on someone would silently no-op, and the
+    workflow would still finish green. That is the exact "silence looks like health" failure
+    this tool exists to catch, recreated one level up in its own runner status. Now a write
+    failure raises RuntimeError, which main() turns into a non-zero exit."""
     existing = find_issue(repo)
 
     if not alarms:
         if existing and not dry_run:
             _gh(["issue", "comment", str(existing["number"]), "--repo", repo,
                  "--body", "All swept workflows are green again — closing. The mourning ends at "
-                           "the raising."], check=False)
-            _gh(["issue", "close", str(existing["number"]), "--repo", repo], check=False)
+                           "the raising."])
+            _gh(["issue", "close", str(existing["number"]), "--repo", repo])
             return f"{repo}: RESOLVED — closed #{existing['number']}"
         return f"{repo}: green, nothing to raise"
 
@@ -134,12 +140,12 @@ def escalate(repo: str, alarms: list[dict], window_days: int, *, dry_run: bool =
 
     if existing:
         _gh(["issue", "edit", str(existing["number"]), "--repo", repo,
-             "--title", title, "--body", body], check=False)
+             "--title", title, "--body", body])
         _gh(["issue", "edit", str(existing["number"]), "--repo", repo,
-             "--add-label", label], check=False)
+             "--add-label", label])
         return f"{repo}: updated #{existing['number']} — {title}"
 
-    out = _gh(["issue", "create", "--repo", repo, "--title", title, "--body", body], check=False)
+    out = _gh(["issue", "create", "--repo", repo, "--title", title, "--body", body])
     return f"{repo}: opened — {out.strip().splitlines()[-1] if out.strip() else title}"
 
 
@@ -162,8 +168,18 @@ def main(argv: list[str] | None = None) -> int:
     for r in data.get("alarms", []):
         by_repo.setdefault(r["repo"], []).append(r)
 
+    failed: list[str] = []
     for repo, alarms in sorted(by_repo.items()):
-        print("  " + escalate(repo, alarms, window, dry_run=a.dry_run), file=sys.stderr)
+        try:
+            print("  " + escalate(repo, alarms, window, dry_run=a.dry_run), file=sys.stderr)
+        except RuntimeError as exc:
+            failed.append(repo)
+            print(f"  {repo}: ESCALATION WRITE FAILED — {exc}", file=sys.stderr)
+
+    if failed:
+        print(f"escalate: failed to write for {len(failed)} repo(s): {', '.join(failed)} — "
+              f"the finding did NOT land; this must not exit 0.", file=sys.stderr)
+        return 1
     return 0
 
 
