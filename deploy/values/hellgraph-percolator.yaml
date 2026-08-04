@@ -23,6 +23,12 @@ config:
   POLL_INTERVAL_SECONDS: "5"
   BATCH_LIMIT: "500"
   SUBGRAPH_LIMIT: "2000"   # /api/graph/subgraph read cap; a paginated bulk export is a follow-on
+  # OFF by default — go-live is a deliberate flip, not a side effect of merging this manifest. The
+  # platform-services ApplicationSet is automated{prune,selfHeal}, so once this file lands the
+  # Deployment (replicaCount 1) ships and starts regardless of PR prose; the ONLY real lever is
+  # this flag. Mirrors lifecycle-warden's "DRY-RUN by default — enforcement is the two-lever flip
+  # in its values file." Flip to "on" (or delete this line) when go-live is actually decided.
+  PERCOLATOR_LOOP: "off"
 secretEnv:
   # compute-gateway receipt token — the SAME Secret the materializer already requires in this namespace;
   # nothing new is provisioned (see provision-secrets + prophet-materializer-clickhouse.yaml).
