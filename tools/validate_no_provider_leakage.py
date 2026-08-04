@@ -50,6 +50,21 @@ BANNED_PATTERNS = [
 
 COMPILED = [re.compile(p) for p in BANNED_PATTERNS]
 
+# Domain tokens that superficially match a banned provider pattern but are legitimate
+# content, not infrastructure leakage (e.g. the AI engine `google_ai`, not the GCP
+# terraform prefix `google_`).
+ALLOWED_TOKENS = {"google_ai"}
+
+
+def _match_is_only_allowed(pattern: "re.Pattern[str]", line: str) -> bool:
+    """True iff the pattern stops matching once the allow-listed tokens are removed — i.e.
+    the ONLY reason the line matched was an allowed domain token. A line that ALSO carries a
+    genuine provider identifier (e.g. `google_storage_bucket`) still fails."""
+    scrubbed = line
+    for tok in ALLOWED_TOKENS:
+        scrubbed = scrubbed.replace(tok, "")
+    return pattern.search(scrubbed) is None
+
 ERRORS: list[tuple[Path, int, str, str]] = []
 
 FILE_EXTENSIONS = {".json", ".yaml", ".yml"}
@@ -82,8 +97,16 @@ def check_file(path: Path) -> None:
         if stripped.startswith("#") or stripped.startswith("//") or stripped.startswith("*"):
             continue
         for pattern in COMPILED:
-            if pattern.search(line):
-                ERRORS.append((path, lineno, pattern.pattern, line.rstrip()))
+            m = pattern.search(line)
+            if not m:
+                continue
+            # Allow domain tokens that superficially match a provider pattern. `google_ai`
+            # is one of the AI ENGINES an AI-visibility probe targets (alongside chatgpt /
+            # gemini / grok / perplexity) — a domain enum value, NOT a GCP terraform resource
+            # like `google_compute_instance`. The pattern `"google_` can't tell them apart.
+            if any(tok in line for tok in ALLOWED_TOKENS) and _match_is_only_allowed(pattern, line):
+                continue
+            ERRORS.append((path, lineno, pattern.pattern, line.rstrip()))
 
 
 def main() -> None:

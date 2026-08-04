@@ -186,6 +186,7 @@ VOUCHED = {
     "svf-validation.yml",
     "scope-d-hardening-fixtures.yml",
     "workspace-operation-runtime.yml",
+    "provider-leakage.yml",
     "cloudshell-fog-structural-conformance-v2.yml",
     "cloudshell-fog-structural-conformance-v3.yml",
 }
