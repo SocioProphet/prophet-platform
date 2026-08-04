@@ -22,6 +22,9 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            # writes the backup tarball onto the mounted PVC; fsGroup makes the volume
+            # group-writable for this rootless (UID 1000) job (kyverno require-fsgroup-pvc).
+            fsGroup: 1000
             seccompProfile:
               type: RuntimeDefault
           containers:
