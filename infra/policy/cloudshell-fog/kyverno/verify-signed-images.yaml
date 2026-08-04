@@ -32,14 +32,20 @@ spec:
         # The registries the estate ACTUALLY publishes to (GAR via the
         # build-image workflow, and the sovereign zot mirror). The previous
         # ghcr.io/* globs matched nothing this platform deploys — the policy
-        # was a no-op even where installed. The policy itself remains
-        # uninstalled (no Kyverno controller is connected in this PR); this
-        # just stops the manifest from being wrong when it does land.
+        # was a no-op even where installed. Kyverno is now installed estate-wide
+        # (Audit, 2026-08-04); this policy is live and Kyverno's OWN admission webhook
+        # validates it — which is how the mutateDigest/Audit mismatch below was caught
+        # (the cloudshell-fog-policy ArgoCD app was stuck OutOfSync, its apply rejected).
         - imageReferences:
             - "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/*"
             - "registry.socioprophet.ai/*"
           required: true
-          mutateDigest: true
+          # mutateDigest MUST be false while validationFailureAction is Audit: Kyverno rejects
+          # the policy otherwise ("mutateDigest must be set to false for 'Audit' failure action").
+          # Mutation (rewriting a verified image to its digest) is an ENFORCING action — flip this
+          # to true in the SAME PR that flips this policy to Enforce (#1344). verifyDigest below
+          # still asserts the signature covers a digest, which is valid in Audit.
+          mutateDigest: false
           verifyDigest: true
           attestors:
             - count: 1
