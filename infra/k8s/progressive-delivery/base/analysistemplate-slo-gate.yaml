@@ -7,6 +7,9 @@
 # aborts automatically instead of being promoted. tools/validate_analysis_metrics.py
 # fails CI if this template ever queries a metric that isn't a real recording rule
 # (a gate that queries a phantom metric silently passes — that is theater).
+#
+# Both metrics are DATA-PRESENCE GUARDED: an absent/empty series is fail-closed
+# (aborts the canary), never scored as healthy — see tools/check_canary_slo_gate.py.
 apiVersion: argoproj.io/v1alpha1
 kind: AnalysisTemplate
 metadata:
@@ -21,8 +24,8 @@ spec:
       interval: 1m
       count: 5
       failureLimit: 1
-      successCondition: "result[0] < 0.05"     # < 5% 5xx, the HighErrorRatio SLO threshold
-      failureCondition: "result[0] >= 0.05"
+      successCondition: "len(result) > 0 && result[0] < 0.05"     # data present AND < 5% 5xx
+      failureCondition: "len(result) == 0 || result[0] >= 0.05"   # absent OR >= threshold -> abort
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
@@ -32,8 +35,8 @@ spec:
       interval: 1m
       count: 5
       failureLimit: 1
-      successCondition: "result[0] < 0.75"     # p99 < 750ms (the recording rule is in seconds)
-      failureCondition: "result[0] >= 0.75"
+      successCondition: "len(result) > 0 && result[0] < 0.75"     # data present AND p99 < 750ms
+      failureCondition: "len(result) == 0 || result[0] >= 0.75"   # absent OR >= threshold -> abort
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
