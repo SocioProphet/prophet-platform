@@ -12,7 +12,7 @@ import { SUBJECT, SYSTEMS, OBSERVATIONS, CONDITIONS, ENCOUNTERS, IMAGING, MEDICA
 import { connectorCatalogue, runConnector } from './connectors/index.js';
 import { mergeResults, resultCounts, emptyResult, type IngestResult, type IngestMode, type SourceId } from './ingest.js';
 import { dedupeIngested, extractNarrative, landInGraph } from './reconcile/reconcile.js';
-import { serviceHealth, reasonTurtle, graphGround } from './reconcile/clients.js';
+import { serviceHealth, reasonTurtle, graphGround, SERVICES } from './reconcile/clients.js';
 import { discovery, patientSummaryCards, medReconciliationCards } from './cds/cds.js';
 import { deidentify } from './deident.js';
 import { ask } from './ask.js';
@@ -33,6 +33,17 @@ import {
 } from './grantauth.js';
 import { corsHeaders, corsPolicyFromEnv, originAllowed } from './cors.js';
 import { mintId } from './ids.js';
+import { triage } from './triage.js';
+import { route } from './routing.js';
+import { monitorTwin } from './monitor.js';
+import { interpretReport } from './imaging.js';
+import { toFhirBundle, fromFhirBundle } from './fhir.js';
+import { proveFhirWriteBack } from './fhir-live.js';
+import { conditionList, conditionCard, checkMeds, guidelineDeltas, type Audience } from './reference.js';
+import { findSlots, book } from './booking.js';
+import { programs as contributionPrograms, contribute, revokeContribution, ledger as contributionLedger } from './contribution.js';
+import { populationRisk } from './population.js';
+import { valueSet, lookup, crosswalk, valueSetTtl, toOntogenesisNode, type CodeSystem, type ConceptCategory } from './terminology.js';
 import { predict, EmissionLawViolation, COMPARTMENTS, COMPARTMENT_SYSTEM, currentObservations, type Covariates } from './dynamics/predict.js';
 import { gatePolicy, rejectionLedger } from './dynamics/gate.js';
 import { fitSurrogate } from './dynamics/surrogate.js';
@@ -90,10 +101,10 @@ function addGrant(g: Grant, where: 'head' | 'tail' = 'head') {
 //
 // This used to be an unconditional array literal right here: a fixed, well-known id (the invariants
 // assert that string is gone, so it is not repeated even in this comment), active for 30 days, on
-// every boot of every deployment. Since a grant id was the whole credential, that made a live consent
-// grant whose secret was a string committed to a public repository — presentable by anyone who read
-// the source, a log line or a `Referer`. It is now: absent by default, refused outright in a
-// deployment that serves real records, and bound to a secret that is never in source.
+// every boot of every deployment. Since a grant id was the whole credential, that made a
+// live consent grant whose secret was a string committed to a public repository — presentable by
+// anyone who read the source, a log line or a `Referer`. It is now: absent by default, refused
+// outright in a deployment that serves real records, and bound to a secret that is never in source.
 //
 // Both policies REFUSE TO BOOT rather than warn. A production configuration that cannot exist cannot
 // be the thing nobody remembered to turn off.
@@ -122,9 +133,9 @@ if (SEED.seed) {
   }, 'tail');
   console.log(`health-twin: DEV SEED GRANT active (${SEED.why}). Synthetic subject only.`);
   // The seed grant's holder SECRET is never written to a log. A credential in a log is precisely the
-  // leak channel this PR exists to close (access logs, proxy logs, browser history, `Referer`), so the
-  // seed is no exception: printing `grant-dev-seed-cardiology.<secret>` here would re-open it on the
-  // operator's stdout. CI proves the positive path by supplying the secret out of band
+  // leak channel this PR closes (access logs, proxy logs, browser history, `Referer`), so the seed is
+  // no exception: printing `grant-dev-seed-cardiology.<secret>` here would re-open it on the operator's
+  // stdout. CI proves the positive path by supplying the secret out of band
   // (HEALTH_TWIN_SEED_GRANT_SECRET), never by scraping this line — see the invariant on seedGrantDecision.
   if (SEED.minted) {
     console.log(
@@ -268,24 +279,11 @@ const publicGrant = (g: Grant) => {
   const { holderDigest: _verifier, ...rest } = g;
   return { ...rest, active: !g.revoked && new Date(g.expires_at) > new Date() };
 };
-
-const MAX_BODY_BYTES = 2_000_000;
-
 function readJson(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
-    let raw = '';
-    let tooLarge = false;
-    req.on('data', (c) => {
-      if (tooLarge) return;
-      raw += c;
-      // destroy() with no error arg doesn't reliably emit 'error' -- the stream can just
-      // go quiet, and this promise would never settle. Reject explicitly instead of
-      // waiting on an event that isn't guaranteed to fire, so an oversized body fails
-      // the request instead of hanging the connection open forever.
-      if (raw.length > MAX_BODY_BYTES) { tooLarge = true; req.destroy(); reject(new Error(`payload too large (max ${MAX_BODY_BYTES} bytes)`)); }
-    });
-    req.on('end', () => { if (!tooLarge) { try { resolve(raw ? JSON.parse(raw) : {}); } catch (e) { reject(e); } } });
-    req.on('error', (e) => { if (!tooLarge) reject(e); });
+    let raw = ''; req.on('data', (c) => { raw += c; if (raw.length > 2_000_000) req.destroy(); });
+    req.on('end', () => { try { resolve(raw ? JSON.parse(raw) : {}); } catch (e) { reject(e); } });
+    req.on('error', reject);
   });
 }
 
@@ -361,7 +359,7 @@ function authorizeGrant(req: http.IncomingMessage, url: URL, who: string, requir
   const auth = authenticateHolder({
     presented,
     find: findGrant,
-    onUnbound: (id) => console.warn(`health-twin: grant ${String(id).replace(/[\r\n]/g, ' ')} carries no holder binding — refused (fail-closed)`),
+    onUnbound: (id) => console.warn(`health-twin: grant ${id} carries no holder binding — refused (fail-closed)`),
   });
   if (!auth.ok) {
     return {
@@ -414,7 +412,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   // the twin as reasoner-ready RDF (Turtle) — typed with the HDT ontology, imports the TBox.
+  //
+  // 🔴 This is the SAME BUNDLE /api/health/twin serves, in another serialisation, and it was ungated
+  // while that route was not — so the exposure membrane could be walked around by asking for Turtle.
+  // A serialisation is not a permission boundary: the RDF carries the subject label, the coded
+  // observations and their values. Found while auditing the dynamics surfaces; same membrane, same
+  // condition, same refusal.
   if (req.method === 'GET' && url.pathname === '/api/health/twin.ttl') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
     // Turtle, so it does not go through send() — and so it had its own hand-rolled `*`. Same policy,
     // written once: a second CORS surface is a second thing to forget.
     res.writeHead(200, {
@@ -493,9 +499,38 @@ const server = http.createServer(async (req, res) => {
 
   // Reason over the twin's typed RDF via sophos-reasoner → RDFS/OWL-RL entailments (conditions ⊑
   // hdt:FHIRResource, drives correspondence promotion). Reuses the same twin.ttl the reasoner consumes.
+  //
+  // 🔴 THIS IS AN EGRESS OF RECORD CONTENT TO ANOTHER SERVICE. `twinTtl()` is the whole twin — subject,
+  // coded observations, values — and it is POSTed out of this process to the reasoner at HT_OWL_URL.
+  // Two things follow, and neither was true before:
+  //
+  //   • It is exposure-gated. Sending the bundle somewhere is at least as consequential as serving it,
+  //     so the route that ships it cannot be more permissive than the route that returns it. /twin
+  //     refuses once real records land; so does this.
+  //
+  //   • It emits a RECEIPT, because this was the largest unrecorded action in the twin. Everything else
+  //     consequential here leaves one, and an egress of PHI that left none meant nobody could answer
+  //     "what went out, and where did it go?" after the fact. The receipt names the DESTINATION (the
+  //     resolved URL, not the word "reasoner" — the default is localhost but HT_OWL_URL can point
+  //     anywhere, and which one it was is the whole question), the CONTENT CLASS, and a sha256 of the
+  //     exact bytes that left, so the claim is checkable rather than asserted. It is recorded whether
+  //     the call succeeds or fails: the bundle leaves this process either way.
   if (req.method === 'POST' && url.pathname === '/api/health/reason') {
-    const r = await reasonTurtle(twinTtl(), 'rdfs');
-    return send(res, 200, r.ok ? r.data : { service: 'degraded', reason: r.reason, entailed_triples: 0, entailments: [] });
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    const ttl = twinTtl();
+    const egress = {
+      ...receipt('egress-reason', [SERVICES.owl, 'twin-rdf', sha256(ttl)]),
+      destination: `${SERVICES.owl}/reason`,
+      contentClass: 'twin-rdf-turtle (full record bundle: subject, coded observations, values)',
+      bytes: Buffer.byteLength(ttl, 'utf8'),
+      contentDigest: `sha256-${sha256(ttl)}`,
+      inference: 'rdfs',
+    };
+    const r = await reasonTurtle(ttl, 'rdfs');
+    return send(res, 200, r.ok
+      ? { ...r.data, egress }
+      : { service: 'degraded', reason: r.reason, entailed_triples: 0, entailments: [], egress });
   }
 
   // ── CDS Hooks (HL7 CDS Hooks 2.0) — the twin as a decision-moment service inside the EHR. Cards are
@@ -523,7 +558,152 @@ const server = http.createServer(async (req, res) => {
 
   // Guideline-grounded guidance — the twin's own numbers → cited, non-diagnostic recommendations
   // grounded in real clinical guidelines (ACC/AHA, ADA, USPSTF, KDIGO).
-  if (req.method === 'GET' && url.pathname === '/api/health/guidance') return send(res, 200, guidance());
+  // 🔴 guidance() reads the twin's own labs, vitals, conditions and medications: each item names the
+  // `finding` that triggered it and `cites` the record ids it is grounded on. Guideline TEXT is public;
+  // which guidelines fire on THIS person is not. Gated on the same condition as the record itself.
+  if (req.method === 'GET' && url.pathname === '/api/health/guidance') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, guidance());
+  }
+
+  // Triage — the agentic OOD loop (Perceive→Reason→Act→Verify) over a described complaint: structures
+  // symptoms, detects red flags, bands urgency, asks the next-best question, and routes disposition
+  // (act/abstain/escalate). Non-diagnostic; a red flag can never resolve below emergency (invariant).
+  if (req.method === 'POST' && url.pathname === '/api/health/triage') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    try {
+      const b = await readJson(req);
+      const t = await triage(String(b.complaint ?? b.text ?? b.q ?? ''));
+      // `route=1` (or POST includes it) also returns the care route + pre-visit summary in one call.
+      const withRoute = b.route === true || b.route === 1 || url.searchParams.get('route') === '1';
+      return send(res, 200, withRoute ? { triage: t, route: route(t) } : t);
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'triage failed' }); }
+  }
+
+  // Care routing — turn a triage result into action: setting, specialty, modality, timing, candidate
+  // providers, and a clinician-facing pre-visit summary (Zocdoc pattern; verbs Route + Prepare).
+  if (req.method === 'POST' && url.pathname === '/api/health/route') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    try {
+      const b = await readJson(req);
+      // accept either a full triage result or a raw complaint (triage it first)
+      const t = (b && typeof b === 'object' && 'urgency' in b && 'disposition' in b)
+        ? (b as any) : await triage(String(b.complaint ?? b.text ?? ''));
+      return send(res, 200, { route: route(t), triage: t });
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'route failed' }); }
+  }
+
+  // Terminology value sets (SNOMED/LOINC/RxNorm/ICD-10) bound to Ontogenesis + HDT — each concept
+  // carries its hdt:/health: class IRI + organ/system + cross-maps, so codes are typed world-model
+  // nodes, not a flat lexicon. /ttl emits the SKOS/RDF the owl-reasoner + Ontogenesis consume.
+  if (req.method === 'GET' && url.pathname === '/api/health/terminology/valueset') {
+    return send(res, 200, valueSet((url.searchParams.get('category') as ConceptCategory) ?? undefined));
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/terminology/lookup') {
+    const p = url.searchParams;
+    const c = lookup({ system: (p.get('system') as CodeSystem) ?? undefined, code: p.get('code') ?? undefined, q: p.get('q') ?? undefined });
+    return send(res, c ? 200 : 404, c ? { concept: c, ontogenesis: toOntogenesisNode(c) } : { error: 'concept not found' });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/terminology/crosswalk') {
+    const p = url.searchParams;
+    return send(res, 200, crosswalk((p.get('system') as CodeSystem) ?? 'SNOMED', p.get('code') ?? ''));
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/terminology/ttl') {
+    res.writeHead(200, { 'content-type': 'text/turtle; charset=utf-8', ...corsHeaders(req.headers.origin, ALLOWED_ORIGINS) });
+    return res.end(valueSetTtl());
+  }
+
+  // Population & operations layer (surface 5) — cohort risk + care gaps + early warnings over
+  // DE-IDENTIFIED aggregates, with a k-anonymity floor. Aggregates only; non-diagnostic; not surveillance.
+  if (req.method === 'GET' && url.pathname === '/api/health/population') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, populationRisk());
+  }
+
+  // Care-access marketplace (verb 6 Book) — find bookable slots (specialty/modality/insurance/timing)
+  // and hold one, carrying the pre-visit summary forward. Non-diagnostic; arranges access.
+  if (req.method === 'GET' && url.pathname === '/api/health/booking/slots') {
+    const p = url.searchParams;
+    return send(res, 200, findSlots({
+      specialty: p.get('specialty') ?? undefined,
+      modality: (p.get('modality') as any) ?? undefined,
+      insurance: p.get('insurance') ?? undefined,
+      withinHours: p.get('withinHours') ? Number(p.get('withinHours')) : undefined,
+    }));
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/booking/book') {
+    try { const b = await readJson(req); const r = book(String(b.slotId ?? ''), { preVisitSummary: b.preVisitSummary }); return send(res, 'error' in r ? 404 : 200, r); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'book failed' }); }
+  }
+
+  // Data cooperative (verb 10 Learn; Segmed pattern) — programs, consented de-identified contribution,
+  // revoke, and the transparent compensation ledger. Consent fails closed; only de-id data leaves.
+  if (req.method === 'GET' && url.pathname === '/api/health/contribution/programs') return send(res, 200, contributionPrograms());
+  if (req.method === 'POST' && url.pathname === '/api/health/contribution/join') {
+    try { const b = await readJson(req); const r = contribute(String(b.programId ?? ''), bundle(), b.agreed === true); return send(res, 'error' in r ? 422 : 200, r); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'join failed' }); }
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/contribution/revoke') {
+    try { const b = await readJson(req); return send(res, 200, revokeContribution(String(b.id ?? ''))); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'revoke failed' }); }
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/contribution/ledger') return send(res, 200, contributionLedger());
+
+  // Professional reference layer — condition cards rendered by audience, medication safety check, and
+  // the guideline-delta engine. Task-first, non-diagnostic; one source of truth, many renderers.
+  if (req.method === 'GET' && url.pathname === '/api/health/reference/conditions') {
+    return send(res, 200, { conditions: conditionList() });
+  }
+  if (req.method === 'GET' && url.pathname.startsWith('/api/health/reference/condition/')) {
+    const id = url.pathname.slice('/api/health/reference/condition/'.length);
+    const audience = (url.searchParams.get('audience') ?? 'patient') as Audience;
+    const card = conditionCard(id, ['patient', 'clinician', 'trainee'].includes(audience) ? audience : 'patient');
+    return send(res, card ? 200 : 404, card ?? { error: 'condition not found' });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/reference/med-check') {
+    try { const b = await readJson(req); return send(res, 200, checkMeds(b?.medications, b?.allergies)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'med-check failed' }); }
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/reference/guideline-deltas') {
+    return send(res, 200, guidelineDeltas(url.searchParams.get('area') ?? undefined));
+  }
+
+  // FHIR interop plane — export the twin as an HL7 FHIR R4 Bundle (de-identified Patient), or import
+  // a FHIR Bundle → twin records. How we read/write the real healthcare system (beats NEPHRO-DIGITAL).
+  if (req.method === 'GET' && url.pathname === '/api/health/fhir') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, toFhirBundle());
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/fhir/import') {
+    try { const b = await readJson(req); return send(res, 200, fromFhirBundle(b)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'fhir import failed' }); }
+  }
+  // LIVE write-back proof — writes a DE-IDENTIFIED SYNTHETIC Observation to a real FHIR server and
+  // reads it back (closed-loop interop). Opt-in outbound; only synthetic data ever leaves.
+  if (req.method === 'POST' && url.pathname === '/api/health/fhir/push') {
+    try { const b = await readJson(req).catch(() => ({})); return send(res, 200, await proveFhirWriteBack(b?.target)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'fhir push failed' }); }
+  }
+
+  // Imaging & document agent — plain-language explanation of a radiology/pathology/discharge report
+  // TEXT, with a critical-finding floor. Non-diagnostic; explains a report, does not read pixels.
+  if (req.method === 'POST' && url.pathname === '/api/health/interpret') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    try {
+      const b = await readJson(req);
+      return send(res, 200, await interpretReport(String(b.report ?? b.text ?? '')));
+    } catch (e) { return send(res, 400, { error: (e as Error).message || 'interpret failed' }); }
+  }
+
+  // Longitudinal monitor — acuity band per tracked metric (fitness-fatigue generalization): stable /
+  // improving / watch / worsening / critical, with a deterioration→escalate signal. Non-diagnostic.
+  if (req.method === 'GET' && url.pathname === '/api/health/monitor') {
+    const denied = denyExposure(req);
+    return denied ? send(res, denied.code, denied.body) : send(res, 200, monitorTwin());
+  }
 
   // Clinical coder — free text → coded facts (conditions→SNOMED, meds→RxNorm, labs→LOINC) + negation.
   // Clinical-terminology extraction for the cardiometabolic wedge; non-diagnostic (labels, not diagnoses).
@@ -592,20 +772,20 @@ const server = http.createServer(async (req, res) => {
   // The evidence is scoped SERVER-SIDE to records inside the grant, so withheld findings can't leak
   // to the clinician through the evidence side door. Enforced here, not in the client. A blocked
   // grant blocks evidence too.
-  //
-  // 🔴 THE GRANT IS REQUIRED HERE, and it was not. `required: false` means "no grant = no narrowing",
-  // which on this route is "no credential = the WIDEST read the service can perform": groundTwin()
-  // walks every out-of-range observation and every condition and returns each one's display, value,
-  // unit and reference range, plus the patient's age band, sex and full comorbidity list as the
-  // retrieval context. That is the content of the records a scope withholds, reachable with nothing
-  // presented at all — the exact side door the sentence above says this route closes.
-  //
-  // "No narrowing" is the right default on a route where a grant only trims an otherwise-permitted
-  // read (predict, which is exposure-gated, so an unauthenticated caller is stopped by the deployment
-  // membrane first). /evidence is not exposure-gated in this mirror, so nothing else stands in front
-  // of it. The cockpit agrees: prophet-platform#1083 calls this only from the clinician chart and
-  // only after a token is entered, and its tests assert the 401. Nothing reads it unauthenticated.
   if (req.method === 'GET' && url.pathname === '/api/health/evidence') {
+    // 🔴 Every item carries `recordId` and `finding` — the person's own out-of-range labs and active
+    // conditions. With a grant it was scoped; with NO grant it returned everything, ungated. The
+    // exposure gate applies for the same reason it applies to /twin.
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    // 🔴 …and the GRANT is required as well, which it was not. Both membranes, because they answer
+    // different questions: exposure says whether this deployment may serve records at all, the grant
+    // says how much of them THIS reader may see. `required: false` meant a caller past the exposure
+    // gate and holding no grant got the widest read the service can perform — every out-of-range
+    // observation and every condition with its value, unit and reference range, plus the patient's
+    // age band, sex and comorbidity list as retrieval context. That is the content a scope withholds.
+    // The cockpit (prophet-platform#1083) already assumes the 401 and only calls this after a
+    // clinician has entered a token.
     const a = authorizeGrant(req, url, 'evidence', true)!;
     if (!a.ok) return send(res, a.code, a.body, a.headers);
     const grounded = await groundTwin();
@@ -629,13 +809,26 @@ const server = http.createServer(async (req, res) => {
   // the surrogate version and the gate policy it came from. Non-diagnostic; synthetic data. ──────────
 
   // What the twin can predict, and the exact rules a learned correction has to satisfy. A surface shows
-  // this next to a prediction so "why was that refused?" is answerable without reading the code. This is
-  // policy, not record content, so it is not exposure-gated.
+  // this next to a prediction so "why was that refused?" is answerable without reading the code.
+  //
+  // The POLICY half is genuinely not record content — compartment definitions, the rule table, the
+  // surrogate's version and weight digest — and it stays readable ungated, because a UI that cannot
+  // read the rules cannot explain a refusal, and an unexplainable refusal is the thing this wave exists
+  // to prevent.
+  //
+  // `anchoredTo` is NOT policy. It is the person's own latest recorded systolic pressure, HbA1c and
+  // eGFR — record content, and it was being served through an ungated endpoint with CORS `*`, which is
+  // precisely the leak the exposure membrane exists to stop. It is now behind `denyExposure`, on the
+  // same condition as /twin, /deident and /predict. When it is withheld the response SAYS SO and names
+  // the reason rather than silently omitting the field: a surface must be able to tell "this twin has
+  // no anchor" from "you may not see this twin's anchor".
   if (req.method === 'GET' && url.pathname === '/api/health/dynamics') {
     const sur = fitSurrogate();
+    const denied = denyExposure(req);
     return send(res, 200, {
       compartments: COMPARTMENTS.map((k) => ({ compartment: k, ...OBSERVABLE[k], system: COMPARTMENT_SYSTEM[k] })),
-      anchoredTo: currentObservations(),
+      anchoredTo: denied ? null : currentObservations(),
+      ...(denied ? { anchorWithheld: { reason: 'exposure', code: denied.code, ...denied.body } } : {}),
       surrogate: { id: sur.id, version: sur.version, coefficientsDigest: sur.coefficientsDigest, fittedOn: sur.fittedOn, residualOnly: true, organs: sur.organs },
       gate: gatePolicy(),
       disclaimer: 'Synthetic sample. A trajectory projection, not a diagnosis or a prognosis. A clinician decides.',
@@ -675,8 +868,8 @@ const server = http.createServer(async (req, res) => {
       if (compartments.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant\u2019s scope' });
 
       const p = predict({ horizonDays, stepDays, compartments, covariates });
-      // #1081 holder-auth: the success body carries the authenticated grant + use-receipt; #1089's
-      // verdict gate below is applied to exactly this body (auth first, then the physics verdict).
+      // #8 holder-auth: the success body carries the authenticated grant + use-receipt; #9's verdict
+      // gate below is applied to exactly this body (auth first, then the physics verdict).
       const body = a
         ? { ...p, grant: { id: a.grant.id, withheldSystems }, authentication: authenticatedAs(a), grantReceipt: grantUseReceipt('predict-read', [a.grant.id, a.holder], { grant: a.grant.id, presentedBy: a.holder }) }
         : p;
@@ -757,13 +950,12 @@ const server = http.createServer(async (req, res) => {
     if (denied) return send(res, denied.code, denied.body);
     const limit = Math.max(1, Math.min(500, Number(url.searchParams.get('limit') ?? 100)));
 
-    const gid = url.searchParams.get('grant');
+    const a = authorizeGrant(req, url, 'rejections', false);
+    if (a && !a.ok) return send(res, a.code, a.body, a.headers);
     let only: Compartment[] | undefined;
     let withheldSystems: string[] = [];
-    if (gid) {
-      const r = resolveGrant(grants, String(gid));
-      if (!r.ok) return send(res, 403, { blocked: true, reason: r.reason, receipt: receipt('rejections-blocked', [String(gid), r.reason]) });
-      const scope = r.grant.scopeSpec ?? resolveScope(r.grant.scope);
+    if (a) {
+      const scope = a.grant.scopeSpec ?? resolveScope(a.grant.scope);
       only = COMPARTMENTS.filter((k) => scope.systems === 'all' || scope.systems.includes(COMPARTMENT_SYSTEM[k]));
       withheldSystems = COMPARTMENTS.filter((k) => !only!.includes(k)).map((k) => COMPARTMENT_SYSTEM[k]);
       if (only.length === 0) return send(res, 403, { blocked: true, reason: 'no compartment is inside this grant’s scope' });
@@ -771,8 +963,8 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, {
       ...rejectionLedger(limit, only),
       law: gatePolicy().doctrine,
-      ...(gid ? { grant: { id: gid, withheldSystems } } : {}),
-    });
+      ...(a ? { grant: { id: a.grant.id, withheldSystems }, authentication: authenticatedAs(a), grantReceipt: grantUseReceipt('rejections-read', [a.grant.id, a.holder], { grant: a.grant.id, presentedBy: a.holder }) } : {}),
+    }, a?.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
   }
 
   // Provider directory + a provider's profile (the patient reviews who their doctors are).
@@ -893,11 +1085,9 @@ const server = http.createServer(async (req, res) => {
         grantorAuth: EXPOSURE === 'authenticated'
           ? { authenticatedAs: 'deployment operator (HEALTH_TWIN_TOKEN)', isThePatient: false, note: 'no patient identity plane exists here — consent is issued by whoever operates the node' }
           : { authenticatedAs: null, isThePatient: false, note: 'synthetic-only deployment: minting is ungated because the data is synthetic, and refuses the moment real records land' },
-        // `boundTo: true`, not the digest itself. The holder verifier binds the receipt (it is in the
-        // hashed parts above, so a changed digest changes the receipt id), but it must not appear
-        // verbatim in the response: this file strips it everywhere else (publicGrant, bundle), and
-        // publishing a verifier is how an offline guessing target is handed out for free. A boolean says
-        // "this grant is holder-bound" without leaking what it is bound to.
+        // `boundTo: true`, not the digest itself. The holder verifier binds the receipt via the hashed
+        // parts above, but must not appear verbatim in a response: every other surface strips it, and
+        // publishing a verifier hands out an offline guessing target for free.
         receipt: grantUseReceipt('grant-issued', [g.id, g.holderDigest!, agent, scope], { grant: g.id, boundTo: true }),
       });
     } catch { return send(res, 400, { error: 'bad json' }); }
@@ -925,16 +1115,23 @@ const server = http.createServer(async (req, res) => {
   // identified (the clinician is authorized); the slice is exactly what the consent covers, with
   // withheld COUNTS (never content) so the doctor can see more history exists and request it.
   // Every read is a receipt; revoked/expired/unknown grants get an explicit receipted block.
+  // BOTH membranes apply here, and the grant is not a substitute for the other one.
   //
-  // 🔴 `resolveGrant` checks that the id exists, is unrevoked and is unexpired — nothing else — and
-  // the id arrived in a QUERY STRING, so it was a bearer capability with no holder authentication,
-  // logged by every proxy in the path and leaked in `Referer`; one of them was hard-coded in this
-  // file. Anyone who read the source, a log, or a referrer could present it.
+  // A grant answers WHO may read and how much. Exposure answers WHETHER THIS DEPLOYMENT may serve
+  // records at all over the path it is reachable on. They are different questions, and this route was
+  // answering only the first.
+  //
+  // The distinction was not theoretical. `resolveGrant` checks that the id exists, is unrevoked and is
+  // unexpired — nothing else — and the id arrived in a QUERY STRING, so it was a bearer capability with
+  // no holder authentication, logged by every proxy in the path and leaked in `Referer`; one of them
+  // was hard-coded in this file. Anyone who read the source, a log, or a referrer could present it.
   //
   // Now the grant BINDS A HOLDER: `x-health-grant: <grant-id>.<secret>`, verified against a sha256
   // digest stored at issue time. A leaked id is no longer a chart. See grantauth.ts — including what
   // this deliberately does NOT claim: it authenticates the holder of a secret, not a person.
   if (req.method === 'GET' && url.pathname === '/api/health/doctor-view') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
     const a = authorizeGrant(req, url, 'doctor-read', true)!;
     if (!a.ok) return send(res, a.code, a.body, a.headers);
     const g = a.grant;

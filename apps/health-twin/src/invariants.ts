@@ -118,8 +118,9 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
 }
 
 
-// cryptographic receipts: receipt ids + content addresses must be REAL sha256 (64 hex), never a
-// short non-cryptographic hash wearing a sha label.
+console.log('\n▶ INVARIANT 5 — receipts EMITTED by the real code paths are cryptographic');
+// Receipt ids must be REAL sha256 (64 hex), never a short non-cryptographic hash wearing a
+// sha label.
 //
 // The previous version of this block computed its OWN sha256, built its OWN string, and
 // asserted that the string it had just built matched a regex. It proved that node can hash,
@@ -127,8 +128,7 @@ console.log('\n▶ INVARIANT 4 — grant scoping: the doctor sees exactly the gr
 // period consult.ts was still minting 8-hex djb2 ids under the same comment claiming the
 // regression was fixed. An invariant that constructs its own subject cannot fail.
 //
-// These read the ids the code actually produces.
-console.log('\n▶ INVARIANT 5 — receipts EMITTED by the real code paths are cryptographic');
+// These read the ids the code actually produces: openConsult, submitOpinion, aggregate.
 {
   const consult = openConsult(sampleBundle, 'receipt-probe', 'standard', true);
   ok(/^consult-[0-9a-f]{64}$/.test(consult.consult_id ?? ''),
@@ -164,174 +164,6 @@ console.log('\n▶ INVARIANT 5 — receipts EMITTED by the real code paths are c
   ok(ids.every((i) => /-[0-9a-f]{64}$/.test(String(i))), `all ${ids.length} emitted ids carry a full 64-hex digest`);
 }
 
-console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptographic AND honestly labelled');
-// deident.ts derived the pseudonym over PHI with 32-bit djb2 — the same regression as the consult
-// receipts, but a re-identification risk rather than a receipt-integrity one, and it survived the
-// sweep because this file never wore a "sha-" label. Asserted on real deidentify() output.
-{
-  const v = deidentify(sampleBundle, 'deid-probe');
-  ok(/^anon:[0-9a-f]{32}$/.test(v.receipt.pseudonym),
-     `pseudonym is anon: + 32 hex / 128 bits (${v.receipt.pseudonym})`);
-  ok(!/^anon:[0-9a-f]{8}$/.test(v.receipt.pseudonym), 'pseudonym is NOT the old 8-hex djb2 token');
-  ok(v.subject.pseudonym === v.receipt.pseudonym, 'the view and its receipt carry the same pseudonym');
-
-  ok(deidentify(sampleBundle, 'deid-probe').receipt.pseudonym === v.receipt.pseudonym,
-     'same subject + same salt → same pseudonym (stable within a consult)');
-  ok(deidentify(sampleBundle, 'other-scope').receipt.pseudonym !== v.receipt.pseudonym,
-     'a different salt → a different pseudonym (consults stay unlinkable)');
-
-  // parseInt over >13 hex digits silently rounds past 2^53 and collapses the low bits the modulus
-  // consumes, so a broken derivation reaches only a few distinct values instead of the window.
-  const shifts = Array.from({ length: 400 }, (_, i) => deidentify(sampleBundle, `s${i}`).receipt.dateShiftDays);
-  ok(shifts.every((d) => Number.isInteger(d) && d >= -183 && d <= 182), 'every date shift is an integer in [-183, +182]');
-  ok(new Set(shifts).size > 200, `date shift spreads across the window (${new Set(shifts).size} distinct over 400 salts — a parseInt precision loss collapses this)`);
-
-  // domain separation: if both derivations shared one digest, deriving the shift FROM the pseudonym
-  // would reproduce it every time; with separation, all 8 agreeing is a (1/366)^8 event.
-  const allMatch = Array.from({ length: 8 }, (_, i) => `sep${i}`).every((salt) => {
-    const view = deidentify(sampleBundle, salt);
-    const fromPseudonym = Number(BigInt(`0x${view.receipt.pseudonym.slice(5, 21)}`) % 366n) - 183;
-    return fromPseudonym === view.receipt.dateShiftDays;
-  });
-  ok(!allMatch, 'date shift is domain-separated from the pseudonym (not derivable from it)');
-
-  // The receipt must not claim a protection the run did not have. Both branches are exercised so a
-  // receipt hard-coded to keyed:true — the failure mode that matters — cannot pass.
-  const KEY = 'HEALTH_TWIN_DEID_KEY';
-  const saved = process.env[KEY];
-  // try/finally: this block mutates a process-wide variable that changes how PHI is de-identified.
-  // Restoring it only on the happy path would leave every later invariant running under a key state
-  // it did not choose, and a de-id failure would then be attributed to the wrong cause.
-  try {
-    delete process.env[KEY];
-    const unkeyed = deidentify(sampleBundle, 'deid-probe');
-    ok(unkeyed.receipt.keyed === false && unkeyed.receipt.derivation === 'sha256',
-       'with no key configured the receipt declares keyed:false / sha256 — it does not overstate');
-    process.env[KEY] = 'invariant-test-key-32-bytes-long';
-    const keyed = deidentify(sampleBundle, 'deid-probe');
-    ok(keyed.receipt.keyed === true && keyed.receipt.derivation === 'hmac-sha256',
-       'with a key configured the receipt declares keyed:true / hmac-sha256');
-    ok(keyed.receipt.pseudonym !== unkeyed.receipt.pseudonym,
-       'the key actually enters the derivation (keyed pseudonym ≠ unkeyed pseudonym)');
-
-    // A DEGENERATE KEY MUST NOT BUY THE keyed:true LABEL.
-    // The receipt's only job is to never overstate protection. The key is there to close the
-    // guessing attack; a one-character or whitespace key does not close it, so stamping
-    // keyed:true / hmac-sha256 for one would tell a reader the view is protected when it is not.
-    // Such a key is refused and the run falls back to the honest unkeyed path.
-    for (const weak of [' ', 'x', 'short', '\t\n', 'fifteen-bytes!']) {
-      process.env[KEY] = weak;
-      const r = deidentify(sampleBundle, 'deid-probe').receipt;
-      ok(r.keyed === false && r.derivation === 'sha256',
-         `a ${Buffer.byteLength(weak)}-byte key is refused, not reported as protection (${JSON.stringify(weak)} → keyed:${r.keyed})`);
-      ok(r.pseudonym === unkeyed.receipt.pseudonym,
-         `a refused key really is unused — the pseudonym is the unkeyed one (${JSON.stringify(weak)})`);
-    }
-    // and the boundary is where it says it is: 16 bytes is accepted
-    process.env[KEY] = 'sixteen-bytes-16';
-    const atMin = deidentify(sampleBundle, 'deid-probe').receipt;
-    ok(Buffer.byteLength('sixteen-bytes-16') === 16 && atMin.keyed === true && atMin.derivation === 'hmac-sha256',
-       'a key at the 16-byte minimum IS accepted (the floor is a floor, not a moving refusal)');
-  } finally {
-    if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
-  }
-
-  // ── THE DATE SHIFT FAILS CLOSED ───────────────────────────────────────────────────────────────
-  // shiftDate() returned anything it could not parse UNCHANGED, so a malformed-but-meaningful date
-  // ('2024-13-45') survived UNSHIFTED into a view whose receipt claims 'safe-harbor+date-shift'.
-  // Asserted on real deidentify() OUTPUT: calling the helper directly, or checking a hand-built
-  // string, would leave the actual data path unproven — which is exactly how consult.ts went on
-  // shipping 8-hex ids underneath a passing invariant.
-  const WELL_FORMED = ['2024-01-15', '2024-01', '2024-01-15T10:30:00Z'];
-  const YEAR_ONLY = ['2024'];
-  // Copilot #1074: the absent branch admits three shapes — '', undefined, and null —
-  // and the invariant probe must exercise each; a probe that only asserts '' and
-  // undefined leaves the null path unverified even though the branch handles it.
-  const ABSENT: (string | undefined | null)[] = ['', undefined, null];
-  // malformed, and none of it a date: month 13 / day 45, a real-looking impossible day, a
-  // non-ISO ordering, prose, whitespace, and all-zeroes.
-  const GARBAGE = ['not-a-date', '2024-13-45', '2024-02-30', '15/01/2024', 'yesterday', '   ', '0000-00-00'];
-  const ALL = [...WELL_FORMED, ...YEAR_ONLY, ...ABSENT, ...GARBAGE];
-  const dateBundle = {
-    subject: { id: 'date-probe' },
-    systems: [{
-      id: 'sys', label: 'Sys', organs: [],
-      observations: ALL.map((d, i) => ({
-        code: `C${i}`, codeSystem: 'LOINC', display: `case ${i}`, value: 1, unit: 'x',
-        effective: d, epistemic: 'measured',
-      })),
-      conditions: [], encounters: [], imaging: [],
-    }],
-  };
-  const dv = deidentify(dateBundle, 'date-probe');
-  const emitted = dv.systems[0].observations.map((o: any) => o.effective);
-
-  // THE INVARIANT: no unparseable input survives as itself.
-  const survivors = GARBAGE.filter((g) => emitted.includes(g));
-  ok(survivors.length === 0,
-     `no unparseable date survives as itself through deidentify() (survivors: ${JSON.stringify(survivors)})`);
-  // and what replaced it is the sentinel. The LITERAL, not the imported constant: this string is a
-  // wire contract a reader matches on, so a change to the constant's VALUE must fail here.
-  const garbageOut = emitted.slice(WELL_FORMED.length + YEAR_ONLY.length + ABSENT.length);
-  ok(garbageOut.every((v: unknown) => v === 'date-unshiftable'),
-     `every unparseable date is replaced by the sentinel (${JSON.stringify(garbageOut)})`);
-
-  // A bare year is an EXPLICIT ALLOW — Safe Harbor permits year granularity — not a parse failure.
-  ok(emitted[WELL_FORMED.length] === '2024', 'a bare year passes through unshifted (Safe Harbor permits it)');
-  ok(WELL_FORMED.every((_, i) => /^\d{4}-\d{2}-\d{2}$/.test(emitted[i]) && emitted[i] !== WELL_FORMED[i]),
-     `every well-formed date was actually shifted (${JSON.stringify(emitted.slice(0, WELL_FORMED.length))})`);
-
-  // The receipt must not overstate what was de-identified: every date field is counted in exactly
-  // one branch, and the branches sum to the number of fields that went in.
-  const dc = dv.receipt.dates;
-  ok(dc.shifted === WELL_FORMED.length && dc.yearOnly === YEAR_ONLY.length
-     && dc.absent === ABSENT.length && dc.unshiftable === GARBAGE.length,
-     `receipt counts each branch exactly (${JSON.stringify(dc)})`);
-  ok(dc.shifted + dc.yearOnly + dc.absent + dc.unshiftable === ALL.length,
-     `receipt accounts for all ${ALL.length} date fields — none silently uncounted`);
-  ok(dc.unshiftable > 0,
-     'a view containing unshiftable dates says so on its receipt rather than claiming a clean shift');
-
-  // TIMEZONE STABILITY. The shift is whole days on a UTC instant, so the same input must give the
-  // same output in every zone. The previous implementation parsed date-only strings as UTC midnight
-  // and then advanced them with LOCAL-time setDate: the two offsets cancel only when none of the
-  // shift crosses a DST transition, so under America/Los_Angeles '2024-01-15' +88d came out a day
-  // early. Several salts are exercised precisely so that some shifts DO cross a transition.
-  const ZONES = ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata'];
-  const savedTZ = process.env.TZ;
-  // try/finally for the same reason the key block uses one: TZ is process-wide, and leaving it set
-  // would silently re-time every invariant that runs after this.
-  try {
-    const perZone = ZONES.map((tz) => {
-      process.env.TZ = tz;
-      return JSON.stringify(Array.from({ length: 12 }, (_, i) => {
-        const v = deidentify(dateBundle, `tz-salt-${i}`);
-        return [v.receipt.dateShiftDays, v.systems[0].observations.map((o: any) => o.effective)];
-      }));
-    });
-    ok(new Set(perZone).size === 1,
-       `the de-identified dates are identical in ${ZONES.join(', ')} (a local-time shift diverges across a DST edge)`);
-  } finally {
-    if (savedTZ === undefined) delete process.env.TZ; else process.env.TZ = savedTZ;
-  }
-
-  // INTERVALS SURVIVE — the property the whole date-shift exists to preserve. The local-time bug
-  // broke this too: only the endpoint on the far side of a DST edge moved, so a real 152-day gap
-  // came back as 153 under LA.
-  const gapBundle = (id: string) => ({
-    subject: { id }, systems: [{ id: 'sys', label: 'Sys', organs: [],
-      observations: ['2024-01-15', '2024-06-15'].map((d, i) => ({
-        code: `G${i}`, codeSystem: 'LOINC', display: `g${i}`, value: 1, unit: 'x', effective: d, epistemic: 'measured' })),
-      conditions: [], encounters: [], imaging: [] }],
-  });
-  const gapsHold = Array.from({ length: 12 }, (_, i) => {
-    const o = deidentify(gapBundle('gap'), `gap-${i}`).systems[0].observations;
-    return Math.round((Date.parse(o[1].effective) - Date.parse(o[0].effective)) / 86_400_000);
-  }).every((g) => g === 152);
-  ok(gapsHold, 'a 152-day interval is still 152 days after shifting (intervals are what the shift must preserve)');
-}
-
-
 console.log('\n▶ INVARIANT 6 — the record bundle is not served open once real records exist');
 {
   const { exposureDenial, exposureFromEnv } = await import('./exposure.js');
@@ -361,6 +193,15 @@ console.log('\n▶ INVARIANT 6 — the record bundle is not served open once rea
      'the configured token is accepted');
   ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer  s3cret  ' }) === null,
      'surrounding whitespace does not defeat a correct token');
+  // The back-ported hardening (platform #1086/#1109): the scheme is REQUIRED, not stripped when it
+  // happens to be there, and the compare is constant-time. These pin the teeth so the canonical cannot
+  // silently regress to the old `replace(/^Bearer\s+/i,'')` that authenticated a schemeless secret.
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 's3cret' })?.code === 401,
+     'a schemeless credential is NOT a bearer credential — the strip-if-present defect is closed');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Basic s3cret' })?.code === 401,
+     'a non-Bearer scheme carrying the secret is refused, not compared as the string "Basic s3cret"');
+  ok(exposureDenial({ ...auth, token: 's3cret', authorization: 'Bearer' })?.code === 401,
+     'the scheme with no credential is refused');
   // and a real deployment still serves records under a token, which synthetic-only would refuse
   ok(exposureDenial({ mode: 'authenticated', token: 's3cret', authorization: 'Bearer s3cret', ingestedRecords: 500 }) === null,
      'authenticated mode serves real records — the gate is about governance, not about refusing work');
@@ -485,6 +326,176 @@ console.log('\n▶ INVARIANT 7 — twin dynamics: physics disposes, and a refusa
     `the renal monotonicity bound names the quantity the gate actually reads (${renalMono.bound})`);
   ok(RULES.every((r) => !/previousAccepted/.test(r.bound)),
     'no published rule bound names a quantity the gate does not read');
+}
+
+console.log('\n▶ INVARIANT 8 — the de-identification boundary is cryptographic AND honestly labelled');
+// deident.ts derived the pseudonym over PHI with 32-bit djb2. That is a re-identification risk,
+// not merely a receipt-integrity one, so the derivation is asserted on real deidentify() output.
+{
+  const v = deidentify(sampleBundle, 'deid-probe');
+  ok(/^anon:[0-9a-f]{32}$/.test(v.receipt.pseudonym),
+     `pseudonym is anon: + 32 hex / 128 bits (${v.receipt.pseudonym})`);
+  ok(!/^anon:[0-9a-f]{8}$/.test(v.receipt.pseudonym), 'pseudonym is NOT the old 8-hex djb2 token');
+  ok(v.subject.pseudonym === v.receipt.pseudonym, 'the view and its receipt carry the same pseudonym');
+
+  // deterministic within a scope, unlinkable across scopes — both on real output
+  ok(deidentify(sampleBundle, 'deid-probe').receipt.pseudonym === v.receipt.pseudonym,
+     'same subject + same salt → same pseudonym (stable within a consult)');
+  ok(deidentify(sampleBundle, 'other-scope').receipt.pseudonym !== v.receipt.pseudonym,
+     'a different salt → a different pseudonym (consults stay unlinkable)');
+
+  // date shift: in range, and exercising enough salts that a BigInt-precision regression shows up.
+  // parseInt over >13 hex digits silently rounds past 2^53 and collapses the low bits, so a broken
+  // derivation reaches only a few distinct values instead of spreading across the window.
+  const shifts = Array.from({ length: 400 }, (_, i) => deidentify(sampleBundle, `s${i}`).receipt.dateShiftDays);
+  ok(shifts.every((d) => Number.isInteger(d) && d >= -183 && d <= 182), 'every date shift is an integer in [-183, +182]');
+  ok(new Set(shifts).size > 200, `date shift spreads across the window (${new Set(shifts).size} distinct over 400 salts — a parseInt precision loss collapses this)`);
+
+  // domain separation: the shift must not be recoverable from the pseudonym. If both derivations
+  // shared one digest, deriving the shift FROM the pseudonym would reproduce it every time; with
+  // separation, all 8 agreeing is a (1/366)^8 event.
+  const allMatch = Array.from({ length: 8 }, (_, i) => `sep${i}`).every((salt) => {
+    const view = deidentify(sampleBundle, salt);
+    const fromPseudonym = Number(BigInt(`0x${view.receipt.pseudonym.slice(5, 21)}`) % 366n) - 183;
+    return fromPseudonym === view.receipt.dateShiftDays;
+  });
+  ok(!allMatch, 'date shift is domain-separated from the pseudonym (not derivable from it)');
+
+  // The receipt must not claim a protection the run did not have. Both branches are exercised so
+  // a receipt hard-coded to keyed:true — the failure mode that matters — cannot pass.
+  const KEY = 'HEALTH_TWIN_DEID_KEY';
+  const saved = process.env[KEY];
+  // try/finally: this block mutates a process-wide variable that changes how PHI is de-identified.
+  // Restoring it only on the happy path would leave every later invariant running under a key state
+  // it did not choose, and a de-id failure would then be attributed to the wrong cause.
+  try {
+    delete process.env[KEY];
+    const unkeyed = deidentify(sampleBundle, 'deid-probe');
+    ok(unkeyed.receipt.keyed === false && unkeyed.receipt.derivation === 'sha256',
+       'with no key configured the receipt declares keyed:false / sha256 — it does not overstate');
+    process.env[KEY] = 'invariant-test-key-32-bytes-long';
+    const keyed = deidentify(sampleBundle, 'deid-probe');
+    ok(keyed.receipt.keyed === true && keyed.receipt.derivation === 'hmac-sha256',
+       'with a key configured the receipt declares keyed:true / hmac-sha256');
+    ok(keyed.receipt.pseudonym !== unkeyed.receipt.pseudonym,
+       'the key actually enters the derivation (keyed pseudonym ≠ unkeyed pseudonym)');
+
+    // A DEGENERATE KEY MUST NOT BUY THE keyed:true LABEL.
+    // The receipt's only job is to never overstate protection. The key is there to close the
+    // guessing attack; a one-character or whitespace key does not close it, so stamping
+    // keyed:true / hmac-sha256 for one would tell a reader the view is protected when it is not.
+    // Such a key is refused and the run falls back to the honest unkeyed path.
+    for (const weak of [' ', 'x', 'short', '\t\n', 'fifteen-bytes!']) {
+      process.env[KEY] = weak;
+      const r = deidentify(sampleBundle, 'deid-probe').receipt;
+      ok(r.keyed === false && r.derivation === 'sha256',
+         `a ${Buffer.byteLength(weak)}-byte key is refused, not reported as protection (${JSON.stringify(weak)} → keyed:${r.keyed})`);
+      ok(r.pseudonym === unkeyed.receipt.pseudonym,
+         `a refused key really is unused — the pseudonym is the unkeyed one (${JSON.stringify(weak)})`);
+    }
+    // and the boundary is where it says it is: 16 bytes is accepted
+    process.env[KEY] = 'sixteen-bytes-16';
+    const atMin = deidentify(sampleBundle, 'deid-probe').receipt;
+    ok(Buffer.byteLength('sixteen-bytes-16') === 16 && atMin.keyed === true && atMin.derivation === 'hmac-sha256',
+       'a key at the 16-byte minimum IS accepted (the floor is a floor, not a moving refusal)');
+  } finally {
+    if (saved === undefined) delete process.env[KEY]; else process.env[KEY] = saved;
+  }
+
+  // ── THE DATE SHIFT FAILS CLOSED ───────────────────────────────────────────────────────────────
+  // shiftDate() returned anything it could not parse UNCHANGED, so a malformed-but-meaningful date
+  // ('2024-13-45') survived UNSHIFTED into a view whose receipt claims 'safe-harbor+date-shift'.
+  // Asserted on real deidentify() OUTPUT: calling the helper directly, or checking a hand-built
+  // string, would leave the actual data path unproven — which is exactly how consult.ts went on
+  // shipping 8-hex ids underneath a passing invariant.
+  const WELL_FORMED = ['2024-01-15', '2024-01', '2024-01-15T10:30:00Z'];
+  const YEAR_ONLY = ['2024'];
+  // Same Copilot-round-2 finding as prophet-platform#1095: the absent branch admits
+  // three shapes — '', undefined, and null — and the invariant probe must exercise
+  // each; a probe that only asserts '' and undefined leaves the null path unverified
+  // even though the branch handles it.
+  const ABSENT: (string | undefined | null)[] = ['', undefined, null];
+  // malformed, and none of it a date: month 13 / day 45, a real-looking impossible day, a
+  // non-ISO ordering, prose, whitespace, and all-zeroes.
+  const GARBAGE = ['not-a-date', '2024-13-45', '2024-02-30', '15/01/2024', 'yesterday', '   ', '0000-00-00'];
+  const ALL = [...WELL_FORMED, ...YEAR_ONLY, ...ABSENT, ...GARBAGE];
+  const dateBundle = {
+    subject: { id: 'date-probe' },
+    systems: [{
+      id: 'sys', label: 'Sys', organs: [],
+      observations: ALL.map((d, i) => ({
+        code: `C${i}`, codeSystem: 'LOINC', display: `case ${i}`, value: 1, unit: 'x',
+        effective: d, epistemic: 'measured',
+      })),
+      conditions: [], encounters: [], imaging: [],
+    }],
+  };
+  const dv = deidentify(dateBundle, 'date-probe');
+  const emitted = dv.systems[0].observations.map((o: any) => o.effective);
+
+  // THE INVARIANT: no unparseable input survives as itself.
+  const survivors = GARBAGE.filter((g) => emitted.includes(g));
+  ok(survivors.length === 0,
+     `no unparseable date survives as itself through deidentify() (survivors: ${JSON.stringify(survivors)})`);
+  // and what replaced it is the sentinel. The LITERAL, not the imported constant: this string is a
+  // wire contract a reader matches on, so a change to the constant's VALUE must fail here.
+  const garbageOut = emitted.slice(WELL_FORMED.length + YEAR_ONLY.length + ABSENT.length);
+  ok(garbageOut.every((v: unknown) => v === 'date-unshiftable'),
+     `every unparseable date is replaced by the sentinel (${JSON.stringify(garbageOut)})`);
+
+  // A bare year is an EXPLICIT ALLOW — Safe Harbor permits year granularity — not a parse failure.
+  ok(emitted[WELL_FORMED.length] === '2024', 'a bare year passes through unshifted (Safe Harbor permits it)');
+  ok(WELL_FORMED.every((_, i) => /^\d{4}-\d{2}-\d{2}$/.test(emitted[i]) && emitted[i] !== WELL_FORMED[i]),
+     `every well-formed date was actually shifted (${JSON.stringify(emitted.slice(0, WELL_FORMED.length))})`);
+
+  // The receipt must not overstate what was de-identified: every date field is counted in exactly
+  // one branch, and the branches sum to the number of fields that went in.
+  const dc = dv.receipt.dates;
+  ok(dc.shifted === WELL_FORMED.length && dc.yearOnly === YEAR_ONLY.length
+     && dc.absent === ABSENT.length && dc.unshiftable === GARBAGE.length,
+     `receipt counts each branch exactly (${JSON.stringify(dc)})`);
+  ok(dc.shifted + dc.yearOnly + dc.absent + dc.unshiftable === ALL.length,
+     `receipt accounts for all ${ALL.length} date fields — none silently uncounted`);
+  ok(dc.unshiftable > 0,
+     'a view containing unshiftable dates says so on its receipt rather than claiming a clean shift');
+
+  // TIMEZONE STABILITY. The shift is whole days on a UTC instant, so the same input must give the
+  // same output in every zone. The previous implementation parsed date-only strings as UTC midnight
+  // and then advanced them with LOCAL-time setDate: the two offsets cancel only when none of the
+  // shift crosses a DST transition, so under America/Los_Angeles '2024-01-15' +88d came out a day
+  // early. Several salts are exercised precisely so that some shifts DO cross a transition.
+  const ZONES = ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata'];
+  const savedTZ = process.env.TZ;
+  // try/finally for the same reason the key block uses one: TZ is process-wide, and leaving it set
+  // would silently re-time every invariant that runs after this.
+  try {
+    const perZone = ZONES.map((tz) => {
+      process.env.TZ = tz;
+      return JSON.stringify(Array.from({ length: 12 }, (_, i) => {
+        const v = deidentify(dateBundle, `tz-salt-${i}`);
+        return [v.receipt.dateShiftDays, v.systems[0].observations.map((o: any) => o.effective)];
+      }));
+    });
+    ok(new Set(perZone).size === 1,
+       `the de-identified dates are identical in ${ZONES.join(', ')} (a local-time shift diverges across a DST edge)`);
+  } finally {
+    if (savedTZ === undefined) delete process.env.TZ; else process.env.TZ = savedTZ;
+  }
+
+  // INTERVALS SURVIVE — the property the whole date-shift exists to preserve. The local-time bug
+  // broke this too: only the endpoint on the far side of a DST edge moved, so a real 152-day gap
+  // came back as 153 under LA.
+  const gapBundle = (id: string) => ({
+    subject: { id }, systems: [{ id: 'sys', label: 'Sys', organs: [],
+      observations: ['2024-01-15', '2024-06-15'].map((d, i) => ({
+        code: `G${i}`, codeSystem: 'LOINC', display: `g${i}`, value: 1, unit: 'x', effective: d, epistemic: 'measured' })),
+      conditions: [], encounters: [], imaging: [] }],
+  });
+  const gapsHold = Array.from({ length: 12 }, (_, i) => {
+    const o = deidentify(gapBundle('gap'), `gap-${i}`).systems[0].observations;
+    return Math.round((Date.parse(o[1].effective) - Date.parse(o[0].effective)) / 86_400_000);
+  }).every((g) => g === 152);
+  ok(gapsHold, 'a 152-day interval is still 152 days after shifting (intervals are what the shift must preserve)');
 }
 
 console.log('\n▶ INVARIANT 9 — a grant id is not a credential: the holder is authenticated, both ways');
@@ -708,5 +719,227 @@ console.log('\n▶ INVARIANT 10 — the credential is not usable from anywhere: 
   }
 }
 
-console.log(`\n${fails === 0 ? '✓ ALL GUARDRAIL INVARIANTS HOLD (non-diagnostic + de-identification + grant scoping enforced)' : `✗ ${fails} invariant(s) violated`}`);
+console.log('\n▶ INVARIANT 11 — triage safety floor: a red flag never resolves to self-care');
+{
+  const { triage, URGENCY_RANK } = await import('./triage.js');
+
+  // a classic emergency presentation escalates, regardless of anything reassuring in the text
+  const cardiac = await triage('crushing chest pain radiating to my left arm, but I think I feel ok');
+  ok(cardiac.urgency === 'emergency' && cardiac.disposition === 'escalate', 'chest pain radiating to arm → emergency + escalate');
+  ok(cardiac.redFlags.some((r) => r.id === 'cardiac'), 'the cardiac red flag is surfaced');
+  ok(/emergency/i.test(cardiac.care), 'the care line sends the person to emergency care');
+  ok(cardiac.urgency !== 'self-care' && cardiac.urgency !== 'monitor', 'a red flag can NEVER band as self-care/monitor (the anti-Watson floor)');
+
+  // negation must not trip the flag: "no chest pain" is not a cardiac emergency
+  const negated = await triage('no chest pain, just a mild cough for a day');
+  ok(!negated.redFlags.some((r) => r.id === 'cardiac'), 'negated chest pain does NOT trip the cardiac flag');
+  ok(URGENCY_RANK[negated.urgency] < URGENCY_RANK['emergency'], 'a negated red flag is not an emergency');
+
+  // stroke FAST signs escalate
+  const stroke = await triage('sudden face drooping and slurred speech since an hour ago');
+  ok(stroke.urgency === 'emergency' && stroke.redFlags.some((r) => r.id === 'stroke'), 'FAST stroke signs → emergency');
+
+  // thin input abstains and asks the next-best question rather than guessing
+  const thin = await triage('something feels off');
+  ok(thin.disposition === 'abstain' && thin.nextBestQuestions.length > 0, 'a thin complaint abstains + asks the next-best question');
+
+  // a minor complaint does not over-escalate
+  const minor = await triage('small scrape on my knee from yesterday, mild, cleaned it');
+  ok(minor.urgency === 'self-care' || minor.urgency === 'monitor', 'a minor injury bands self-care/monitor, not emergency');
+
+  // every triage result is non-diagnostic and carries the disclaimer + an auditable loop trace
+  ok(/not a diagnosis/i.test(cardiac.disclaimer), 'triage result is framed as not a diagnosis');
+  ok(cardiac.loop.map((s) => s.step).join(',') === 'perceive,reason,act,verify', 'the Perceive→Reason→Act→Verify loop is traced');
+}
+
+console.log('\n▶ INVARIANT 12 — longitudinal monitor: deterioration is flagged, recovery is not');
+{
+  const { acuity, monitorTwin } = await import('./monitor.js');
+
+  // out of range and moving further out → worsening/critical + escalate
+  const worsening = acuity({ id: 'm', display: 'LDL cholesterol', value: 190, unit: 'mg/dL', refLow: 0, refHigh: 100, trend: [150, 165, 178, 190] });
+  ok((worsening.band === 'worsening' || worsening.band === 'critical') && worsening.escalate, 'a metric moving further out of range → worsening/critical + escalate');
+
+  // out of range but moving back toward it → improving, NOT escalated
+  const improving = acuity({ id: 'm', display: 'LDL cholesterol', value: 130, unit: 'mg/dL', refLow: 0, refHigh: 100, trend: [190, 170, 150, 130] });
+  ok(improving.band === 'improving' && !improving.escalate, 'a metric recovering toward range → improving, not escalated');
+
+  // in range and flat → stable, not escalated
+  const stable = acuity({ id: 'm', display: 'eGFR', value: 100, unit: 'mL/min', refLow: 90, refHigh: 120, trend: [101, 100, 100, 100] });
+  ok(stable.band === 'stable' && !stable.escalate, 'an in-range flat metric → stable, not escalated');
+
+  // low-adverse direction: eGFR falling below range → worsening (falling is bad for a high-is-good metric)
+  const renalDrop = acuity({ id: 'm', display: 'eGFR', value: 55, unit: 'mL/min', refLow: 60, refHigh: 120, trend: [75, 68, 61, 55] });
+  ok(renalDrop.escalate && renalDrop.adverse === 'low', 'falling eGFR below range is adverse-low and escalates (direction-aware)');
+
+  const report = monitorTwin();
+  ok(report.escalate === (report.deteriorating.length > 0), 'the report escalate flag agrees with its deteriorating list');
+  ok(/non-diagnostic/i.test(report.disclaimer), 'the monitor report is framed as non-diagnostic');
+}
+
+console.log('\n▶ INVARIANT 13 — imaging report interpretation: critical-finding floor + non-diagnostic');
+{
+  const { interpretReport } = await import('./imaging.js');
+
+  const acute = await interpretReport('CT head without contrast. Findings: acute intraparenchymal hemorrhage in the right frontal lobe.');
+  ok(acute.escalate && (acute.urgency === 'emergency' || acute.urgency === 'urgent'), 'an acute hemorrhage finding floors urgency + escalates');
+  ok(acute.modality === 'CT' && acute.bodySite === 'head', 'modality + body site are detected');
+  ok(!/\byou (have|are diagnosed)\b|\bdiagnosis is\b/i.test(acute.plainLanguage) && /non-diagnostic/i.test(acute.disclaimer), 'the explanation asserts no diagnosis + carries a non-diagnostic disclaimer');
+
+  const clean = await interpretReport('Chest X-ray PA and lateral. No acute cardiopulmonary process. No evidence of hemorrhage or mass. Impression: unremarkable.');
+  ok(!clean.escalate && clean.criticalFlags.length === 0, 'a negated report ("no acute", "no evidence of hemorrhage/mass") does NOT trip the critical floor');
+
+  ok((await interpretReport('MRI left knee: findings suspicious for a mass.')).escalate, 'a suspicious mass escalates');
+}
+
+console.log('\n▶ INVARIANT 14 — FHIR interop: valid R4, round-trips, and de-identified at the Patient level');
+{
+  const { toFhirBundle, fromFhirBundle } = await import('./fhir.js');
+  const bundle = toFhirBundle();
+  ok(bundle.resourceType === 'Bundle' && bundle.type === 'collection' && Array.isArray(bundle.entry), 'export is a valid FHIR R4 collection Bundle');
+  ok(bundle.entry.every((e: any) => typeof e.resource?.resourceType === 'string'), 'every entry carries a resource with a resourceType');
+  const patient = bundle.entry.find((e: any) => e.resource.resourceType === 'Patient')?.resource;
+  ok(!!patient && !patient.name && !patient.birthDate, 'the Patient resource carries NO name and NO birthDate (de-identified)');
+  const anObs = bundle.entry.find((e: any) => e.resource.resourceType === 'Observation')?.resource;
+  ok(anObs?.code?.coding?.[0]?.system === 'http://loinc.org', 'observations carry the real LOINC code-system URI');
+
+  // round-trip: export → import preserves observation + condition codes/values (no silent loss)
+  const parsed = fromFhirBundle(bundle);
+  ok(parsed.counts.observations === OBSERVATIONS.length && parsed.counts.conditions === CONDITIONS.length, 'export→import round-trips all observations + conditions');
+  const ldl = parsed.observations.find((o) => o.code === OBSERVATIONS[0]!.code);
+  ok(!!ldl && ldl.value === OBSERVATIONS[0]!.value && ldl.codeSystem === 'LOINC', 'a round-tripped observation preserves its value + code system');
+
+  // foreign/partial bundles are tolerated: unmappable entries are counted, never silently dropped
+  const foreign = fromFhirBundle({ resourceType: 'Bundle', entry: [{ resource: { resourceType: 'Practitioner', id: 'x' } }] });
+  ok(foreign.counts.skipped === 1 && foreign.counts.observations === 0, 'an unmappable resource is counted as skipped, not dropped');
+}
+
+console.log('\n▶ INVARIANT 15 — professional reference: audience renderers + medication safety off one source');
+{
+  const { conditionCard, checkMeds } = await import('./reference.js');
+
+  // audience rendering off the SAME source of truth: clinician gets citations + workup; patient does not
+  const clin = conditionCard('hypertension', 'clinician') as any;
+  const pat = conditionCard('hypertension', 'patient') as any;
+  ok(!!clin.citations && !!clin.workup, 'the clinician card carries citations + workup');
+  ok(!pat.citations && !pat.workup, 'the patient card omits citations/workup jargon (audience renderer)');
+  ok(clin.snomed === pat.snomed && clin.name === pat.name, 'both renderers derive from one source of truth (same SNOMED + name)');
+  ok(/non-diagnostic/i.test(pat.disclaimer) && /non-diagnostic/i.test(clin.disclaimer), 'cards are non-diagnostic');
+  const trainee = conditionCard('hypertension', 'trainee') as any;
+  ok(!!trainee.teaching, 'the trainee card adds a teaching overlay');
+
+  // medication safety: a known interaction, an allergy conflict, and a duplicate are each flagged
+  const interact = checkMeds([{ display: 'Lisinopril 10 MG' }, { display: 'Ibuprofen 400 MG' }]);
+  ok(interact.interactions.some((i) => i.severity && /NSAID|ACEi/i.test(i.mechanism)), 'a lisinopril↔ibuprofen interaction is flagged');
+  const allergyHit = checkMeds([{ display: 'Penicillin 500 MG' }], ['penicillin']);
+  ok(allergyHit.allergyConflicts.length === 1, 'a med matching a documented allergy is flagged as a conflict');
+  const dup = checkMeds([{ display: 'Lisinopril 10 MG' }, { display: 'Lisinopril 20 MG' }]);
+  ok(dup.duplicates.length === 1, 'duplicate therapy (same ingredient twice) is flagged');
+  ok(/non-diagnostic/i.test(interact.disclaimer), 'the med check is framed as non-diagnostic decision support');
+}
+
+console.log('\n▶ INVARIANT 16 — access + data economics: booking + contribution fail closed, only de-id data leaves');
+{
+  const { findSlots, book } = await import('./booking.js');
+  const { contribute, revokeContribution } = await import('./contribution.js');
+  const { identifierLeaks } = await import('./deident.js');
+
+  // booking fails closed: an unknown slot never yields a booking (no silent success)
+  ok('error' in book('nope'), 'booking an unknown slot is refused, not silently succeeded');
+  const someSlot = findSlots().slots[0];
+  ok(!!someSlot && !('error' in (book(someSlot.id) as any)), 'a real slot books');
+
+  // contribution consent fails closed: no agreement → refused
+  const refused = contribute('cardio-eval', sampleBundle, false) as any;
+  ok(!!refused.error && /consent/i.test(refused.error), 'contribution without explicit consent is refused (fail-closed)');
+  const missing = contribute('cardio-eval', sampleBundle) as any; // agreed omitted
+  ok(!!missing.error, 'an omitted agreement is refused, not treated as consent');
+
+  // a consented contribution ships only DE-IDENTIFIED data (leak check clean) + is revocable + accrues comp
+  const joined = contribute('cardio-eval', sampleBundle, true) as any;
+  ok(!joined.error && joined.consented === true && joined.leakCheck === 'clean', 'a consented contribution is accepted + leak-clean');
+  ok(joined.compensation?.amount > 0 && joined.compensation?.status === 'accrued', 'compensation is transparently accrued');
+  ok(revokeContribution(joined.id).revoked === true, 'a contribution is revocable');
+  // the de-id boundary itself: minimal-scope contribution leaks no identifiers
+  const { deidentify } = await import('./deident.js');
+  ok(identifierLeaks(deidentify(sampleBundle, 'contrib|cardio-eval', 'minimal')).length === 0, 'the contributed slice leaks no identifiers');
+}
+
+console.log('\n▶ INVARIANT 17 — population layer: k-anonymity + aggregates only, never an individual record');
+{
+  const { populationRisk } = await import('./population.js');
+  const report = populationRisk();
+
+  // k-anonymity: every REPORTED cohort meets the floor; smaller cells are suppressed, not shown
+  ok(report.cohorts.every((c: any) => c.n >= report.kAnonymity), 'every reported cohort has n ≥ the k-anonymity floor');
+  ok(typeof report.suppressedCohorts === 'number', 'cohorts below the floor are counted as suppressed');
+
+  // aggregates only: the wire shape carries counts/rates, NOT member records (no conditions[]/acuity per person)
+  const wire = JSON.stringify(report);
+  ok(!/"onStatin"|"ldlOverTarget"|"sex":/.test(wire), 'no per-member fields leak — the report is aggregates only');
+  ok(report.cohorts.every((c: any) => typeof c.risingAcuityRate === 'number' && typeof c.statinCareGapRate === 'number'), 'cohorts carry rates, not rows');
+
+  ok(/de-identified|aggregates only/i.test(report.disclaimer) && /not surveillance/i.test(report.disclaimer), 'the report is framed as de-identified aggregates, not surveillance');
+  ok(!!report.receipt, 'the population read is receipted');
+}
+
+console.log('\n▶ INVARIANT 18 — triage is safe by MEASUREMENT: no missed emergency on the labeled corpus');
+{
+  const { evaluateTriage } = await import('./triage-eval.js');
+  const r = await evaluateTriage();
+  ok(r.emergencyRecall === 1, `emergency recall (sensitivity) is 100% — every labeled emergency escalates (got ${(r.emergencyRecall * 100).toFixed(1)}%)`);
+  ok(r.emergencyUnderTriage === 0, `zero emergency under-triage — no emergency is banded below emergency (got ${r.emergencyUnderTriage})`);
+  ok(r.overTriageRate <= 0.15, `over-triage stays low (safe-but-costly ≤15%; got ${(r.overTriageRate * 100).toFixed(1)}%)`);
+}
+
+console.log('\n▶ INVARIANT 19 — terminology value sets are bound UPWARD into Ontogenesis + HDT');
+{
+  const { VALUE_SETS, lookup, crosswalk, valueSetTtl, toOntogenesisNode } = await import('./terminology.js');
+  const { HDT_NS, HEALTH_NS } = await import('./data.js');
+
+  // every concept carries a real code + system + an ontogenesis/HDT class IRI (the upward bind)
+  ok(VALUE_SETS.length >= 30 && VALUE_SETS.every((c: any) => c.code && c.system && c.classIri), `every concept carries a code + system + HDT class IRI (${VALUE_SETS.length} concepts)`);
+  ok(VALUE_SETS.every((c: any) => c.classIri.startsWith(HDT_NS) || c.classIri.startsWith(HEALTH_NS)), 'every class IRI is an hdt:/health: ontology class (not a bare string)');
+  ok(new Set(VALUE_SETS.map((c: any) => c.system)).size >= 3, 'value sets span multiple code systems (SNOMED/LOINC/RxNorm/ICD-10)');
+
+  // observations bind to an organ (localizedTo) — they type onto anatomy in the twin
+  const ldl = lookup({ system: 'LOINC', code: '13457-7' })!;
+  ok(!!ldl && !!ldl.organ, 'a LOINC observation binds to an organ (localizedTo the twin anatomy)');
+  const node = toOntogenesisNode(ldl);
+  ok(!!node.iri && !!node.classIri && !!node.organIri && !!node.systemIri, 'a concept emits a typed Ontogenesis node with class + organ + system IRIs');
+
+  // cross-terminology crosswalk resolves (SNOMED hypertension → ICD-10 I10)
+  const cw = crosswalk('SNOMED', '38341003');
+  ok(cw.maps.some((m: any) => m.system === 'ICD-10' && m.code === 'I10'), 'SNOMED essential hypertension crosswalks to ICD-10 I10');
+
+  // the TTL is ontogenesis-consumable: SKOS concepts TYPED as their HDT class, with exactMatch links
+  const ttl = valueSetTtl();
+  ok(/a skos:Concept, <https?:[^>]+(Observation|Condition|Medication)>/.test(ttl), 'TTL types each concept as skos:Concept AND its HDT class');
+  ok(/skos:exactMatch/.test(ttl) && /health:localizedTo/.test(ttl) && /health:inSystem/.test(ttl), 'TTL carries cross-maps + organ + system bindings for Ontogenesis/HellGraph');
+}
+
+console.log('\n▶ INVARIANT 20 — drug safety: a real interaction dataset with severity, classes, and cross-reactivity');
+{
+  const { INTERACTIONS, checkDrugSafety } = await import('./drugsafety.js');
+
+  ok(INTERACTIONS.length >= 30, `the interaction dataset is substantial (${INTERACTIONS.length} pairs), not a 6-row demo`);
+  ok(INTERACTIONS.every((i: any) => i.severity && i.mechanism && i.management), 'every interaction carries severity + mechanism + management');
+
+  // a contraindicated pair is surfaced as contraindicated (nitrate + PDE5 inhibitor)
+  const cx = checkDrugSafety([{ display: 'Sildenafil 50 MG' }, { display: 'Nitroglycerin 0.4 MG' }]);
+  ok(cx.interactions.some((i: any) => i.severity === 'contraindicated') && cx.highestSeverity === 'contraindicated', 'nitrate + PDE5 inhibitor is flagged contraindicated');
+
+  // order-insensitivity: the same pair flags regardless of listing order
+  const ab = checkDrugSafety([{ display: 'Warfarin 5 MG' }, { display: 'Ibuprofen 400 MG' }]);
+  const ba = checkDrugSafety([{ display: 'Ibuprofen 400 MG' }, { display: 'Warfarin 5 MG' }]);
+  ok(ab.interactions.length === 1 && ba.interactions.length === 1, 'interaction matching is order-insensitive (and not double-counted)');
+
+  // duplicate therapy by CLASS (two ACE inhibitors), and allergy CROSS-reactivity (penicillin→amoxicillin)
+  ok(checkDrugSafety([{ display: 'Lisinopril 10 MG' }, { display: 'Enalapril 5 MG' }]).duplicates.some((d: any) => d.class === 'ACE inhibitor'), 'two drugs of the same class flag as duplicate therapy');
+  const cross = checkDrugSafety([{ display: 'Amoxicillin 500 MG' }], ['penicillin']);
+  ok(cross.allergyConflicts.some((c: any) => /cross-reactivity/.test(c.via)), 'a documented penicillin allergy cross-flags amoxicillin (class cross-reactivity)');
+  ok(/non-diagnostic/i.test(cx.disclaimer) && /not a complete/i.test(cx.disclaimer), 'honest: framed as non-diagnostic + not a complete database');
+}
+
+console.log(`\n${fails === 0 ? '✓ ALL 20 GUARDRAIL INVARIANTS HOLD (…+ real drug-safety dataset)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);
