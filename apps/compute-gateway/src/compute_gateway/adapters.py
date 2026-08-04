@@ -424,10 +424,23 @@ async def _asx_prior_extraction_reference(entity: dict, field: str, period: str)
         return None
     try:
         con = sqlite3.connect(_sqlite_path(SQL_LOAD_DSN))
-        row = con.execute(f"SELECT value_abs, value FROM {table} WHERE entity=? AND period=? AND field=?",
-                          (ent_id, period, field)).fetchone()
+        try:
+            row = con.execute(f"SELECT value_abs, value FROM {table} WHERE entity=? AND period=? AND field=?",
+                              (ent_id, period, field)).fetchone()
+        except sqlite3.OperationalError as e:
+            # A sink written before `value_abs` existed (schema drift, not absent data) raises
+            # exactly this — "no such column: value_abs". Falling into the broad except below
+            # would swallow it identically to "row not found", so a real reference value already
+            # sitting in a pre-migration sink silently vanished: reconcile just reported the fact
+            # as unreconciled with no error anywhere (#961). Fall back to the pre-migration
+            # column instead, so the value the sink actually has still reaches the comparison.
+            if "no such column" in str(e):
+                row = con.execute(f"SELECT value FROM {table} WHERE entity=? AND period=? AND field=?",
+                                  (ent_id, period, field)).fetchone()
+            else:
+                raise
         con.close()
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 — table/db genuinely unavailable: nothing to reconcile against
         return None
     if row is None:
         return None
