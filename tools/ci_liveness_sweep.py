@@ -50,7 +50,16 @@ from datetime import datetime, timedelta, timezone
 
 DEFAULT_WINDOW_DAYS = 14
 
-OK, STALE, SILENT, DEAD, UNUSED = "OK", "STALE", "SILENT", "DEAD", "UNUSED"
+OK, STALE, SILENT, DEAD, UNUSED, ON_CHANGE = ("OK", "STALE", "SILENT", "DEAD", "UNUSED",
+                                              "ON_CHANGE_ONLY")
+# ON_CHANGE_ONLY is deliberately NOT an alarm either, and it is a real finding all the same.
+# A path-filtered workflow fires only when ITS OWN files change, so a long gap means its subject
+# was quiet — not that it is broken. Calling that STALE is a false positive, and false positives
+# are how a checker gets muted. But it is worth SAYING, because such a control never re-validates:
+# if the environment drifts underneath it — a dependency, a runtime version, a schema it consumes —
+# nothing re-runs it, and it will keep reporting the last answer it gave. A security control that
+# only validates on change should carry a `schedule:` so it re-validates on time as well.
+#
 # UNUSED is deliberately NOT an alarm. A dispatch-only workflow nobody has invoked is not broken,
 # and a checker that cries wolf gets muted — which makes it exactly the dead control it was built
 # to find. Precision here is what keeps the signal worth reading.
@@ -87,6 +96,18 @@ AUTO_TRIGGERS = ("push", "pull_request", "schedule", "release", "pull_request_ta
                  "merge_group", "workflow_call")
 
 
+def trigger_shape(repo: str, path: str) -> tuple[bool, bool]:
+    """(path_filtered, scheduled) read from the workflow's own trigger block."""
+    try:
+        content = _gh(["api", f"repos/{repo}/contents/{path}", "--jq", ".content"])
+        import base64
+        text = base64.b64decode(content).decode("utf-8", "replace")
+    except Exception:
+        return False, False
+    head = text.split("jobs:", 1)[0]
+    return ("paths:" in head or "paths-ignore:" in head), ("schedule:" in head)
+
+
 def is_dispatch_only(repo: str, path: str) -> bool:
     """True when a workflow's only triggers are manual. Such a workflow not having run is a fact
     about usage, not about health — and calling it DEAD would train people to ignore this tool."""
@@ -118,7 +139,8 @@ def last_run(repo: str, workflow_id: int) -> dict | None:
 
 
 def classify(success_at: str | None, latest: dict | None, *, window_days: int,
-             now: datetime | None = None, dispatch_only: bool = False) -> tuple[str, str]:
+             now: datetime | None = None, dispatch_only: bool = False,
+             path_filtered: bool = False, scheduled: bool = False) -> tuple[str, str]:
     """Return (verdict, why). The polarity is deliberate: we require green RECENTLY.
 
     `dispatch_only` marks a workflow whose only trigger is `workflow_dispatch` (or
@@ -145,6 +167,12 @@ def classify(success_at: str | None, latest: dict | None, *, window_days: int,
     if dispatch_only:
         return UNUSED, (f"manual-dispatch workflow, last invoked {(now - succeeded).days}d ago — "
                         "idle by design, not stale")
+    if path_filtered and not scheduled:
+        return ON_CHANGE, (
+            f"path-filtered and unscheduled; last green {(now - succeeded).days}d ago and every run "
+            "has passed — its subject was quiet, so this is NOT broken. But it only validates on "
+            "change and never re-validates: add a `schedule:` so environment drift cannot pass "
+            "unnoticed underneath it")
 
     age = (now - succeeded).days
     if latest is not None:
@@ -176,8 +204,14 @@ def sweep(repos: list[str], *, window_days: int = DEFAULT_WINDOW_DAYS,
             # only pay for the file read when the answer could change the verdict
             dispatch_only = (is_dispatch_only(repo, wf["path"])
                              if (success_at is None or latest is None) and wf.get("path") else False)
+            # only read the trigger block when it could change the verdict (i.e. we are about to
+            # call something stale)
+            path_filtered = scheduled = False
+            if success_at and wf.get("path") and not dispatch_only:
+                path_filtered, scheduled = trigger_shape(repo, wf["path"])
             verdict, why = classify(success_at, latest, window_days=window_days, now=now,
-                                    dispatch_only=dispatch_only)
+                                    dispatch_only=dispatch_only, path_filtered=path_filtered,
+                                    scheduled=scheduled)
             results.append({"repo": repo, "workflow": wf["name"], "path": wf.get("path"),
                             "verdict": verdict, "why": why})
     return results

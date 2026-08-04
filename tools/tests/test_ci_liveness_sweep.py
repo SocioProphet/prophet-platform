@@ -119,3 +119,39 @@ def test_no_runs_is_never_reported_as_in_progress():
     v, why = classify(None, None, window_days=14, now=NOW, dispatch_only=False)
     assert v == DEAD and "never executed" in why
     assert "in progress" not in why
+
+
+# --- path-filtered controls: quiet is not broken, but it is worth saying --------------------
+
+def test_a_path_filtered_workflow_that_always_passed_is_not_stale():
+    """BearBrowser's Browser Runtime Boundary: every run succeeded, and it had not fired in 67 days
+    because nobody touched its paths. Calling that STALE is a false positive, and false positives
+    are how a checker gets muted."""
+    from tools.ci_liveness_sweep import ON_CHANGE
+    v, why = classify(iso(67), run("success", 67), window_days=14, now=NOW, path_filtered=True)
+    assert v == ON_CHANGE
+    assert "NOT broken" in why
+
+
+def test_but_it_still_names_the_real_gap():
+    """It never re-validates: environment drift passes unnoticed underneath it."""
+    from tools.ci_liveness_sweep import ON_CHANGE
+    _, why = classify(iso(67), run("success", 67), window_days=14, now=NOW, path_filtered=True)
+    assert "never re-validates" in why and "schedule:" in why
+
+
+def test_a_scheduled_path_filtered_workflow_IS_stale_when_silent():
+    """If it has a `schedule:` it should be firing regardless of file changes — so silence is real."""
+    v, _ = classify(iso(67), run("success", 67), window_days=14, now=NOW,
+                    path_filtered=True, scheduled=True)
+    assert v == STALE
+
+
+def test_ON_CHANGE_ONLY_does_not_alarm():
+    from tools.ci_liveness_sweep import ALARM_VERDICTS, ON_CHANGE
+    assert ON_CHANGE not in ALARM_VERDICTS
+
+
+def test_an_unfiltered_workflow_silent_for_months_is_still_stale():
+    v, _ = classify(iso(67), run("success", 67), window_days=14, now=NOW, path_filtered=False)
+    assert v == STALE

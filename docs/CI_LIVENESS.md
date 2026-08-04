@@ -34,6 +34,7 @@ is not good news.**
 | `SILENT` | running but *not succeeding* inside the window — **the goose-notes signature** | **yes** |
 | `DEAD` | never completed successfully, ever | **yes** |
 | `UNUSED` | manual-dispatch workflow never invoked — idle by design | no |
+| `ON_CHANGE_ONLY` | path-filtered, unscheduled, every run passed — its subject was quiet | no |
 
 `SILENT` is the one that was invisible. Runs *exist*, so the pipeline looks alive; none of them win.
 A checker that only asked *"did it run?"* would have said yes every day for five weeks.
@@ -42,6 +43,22 @@ A checker that only asked *"did it run?"* would have said yes every day for five
 as DEAD; they had simply never been invoked. **A checker that cries wolf gets muted, and a muted
 control is exactly the dead control this was built to find** — so precision here is load-bearing,
 not politeness.
+
+## Path-filtered controls — quiet is not broken, and it is still worth saying
+
+A workflow gated on `paths:` fires only when **its own files change**. A long gap means its subject
+was quiet, not that it is broken — so calling it `STALE` is a **false positive**, and false
+positives are how a checker gets muted.
+
+But there is a real finding underneath, and `ON_CHANGE_ONLY` exists to say it:
+
+> **A path-filtered control validates on change and never re-validates.** If the environment drifts
+> underneath it — a dependency, a runtime version, a schema it consumes — nothing re-runs it, and it
+> will keep standing behind the last answer it gave.
+
+For a *security* control that matters. `Browser Runtime Boundary` and `Policy Engine Validation`
+are both path-filtered and unscheduled: healthy, every run green, and unable to notice the world
+changing around them. **Adding a `schedule:` makes them re-validate on time as well as on change.**
 
 ## Dead or dormant — the distinction the verdicts exist for
 
