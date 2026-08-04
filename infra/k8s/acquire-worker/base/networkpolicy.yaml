@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: acquire-worker-baseline
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: acquire-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: socioprophet
+      ports:
+        - protocol: TCP
+          port: 8790
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Downstreams: prophet-mesh ingest (8780) + SynapseIQ reasoning enricher (8803).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: socioprophet
+      ports:
+        - protocol: TCP
+          port: 8780
+        - protocol: TCP
+          port: 8803

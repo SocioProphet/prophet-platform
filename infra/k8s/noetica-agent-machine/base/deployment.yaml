@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noetica-agent-machine
+  labels:
+    app: noetica-agent-machine
+    bundle: governance.agent-machine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: noetica-agent-machine
+  template:
+    metadata:
+      labels:
+        app: noetica-agent-machine
+        bundle: governance.agent-machine
+    spec:
+      containers:
+        - name: noetica-agent-machine
+          # Built by Noetica CI from ~/dev/Noetica/agent-machine/Dockerfile. This image must be
+          # published by Noetica CI BEFORE this pod runs — the tag is referenced, not built here.
+          image: ghcr.io/socioprophet/noetica-agent-machine:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # server.ts reads NOETICA_AM_PORT (default 8080), NOT PORT.
+            - name: NOETICA_AM_PORT
+              value: "8080"
+            # server.ts defaults NOETICA_BIND_HOST to 127.0.0.1; in-cluster the kubelet probe and the
+            # Service reach a DIFFERENT container, so the deploy MUST bind 0.0.0.0 (server.ts:18934 comment).
+            - name: NOETICA_BIND_HOST
+              value: "0.0.0.0"
+            - name: NODE_ENV
+              value: "production"
+            # /api/acquire dispatches governed acquisition to BUILD 1 (acquire-worker).
+            - name: ACQUIRE_WORKER_URL
+              value: "http://acquire-worker.socioprophet.svc.cluster.local:8790"
+          # server.ts exposes NO /healthz. GET /api/security/state (server.ts:5700) returns 200
+          # unconditionally, with no auth and no boot dependency — the stable liveness/readiness signal.
+          readinessProbe:
+            httpGet:
+              path: /api/security/state
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/security/state
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

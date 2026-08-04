@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acquire-worker
+  labels:
+    app: acquire-worker
+    bundle: acquisition.worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: acquire-worker
+  template:
+    metadata:
+      labels:
+        app: acquire-worker
+        bundle: acquisition.worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: acquire-worker
+          image: ghcr.io/socioprophet/acquire-worker:latest
+          ports:
+            - name: http
+              containerPort: 8790
+          env:
+            - name: PORT
+              value: "8790"
+            # Evidence sink — POSTs governed acquisition evidence to prophet-mesh's ingest.
+            - name: ACQUIRE_SINK
+              value: "http://prophet-mesh.socioprophet.svc.cluster.local:8780/v1/acquire/ingest"
+            # Enricher — the worker enriches acquired items via the SynapseIQ reasoning API.
+            - name: SYNAPSEIQ_URL
+              value: "http://synapseiq-reasoning-api.socioprophet.svc.cluster.local:8803"
+            - name: NODE_ENV
+              value: "production"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8790
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8790
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        # readOnlyRootFilesystem: the only writable path is this emptyDir for scratch/tmp.
+        - name: tmp
+          emptyDir: {}
