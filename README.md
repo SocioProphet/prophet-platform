@@ -10,6 +10,126 @@ It is intentionally a **thin platform monorepo**:
 - `tools/` contains validation and smoke-test helpers (`standards.lock.yaml` gates platform drift checks)
 - `libs/` contains small shared runtime bindings that adapt pinned upstream standards into platform code
 
+---
+
+## Legend
+
+*The world needed a floor before anything could be built on it.*
+
+### Turtle Island — Sky Woman, Muskrat, and the Great Turtle
+
+In the beginning there is only sky and water.  There is no land.
+
+**Sky Woman** falls from the Sky World above — cast out, or choosing to fall,
+depending on the telling.  She plummets toward the water.  The animals of the
+water world look up and see her coming.  They do not flee.  They convene.  The
+**Geese** break her fall, carrying her on their wings so she does not strike the
+water dead.  But she still needs ground.
+
+The creatures of the deep discuss what she will need: earth.  One by one they
+dive, seeking mud from the bottom of the water.  The Otter tries and fails.  The
+Beaver tries and fails.  Great and capable animals turn back, unable to reach
+the bottom.
+
+Then the **Muskrat** — small, often overlooked — volunteers.  It dives past
+where the others turned back.  It keeps going.  In some tellings it returns dead,
+its lungs spent, but its paw still clenched around a handful of mud.  The mud
+exists.  The sacrifice made ground possible.
+
+That mud is placed on the back of the **Great Turtle**, who volunteered to be
+the carrier.  Sky Woman breathes on it, walks in a circle, tends it with care.
+The earth grows.  It grows until it becomes a continent — **Turtle Island** —
+the land that rests on the back of a great Turtle who never stopped carrying it.
+
+This story is told among the **Lenape** (leh-NAH-pay) — the Delaware people —
+and among the **Haudenosaunee Confederacy** and other nations across what is
+now called North America.  *Lenape* means **"real people"** or **"original
+people"**: not first in a sequence, but people who are genuinely, fully
+themselves.  People of the ground.
+
+> *We tell this legend with respect, not with claim.  The Lenape Nation,
+> the Lenape Nation of Pennsylvania, and the Haudenosaunee Confederacy are
+> the living holders of this tradition.  We draw only from what they have
+> chosen to share publicly.  We do not represent ceremony, inner teaching,
+> or knowledge not offered for general understanding.  Go to the source:
+> delawarenation-nsn.gov; lenape-nation-pa.org; haudenosauneeconfederacy.ca.*
+
+---
+
+### Sophia — Wisdom That Descends and Becomes Ground
+
+In the **Gnostic tradition** — texts preserved in the **Nag Hammadi library**,
+discovered in Egypt in 1945 and publicly available — **Sophia** (Greek:
+Σοφία, "Wisdom") is the last and youngest emanation of the divine **pleroma**:
+the fullness of light from which all creation comes.
+
+She acts without her consort.  She **falls**.
+
+Her descent is not simply error.  It is the act that makes a grounded world
+possible.  In falling she becomes the matter from which the world is shaped.
+She is wisdom consenting to become foundation — the knowing that agrees to be
+the floor on which all things stand.  She waits for the work of restoration
+while being, in the meantime, the ground itself.
+
+The parallel to Sky Woman is not accidental:
+- Both fall from a high realm to a lower one.
+- Both become, in their falling, the precondition for the earth.
+- What descends does not die.  It becomes the carrier of everything built above.
+
+---
+
+### Anu — The Sky from Which Things Fall
+
+In the **Sumerian and Akkadian traditions** — cuneiform texts among the oldest
+written records of human thought, including the **Enuma Elish** (the Babylonian
+creation epic) and the **Atrahasis** — **Anu** (An in Sumerian) is the
+**sky god**: the highest heaven, the unmoved vault above, the origin of divine
+authority, the source from which everything descends.
+
+Sky Woman comes from a world above the water.  Sophia emanates from the pleroma.
+Both descend from something that is, in its function, Anu-like: the **original,
+uncreated height** from which everything that becomes ground must first fall.
+
+Anu does not fall.  He **is what is fallen from**.  He is the condition of
+distance that makes descent possible — and therefore the condition that makes
+ground possible.
+
+---
+
+### The Pattern
+
+> **Sky (Anu) → Fall (Sky Woman / Sophia) → Patient Carrier (Turtle) → Growing Earth (Turtle Island / the world)**
+
+The sky is the source: complete, beyond reach on its own terms.
+
+The fall is not catastrophe.  It is how the sky enters the world — transformed
+by the willingness to descend, to be carried, to become ground.
+
+The patient carrier — Turtle, matter, the earth itself — holds what arrives.
+It does not need to understand.  It holds.
+
+And the world grows from the mud held in the paw of the one willing to dive
+deepest.
+
+---
+
+### The Control Plane as Turtle's Back
+
+This repository is a governance layer — the floor on which agentic work stands.
+The metaphor is not decorative.
+
+| Layer | Legendary parallel |
+|---|---|
+| **Evidence** (claim extraction, memory store) | The ground itself — Turtle's back; what Muskrat brought up from the deep |
+| **Policy gate** | The sky — sets conditions; judges what evidence is sufficient |
+| **Claims** | The world growing on the ground — accumulating, contradicting, confirming |
+| **Consensus Arbitrator** | The question: *Is this earth?  Can we stand here?* |
+| **Temporal Outbox** | The Turtle's consent — stable, load-bearing, carrying without needing to understand |
+
+See also: [`LEGEND.md`](./LEGEND.md) — the full legend in extended form.
+
+---
+
 ## Why this repo exists
 
 Standards and governance stay in dedicated upstream repositories. `prophet-platform` is where those standards become running services, concrete deployment topologies, and platform contracts.
