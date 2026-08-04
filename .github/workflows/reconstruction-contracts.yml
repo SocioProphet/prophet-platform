@@ -1,0 +1,25 @@
+name: reconstruction-contracts
+
+on:
+  pull_request:
+    paths:
+      - 'tools/validate_reconstruction_contracts.py'
+      - 'contracts/crystal-atlas/schemas/reconstruction-manifest.v0.schema.json'
+      - 'contracts/crystal-atlas/schemas/topic-record.v0.schema.json'
+      - 'contracts/crystal-atlas/examples/reconstruction-manifest.v0.json'
+      - 'contracts/crystal-atlas/examples/topic-record.v0.json'
+      - '.github/workflows/reconstruction-contracts.yml'
+  push:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install jsonschema
+      - run: python3 tools/validate_reconstruction_contracts.py
+      - run: python3 tools/validate_reconstruction_contracts.py --selftest

@@ -1,0 +1,29 @@
+{
+  "corpus_id": "android-forensics-2026-06-30",
+  "corpus_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "document_policy": {
+    "include": ["text", "thinking", "tool_use.description"],
+    "exclude": ["tool_result", "tool_input.*"],
+    "min_chars": 40
+  },
+  "vectorizer": {
+    "max_df": 0.6,
+    "min_df": 2,
+    "token_pattern": "[a-z]{3,}",
+    "stopwords_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "spaces": {
+    "lda": { "k": 22, "seed": 42, "topics_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222" }
+  },
+  "coverage": {
+    "ts_min": "2026-06-30T02:00:00Z",
+    "ts_max": "2026-06-30T19:36:00Z",
+    "document_count": 256,
+    "declared_gaps": ["03:16→13:00 (10-hour overnight gap)", "post-19:36 second-half work not represented"]
+  },
+  "attestation": {
+    "investigator": "Michael Heller / SocioProphet Inc.",
+    "attested": true,
+    "signed": "cosign:placeholder"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "topic_id": "T06",
+  "top_terms": ["know", "think", "point", "different", "security", "maybe", "access", "ibm", "did", "things", "partnership", "way"],
+  "mass": 0.0977,
+  "label": "Open-ended methodology reasoning",
+  "reasoning": "Terms are almost entirely hedge/discourse words (know, think, maybe, point, different, way) rather than subject-matter nouns — the signature of meta-conversation about how to weigh the evidence, not any single forensic subject. Its outsized mass (nearly double the next-largest topic) is itself a finding.",
+  "concentration": { "hour": "14:00", "doc_ids": ["doc-14-58", "doc-14-61"] },
+  "representative_evidence": [
+    {
+      "doc_id": "doc-14-58",
+      "snippet": "we can't yet derive the signal from the evidence we have with respect to takeout action or results. we have a less than thirty experiments on one user across two accounts",
+      "score": 0.83
+    },
+    {
+      "doc_id": "doc-14-61",
+      "snippet": "those ones are good because that connects Google and CrowdStrike and Palo Alto need to be there because they're both IBM partners. And so is Cisco",
+      "score": 0.71
+    }
+  ],
+  "grounded": true
+}

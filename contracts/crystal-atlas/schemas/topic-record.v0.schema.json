@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.ai/crystal-atlas/topic-record.v0.schema.json",
+  "title": "topic-record.v0",
+  "description": "One topic from a three-space reconstruction, carried as a GROUNDED record rather than a bare term-list. The distinction is the whole point: the compressed ('seven-word') form of a topic is just its top terms; the faithful form keeps the label, the reasoning connecting the statistical signature to what was actually happening, and the REPRESENTATIVE EVIDENCE (real snippets, not the label). A topic-record maps 1:1 onto the graph brain: label+reasoning+mass IS a claim.v0, and each representative_evidence item IS an evidence.v0 — so a reconstruction is a first-class producer into Crystal Atlas. A record is 'grounded' ONLY when it carries both reasoning and non-empty evidence; a label alone is never trusted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["topic_id", "top_terms", "mass", "label", "grounded"],
+  "properties": {
+    "topic_id": { "type": "string", "minLength": 1 },
+    "top_terms": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "mass": { "type": "number", "minimum": 0, "maximum": 1 },
+    "label": { "type": "string", "minLength": 1 },
+    "reasoning": {
+      "type": "string",
+      "description": "Why these terms mean this label — the analytical trail that compaction normally drops. Required for grounded=true."
+    },
+    "concentration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hour": { "type": "string" },
+        "doc_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "representative_evidence": {
+      "type": "array",
+      "description": "The actual snippets the corpus surfaced as most characteristic. Each item is an evidence.v0 (doc_id=source_ref, snippet=the witness bytes, score). A doc_id without a snippet is a pointer with no witness — rejected by the validator.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["doc_id", "snippet"],
+        "properties": {
+          "doc_id": { "type": "string", "minLength": 1 },
+          "snippet": { "type": "string", "minLength": 1 },
+          "score": { "type": "number" }
+        }
+      }
+    },
+    "grounded": {
+      "type": "boolean",
+      "description": "TRUE only when reasoning is present AND representative_evidence is non-empty. Enforced by the validator — this is the term-list-vs-faithful distinction made into teeth."
+    }
+  }
+}
