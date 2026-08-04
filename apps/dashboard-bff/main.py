@@ -406,3 +406,54 @@ def competitive_boards() -> object:
         categories=categories,
         disclaimer=board.get('notes', ''),
     )
+
+
+import json as _json
+
+
+def _load_round_fixtures() -> list[dict]:
+    examples = ROOT / 'schemas' / 'eval' / 'examples'
+    rounds = []
+    for p in sorted(examples.glob('leaderboard-round.*.example.json')):
+        try:
+            rounds.append(_json.loads(p.read_text(encoding='utf-8')))
+        except Exception:  # skip malformed fixture files — CI will surface them via the validate workflow
+            pass
+    return rounds
+
+
+@app.get('/v1/rounds')
+def leaderboard_rounds(division: str | None = None) -> dict:
+    """Serve published leaderboard rounds (schemas/eval/leaderboard-round.schema.json, #1304).
+
+    Returns all published rounds split by division: CLOSED (strict ranked, comparable)
+    and OPEN (tiered, NOT comparable to CLOSED — different methods). Only rounds whose
+    fixture data is well-formed are served.
+
+    Query ?division=CLOSED or ?division=OPEN to filter. Omit for all rounds.
+
+    Non-claim: serves static fixtures from schemas/eval/examples/. Does not execute
+    evaluations, modify scoring, or assert production readiness of any entry.
+    """
+    all_rounds = _load_round_fixtures()
+    if division:
+        all_rounds = [r for r in all_rounds if r.get('division') == division.upper()]
+
+    closed = [r for r in all_rounds if r.get('division') == 'CLOSED']
+    open_ = [r for r in all_rounds if r.get('division') == 'OPEN']
+
+    return {
+        'rounds': all_rounds,
+        'closed_count': len(closed),
+        'open_count': len(open_),
+        'non_comparable_warning': (
+            'OPEN rounds use novel methods and are NOT directly comparable to CLOSED rounds. '
+            'Do not render a head-to-head bar between OPEN and CLOSED divisions.'
+        ),
+        'source': 'fixture',
+        'non_claims': [
+            'Fixture-only. Does not reflect a live scoring database.',
+            'Does not execute new evaluations or modify scores.',
+            'OPEN rounds are not certified for production use.',
+        ],
+    }

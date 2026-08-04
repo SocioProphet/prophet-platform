@@ -71,6 +71,7 @@ import Marketplace from './pages/Marketplace.vue';
 import LaborMarket from './pages/LaborMarket.vue';
 import WorkbenchPage from './pages/WorkbenchPage.vue';
 import ScopeDFabric from './pages/workbench/ScopeDFabric.vue';
+import LeaderboardRoundsPage from './pages/LeaderboardRoundsPage.vue';
 import './styles.css';
 import './components/workbench/primitives.css';
 
@@ -128,6 +129,7 @@ const explicitRoutes = [
   { path: '/feed', component: FeedPage },
   { path: '/workbench', component: WorkbenchPage },
   { path: '/workbench/scope-d', component: ScopeDFabric },
+  { path: '/eval/leaderboard-rounds', component: LeaderboardRoundsPage },
   { path: '/workstation/pipelines', component: WorkstationPipelines },
   { path: '/workstation/deploy', component: WorkstationDeploy },
   { path: '/workstation/services', component: WorkstationServices },
