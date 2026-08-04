@@ -39,7 +39,11 @@ import { monitorTwin } from './monitor.js';
 import { interpretReport } from './imaging.js';
 import { toFhirBundle, fromFhirBundle } from './fhir.js';
 import { proveFhirWriteBack } from './fhir-live.js';
+import { assessImage } from './vision.js';
+import { enrollPatient, authenticatePatient, patientProfile, revokePatient } from './identity.js';
 import { conditionList, conditionCard, checkMeds, guidelineDeltas, type Audience } from './reference.js';
+import { fdaLabel } from './drugsafety-live.js';
+import { audit, auditQuery } from './audit.js';
 import { findSlots, book } from './booking.js';
 import { programs as contributionPrograms, contribute, revokeContribution, ledger as contributionLedger } from './contribution.js';
 import { populationRisk } from './population.js';
@@ -615,6 +619,15 @@ const server = http.createServer(async (req, res) => {
     return res.end(valueSetTtl());
   }
 
+  // Audit trail (HIPAA §164.312(b)) — the append-only access log for compliance review. Exposure-gated
+  // (this is the record-access history); filterable by actor/action/outcome. Read-only; append-only.
+  if (req.method === 'GET' && url.pathname === '/api/health/audit') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    const p = url.searchParams;
+    return send(res, 200, auditQuery({ actor: p.get('actor') ?? undefined, action: p.get('action') ?? undefined, outcome: (p.get('outcome') as any) ?? undefined, limit: p.get('limit') ? Number(p.get('limit')) : undefined }));
+  }
+
   // Population & operations layer (surface 5) — cohort risk + care gaps + early warnings over
   // DE-IDENTIFIED aggregates, with a k-anonymity floor. Aggregates only; non-diagnostic; not surveillance.
   if (req.method === 'GET' && url.pathname === '/api/health/population') {
@@ -666,6 +679,10 @@ const server = http.createServer(async (req, res) => {
     try { const b = await readJson(req); return send(res, 200, checkMeds(b?.medications, b?.allergies)); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'med-check failed' }); }
   }
+  // Live FDA drug label (openFDA + RxNorm) — real boxed warnings, contraindications, interactions.
+  if (req.method === 'GET' && url.pathname === '/api/health/reference/drug-label') {
+    return send(res, 200, await fdaLabel(url.searchParams.get('name') ?? ''));
+  }
   if (req.method === 'GET' && url.pathname === '/api/health/reference/guideline-deltas') {
     return send(res, 200, guidelineDeltas(url.searchParams.get('area') ?? undefined));
   }
@@ -685,6 +702,32 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/health/fhir/push') {
     try { const b = await readJson(req).catch(() => ({})); return send(res, 200, await proveFhirWriteBack(b?.target)); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'fhir push failed' }); }
+  }
+
+  // Patient identity plane — a real person enrolls + owns their twin (the third actor, distinct from
+  // the operator and clinician grant-holders). Enroll mints a one-time credential; auth fails closed.
+  if (req.method === 'POST' && url.pathname === '/api/health/patient/enroll') {
+    try { const b = await readJson(req).catch(() => ({})); return send(res, 200, enrollPatient(String(b?.displayName ?? 'Patient'), b?.twinSubject ?? null)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'enroll failed' }); }
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/patient/me') {
+    const a = authenticatePatient(req.headers as any);
+    if (!a.ok) return send(res, 401, { authenticated: false, reason: a.reason });
+    return send(res, 200, { authenticated: true, profile: patientProfile(a.patientId) });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/patient/revoke') {
+    const a = authenticatePatient(req.headers as any); // only the patient may revoke their own credential
+    if (!a.ok) return send(res, 401, { authenticated: false, reason: a.reason });
+    return send(res, 200, revokePatient(a.patientId));
+  }
+
+  // Multimodal image intake — routes an image to a vision model (LLaVA) for a NON-DIAGNOSTIC visual
+  // observation + danger-sign detection. Graceful: no model → degraded, fabricates nothing.
+  if (req.method === 'POST' && url.pathname === '/api/health/vision') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    try { const b = await readJson(req); return send(res, 200, await assessImage(String(b.image ?? b.imageBase64 ?? ''))); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'vision failed' }); }
   }
 
   // Imaging & document agent — plain-language explanation of a radiology/pathology/discharge report
@@ -1133,16 +1176,18 @@ const server = http.createServer(async (req, res) => {
     const denied = denyExposure(req);
     if (denied) return send(res, denied.code, denied.body);
     const a = authorizeGrant(req, url, 'doctor-read', true)!;
-    if (!a.ok) return send(res, a.code, a.body, a.headers);
+    if (!a.ok) { audit({ actor: 'clinician', action: 'doctor-view', resource: 'twin', outcome: 'blocked', reason: (a.body as any)?.reason ?? 'unauthorized' }); return send(res, a.code, a.body, a.headers); }
     const g = a.grant;
     g.reads += 1;
     const scope = g.scopeSpec ?? resolveScope(g.scope);
     const { view, withheld } = applyScope(bundle(), scope);
+    const readReceipt = grantUseReceipt('doctor-read', [g.id, a.holder, String(g.reads)], { grant: g.id, presentedBy: a.holder });
+    audit({ actor: a.holder, action: 'doctor-view', resource: g.id, outcome: 'ok', receipt: (readReceipt as any).id });
     return send(res, 200, {
       grant: { id: g.id, agent: g.agent, scope: g.scope, scopeSummary: scopeSummary(scope), expires_at: g.expires_at, reads: g.reads },
       view, withheld,
       authentication: authenticatedAs(a),
-      receipt: grantUseReceipt('doctor-read', [g.id, a.holder, String(g.reads)], { grant: g.id, presentedBy: a.holder }),
+      receipt: readReceipt,
     }, a.legacy ? { warning: LEGACY_QUERY_WARNING } : {});
   }
 
