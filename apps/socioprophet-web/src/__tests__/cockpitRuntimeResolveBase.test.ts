@@ -1,0 +1,48 @@
+// resolveBase — sovereign-mode egress-leak guard.
+//
+// A host in sovereign mode can inject `bases[key] = ''` to explicitly disable
+// a service (nothing egresses off-device). The pre-fix `if (host)` truthiness
+// check treated '' as absent, then fell through to VITE_* and the hosted
+// default — exactly the egress the host was trying to prevent. The fix uses
+// hasOwnProperty so PRESENCE wins over truthiness.
+import { afterEach, describe, expect, it } from 'vitest';
+import { resolveBase } from '../config/cockpitRuntime';
+
+type Injected = { mode?: 'sovereign' | 'connected'; bases?: Record<string, string> };
+function setInjected(cfg: Injected | undefined) {
+  (window as unknown as { __COCKPIT_CONFIG__?: Injected }).__COCKPIT_CONFIG__ = cfg;
+}
+
+describe('resolveBase — presence beats truthiness for injected bases', () => {
+  afterEach(() => { setInjected(undefined); });
+
+  it('empty-string injected base is HONOURED, not treated as absent', () => {
+    setInjected({ mode: 'sovereign', bases: { algo: '' } });
+    // The build-time VITE_ALGO_BASE / code fallback must NOT be consulted —
+    // the host declared: this service is off. Empty string is the answer.
+    expect(resolveBase('algo', 'VITE_ALGO_BASE', '/svc/algo')).toBe('');
+  });
+
+  it('non-empty injected base wins as before', () => {
+    setInjected({ mode: 'sovereign', bases: { algo: 'http://127.0.0.1:9090' } });
+    expect(resolveBase('algo', 'VITE_ALGO_BASE', '/svc/algo')).toBe('http://127.0.0.1:9090');
+  });
+
+  // Copilot round-3: the fallthrough tests must NOT reference a real
+  // `VITE_*` name that might be set in some test environments — if it is,
+  // `resolveBase` reads it via `import.meta.env` and the assertion flips
+  // from `/svc/algo` to whatever the env carries. Use a sentinel env-var
+  // name that is guaranteed to be undefined so the fallthrough behaviour
+  // is what we're actually testing.
+  const SENTINEL_ENV = 'VITE_RESOLVEBASE_TEST_SENTINEL_UNSET' as const;
+
+  it('key not injected falls through to the code fallback', () => {
+    setInjected({ mode: 'connected', bases: {} });
+    expect(resolveBase('algo', SENTINEL_ENV, '/svc/algo')).toBe('/svc/algo');
+  });
+
+  it('no config at all falls through to the code fallback', () => {
+    setInjected(undefined);
+    expect(resolveBase('algo', SENTINEL_ENV, '/svc/algo')).toBe('/svc/algo');
+  });
+});

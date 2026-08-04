@@ -19,10 +19,13 @@ import ModelLabs from './pages/ModelLabs.vue';
 import Studio from './pages/Studio.vue';
 import Discovery from './pages/Discovery.vue';
 import DataSearch from './pages/DataSearch.vue';
-import AgoraSurface from './pages/AgoraSurface.vue';
-import HealthTwin from './pages/HealthTwin.vue';
 import KnowledgeGraph from './pages/KnowledgeGraph.vue';
 import ForgeImport from './pages/ForgeImport.vue';
+import ImageBuilder from './pages/ImageBuilder.vue';
+import BuildsList from './pages/BuildsList.vue';
+import CloudBroker from './pages/CloudBroker.vue';
+import FleetManager from './pages/FleetManager.vue';
+import MailInbox from './pages/MailInbox.vue';
 import NewsFeed from './pages/NewsFeed.vue';
 import MarketMonitor from './pages/MarketMonitor.vue';
 import EconomySectorBoard from './pages/EconomySectorBoard.vue';
@@ -34,41 +37,59 @@ import PeopleDirectory from './pages/PeopleDirectory.vue';
 import SocialSignals from './pages/SocialSignals.vue';
 import LawDocket from './pages/LawDocket.vue';
 import NoeticaChat from './pages/NoeticaChat.vue';
+import ReasoningChainInspector from './pages/ReasoningChainInspector.vue';
 import WeatherMonitor from './pages/WeatherMonitor.vue';
 import ControlPlaneLifecycle from './pages/ControlPlaneLifecycle.vue';
 import NoeticaControlPlane from './pages/NoeticaControlPlane.vue';
+import ExecutionsLedger from './pages/ExecutionsLedger.vue';
+import ContainmentGraph from './pages/ContainmentGraph.vue';
 import DomainSurfacePage from './pages/DomainSurfacePage.vue';
-import AcademyOverview from './pages/AcademyOverview.vue';
-import DegreeExplorer from './pages/DegreeExplorer.vue';
-import CourseView from './pages/CourseView.vue';
-import HomeschoolPlanner from './pages/HomeschoolPlanner.vue';
 import FeedPage from './pages/FeedPage.vue';
 import Journal from './pages/Journal.vue';
 import MapPage from './pages/MapPage.vue';
 import NLBootEvidence from './pages/NLBootEvidence.vue';
 import PersonGraph from './pages/PersonGraph.vue';
 import ProfessionalIntelligence from './pages/ProfessionalIntelligence.vue';
+import CompetitiveIntelligence from './pages/CompetitiveIntelligence.vue';
+import CompetitiveIntelligenceApp from './pages/CompetitiveIntelligenceApp.vue';
+import CompetitiveIntelligenceFeatures from './pages/CompetitiveIntelligenceFeatures.vue';
+import CompetitiveIntelligenceMarkets from './pages/CompetitiveIntelligenceMarkets.vue';
+import CompetitiveIntelligenceEnterprise from './pages/CompetitiveIntelligenceEnterprise.vue';
+import CompetitiveIntelligenceBrowser from './pages/CompetitiveIntelligenceBrowser.vue';
+import CompetitiveIntelligenceBoards from './pages/CompetitiveIntelligenceBoards.vue';
 import Reader from './pages/Reader.vue';
 import OperatorDashboard from './pages/OperatorDashboard.vue';
+import AssayFleetDashboard from './pages/AssayFleetDashboard.vue';
 import AlgoTradingBoard from './pages/AlgoTradingBoard.vue';
 import PortfolioBoard from './pages/PortfolioBoard.vue';
 import OperatorSurface from './pages/OperatorSurface.vue';
 import OntologySurface from './pages/OntologySurface.vue';
 import UniverseViewer from './pages/UniverseViewer.vue';
+import SpaceTwin from './pages/SpaceTwin.vue';
 import SupplyChainOrchestrator from './pages/SupplyChainOrchestrator.vue';
 import HolographMe from './pages/HolographMe.vue';
 import SituationsSurface from './pages/SituationsSurface.vue';
 import NlpExtractionBench from './pages/NlpExtractionBench.vue';
+import KnowledgeStudio from './pages/KnowledgeStudio.vue';
+import DeliveryDashboard from './pages/DeliveryDashboard.vue';
+import EstateGraph from './pages/EstateGraph.vue';
 import ExperimentsBoard from './pages/ExperimentsBoard.vue';
 import BehavioralAnalytics from './pages/BehavioralAnalytics.vue';
 import AppBuildBoard from './pages/AppBuildBoard.vue';
 import AnalyticsStudio from './pages/AnalyticsStudio.vue';
 import SupplyChainMap from './pages/SupplyChainMap.vue';
 import DigitalTwin from './pages/DigitalTwin.vue';
+import TwinOperatingPicture from './pages/TwinOperatingPicture.vue';
+import ModelTournament from './pages/ModelTournament.vue';
+import ModelBoard from './pages/ModelBoard.vue';
+import ModelPlatformIntelligence from './pages/ModelPlatformIntelligence.vue';
+import TwinWorldModel from './pages/TwinWorldModel.vue';
 import LandResources from './pages/LandResources.vue';
 import AgenticOS from './pages/AgenticOS.vue';
 import Marketplace from './pages/Marketplace.vue';
 import LaborMarket from './pages/LaborMarket.vue';
+import DeliveryExcellence from './pages/DeliveryExcellence.vue';
+import Cowork from './pages/Cowork.vue';
 import WorkbenchPage from './pages/WorkbenchPage.vue';
 import ScopeDFabric from './pages/workbench/ScopeDFabric.vue';
 import LeaderboardRoundsPage from './pages/LeaderboardRoundsPage.vue';
@@ -79,14 +100,12 @@ const explicitRoutes = [
   { path: '/', redirect: '/capability/dashboard' },
   { path: '/login', component: Login, meta: { public: true } },
   { path: '/capability/dashboard', component: OperatorDashboard },
-  { path: '/academy', component: AcademyOverview },
-  { path: '/academy/homeschool', component: HomeschoolPlanner },
-  { path: '/academy/degrees', component: DegreeExplorer },
-  { path: '/academy/course/:id', component: CourseView },
-  { path: '/academy/tutor', component: CourseView },
+  { path: '/capability/assay-fleet', component: AssayFleetDashboard },
   { path: '/agentic-os', component: AgenticOS },
   { path: '/marketplace', component: Marketplace },
   { path: '/people/labor-market', component: LaborMarket },
+  { path: '/delivery/wbs', component: DeliveryExcellence },
+  { path: '/delivery/cowork', component: Cowork },
   // Capability-rail cells that are realized through an existing surface — the
   // capability keeps its own /capability/* URL + rail highlight, and the host
   // screen shows the capability as its header lens (via navScopeForPath).
@@ -95,10 +114,14 @@ const explicitRoutes = [
   { path: '/operator/:id', component: OperatorSurface },
   { path: '/ontology', component: OntologySurface },
   { path: '/universe', component: UniverseViewer },
+  { path: '/space', component: SpaceTwin },
   { path: '/situations', component: SituationsSurface },
   { path: '/marketplace/orchestrate', component: SupplyChainOrchestrator },
   { path: '/capability/algorithmic-trading', component: AlgoTradingBoard },
   { path: '/capability/nlp-information-extraction', component: NlpExtractionBench },
+  { path: '/knowledge/studio', component: KnowledgeStudio },
+  { path: '/delivery', component: DeliveryDashboard },
+  { path: '/delivery/estate', component: EstateGraph },
   { path: '/capability/experiments-simulations', component: ExperimentsBoard },
   { path: '/capability/behavioral-analytics', component: BehavioralAnalytics },
   { path: '/capability/mobile-app-development', component: AppBuildBoard },
@@ -106,6 +129,11 @@ const explicitRoutes = [
   // Analytics Studio that charts the platform's existing fixtures.
   { path: '/analytics/supply-chain', component: SupplyChainMap },
   { path: '/analytics/digital-twin', component: DigitalTwin },
+  { path: '/analytics/twin-workshop', component: TwinOperatingPicture },
+  { path: '/analytics/model-tournament', component: ModelTournament },
+  { path: '/analytics/model-board', component: ModelBoard },
+  { path: '/professional-intelligence/competitive/model-platforms', component: ModelPlatformIntelligence },
+  { path: '/analytics/twin-world-model', component: TwinWorldModel },
   // Layer 0 — Land & Natural Resources (the base of the economic model). Also
   // gives the Weather domain's "Natural Resources" sub-domain a real surface.
   { path: '/weather/natural-resources', component: LandResources },
@@ -117,9 +145,19 @@ const explicitRoutes = [
   { path: '/capability/ontology-epistemology', component: KnowledgeGraph },
   { path: '/capability/economic-prophet', component: CausalValuation },
   { path: '/research', component: ResearchList },
+  { path: '/professional-intelligence/competitive', component: CompetitiveIntelligence },
+  // static before the :id param so /features is not swallowed as a specimen slug
+  { path: '/professional-intelligence/competitive/features', component: CompetitiveIntelligenceFeatures },
+  { path: '/professional-intelligence/competitive/markets', component: CompetitiveIntelligenceMarkets },
+  { path: '/professional-intelligence/competitive/enterprise', component: CompetitiveIntelligenceEnterprise },
+  { path: '/professional-intelligence/competitive/browser', component: CompetitiveIntelligenceBrowser },
+  { path: '/professional-intelligence/competitive/boards', component: CompetitiveIntelligenceBoards },
+  { path: '/professional-intelligence/competitive/:id', component: CompetitiveIntelligenceApp },
   { path: '/professional-intelligence', component: ProfessionalIntelligence },
   { path: '/control-plane', component: ControlPlaneLifecycle },
   { path: '/control-plane/org', component: NoeticaControlPlane },
+  { path: '/control-plane/executions', component: ExecutionsLedger },
+  { path: '/control-plane/containment', component: ContainmentGraph },
   { path: '/nlboot', component: NLBootEvidence },
   { path: '/reader', component: Reader },
   { path: '/journal', component: Journal },
@@ -139,10 +177,15 @@ const explicitRoutes = [
   { path: '/studio', component: Studio },
   { path: '/discovery', component: Discovery },
   { path: '/data/search', component: DataSearch },
-  { path: '/agora', component: AgoraSurface },
-  { path: '/health', component: HealthTwin },
+  { path: '/data/catalogue', component: () => import('./pages/DataCatalogue.vue') },
+  { path: '/data/acquisition', component: () => import('./pages/AcquisitionConsole.vue') },
   { path: '/knowledge/graph', component: KnowledgeGraph },
   { path: '/forge/import', component: ForgeImport },
+  { path: '/sourceos/image-builder', component: ImageBuilder },
+  { path: '/sourceos/builds', component: BuildsList },
+  { path: '/sourceos/fleet', component: FleetManager },
+  { path: '/sourceos/cloud', component: CloudBroker },
+  { path: '/mail', component: MailInbox },
   { path: '/news', component: NewsFeed },
   { path: '/markets/indices-funds', component: MarketMonitor },
   { path: '/economy/macro-economics', component: EconomySectorBoard },
@@ -154,6 +197,7 @@ const explicitRoutes = [
   { path: '/people/social-networks', component: SocialSignals },
   { path: '/law/international-law', component: LawDocket },
   { path: '/noetica', component: NoeticaChat },
+  { path: '/noetica/reasoning-chain', component: ReasoningChainInspector },
   { path: '/weather/forecast', component: WeatherMonitor },
 ];
 

@@ -8,13 +8,6 @@
           <h1>{{ scope && !scope.isPrimary ? scope.label : 'News' }}</h1>
         </div>
         <span class="nf-pill" :class="{ live: liveState === 'live' }">{{ liveState === 'live' ? `live · ${liveItems.length}` : 'fixture' }}</span>
-        <!-- Live pulse: streaming state, last-poll tick, and the running News→graph grounding count. -->
-        <span v-if="liveState === 'live'" class="nf-pulse" :title="`Auto-refreshing every ${LIVE_POLL_MS / 1000}s · new items grounded into HellGraph`">
-          <span class="nf-pulse-dot" :class="{ working: grounding }" />
-          streaming<span class="nf-pulse-sep">·</span><span class="nf-pulse-ago">updated {{ liveAgo }}</span>
-          <span v-if="groundedFacts" class="nf-pulse-sep">·</span>
-          <span v-if="groundedFacts" class="nf-grounded" title="Facts extracted from the live feed and written into the sovereign HellGraph">{{ groundedFacts }} → graph</span>
-        </span>
       </div>
       <div class="nf-tools">
         <label class="nf-search">
@@ -31,18 +24,7 @@
       </div>
     </header>
 
-    <!-- Masthead: flag · dateline · live tick · market ticker (broadsheet + Bloomberg data discipline) -->
-    <div v-if="mode !== 'calendar'" class="nf-masthead">
-      <div class="nf-flag">The SocioProphet</div>
-      <div class="nf-dateline">{{ dateline }}<span v-if="liveState === 'live'" class="nf-dl-live"> · updated {{ liveAgo }}</span></div>
-      <div class="nf-ticker" aria-label="Markets">
-        <span v-for="t in ticker" :key="t.symbol" class="nf-tk" :class="t.changePct >= 0 ? 'up' : 'down'">
-          <b>{{ t.symbol }}</b> {{ t.price }} <i>{{ t.changePct >= 0 ? '▲' : '▼' }}{{ Math.abs(t.changePct).toFixed(1) }}%</i>
-        </span>
-      </div>
-    </div>
-
-    <!-- Body: sources rail · front page · reader overlay -->
+    <!-- Body: sources rail · story stream · reader -->
     <div class="nf-body">
       <!-- Feedly rail: subscribed sources -->
       <aside class="nf-rail" aria-label="Sources">
@@ -79,58 +61,69 @@
           </section>
         </template>
 
-        <!-- Front page: a lead well + a multi-column river (broadsheet + BBG data discipline) -->
+        <!-- Story rows -->
         <template v-else>
-          <button v-if="pendingNew.length" class="nf-newpill" @click="showPending">
-            <span class="nf-newpill-dot" /> {{ pendingNew.length }} new stor{{ pendingNew.length === 1 ? 'y' : 'ies' }} — show
-          </button>
-
-          <!-- Lead well — the day's biggest story, broadsheet-scale. -->
-          <article v-if="lead" class="nf-lead" :class="{ on: lead.id === selectedId, flash: flashIds.has(lead.id), social: !!bskyOf(lead) }" @click="select(lead.id)">
-            <div class="nf-kicker">
-              <span class="nf-kick-src" :style="{ color: sourceColor(lead.sourceId) }">{{ bskyOf(lead) ? '@' + bskyOf(lead)!.actor.handle : sourceOf(lead)?.title }}</span>
-              <span class="nf-q" :class="metaOf(lead).qualityBand">{{ pct(metaOf(lead).quality) }} truth</span>
-              <span v-if="lead.membraneDecision !== 'admit'" class="nf-mem" :class="lead.membraneDecision">{{ lead.membraneDecision }}</span>
-              <span class="nf-time">{{ relative(lead.publishedAt) }}</span>
+          <article v-for="it in items" :key="it.id" class="nf-story" :class="{ on: it.id === selectedId, social: !!bskyOf(it) }" @click="select(it.id)">
+            <!-- Bluesky (ATProto) social card -->
+            <div v-if="bskyOf(it)" class="nf-bsky">
+              <div class="nf-bsky-av" aria-hidden="true">{{ initials(bskyOf(it)!.actor.displayName) }}</div>
+              <div class="nf-bsky-main">
+                <div class="nf-bsky-id">
+                  <span class="nf-bsky-name">{{ bskyOf(it)!.actor.displayName }}</span>
+                  <span class="nf-bsky-handle">@{{ bskyOf(it)!.actor.handle }}</span>
+                  <span class="nf-bsky-did" :title="bskyOf(it)!.actor.did">did ✓</span>
+                  <ReputationBadge :subject="bskyOf(it)!.actor.handle" />
+                  <span class="nf-time">· {{ relative(it.publishedAt) }}</span>
+                  <span v-if="it.membraneDecision !== 'admit'" class="nf-mem" :class="it.membraneDecision">{{ it.membraneDecision }}</span>
+                </div>
+                <p v-if="bskyOf(it)!.isReply" class="nf-bsky-reply">↳ reply in thread</p>
+                <p class="nf-bsky-text">{{ bskyOf(it)!.text }}</p>
+                <div class="nf-bsky-eng">
+                  <span title="Replies">💬 {{ bskyOf(it)!.replyCount }}</span>
+                  <span title="Reposts">🔁 {{ bskyOf(it)!.repostCount }}</span>
+                  <span title="Likes">♥ {{ bskyOf(it)!.likeCount }}</span>
+                  <span class="nf-bsky-rail" title="Mirror rail · lane">🦋 mirror · {{ bskyOf(it)!.lane }}</span>
+                  <span class="nf-q" :class="metaOf(it).qualityBand" title="Truth/quality signal">◆ {{ Math.round(metaOf(it).quality * 100) }}</span>
+                </div>
+              </div>
             </div>
-            <h2 class="nf-lead-title">{{ bskyOf(lead) ? bskyOf(lead)!.text : lead.title }}</h2>
-            <p class="nf-lead-deck">{{ bskyOf(lead) ? bskyOf(lead)!.actor.displayName + (bskyOf(lead)!.actor.did ? ' · verified DID' : '') : lead.summary }}</p>
-            <div class="nf-lead-foot">
-              <span class="nf-auth">{{ bskyOf(lead) ? 'On Bluesky' : 'By ' + metaOf(lead).submitter }}</span>
-              <span class="nf-foot-sep">·</span>
-              <button class="nf-link" @click.stop="select(lead.id)">{{ metaOf(lead).comments }} comments</button>
+
+            <!-- Vote gutter — upvote only (content is never downvoted) -->
+            <div v-else class="nf-vote" @click.stop>
+              <button class="nf-up" :class="{ on: upvoted.has(it.id) }" :aria-pressed="upvoted.has(it.id)" title="Upvote" @click="toggleUp(it.id)">▲</button>
+              <span class="nf-score">{{ scoreOf(it) }}</span>
+            </div>
+
+            <div v-if="!bskyOf(it)" class="nf-story-main">
+              <div class="nf-story-head">
+                <a class="nf-story-title" :href="it.canonicalUrl" target="_blank" rel="noreferrer" @click.stop>{{ it.title }}</a>
+                <span class="nf-domain">{{ domainOf(it.canonicalUrl) }}</span>
+              </div>
+              <div class="nf-story-meta">
+                <button v-for="t in metaOf(it).tags" :key="t" class="nf-tag" @click.stop="toggleTag(t)">{{ t }}</button>
+                <span class="nf-q" :class="metaOf(it).qualityBand" :title="`Truth/quality signal · membrane ${it.membraneDecision}`">◆ {{ Math.round(metaOf(it).quality * 100) }}</span>
+                <span v-if="it.membraneDecision !== 'admit'" class="nf-mem" :class="it.membraneDecision">{{ it.membraneDecision }}</span>
+              </div>
+              <div class="nf-story-by">
+                <span class="nf-src-tag" :style="{ color: sourceColor(it.sourceId) }">{{ sourceOf(it)?.title }}</span>
+                <span class="nf-time">{{ relative(it.publishedAt) }}</span>
+                <span class="nf-auth">by {{ metaOf(it).submitter }}<span v-if="metaOf(it).hat" class="nf-hat" :class="metaOf(it).hat!.kind">{{ metaOf(it).hat!.label }}</span></span>
+                <button class="nf-link" @click.stop="select(it.id)">💬 {{ metaOf(it).comments }} comments</button>
+                <button class="nf-flag" :class="{ done: flags.has(it.id) }" title="Flag with a reason" @click.stop="openFlag = openFlag === it.id ? '' : it.id">
+                  {{ flags.has(it.id) ? `flagged: ${flags.get(it.id)}` : '⚑ flag' }}
+                </button>
+              </div>
+              <!-- flag = reason-required (stories are flagged, never downvoted) -->
+              <div v-if="openFlag === it.id" class="nf-reasons" @click.stop>
+                <button v-for="r in FLAG_REASONS" :key="r" @click="setFlag(it.id, r)">{{ r }}</button>
+              </div>
             </div>
           </article>
-
-          <!-- River — the multi-column broadsheet run, hairline column rules. -->
-          <div class="nf-river">
-            <article v-for="it in river" :key="it.id" class="nf-art" :class="{ on: it.id === selectedId, flash: flashIds.has(it.id), social: !!bskyOf(it) }" @click="select(it.id)">
-              <div class="nf-kicker">
-                <span class="nf-kick-src" :style="{ color: sourceColor(it.sourceId) }">{{ bskyOf(it) ? '@' + bskyOf(it)!.actor.handle : sourceOf(it)?.title }}</span>
-                <span class="nf-time">{{ relative(it.publishedAt) }}</span>
-              </div>
-              <h3 class="nf-art-title">{{ bskyOf(it) ? bskyOf(it)!.text : it.title }}</h3>
-              <p v-if="!bskyOf(it) && it.summary" class="nf-art-deck">{{ it.summary }}</p>
-              <div class="nf-art-meta">
-                <span class="nf-q sm" :class="metaOf(it).qualityBand" title="Truth rating">{{ pct(metaOf(it).quality) }}</span>
-                <span v-if="it.membraneDecision !== 'admit'" class="nf-mem" :class="it.membraneDecision">{{ it.membraneDecision }}</span>
-                <button v-for="t in metaOf(it).tags.slice(0, 2)" :key="t" class="nf-tag" @click.stop="toggleTag(t)">{{ t }}</button>
-              </div>
-            </article>
-            <div ref="sentinelEl" class="nf-sentinel" aria-hidden="true"></div>
-          </div>
-
-          <div v-if="visibleCount < items.length" class="nf-more" @click="loadMore">Load more ({{ items.length - visibleCount }} more)</div>
-          <div v-else-if="liveState === 'live'" class="nf-more streaming"><span class="nf-pulse-dot" /> streaming live — scroll for older stories</div>
-          <div v-else-if="items.length" class="nf-more end">· end of feed · <button class="nf-more-live" @click="goLive">go live for more →</button></div>
         </template>
       </div>
 
-      <!-- Reader — slide-over overlay (opens on click; the front page keeps full width). -->
-      <transition name="nf-slide">
-      <div v-if="selected" class="nf-reader-wrap">
-      <div class="nf-reader-scrim" @click="closeReader"></div>
-      <article class="nf-reader" aria-label="Reader">
+      <!-- Reader -->
+      <article v-if="selected" class="nf-reader" aria-label="Reader">
         <div class="nf-reader-meta">
           <span class="nf-src-tag" :style="{ color: sourceColor(selected.sourceId) }">{{ sourceOf(selected)?.title }}</span>
           <span class="nf-time">{{ relative(selected.publishedAt) }}</span>
@@ -212,8 +205,7 @@
           </div>
         </div>
       </article>
-      </div>
-      </transition>
+      <div v-else class="nf-reader empty">Select a story</div>
     </div>
   </section>
 </template>
@@ -223,7 +215,6 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { navScopeForPath } from '../config/cockpitNav';
 import { newsSources, newsItems } from '../data/newsFeedFixture';
-import { instruments } from '../data/marketsFixture';
 import { blueskySources, blueskyItems, blueskyMeta, type BskyPost } from '../data/blueskyFixture';
 import { fetchBlueskyLive, BSKY_LIVE_SOURCE } from '../data/adapters/blueskyLive';
 import { fetchHackerNews, HN_LIVE_SOURCE } from '../data/adapters/newsLive';
@@ -240,7 +231,6 @@ import ClaimsPanel from '../components/ClaimsPanel.vue';
 import ReputationBadge from '../components/ReputationBadge.vue';
 import LiveToggle from '../components/LiveToggle.vue';
 import EmptyState from '../components/EmptyState.vue';
-import { toGraph } from '../services/ieApi';
 
 // Bluesky (ATProto) is a first-class social source alongside the RSS/capture feeds.
 // Live Bluesky adapter — flip the Bluesky source from fixture to the real public
@@ -249,102 +239,18 @@ const liveItems = ref<FeedItem[]>([]);
 const liveMeta = ref<Map<string, BskyPost>>(new Map());
 const liveState = ref<'idle' | 'loading' | 'live' | 'error'>('idle');
 const liveSources = ref<typeof newsSources>([]);
-
-// ── Live newswire: not a one-shot fetch. When live, we poll every LIVE_POLL_MS,
-// stage genuinely-new items in a buffer (Twitter-style "N new" pill so the scroll
-// position is never yanked), and GROUND each new item into the sovereign HellGraph
-// via ie-engine (/svc/ie → /to-graph). That is the News → IE → graph edge of the
-// grounding loop, closing continuously as the feed streams. All best-effort: if a
-// live source or ie-engine is unreachable we fail closed and stay on what we have.
-const LIVE_POLL_MS = 40_000;
-let pollTimer: ReturnType<typeof setInterval> | undefined;
-let clockTimer: ReturnType<typeof setInterval> | undefined;
-const seenIds = new Set<string>();
-const pendingNew = ref<FeedItem[]>([]);   // fetched, not yet shown
-const flashIds = ref<Set<string>>(new Set()); // freshly-prepended → flash animation
-const groundedFacts = ref(0);              // running count of facts written to the graph
-const grounding = ref(false);
-const lastLiveAt = ref(0);
-const nowRef = ref(Date.now());            // reactive clock so live timestamps tick
-
-async function fetchLive(): Promise<FeedItem[]> {
-  const [bsky, hn, gdelt] = await Promise.all([fetchBlueskyLive(), fetchHackerNews(), fetchGdelt('world news', 25)]);
-  liveMeta.value = new Map([...liveMeta.value, ...(bsky?.meta ?? new Map())]);
-  const srcs = [...(bsky?.items.length ? [BSKY_LIVE_SOURCE] : []), ...(hn?.length ? [HN_LIVE_SOURCE] : []), ...(gdelt?.length ? [GDELT_LIVE_SOURCE] : [])];
-  for (const s of srcs) if (!liveSources.value.some((x) => x.id === s.id)) liveSources.value = [...liveSources.value, s];
-  return [...(bsky?.items ?? []), ...(hn ?? []), ...(gdelt ?? [])];
-}
-
-// Ground a batch of items into HellGraph (sequential, capped, best-effort).
-async function groundLive(batch: FeedItem[]) {
-  if (!batch.length) return;
-  grounding.value = true;
-  for (const it of batch.slice(0, 8)) {
-    try {
-      const w = await toGraph(`${it.title}. ${it.summary}`);
-      groundedFacts.value += (w.nodes_written ?? 0) + (w.edges_written ?? 0);
-    } catch { /* ie-engine unreachable → skip, stay resilient */ }
-  }
-  grounding.value = false;
-}
-
 async function goLive() {
   if (liveState.value === 'loading') return;
-  if (liveState.value === 'live') { stopLive(); return; }
   liveState.value = 'loading';
-  const items = await fetchLive();
-  if (!items.length) { liveState.value = 'error'; return; }
-  for (const i of items) seenIds.add(i.id);
-  liveItems.value = items;
-  liveState.value = 'live';
-  lastLiveAt.value = Date.now();
-  visibleCount.value = PAGE;
-  void groundLive(items);
-  pollTimer = setInterval(pollLive, LIVE_POLL_MS);
-  clockTimer = setInterval(() => { nowRef.value = Date.now(); }, 15_000);
+  const [bsky, hn, gdelt] = await Promise.all([fetchBlueskyLive(), fetchHackerNews(), fetchGdelt()]);
+  const items = [...(bsky?.items ?? []), ...(hn ?? []), ...(gdelt ?? [])];
+  if (items.length) {
+    liveItems.value = items;
+    liveMeta.value = bsky?.meta ?? new Map();
+    liveSources.value = [...(bsky?.items.length ? [BSKY_LIVE_SOURCE] : []), ...(hn?.length ? [HN_LIVE_SOURCE] : []), ...(gdelt?.length ? [GDELT_LIVE_SOURCE] : [])];
+    liveState.value = 'live';
+  } else liveState.value = 'error';
 }
-function stopLive() {
-  liveState.value = 'idle';
-  if (pollTimer) clearInterval(pollTimer); pollTimer = undefined;
-  if (clockTimer) clearInterval(clockTimer); clockTimer = undefined;
-  pendingNew.value = [];
-}
-async function pollLive() {
-  if (liveState.value !== 'live') return;
-  const items = await fetchLive();
-  const fresh = items.filter((i) => !seenIds.has(i.id));
-  for (const i of fresh) seenIds.add(i.id);
-  lastLiveAt.value = Date.now();
-  if (!fresh.length) return;
-  // If the reader is at the very top and no reader is open, stream straight in;
-  // otherwise stage them behind the "N new" pill.
-  const atTop = (listEl.value?.scrollTop ?? 1) < 24;
-  if (atTop) prependItems(fresh);
-  else pendingNew.value = [...fresh, ...pendingNew.value];
-  void groundLive(fresh);
-}
-function prependItems(fresh: FeedItem[]) {
-  liveItems.value = [...fresh, ...liveItems.value];
-  const fl = new Set(flashIds.value);
-  for (const i of fresh) fl.add(i.id);
-  flashIds.value = fl;
-  visibleCount.value += fresh.length;
-  setTimeout(() => {
-    const rem = new Set(flashIds.value);
-    for (const i of fresh) rem.delete(i.id);
-    flashIds.value = rem;
-  }, 2400);
-}
-function showPending() {
-  prependItems(pendingNew.value);
-  pendingNew.value = [];
-  listEl.value?.scrollTo({ top: 0, behavior: 'smooth' });
-}
-const liveAgo = computed(() => {
-  if (liveState.value !== 'live' || !lastLiveAt.value) return '';
-  const s = Math.max(0, Math.round((nowRef.value - lastLiveAt.value) / 1000));
-  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`;
-});
 const sources = computed(() => [...newsSources, ...blueskySources, ...liveSources.value]);
 const all = computed(() => [...newsItems, ...blueskyItems, ...liveItems.value]);
 const research = useResearch();
@@ -385,26 +291,6 @@ const cUp = ref<Set<string>>(new Set());
 const cDown = ref<Map<string, DownvoteReason>>(new Map());
 const openDown = ref<string>('');
 const listEl = ref<HTMLElement | null>(null);
-const sentinelEl = ref<HTMLElement | null>(null);
-
-// Infinite scroll: reveal the stream progressively (so even the corpus scrolls),
-// and when live + near the end, pull an older GDELT page so it never dead-ends.
-const PAGE = 14;
-const visibleCount = ref(PAGE);
-let scrollObserver: IntersectionObserver | undefined;
-async function loadMore() {
-  if (visibleCount.value < items.value.length) {
-    visibleCount.value = Math.min(items.value.length, visibleCount.value + PAGE);
-    return;
-  }
-  if (liveState.value === 'live') {
-    // reached the end of the live buffer → fetch an older page and append
-    const more = await fetchGdelt('world OR markets OR policy', 25);
-    const fresh = (more ?? []).filter((i) => !seenIds.has(i.id));
-    for (const i of fresh) seenIds.add(i.id);
-    if (fresh.length) { liveItems.value = [...liveItems.value, ...fresh]; visibleCount.value += fresh.length; }
-  }
-}
 
 const scope = computed(() => navScopeForPath(route.path));
 const mode = computed<'feed' | 'calendar'>(() => (route.path.endsWith('/calendar') ? 'calendar' : 'feed'));
@@ -431,20 +317,8 @@ const items = computed<FeedItem[]>(() => {
   else s.sort((a, b) => scoreOf(b) - scoreOf(a)); // hot
   return s;
 });
-// Progressive slice shown in the stream (grown by the scroll sentinel).
-const visibleItems = computed<FeedItem[]>(() => items.value.slice(0, visibleCount.value));
-// Front-page split: a lead well + the multi-column river below it.
-const lead = computed<FeedItem | undefined>(() => (mode.value === 'calendar' ? undefined : visibleItems.value[0]));
-const river = computed<FeedItem[]>(() => (mode.value === 'calendar' ? [] : visibleItems.value.slice(1)));
-const ticker = instruments.slice(0, 9);
-const pct = (n: number) => Math.round(n * 100);
-// Reset the window when the filter set changes so you always see the top of the new list.
-watch([activeSourceId, activeTag, governedOnly, q, sort], () => { visibleCount.value = PAGE; });
-
-// Reader is a slide-over overlay: closed by default (front page uses full width), opens on click.
-const readerClosed = ref(true);
-const selected = computed<FeedItem | undefined>(() => (readerClosed.value ? undefined : all.value.find((i) => i.id === selectedId.value)));
-function focus(id: string) { selectedId.value = id; }
+const readerClosed = ref(false);
+const selected = computed<FeedItem | undefined>(() => (readerClosed.value ? undefined : (all.value.find((i) => i.id === selectedId.value) ?? items.value[0])));
 
 const sourceById = computed(() => new Map(sources.value.map((s) => [s.id, s])));
 const sourceOf = (it: FeedItem) => sourceById.value.get(it.sourceId);
@@ -499,13 +373,8 @@ function commentsFor(it: FeedItem): CommentVM[] {
 }
 
 const NOW = new Date('2026-07-03T14:00:00-04:00').getTime();
-const dateline = new Date(NOW).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 function relative(iso: string): string {
-  // When streaming, measure against the live reactive clock so times tick; otherwise
-  // against the fixture's frozen "now" so the corpus reads consistently.
-  const base = liveState.value === 'live' ? nowRef.value : NOW;
-  const mins = Math.max(0, Math.round((base - new Date(iso).getTime()) / 60000));
-  if (mins < 1) return 'now';
+  const mins = Math.max(0, Math.round((NOW - new Date(iso).getTime()) / 60000));
   if (mins < 60) return `${mins}m`;
   const h = Math.round(mins / 60);
   return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`;
@@ -529,21 +398,18 @@ function onKey(e: KeyboardEvent) {
   const tag = (e.target as HTMLElement | null)?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
   if (e.key === 'Escape') { if (!readerClosed.value) { e.preventDefault(); closeReader(); } return; }
-  const list = visibleItems.value;
+  const list = items.value;
   if (!list.length) return;
   const idx = list.findIndex((i) => i.id === selectedId.value);
-  const cur = all.value.find((i) => i.id === selectedId.value);
-  if (e.key === 'j') { e.preventDefault(); const n = Math.min(list.length - 1, idx + 1); if (n === list.length - 1) void loadMore(); focus(list[n]!.id); }
-  else if (e.key === 'k') { e.preventDefault(); focus(list[Math.max(0, idx < 0 ? 0 : idx - 1)]!.id); }
-  else if (e.key === 'Enter') { e.preventDefault(); if (selectedId.value) select(selectedId.value); }
-  else if (e.key === 'o') { if (cur) window.open(cur.canonicalUrl, '_blank', 'noreferrer'); }
-  else if (e.key === 'u') { if (cur) toggleUp(cur.id); }
+  if (e.key === 'j') { e.preventDefault(); select(list[Math.min(list.length - 1, idx + 1)]!.id); }
+  else if (e.key === 'k') { e.preventDefault(); select(list[Math.max(0, idx < 0 ? 0 : idx - 1)]!.id); }
+  else if (e.key === 'o' || e.key === 'Enter') { if (selected.value) window.open(selected.value.canonicalUrl, '_blank', 'noreferrer'); }
+  else if (e.key === 'u') { if (selected.value) toggleUp(selected.value.id); }
 }
 
-watch(selectedId, async () => { await nextTick(); listEl.value?.querySelector('.nf-art.on, .nf-lead.on')?.scrollIntoView({ block: 'nearest' }); });
+watch(selectedId, async () => { await nextTick(); listEl.value?.querySelector('.nf-story.on')?.scrollIntoView({ block: 'nearest' }); });
 watch(mode, (m) => { if (m === 'feed' && route.path.endsWith('/recent')) sort.value = 'newest'; }, { immediate: true });
-watch(selectedId, (id) => {
-  const it = all.value.find((i) => i.id === id);
+watch(selected, (it) => {
   if (!it) return;
   const b = bskyOf(it);
   cockpit.setContext({ surface: 'News', entityLabel: b ? `@${b.actor.handle}` : (sourceOf(it)?.title ?? 'story'), detail: it.title.slice(0, 60), route: route.path });
@@ -554,20 +420,8 @@ onMounted(() => {
   const deep = typeof route.query.item === 'string' ? route.query.item : '';
   selectedId.value = (deep && all.value.some((i) => i.id === deep)) ? deep : (items.value[0]?.id ?? '');
   window.addEventListener('keydown', onKey);
-  nextTick(() => {
-    if (!sentinelEl.value) return;
-    scrollObserver = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) void loadMore();
-    }, { root: listEl.value, rootMargin: '400px' });
-    scrollObserver.observe(sentinelEl.value);
-  });
 });
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKey);
-  scrollObserver?.disconnect();
-  if (pollTimer) clearInterval(pollTimer);
-  if (clockTimer) clearInterval(clockTimer);
-});
+onUnmounted(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <style scoped>
@@ -577,33 +431,6 @@ onUnmounted(() => {
 .nf-eyebrow { margin: 0 0 0.1rem; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-3); }
 .nf-pill { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--amber); background: var(--amber-soft); border-radius: 5px; padding: 0.1rem 0.35rem; }
 .nf-pill.live { color: var(--live); background: var(--live-soft); }
-/* Live pulse (Bloomberg-terminal cue): streaming state + tick + running graph-grounding count */
-.nf-pulse { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.64rem; color: var(--text-3); letter-spacing: 0.02em; }
-.nf-pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); flex: 0 0 auto; animation: nfPulse 1.8s ease-in-out infinite; }
-.nf-pulse-dot.working { background: var(--accent); animation-duration: 0.8s; }
-.nf-pulse-sep { opacity: 0.4; }
-.nf-pulse-ago { font-variant-numeric: tabular-nums; }
-.nf-grounded { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
-@keyframes nfPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
-
-/* Streaming "N new" pill (Twitter-style) */
-.nf-newpill { position: sticky; top: 0.3rem; z-index: 3; display: block; margin: 0.4rem auto; padding: 0.3rem 0.9rem; border: 1px solid color-mix(in srgb, var(--live) 45%, transparent); background: color-mix(in srgb, var(--live) 14%, var(--surface)); color: var(--live); border-radius: 999px; font-size: 0.74rem; font-weight: 650; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,0.28); }
-.nf-newpill:hover { background: color-mix(in srgb, var(--live) 22%, var(--surface)); }
-.nf-newpill-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--live); margin-right: 0.35rem; animation: nfPulse 1.6s ease-in-out infinite; }
-
-/* Freshly-streamed rows flash in */
-.nf-story.flash { animation: nfFlash 2.4s ease; }
-@keyframes nfFlash { 0% { background: color-mix(in srgb, var(--live) 16%, transparent); } 100% { background: transparent; } }
-
-/* Scroll sentinel + footer */
-.nf-sentinel { height: 1px; }
-.nf-more { display: flex; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.85rem; font-size: 0.74rem; color: var(--text-3); cursor: pointer; border-top: 1px solid var(--line); }
-.nf-more:hover { color: var(--text-2); }
-.nf-more.streaming, .nf-more.end { cursor: default; }
-.nf-more.streaming .nf-pulse-dot { margin-right: 0.15rem; }
-.nf-more-live { border: none; background: transparent; color: var(--accent); font: inherit; cursor: pointer; padding: 0; }
-.nf-more-live:hover { text-decoration: underline; }
-@media (prefers-reduced-motion: reduce) { .nf-pulse-dot, .nf-newpill-dot { animation: none; } .nf-story.flash { animation: none; } }
 .nf-live.on { border-color: #4bbf73; color: #4bbf73; background: rgba(75, 191, 115, 0.14); }
 .nf-live.err { border-color: rgba(240, 101, 106, 0.5); color: #f0656a; }
 .nf-btn:disabled { opacity: 0.6; cursor: default; }
@@ -617,20 +444,10 @@ onUnmounted(() => {
 .nf-seg button { border: none; background: transparent; color: rgba(255, 255, 255, 0.6); padding: 0.3rem 0.7rem; font-size: 0.78rem; cursor: pointer; } .nf-seg button.on { background: rgba(88, 166, 255, 0.18); color: #58a6ff; }
 .nf-btn { border: 1px solid var(--line-2); background: transparent; color: rgba(255, 255, 255, 0.7); border-radius: 8px; padding: 0.3rem 0.6rem; font-size: 0.76rem; cursor: pointer; } .nf-btn.on { border-color: #58a6ff; color: #58a6ff; background: rgba(88, 166, 255, 0.12); }
 
-.nf-body { min-height: 0; display: grid; grid-template-columns: 176px 1fr; gap: 0; position: relative; }
-@media (max-width: 900px) { .nf-body { grid-template-columns: 1fr; } .nf-rail { display: none; } }
+.nf-body { min-height: 0; display: grid; grid-template-columns: 208px minmax(360px, 1.4fr) minmax(320px, 1fr); gap: 0.75rem; }
+@media (max-width: 1080px) { .nf-body { grid-template-columns: 170px 1fr; } .nf-reader:not(.empty) { display: none; } .nf-reader.empty { display: none; } }
 
-/* Masthead — broadsheet flag + dateline + Bloomberg ticker strip */
-.nf-masthead { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 1rem; padding: 0.2rem 0.25rem 0.5rem; border-bottom: 2px solid var(--text); }
-.nf-flag { font-family: var(--font-serif); font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
-.nf-dateline { font-size: 0.72rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; } .nf-dl-live { color: var(--live); text-transform: none; letter-spacing: 0; }
-.nf-ticker { display: flex; gap: 0.9rem; overflow: hidden; justify-content: flex-end; font-variant-numeric: tabular-nums; }
-.nf-tk { font-size: 0.68rem; color: var(--text-2); white-space: nowrap; } .nf-tk b { font-weight: 700; color: var(--text); margin-right: 0.15rem; } .nf-tk i { font-style: normal; font-size: 0.62rem; }
-.nf-tk.up i { color: var(--up); } .nf-tk.down i { color: var(--down); }
-
-/* Tufte pass: de-box the three panels — no rounded borders/fills; columns read from content
-   + quiet hairline dividers in the grid gap (data-ink, not chartjunk). */
-.nf-rail { min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); padding: 0.25rem 0.85rem 0.25rem 0.1rem; display: flex; flex-direction: column; gap: 0.12rem; }
+.nf-rail { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; padding: 0.5rem; display: flex; flex-direction: column; gap: 0.12rem; }
 .nf-rail-head { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); padding: 0.3rem 0.5rem; }
 .nf-src { display: flex; align-items: center; gap: 0.5rem; border: none; background: transparent; color: rgba(255, 255, 255, 0.78); border-radius: 8px; padding: 0.4rem 0.5rem; font-size: 0.82rem; cursor: pointer; text-align: left; } .nf-src:hover { background: rgba(255, 255, 255, 0.05); } .nf-src.on { background: rgba(88, 166, 255, 0.14); color: #fff; }
 .nf-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
@@ -640,40 +457,10 @@ onUnmounted(() => {
 .nf-hash { color: var(--text-3); }
 .nf-rail-hint { margin-top: auto; padding: 0.5rem; font-size: 0.64rem; color: var(--text-3); line-height: 1.5; }
 
-.nf-list { min-height: 0; overflow-y: auto; padding: 0.6rem 1.3rem 1rem; }
-
-/* Shared editorial kicker (source · truth · time) */
-.nf-kicker { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.3rem; }
-.nf-kick-src { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; }
-
-/* Lead well — the day's dominant story */
-.nf-lead { border-bottom: 2px solid var(--line-2); padding: 0.4rem 0 1.1rem; margin-bottom: 1rem; cursor: pointer; }
-.nf-lead:hover .nf-lead-title, .nf-lead.on .nf-lead-title { color: var(--accent); }
-.nf-lead-title { font-family: var(--font-serif); font-size: 2.3rem; line-height: 1.1; letter-spacing: -0.02em; font-weight: 700; color: var(--text); margin: 0.1rem 0 0.45rem; text-wrap: balance; }
-.nf-lead.social .nf-lead-title { font-size: 1.7rem; font-style: italic; }
-.nf-lead-deck { font-size: 1.02rem; line-height: 1.55; color: var(--text-2); margin: 0 0 0.6rem; max-width: 62ch; }
-.nf-lead-foot { font-size: 0.74rem; color: var(--text-3); display: flex; align-items: center; gap: 0.5rem; } .nf-lead-foot .nf-auth { font-weight: 600; color: var(--text-2); } .nf-foot-sep { opacity: 0.5; }
-
-/* River — the multi-column broadsheet run with hairline column rules */
-.nf-river { columns: 3 300px; column-gap: 1.6rem; column-rule: 1px solid var(--line); }
-@media (max-width: 1400px) { .nf-river { columns: 2 300px; } }
-.nf-art { break-inside: avoid; -webkit-column-break-inside: avoid; padding: 0.7rem 0 0.8rem; border-top: 1px solid var(--line); cursor: pointer; }
-.nf-art:hover .nf-art-title, .nf-art.on .nf-art-title { color: var(--accent); }
-.nf-art.on { box-shadow: inset 3px 0 0 var(--accent); padding-left: 0.5rem; }
-.nf-art-title { font-family: var(--font-serif); font-size: 1.08rem; line-height: 1.25; font-weight: 700; color: var(--text); margin: 0 0 0.25rem; text-wrap: pretty; }
-.nf-art.social .nf-art-title { font-size: 0.95rem; font-style: italic; font-weight: 600; color: var(--text-2); }
-.nf-art-deck { font-size: 0.82rem; line-height: 1.5; color: var(--text-3); margin: 0 0 0.35rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.nf-art-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.nf-q.sm { font-size: 0.62rem; padding: 0.02rem 0.28rem; }
-
-/* Reader → slide-over overlay + scrim */
-.nf-reader-wrap { position: absolute; inset: 0; z-index: 20; display: grid; grid-template-columns: 1fr minmax(420px, 40%); }
-.nf-reader-scrim { background: rgba(0,0,0,0.4); }
-.nf-slide-enter-active, .nf-slide-leave-active { transition: opacity 0.18s ease; } .nf-slide-enter-from, .nf-slide-leave-to { opacity: 0; }
-@media (prefers-reduced-motion: reduce) { .nf-slide-enter-active, .nf-slide-leave-active { transition: none; } }
+.nf-list { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; }
 
 /* Lobsters story row */
-.nf-story { display: flex; gap: 0.7rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); cursor: pointer; } .nf-story:hover { background: rgba(255, 255, 255, 0.03); } .nf-story.on { background: color-mix(in srgb, var(--accent) 7%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.nf-story { display: flex; gap: 0.7rem; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); cursor: pointer; } .nf-story:hover { background: rgba(255, 255, 255, 0.03); } .nf-story.on { background: rgba(88, 166, 255, 0.1); box-shadow: inset 3px 0 0 #58a6ff; }
 .nf-vote { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; flex: 0 0 2rem; padding-top: 0.1rem; }
 .nf-up { border: none; background: transparent; color: var(--text-3); font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0.1rem; } .nf-up:hover { color: var(--text-2); } .nf-up.on { color: var(--up); }
 .nf-up.sm, .nf-down.sm { font-size: 0.72rem; }
@@ -683,23 +470,20 @@ onUnmounted(() => {
 
 /* Bluesky (ATProto) social card — author-forward, feed-like (not an inbox row) */
 .nf-story.social { padding: 0.8rem 0.95rem; }
-.nf-story.social.on { box-shadow: inset 2px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.nf-story.social.on { box-shadow: inset 3px 0 0 #3b9cff; background: rgba(59, 156, 255, 0.08); }
 .nf-bsky { display: flex; gap: 0.7rem; width: 100%; min-width: 0; }
-/* Editorial pass: flat institutional monogram, not a social gradient avatar. */
-.nf-bsky-av { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font-size: 0.68rem; font-weight: 600; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line-2); }
+.nf-bsky-av { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 0.82rem; font-weight: 700; color: #fff; background: linear-gradient(135deg, #3b9cff, #7a5cff); }
 .nf-bsky-av.sm { width: 28px; height: 28px; font-size: 0.66rem; }
 .nf-bsky-main { min-width: 0; flex: 1; }
 .nf-bsky-id { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.8rem; }
 .nf-bsky-name { font-weight: 700; color: #fff; }
 .nf-bsky-handle { color: rgba(255, 255, 255, 0.45); font-size: 0.76rem; }
-.nf-bsky-did { font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--live); background: color-mix(in srgb, var(--live) 14%, transparent); border-radius: 4px; padding: 0.03rem 0.3rem; }
+.nf-bsky-did { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: #3b9cff; background: rgba(59, 156, 255, 0.16); border-radius: 4px; padding: 0.03rem 0.3rem; }
 .nf-bsky-reply { margin: 0.15rem 0 0; font-size: 0.68rem; color: rgba(255, 255, 255, 0.4); }
 .nf-bsky-text { margin: 0.35rem 0 0.5rem; font-size: 0.92rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); white-space: pre-wrap; }
-/* Engagement demoted to a quiet metrics line; the truth rating + source lead. */
-.nf-bsky-eng { display: flex; align-items: center; gap: 0.7rem; font-size: 0.68rem; color: var(--text-3); flex-wrap: wrap; margin-top: 0.15rem; }
-.nf-bsky-eng.small { gap: 0.6rem; font-size: 0.64rem; margin-top: 0.2rem; }
-.nf-bsky-rail { color: var(--text-3); }
-.nf-eng-n { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.nf-bsky-eng { display: flex; align-items: center; gap: 0.9rem; font-size: 0.74rem; color: rgba(255, 255, 255, 0.5); flex-wrap: wrap; }
+.nf-bsky-eng.small { gap: 0.7rem; font-size: 0.68rem; margin-top: 0.2rem; }
+.nf-bsky-rail { color: #3b9cff; }
 
 /* Thread (Live-rail context) in the reader */
 .nf-thread { display: flex; gap: 0.55rem; padding: 0.5rem 0; border-top: 1px solid var(--line); }
@@ -709,14 +493,13 @@ onUnmounted(() => {
 .nf-thread-id { font-size: 0.76rem; color: rgba(255, 255, 255, 0.85); } .nf-thread-id b { color: #fff; }
 .nf-thread-reply { margin-left: 0.4rem; font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; color: #3b9cff; background: rgba(59, 156, 255, 0.14); border-radius: 4px; padding: 0.03rem 0.3rem; }
 .nf-thread-text { margin: 0.2rem 0 0; font-size: 0.82rem; line-height: 1.5; color: rgba(255, 255, 255, 0.8); }
-.nf-act-ask { color: var(--accent) !important; border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important; }
+.nf-act-ask { color: #93b4ff !important; border-color: rgba(120, 160, 255, 0.45) !important; }
 .nf-act-ask:hover { background: rgba(120, 160, 255, 0.14); }
 .nf-story-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
-/* Headline is the hero — editorial, not a link in a stream. */
-.nf-story-title { font-size: 1.02rem; font-weight: 650; line-height: 1.28; letter-spacing: -0.01em; color: var(--text); text-decoration: none; } .nf-story-title:hover { color: var(--accent); }
+.nf-story-title { font-size: 0.95rem; font-weight: 600; line-height: 1.35; color: #fff; text-decoration: none; } .nf-story-title:hover { color: #58a6ff; text-decoration: underline; }
 .nf-domain { font-size: 0.7rem; color: rgba(255, 255, 255, 0.4); }
 .nf-story-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.35rem; }
-.nf-tag { font-size: 0.66rem; color: var(--text-2); background: transparent; border: 1px solid var(--line-2); border-radius: 4px; padding: 0.05rem 0.4rem; cursor: pointer; } .nf-tag:hover { border-color: var(--accent); color: var(--accent); }
+.nf-tag { font-size: 0.68rem; color: #c9d1d9; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-2); border-radius: 999px; padding: 0.05rem 0.45rem; cursor: pointer; } .nf-tag:hover { border-color: #58a6ff; color: #58a6ff; }
 .nf-q { font-size: 0.68rem; font-weight: 700; border-radius: 5px; padding: 0.03rem 0.34rem; } .nf-q.high { color: var(--up); background: rgba(63, 185, 80, 0.14); } .nf-q.medium { color: #e3b341; background: rgba(227, 179, 65, 0.16); } .nf-q.low { color: var(--down); background: rgba(248, 81, 73, 0.16); }
 .nf-mem { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; border-radius: 4px; padding: 0.03rem 0.3rem; font-weight: 700; }
 .nf-mem.hold { color: #e3b341; background: rgba(227, 179, 65, 0.16); } .nf-mem.quarantine { color: var(--down); background: rgba(248, 81, 73, 0.16); } .nf-mem.reject { color: #8b949e; background: rgba(139, 148, 158, 0.16); } .nf-mem.admit { color: var(--up); background: rgba(63, 185, 80, 0.14); }
@@ -740,7 +523,8 @@ onUnmounted(() => {
 .nf-agenda-src { flex: 0 0 auto; font-size: 0.72rem; }
 
 /* Reader */
-.nf-reader { min-height: 0; overflow-y: auto; padding: 0.9rem 1.15rem 1.4rem; background: var(--bg); border-left: 1px solid var(--line-2); box-shadow: -14px 0 44px rgba(0,0,0,0.38); }
+.nf-reader { min-height: 0; overflow-y: auto; border: 1px solid var(--line-2); border-radius: 12px; padding: 1.1rem 1.25rem; }
+.nf-reader.empty { display: grid; place-items: center; color: var(--text-3); font-size: 0.85rem; }
 .nf-reader-meta { display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem; }
 .nf-reader-close { margin-left: auto; display: grid; place-items: center; width: 1.55rem; height: 1.55rem; border-radius: 8px; border: 1px solid var(--line-2); background: transparent; color: var(--text-2); font-size: 0.8rem; cursor: pointer; transition: background 0.12s ease, color 0.12s ease; }
 .nf-reader-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
@@ -748,7 +532,7 @@ onUnmounted(() => {
 .nf-reader-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.8rem; }
 .nf-reader-body { margin: 0 0 1rem; font-size: 0.95rem; line-height: 1.6; color: rgba(255, 255, 255, 0.82); }
 .nf-actions { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
-.nf-act { border: 1px solid var(--line-2); background: transparent; color: rgba(255, 255, 255, 0.8); border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; text-decoration: none; } .nf-act:hover { border-color: var(--text-3); } .nf-act.on { color: var(--up); border-color: rgba(63, 185, 80, 0.4); } .nf-act.primary { background: var(--surface-2); border-color: var(--line-2); color: var(--text); } .nf-act.done { color: var(--up); border-color: rgba(63, 185, 80, 0.4); cursor: default; }
+.nf-act { border: 1px solid var(--line-2); background: transparent; color: rgba(255, 255, 255, 0.8); border-radius: 8px; padding: 0.4rem 0.8rem; font-size: 0.8rem; cursor: pointer; text-decoration: none; } .nf-act:hover { border-color: var(--text-3); } .nf-act.on { color: var(--up); border-color: rgba(63, 185, 80, 0.4); } .nf-act.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; } .nf-act.done { color: var(--up); border-color: rgba(63, 185, 80, 0.4); cursor: default; }
 .nf-block { border-top: 1px solid var(--line-2); padding: 0.8rem 0; }
 .nf-block-h { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255, 255, 255, 0.4); margin-bottom: 0.5rem; }
 .nf-claims { margin: 0; padding-left: 1.1rem; color: rgba(255, 255, 255, 0.72); font-size: 0.82rem; line-height: 1.6; }

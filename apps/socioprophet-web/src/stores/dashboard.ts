@@ -9,6 +9,7 @@ export const DASH_CARDS: DashCard[] = [
   { id: 'companies', label: 'Companies & Valuations' },
   { id: 'news', label: 'News & Events' },
   { id: 'economy', label: 'Economy' },
+  { id: 'people', label: 'People' },
   { id: 'law', label: 'Law & Regulation' },
   { id: 'weather', label: 'Weather' },
   { id: 'social', label: 'Social Signals' },

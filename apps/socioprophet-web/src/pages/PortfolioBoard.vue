@@ -4,7 +4,6 @@
       <template #badge><span class="pf-pill">paper</span></template>
       <template #actions>
         <div class="pf-actions">
-        <button class="pf-agent-btn" type="button" @click="runAgent" title="Run our proof-carrying portfolio agent">◆ Run agent</button>
         <button class="pf-ask" type="button" @click="askNoetica">◇ Ask Noetica</button>
         <button class="pf-reset" type="button" @click="portfolio.reset()" title="Clear the paper book">Reset book</button>
         </div>
@@ -35,64 +34,6 @@
       </div>
     </div>
 
-    <!-- Portfolio agent — our tool layer, run in-cockpit (not a cloud provider). -->
-    <div v-if="agentOpen" class="pf-agent">
-      <div class="pf-agent-bar">
-        <input
-          v-model="agentGoal"
-          class="pf-agent-goal"
-          type="text"
-          placeholder="Goal for the agent…"
-          @keydown.enter="runAgent"
-        />
-        <div class="pf-agent-engine" role="group" aria-label="Agent engine">
-          <button class="pf-eng-btn" :class="{ on: engine === 'local' }" title="Run in-browser (①)" @click="engine = 'local'">Local ①</button>
-          <button class="pf-eng-btn" :class="{ on: engine === 'cloud' }" title="Run our own sovereign cloud agent (②)" @click="engine = 'cloud'">Cloud ②</button>
-        </div>
-        <button class="pf-agent-run" type="button" :disabled="agentRunning" @click="runAgent">{{ agentRunning ? '…' : 'Run' }}</button>
-        <button class="pf-agent-x" type="button" title="Close" @click="agentOpen = false">×</button>
-      </div>
-      <p v-if="ranVia" class="pf-ran-via">ran via <b>{{ ranVia }}</b></p>
-
-      <template v-if="agentResult">
-        <p class="pf-agent-narrative">
-          {{ agentResult.narrative }}
-          <ProvenanceBadge :p="agentResult.prov" compact />
-        </p>
-        <p class="pf-agent-tools">
-          Tools run: <span v-for="t in agentResult.tools" :key="t" class="pf-tool-chip">{{ t }}</span>
-          <span class="pf-tool-sep">·</span>
-          <span class="pf-tool-note">same functions the mesh calls ({{ PORTFOLIO_TOOLS.length }} published)</span>
-        </p>
-
-        <div v-if="agentResult.findings.length" class="pf-findings">
-          <div v-for="f in agentResult.findings" :key="f.id" class="pf-finding" :class="f.severity">
-            <span class="pf-f-sev">{{ sevGlyph(f.severity) }}</span>
-            <div class="pf-f-body">
-              <div class="pf-f-title">{{ f.title }} <ProvenanceBadge :p="f.prov" compact /></div>
-              <div class="pf-f-detail">{{ f.detail }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="agentResult.actions.length" class="pf-proposed">
-          <div class="pf-proposed-h">Proposed orders <span class="pf-hint">stage into the paper book</span></div>
-          <div v-for="(a, i) in agentResult.actions" :key="`${a.symbol}-${i}`" class="pf-proposed-row">
-            <span class="pf-fill-side" :class="a.side">{{ a.side === 'buy' ? 'BUY' : 'SELL' }}</span>
-            <span class="pf-p-sym">{{ a.symbol }}</span>
-            <span class="pf-p-qty">{{ a.qty }} @ {{ num(a.price) }}</span>
-            <span class="pf-p-why">{{ a.rationale }}</span>
-            <button
-              class="pf-p-stage"
-              type="button"
-              :disabled="staged.has(`${a.symbol}-${i}`)"
-              @click="stageOrder(a, i)"
-            >{{ staged.has(`${a.symbol}-${i}`) ? '✓ staged' : 'Stage' }}</button>
-          </div>
-        </div>
-      </template>
-    </div>
-
     <SplitPane storage-key="portfolio" label="holdings" :initial="380">
       <template #list>
       <!-- Positions -->
@@ -104,14 +45,13 @@
         </p>
         <div v-else class="pf-table" role="table">
           <div class="pf-row pf-row-head" role="row">
-            <span>Symbol</span><span class="r">Qty</span><span class="r">Avg</span><span class="r">Last</span><span class="c">30d</span><span class="r">Mkt value</span><span class="r">Unreal. P&amp;L</span>
+            <span>Symbol</span><span class="r">Qty</span><span class="r">Avg</span><span class="r">Last</span><span class="r">Mkt value</span><span class="r">Unreal. P&amp;L</span>
           </div>
           <button v-for="r in rows" :key="r.symbol" class="pf-row" role="row" @click="openSymbol(r.symbol)">
             <span class="pf-sym"><b>{{ r.symbol }}</b><small>{{ r.name }}</small></span>
             <span class="r">{{ r.qty }}</span>
             <span class="r">{{ num(r.avgCost) }}</span>
             <span class="r">{{ num(r.last) }}</span>
-            <span class="pf-spark"><Sparkline v-if="r.series.length" :series="r.series" :tone="r.uplPct >= 0 ? 'up' : 'down'" :w="52" :h="18" /></span>
             <span class="r">{{ money(r.mv) }}</span>
             <span class="r" :class="pnlDir(r.upl)">{{ signed(r.upl) }} <small>({{ r.uplPct >= 0 ? '+' : '' }}{{ r.uplPct.toFixed(1) }}%)</small></span>
           </button>
@@ -144,15 +84,13 @@
 <script setup lang="ts">
 import SurfaceHeader from '../components/SurfaceHeader.vue';
 import SplitPane from '../components/SplitPane.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { instruments } from '../data/marketsFixture';
 import { usePortfolio } from '../stores/portfolio';
 import { useCockpit } from '../stores/cockpit';
 import ProvenanceBadge from '../components/ProvenanceBadge.vue';
-import Sparkline from '../components/Sparkline.vue';
 import { prov } from '../features/provenance/types';
-import { runPortfolioAgent, runCloudAgent, bookFromPositions, PORTFOLIO_TOOLS, type AgentResult, type ProposedOrder } from '../services/portfolioAgent';
 
 // P&L is deterministic compute from the blotter + marks — the verified-compute moat.
 const pnlProv = prov('computed', {
@@ -176,7 +114,7 @@ const rows = computed(() =>
     const mv = last * p.qty;
     const upl = (last - p.avgCost) * p.qty;
     const uplPct = p.avgCost ? ((last - p.avgCost) / p.avgCost) * 100 : 0;
-    return { ...p, last, mv, upl, uplPct, series: inst?.series ?? [] };
+    return { ...p, last, mv, upl, uplPct };
   }),
 );
 const marketValue = computed(() => rows.value.reduce((s, r) => s + r.mv, 0));
@@ -186,42 +124,12 @@ const totalPnl = computed(() => unrealized.value + portfolio.realized);
 
 const money = (n: number): string => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const num = (n: number): string => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// `money()` already runs on Math.abs(n) and formats through Intl — no sign to strip and no '$' to
+// replace; a stray `.replace('$', '$')` here was a no-op (flagged by CodeQL as identity-replacement /
+// incomplete-sanitization on both counts), so it's just dropped rather than "fixed" into a new no-op.
 const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
 const pnlDir = (n: number): 'up' | 'down' | 'flat' => (n > 0.005 ? 'up' : n < -0.005 ? 'down' : 'flat');
 const time = (ts: number): string => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-
-// --- Portfolio agent (OUR tool layer — deterministic, proof-carrying) --------
-const agentGoal = ref('Reduce concentration and size my downside risk');
-const agentResult = ref<AgentResult | null>(null);
-const agentOpen = ref(false);
-const staged = ref<Set<string>>(new Set());
-// Both ways: ① in-browser tool layer, or ② our own sovereign cloud agent (/svc/portfolio).
-const engine = ref<'local' | 'cloud'>('local');
-const agentRunning = ref(false);
-const ranVia = ref('');
-async function runAgent() {
-  const book = bookFromPositions(portfolio.positions);
-  agentOpen.value = true;
-  agentRunning.value = true;
-  try {
-    if (engine.value === 'cloud') {
-      const cloud = await runCloudAgent(agentGoal.value, book, equity.value);
-      agentResult.value = cloud ?? runPortfolioAgent(agentGoal.value, book, equity.value);
-      ranVia.value = cloud ? 'our sovereign cloud agent ②' : 'local ① (cloud unreachable)';
-    } else {
-      agentResult.value = runPortfolioAgent(agentGoal.value, book, equity.value);
-      ranVia.value = 'the in-browser tool layer ①';
-    }
-    staged.value = new Set();
-  } finally {
-    agentRunning.value = false;
-  }
-}
-function stageOrder(a: ProposedOrder, i: number) {
-  const res = portfolio.placeOrder({ symbol: a.symbol, name: a.name, side: a.side, qty: a.qty, price: a.price, source: 'agent:rebalance' });
-  if (res.ok) staged.value = new Set(staged.value).add(`${a.symbol}-${i}`);
-}
-const sevGlyph = (s: string): string => (s === 'alert' ? '●' : s === 'watch' ? '◐' : '○');
 
 function openSymbol(sym: string) { router.push({ path: '/markets/indices-funds', query: { sym } }); }
 function askNoetica() {
@@ -245,39 +153,6 @@ onMounted(() => cockpit.setContext({
 .pf-actions { display: flex; gap: 0.5rem; }
 .pf-ask { border: 1px solid rgba(120, 160, 255, 0.45); background: rgba(120, 160, 255, 0.08); color: #93b4ff; border-radius: 8px; padding: 0.35rem 0.7rem; font-size: 0.76rem; cursor: pointer; } .pf-ask:hover { background: rgba(120, 160, 255, 0.16); color: #fff; }
 .pf-reset { border: 1px solid var(--line-2); background: transparent; color: var(--text-3); border-radius: 8px; padding: 0.35rem 0.7rem; font-size: 0.76rem; cursor: pointer; } .pf-reset:hover { color: var(--text); border-color: var(--line-2); }
-.pf-agent-btn { border: 1px solid rgba(110, 231, 183, 0.45); background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border-radius: 8px; padding: 0.35rem 0.7rem; font-size: 0.76rem; font-weight: 600; cursor: pointer; } .pf-agent-btn:hover { background: rgba(16, 185, 129, 0.2); color: #fff; }
-
-/* Agent panel — deterministic, proof-carrying findings + stageable orders */
-.pf-agent { border: 1px solid rgba(110, 231, 183, 0.3); border-radius: 12px; background: var(--surface); padding: 0.7rem 0.85rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.pf-agent-bar { display: flex; gap: 0.5rem; align-items: center; }
-.pf-agent-goal { flex: 1; min-width: 0; border: 1px solid var(--line-2); background: var(--surface-2, rgba(255,255,255,0.02)); color: var(--text); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.82rem; }
-.pf-agent-goal:focus { outline: none; border-color: rgba(110, 231, 183, 0.5); }
-.pf-agent-run { border: 1px solid rgba(110, 231, 183, 0.45); background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-radius: 8px; padding: 0.4rem 0.9rem; font-size: 0.78rem; font-weight: 600; cursor: pointer; } .pf-agent-run:hover { background: rgba(16, 185, 129, 0.24); } .pf-agent-run:disabled { opacity: 0.6; cursor: default; }
-.pf-agent-engine { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
-.pf-eng-btn { border: none; background: transparent; color: var(--text-3); font-size: 0.72rem; padding: 0.35rem 0.6rem; cursor: pointer; } .pf-eng-btn.on { background: var(--accent-soft, rgba(120,160,255,0.14)); color: var(--accent); font-weight: 600; }
-.pf-ran-via { margin: 0.1rem 0 0; font-size: 0.68rem; color: var(--text-3); } .pf-ran-via b { color: var(--text-2); }
-.pf-agent-x { border: none; background: transparent; color: var(--text-3); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 0.3rem; } .pf-agent-x:hover { color: var(--text); }
-.pf-agent-narrative { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--text); display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.pf-agent-tools { margin: 0; font-size: 0.66rem; color: var(--text-3); display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
-.pf-tool-chip { font-family: var(--mono, ui-monospace, monospace); font-size: 0.62rem; color: var(--text-2); border: 1px solid var(--line-2); border-radius: 4px; padding: 0.02rem 0.3rem; }
-.pf-tool-sep { color: var(--line-2); } .pf-tool-note { font-style: italic; }
-
-.pf-findings { display: flex; flex-direction: column; gap: 0.4rem; }
-.pf-finding { display: flex; gap: 0.55rem; align-items: flex-start; border: 1px solid var(--line-2); border-left-width: 3px; border-radius: 8px; padding: 0.5rem 0.65rem; background: var(--surface-2, rgba(255,255,255,0.015)); }
-.pf-finding.info { border-left-color: var(--text-3); }
-.pf-finding.watch { border-left-color: #fbbf24; }
-.pf-finding.alert { border-left-color: var(--down); }
-.pf-f-sev { font-size: 0.7rem; margin-top: 0.15rem; } .pf-finding.watch .pf-f-sev { color: #fbbf24; } .pf-finding.alert .pf-f-sev { color: var(--down); } .pf-finding.info .pf-f-sev { color: var(--text-3); }
-.pf-f-body { min-width: 0; }
-.pf-f-title { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; font-weight: 650; color: var(--text); flex-wrap: wrap; }
-.pf-f-detail { font-size: 0.76rem; color: var(--text-2); line-height: 1.5; margin-top: 0.1rem; }
-
-.pf-proposed { border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
-.pf-proposed-h { padding: 0.45rem 0.65rem; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); border-bottom: 1px solid var(--line-2); }
-.pf-proposed-row { display: grid; grid-template-columns: 2.6rem 3.5rem auto 1fr auto; align-items: center; gap: 0.55rem; padding: 0.45rem 0.65rem; border-bottom: 1px solid var(--line); font-size: 0.76rem; }
-.pf-proposed-row:last-child { border-bottom: none; }
-.pf-p-sym { font-weight: 700; } .pf-p-qty { color: var(--text-2); font-variant-numeric: tabular-nums; } .pf-p-why { color: var(--text-3); font-size: 0.7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pf-p-stage { border: 1px solid rgba(110, 231, 183, 0.45); background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border-radius: 6px; padding: 0.25rem 0.7rem; font-size: 0.72rem; font-weight: 600; cursor: pointer; } .pf-p-stage:hover:not(:disabled) { background: rgba(16, 185, 129, 0.22); } .pf-p-stage:disabled { opacity: 0.6; cursor: default; border-color: var(--line-2); color: var(--text-3); background: transparent; }
 
 .pf-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0.6rem; }
 .pf-stat { display: flex; flex-direction: column; gap: 0.1rem; border: 1px solid var(--line-2); border-radius: 10px; padding: 0.55rem 0.8rem; background: var(--surface); }
@@ -294,13 +169,11 @@ onMounted(() => cockpit.setContext({
 .pf-empty { margin: 0; padding: 1rem; font-size: 0.82rem; color: var(--text-3); line-height: 1.6; } .pf-link { color: var(--accent); text-decoration: none; } .pf-link:hover { text-decoration: underline; }
 
 .pf-table { display: flex; flex-direction: column; overflow-y: auto; }
-.pf-row { display: grid; grid-template-columns: 1.4fr 3rem 4.5rem 4.5rem 3.6rem 5rem 7rem; align-items: center; gap: 0.5rem; padding: 0.5rem 0.85rem; border: none; border-bottom: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; }
+.pf-row { display: grid; grid-template-columns: 1.4fr 3rem 4.5rem 4.5rem 5rem 7rem; align-items: center; gap: 0.5rem; padding: 0.5rem 0.85rem; border: none; border-bottom: 1px solid var(--line); background: transparent; color: inherit; text-align: left; cursor: pointer; font-size: 0.8rem; }
 .pf-row:hover { background: rgba(255, 255, 255, 0.03); }
 .pf-row-head { color: var(--text-3); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: default; }
 .pf-row-head:hover { background: transparent; }
 .pf-row .r, .pf-row-head .r { text-align: right; font-variant-numeric: tabular-nums; }
-.pf-row .c, .pf-row-head .c { text-align: center; }
-.pf-spark { display: flex; justify-content: center; align-items: center; opacity: 0.9; }
 .pf-sym { display: flex; flex-direction: column; min-width: 0; } .pf-sym b { font-size: 0.82rem; } .pf-sym small { font-size: 0.66rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pf-row .up { color: var(--up); } .pf-row .down { color: var(--down); } .pf-row .flat { color: var(--text-2); } .pf-row small { color: inherit; opacity: 0.75; }
 

@@ -101,6 +101,12 @@ NON_CHART_SERVICES = {
                # `charts/socbase-schema` path element, not deploy/values/schema.yaml-shaped.
                # Its image is the stock `postgres:16-alpine` (charts/socbase-schema/templates/
                # schema-job.yaml) — no first-party image to check against `built`.
+    "acquire-worker",  # governed-acquisition worker, deploys from infra/k8s/acquire-worker
+                       # (kustomize) — carries its own NetworkPolicy (deploy/argocd/
+                       # acquisition-services.yaml's house convention, same as socbase/zot/workspace).
+    "noetica-agent-machine",  # governance API the cockpit's /api/governance|acquire|autonomy|
+                              # containment route to, deploys from infra/k8s/noetica-agent-machine
+                              # (kustomize) — same NetworkPolicy convention as acquire-worker above.
 }
 
 # Registry hosts this platform actually publishes to. An image ref pointing anywhere
@@ -197,6 +203,34 @@ KNOWN_BROKEN = {
     # missing-secret crash, tracked elsewhere).
     # eval-fabric-api sha-pinned by gitops-promote (sha-e72d47ce…) after its first CI
     # build → removed from the ratchet 2026-08-03 (it only shrinks; leaving it FAILs "now passes").
+
+    # NEW 2026-08-04 (PR #1428, deploy/argocd/acquisition-services.yaml): noetica-agent-machine's
+    # infra/k8s/noetica-agent-machine/base/deployment.yaml pulls ghcr.io/socioprophet/
+    # noetica-agent-machine:latest, and that image genuinely does not exist anywhere yet — this is
+    # NOT a mistaken ref like workspace-mail's (check 6's exact class), it is a real, currently-unmet
+    # cross-repo dependency. Verified against EVERY workflow in SocioProphet/Noetica (the repo whose
+    # agent-machine/Dockerfile matches this deployment's port 8080 + /api/security/state probe):
+    # .github/workflows/{ci,release,release-verify,nightly,validate,windows,citations-must-resolve,
+    # copilot-code-review,sourceos-contract-sync}.yml all build the Tauri DESKTOP app (native binaries
+    # bundled into the app, via `npm run agent-machine:build:binary*`) or run tests — none invoke
+    # `docker build`. .gitea/workflows/package.yml packages .deb/.nupkg/.zip, also not a container
+    # image. The sibling artifacts in the SAME tree — agent-machine/docker/cloudbuild.yaml (builds
+    # board-base) and agent-machine/deploy/broker-cloud-run.yaml (deploys broker) — DO publish to
+    # Artifact Registry, proving the pattern exists in that repo; it just has not been applied to
+    # agent-machine/Dockerfile itself. Not carved out as legitimate third-party, because it is not
+    # third-party — it is this platform's own governance surface, meant to be rebuilt from source,
+    # just not wired up to build anywhere yet. Ratcheted so PR #1428 can register the Application
+    # (ArgoCD will show it Progressing/ImagePullBackOff, which is the honest, expected state per that
+    # PR's own "honest dependencies" section — not a regression). Remove this entry once Noetica CI
+    # ships an image (ideally to Artifact Registry, matching board-base/broker, not GHCR) and
+    # infra/k8s/noetica-agent-machine/base/deployment.yaml is repointed at it.
+    "noetica-agent-machine:wrong-registry": (
+        "SocioProphet/Noetica has no CI that builds agent-machine/Dockerfile into a container image "
+        "(verified against all 9 GitHub Actions workflows + .gitea/workflows/package.yml, 2026-08-04) "
+        "— the image cannot exist yet. Tracked as PR #1428's stated Noetica-CI dependency; remove this "
+        "entry once that image is published and the deployment ref points at wherever it actually "
+        "lands (Artifact Registry, matching this repo's cutover, not GHCR)."
+    ),
 }
 
 # Registries that are explicitly not ours. A values file naming one of these is

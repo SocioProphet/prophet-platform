@@ -173,6 +173,20 @@ spec:
             path: infra/k8s/mcp-a2a-zero-trust/overlays/p0-lab
             bundle: security.mcp-zero-trust
             wave: "10"
+          # ── Governed acquisition plane — backs the re-vendored cockpit's new features ───────
+          # Tier 11 — acquire-worker (POSTs evidence to prophet-mesh, enriches via SynapseIQ) +
+          # noetica-agent-machine (governance API the cockpit's /api/governance|acquire|autonomy|
+          # containment route to). Both sync after their deps (prophet-mesh w6, synapseiq w10) and
+          # before socioprophet-web (w13). NOTE: ghcr.io/socioprophet/noetica-agent-machine:latest must
+          # be published by Noetica CI first — until then this Application stays Progressing.
+          - name: acquire-worker
+            path: infra/k8s/acquire-worker/overlays/p0-lab
+            bundle: acquisition.worker
+            wave: "14"
+          - name: noetica-agent-machine
+            path: infra/k8s/noetica-agent-machine/overlays/p0-lab
+            bundle: governance.agent-machine
+            wave: "14"
           # Observability is deployed via deploy/argocd/observability-services.yaml (Wave 1 keystone),
           # not through this appset — #674's duplicate observability entry dropped on merge.
           # ── Sovereign Identity Broker ────────────────────────────────────

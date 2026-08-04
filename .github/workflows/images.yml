@@ -57,6 +57,10 @@ jobs:
           - { image: osm-map-api,           context: .,                         dockerfile: apps/osm-map-api/Dockerfile }
           - { image: dashboard-bff,         context: .,                         dockerfile: apps/dashboard-bff/Dockerfile }
           - { image: catalog-gateway,       context: apps/catalog-gateway,      dockerfile: Dockerfile }
+          # Governed web-acquisition executor. Self-contained: the Dockerfile esbuild-bundles the
+          # worker + the vendored client-vue acquisition core into one CJS, so the context is just
+          # this dir. Referenced by infra/k8s/acquire-worker (wave 14).
+          - { image: acquire-worker,        context: apps/acquire-worker,       dockerfile: Dockerfile }
           - { image: workspace-mail,        context: services/workspace-mail,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: workspace-caldav,      context: services/workspace-caldav, dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }
           - { image: workspace-smtp,        context: services/workspace-smtp,   dockerfile: Dockerfile, registry: registry.socioprophet.ai, registry_auth: basic }

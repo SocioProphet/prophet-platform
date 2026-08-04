@@ -3,7 +3,7 @@
 //   Extract   → spaCy NER + dependency relations + claims (ie-engine :8086)
 //   Glossary  → salient terms + definitions (ie-engine)
 //   Vectors   → embedding similarity (ie-engine)
-//   Type System → RDFS/OWL entailment authoring (sophos-reasoner :8081)
+//   Type System → RDFS/OWL entailment authoring (owl-reasoner :8081)
 //   Resolve   → entity resolution → golden records (entity-resolution :8082)
 // Extraction can be written into the canonical HellGraph. Sherlock / SynapseIQ / Holmes are surfaced
 // as suite tools (deeper wiring pending — they need their own build/boot).
@@ -68,7 +68,7 @@ const vecLines = computed(() => vecText.value.split('\n').map((s) => s.trim()).f
 const runVec = () => run(() => vectorize(vecLines.value), (v) => (sim.value = v.similarity));
 const heat = (x: number) => `rgba(75,191,115,${(x * 0.9).toFixed(2)})`;
 
-// Type System (sophos-reasoner)
+// Type System (owl-reasoner)
 const ttl = ref('@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix ex: <http://ex/> .\nex:Regulator rdfs:subClassOf ex:Institution .\nex:Institution rdfs:subClassOf ex:Agent .\nex:ODGB a ex:Regulator .');
 const ent = ref<{ input: number; entailed: number; rows: any[] } | null>(null);
 const runReason = () => run(() => reason(ttl.value, 'rdfs'), (r) => (ent.value = { input: r.input_triples, entailed: r.entailed_triples, rows: r.entailments || [] }));
@@ -129,18 +129,6 @@ const SUITE = [
           <div class="ie-sec-h">Relations <span class="ie-n">{{ ex.relations.length }}</span></div>
           <div v-for="(r, i) in ex.relations" :key="i" class="ie-rel"><span class="ie-rel-e">{{ r.from }}</span><span class="ie-rel-v">{{ r.relation }} →</span><span class="ie-rel-e">{{ r.to }}</span></div>
         </div>
-        <div class="ie-sec" v-if="ex.sentiment">
-          <div class="ie-sec-h">Sentiment &amp; tone</div>
-          <div class="ie-sent-row">
-            <span class="ie-sent-tag" :class="ex.sentiment.label">{{ ex.sentiment.label }} ({{ ex.sentiment.score }})</span>
-            <span v-if="ex.tone?.dominant" class="ie-tone-tag">{{ ex.tone.dominant }}</span>
-            <span v-for="(v, k) in ex.tone?.emotions" :key="k" class="ie-emo" :title="`${k}: ${v}`">{{ k }} {{ v }}</span>
-          </div>
-          <div v-if="ex.entity_sentiment?.length" class="ie-esent">
-            <span v-for="(s, i) in ex.entity_sentiment" :key="i" class="ie-sent-tag sm" :class="s.label">{{ s.entity }} · {{ s.label }}</span>
-          </div>
-          <p class="ie-prov">{{ ex.provenance.sentiment_method || 'hand-built polarity/emotion lexicon (heuristic), not a trained classifier' }} — same heuristic pattern as Social Signals' on-device polarity, not a trained model.</p>
-        </div>
         <div class="ie-sec" v-if="ex.claims.length">
           <div class="ie-sec-h" style="display:flex;justify-content:space-between;align-items:center">
             <span>Claims <span class="ie-n">{{ ex.claims.length }}</span></span>
@@ -199,7 +187,7 @@ const SUITE = [
           <div class="ie-sec-h">{{ ent.input }} asserted → <b>{{ ent.entailed }}</b> entailed triples</div>
           <div v-for="(r, i) in ent.rows.slice(0, 14)" :key="i" class="ie-rel"><span class="ie-rel-e mono">{{ (r.s || r.subject || '').split(/[#/]/).pop() }}</span><span class="ie-rel-v mono">{{ (r.p || r.predicate || '').split(/[#/]/).pop() }} →</span><span class="ie-rel-e mono">{{ (r.o || r.object || '').split(/[#/]/).pop() }}</span></div>
         </div>
-        <p v-else class="ie-empty">Author a type system → sophos-reasoner infers the entailed class/instance triples.</p>
+        <p v-else class="ie-empty">Author a type system → owl-reasoner infers the entailed class/instance triples.</p>
       </div>
     </div>
 
@@ -263,15 +251,6 @@ const SUITE = [
 .ie-etag.sm { font-size: .55rem; }
 .ie-rel { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; font-size: .84rem; border-bottom: 1px solid var(--line); }
 .ie-rel-e { color: var(--text); } .ie-rel-v { color: var(--text-3); font-size: .76rem; } .mono { font-family: var(--font-mono, ui-monospace, monospace); }
-.ie-sent-row { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
-.ie-sent-tag { font-size: .72rem; font-weight: 700; text-transform: capitalize; padding: .12rem .5rem; border-radius: 999px; border: 1px solid var(--line-2); color: var(--text-2); }
-.ie-sent-tag.sm { font-size: .66rem; font-weight: 600; }
-.ie-sent-tag.positive { color: var(--up); border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.12); }
-.ie-sent-tag.negative { color: var(--down); border-color: rgba(248,81,73,.4); background: rgba(248,81,73,.12); }
-.ie-sent-tag.neutral { color: var(--text-3); }
-.ie-tone-tag { font-size: .72rem; text-transform: capitalize; padding: .12rem .5rem; border-radius: 999px; border: 1px solid var(--ask); color: var(--ask); background: rgba(147,180,255,.12); }
-.ie-emo { font-size: .66rem; color: var(--text-3); text-transform: capitalize; }
-.ie-esent { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
 .ie-claim { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; border-bottom: 1px solid var(--line); font-size: .84rem; }
 .ie-ctag { font-size: .58rem; font-weight: 700; padding: .05rem .4rem; border-radius: 4px; }
 .ie-ctag.assert { color: var(--live); background: rgba(75,191,115,.14); } .ie-ctag.hedge { color: var(--amber); background: rgba(227,179,65,.14); }

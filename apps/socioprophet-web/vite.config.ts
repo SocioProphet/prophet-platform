@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/hellgraph/, ''),
         },
-        // sophos-reasoner (RDFS/OWL entailment) + entity-resolution — the Studio Reason & Resolve bench.
+        // owl-reasoner (RDFS/OWL entailment) + entity-resolution — the Studio Reason & Resolve bench.
         '/svc/reason': {
           target: env.VITE_REASON_BASE || 'http://localhost:8081',
           changeOrigin: true,
@@ -71,47 +71,17 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/synapse/, ''),
         },
-        // catalog-gateway — read/resolve/lineage + DCAT AND the catalog ops plane (readout + SLO).
-        '/svc/catalog': {
-          target: env.VITE_CATALOG_BASE || 'http://localhost:8096',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/catalog/, ''),
-        },
         // sherlock-engine — Tantivy (Rust, no-JVM) ontology-driven Discovery search.
         '/svc/sherlock': {
           target: env.VITE_SHERLOCK_BASE || 'http://localhost:8093',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/sherlock/, ''),
         },
-        // Academy retrieval — search-orchestrator (academy ingest over the captured Commons chunks).
-        '/svc/search': {
-          target: env.VITE_SEARCH_BASE || 'http://localhost:8080',
+        // prophet-mesh cloud-mesh Assay rollup endpoint. Strip the /svc/assay prefix.
+        '/svc/assay': {
+          target: env.VITE_ASSAY_BASE || 'http://localhost:8780',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/search/, ''),
-        },
-        // Sovereign cloud portfolio agent (Portfolio ②).
-        '/svc/portfolio': {
-          target: env.VITE_PORTFOLIO_BASE || 'http://localhost:8094',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/portfolio/, ''),
-        },
-        // Sovereign Academy board engine (server-authoritative mastery-check grading + receipts).
-        '/svc/board': {
-          target: env.VITE_BOARD_BASE || 'http://localhost:8095',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/board/, ''),
-        },
-        // Agora — the work + knowledge plane (Jira/Confluence killer over HellGraph).
-        '/svc/agora': {
-          target: env.VITE_AGORA_BASE || 'http://localhost:8096',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/agora/, ''),
-        },
-        // Digital Health Twin engine (opt-in local-first record bundle + governed consent grants).
-        '/svc/health': {
-          target: env.VITE_HEALTH_BASE || 'http://localhost:8097',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/svc\/health/, ''),
+          rewrite: (path) => path.replace(/^\/svc\/assay/, ''),
         },
         // Same-origin proxy to the live Prophet Mesh (mesh.socioprophet.ai has no CORS).
         '/mesh': {
@@ -126,7 +96,14 @@ export default defineConfig(({ mode }) => {
       environment: 'happy-dom',
       globals: true,
       setupFiles: ['src/__tests__/setup.ts'],
-      include: ['src/__tests__/**/*.test.ts'],
+      // Was `['src/__tests__/**/*.test.ts', 'src/utils/**/*.test.ts']` — a glob added
+      // narrowly for src/utils/urlSafe.test.ts (#550) that left 6 other real,
+      // pre-existing test files silently unrun by `npm test`/CI: src/config/mesh.test.ts,
+      // src/features/contract-surfaces/contractSurfaces.test.ts, and 4 files under
+      // src/runtime-adapters/. Widened to the whole tree so "a test file exists" and
+      // "a test file executes" can't diverge again — the exact declared-but-unenforced
+      // shape this session has been closing everywhere else.
+      include: ['src/**/*.test.ts'],
     },
   };
 });
