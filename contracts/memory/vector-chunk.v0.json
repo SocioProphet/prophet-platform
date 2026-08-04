@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/memory/vector-chunk.v0.json",
+  "title": "VectorChunk.v0",
+  "description": "A vector embedding of a content chunk, bound to its source FAIR_OBJECT via the 'indexed_as' edge and carrying its memory-scope envelope. Resolves GAP-ER-1: memoryd stores embeddings without a first-class contract binding chunk → FAIR_OBJECT + scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chunk_id", "object_id", "embedding_ref", "scope", "indexed_at"],
+  "properties": {
+    "chunk_id": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Unique identifier for this vector chunk. Recommended format: vc-<hex12>."
+    },
+    "object_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "FAIR_OBJECT.object_id this chunk is indexed from. Declares the 'FAIR_OBJECT indexed_as VECTOR_CHUNK' edge defined in metadata-standards."
+    },
+    "embedding_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Reference to the embedding artifact — EmbeddingComputed.event_id or a governed artifact URI. Points to the vector coordinates and model provenance."
+    },
+    "scope": {
+      "type": "object",
+      "description": "Memory-scope envelope: which topic set, domain, and optional span this chunk covers.",
+      "additionalProperties": false,
+      "required": ["topic_set", "domain"],
+      "properties": {
+        "topic_set": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Topics or concept handles this chunk relates to (e.g. ['medical.cardiology', 'patient.rx'])."
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Knowledge domain (e.g. 'medical', 'legal', 'code', 'conversation', 'market-data')."
+        },
+        "span": {
+          "type": "object",
+          "description": "Optional character-offset or token span within the source object.",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "type": "integer", "minimum": 0 },
+            "end": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+    "indexed_at": {
+      "type": "string",
+      "description": "ISO-8601 timestamp when this chunk was indexed into the vector store."
+    },
+    "vector_dim": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Dimensionality of the embedding vector (must match the collection configuration)."
+    },
+    "collection_ref": {
+      "type": "string",
+      "description": "Optional: the Qdrant (or equivalent) collection name where this point lives."
+    }
+  },
+  "non_claims": [
+    "This contract does not carry vector coordinates — those live in embedding_ref.",
+    "This contract does not execute memory queries or writes.",
+    "This contract does not define the FAIR_OBJECT schema — see metadata-standards.",
+    "This contract does not assert that the object_id has been verified or admitted."
+  ]
+}
