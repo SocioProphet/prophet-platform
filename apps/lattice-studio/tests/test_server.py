@@ -928,7 +928,8 @@ def test_catalog_lists_governed_datasets(monkeypatch):
             return ({"nodes": [
                 {"id": "proj-teamx:ingest:1", "labels": ["proj-teamx", "Person", "Ingested"],
                  "properties": {"name": "row1", "id_col": "1", "age": "40", "connector": "csv",
-                                "epistemic_mode": "observed", "source": "connector:csv:abc", "extractor": "x"}},
+                                "epistemic_mode": "observed", "source": "connector:csv:abc", "extractor": "x",
+                                "updated_at": "2026-08-01T00:00:00Z"}},
                 {"id": "proj-teamx:ent:foo", "labels": ["proj-teamx", "Entity"], "properties": {"name": "foo"}},
             ], "edgeList": []}, None)
         return (None, "x")
@@ -939,6 +940,9 @@ def test_catalog_lists_governed_datasets(monkeypatch):
     ds = b["datasets"][0]
     assert ds["connector"] == "csv" and ds["governed"] and ds["epistemic_mode"] == "observed"
     assert set(ds["columns"]) == {"id_col", "age"}           # provenance keys filtered out
+    # freshness: "how fresh is it" (the canonical lineage query this catalog must answer)
+    # must be a real surfaced field, not silently dropped as just a reserved-key exclusion.
+    assert ds["updated_at"] == "2026-08-01T00:00:00Z"
 
 
 def test_lineage_walks_the_flow_graph(monkeypatch):
@@ -947,7 +951,7 @@ def test_lineage_walks_the_flow_graph(monkeypatch):
     async def fake_req(client, method, url, json=None):
         if "subgraph" in url:
             return ({"nodes": [
-                {"id": "ds", "labels": ["proj-teamx", "Dataset"], "properties": {"name": "tidy", "epistemic_mode": "observed"}},
+                {"id": "ds", "labels": ["proj-teamx", "Dataset"], "properties": {"name": "tidy", "epistemic_mode": "observed", "updated_at": "2026-07-30T00:00:00Z"}},
                 {"id": "run", "labels": ["proj-teamx", "Run", "Experiment"], "properties": {"name": "fit"}},
                 {"id": "model", "labels": ["proj-teamx", "Model"], "properties": {"name": "clf", "epistemic_mode": "attested"}},
                 {"id": "unrelated", "labels": ["proj-teamx", "Entity"], "properties": {"name": "x"}},
@@ -965,6 +969,9 @@ def test_lineage_walks_the_flow_graph(monkeypatch):
     labels = {(e["from"], e["to"], e["label"]) for e in b["edges"]}
     assert ("model", "run", "produced_by") in labels and ("run", "ds", "feeds") in labels
     assert next(n for n in b["nodes"] if n["id"] == "model")["type"] == "Model"
+    # freshness travels with the lineage walk too — "where is X available from and
+    # how fresh is it" is one query, not two separate lookups.
+    assert next(n for n in b["nodes"] if n["id"] == "ds")["updated_at"] == "2026-07-30T00:00:00Z"
 
 
 def test_model_register_promote_and_list(monkeypatch):
