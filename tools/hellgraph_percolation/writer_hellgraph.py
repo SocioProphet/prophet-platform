@@ -17,14 +17,14 @@ from typing import Callable, Mapping, Optional
 Poster = Callable[[str, dict], None]  # (path, json_body) -> None
 
 
-def _http_poster(base_url: str, token: Optional[str]) -> Poster:
+def _http_poster(base_url: str, token: Optional[str], timeout: float = 30.0) -> Poster:
     def post(path: str, body: dict) -> None:
         headers = {"content-type": "application/json"}
         if token:
             headers["authorization"] = f"Bearer {token}"  # graph:write scope when AUTH_ENFORCE=on
         req = urllib.request.Request(base_url.rstrip("/") + path, method="POST",
                                      data=json.dumps(body).encode("utf-8"), headers=headers)
-        urllib.request.urlopen(req).read()
+        urllib.request.urlopen(req, timeout=timeout).read()  # bounded: a hung service is a failure, not an open wait
     return post
 
 
@@ -44,11 +44,13 @@ def _node_body(n: Mapping) -> dict:
 
 
 def _edge_body(e: Mapping) -> dict:
+    attrs = e.get("attributes") or {}
     return {
         "label": e["edge_type"], "from": e["src"], "to": e["dst"],
-        "properties": _clean({"tenant_id": e["tenant_id"], "confidence": e.get("confidence"),
+        "properties": _clean({"tenant_id": e["tenant_id"], "op_set": attrs.get("op_set"),
+                              "confidence": e.get("confidence"),
                               "claim_refs": e.get("claim_refs"), "evidence_refs": e.get("evidence_refs"),
-                              **(e.get("attributes") or {})}),
+                              **attrs}),
     }
 
 
@@ -61,6 +63,12 @@ class HellgraphServiceWriter:
         self._validate = validate
 
     def upsert(self, request: Mapping) -> None:
+        if request.get("claims") or request.get("evidence"):
+            # graph-upsert-request.v0 permits claims[]/evidence[], but this service boundary exposes
+            # no endpoint to land them. Silently dropping would lose provenance, so refuse fail-closed
+            # rather than pretend they were written.
+            raise ValueError("HellgraphServiceWriter cannot land claims[]/evidence[] (no service "
+                             "endpoint) — materialise them upstream or extend the writer; never drop silently")
         if self._validate:
             _check(request)
         for node in request.get("nodes", []):
@@ -71,19 +79,24 @@ class HellgraphServiceWriter:
             self._reify(he)
 
     def _reify(self, he: Mapping) -> None:
-        # the hyperedge becomes a node carrying a "hyperedge" label ...
+        # the hyperedge becomes a node carrying a "hyperedge" label + its FULL provenance (confidence,
+        # claim/evidence refs, timestamps) so reification is lossless, not a bare shell ...
         self._post("/api/graph/node", {
             "id": he["hyperedge_id"],
             "labels": [he["hyperedge_type"], "hyperedge"],
             "properties": _clean({"tenant_id": he["tenant_id"], "op_set": he.get("op_set"),
+                                  "confidence": he.get("confidence"), "claim_refs": he.get("claim_refs"),
+                                  "evidence_refs": he.get("evidence_refs"),
+                                  "created_at": he.get("created_at"), "updated_at": he.get("updated_at"),
                                   **(he.get("attributes") or {})}),
         })
-        # ... and each roled member becomes a labelled edge out of it
+        # ... and each roled member becomes a labelled edge out of it, carrying the SAME isolation
+        # scope (tenant_id + op_set) as the relation, so an op_set-scoped edge read sees its role edges.
         for m in he["members"]:
             self._post("/api/graph/edge", {
                 "label": m["role"], "from": he["hyperedge_id"], "to": m["node_id"],
-                "properties": {"member_role": m["role"], "reified_from": he["hyperedge_id"],
-                               "tenant_id": he["tenant_id"]},
+                "properties": _clean({"member_role": m["role"], "reified_from": he["hyperedge_id"],
+                                      "tenant_id": he["tenant_id"], "op_set": he.get("op_set")}),
             })
 
 

@@ -16,15 +16,20 @@ from __future__ import annotations
 from typing import Mapping
 
 
-def materialize(argument_graph: Mapping, *, tenant_id: str, op_set: str = "discourse",
-                doc_id: str = "", now: str = "") -> dict:
-    """ArgumentGraph.to_dict() → graph-upsert-request.v0. Unit ids are namespaced by `doc_id` so two
-    documents' units never collide in the shared graph."""
+def materialize(argument_graph: Mapping, *, tenant_id: str, doc_id: str, op_set: str = "discourse",
+                now: str = "") -> dict:
+    """ArgumentGraph.to_dict() → graph-upsert-request.v0. `doc_id` is REQUIRED and namespaces every
+    unit id, so two documents' claims/premises never collide in the shared graph — a bare "u0" from
+    two different documents would otherwise merge into one node (and one "arg:u0" hyperedge). Empty
+    doc_id is refused fail-closed rather than silently producing colliding ids."""
+    if not doc_id:
+        raise ValueError("materialize requires a non-empty doc_id — it namespaces node/hyperedge ids "
+                         "to prevent cross-document collision in the shared graph")
     units = argument_graph.get("units", [])
     relations = argument_graph.get("relations", [])
 
     def nid(uid: str) -> str:
-        return f"{doc_id}:{uid}" if doc_id else uid
+        return f"{doc_id}:{uid}"
 
     nodes = [{
         "node_id": nid(u["id"]),
