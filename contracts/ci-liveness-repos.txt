@@ -1,0 +1,11 @@
+# Repos swept by the CI liveness dead-man's switch (tools/ci_liveness_sweep.py).
+#
+# prophet-platform is deliberately IN this list so the sweep reports on its own workflows,
+# including the one that runs it. That is partial self-coverage, not a solution: if the scheduled
+# workflow itself stops starting, nothing here notices. See the "limit" section of
+# docs/CI_LIVENESS.md — the recursion has to terminate in something checked by a human or by
+# separate infrastructure.
+SocioProphet/prophet-platform
+SocioProphet/cybernetic-genesis
+SourceOS-Linux/goose-notes
+SourceOS-Linux/BearBrowser
