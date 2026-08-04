@@ -31,21 +31,16 @@ jobs:
           docker push "$IMG"
           echo "IMG=$IMG" >> "$GITHUB_ENV"
           echo "✔ pushed $IMG"
-      - uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c # v2.3.5
-        with:
-          cluster_name: ${{ vars.GKE_CLUSTER || 'prophet-platform' }}
-          location: ${{ vars.GKE_LOCATION || 'us-central1' }}
-      - name: Apply the L1 plane (authority + gitea + ingress)
+      # NO imperative `kubectl apply` here anymore. That out-of-band path is exactly the class the
+      # 2026-08-04 postmortem closed: it applied workloads ArgoCD couldn't see, and a broken gitea
+      # rotted 26h unseen. The sovereign pair is now reconciled by ArgoCD (app: gitea-sovereign →
+      # deploy/gitea-authority/k8s). This workflow only BUILDS + pushes the image; deployment is
+      # GitOps: bump the kustomize tag and merge, and ArgoCD rolls it out (and verifies health).
+      - name: Point GitOps at the new image (ArgoCD deploys — no kubectl apply)
         run: |
           set -euo pipefail
-          sed "s#IMAGE_PLACEHOLDER#${IMG}#" deploy/gitea-authority/k8s/gitea-sovereign.yaml | kubectl apply -f -
-          # Verify EVERY workload this manifest creates — not just the authority. The gitea git
-          # server crashlooped unnoticed for 26h (2026-08-04 postmortem) because this step checked
-          # only deploy/gitea-authority and swallowed gitea's failure with `|| true`, reporting
-          # GREEN while gitea was broken. A deploy control that does not verify what it deploys is
-          # the paper control this estate refuses.
-          kubectl -n socioprophet rollout status deploy/gitea-authority --timeout=180s
-          kubectl -n socioprophet rollout status deploy/gitea            --timeout=180s
-          echo "── authority + gitea both ready:"
-          kubectl -n socioprophet get deploy/gitea-authority deploy/gitea svc/gitea-authority ingress/gitea -o wide
-          echo "→ Point gitea.sourceos.dev DNS at the ingress address to finish."
+          TAG="sha-${GITHUB_SHA::12}"
+          echo "✔ pushed image tag: ${TAG}"
+          echo "→ To deploy: set 'newTag: ${TAG}' in deploy/gitea-authority/k8s/kustomization.yaml"
+          echo "  and merge. ArgoCD app 'gitea-sovereign' reconciles it (continuous, self-healing)."
+          echo "  (A follow-up can automate this bump via argocd-image-updater or a writeback PR.)"
