@@ -9,21 +9,18 @@ This document introduces the **Crystal Atlas** extraction, enrichment, and contr
 ## Lane decomposition
 
 ### Upstream extraction and enrichment
-Crystal Atlas upstream work produces platform-facing events such as:
-- `doc.clauses.extracted.v0`
-- `doc.clauses.scored.v0`
-- `entities.resolved.v0`
-- `entities.resolved.crossdoc.v0`
-- `enrichment.emitted.v0`
-
-These contracts are intentionally event-first and transport-neutral.
-
 ### Downstream contract intelligence
-A downstream consumer turns those structured events into workflow-level intelligence:
-- `contract.clauses.compared.v0`
-- `procurement.substitution.recommended.v0`
-- `entitlement.adjacency.inferred.v0`
-- `diligence.risk.pack.generated.v0`
+
+The authoritative list of event families lives in `contracts/crystal-atlas/README.md`
+and is held to the shipped schemas, in both directions, by
+`tools/tests/test_crystal_atlas_event_register.py`.
+
+It is deliberately not duplicated here. This document previously carried its own copy,
+and both copies drifted: three families were named with no schema behind them while
+five shipped schemas went unmentioned. Two registers means the one you happen to read
+is a coin flip.
+
+These contracts are event-first and transport-neutral.
 
 ## Platform placement
 
