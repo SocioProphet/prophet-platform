@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-08-04T01:34:14Z",
+  "cluster": "prophet-platform GKE",
+  "contract": {
+    "schemaVersion": "0.1.0",
+    "kind": "ResourceContract",
+    "contractId": "oom-canary-memory",
+    "resource": "memory",
+    "limit": {
+      "value": 67108864.0,
+      "unit": "bytes"
+    },
+    "window": "PT40S",
+    "scope": "tenant",
+    "enforcement": "terminate",
+    "negativeControl": "conformance/k8s-resource-enforcement-fires.md",
+    "firedCount": 1,
+    "observedPeak": {
+      "schemaVersion": "0.1.0",
+      "kind": "Measurement",
+      "label": "oom-canary memory peak over 40s (3 samples)",
+      "value": 61079552.0,
+      "source": "measured",
+      "instrument": "kubectl top (metrics-server)",
+      "sampling": {
+        "observed": 3,
+        "population": 6,
+        "unit": "samples"
+      },
+      "unobserved": 0,
+      "gateEligible": true
+    }
+  },
+  "verdict": {
+    "kind": "SufficiencyVerdict",
+    "resource_contract_id": "oom-canary-memory",
+    "enforcement": "terminate",
+    "fired_count": 1,
+    "peak": 61079552.0,
+    "limit": 67108864.0,
+    "verdict": "PROVED",
+    "reason": "memory limit enforced (terminate) 1x on real load \u2014 the control has teeth"
+  }
+}

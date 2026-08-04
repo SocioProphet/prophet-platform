@@ -1,0 +1,63 @@
+# Negative control for memory enforcement — a workload DESIGNED to be OOMKilled.
+#
+# The ResourceContract producer emits every memory verdict as INCONCLUSIVE until some workload's
+# limit is OBSERVED to fire: 0 OOMKills means either "the limit works and was never breached" or
+# "the limit does not enforce." Only driving a breach distinguishes them. This canary drives one,
+# in an isolated namespace, so the cluster's cgroup memory enforcement is proven to have teeth and
+# the producer can emit its first PROVED (not synthetic — a real OOMKill on this cluster).
+#
+# It is intentionally, permanently OOMKilling while it exists — so it lives in its OWN namespace
+# (never socioprophet), is applied only for a conformance run, and is torn down afterward by
+# run.sh. Do not leave it running: it is a test fixture, not a service.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: negative-controls
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+    socioprophet.io/purpose: conformance-negative-control
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oom-canary
+  namespace: negative-controls
+  labels:
+    app: oom-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oom-canary
+  template:
+    metadata:
+      labels:
+        app: oom-canary
+    spec:
+      restartPolicy: Always   # Deployment pods restart → repeated OOMKill, a stable fired signal
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: allocator
+          image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+          # Allocate toward the 64Mi limit in 6 MiB steps every 5s. Deliberately SLOW: the pod
+          # must stay Running long enough (>1 metrics-server scrape interval, ~15s) for its peak
+          # usage to be MEASURED before the cgroup OOM-kills it — otherwise the peak is unobserved
+          # and the verdict is INCONCLUSIVE rather than PROVED. With a measured peak AND the
+          # resulting OOMKill, the memory verdict becomes PROVED (real teeth, real evidence).
+          command: ["python3", "-c", "import time\nb=bytearray()\nwhile True:\n b+=bytearray(6*1024*1024)\n time.sleep(5)"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

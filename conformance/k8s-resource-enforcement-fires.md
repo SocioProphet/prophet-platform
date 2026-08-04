@@ -48,8 +48,20 @@ kubectl -n "$NS" exec deploy/"$APP" -- cat /sys/fs/cgroup/cpu.stat | grep -E 'nr
 
 ## Status
 
-**Procedure only; not yet executed against these workloads.** That is stated plainly and is why
-every current verdict is `INCONCLUSIVE`, not `PROVED`: an unrun procedure is honest, whereas
-emitting `PROVED` from an unproven limit would be the paper control this whole contract exists to
-refuse. Running it (memory first — it is bounded and safe) converts a workload's verdict to
-`PROVED` and its `firedCount` to a real count.
+**Memory: EXECUTED — PROVED (2026-08-04).** The memory half is no longer a procedure on paper. It
+is now a runnable negative control — [`negative-controls/memory-enforcement/`](negative-controls/memory-enforcement/)
+(`run.sh` + `oom-canary.yaml`) — and it was run against the prophet-platform GKE cluster: an
+isolated `oom-canary` deployment (64Mi limit) was driven past its limit, the kernel OOM-killed it,
+and the producer emitted the loop's **first PROVED** verdict —
+`oom-canary-memory: terminate, fired 1×, peak 58Mi < limit 64Mi → PROVED` ("the control has
+teeth"). Captured evidence: [`evidence-2026-08-04-PROVED.json`](negative-controls/memory-enforcement/evidence-2026-08-04-PROVED.json).
+The canary is torn down after each run — it is a test fixture, never a standing workload.
+
+This proves the cluster's cgroup memory enforcement fires, and that the producer/verdict algebra
+can actually reach `PROVED` on real data — not only `INCONCLUSIVE`. Real first-party workloads
+stay `INCONCLUSIVE` until each is itself run through the procedure (driving a breach on a live
+service is disruptive, so it is done deliberately, per workload), but the mechanism is now proven.
+
+**CPU: still procedure-only.** The throttle counter is not exposed by the k8s API (see the CPU
+section above); CPU verdicts remain `INCONCLUSIVE` until the cAdvisor/Prometheus signal is wired
+(tracked as a separate backlog item).
