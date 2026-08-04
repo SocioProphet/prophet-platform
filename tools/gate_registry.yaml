@@ -61,6 +61,13 @@ gates:
     teeth_test: tools/tests/test_verify_cronjob_script_mirrors.py
     min_negative_tests: 1
 
+  - id: INV-DEP-15
+    name: Every ArgoCD Application source is sovereign or a shrinking allowlist entry
+    kind: pytest
+    tool: tools/verify_argocd_source_sovereignty.py
+    teeth_test: tools/tests/test_verify_argocd_source_sovereignty.py
+    min_negative_tests: 1
+
   - id: L1-ephemeral-apply
     name: Ephemeral real-apply preflight (live create/spec-admission)
     kind: workflow
