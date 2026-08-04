@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         app: workspace-caldav
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: workspace-caldav
     spec:
       # radicale runs non-root, uid/gid 999 — VERIFIED via `id` in the live pod, NOT 1000 (a prior
       # revision guessed 1000; that only works by accident via a supplementary group). Its PVC mounts

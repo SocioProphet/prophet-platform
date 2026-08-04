@@ -4,6 +4,7 @@ metadata:
   name: prophet-core-query
   labels:
     app: prophet-core-query
+    app.kubernetes.io/name: prophet-core-query
     bundle: data.query
 spec:
   replicas: 1
@@ -14,6 +15,10 @@ spec:
     metadata:
       labels:
         app: prophet-core-query
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: prophet-core-query
         bundle: data.query
     spec:
       containers:
