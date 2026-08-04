@@ -19,9 +19,15 @@ register:
     probe: >-
       The law suite exists and the gateway test dir is CI-gated (enforcement =
       app-test-diagnostics runs the whole suite; this probe pins the wiring).
+    # Copilot #1004/#1016: the prior probe_cmd was `grep -rq "compute-gateway"
+    # .github/workflows/` — satisfied by ANY workflow that so much as mentions the
+    # string (images.yml's Docker build, provision-secrets.yml, probe-contract.yml, ...),
+    # none of which run the law suite. Deleting the actual test-running CI step would
+    # have left this probe green. Now it greps the specific matrix entry that runs the
+    # gateway's pytest suite and requires the pytest invocation to be right there.
     probe_cmd: >-
       test -f apps/compute-gateway/tests/test_receipt_compositionality.py
-      && grep -rq "compute-gateway" .github/workflows/
+      && grep -A4 "name: compute-gateway" .github/workflows/validate-target-diagnostics.yml | grep -q "pytest -q tests"
     wave: W6.0
 
   - id: exhaust-accounting
