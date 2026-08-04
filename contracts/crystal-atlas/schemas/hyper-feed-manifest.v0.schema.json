@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "hyper-feed-manifest.v0",
+  "description": "What a node publishes so peers federate WITHOUT trusting it or shipping raw data. Each entry carries a compact semantic-hash `code` (cross-node nearest-neighbour by Hamming distance), a content `digest` (content-addressed fetch verification), and an `attestation_ref` (provenance, verified via the twin or an mcp-a2a AttestationBundle — referenced, not embedded). Operational-set scoped: a peer matches only within an op_set it is entitled to.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_id", "node_id", "tenant_id", "created_at", "entries"],
+  "properties": {
+    "manifest_id": { "type": "string", "minLength": 3 },
+    "node_id": { "type": "string", "minLength": 1 },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref_id", "op_set", "code", "digest"],
+        "properties": {
+          "ref_id": { "type": "string", "minLength": 1, "description": "a graph node/hyperedge id this node holds" },
+          "op_set": { "type": "string", "minLength": 1 },
+          "code": { "type": "string", "pattern": "^[0-9a-f]+$", "description": "hex semantic-hash code; Hamming distance approximates semantic distance" },
+          "digest": { "type": "string", "minLength": 1, "description": "content digest for content-addressed fetch (e.g. sha256:...)" },
+          "attestation_ref": { "type": "string", "description": "reference to the provenance attestation (mcp-a2a AttestationBundle id / twin receipt)" }
+        }
+      }
+    },
+    "signature": { "type": "string", "description": "detached signature over the manifest by the publishing node's key" }
+  }
+}
