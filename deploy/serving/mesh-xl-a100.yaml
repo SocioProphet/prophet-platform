@@ -48,9 +48,24 @@ spec:
         - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
+      # The model cache (/hf, the 120Gi RWO PVC below) is written by the vLLM container.
+      # Without fsGroup a rootless container can't write the root-owned volume — the class
+      # that crashlooped gitea for 26h (kyverno require-fsgroup-for-pvc-writers, Audit).
+      # OnRootMismatch chowns the volume only when its root dir's group is wrong, so a 120Gi
+      # weights cache is not recursively re-chowned on every ~2-3 min warm — just the first.
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: vllm
-          image: vllm/vllm-openai:latest
+          # Pinned off the moving :latest tag: with imagePullPolicy IfNotPresent, :latest stayed
+          # whatever each node first cached, so the running vLLM version drifted silently per node.
+          # v0.26.0 is EXACTLY what :latest resolved to on 2026-07-25 (identical digest) — this
+          # changes the running bits by zero while making them immutable. Vendoring this image to
+          # the sovereign zot registry (registry.socioprophet.ai) is a tracked follow-up.
+          image: vllm/vllm-openai:v0.26.0@sha256:ffb2d59b1c059a5bd8d781320c9f5189de8293693b7d95da54befddaa54abf52
           args:
             - --model=Qwen/Qwen3-32B-AWQ
             - --quantization=awq_marlin
