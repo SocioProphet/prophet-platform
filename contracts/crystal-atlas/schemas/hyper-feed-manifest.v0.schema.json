@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "hyper-feed-manifest.v0",
-  "description": "What a node publishes so peers federate WITHOUT trusting it or shipping raw data. Each entry carries a compact semantic-hash `code` (cross-node nearest-neighbour by Hamming distance), a content `digest` (content-addressed fetch verification), and an `attestation_ref` (provenance, verified via the twin or an mcp-a2a AttestationBundle — referenced, not embedded). Operational-set scoped: a peer matches only within an op_set it is entitled to.",
+  "description": "What a node publishes so peers federate WITHOUT trusting it or shipping raw data. Each entry carries a compact semantic-hash `code` (cross-node nearest-neighbour by Hamming distance), a content `digest` (content-addressed fetch verification), and an `attestation_ref` (provenance, verified via the twin or an mcp-a2a AttestationBundle — referenced, not embedded). Operational-set scoped: `match` considers only entries in the op_set the caller queries — a discovery filter, NOT a trust boundary against a peer that mislabels its own entries; admission is gated by digest + attestation (see fetch.admit), which is where trust is actually established.",
   "type": "object",
   "additionalProperties": false,
   "required": ["manifest_id", "node_id", "tenant_id", "created_at", "entries"],

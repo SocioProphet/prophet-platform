@@ -28,22 +28,40 @@ class AdmitResult:
 
 
 def admit(entry: Mapping, content: bytes, *,
-          attestation_verifier: Optional[AttestationVerifier] = None) -> AdmitResult:
-    """Admit a fetched object iff its digest matches AND — when it carries an attestation_ref and a
-    verifier is supplied — its provenance verifies. Fail-closed."""
+          attestation_verifier: Optional[AttestationVerifier] = None,
+          require_attestation: bool = False) -> AdmitResult:
+    """Admit a fetched object ONLY if its digest matches AND its provenance verifies. Fail-closed:
+    the peer supplies BOTH the manifest digest and (via the fetcher) the bytes, so the digest only
+    proves "the peer's bytes match the peer's own claim" — the attestation is the sole external trust
+    anchor. Therefore an attestation_ref that cannot be checked is REJECTED, never admitted:
+      - no verifier supplied      -> reject (attestation-unverifiable)   [was: silently admitted]
+      - verifier raises           -> reject (attestation-error)          [was: crashed the caller]
+      - verifier returns False     -> reject (attestation-invalid)
+    With `require_attestation`, an entry carrying NO attestation_ref is rejected too (strict mesh)."""
     if not verify_digest(entry, content):
         return AdmitResult(entry["ref_id"], False, "digest-mismatch")
     att = entry.get("attestation_ref")
-    if att and attestation_verifier is not None and not attestation_verifier(att):
-        return AdmitResult(entry["ref_id"], False, "attestation-invalid")
+    if att:
+        if attestation_verifier is None:
+            return AdmitResult(entry["ref_id"], False, "attestation-unverifiable")
+        try:
+            ok = attestation_verifier(att)
+        except Exception as exc:  # noqa: BLE001 — a verifier failure is a rejection, never admission
+            return AdmitResult(entry["ref_id"], False, f"attestation-error:{type(exc).__name__}")
+        if not ok:
+            return AdmitResult(entry["ref_id"], False, "attestation-invalid")
+    elif require_attestation:
+        return AdmitResult(entry["ref_id"], False, "attestation-missing")
     return AdmitResult(entry["ref_id"], True, "ok", content)
 
 
 def federate(query_code: str, peer_manifest: Mapping, *, fetcher: Fetcher, max_hamming: int,
              op_set: Optional[str] = None,
-             attestation_verifier: Optional[AttestationVerifier] = None) -> List[AdmitResult]:
+             attestation_verifier: Optional[AttestationVerifier] = None,
+             require_attestation: bool = False) -> List[AdmitResult]:
     """Discover (Hamming match) → fetch → admit (verify), nearest first. Only admitted results carry
-    content; a fetch failure is a rejection, not a crash."""
+    content; a fetch failure is a rejection, not a crash. Admission is fail-closed (see `admit`): with
+    no verifier, an attested entry is rejected as unverifiable rather than trusted on digest alone."""
     index = {e["ref_id"]: e for e in peer_manifest.get("entries", [])}
     results: List[AdmitResult] = []
     for ref_id, _ in match(query_code, peer_manifest, max_hamming=max_hamming, op_set=op_set):
@@ -53,5 +71,6 @@ def federate(query_code: str, peer_manifest: Mapping, *, fetcher: Fetcher, max_h
         except Exception as exc:  # noqa: BLE001 — any fetch failure is a rejection
             results.append(AdmitResult(ref_id, False, f"fetch-failed:{type(exc).__name__}"))
             continue
-        results.append(admit(entry, content, attestation_verifier=attestation_verifier))
+        results.append(admit(entry, content, attestation_verifier=attestation_verifier,
+                             require_attestation=require_attestation))
     return results
