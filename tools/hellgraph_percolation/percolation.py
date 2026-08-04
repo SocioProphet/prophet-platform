@@ -66,7 +66,8 @@ class PercolationResult:
 class Writer(Protocol):
     """Anything that accepts a graph-upsert-request.v0 — the real engine client, or a recorder."""
 
-    def upsert(self, request: dict) -> None: ...
+    def upsert(self, request: dict) -> None:
+        """Accept a graph-upsert-request.v0 and apply it (the engine client, or a recorder)."""
 
 
 @dataclass
