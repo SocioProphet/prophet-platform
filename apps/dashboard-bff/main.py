@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import importlib.util
 import os
+import re
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -24,6 +26,12 @@ def _load_module(path: Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec is not None and spec.loader is not None
+    # dataclasses on 3.12 resolve cls.__module__ via sys.modules; a module loaded this
+    # way must be registered before exec_module or that lookup silently returns None
+    # (AttributeError: 'NoneType' object has no attribute '__dict__') for any @dataclass
+    # the loaded file defines. None of the existing producers hit this; the board
+    # validator does.
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -39,6 +47,38 @@ _studio = _load_module(ROOT / 'tools' / 'emit_studio_valuation.py', 'emit_studio
 _governance_test = _load_module(ROOT / 'tools' / 'emit_governance_test.py', 'emit_governance_test')
 _risk_ep = _load_module(ROOT / 'tools' / 'emit_risk_ep_facts.py', 'emit_risk_ep_facts')
 RiskEpFactsResponse = _contracts.RiskEpFactsResponse
+_board_producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_board.py', 'emit_is_board')
+_board_validator = _load_module(ROOT / 'tools' / 'validate_intelligence_superiority_board.py', 'is_board_validator')
+
+_SLUG_RE = re.compile(r'[^a-z0-9]+')
+
+
+def _slug(name: str) -> str:
+    return _SLUG_RE.sub('-', name.lower()).strip('-')
+
+
+def _evidence_for(ref: dict):
+    """One evidence_ref -> a web-linkable BoardEvidence, or None (memory-only nodes aren't URLs).
+
+    A ref that carries BOTH `repo` and `memory` (e.g. a repo pointer annotated with a related
+    memory-node id) must still resolve to the repo link — `memory` here is supplementary context,
+    not a signal to suppress an otherwise-linkable repo reference. Only a ref with no `repo` at
+    all (memory-only) is unlinkable."""
+    repo = ref.get('repo')
+    if not repo:
+        return None
+    if ref.get('path'):
+        href = f'https://github.com/SocioProphet/{repo}/blob/main/{ref["path"]}'
+        label = f'{repo}/{ref["path"]}'
+    elif ref.get('pr'):
+        href = f'https://github.com/SocioProphet/{repo}/pull/{ref["pr"]}'
+        label = f'{repo}#{ref["pr"]}'
+    else:
+        href = f'https://github.com/SocioProphet/{repo}'
+        label = repo
+    if ref.get('note'):
+        label = f'{label} — {ref["note"]}'
+    return _contracts.BoardEvidence(label=label, href=href)
 
 app = FastAPI(title='dashboard-bff')
 
@@ -57,7 +97,7 @@ def health() -> dict:
 def overview() -> object:
     return OverviewResponse(
         service='dashboard-bff',
-        views=['overview', 'deepdive', 'cases', 'intelligence-superiority', 'value-drivers'],
+        views=['overview', 'deepdive', 'cases', 'intelligence-superiority', 'value-drivers', 'competitive-boards'],
         trace_required=True,
         evidence_required=True,
     )
@@ -263,3 +303,61 @@ def governance_test(dataset: str = 'gyg-causal-valuation', action_class: str = '
     refs = [e.strip() for e in evidence.split(',') if e.strip()]
     return _governance_test.run(dataset=dataset, action_class=action_class, role=role,
                                 requested_level=requested_level, evidence_refs=refs)
+
+
+@app.get('/v1/competitive-boards', response_model=_contracts.CompetitiveBoardsResponse)
+def competitive_boards() -> object:
+    """Serve the intelligence-superiority FEATURE-BOARD — categorical BEAT/MEET/PARTIAL/GAP verdicts
+    against named competitors, per litmus feature. Distinct from /v1/intelligence-superiority above,
+    which serves numeric ML benchmark metrics; the two names collide by accident, not by design.
+
+    Built live from tools/emit_intelligence_superiority_board.py, then run through the SAME validator
+    the emitter itself gates on (validate_intelligence_superiority_board.validate_board) before being
+    served — this route can never ship a board the emitter's own honesty gate would reject. Relative-only
+    scoring model: every cell is the estate's claim about its standing against ONE competitor on ONE
+    feature, so there is no separate 'estate column' — see BoardCellView."""
+    board = _board_producer.build_board()
+    verdict = _board_validator.validate_board(board)
+    if not verdict.valid:
+        raise HTTPException(status_code=500, detail={
+            'error': 'intelligence-superiority board failed its own validator',
+            'rejections': verdict.rejections,
+        })
+
+    categories = []
+    for cat in board['categories']:
+        competitors = [_contracts.BoardCompetitor(id=_slug(c), name=c) for c in cat['competitors']]
+        features = [
+            _contracts.LitmusFeatureView(id=f['feature_id'], name=f['name'], definition=f['definition'])
+            for f in cat['litmus_features']
+        ]
+        cells = []
+        for s in cat['scores']:
+            evidence = None
+            for ref in (s.get('evidence_ref') or []):
+                evidence = _evidence_for(ref)
+                if evidence:
+                    break
+            cells.append(_contracts.BoardCellView(
+                feature_id=s['feature_id'],
+                competitor_id=_slug(s['competitor']),
+                rank=s['verdict'],
+                evidence=evidence,
+                maturity=s.get('maturity'),
+                basis='self-assessed' if s.get('assessment_basis') == 'self_assessed' else 'externally-certified',
+                note=s.get('rationale'),
+                provisional=bool(s.get('provisional', False)),
+            ))
+        categories.append(_contracts.CategoryBoardView(
+            id=cat['category_id'], name=cat['name'], description=cat['description'],
+            competitors=competitors, features=features, cells=cells,
+        ))
+
+    return _contracts.CompetitiveBoardsResponse(
+        service='dashboard-bff',
+        version=board.get('spec_version', '1.0.0'),
+        generated_at=board['generated_ts'],
+        estate_label='SocioProphet Estate',
+        categories=categories,
+        disclaimer=board.get('notes', ''),
+    )

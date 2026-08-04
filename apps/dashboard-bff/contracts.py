@@ -122,3 +122,67 @@ class RiskEpFactsResponse(BaseModel):
     facts: list[RiskFactView]
     detail: dict = {}
     provenance: dict
+
+
+class BoardEvidence(BaseModel):
+    label: str
+    href: str
+
+
+class BoardCompetitor(BaseModel):
+    """One competitor column on a litmus board. No 'estate' entry lives here — see BoardCellView."""
+    id: str
+    name: str
+    note: Optional[str] = None
+
+
+class LitmusFeatureView(BaseModel):
+    id: str
+    name: str
+    definition: str
+
+
+class BoardCellView(BaseModel):
+    """One (feature x competitor) verdict. The board's scoring model is deliberately RELATIVE-ONLY: a
+    cell states the estate's claim about its standing against THAT ONE competitor on THAT ONE feature
+    (BEAT/MEET/PARTIAL/GAP) — the same feature legitimately carries a different verdict against a
+    different competitor (e.g. BEAT vs Vectara, MEET vs Cohere on the same row). There is no
+    independently-assessed absolute rank for either side, so there is no separate 'estate column' — every
+    cell already IS the estate's claim, which is why evidence/maturity/basis live on every cell, not on
+    a subset of them."""
+    feature_id: str
+    competitor_id: str
+    rank: str
+    evidence: Optional[BoardEvidence] = None
+    maturity: Optional[str] = None
+    basis: Optional[str] = None
+    note: Optional[str] = None
+    # Mirrors the emitter's own honesty flag (emit_intelligence_superiority_board._expand_score):
+    # a thin BEAT/MEET lead (maturity=='spec' OR fewer than MIN_EVIDENCE_REFS evidence pointers) is
+    # REQUIRED by validate_intelligence_superiority_board to set this, on pain of rejection. Dropping
+    # it here would let the API serve a thin lead indistinguishable from a solid one.
+    provisional: bool = False
+
+
+class CategoryBoardView(BaseModel):
+    id: str
+    name: str
+    description: str
+    competitors: list[BoardCompetitor]
+    features: list[LitmusFeatureView]
+    cells: list[BoardCellView]
+
+
+class CompetitiveBoardsResponse(BaseModel):
+    """Served from tools/emit_intelligence_superiority_board.py's sealed, validator-gated dataset.
+
+    NOT the same system as /v1/intelligence-superiority: that route serves numeric ML benchmark metrics
+    (MMLU-STEM, GPQA, ...) with reproduced-vs-cited provenance. This route serves the categorical
+    competitor litmus board (BEAT/MEET/PARTIAL/GAP per feature per named competitor). The two share an
+    "intelligence-superiority" name by historical accident, not by design — do not conflate them."""
+    service: str
+    version: str
+    generated_at: str
+    estate_label: str
+    categories: list[CategoryBoardView]
+    disclaimer: str
