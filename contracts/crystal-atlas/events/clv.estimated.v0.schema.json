@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/clv.estimated.v0.schema.json",
+  "title": "clv.estimated.v0",
+  "description": "Emitted when a CLV model produces a lifetime-value estimate for a customer/entity. Carries the point estimate, confidence interval, and decomposition by time bucket.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "clv_estimate", "currency", "horizon_months",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":       { "type": "string", "minLength": 8 },
+    "emitted_at":     { "type": "string" },
+    "tenant_id":      { "type": "string" },
+    "producer":       { "type": "string" },
+    "entity_ref":     { "type": "string" },
+    "clv_estimate":   { "type": "number", "description": "Point estimate of total expected net revenue over horizon_months." },
+    "currency":       { "type": "string", "minLength": 3, "maxLength": 3, "description": "ISO 4217 currency code." },
+    "horizon_months": { "type": "integer", "minimum": 1 },
+    "confidence_interval": {
+      "type": "object", "additionalProperties": false,
+      "required": ["lower", "upper", "level"],
+      "properties": {
+        "lower": { "type": "number" },
+        "upper": { "type": "number" },
+        "level": { "type": "number", "minimum": 0, "maximum": 1, "description": "Confidence level (e.g. 0.9 for 90% CI)." }
+      }
+    },
+    "time_buckets": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["bucket_label", "expected_revenue"],
+        "properties": {
+          "bucket_label":       { "type": "string", "description": "e.g. 0-3m, 3-12m, 12-24m" },
+          "expected_revenue":   { "type": "number" },
+          "expected_orders":    { "type": "number" }
+        }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string", "description": "e.g. BG/NBD+GG, Pareto/NBD, LTV-NN" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

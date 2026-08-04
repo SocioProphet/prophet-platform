@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/risk.anomaly.flagged.v0.schema.json",
+  "title": "risk.anomaly.flagged.v0",
+  "description": "Emitted when a fraud/anomaly detection model flags a transaction, event, or entity-graph pattern as suspicious. Each fact is membrane-gated before emission; a clean-baseline signal MUST NOT produce this event.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "subject_ref", "subject_type", "anomaly_class", "score", "score_threshold",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":       { "type": "string", "minLength": 8 },
+    "emitted_at":     { "type": "string" },
+    "tenant_id":      { "type": "string" },
+    "producer":       { "type": "string" },
+    "subject_ref":    { "type": "string", "description": "Stable URI reference to the flagged transaction, event, or entity." },
+    "subject_type":   { "enum": ["transaction", "event", "entity", "entity-graph-pattern"] },
+    "anomaly_class":  { "type": "string", "description": "Model-assigned anomaly class (e.g. velocity-spike, card-testing, account-takeover)." },
+    "score":          { "type": "number", "minimum": 0, "maximum": 1, "description": "Raw anomaly score [0,1]; higher = more anomalous." },
+    "score_threshold":{ "type": "number", "minimum": 0, "maximum": 1, "description": "Decision threshold at which score triggers a flag." },
+    "epistemic_level":{ "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" },
+        "feature_set":   { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "contributing_signals": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["signal_name", "signal_value"],
+        "properties": {
+          "signal_name":  { "type": "string" },
+          "signal_value": {},
+          "weight":       { "type": "number" }
+        }
+      }
+    },
+    "graph_context": {
+      "type": "object", "additionalProperties": false,
+      "description": "Entity-graph evidence when subject_type is entity-graph-pattern.",
+      "properties": {
+        "node_count":   { "type": "integer", "minimum": 0 },
+        "edge_count":   { "type": "integer", "minimum": 0 },
+        "pattern_type": { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string", "description": "Ref to the MembraneDecision that cleared this emission." },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

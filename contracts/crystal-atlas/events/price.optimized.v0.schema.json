@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/price.optimized.v0.schema.json",
+  "title": "price.optimized.v0",
+  "description": "Emitted when a price/offer-optimization model produces a risk-adjusted recommended price or offer for a product/service. Includes funds-transfer-pricing (FTP) components when applicable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "product_ref", "entity_ref", "recommended_price", "currency",
+    "optimisation_objective", "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":               { "type": "string", "minLength": 8 },
+    "emitted_at":             { "type": "string" },
+    "tenant_id":              { "type": "string" },
+    "producer":               { "type": "string" },
+    "product_ref":            { "type": "string" },
+    "entity_ref":             { "type": "string", "description": "Customer / counterparty for whom the price is optimised." },
+    "recommended_price":      { "type": "number" },
+    "currency":               { "type": "string", "minLength": 3, "maxLength": 3 },
+    "optimisation_objective": { "type": "string", "description": "e.g. maximise_revenue, maximise_margin, hit_hurdle_rate, maximise_win_probability" },
+    "price_floor":            { "type": "number" },
+    "price_ceiling":          { "type": "number" },
+    "ftp_components": {
+      "type": "object", "additionalProperties": false,
+      "description": "Funds-transfer-pricing breakdown (financial services). All values in basis points unless stated.",
+      "properties": {
+        "base_rate_bps":         { "type": "number" },
+        "credit_spread_bps":     { "type": "number", "description": "PD-derived credit spread." },
+        "liquidity_premium_bps": { "type": "number" },
+        "capital_charge_bps":    { "type": "number" },
+        "hurdle_rate_pct":       { "type": "number", "description": "Required return on capital (%)." }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

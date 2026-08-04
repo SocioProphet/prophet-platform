@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/churn.risk.scored.v0.schema.json",
+  "title": "churn.risk.scored.v0",
+  "description": "Emitted when a churn/attrition model scores an entity's risk of leaving within a defined horizon. Used to prioritise retention actions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "churn_probability", "horizon_days",
+    "risk_tier", "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":          { "type": "string", "minLength": 8 },
+    "emitted_at":        { "type": "string" },
+    "tenant_id":         { "type": "string" },
+    "producer":          { "type": "string" },
+    "entity_ref":        { "type": "string", "description": "Stable URI reference to the customer / entity scored." },
+    "churn_probability": { "type": "number", "minimum": 0, "maximum": 1, "description": "Predicted probability of churn within horizon_days." },
+    "horizon_days":      { "type": "integer", "minimum": 1, "description": "Prediction window in calendar days." },
+    "risk_tier":         { "enum": ["critical", "high", "medium", "low"], "description": "Bucketed risk label for routing / alerting." },
+    "epistemic_level":   { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" },
+        "feature_snapshot_ref": { "type": "string" }
+      }
+    },
+    "top_signals": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["signal_name", "direction"],
+        "properties": {
+          "signal_name": { "type": "string" },
+          "direction":   { "enum": ["increases_churn", "decreases_churn"] },
+          "importance":  { "type": "number" }
+        }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

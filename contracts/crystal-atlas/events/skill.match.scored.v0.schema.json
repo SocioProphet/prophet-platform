@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/skill.match.scored.v0.schema.json",
+  "title": "skill.match.scored.v0",
+  "description": "Emitted when a skills/talent-matching model scores the fit between an entity (person, team) and a target requirement (role, project, gig).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "requirement_ref", "overall_match_score",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":           { "type": "string", "minLength": 8 },
+    "emitted_at":         { "type": "string" },
+    "tenant_id":          { "type": "string" },
+    "producer":           { "type": "string" },
+    "entity_ref":         { "type": "string", "description": "Person, team, or resource being matched." },
+    "requirement_ref":    { "type": "string", "description": "Role, project, or requirement being matched against." },
+    "overall_match_score":{ "type": "number", "minimum": 0, "maximum": 1 },
+    "skill_gaps": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["skill_id", "required_level", "assessed_level"],
+        "properties": {
+          "skill_id":       { "type": "string" },
+          "skill_label":    { "type": "string" },
+          "required_level": { "type": "number", "minimum": 0, "maximum": 1 },
+          "assessed_level": { "type": "number", "minimum": 0, "maximum": 1 },
+          "gap":            { "type": "number", "description": "required_level - assessed_level; positive = gap, negative = surplus." }
+        }
+      }
+    },
+    "matched_skills": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["skill_id", "match_contribution"],
+        "properties": {
+          "skill_id":           { "type": "string" },
+          "skill_label":        { "type": "string" },
+          "match_contribution": { "type": "number", "description": "Proportion of overall score attributable to this skill." }
+        }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

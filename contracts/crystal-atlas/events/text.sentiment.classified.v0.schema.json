@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/text.sentiment.classified.v0.schema.json",
+  "title": "text.sentiment.classified.v0",
+  "description": "Emitted when a sentiment/stance/topic NLP model classifies a text unit. Carries polarity, stance, and optional topic assignments.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "text_ref", "polarity", "polarity_score",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":       { "type": "string", "minLength": 8 },
+    "emitted_at":     { "type": "string" },
+    "tenant_id":      { "type": "string" },
+    "producer":       { "type": "string" },
+    "text_ref":       { "type": "string", "description": "Stable URI reference to the classified text unit (document, paragraph, sentence)." },
+    "text_span":      {
+      "type": "object", "additionalProperties": false,
+      "description": "Character span within the source document, if the unit is a sub-document fragment.",
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "end":   { "type": "integer", "minimum": 0 }
+      }
+    },
+    "polarity":       { "enum": ["positive", "neutral", "negative", "mixed"] },
+    "polarity_score": { "type": "number", "minimum": -1, "maximum": 1, "description": "Continuous polarity score [-1, 1]; 0 = neutral." },
+    "stance":         { "type": "string", "description": "Stance label relative to a target (e.g. support, oppose, neutral, unclear)." },
+    "stance_target":  { "type": "string", "description": "Entity or claim the stance is directed at." },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["topic_id", "label", "probability"],
+        "properties": {
+          "topic_id":    { "type": "string" },
+          "label":       { "type": "string" },
+          "probability": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "language":       { "type": "string", "description": "BCP-47 language tag of the classified text." },
+    "epistemic_level":{ "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

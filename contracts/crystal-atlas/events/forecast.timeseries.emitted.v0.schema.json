@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/forecast.timeseries.emitted.v0.schema.json",
+  "title": "forecast.timeseries.emitted.v0",
+  "description": "Emitted when a demand/revenue forecasting model produces a time-series forecast. Each point carries a central estimate and optional prediction interval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "series_id", "target_metric", "frequency", "forecast_origin",
+    "points", "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":        { "type": "string", "minLength": 8 },
+    "emitted_at":      { "type": "string" },
+    "tenant_id":       { "type": "string" },
+    "producer":        { "type": "string" },
+    "series_id":       { "type": "string", "description": "Stable identifier for the time series (e.g. sku.12345.demand, region.EMEA.revenue)." },
+    "target_metric":   { "type": "string", "description": "What is being forecast (e.g. units_sold, gross_revenue, transactions)." },
+    "frequency":       { "type": "string", "description": "Forecast step frequency (e.g. daily, weekly, monthly)." },
+    "forecast_origin": { "type": "string", "description": "ISO-8601 timestamp at which the forecast was anchored." },
+    "points": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["step", "timestamp", "value"],
+        "properties": {
+          "step":      { "type": "integer", "minimum": 1 },
+          "timestamp": { "type": "string" },
+          "value":     { "type": "number" },
+          "lower_80":  { "type": "number" },
+          "upper_80":  { "type": "number" },
+          "lower_95":  { "type": "number" },
+          "upper_95":  { "type": "number" }
+        }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string", "description": "e.g. Prophet, ARIMA, TFT, LightGBM-recursive" },
+        "scored_at":     { "type": "string" },
+        "training_cutoff": { "type": "string", "description": "Latest date of training data." }
+      }
+    },
+    "backtesting_mape": { "type": "number", "description": "Mean absolute percentage error on held-out backtesting window, if available." },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}
