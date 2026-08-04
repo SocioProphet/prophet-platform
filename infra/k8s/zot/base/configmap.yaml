@@ -8,6 +8,19 @@
 # MinIO bucket unattended: gc reclaims unreferenced blobs (gcDelay/gcInterval), and the retention policy
 # prunes untagged manifests and referrers while KEEPING `latest`, anything pulled within 90 days
 # (2160h), and the 100 most-recently-pushed tags per repo.
+#
+# LEAST-PRIVILEGE PUSH IDENTITY (`ci-push`).
+# A publishing pipeline needs to PUSH; it has no reason to be able to DELETE. `ci` and `github-ci`
+# hold `delete` on `**`, which means a leaked CI credential — or a bug in a workflow — can remove
+# any image in the sovereign registry, including the ones currently serving production. `ci-push`
+# is the credential CI should carry: read + create + update, no delete. Deleting stays with
+# `admin` and with zot's own retention/gc above, which is what actually reclaims space.
+# (This block is JSON, which has no comments, so the reasoning lives here.)
+#
+# Adding a user here grants AUTHORIZATION only. Zot authenticates against the htpasswd file in the
+# `zot-htpasswd` secret, so `ci-push` must also be added there or every login is a 401:
+#   htpasswd -Bbn ci-push "<CI_PUSH_PW>" >> /tmp/zot.htpasswd   # alongside the existing entries
+# and zot must be RESTARTED afterwards — it does not hot-reload this config or the htpasswd file.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -59,7 +72,9 @@ data:
           "repositories": {
             "**": {
               "policies": [
-                { "users": ["admin", "ci", "github-ci"], "actions": ["read", "create", "update", "delete"] },
+                { "users": ["admin"], "actions": ["read", "create", "update", "delete"] },
+                { "users": ["ci-push"], "actions": ["read", "create", "update"] },
+                { "users": ["ci", "github-ci"], "actions": ["read", "create", "update", "delete"] },
                 { "users": ["k8s-pull"], "actions": ["read"] }
               ],
               "defaultPolicy": [],
