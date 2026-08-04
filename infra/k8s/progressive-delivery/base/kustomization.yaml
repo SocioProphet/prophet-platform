@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Progressive delivery: SLO-gated canary. Requires the argo-rollouts controller and the
+# observability stack (kube-prometheus-stack + the SLO recording rules) already installed.
+resources:
+  - analysistemplate-slo-gate.yaml
+  - rollout-reference.yaml

@@ -1,0 +1,41 @@
+# Reference Rollout showing the SLO gate wired into a canary strategy. A service adopts
+# progressive delivery by switching its Deployment to this Rollout shape and pointing
+# `templateName` at slo-canary-gate with its own Prometheus `job` label. Promotion pauses
+# for the analysis at each weight step; a breached SLO auto-aborts and rolls back.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: hellgraph-api            # reference service; copy this shape per workload
+  namespace: observability
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: hellgraph-api }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: hellgraph-api }
+    spec:
+      containers:
+        - name: hellgraph-api
+          image: hellgraph-api:latest   # digest-pinned by the GitOps promotion in practice
+          ports: [{ containerPort: 8080 }]
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: slo-canary-gate
+            args:
+              - name: service-job
+                value: hellgraph-api
+        - setWeight: 50
+        - pause: { duration: 2m }
+        - analysis:
+            templates:
+              - templateName: slo-canary-gate
+            args:
+              - name: service-job
+                value: hellgraph-api
+        # reaching 100% only happens if every analysis passed

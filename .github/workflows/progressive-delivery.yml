@@ -1,0 +1,42 @@
+name: progressive-delivery
+
+# The observability keystone's payload: SLO-gated canary. This gate proves the canary
+# AnalysisTemplate queries REAL recording rules (defined in the observability PrometheusRules)
+# and can actually fail — a canary gate over a phantom metric silently passes every bad deploy.
+on:
+  push:
+    paths:
+      - 'infra/k8s/progressive-delivery/**'
+      - 'infra/k8s/observability/**'
+      - 'tools/validate_analysis_metrics.py'
+      - 'tools/test_validate_analysis_metrics.py'
+      - '.github/workflows/progressive-delivery.yml'
+  pull_request:
+    paths:
+      - 'infra/k8s/progressive-delivery/**'
+      - 'infra/k8s/observability/**'
+      - 'tools/validate_analysis_metrics.py'
+      - 'tools/test_validate_analysis_metrics.py'
+      - '.github/workflows/progressive-delivery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  slo-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyyaml pytest
+      - name: Canary gate queries real, fail-capable SLO metrics
+        run: python3 tools/validate_analysis_metrics.py
+      - name: Validator unit tests
+        run: python3 -m pytest tools/test_validate_analysis_metrics.py -q
+      - name: Kustomize build (manifests are well-formed)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash || true
+          ./kustomize build infra/k8s/progressive-delivery/base >/dev/null && echo "kustomize build OK" \
+            || kubectl kustomize infra/k8s/progressive-delivery/base >/dev/null && echo "kubectl kustomize OK"

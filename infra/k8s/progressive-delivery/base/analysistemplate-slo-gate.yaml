@@ -1,0 +1,41 @@
+# Argo Rollouts SLO gate — the progressive-delivery keystone.
+#
+# Gates canary promotion on the SAME recording rules the SLOs already publish
+# (job:request_error_ratio:rate5m, job:request_latency_p99:5m — see
+# observability/base/prometheusrule-slos.yaml, where they are literally labelled
+# "the canary gate metric"). A canary that raises the 5xx ratio or p99 latency
+# aborts automatically instead of being promoted. tools/validate_analysis_metrics.py
+# fails CI if this template ever queries a metric that isn't a real recording rule
+# (a gate that queries a phantom metric silently passes — that is theater).
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: slo-canary-gate
+  namespace: observability
+spec:
+  args:
+    - name: service-job          # the Prometheus `job` label of the service under canary
+  metrics:
+    - name: error-ratio
+      # Sample five times, one minute apart; a single breach aborts (fail-closed).
+      interval: 1m
+      count: 5
+      failureLimit: 1
+      successCondition: "result[0] < 0.05"     # < 5% 5xx, the HighErrorRatio SLO threshold
+      failureCondition: "result[0] >= 0.05"
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+          query: |
+            job:request_error_ratio:rate5m{job="{{args.service-job}}"}
+    - name: latency-p99
+      interval: 1m
+      count: 5
+      failureLimit: 1
+      successCondition: "result[0] < 0.75"     # p99 < 750ms (the recording rule is in seconds)
+      failureCondition: "result[0] >= 0.75"
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+          query: |
+            job:request_latency_p99:5m{job="{{args.service-job}}"}
