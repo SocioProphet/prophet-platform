@@ -137,6 +137,31 @@ def _print(controls: list[dict], live: bool) -> None:
         print(f"    ⚠ no negative control: {', '.join(undiscriminating_vals)}")
 
 
+# Shrink-only allowlist: SCHEDULED controls that lack a negative control TODAY (a control that
+# cannot be shown to fail). Same ratchet discipline as the moving-tag and ArgoCD-source gates —
+# a NEW undiscriminating scheduled control fails the build; a listed one that has SINCE gained a
+# negative control fails too (delete it — the ratchet only tightens toward zero). Give each a
+# real self-test, then remove it from here.
+KNOWN_UNDISCRIMINATING: frozenset[str] = frozenset({
+    "pvc-capacity-guard",     # guard.py has no self-test yet
+    "rule-liveness-guard",    # guard has no self-test yet (its PrometheusRule is meta-monitoring, not a negative control)
+})
+
+
+def undiscriminating_problems(controls: list[dict]) -> list[str]:
+    """Ratchet: new undiscriminating scheduled control OR a stale allowlist entry → a problem."""
+    problems: list[str] = []
+    scheduled_blind = {c["control"] for c in controls if c["kind"] == "cronjob" and not c["discriminates"]}
+    for name in sorted(scheduled_blind - KNOWN_UNDISCRIMINATING):
+        problems.append(f"NEW scheduled control with no negative control (cannot be shown to fail): {name} "
+                        f"— add a self-test, or it is a paper control")
+    scheduled_all = {c["control"] for c in controls if c["kind"] == "cronjob"}
+    for name in sorted(KNOWN_UNDISCRIMINATING & scheduled_all - scheduled_blind):
+        problems.append(f"STALE allowlist entry: {name} now HAS a negative control — remove it from "
+                        f"KNOWN_UNDISCRIMINATING (the ratchet only shrinks)")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Census of the estate's enforcement controls.")
     ap.add_argument("--json", action="store_true")
@@ -150,11 +175,15 @@ def main(argv: list[str] | None = None) -> int:
     else:
         _print(controls, args.live)
     if args.fail_on_undiscriminating:
-        blind = [c["control"] for c in controls if c["kind"] == "cronjob" and not c["discriminates"]]
-        if blind:
-            print(f"FAIL: scheduled control(s) with no negative control (cannot be shown to fail): "
-                  f"{', '.join(blind)}")
+        problems = undiscriminating_problems(controls)
+        if problems:
+            print(f"FAIL: {len(problems)} controls-census ratchet problem(s):")
+            for p in problems:
+                print(f"  {p}")
             return 1
+        n_allow = len(KNOWN_UNDISCRIMINATING)
+        print(f"OK: no NEW undiscriminating scheduled control ({n_allow} known, shrink-only: "
+              f"{', '.join(sorted(KNOWN_UNDISCRIMINATING))})")
     return 0
 
 
