@@ -29,6 +29,30 @@ def test_admit_rejects_invalid_attestation():
     assert not r.admitted and r.reason == "attestation-invalid"
 
 
+def test_admit_rejects_attested_entry_when_no_verifier():
+    # THEOREM (fail-closed): an entry that CLAIMS an attestation but cannot be verified — no verifier —
+    # must be REJECTED, never admitted on the peer's own digest alone. (Regression guard: this path
+    # previously returned reason="ok" — the fail-OPEN admit that shipped when #1404's hardening orphaned.)
+    e = _entry("r1", "ff00", b"data", att="att:present")
+    r = ff.admit(e, b"data")  # no verifier
+    assert not r.admitted and r.reason == "attestation-unverifiable" and r.content is None
+
+
+def test_admit_treats_a_throwing_verifier_as_rejection():
+    def boom(_):
+        raise RuntimeError("verifier down")
+    e = _entry("r1", "ff00", b"data", att="att:boom")
+    r = ff.admit(e, b"data", attestation_verifier=boom)
+    assert not r.admitted and r.reason.startswith("attestation-error")
+
+
+def test_require_attestation_rejects_unattested_entry():
+    e = _entry("r1", "ff00", b"data")  # no att
+    assert ff.admit(e, b"data").admitted  # lax default still admits on digest
+    r = ff.admit(e, b"data", require_attestation=True)
+    assert not r.admitted and r.reason == "attestation-missing"
+
+
 def test_federate_pulls_and_admits_only_verified():
     m = hf.build_manifest("peer", "t1", [
         _entry("r_near", "ff01", b"near-content", att="att:near"),
