@@ -10,7 +10,9 @@ metadata:
     policies.kyverno.io/description: >-
       Apply conservative runtime hardening to cloudshell-managed session pods.
 spec:
-  validationFailureAction: Enforce
+  # Audit-first (was Enforce) — see require-image-digest.yaml. Syncing at Enforce could reject
+  # existing Pods that violate the baseline, estate-wide. Audit → observe → Enforce (#1344).
+  validationFailureAction: Audit
   background: true
   rules:
     - name: require-hardened-managed-session-pods

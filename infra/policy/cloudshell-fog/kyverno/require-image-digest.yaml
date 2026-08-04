@@ -10,7 +10,11 @@ metadata:
     policies.kyverno.io/description: >-
       Require container images to use immutable digests rather than mutable tags.
 spec:
-  validationFailureAction: Enforce
+  # Audit-first (was Enforce). Syncing this at Enforce would immediately reject every Pod whose
+  # image is a mutable tag — estate-wide, including the sha-<commit> tag pins — an outage. The
+  # documented rollout (deploy/argocd/kyverno.yaml, ROLLOUT.md) is Audit → observe → Enforce.
+  # Flip back to Enforce in the final rollout step once Audit logs are clean. Tracked: #1344.
+  validationFailureAction: Audit
   background: true
   rules:
     - name: require-image-checksum
