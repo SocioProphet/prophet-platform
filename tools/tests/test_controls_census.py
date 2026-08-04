@@ -66,3 +66,31 @@ def test_gate_passes_when_scheduled_control_discriminates(tmp_path, monkeypatch)
     _mk_cronjob(tmp_path, "good-guard", script_selftest=True, rule=True, app=True)
     monkeypatch.setattr(cc, "ROOT", tmp_path)
     assert cc.main(["--fail-on-undiscriminating"]) == 0
+
+
+# ── the shrink-only ratchet (P3: raise Discriminates estate-wide) ────────────
+def test_ratchet_allows_known_but_fails_new_undiscriminating():
+    ctrls = [
+        {"control": "pvc-capacity-guard", "kind": "cronjob", "discriminates": False},   # allowlisted
+        {"control": "brand-new-guard", "kind": "cronjob", "discriminates": False},       # NEW → fail
+        {"control": "deploy-health-alerter", "kind": "cronjob", "discriminates": True},   # fine
+    ]
+    problems = cc.undiscriminating_problems(ctrls)
+    assert any("brand-new-guard" in p and "NEW" in p for p in problems)
+    assert not any("pvc-capacity-guard" in p for p in problems)   # known → not a NEW problem
+
+
+def test_ratchet_flags_stale_allowlist_entry():
+    # a control that has SINCE gained a negative control must be removed from the allowlist
+    ctrls = [{"control": "pvc-capacity-guard", "kind": "cronjob", "discriminates": True}]
+    problems = cc.undiscriminating_problems(ctrls)
+    assert any("pvc-capacity-guard" in p and "STALE" in p for p in problems)
+
+
+def test_ratchet_clean_when_all_known_or_discriminating():
+    ctrls = [
+        {"control": "pvc-capacity-guard", "kind": "cronjob", "discriminates": False},
+        {"control": "rule-liveness-guard", "kind": "cronjob", "discriminates": False},
+        {"control": "resource-contract-producer", "kind": "cronjob", "discriminates": True},
+    ]
+    assert cc.undiscriminating_problems(ctrls) == []
