@@ -30,6 +30,11 @@ Two honesty invariants, both self-tested (`--self-test` / the pytest beside it):
      (could-not-observe), never 0. Absence of observed failure is not evidence
      of health — the instruments-lie lesson, made executable.
 
+An app may DECLARE a deliberate audit-first hold (see HOLD_ANNOTATION) so this
+tool does not cry wolf on a Missing/OutOfSync-by-design rollout (e.g. the kyverno
+controller, whose sync flips Enforce policies estate-wide). The hold is accountable,
+not a mute: it must carry a reason, and it never excuses a Degraded app.
+
 Stdlib only. Read-only against the cluster (get/list); it never mutates.
 
   deploy_health_alert.py --namespace socioprophet          # pods + argocd apps
@@ -59,20 +64,53 @@ STUCK_WAITING = frozenset({
 # ArgoCD Application health states that are not "the desired state is running".
 UNHEALTHY_APP_HEALTH = frozenset({"Degraded", "Missing", "Unknown"})
 
+# An app may DECLARE a deliberate hold — an audit-first / staged rollout that is
+# Missing/OutOfSync *on purpose* (e.g. the kyverno controller: syncing it flips
+# Enforce ClusterPolicies estate-wide, so it waits for a deliberate operator sync).
+# The alerter must not cry wolf on such an app, or the whole control gets ignored.
+# But the hold is accountable, not a mute button:
+#   * it MUST carry a non-empty reason (a hold with no justification is itself a gap);
+#   * it excuses only "declared but not yet synced" (Missing health, OutOfSync) —
+#     never Degraded/Unknown (you may hold a rollout, not declare a broken thing "held").
+HOLD_ANNOTATION = "socioprophet.io/deploy-health-hold"
+# The states a valid hold is allowed to suppress (and only these).
+HOLD_SUPPRESSES_HEALTH = frozenset({"Missing"})
+
 # Exit codes: 0 clean, 1 gaps found, 2 could-not-observe (fail-closed).
 EXIT_CLEAN, EXIT_GAPS, EXIT_BLIND = 0, 1, 2
 
 
 # ── pure classification (no I/O; this is what the negative control pins) ──────
+def app_hold_reason(app: dict) -> str | None:
+    """The declared hold reason for an app, or None if it declares no hold.
+
+    Returns "" (falsy but not None) when the hold annotation is present but empty —
+    a hold without justification, which the classifier treats as a gap.
+    """
+    ann = ((app.get("metadata") or {}).get("annotations")) or {}
+    return ann.get(HOLD_ANNOTATION)
+
+
 def classify_app(app: dict, *, ignore_sync: bool = False) -> list[str]:
-    """Return the list of gap reasons for one ArgoCD Application (empty = healthy)."""
+    """Return the list of gap reasons for one ArgoCD Application (empty = healthy).
+
+    Honors a declared, justified hold (see HOLD_ANNOTATION): a held app's expected
+    Missing/OutOfSync states are suppressed, but Degraded/Unknown and an
+    unjustified hold still fire.
+    """
     status = app.get("status") or {}
     reasons: list[str] = []
+    hold = app_hold_reason(app)
+    justified_hold = bool((hold or "").strip())
+    if hold is not None and not justified_hold:
+        # declared a hold but gave no reason — accountability failure, always a gap
+        reasons.append("held-without-reason (a hold must carry a justification)")
     health = ((status.get("health") or {}).get("status")) or "Unknown"
     if health in UNHEALTHY_APP_HEALTH:
-        reasons.append(f"health={health}")
+        if not (justified_hold and health in HOLD_SUPPRESSES_HEALTH):
+            reasons.append(f"health={health}")
     sync = ((status.get("sync") or {}).get("status")) or ""
-    if not ignore_sync and sync == "OutOfSync":
+    if sync == "OutOfSync" and not ignore_sync and not justified_hold:
         reasons.append("sync=OutOfSync")
     return reasons
 
@@ -198,6 +236,7 @@ def _utc() -> str:
 def run(args: argparse.Namespace) -> tuple[int, dict]:
     """Return (exit_code, report). Pure-ish: all I/O is behind collect_*/load_*."""
     findings: list[dict] = []
+    held: list[dict] = []  # apps suppressed by a declared, justified hold (informational)
     scanned = {"apps": 0, "pods": 0, "receipts": 0}
     blind: list[str] = []  # things we were asked to observe but could not
 
@@ -211,8 +250,14 @@ def run(args: argparse.Namespace) -> tuple[int, dict]:
                 blind.append(f"argocd applications in ns/{args.argocd_namespace} (zero found)")
             for app in apps:
                 name = (app.get("metadata") or {}).get("name", "?")
-                for reason in classify_app(app, ignore_sync=args.ignore_sync):
+                reasons = classify_app(app, ignore_sync=args.ignore_sync)
+                for reason in reasons:
                     findings.append({"kind": "argocd-app", "name": name, "reason": reason})
+                # A justified hold that produced no gap is reported (never silently
+                # suppressed — a mute control is the defect this tool exists to catch).
+                hold = app_hold_reason(app)
+                if hold and (hold or "").strip() and not reasons:
+                    held.append({"name": name, "reason": hold.strip()})
 
     if not args.no_pods:
         pods = collect_pods(args.namespace)
@@ -252,7 +297,7 @@ def run(args: argparse.Namespace) -> tuple[int, dict]:
     else:
         code = EXIT_CLEAN
     report = {"generatedAt": _utc(), "scanned": scanned, "blind": blind,
-              "gapCount": len(findings), "findings": findings, "exit": code}
+              "gapCount": len(findings), "findings": findings, "held": held, "exit": code}
     return code, report
 
 
@@ -264,6 +309,8 @@ def _print_human(report: dict) -> None:
         print(f"  ⚠ COULD NOT OBSERVE ({len(report['blind'])}) — absence of failure ≠ health:")
         for b in report["blind"]:
             print(f"      · {b}")
+    for h in report.get("held", []):
+        print(f"  ⏸ HELD (declared, not a gap) {h['name']}: {h['reason']}")
     if not report["findings"]:
         if not report["blind"]:
             print("  ✓ no runtime gaps found in what was scanned")
@@ -285,6 +332,16 @@ def _self_test() -> int:
          "sync=OutOfSync" in classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}})),
         ("outofsync ignorable",
          classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}}, ignore_sync=True) == []),
+        ("justified hold suppresses missing+outofsync",
+         classify_app({"metadata": {"annotations": {HOLD_ANNOTATION: "audit-first, see ROLLOUT.md"}},
+                       "status": {"health": {"status": "Missing"}, "sync": {"status": "OutOfSync"}}}) == []),
+        ("hold does NOT excuse degraded",
+         classify_app({"metadata": {"annotations": {HOLD_ANNOTATION: "audit-first"}},
+                       "status": {"health": {"status": "Degraded"}, "sync": {"status": "OutOfSync"}}}) == ["health=Degraded"]),
+        ("hold without reason is itself a gap",
+         any("held-without-reason" in r for r in classify_app(
+             {"metadata": {"annotations": {HOLD_ANNOTATION: "  "}},
+              "status": {"health": {"status": "Missing"}, "sync": {"status": "OutOfSync"}}}))),
         ("running pod clean",
          classify_pod({"status": {"phase": "Running", "containerStatuses": [
              {"name": "c", "state": {"running": {}}, "restartCount": 0}]}}, restart_threshold=5) == []),

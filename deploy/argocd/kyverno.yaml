@@ -23,6 +23,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "-2"   # controller + CRDs are foundation, before any ClusterPolicy
     socioprophet.io/tier: "foundation"
+    # Machine-readable form of the "HELD by design" comment above, so the deploy-health
+    # alerter (tools/deploy_health_alert.py) does not flag this deliberate audit-first
+    # Missing/OutOfSync as a gap. Accountable, not a mute: the reason is required, and the
+    # hold never excuses a Degraded controller — only "declared but not yet synced".
+    socioprophet.io/deploy-health-hold: "audit-first staged rollout: syncing installs the controller and flips Enforce ClusterPolicies (require-image-digest, runtime-baseline) estate-wide, so it waits for a deliberate operator sync — see infra/policy/cloudshell-fog/kyverno/ROLLOUT.md"
 spec:
   project: default
   destination:

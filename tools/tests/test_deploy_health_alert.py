@@ -44,6 +44,38 @@ def test_app_with_no_status_is_unknown_not_silently_clean():
     assert dha.classify_app({}) == ["health=Unknown"]
 
 
+# ── declared holds: precise, not a mute button (the kyverno finding) ─────────
+def _held(reason, health="Missing", sync="OutOfSync"):
+    return {"metadata": {"annotations": {dha.HOLD_ANNOTATION: reason}},
+            "status": {"health": {"status": health}, "sync": {"status": sync}}}
+
+
+def test_justified_hold_suppresses_missing_and_outofsync():
+    # kyverno: audit-first, Missing/OutOfSync BY DESIGN — must not be a gap
+    assert dha.classify_app(_held("audit-first, see ROLLOUT.md")) == []
+
+
+def test_hold_does_not_excuse_a_degraded_app():
+    # you may hold a rollout; you may not declare a broken thing "held"
+    assert dha.classify_app(_held("audit-first", health="Degraded")) == ["health=Degraded"]
+
+
+def test_hold_does_not_excuse_unknown_health():
+    assert "health=Unknown" in dha.classify_app(_held("audit-first", health="Unknown"))
+
+
+def test_hold_without_reason_is_itself_a_gap():
+    # an unaccountable mute is the very defect this tool exists to catch
+    out = dha.classify_app(_held("   "))
+    assert any("held-without-reason" in r for r in out)
+
+
+def test_app_hold_reason_helper():
+    assert dha.app_hold_reason({"metadata": {"annotations": {dha.HOLD_ANNOTATION: "x"}}}) == "x"
+    assert dha.app_hold_reason({"metadata": {"annotations": {}}}) is None
+    assert dha.app_hold_reason({}) is None
+
+
 # ── pod classification ───────────────────────────────────────────────────────
 def test_running_pod_is_clean():
     pod = {"status": {"phase": "Running", "containerStatuses": [
@@ -164,6 +196,19 @@ def test_one_degraded_app_exits_gaps(monkeypatch):
     code, report = dha.run(_args())
     assert code == dha.EXIT_GAPS
     assert report["findings"][0]["name"] == "arcticdb-gateway"
+
+
+def test_held_app_is_reported_not_a_gap(monkeypatch):
+    # the kyverno case end-to-end: reported under "held", never counted as a gap
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "kyverno", "annotations": {dha.HOLD_ANNOTATION: "audit-first"}},
+         "status": {"health": {"status": "Missing"}, "sync": {"status": "OutOfSync"}}}])
+    monkeypatch.setattr(dha, "collect_pods", lambda ns: [
+        {"metadata": {"name": "p"}, "status": {"phase": "Running", "containerStatuses": [
+            {"name": "c", "state": {"running": {}}, "restartCount": 0}]}}])
+    code, report = dha.run(_args())
+    assert code == dha.EXIT_CLEAN and report["gapCount"] == 0
+    assert [h["name"] for h in report["held"]] == ["kyverno"]  # surfaced, not silent
 
 
 def test_blind_dominates_gaps(monkeypatch):
