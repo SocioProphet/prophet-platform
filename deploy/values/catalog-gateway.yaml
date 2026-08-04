@@ -10,7 +10,7 @@
 #
 # tag:latest is the bootstrap for a brand-new service; gitops-promote sha-pins it
 # after the first images.yml build.
-image: { repository: catalog-gateway, tag: sha-ba0c3cbbe6171205f01a499cb5b0a36eba184470 }
+image: { repository: catalog-gateway, tag: sha-7266eaac42c3d34f378a8e817cfb86d639e0d1b5 }
 service: { port: 8080, portName: http }
 # app serves @app.get('/healthz') — the chart default — so no probes override needed.
 config:
