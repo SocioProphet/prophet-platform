@@ -1,0 +1,19 @@
+# GitOps base for the sovereign source-control plane (gitea + gitea-authority).
+#
+# This is the fix for the orphan-workload class (2026-08-04 postmortem): the pair used to be
+# applied out-of-band by deploy-gitea-authority.yml doing `kubectl apply` of gitea-sovereign.yaml
+# with IMAGE_PLACEHOLDER sed-substituted — invisible to ArgoCD, so a broken gitea rotted 26h
+# unseen. Now ArgoCD reconciles this base (see deploy/argocd/gitea-sovereign.yaml): the image
+# placeholder is resolved HERE via the kustomize images transformer (no sed, no imperative apply),
+# and the gitea server carries its fsGroup fix in gitea-sovereign.yaml.
+#
+# Image bumps: CI builds + pushes the gitea-authority image, then updates `newTag` below (and
+# commits) — GitOps writeback, not a live kubectl apply. See the workflow.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gitea-sovereign.yaml
+images:
+  - name: IMAGE_PLACEHOLDER
+    newName: us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/gitea-authority
+    newTag: sha-57485b35e554

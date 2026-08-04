@@ -1,0 +1,36 @@
+# Brings the sovereign source-control pair (gitea git server + gitea-authority token authority)
+# under ArgoCD continuous reconciliation — closing the orphan-workload class for the last two
+# out-of-band workloads (2026-08-04 postmortem). Previously deploy-gitea-authority.yml applied
+# them with an imperative `kubectl apply`, invisible to GitOps; a broken gitea rotted 26h unseen.
+#
+# On first sync ArgoCD ADOPTS the existing (kubectl-applied) resources and reconciles them to the
+# kustomize base — which restores the gitea server (fsGroup fix, replicas 1) and thereafter
+# self-heals drift. Lives in deploy/argocd/ (the root app-of-apps recurses it); the kustomize base
+# stays under deploy/gitea-authority/k8s.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea-sovereign
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # reference: the pair runs one CI-built image (gitea-authority) + one pinned third-party
+    # image (gitea/gitea:1.26.2-rootless — vendoring it to the sovereign registry is a tracked
+    # follow-up, like the CDN charts). Required by tools/preflight_deploy_contract.py check 5.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: socioprophet
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: deploy/gitea-authority/k8s
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # gitea CRDs/large objects + clean adoption of existing resources
