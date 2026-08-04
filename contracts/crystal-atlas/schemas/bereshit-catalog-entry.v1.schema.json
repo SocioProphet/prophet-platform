@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.ai/contracts/crystal-atlas/bereshit-catalog-entry.v1.schema.json",
+  "title": "BERESHIT catalog entry v1",
+  "$comment": "The DatasetCatalogEntry v1 binding for SP-RETR-FIBER-001 §10.2, which BINDING.md recorded as 'fictional name confirmed absent'. It is absent no longer. Named BERESHIT for the first twelve words of Genesis: the entry carries exactly twelve GOVERNED fields, and `note` — the thirteenth — is prose and is explicitly NOT a control (see tools/catalog_invariants.py, which refuses a prose commercial gate). Doctrinal source for the name, not executable scripture; same discipline as cybernetic-genesis/docs/L0-genesis-covenant.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id", "title", "source_tier", "promotion_state", "cache_strategy", "mellum_tier",
+    "license", "id_scheme", "access", "refresh", "wall_guard", "upstream"
+  ],
+  "properties": {
+    "id":              { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+    "title":           { "type": "string", "minLength": 1 },
+    "source_tier":     { "$comment": "0 = spine, 1 = vocabulary primitive, 2 = reference, 3 = domain.", "type": "integer", "minimum": 0, "maximum": 3 },
+    "promotion_state": { "enum": ["fixture_only", "adapter_candidate", "admitted"] },
+    "cache_strategy":  { "enum": ["snapshot_gcs", "streaming_hot", "link_only"] },
+    "mellum_tier":     { "$comment": "Mellumwork tiering (agentplane/tools/mellumwork.py): T1 proof/permit-eligible, T2 test.", "enum": ["T1", "T2"] },
+    "license":         { "type": "string", "minLength": 1 },
+    "id_scheme":       { "type": "string", "minLength": 1 },
+    "access": {
+      "type": "object", "additionalProperties": true, "required": ["method"],
+      "properties": { "method": { "type": "string", "minLength": 1 }, "endpoint": { "type": "string" } }
+    },
+    "refresh":         { "type": "string", "minLength": 1 },
+    "wall_guard":      { "$comment": "INV-F4 binding. Retrieval visibility is the WallGuard confidentiality axis, NOT the Crystal Atlas distribution_class (BINDING.md §2.6 — do not conflate).", "enum": ["public", "internal", "restricted"] },
+    "upstream":        { "$comment": "Derived-from. NULL means a root/first-party source — which is why `first_party` must be explicit (INV-3 is otherwise undecidable).", "type": ["string", "null"] },
+
+    "note":            { "$comment": "PROSE. Never a control. An obligation recorded only here is unenforced by construction.", "type": "string" },
+
+    "first_party":                     { "$comment": "Resolves INV-3 ZERO.", "type": "boolean" },
+    "derivative_license_attestation":  { "$comment": "Resolves INV-2 ZERO. A reference/attestation id, never prose.", "type": "string", "minLength": 1 },
+    "wall_guard_grant":                { "$comment": "Resolves INV-4 ZERO. The WallGuardCatalogVisibility grant reference.", "type": "string", "minLength": 1 },
+    "commercial_use_gate":             { "$comment": "Resolves INV-5 ZERO. The commercial-use obligation gate reference.", "type": "string", "minLength": 1 }
+  }
+}
