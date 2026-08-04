@@ -941,5 +941,42 @@ console.log('\n▶ INVARIANT 20 — drug safety: a real interaction dataset with
   ok(/non-diagnostic/i.test(cx.disclaimer) && /not a complete/i.test(cx.disclaimer), 'honest: framed as non-diagnostic + not a complete database');
 }
 
-console.log(`\n${fails === 0 ? '✓ ALL 20 GUARDRAIL INVARIANTS HOLD (…+ real drug-safety dataset)' : `✗ ${fails} invariant(s) violated`}`);
+console.log('\n▶ INVARIANT 21 — vision: degrades to SILENCE, never a fabricated finding, never a diagnosis');
+{
+  // point at a guaranteed-dead vision endpoint so the model is unreachable — the degradation path
+  const prev = process.env.NOETICA_OLLAMA_URL;
+  process.env.NOETICA_OLLAMA_URL = 'http://127.0.0.1:9'; // nothing listens here
+  const { assessImage } = await import(`./vision.js?nocache=${Date.now()}`);
+  const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const r = await assessImage(tinyPng);
+  ok(r.degraded === true && r.ok === false, 'no vision model → degraded (does not pretend to have seen the image)');
+  ok(r.visibleFindings === '' && r.visualRedFlags.length === 0 && r.escalate === false, 'a degraded reading fabricates NO findings and raises NO red flag (anti-Watson floor for images)');
+  ok(/non-diagnostic/i.test(r.disclaimer) && !!r.receipt, 'the reading is non-diagnostic + receipted even when degraded');
+  const empty = await assessImage('');
+  ok(empty.degraded === true, 'an empty image degrades cleanly, not throws');
+  if (prev === undefined) delete process.env.NOETICA_OLLAMA_URL; else process.env.NOETICA_OLLAMA_URL = prev;
+}
+
+console.log('\n▶ INVARIANT 22 — patient identity plane: one-time credential, fail-closed, id ≠ credential');
+{
+  const { enrollPatient, authenticatePatient, patientProfile, revokePatient, PATIENT_HEADER } = await import('./identity.js');
+
+  const e = enrollPatient('Alex Demo');
+  ok(!!e.patient.id && e.credential.token.includes('.') && e.credential.shownOnce === true, 'enroll mints a one-time patient credential (id.secret)');
+  // the stored profile never exposes the holder digest (secret-equivalent verifier)
+  ok(!JSON.stringify(patientProfile(e.patient.id)).includes('sha256-'), 'the patient profile never exposes the holder digest');
+
+  const hdr = (v: string) => ({ [PATIENT_HEADER]: v });
+  ok(authenticatePatient(hdr(e.credential.token)).ok === true, 'the full credential authenticates the patient');
+  ok(authenticatePatient(hdr(e.patient.id)).ok === false, 'the bare patient id is NOT a credential (fail-closed)');
+  ok(authenticatePatient(hdr(`${e.patient.id}.wrong-secret`)).ok === false, 'a wrong secret is refused');
+  ok(authenticatePatient({}).ok === false, 'a missing credential is refused, not treated as the patient');
+
+  // revocation: the patient revokes their own credential → future auth denies
+  revokePatient(e.patient.id);
+  const after = authenticatePatient(hdr(e.credential.token));
+  ok(after.ok === false && /revoked/.test((after as any).reason), 'a revoked credential no longer authenticates');
+}
+
+console.log(`\n${fails === 0 ? '✓ ALL 22 GUARDRAIL INVARIANTS HOLD (…+ patient identity plane)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);

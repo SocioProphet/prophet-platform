@@ -91,6 +91,20 @@ async function main() {
   r = await call('POST', '/api/health/interpret', { report: 'Chest X-ray: no acute process, no evidence of hemorrhage or mass. Unremarkable.' });
   check('interpret: negated report not over-flagged', r.st === 200 && r.d.escalate === false, `flags=${(r.d.criticalFlags ?? []).length}`);
 
+  // multimodal vision — returns a VisionReading (real findings if LLaVA is up, else clean degradation)
+  const tinyPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  r = await call('POST', '/api/health/vision', { image: tinyPng });
+  check('vision: returns a reading (degrades safely if no model)', r.st === 200 && typeof r.d.degraded === 'boolean' && !!r.d.receipt && /non-diagnostic/i.test(r.d.disclaimer ?? ''), r.d.degraded ? 'degraded (no model)' : `live: ${r.d.modelUsed}`);
+
+  // patient identity plane — enroll → authenticate as owner → fail-closed
+  r = await call('POST', '/api/health/patient/enroll', { displayName: 'Smoke Patient' });
+  const ptoken = r.d.credential?.token;
+  check('identity: enroll mints one-time credential', r.st === 200 && !!ptoken && r.d.credential?.shownOnce === true);
+  r = await call('GET', '/api/health/patient/me', undefined, { 'x-health-patient': ptoken });
+  check('identity: patient authenticates as owner', r.st === 200 && r.d.authenticated === true, r.d.profile?.displayName);
+  r = await call('GET', '/api/health/patient/me', undefined, { 'x-health-patient': (ptoken ?? '').split('.')[0] });
+  check('identity: bare id is not a credential (401)', r.st === 401 && r.d.authenticated === false);
+
   // FHIR R4 interop — export a valid de-identified Bundle, and round-trip it back
   r = await call('GET', '/api/health/fhir');
   const bundle = r.d;

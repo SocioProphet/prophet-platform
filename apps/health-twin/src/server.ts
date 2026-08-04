@@ -39,6 +39,8 @@ import { monitorTwin } from './monitor.js';
 import { interpretReport } from './imaging.js';
 import { toFhirBundle, fromFhirBundle } from './fhir.js';
 import { proveFhirWriteBack } from './fhir-live.js';
+import { assessImage } from './vision.js';
+import { enrollPatient, authenticatePatient, patientProfile, revokePatient } from './identity.js';
 import { conditionList, conditionCard, checkMeds, guidelineDeltas, type Audience } from './reference.js';
 import { findSlots, book } from './booking.js';
 import { programs as contributionPrograms, contribute, revokeContribution, ledger as contributionLedger } from './contribution.js';
@@ -685,6 +687,32 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/health/fhir/push') {
     try { const b = await readJson(req).catch(() => ({})); return send(res, 200, await proveFhirWriteBack(b?.target)); }
     catch (e) { return send(res, 400, { error: (e as Error).message || 'fhir push failed' }); }
+  }
+
+  // Patient identity plane — a real person enrolls + owns their twin (the third actor, distinct from
+  // the operator and clinician grant-holders). Enroll mints a one-time credential; auth fails closed.
+  if (req.method === 'POST' && url.pathname === '/api/health/patient/enroll') {
+    try { const b = await readJson(req).catch(() => ({})); return send(res, 200, enrollPatient(String(b?.displayName ?? 'Patient'), b?.twinSubject ?? null)); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'enroll failed' }); }
+  }
+  if (req.method === 'GET' && url.pathname === '/api/health/patient/me') {
+    const a = authenticatePatient(req.headers as any);
+    if (!a.ok) return send(res, 401, { authenticated: false, reason: a.reason });
+    return send(res, 200, { authenticated: true, profile: patientProfile(a.patientId) });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/health/patient/revoke') {
+    const a = authenticatePatient(req.headers as any); // only the patient may revoke their own credential
+    if (!a.ok) return send(res, 401, { authenticated: false, reason: a.reason });
+    return send(res, 200, revokePatient(a.patientId));
+  }
+
+  // Multimodal image intake — routes an image to a vision model (LLaVA) for a NON-DIAGNOSTIC visual
+  // observation + danger-sign detection. Graceful: no model → degraded, fabricates nothing.
+  if (req.method === 'POST' && url.pathname === '/api/health/vision') {
+    const denied = denyExposure(req);
+    if (denied) return send(res, denied.code, denied.body);
+    try { const b = await readJson(req); return send(res, 200, await assessImage(String(b.image ?? b.imageBase64 ?? ''))); }
+    catch (e) { return send(res, 400, { error: (e as Error).message || 'vision failed' }); }
   }
 
   // Imaging & document agent — plain-language explanation of a radiology/pathology/discharge report
