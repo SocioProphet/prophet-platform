@@ -37,6 +37,24 @@ spec:
             - { name: htpasswd, mountPath: /etc/zot/htpasswd, subPath: htpasswd }
             - { name: cache, mountPath: /var/lib/zot }
           # zot's /v2/ returns 401 under the login-wall, so HTTP probes would fail auth — use TCP.
+          #
+          # STARTUP PROBE — without it a restart can CRASH-LOOP this registry.
+          # On boot zot runs a dedupe restore across every blob in the MinIO backend before it
+          # binds :5000. That work grows with the registry. The liveness probe alone gave it
+          # 20s + 3x20s = 80s, so once the restore exceeded ~80s the container was killed
+          # mid-restore, restarted, and began the restore again — observed live on 2026-08-04,
+          # 3 kills before it converged (each restart keeps partial boltdb progress, which is the
+          # only reason it ever came back). A registry that cannot survive its own restart is a
+          # latent outage waiting for the next node drain or config change.
+          #
+          # startupProbe suspends liveness/readiness until the first success, then hands over:
+          # 30 x 10s = up to 5 minutes to finish the restore, while STILL killing a genuinely
+          # hung boot. Liveness keeps its tight loop afterwards, so steady-state detection of a
+          # wedged process is unchanged.
+          startupProbe:
+            tcpSocket: { port: 5000 }
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
             tcpSocket: { port: 5000 }
             initialDelaySeconds: 10
