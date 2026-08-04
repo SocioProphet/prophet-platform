@@ -75,6 +75,13 @@ gates:
     teeth_test: tools/tests/test_boot_memory_invariance.py
     min_negative_tests: 1
 
+  - id: INV-DEPLOY-HONESTY-1
+    name: No deploy workflow swallows a mutation's exit (kubectl/helm || true)
+    kind: pytest
+    tool: tools/verify_workflow_deploy_honesty.py
+    teeth_test: tools/tests/test_verify_workflow_deploy_honesty.py
+    min_negative_tests: 1
+
   - id: L1-ephemeral-apply
     name: Ephemeral real-apply preflight (live create/spec-admission)
     kind: workflow
