@@ -50,6 +50,10 @@ import { describeResource, toTurtle, toJsonLd, toHtml, negotiate } from './resou
 import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, semanticEnabled } from './graphrag.js'
 import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
 import { initAuth, authorize, type AuthState } from './auth.js'
+import {
+  initTenant, tenantPrincipal, tenantScope, scopeForRead, assertWriteTenant, refuseUnscopable,
+  type TenantState,
+} from './tenant.js'
 import { assembleOrgans } from './organs.js'
 import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
 import { sealToSpine, spineEnabled, unsealedReceipts } from './spine.js'
@@ -79,15 +83,16 @@ let federation: Federation | null = null
 // Wave 2 doors — governance init BEFORE the server exists. Fail-closed: AUTH_ENFORCE=on
 // without AUTH_HMAC_SECRET (or a drifted vendored contract) refuses startup rather than
 // serving an ungoverned surface; flags off announce themselves with one WARN each.
-function initGovernanceOrDie(): { auth: AuthState; membrane: MembraneState } {
+function initGovernanceOrDie(): { auth: AuthState; membrane: MembraneState; tenant: TenantState } {
   try {
-    return { auth: initAuth(), membrane: initMembrane() }
+    // initTenant throws if TENANT_ENFORCE=on without AUTH_ENFORCE=on (isolation needs a principal).
+    return { auth: initAuth(), membrane: initMembrane(), tenant: initTenant() }
   } catch (e) {
     console.error('[hellgraph-service] governance init FAILED (fail-closed):', e instanceof Error ? e.message : String(e))
     return process.exit(1)
   }
 }
-const { auth, membrane } = initGovernanceOrDie()
+const { auth, membrane, tenant } = initGovernanceOrDie()
 
 // Every route path this server actually handles (mirrors the header comment above),
 // used to shape the /metrics `http_route` label: hellgraph-service's routes carry no
@@ -124,6 +129,17 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
   // /api/membrane/* is reachable without a bearer token carrying the route's scope.
   const authDenied = authorize(auth, req, url)
   if (authDenied) return void json(res, authDenied.code, authDenied.body)
+
+  // Tenant/op_set isolation (tenant.ts): with TENANT_ENFORCE=on — (1) refuse endpoints that run in the
+  // fenced engine and can't be scoped here; (2) resolve the caller's read scope (deny a tokenless-tenant
+  // or an unentitled op_set); (3) expose `gv`, a view of the graph filtered to the caller's tenant/op_set
+  // that every read uses instead of `g`. Off ⇒ principal=null, gv===g — behaviour identical to today.
+  const unscopable = refuseUnscopable(tenant, url.pathname)
+  if (unscopable) return void json(res, unscopable.code, unscopable.body)
+  const principal = tenant.enforce ? tenantPrincipal(auth, req) : null
+  const readScope = scopeForRead(tenant, principal, url)
+  if (readScope && 'code' in readScope) return void json(res, readScope.code, readScope.body)
+  const gv = readScope ? tenantScope(g, readScope.tenant, readScope.opSet) : g
 
   // Membrane governance surface (membrane.ts): POST /api/membrane/decide. Same port.
   if (url.pathname.startsWith('/api/membrane/')) {
@@ -233,7 +249,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
   }
 
   if (req.method === 'GET' && url.pathname === '/api/graph/stats') {
-    return json(res, 200, { nodes: g.allNodes().length, edges: g.allEdges().length })
+    return json(res, 200, { nodes: gv.allNodes().length, edges: gv.allEdges().length })
   }
 
   // Log-tail surface — the materializer contract (Seal-the-Walls W1.1). HellGraph IS the platform
@@ -315,7 +331,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
     // scope=data (default) filters ontology nodes (KkoClass / KkoReferenceConcept) out of the analytics
     // projection so metrics rank DOMAIN data, not the type system. scope=all analyzes everything.
     const scope = url.searchParams.get('scope') ?? 'data'
-    const ga = scope === 'all' ? g : dataScope(g)
+    const ga = scope === 'all' ? gv : dataScope(gv)
     if (metric === 'components') return json(res, 200, { scope, ...connectedComponents(ga) })
     if (metric === 'pagerank') return json(res, 200, { metric, scope, ...pagerank(ga, limit) })
     try {
@@ -335,6 +351,9 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
       try {
         const { id, labels, properties } = JSON.parse(b) as { id: string; labels: string[]; properties?: Record<string, unknown> }
         if (!id || !Array.isArray(labels)) throw new Error('id and labels[] required')
+        // Tenant guard: no cross-tenant (or unlabeled) write when TENANT_ENFORCE=on.
+        const tw = assertWriteTenant(tenant, principal, properties)
+        if (tw) return json(res, tw.code, tw.body)
         // Membrane B-after-A gate (membrane.ts): an ExecutionReport write REQUIRES an
         // approved EffectDecision; EffectDecision nodes mint only via /api/membrane/decide.
         const gate = membraneCheckNodeWrite(membrane, g, { id, labels, properties })
@@ -350,6 +369,9 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
       try {
         const { label, from, to, properties } = JSON.parse(b) as { label: string; from: string; to: string; properties?: Record<string, unknown> }
         if (!label || !from || !to) throw new Error('label, from, to required')
+        // Tenant guard: no cross-tenant (or unlabeled) write when TENANT_ENFORCE=on.
+        const tw = assertWriteTenant(tenant, principal, properties)
+        if (tw) return json(res, tw.code, tw.body)
         g.addEdge(label, from, to, (properties ?? {}) as Record<string, never>)
         json(res, 200, { ok: true })
       } catch (e) { json(res, 400, { error: String(e) }) }
@@ -358,7 +380,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
 
   if (req.method === 'GET' && url.pathname === '/api/graph/query') {
     const label = url.searchParams.get('label') ?? ''
-    const nodes = g.allNodes().filter((n) => !label || n.labels.includes(label))
+    const nodes = gv.allNodes().filter((n) => !label || n.labels.includes(label))
     return json(res, 200, { count: nodes.length, nodes: nodes.slice(0, 200) })
   }
 
@@ -368,10 +390,10 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
   if (req.method === 'GET' && url.pathname === '/api/graph/subgraph') {
     const label = url.searchParams.get('label') ?? ''
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 400), 2000)
-    const nodes = (label ? g.allNodes().filter((n) => n.labels.includes(label)) : g.allNodes()).slice(0, limit)
+    const nodes = (label ? gv.allNodes().filter((n) => n.labels.includes(label)) : gv.allNodes()).slice(0, limit)
     const ids = new Set(nodes.map((n) => n.id))
     // induced subgraph: keep an edge only when both endpoints are in the node set (no dangling)
-    const edges = g.allEdges().filter((e) => ids.has(e.from) && ids.has(e.to))
+    const edges = gv.allEdges().filter((e) => ids.has(e.from) && ids.has(e.to))
     return json(res, 200, { count: nodes.length, edges: edges.length, nodes, edgeList: edges })
   }
 
@@ -382,7 +404,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
     const view = url.searchParams.get('view') ?? 'all'
     const root = url.searchParams.get('root') ?? ''
     const limit = Math.min(Number(url.searchParams.get('limit') ?? 34), 500)
-    const allEdges = g.allEdges()
+    const allEdges = gv.allEdges()
     const deg = new Map<string, number>()
     for (const e of allEdges) { deg.set(e.from, (deg.get(e.from) ?? 0) + 1); deg.set(e.to, (deg.get(e.to) ?? 0) + 1) }
     const categorize = (labels: string[]): string => {
@@ -399,7 +421,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
       tech: ['code', 'tech'],
       people: ['people', 'person'],
     }
-    let pool = g.allNodes().map((n) => ({
+    let pool = gv.allNodes().map((n) => ({
       id: n.id,
       label: (n.properties?.['name'] as string) ?? (n.properties?.['label'] as string) ?? n.id,
       category: categorize(n.labels),
@@ -428,7 +450,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
   if (req.method === 'GET' && url.pathname === '/api/graph/resource') {
     const uri = url.searchParams.get('uri') ?? url.searchParams.get('iri') ?? ''
     if (!uri) return json(res, 400, { error: 'uri (or iri) query param required' })
-    const d = describeResource(g, uri)
+    const d = describeResource(gv, uri)
     const fmt = negotiate(req.headers['accept'])
     const code = d.found ? 200 : 404
     if (fmt === 'turtle') { res.writeHead(code, { 'content-type': 'text/turtle; charset=utf-8' }); return void res.end(toTurtle(d)) }
@@ -444,7 +466,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
     const q = url.searchParams.get('q') ?? ''
     if (!q) return json(res, 400, { error: 'q (question) required' })
     const hops = Math.min(Math.max(Number(url.searchParams.get('hops') ?? 1), 1), 4)
-    return void retrieveGroundingAuto(g, q, hops).then((grounding) =>
+    return void retrieveGroundingAuto(gv, q, hops).then((grounding) =>
       json(res, 200, { question: q, semanticEnabled: semanticEnabled(), ...grounding }))
   }
   if (req.method === 'POST' && url.pathname === '/api/graph/ask') {
@@ -452,7 +474,7 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
       try {
         const { question } = JSON.parse(b || '{}') as { question?: string }
         if (!question) throw new Error('question required')
-        json(res, 200, { synthesisEnabled: synthesisEnabled(), ...(await askGraph(g, question)) })
+        json(res, 200, { synthesisEnabled: synthesisEnabled(), ...(await askGraph(gv, question)) })
       } catch (e) { json(res, 400, { error: String(e) }) }
     })
   }

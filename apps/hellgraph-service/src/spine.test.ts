@@ -4,6 +4,7 @@
 //   19091 server.test  ·  19093 membrane.test  ·  19094 membrane-off.test
 //   19095 auth.integration  ·  19096 auth.integration spawn  ·  19097 membrane stub gateway
 //   19101 spine.test  ·  19102 spine.test mock gateway
+//   19103 tenant.integration  ·  19104 tenant.integration spawn
 //   dead ports (nothing may ever bind these): 19108 membrane, 19109 spine
 /**
  * W1.3 receipt unification — hellgraph-service side: the sealed engine receipt is
