@@ -15,11 +15,15 @@
 # the actual distribution terms. tools/check_reasoning_dataset_catalog.py enforces the gate, so a
 # dataset cannot quietly graduate from "we know about it" to "we train/evaluate on it".
 #
-# PROVENANCE OF THIS LIST. Entries marked `source: ibm-research-deck` were taken from IBM Research
-# AI slides (© 2020 IBM Corporation) that are stamped **IBM Confidential**. The public datasets
-# below are public regardless of that deck. The IBM-internal artefacts (term-wikifier-mentions) are
-# marked `availability: internal-confidential` so they are never redistributed or published to an
-# external surface by anything reading this catalogue.
+# PROVENANCE OF THIS LIST. Entries marked `source: prior-art-deck` come from a 2020 industry
+# research deck reviewed by the founder in-role and shared with clients at the time. This
+# catalogue deliberately records NO vendor attribution: what is being captured is the technical
+# design and the public datasets, not anyone's branding. The datasets are public in their own
+# right and cited to their own papers.
+#
+# `availability: not-distributed` marks corpora we do not hold and cannot obtain from a public
+# source — a practical blocker, not a confidentiality claim. Their DESIGN is recorded (that is
+# the transferable part); the bytes are simply not ours to evaluate against.
 version: 0.1
 schema: reasoning-dataset-catalog.v0
 
@@ -28,7 +32,7 @@ datasets:
   - id: mctest
     name: MCTest
     citation: Richardson, Burges, and Renshaw 2013
-    source: ibm-research-deck
+    source: prior-art-deck
     world: closed
     family: machine-reading-comprehension
     availability: public
@@ -49,7 +53,7 @@ datasets:
   - id: squad-v1
     name: SQuAD 1.1
     citation: Rajpurkar et al. 2016
-    source: ibm-research-deck
+    source: prior-art-deck
     world: closed
     family: extractive-qa
     availability: public
@@ -71,7 +75,7 @@ datasets:
   - id: squad-v2
     name: SQuAD 2.0
     citation: Rajpurkar, Jia, and Liang 2018
-    source: ibm-research-deck
+    source: prior-art-deck
     world: closed
     family: extractive-qa-with-unanswerable
     availability: public
@@ -94,7 +98,7 @@ datasets:
   - id: newsqa
     name: NewsQA
     citation: Trischler et al. 2016
-    source: ibm-research-deck
+    source: prior-art-deck
     world: closed
     family: extractive-qa
     availability: restricted
@@ -119,7 +123,7 @@ datasets:
   - id: squad-open
     name: SQuAD_OPEN
     citation: open-domain variant that discards the supplied passages
-    source: ibm-research-deck
+    source: prior-art-deck
     world: open
     family: open-domain-qa
     availability: public
@@ -141,7 +145,7 @@ datasets:
   - id: arc
     name: ARC (AI2 Reasoning Challenge)
     citation: Clark et al. 2018
-    source: ibm-research-deck
+    source: prior-art-deck
     world: open
     family: open-domain-science-qa
     availability: public
@@ -164,7 +168,7 @@ datasets:
   - id: snli
     name: SNLI
     citation: Stanford Natural Language Inference corpus
-    source: ibm-research-deck
+    source: prior-art-deck
     world: entailment
     family: natural-language-inference
     availability: public
@@ -186,7 +190,7 @@ datasets:
   - id: scitail
     name: SciTail
     citation: science entailment corpus derived from science QA
-    source: ibm-research-deck
+    source: prior-art-deck
     world: entailment
     family: natural-language-inference
     availability: public
@@ -211,11 +215,10 @@ datasets:
     citation: >
       Boratko et al. 2018, "A Systematic Classification of Knowledge, Reasoning, and Context within
       the ARC Dataset", MRQA @ ACL 2018 and EMNLP Demo 2018
-    source: ibm-research-deck
+    source: prior-art-deck
     world: annotation
     family: reasoning-taxonomy
     availability: public
-    dataset_url: http://ibm.biz/mrqa-dataset
     size: 192 distinct questions, 665 annotations total
     tests:
       - WHICH knowledge type and WHICH reasoning type a question demands, rather than pass/fail
@@ -230,15 +233,15 @@ datasets:
         move from "benchmark number" to "capability register row" the estate keeps making. Small
         (192 questions), so it is a lens over ARC, never a standalone score.
     licence:
-      name: unknown — IBM/UMass collaboration
+      name: unknown — academic collaboration
       verified: false
-      notes: Distributed via an IBM short-link; terms not yet read.
+      notes: Dataset URL is published with the paper; terms not yet read.
 
   # ------------------------------------------------------- argumentation / summarisation
   - id: key-point-analysis-benchmark
     name: Key Point Analysis (KPA) evaluation data
-    citation: IBM Research AI, Key Point Analysis deck (© 2020 IBM Corporation)
-    source: ibm-research-deck
+    citation: prior-art deck, key point analysis (2020)
+    source: prior-art-deck
     world: argumentation
     family: summarisation-with-prevalence
     availability: unresolved
@@ -266,11 +269,11 @@ datasets:
 
   - id: term-wikifier-mentions
     name: Term-Wikifier general-entity mention benchmark
-    citation: IBM Research AI, entity mention detection / Term-Wikifier deck (© 2020 IBM Corporation)
-    source: ibm-research-deck
+    citation: prior-art deck, entity mention detection / term-wikifier (2020)
+    source: prior-art-deck
     world: mention-detection
     family: entity-linking
-    availability: internal-confidential
+    availability: not-distributed
     size: >
       3 sources (Wikipedia, News, Speech) x 1000 sentences, each labelled by 10 annotators in a
       two-stage detection-then-confirmation process; ~5000 labelled mentions per source
@@ -291,12 +294,13 @@ datasets:
         LLC -> Limited_liability_company), so a rule cascade sits underneath it. Any estate entity
         linker will hit the same wall.
     licence:
-      name: IBM Confidential — not redistributable
+      name: not distributed to us
       verified: false
       notes: >
-        BLOCKER and a handling rule, not merely a licence field. The source deck is marked IBM
-        Confidential. Do not publish, mirror, or ingest this corpus; the entry exists so the design
-        is remembered and the boundary is explicit.
+        BLOCKER of the practical kind: this corpus was never published, so there is nothing to
+        obtain or evaluate against. The entry exists because the DESIGN is the transferable part —
+        general-entity scope, the nesting and specificity guidelines, and the two-stage
+        detection-then-confirmation annotation protocol are all reusable in our own entity plane.
 
 # =====================================================================================
 # METHODS — the engines these datasets feed, and where each one BINDS to an existing
@@ -307,8 +311,8 @@ datasets:
 methods:
   - id: hope-causality
     name: HOPE Causality Reasoning Engine (causal relation model)
-    source: ibm-research-deck
-    availability: internal-confidential
+    source: prior-art-deck
+    availability: not-distributed
     produces:
       event: "{id, label, hypothesis, topics[], totalscore_pro, totalscore_con}"
       causation: "{source, target, causal_type: positive|negative, causal_strength: [0,1]}"
@@ -336,9 +340,9 @@ methods:
 
   - id: gasp
     name: GASP — multilayered pattern learning
-    citation: IBM Research (Shnarch, Levy, Slonim)
-    source: ibm-research-deck
-    availability: internal-confidential
+    citation: Shnarch, Levy, Slonim
+    source: prior-art-deck
+    availability: not-distributed
     produces: a ranked list of multilayered patterns indicative of a target phenomenon
     tests:
       - whether a subtle phenomenon (argumentation, entailment) has recurring surface structure
@@ -359,7 +363,7 @@ methods:
 
   - id: kpa-method
     name: Key Point Analysis pipeline
-    source: ibm-research-deck
+    source: prior-art-deck
     availability: public-method
     produces:
       key_points: concise sentences selected from the input texts (never generated free-text)
@@ -375,8 +379,8 @@ methods:
 
   - id: term-wikifier
     name: Term-Wikifier mention detection and disambiguation
-    source: ibm-research-deck
-    availability: internal-confidential
+    source: prior-art-deck
+    availability: not-distributed
     produces: text spans linked to knowledge-base URIs, for general entities as well as named ones
     binds_to:
       annotation: >

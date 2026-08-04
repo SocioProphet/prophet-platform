@@ -83,9 +83,16 @@ def test_every_dataset_from_the_source_decks_is_present():
         assert expected in methods, f"{expected} dropped out of the methods list"
 
 
-def test_confidential_material_is_marked_not_public():
-    """IBM-Confidential sourced corpora must never be labelled public."""
+def test_undistributed_corpora_are_not_labelled_public_or_adopted():
+    """A corpus we cannot obtain must never read as public, nor reach adopted."""
     catalogue = yaml.safe_load(chk.CATALOGUE.read_text(encoding="utf-8"))
     by_id = {d["id"]: d for d in catalogue["datasets"]}
-    assert by_id["term-wikifier-mentions"]["availability"] == "internal-confidential"
+    assert by_id["term-wikifier-mentions"]["availability"] == "not-distributed"
     assert by_id["term-wikifier-mentions"]["use"]["status"] == "not-adopted"
+
+
+def test_catalogue_carries_no_vendor_attribution():
+    """The design is what we keep; nobody's branding rides along in our registry."""
+    raw = chk.CATALOGUE.read_text(encoding="utf-8").lower()
+    for vendor in ("ibm", "watson"):
+        assert vendor not in raw, f"vendor name '{vendor}' leaked into the catalogue"

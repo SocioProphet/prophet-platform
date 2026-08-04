@@ -33,7 +33,7 @@ FIXTURE_DIR = ROOT / "fixtures" / "reasoning-task-eval"
 
 REQUIRED_DATASET_FIELDS = ("id", "name", "world", "family", "availability", "tests", "use", "licence")
 VALID_STATUS = {"adopted", "candidate", "not-adopted"}
-VALID_AVAILABILITY = {"public", "restricted", "internal-confidential", "public-method", "unresolved"}
+VALID_AVAILABILITY = {"public", "restricted", "not-distributed", "public-method", "unresolved"}
 
 
 def known_fixture_families(fixture_dir: Path) -> set[str]:
