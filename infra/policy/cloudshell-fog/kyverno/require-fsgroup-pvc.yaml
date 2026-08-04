@@ -29,9 +29,14 @@ spec:
           - resources:
               kinds: [Pod]
       preconditions:
-        # only Pods that actually mount a PVC (a bare emptyDir/configMap pod needs no fsGroup)
+        # Only workloads that actually mount a PVC (a bare emptyDir/configMap pod needs no fsGroup).
+        # `(volumes || `[]`)` coalesces a MISSING volumes key to an empty list BEFORE filtering:
+        # kyverno auto-generates this rule for Pod controllers (Deployment -> spec.template.spec,
+        # CronJob -> spec.jobTemplate.spec.template.spec), and a controller whose pod template has
+        # no volumes would otherwise error ("failed to resolve …volumes[?…]") — an erroring rule is
+        # a paper control (it evaluates nothing). Coalescing degrades that to a clean skip.
         any:
-          - key: "{{ request.object.spec.volumes[?persistentVolumeClaim] | length(@) || `0` }}"
+          - key: "{{ (request.object.spec.volumes || `[]`)[?persistentVolumeClaim] | length(@) }}"
             operator: GreaterThan
             value: 0
       validate:
