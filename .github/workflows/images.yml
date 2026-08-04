@@ -78,6 +78,14 @@ jobs:
           # pass an explicit sha- tag rather than relying on :latest (a moving tag with
           # IfNotPresent means a fix never rolls out).
           - { image: noetica-impair,        context: apps/noetica-impair,        dockerfile: Dockerfile }
+          # CPU variant, MULTI-ARCH. The GPU image above is based on
+          # pytorch/pytorch:*-cuda*, which is published for amd64 ONLY -- an Apple
+          # Silicon workstation cannot pull it at all ("no image found in image index
+          # for architecture arm64"). CUDA cannot be arm64 in that base, so one image
+          # genuinely cannot serve both the laptop dev loop and a GPU node. This one
+          # carries no CUDA and builds for both arches, which is what makes the rig
+          # runnable on the continuum local PaaS (kind on rootless podman).
+          - { image: noetica-impair-cpu,    context: apps/noetica-impair,        dockerfile: Dockerfile.cpu, platforms: 'linux/amd64,linux/arm64' }
           - { image: grlplus-service,       context: apps/grlplus-service,       dockerfile: Dockerfile }
           - { image: grl-mesh,             context: apps/grl-mesh,             dockerfile: Dockerfile }
           - { image: sophos-reasoner,      context: apps/sophos-reasoner,      dockerfile: Dockerfile }
@@ -126,6 +134,8 @@ jobs:
       # default, so this cutover moves one image at a time rather than all at once.
       registry:      ${{ matrix.registry || 'us-central1-docker.pkg.dev/socioprophet-platform/socioprophet' }}
       registry_auth: ${{ matrix.registry_auth || 'gar' }}
+      # Default stays linux/amd64; only entries that opt in pay the multi-arch build cost.
+      platforms:     ${{ matrix.platforms || 'linux/amd64' }}
     # All four are optional in the reusable workflow, which asserts that the ones
     # its chosen auth path needs are actually present. GAR entries ignore the zot
     # credentials and vice versa.

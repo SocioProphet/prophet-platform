@@ -248,3 +248,71 @@ def test_the_ungated_reference_is_reachable_without_a_licence():
     m = registry.get("gpt-oss-20b")
     assert m.arch == "moe" and m.moe.n_experts == 32 and m.moe.top_k == 4
     assert "UNGATED" in m.notes
+
+
+# ── the ruler must be identified, not merely named ───────────────────────────
+
+def _sig(model_id="gpt-oss-20b", fp=None):
+    from noetica_impair.attribution import mint_signature, LatentSignature
+    return mint_signature(LatentSignature(
+        model_id=model_id, layer=20, contrast_sha="sha256:" + "c" * 64,
+        feature_artifact_version="v1", sae_release="gemma-scope",
+        fingerprint=fp or {"hedging_caution": [1, 2, 3, 4], "reward_value": [9, 8, 7, 6]},
+    ))
+
+
+def test_a_reading_without_a_ruler_signature_says_so():
+    """A reference identified by name only cannot detect a silent swap."""
+    r = read_black_box(target="gpt-5", condition="topic-A", faculty=sig(competence=0.6),
+                       invariance=None, kinship="same_lab_open_weights",
+                       scoring_mode="generative")
+    assert any("NAME only" in c for c in r.caveats)
+
+
+def test_a_tampered_ruler_signature_makes_the_reading_indefensible():
+    """If the ladder's own provenance is broken, nothing located on it is anchored."""
+    s = _sig()
+    s.fingerprint["hedging_caution"] = [99, 98]      # tamper AFTER minting
+    r = read_black_box(target="gpt-5", condition="topic-A", faculty=sig(competence=0.6),
+                       invariance=None, kinship="same_lab_open_weights",
+                       scoring_mode="generative", reference_signature=s)
+    assert not r.defensible
+    assert any("receipt check" in c for c in r.caveats), r.caveats
+
+
+def test_a_ruler_that_does_not_attribute_is_flagged_as_possibly_swapped():
+    from noetica_impair.attribution import SignatureRegistry
+    known = _sig(model_id="gpt-oss-20b")
+    # a reference whose fingerprint shares nothing with the registered model
+    stranger = _sig(model_id="gpt-oss-20b",
+                    fp={"hedging_caution": [500, 501, 502, 503],
+                        "reward_value": [600, 601, 602, 603]})
+    reg = SignatureRegistry()
+    reg.enrol(known)
+    r = read_black_box(target="gpt-5", condition="topic-A", faculty=sig(competence=0.6),
+                       invariance=None, kinship="same_lab_open_weights",
+                       scoring_mode="generative",
+                       reference_signature=stranger, reference_registry=reg)
+    assert not r.defensible
+    assert any("swapped" in c or "attribute" in c for c in r.caveats), r.caveats
+
+
+def test_a_verified_ruler_carries_its_attribution_into_the_report():
+    from noetica_impair.attribution import SignatureRegistry
+    s = _sig()
+    reg = SignatureRegistry()
+    reg.enrol(s)
+    per_model = {
+        "gemma2-9b": sig(competence=0.5, working_memory=0.4),
+        "gpt-oss-20b": sig(competence=0.53, working_memory=0.43),
+        "mixtral-8x7b": sig(competence=0.51, working_memory=0.41),
+    }
+    inv = check_invariance("topic-A", per_model)
+    r = read_black_box(target="gpt-5", condition="topic-A", faculty=sig(competence=0.55),
+                       invariance=inv, kinship="same_lab_open_weights",
+                       scoring_mode="generative", reference_models=list(per_model),
+                       reference_signature=s, reference_registry=reg)
+    assert r.reference_attribution is not None
+    assert r.reference_attribution.matched, r.reference_attribution.report()
+    assert "ruler identity" in r.report()
+    assert r.defensible, r.report()

@@ -44,13 +44,24 @@ class RunJob:
     strict_limbs: bool = True
     device: str | None = None
     quantization: str | None = None
+    #: True for a job that is not a dose sweep at all -- the feature-discovery pass
+    #: drives no substance and no stimulus. Without this the only way to schedule
+    #: discovery was to name a substance it never ran, which would put a false
+    #: substance in the job identity and its env.
+    non_sweep: bool = False
     name: str = ""
 
     def __post_init__(self) -> None:
         if not self.name:
-            tag = self.substance or self.topical_stimulus or "sober"
+            tag = self.substance or self.topical_stimulus or ("discovery" if self.non_sweep else "sober")
             self.name = f"impair-{self.model_key}-{tag}-s{self.seed}".lower().replace("_", "-")
-        if bool(self.substance) == bool(self.topical_stimulus):
+        if self.non_sweep:
+            if self.substance or self.topical_stimulus:
+                raise ValueError(
+                    "a non_sweep job drives no driver; leave substance and "
+                    "topical_stimulus unset"
+                )
+        elif bool(self.substance) == bool(self.topical_stimulus):
             raise ValueError(
                 "a RunJob drives exactly one driver: set substance OR topical_stimulus"
             )
