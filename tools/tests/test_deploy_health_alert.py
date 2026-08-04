@@ -68,9 +68,19 @@ def test_missing_and_unknown_health_flagged():
         assert f"health={h}" in dha.classify_app({"status": {"health": {"status": h}}})
 
 
-def test_outofsync_flagged_but_ignorable():
+def test_bare_outofsync_on_healthy_app_is_not_a_gap():
+    # OutOfSync + Healthy + no sync-failure condition = ArgoCD mid-reconcile, not a gap
     app = {"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}}
-    assert "sync=OutOfSync" in dha.classify_app(app)
+    assert dha.classify_app(app) == []
+
+
+def test_outofsync_with_sync_failure_condition_is_a_gap():
+    # the ws-workspace-* case: "one or more objects failed to apply" — real drift
+    app = {"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"},
+                      "conditions": [{"type": "SyncError",
+                                      "message": "Failed sync attempt: one or more objects failed to apply"}]}}
+    out = dha.classify_app(app)
+    assert any("sync=OutOfSync" in r for r in out)
     assert dha.classify_app(app, ignore_sync=True) == []
 
 

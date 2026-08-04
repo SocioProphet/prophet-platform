@@ -118,8 +118,24 @@ def classify_app(app: dict, *, ignore_sync: bool = False) -> list[str]:
             reasons.append(f"health={health}")
     sync = ((status.get("sync") or {}).get("status")) or ""
     if sync == "OutOfSync" and not ignore_sync and not justified_hold:
-        reasons.append("sync=OutOfSync")
+        # OutOfSync alone is NOT a gap: on an auto-sync+selfHeal estate a Healthy app is
+        # routinely OutOfSync for a moment mid-reconcile, and flagging that trains people to
+        # ignore the alerter. It IS a gap only when ArgoCD recorded a sync FAILURE (objects
+        # failed to apply) — real drift self-heal cannot resolve. An unhealthy app is already
+        # reported via its health above, so OutOfSync adds nothing there.
+        if _sync_failing(status):
+            reasons.append("sync=OutOfSync (sync failing)")
     return reasons
+
+
+def _sync_failing(status: dict) -> bool:
+    """True if ArgoCD recorded a sync error/failure condition (not a transient OutOfSync)."""
+    for cond in (status.get("conditions") or []):
+        ctype = (cond.get("type") or "").lower()
+        msg = (cond.get("message") or "").lower()
+        if "error" in ctype or "failed sync" in msg or "failed to apply" in msg:
+            return True
+    return False
 
 
 def classify_pod(pod: dict, *, restart_threshold: int) -> list[str]:
@@ -375,10 +391,14 @@ def _self_test() -> int:
          classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "Synced"}}}) == []),
         ("degraded app flagged",
          classify_app({"status": {"health": {"status": "Degraded"}, "sync": {"status": "Synced"}}}) == ["health=Degraded"]),
-        ("outofsync flagged",
-         "sync=OutOfSync" in classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}})),
-        ("outofsync ignorable",
-         classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}}, ignore_sync=True) == []),
+        ("bare outofsync (healthy, no error) is NOT a gap",
+         classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}}) == []),
+        ("outofsync WITH a sync failure IS a gap",
+         any("sync=OutOfSync" in r for r in classify_app({"status": {"health": {"status": "Healthy"},
+             "sync": {"status": "OutOfSync"}, "conditions": [{"message": "one or more objects failed to apply"}]}}))),
+        ("failing-sync outofsync ignorable",
+         classify_app({"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"},
+             "conditions": [{"message": "failed to apply"}]}}, ignore_sync=True) == []),
         ("justified hold suppresses missing+outofsync",
          classify_app({"metadata": {"annotations": {HOLD_ANNOTATION: "audit-first, see ROLLOUT.md"}},
                        "status": {"health": {"status": "Missing"}, "sync": {"status": "OutOfSync"}}}) == []),
