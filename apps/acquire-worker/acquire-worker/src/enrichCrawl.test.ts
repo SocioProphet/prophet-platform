@@ -47,9 +47,11 @@ test('NullEnricher lands raw', async () => {
 
 test('Sherlock seam: LinkDiscoverer resolves in-page links against the base', () => {
   const links = new LinkDiscoverer().discover({ url: 'https://ex.test/dir/a', body: '<a href="b">x</a><a href="/c">y</a><a href="https://other.test/z">o</a>', depth: 0 });
-  assert.ok(links.includes('https://ex.test/dir/b'));
-  assert.ok(links.includes('https://ex.test/c'));
-  assert.ok(links.includes('https://other.test/z'));
+  // Exact-match against the discovered-links array, not a URL substring check — `.includes()` on a
+  // string reads that way to a static analyzer, so spell it as `.some(exact-equality)` instead.
+  assert.ok(links.some((u) => u === 'https://ex.test/dir/b'));
+  assert.ok(links.some((u) => u === 'https://ex.test/c'));
+  assert.ok(links.some((u) => u === 'https://other.test/z'));
 });
 
 test('crawl: same-origin, deduped, lands every page, off-origin excluded', async () => {

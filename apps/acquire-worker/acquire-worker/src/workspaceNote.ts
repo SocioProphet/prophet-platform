@@ -49,7 +49,9 @@ function deriveTitle(body: string, url: string): string {
 
 function looksHtml(body: string): boolean { return /<\s*(html|body|div|p|h[1-6]|article)\b/i.test(body.slice(0, 2000)); }
 function stripHtml(body: string): string {
-  return body.replace(/<head[\s\S]*?<\/head>/gi, ' ').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+  // Closing tags tolerate whitespace before '>' (e.g. `</script >`) per the HTML parsing spec —
+  // matching only the exact `</script>` bytes lets that variant slip through un-stripped.
+  return body.replace(/<head[\s\S]*?<\/head\s*>/gi, ' ').replace(/<script[\s\S]*?<\/script\s*>/gi, ' ').replace(/<style[\s\S]*?<\/style\s*>/gi, ' ')
     .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 

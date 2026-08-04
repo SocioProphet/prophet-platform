@@ -124,7 +124,10 @@ const totalPnl = computed(() => unrealized.value + portfolio.realized);
 
 const money = (n: number): string => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(n);
 const num = (n: number): string => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${money(Math.abs(n)).replace('$', '$')}`;
+// `money()` already runs on Math.abs(n) and formats through Intl — no sign to strip and no '$' to
+// replace; a stray `.replace('$', '$')` here was a no-op (flagged by CodeQL as identity-replacement /
+// incomplete-sanitization on both counts), so it's just dropped rather than "fixed" into a new no-op.
+const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${money(Math.abs(n))}`;
 const pnlDir = (n: number): 'up' | 'down' | 'flat' => (n > 0.005 ? 'up' : n < -0.005 ? 'down' : 'flat');
 const time = (ts: number): string => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 

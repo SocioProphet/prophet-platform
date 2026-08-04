@@ -587,9 +587,15 @@ export async function loadNotebookAdapters(): Promise<{ default: string; adapter
   const d = await r.json(); return d.adapters ? d : NB_ADAPTERS_STUB;
 }
 
+// Math.random() is not a CSPRNG — flows into session_id (a security-context identifier sent to
+// executeCell), so even the stub-mode fallback below uses crypto.getRandomValues.
+function randomHex(bytes: number): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function createNotebookSession(input: { project: string; adapter?: string; name?: string }): Promise<NbSession> {
   const b = nbBase();
-  if (!b) return { id: "stub-" + Math.random().toString(16).slice(2, 8), project: input.project, adapter: input.adapter || "jupyterlab",
+  if (!b) return { id: "stub-" + randomHex(3), project: input.project, adapter: input.adapter || "jupyterlab",
                    role: "scientific-notebook", mode: "session", kernel: "python3", name: input.name || "Notebook session", status: "stub", url: null };
   const r = await fetch(`${b}/api/studio/notebook/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
   if (!r.ok) throw new Error(`session failed (HTTP ${r.status})`);
