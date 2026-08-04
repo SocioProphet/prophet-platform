@@ -71,6 +71,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/svc\/synapse/, ''),
         },
+        // catalog-gateway — read/resolve/lineage + DCAT AND the catalog ops plane (readout + SLO).
+        '/svc/catalog': {
+          target: env.VITE_CATALOG_BASE || 'http://localhost:8096',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/svc\/catalog/, ''),
+        },
         // sherlock-engine — Tantivy (Rust, no-JVM) ontology-driven Discovery search.
         '/svc/sherlock': {
           target: env.VITE_SHERLOCK_BASE || 'http://localhost:8093',

@@ -9,6 +9,8 @@ import { loadCatalog, EPISTEMIC_COLORS, type Dataset } from '../../services/stud
 import Sparkline from '../../components/Sparkline.vue';
 import FactsheetDrawer from './FactsheetDrawer.vue';
 import { attestFacts } from './factsheetAttest';
+import StudioCatalogOps from './StudioCatalogOps.vue';
+import { catalog } from './api';
 
 const props = defineProps<{ project: string }>();
 
@@ -17,6 +19,13 @@ const loading = ref(true);
 const err = ref('');
 const facet = ref<string>('all');       // connector filter
 const sheet = ref<Dataset | null>(null); // dataset whose factsheet drawer is open
+
+// Warrant — the catalog-gateway's view of the open asset: its lineage + a DCAT export
+// link. Best-effort: resolved only for assets the gateway actually knows; absent (or the
+// service down) → the section is hidden. This is what a bolt-on catalog cannot show: the
+// row's interop document + upstream refs come from the same governed service, not a scrape.
+const warrant = ref<{ upstream: { ref: string; resolved: boolean; kind: string | null }[] } | null>(null);
+const warrantId = ref<string>('');
 
 async function load() {
   loading.value = true; err.value = '';
@@ -55,7 +64,16 @@ function demoSeries(id: string): number[] {
 function series(d: Dataset): number[] { return d.volume_trend?.length ? d.volume_trend : demoSeries(d.id); }
 function isLive(d: Dataset): boolean { return !!d.volume_trend?.length; }
 function last(s: number[]): number { return s[s.length - 1] ?? 0; }
-function openSheet(d: Dataset) { sheet.value = d; }
+function openSheet(d: Dataset) {
+  sheet.value = d;
+  // Best-effort warrant lookup against catalog-gateway. Silent on any failure (asset not
+  // in the gateway, or the service unreachable) — the factsheet still renders fully.
+  warrant.value = null; warrantId.value = '';
+  catalog.lineage('asset', d.id)
+    .then((r) => { warrant.value = { upstream: r.upstream }; warrantId.value = d.id; })
+    .catch(() => { /* not a gateway-resolvable asset — leave the warrant section hidden */ });
+}
+const dcatUrl = computed(() => (warrantId.value ? catalog.dcatUrl(warrantId.value) : ''));
 
 // Attested factsheet — a deterministic, recomputable summary built from the dataset's OWN facts
 // (not model-generated prose), with a content-id receipt = a hash of those facts. Honest "attested
@@ -69,6 +87,7 @@ function attest(d: Dataset): { summary: string; receipt: string; live: boolean }
 
 <template>
   <div class="cat">
+    <StudioCatalogOps />
     <div class="cbar">
       <div class="facets">
         <button class="facet" :class="{ on: facet === 'all' }" @click="facet = 'all'">All <i>{{ datasets.length }}</i></button>
@@ -129,6 +148,23 @@ function attest(d: Dataset): { summary: string; receipt: string; live: boolean }
           <p class="att-text">{{ attest(sheet).summary }}</p>
           <span class="att-note">Computed from the dataset's own facts — deterministic + recomputable (the receipt is a hash of those facts), not model-generated prose. {{ attest(sheet).live ? 'Ingest volume is live.' : 'Ingest volume is a demo series until the backend supplies volume_trend.' }}</span>
         </div>
+        <div v-if="warrant" class="fs-sec warrant">
+          <h4>Catalog warrant <span class="wk-chip" title="served by catalog-gateway (/svc/catalog)">▪ gateway</span></h4>
+          <div class="wr-row">
+            <span class="fk">DCAT / schema.org</span>
+            <a class="wr-export" :href="dcatUrl" target="_blank" rel="noopener" title="open the DCAT JSON-LD document">Export ld+json ↗</a>
+          </div>
+          <div class="wr-lineage">
+            <span class="fk">Lineage (upstream)</span>
+            <div v-if="warrant.upstream.length" class="wr-refs">
+              <span v-for="u in warrant.upstream" :key="u.ref" class="wr-ref" :class="{ unresolved: !u.resolved }" :title="u.resolved ? ('resolved · ' + u.kind) : 'declared but not yet in the catalog'">
+                <i class="wr-dot" />{{ u.ref }}<em v-if="u.kind">{{ u.kind }}</em>
+              </span>
+            </div>
+            <span v-else class="att-note">No upstream refs recorded.</span>
+          </div>
+          <span class="att-note">Lineage + interop document come from the same governed service that resolves the asset — not a scraped metastore. A bolt-on catalog cannot attest the row it lists.</span>
+        </div>
       </template>
     </FactsheetDrawer>
 
@@ -186,4 +222,18 @@ function attest(d: Dataset): { summary: string; receipt: string; live: boolean }
 .att-chip { font-family: var(--mono); font-size: 10px; color: var(--epi-attested); background: color-mix(in srgb, var(--epi-attested) 12%, transparent); border-radius: var(--r-1); padding: 1px 6px; letter-spacing: 0; text-transform: none; }
 .att-text { font-size: 13px; line-height: 1.55; color: var(--ink); margin: 0 0 8px; }
 .att-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* catalog warrant (lineage + DCAT export) — best-effort, gateway-served */
+.warrant { border: 1px solid var(--hairline); border-radius: var(--r-3); padding: var(--sp-3) var(--sp-4); background: var(--sunken); }
+.wk-chip { font-family: var(--mono); font-size: 10px; color: var(--accent-ink, var(--accent)); background: var(--accent-wash, transparent); border-radius: var(--r-1); padding: 1px 6px; letter-spacing: 0; text-transform: none; }
+.wr-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.wr-export { font-size: 12px; color: var(--accent); text-decoration: none; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--hairline)); border-radius: var(--r-2); padding: 3px 10px; }
+.wr-export:hover { background: var(--accent-wash, transparent); }
+.wr-lineage { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-3); }
+.wr-refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.wr-ref { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; color: var(--ink-2); border: 1px solid var(--hairline); border-radius: var(--r-1); padding: 1px 7px; }
+.wr-ref em { font-style: normal; font-family: var(--ui); font-size: 9px; text-transform: uppercase; letter-spacing: .04em; color: var(--faint); }
+.wr-ref .wr-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok, #17864a); }
+.wr-ref.unresolved { border-style: dashed; color: var(--muted); }
+.wr-ref.unresolved .wr-dot { background: var(--faint); }
 </style>
