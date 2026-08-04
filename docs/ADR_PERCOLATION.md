@@ -6,9 +6,11 @@ An ADR was recorded on 08-02: **migrate `source-os` / the Nix estate → Guix (+
 prose (a memory), a parity checklist (`guix/NIX_BASELINE.md`), and spike branches (`source-os#314/#315`).
 Two days later an agent, directing platform work, told a sub-task to author a **new `.nix` package**
 (`packages/sourceos-shell/default.nix`) — re-growing the very Nix surface the ADR is retiring. Nothing
-stopped it. On the current `source-os` checkout there are **55 `.nix` files, 0 `.scm`, no `guix/` dir**;
-the Guix spike is stranded off the branch new work forks from, so *100% of new work sees a pure-Nix
-world*. Zero enforcement exists in any workflow.
+stopped it. **`source-os` `main` carries the Guix scaffold** (`guix/` + **3 `.scm`**, #314/#315 merged) —
+an earlier draft of this doc said "0 `.scm`, stranded", which was a **sparse-working-tree misread** and
+is corrected here. The real state on `main` is **63 `.nix` vs 3 `.scm`** (migration ~5% done), and —
+the actual failure — **zero enforcement in any workflow**, so nothing refuses new Nix (now closed by
+`source-os` PR #325: the ADR swap gate).
 
 The operator's diagnosis, verbatim and correct: **"when an ADR happens there needs to be a dependency
 graph built"** — and, per failure mode, we must name the **meta-** and **meta-meta-**failure, which is
