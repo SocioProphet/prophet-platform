@@ -1,0 +1,71 @@
+# Argo Rollouts controller — the missing engine.
+#
+# The estate has a well-designed canary gate (infra/k8s/rollouts/base/analysistemplate-slo.yaml,
+# the cluster-scoped `slo-gate` that aborts on 5xx>=5% or p99>=1.5s) and Rollout resources that
+# reference it (search-orchestrator) — but NO CONTROLLER was ever installed, so none of it runs.
+# A canary with no controller is decorative: a bad image syncs straight to active with no
+# analysis and no abort. This installs the controller (foundation, before any Rollout) and
+# deploys the shared slo-gate, so progressive delivery is actually load-bearing.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    # foundation: must be up BEFORE any Rollout syncs (Rollouts at wave 0+); after the telemetry
+    # substrate (kube-prometheus-stack, wave -3) the slo-gate analysis reads from.
+    argocd.argoproj.io/sync-wave: "-2"
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: 2.37.7        # pinned; rollouts controller ~1.7.2
+    helm:
+      releaseName: argo-rollouts
+      values: |
+        installCRDs: true
+        controller:
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+        dashboard:
+          enabled: false          # CLI/API only; keep the footprint small
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true      # rollouts CRDs are large; SSA avoids the last-applied bloat
+---
+# Deploy the shared cluster-scoped SLO gate. Cluster-scoped so a Rollout in ANY namespace can
+# reference `templateName: slo-gate` (INV-DEP-9 — a namespaced template resolved for nothing and
+# made prod applies fail InvalidSpec). Synced AFTER the controller (its CRDs must exist first).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rollouts-slo-gate
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    socioprophet.io/tier: "foundation"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform.git
+    targetRevision: main
+    path: infra/k8s/rollouts/base
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
