@@ -31,6 +31,8 @@ from validate_autonomy_admission_receipt import validate_receipt  # noqa: E402
 # (surface/action) is supplied. Absent that, we stay the legacy autonomy-only
 # gate and emit a v0.1 receipt.
 from capability_membrane import CapabilityRequest, resolve_capability  # noqa: E402
+# Genesis Guard: high autonomy is not self-granted — it requires a validator quorum.
+from quorum import quorum_gate  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LADDER = ROOT / "contracts" / "prophet-mesh" / "ai-driven-development.ladder.json"
@@ -240,6 +242,11 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--membrane-decision", default="ALLOW", help="upstream membrane verdict")
     parser.add_argument("--scope", default="user_local", help="user_local | global_platform")
     parser.add_argument("--unowned", action="store_true", help="surface we do not own → observe-only")
+    # Genesis Guard: a grant at or above the floor requires a validator quorum (QuorumProof).
+    parser.add_argument("--quorum-proof", help="path to a QuorumProof JSON co-signing this admission")
+    parser.add_argument("--quorum-floor", default="L3", help="autonomy level at/above which a quorum is required")
+    parser.add_argument("--enforce-quorum", action="store_true",
+                        help="demote the grant below the floor when the quorum is unmet (default: advisory)")
     args = parser.parse_args(argv[1:])
 
     ladder = Ladder.load(Path(args.ladder))
@@ -294,6 +301,32 @@ def main(argv: list[str]) -> int:
             decision["granted_level"] = "L0"
             decision["decision"] = "deny"
             decision["reason"] = "; ".join(x for x in (decision.get("reason", ""), note) if x)
+
+    # Genesis Guard: a grant at or above --quorum-floor requires a validator quorum co-signing
+    # THIS admission. Advisory by default (records satisfied/unmet in the reason + a quorum://
+    # policy ref, never lowers the grant); --enforce-quorum demotes an unmet quorum below the
+    # floor. Conforms to the authoritative QuorumProof shape; binds the quorum to the operation.
+    floor_rank = max(_rank(args.quorum_floor), 0)
+    granted_rank = max(_rank(decision["granted_level"]), 0)
+    if granted_rank >= floor_rank:
+        proof = None
+        if args.quorum_proof:
+            proof = json.loads(Path(args.quorum_proof).read_text(encoding="utf-8"))
+        q_payload = {"subject_ref": subject_ref,
+                     "requested_level": decision["requested_level"],
+                     "surface": surface or ""}
+        q_hash = "sha256:" + hashlib.sha256(_canonical_bytes(q_payload)).hexdigest()
+        qg = quorum_gate(granted_rank, floor_rank=floor_rank, proof=proof,
+                         payload_hash=q_hash, enforce=args.enforce_quorum)
+        decision = dict(decision)
+        note = (f"validator quorum {'satisfied' if qg['quorum_ok'] else 'UNMET'} "
+                f"(floor {args.quorum_floor}): {qg['reason']}")
+        decision["reason"] = "; ".join(x for x in (decision.get("reason", ""), note) if x)
+        if qg.get("demoted"):
+            decision["granted_level"] = f"L{qg['granted_rank']}"
+            decision["decision"] = "demote"
+        if proof is not None:
+            policy_refs = list(dict.fromkeys(policy_refs + [f"quorum://{proof.get('rule', '?')}/{q_hash}"]))
 
     created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     receipt_id = args.receipt_id or f"aar-{int(time.time())}"
