@@ -111,18 +111,24 @@ register:
       v2 membership dynamics via admit/writer-key machinery. v3 differentiation =
       research gate.
     owner: hellgraph-service federation + agentplane + client-vue (card)
-    status: declared
-    # declared 2026-07-29: spec Organ.json MERGED (sourceos-spec#211) with OR-I1 (never invents
-    # a member; undeterminable health = `unknown`, never optimistically healthy) + OR-I2 (organ
-    # health DERIVED from members; an unknown member blocks a healthy verdict). Implementation
-    # merged (prophet-platform#1021): apps/hellgraph-service/src/organs.ts declares four organs
-    # over REAL services (memory-mesh/hellgraph, zone-router/compute-gateway, ie-engine/
+    status: wired
+    # declared→wired 2026-08-03: spec Organ.json MERGED (sourceos-spec#211) with OR-I1 (never
+    # invents a member; undeterminable health = `unknown`, never optimistically healthy) + OR-I2
+    # (organ health DERIVED from members; an unknown member blocks a healthy verdict).
+    # Implementation merged (prophet-platform#1021) AND in the deployed image: organs.ts declares
+    # four organs over REAL services (memory-mesh/hellgraph, zone-router/compute-gateway, ie-engine/
     # entity-resolution/embeddings, identity-policy/evidence-receipts); prober distinguishes
     # non-2xx (down) from unreachable (unknown); endpoints env-overridable for edge/air-gapped
-    # topologies; GET /api/organs wired. 13 tests.
-    # NOT `wired`: image not yet rolled + live /api/organs probe not yet run.
+    # topologies; GET /api/organs is a gated route (auth.test.ts). 13 tests. CI has no cluster
+    # access, so probe_cmd is the static wiring proxy (organs.ts + /api/organs + health fold
+    # present); the LIVE GET /api/organs probe (>0 organs with member health) is re-run by hand
+    # and is what would carry this to `measured`.
     # v2 membership dynamics + v3 differentiation deliberately out of scope until v1 proves out.
-    probe: "GET /api/organs returns >0 organs with live member health"
+    probe: "static: organs.ts + /api/organs + health fold present; live: GET /api/organs returns >0 organs with member health"
+    probe_cmd: >-
+      test -f apps/hellgraph-service/src/organs.ts
+      && grep -rq "/api/organs" apps/hellgraph-service/src/
+      && grep -q "health" apps/hellgraph-service/src/organs.ts
     wave: W6.4
 
   # ── Pre-existing convictions imported so the register is honest from birth ──
@@ -192,12 +198,21 @@ register:
       personalization — receipts already exist, but counters-for-adaptation do not.
       NO third-party flag SaaS (no GrowthBook) — the flag plane is ours.
     owner: Noetica/agent-machine (client cache + migrations) + prophet-platform admin API (flag service)
-    status: declared
-    # declared 2026-07-29: CLIENT half merged (Noetica#564) — config-plane.ts (precedence
-    # local-override > env > remote > default, explain() names the decider, capability-surface
-    # guard so a snapshot cannot introduce an undeclared capability, offline-first refresh),
-    # local-state.ts (migrationVersion + named once-only migrations + usage ledger), routes
-    # /api/config{,/refresh,/usage} registered in server.ts, 13 tests. NOT yet in a shipped
-    # release and the SERVER half (admin flag endpoint) is unbuilt — hence not `wired`.
-    probe: "agent-machine /api/config returns flags w/ fetchedAt; ~/.noetica carries a migrationVersion; a kill-switch flips a live capability without a release"
+    status: wired
+    # declared→wired 2026-08-03: BOTH halves are merged (the earlier note claiming the
+    # SERVER half was "unbuilt" was stale — #1029 built it). SERVER half: compute-gateway
+    # serves /v1/config (read, default scope open, org/model token-gated), /v1/config/set
+    # (sealed BEFORE write — a change that can't be receipted must not take effect), and
+    # /v1/config/history; config_plane.py has set_flag/get_snapshot/history. CLIENT half
+    # (Noetica#564): config-plane.ts precedence local-override>env>remote>default, explain()
+    # names the decider, capability-surface guard, offline-first refresh; local-state.ts
+    # migrationVersion + once-only migrations + usage ledger; 13 tests. CI has no cluster
+    # access, so probe_cmd is the static wiring proxy; the LIVE kill-switch probe — flip a
+    # capability off without a release and observe it take effect — is re-run by hand and is
+    # what would carry this to `measured`. (Open: config-plane `app` selector ungated — #1102.)
+    probe: "static: /v1/config{,/set,/history} + config_plane.set_flag present; live: a kill-switch flips a capability without a release"
+    probe_cmd: >-
+      grep -q "/v1/config" apps/compute-gateway/src/compute_gateway/server.py
+      && test -f apps/compute-gateway/src/compute_gateway/config_plane.py
+      && grep -q "def set_flag" apps/compute-gateway/src/compute_gateway/config_plane.py
     wave: unassigned
