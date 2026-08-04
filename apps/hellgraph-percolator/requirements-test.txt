@@ -1,0 +1,3 @@
+# Test-only dependencies (fastapi.testclient needs httpx, already a runtime pin).
+# Runtime pins live in requirements.txt.
+pytest==8.3.2

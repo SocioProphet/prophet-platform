@@ -113,6 +113,10 @@ jobs:
           - { image: arcticdb-gateway,      context: apps/arcticdb-gateway,      dockerfile: Dockerfile }
           # Seal-the-Walls W1.1: proof-carrying HellGraph-log → ClickHouse materializer.
           - { image: prophet-materializer-clickhouse, context: apps/prophet-materializer-clickhouse, dockerfile: Dockerfile }
+          # Live percolation trigger: HellGraph-log tail + exchange-envelope.v0 webhook → dependency-closure
+          # re-materialisation. context is the REPO ROOT so the image carries the canonical shared library
+          # tools/hellgraph_percolation without forking it (the one build that isn't self-contained in its app dir).
+          - { image: hellgraph-percolator, context: ., dockerfile: apps/hellgraph-percolator/Dockerfile }
           # Seal-the-Walls W1.2: deterministic synthetic MarketDataEvent replay emitter —
           # the first sourceos-spec-conformant events INTO the log the materializer tails.
           - { image: market-replay,         context: apps/market-replay,         dockerfile: Dockerfile }

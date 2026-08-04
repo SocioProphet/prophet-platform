@@ -1,0 +1,12 @@
+[project]
+name = "hellgraph-percolator"
+version = "0.1.0"
+description = "Live percolation trigger: hellgraph /api/graph/log tail + exchange-envelope.v0 webhook -> dependency-closure re-materialisation (tools.hellgraph_percolation) -> one receipt per batch on the compute-gateway spine (fail-closed)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn==0.30.6",
+  "httpx==0.27.2",
+]
+[tool.setuptools.packages.find]
+where = ["src"]
