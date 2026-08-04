@@ -21,8 +21,13 @@ spec:
         # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
         app.kubernetes.io/name: workspace-mail
     spec:
-      # dovecot/mail writes its maildir on the mounted PVC; fsGroup makes the volume group-writable
-      # (via supplementary group) so the non-root container can write it (kyverno require-fsgroup-pvc).
+      # dovecot runs as ROOT — verified via `id` in the live pod, and it MUST: it binds privileged
+      # ports (imap 143, imaps 993, lmtp 24 — all < 1024) and its master process setuids per-user for
+      # mail delivery. Do NOT "harden" it to non-root: that reintroduces the exact bind/permission
+      # failures (the mail analogue of the gitea crashloop, in reverse). fsGroup: 1000 is kept anyway —
+      # it satisfies kyverno require-fsgroup-for-pvc-writers AND is forward-compatible (a future
+      # non-root gid 1000 would already own the maildir), unlike fsGroup: 0 which would be a landmine.
+      # Root here is intentional, not an oversight.
       securityContext:
         fsGroup: 1000
       imagePullSecrets:
