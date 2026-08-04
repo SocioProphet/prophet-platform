@@ -1335,7 +1335,8 @@ async def catalog(project: str = "default",
         out.append({"id": n.get("id"), "name": p.get("name") or p.get("title") or n.get("id"),
                     "labels": [l for l in (n.get("labels") or []) if l != coll],
                     "connector": p.get("connector"), "source": p.get("source"),
-                    "epistemic_mode": p.get("epistemic_mode", "observed"), "governed": True, "columns": cols})
+                    "epistemic_mode": p.get("epistemic_mode", "observed"), "governed": True, "columns": cols,
+                    "updated_at": p.get("updated_at")})
     return {"project": project, "datasets": out, "count": len(out),
             "beat": "datasets are proof-carrying graph nodes — provenance + epistemic status are native, not a bolt-on catalog",
             "degraded": err}
@@ -1386,7 +1387,8 @@ async def lineage(project: str = "default", target: str = "", depth: int = 4,
         p = (n.get("properties") if n else {}) or {}
         out_nodes.append({"id": nid, "type": _node_type(n, coll) if n else "External",
                           "label": p.get("name") or p.get("title") or nid,
-                          "epistemic_mode": p.get("epistemic_mode")})
+                          "epistemic_mode": p.get("epistemic_mode"),
+                          "updated_at": p.get("updated_at")})
     return {"project": project, "target": target, "nodes": out_nodes, "edges": out_edges,
             "stats": {"nodes": len(out_nodes), "edges": len(out_edges)},
             "beat": "one proof-carrying lineage graph spanning data, pipelines, runs and models — every hop verifiable",
