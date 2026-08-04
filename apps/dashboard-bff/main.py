@@ -36,19 +36,59 @@ def _load_module(path: Path, name: str):
     return module
 
 
+# One broken producer must not crashloop the whole BFF. contracts.py is REQUIRED (fail closed
+# if it can't load — the response models are core to every endpoint); the tool producers below
+# are each used by ONE endpoint, so a producer that fails to import degrades only its endpoint
+# (a loud 503 naming the import error) and every other endpoint keeps serving. Failures are
+# surfaced in the startup log, never swallowed — the arcticdb/compute-gateway silent-down lesson:
+# a service that dies whole because one optional dependency is missing is a fragility, not safety.
+_FAILED_PRODUCERS: dict[str, str] = {}
+
+
+class _FailedProducer:
+    """Stands in for a producer module that failed to import. Any attribute access — an
+    endpoint reaching for `.emit()` — raises a 503 naming the producer and the underlying
+    error, so the endpoint fails honestly while the service stays up."""
+
+    def __init__(self, name: str, error: BaseException) -> None:
+        self._name = name
+        self._error = f'{type(error).__name__}: {error}'
+
+    def __getattr__(self, _attr: str):
+        raise HTTPException(status_code=503,
+                            detail=f"producer '{self._name}' unavailable: {self._error}")
+
+
+def _try_load(rel_tool: str, name: str):
+    """Load a per-endpoint producer resiliently — the module on success, else a
+    _FailedProducer sentinel (recorded in _FAILED_PRODUCERS) so boot never fails."""
+    try:
+        return _load_module(ROOT / 'tools' / rel_tool, name)
+    except Exception as e:  # noqa: BLE001 — a producer can fail for any import-time reason
+        _FAILED_PRODUCERS[name] = f'{type(e).__name__}: {e}'
+        return _FailedProducer(name, e)
+
+
+# REQUIRED: the response models every endpoint declares. If this can't load, fail closed.
 _contracts = _load_module(Path(__file__).with_name('contracts.py'), 'dashboard_bff_contracts')
 OverviewResponse = _contracts.OverviewResponse
-_producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_metrics.py', 'emit_metrics')
-_vdt_producer = _load_module(ROOT / 'tools' / 'emit_vdt_metrics.py', 'emit_vdt_metrics')
-_gyg_causal_producer = _load_module(ROOT / 'tools' / 'emit_gyg_causal.py', 'emit_gyg_causal')
-_gyg_locations_producer = _load_module(ROOT / 'tools' / 'emit_gyg_locations.py', 'emit_gyg_locations')
-_company_financials = _load_module(ROOT / 'tools' / 'emit_company_financials.py', 'emit_company_financials')
-_studio = _load_module(ROOT / 'tools' / 'emit_studio_valuation.py', 'emit_studio_valuation')
-_governance_test = _load_module(ROOT / 'tools' / 'emit_governance_test.py', 'emit_governance_test')
-_risk_ep = _load_module(ROOT / 'tools' / 'emit_risk_ep_facts.py', 'emit_risk_ep_facts')
 RiskEpFactsResponse = _contracts.RiskEpFactsResponse
-_board_producer = _load_module(ROOT / 'tools' / 'emit_intelligence_superiority_board.py', 'emit_is_board')
-_board_validator = _load_module(ROOT / 'tools' / 'validate_intelligence_superiority_board.py', 'is_board_validator')
+
+# Per-endpoint producers — resilient: one bad import degrades its endpoint, not the service.
+_producer = _try_load('emit_intelligence_superiority_metrics.py', 'emit_metrics')
+_vdt_producer = _try_load('emit_vdt_metrics.py', 'emit_vdt_metrics')
+_gyg_causal_producer = _try_load('emit_gyg_causal.py', 'emit_gyg_causal')
+_gyg_locations_producer = _try_load('emit_gyg_locations.py', 'emit_gyg_locations')
+_company_financials = _try_load('emit_company_financials.py', 'emit_company_financials')
+_studio = _try_load('emit_studio_valuation.py', 'emit_studio_valuation')
+_governance_test = _try_load('emit_governance_test.py', 'emit_governance_test')
+_risk_ep = _try_load('emit_risk_ep_facts.py', 'emit_risk_ep_facts')
+_board_producer = _try_load('emit_intelligence_superiority_board.py', 'emit_is_board')
+_board_validator = _try_load('validate_intelligence_superiority_board.py', 'is_board_validator')
+
+if _FAILED_PRODUCERS:
+    print(f'[dashboard-bff] WARN {len(_FAILED_PRODUCERS)} producer(s) failed to import and will '
+          f'503 on their endpoints; the rest serve: {_FAILED_PRODUCERS}', file=sys.stderr, flush=True)
 
 _SLUG_RE = re.compile(r'[^a-z0-9]+')
 
@@ -91,7 +131,12 @@ app.add_middleware(
 
 @app.get('/health')
 def health() -> dict:
-    return {'service': 'dashboard-bff', 'status': 'ok'}
+    # 'ok' = the service is up and serving. degraded_producers names any per-endpoint producer
+    # that failed to import (those endpoints 503) so the degradation is visible on the liveness
+    # surface instead of hidden until someone hits the endpoint. Liveness stays green: a degraded
+    # endpoint is not a dead service — that distinction is the whole point of this change.
+    return {'service': 'dashboard-bff', 'status': 'ok',
+            'degraded_producers': sorted(_FAILED_PRODUCERS)}
 
 @app.get('/v1/overview', response_model=OverviewResponse)
 def overview() -> object:
