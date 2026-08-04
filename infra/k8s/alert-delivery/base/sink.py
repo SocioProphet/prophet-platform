@@ -77,6 +77,18 @@ _recent: collections.deque = collections.deque(maxlen=RING_MAX)
 _started = time.time()
 _last_notification = 0.0
 
+# Dedicated lock for the receipt sequence counter -- distinct from _lock (counters/
+# ring) and _emit_lock (stdout) so incrementing it can never contend with either.
+_seq_lock = threading.Lock()
+_receipt_seq = 0
+
+
+def next_seq() -> int:
+    global _receipt_seq
+    with _seq_lock:
+        _receipt_seq += 1
+        return _receipt_seq
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -108,9 +120,17 @@ def emit(obj: dict) -> None:
 def receipt(action: str, status: str, subject_ref: str, body: dict, **extra) -> dict:
     """An EvidenceReceipt.v0.1. Fields and enum values come from the contract."""
     h = digest(body)
+    # `hash` (below) is the pure content digest -- intentionally identical for two
+    # occurrences of the same body. receipt_id must NOT be: the Watchdog heartbeat
+    # fires with an identical body every repeat_interval, and if receipt_id collided
+    # too, any downstream consumer that treats receipt_id as an idempotency/dedup key
+    # would silently collapse repeated heartbeats into "already seen" -- exactly the
+    # silent-delivery-failure class this sink exists to make loud. The sequence
+    # number makes every emission unique regardless of body content.
+    seq = next_seq()
     r = {
         "version": VERSION,
-        "receipt_id": "evr-%s-%s" % (action, h[:32]),
+        "receipt_id": "evr-%s-%s-%06d" % (action, h[:32], seq),
         "created_at": utc_now(),
         "service_ref": SERVICE_REF,
         "action": action,
@@ -186,6 +206,10 @@ def handle_notification(payload: dict) -> dict:
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    # HTTP/1.1 keep-alive means a request thread otherwise blocks indefinitely waiting
+    # for the next request on an idle (or misbehaving) client connection. Bound it so
+    # ThreadingHTTPServer can't accumulate permanently-parked threads.
+    timeout = 30
 
     def log_message(self, fmt, *args):  # noqa: A003 - stdlib hook
         # Access logs go through the same structured stream as everything else.
@@ -237,6 +261,13 @@ class Handler(BaseHTTPRequestHandler):
                     {"content_length": length, "limit": MAX_BODY},
                 )
             )
+            # Under HTTP/1.1 keep-alive, the client's declared Content-Length bytes are
+            # still sitting unread on the socket. Reading `length` bytes just to discard
+            # them would let an attacker force this process to drain an arbitrarily large
+            # declared body -- the same amplification risk the size cap exists to avoid.
+            # Close the connection instead of trying to keep it alive: the next request
+            # a reused socket would otherwise (mis)parse is exactly those unread bytes.
+            self.close_connection = True
             return self._send(413, {"error": "body too large", "limit": MAX_BODY})
 
         raw = self.rfile.read(length) if length else b""
