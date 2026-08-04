@@ -7,8 +7,6 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import pytest
-import jsonschema
 from validate_vector_chunk_contract import (
     load_schema, validate, validate_chunk_id, validate_span,
     VALID_EXAMPLE, INVALID_MISSING_SCOPE, INVALID_NO_OBJECT_ID, SCHEMA_PATH,
