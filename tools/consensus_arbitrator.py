@@ -34,7 +34,6 @@ Schema (consensus_decision.v0):
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -114,9 +113,20 @@ class ConsensusArbitrator:
             try:
                 result = self._run(decisions, span)
             except Exception as exc:
+                # Fail-closed must survive a SECOND failure while building the error record
+                # itself — a malformed `decisions` entry (None, a bare string, ...) already
+                # broke `_run`'s `.get(...)` once; re-deriving input_decisions the same way
+                # here would raise again, escaping the `with` block uncaught and turning a
+                # "blocked" verdict into no verdict at all. Extract defensively instead.
+                safe_ids = []
+                for d in decisions:
+                    try:
+                        safe_ids.append(d.get("decision_id", "") if isinstance(d, dict) else "")
+                    except Exception:
+                        safe_ids.append("")
                 result = _consensus_record(
                     self._quorum_mode, "blocked", len(decisions), 0, len(decisions),
-                    [d.get("decision_id", "") for d in decisions],
+                    safe_ids,
                     error=str(exc),
                 )
                 span.set_attribute("consensus.verdict", "blocked")

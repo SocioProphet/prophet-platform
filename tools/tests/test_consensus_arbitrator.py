@@ -1,6 +1,6 @@
 """Tests for consensus_arbitrator.py (Phase 12).
 
-22 tests covering:
+24 tests covering:
   - ConsensusDecision schema fields
   - Unique consensus_id per call
   - Quorum modes: unanimous / majority / any
@@ -201,6 +201,26 @@ def test_decided_event():
     decided = [e for e in span["events"] if e["name"] == "consensus.decided"]
     assert len(decided) == 1
     assert decided[0]["attributes"]["verdict"] in ("allowed", "blocked")
+
+
+def test_fail_closed_on_non_dict_input():
+    """The docstring at the top of this file has claimed 'fail-closed on corrupt input'
+    coverage since the PR that introduced this module, but no test exercised a genuinely
+    malformed `decisions` entry (None, a bare string — not just a dict with error set).
+
+    `_run()` raises AttributeError on `d.get(...)` for a non-dict `d`; the except-handler
+    in `arbitrate()` used to REBUILD `input_decisions` with the same `d.get(...)` over the
+    same malformed list while constructing the error record, raising a second, uncaught
+    AttributeError that escaped `arbitrate()` entirely — no verdict returned, not even
+    'blocked'. That is not fail-closed, it's a crash. This asserts the real contract: any
+    exception during arbitration — including a malformed input list — still yields a
+    `blocked` ConsensusDecision, never an unhandled exception."""
+    good = _dec("allowed")
+    result = _arb("any").arbitrate([good, None, "not-a-decision"])
+    assert result["verdict"] == "blocked"
+    assert result["error"]
+    assert result["total"] == 3
+    assert result["input_decisions"] == [good["decision_id"], "", ""]
 
 
 def test_side_effect_free():
