@@ -13,8 +13,12 @@ tantivy = "0.22"
 tiny_http = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# blocking HTTP client for the dense tier (embeddings + Qdrant) — light deps, fast compile
-ureq = { version = "2", features = ["json"] }
+# blocking HTTP client for the dense tier (embeddings + Qdrant). ureq 3's default `rustls` feature
+# bundles the non-FIPS `ring` provider, so we take `rustls-no-provider` and supply rustls's aws-lc-rs
+# provider (installed as the process default in main) — `ring` is dropped from the binary. The
+# CMVP-validated build is aws-lc-rs's `fips` feature (a heavy AWS-LC compile → done in CI), a follow-up.
+ureq = { version = "3", default-features = false, features = ["json", "gzip", "rustls-no-provider", "rustls-webpki-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "logging", "std", "tls12"] }
 
 [profile.release]
 opt-level = 2

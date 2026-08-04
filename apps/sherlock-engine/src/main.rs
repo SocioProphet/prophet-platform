@@ -186,13 +186,17 @@ fn highlight(body: &str, query: &str) -> String {
 }
 
 fn embed(agent: &ureq::Agent, url: &str, model: &str, text: &str) -> Option<Vec<f32>> {
-    let resp = agent.post(url).send_json(json!({ "input": text, "model": model })).ok()?;
-    let v: serde_json::Value = resp.into_json().ok()?;
+    let mut resp = agent.post(url).send_json(json!({ "input": text, "model": model })).ok()?;
+    let v: serde_json::Value = resp.body_mut().read_json().ok()?;
     let arr = v.get("data")?.get(0)?.get("embedding")?.as_array()?;
     Some(arr.iter().filter_map(|x| x.as_f64().map(|f| f as f32)).collect())
 }
 
 fn main() {
+    // Install aws-lc-rs as the process-default rustls crypto provider (FIPS-capable; the non-FIPS
+    // `ring` provider is not compiled in). ureq's rustls-no-provider TLS uses this default.
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+
     let mut sb = Schema::builder();
     let f_id = sb.add_text_field("id", STRING | STORED);
     let f_idx = sb.add_u64_field("idx", STORED | FAST);
@@ -220,9 +224,10 @@ fn main() {
     let qp = QueryParser::for_index(&index, vec![f_title, f_body]);
 
     // ── dense tier (optional): embed corpus → Qdrant (shared substrate) ─────────
-    let agent = ureq::AgentBuilder::new()
-        .timeout(Duration::from_secs(12))
-        .build();
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(12)))
+        .build()
+        .into();
     let emb_url = std::env::var("EMBEDDINGS_URL").unwrap_or_default();
     let emb_model = std::env::var("EMBEDDINGS_MODEL").unwrap_or_else(|_| "nomic-embed-text".into());
     let qdrant_url = std::env::var("QDRANT_URL").unwrap_or_default().trim_end_matches('/').to_string();
@@ -363,11 +368,11 @@ fn main() {
                 let mut dense_score: HashMap<usize, f32> = HashMap::new();
                 if dense {
                     if let Some(qv) = embed(&agent, &emb_url, &emb_model, q.trim()) {
-                        if let Ok(resp) = agent
+                        if let Ok(mut resp) = agent
                             .post(&format!("{}/collections/{}/points/search", qdrant_url, coll))
                             .send_json(json!({ "vector": qv, "limit": limit * 2, "with_payload": false }))
                         {
-                            if let Ok(jv) = resp.into_json::<serde_json::Value>() {
+                            if let Ok(jv) = resp.body_mut().read_json::<serde_json::Value>() {
                                 if let Some(res) = jv.get("result").and_then(|r| r.as_array()) {
                                     for item in res {
                                         if let Some(id) = item.get("id").and_then(|x| x.as_u64()) {
