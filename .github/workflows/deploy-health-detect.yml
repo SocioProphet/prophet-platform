@@ -46,8 +46,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: reconciler self-test + pytest
         run: |
+          pip install --quiet pytest
           python3 tools/deploy_health_to_issues.py --self-test
           python3 -m pytest tools/tests/test_deploy_health_to_issues.py -q
 
