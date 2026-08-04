@@ -21,8 +21,10 @@ spec:
       interval: 1m
       count: 5
       failureLimit: 1
-      successCondition: "result[0] < 0.05"     # < 5% 5xx, the HighErrorRatio SLO threshold
-      failureCondition: "result[0] >= 0.05"
+      # Fail-closed on no data: an empty series (service exports no such recording rule) must
+      # ABORT, never score healthy — Prometheus "no data" ≠ "healthy".
+      successCondition: "len(result) > 0 && result[0] < 0.05"     # exists AND < 5% 5xx (HighErrorRatio SLO)
+      failureCondition: "len(result) == 0 || result[0] >= 0.05"   # absent OR breaching → abort
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
@@ -32,8 +34,8 @@ spec:
       interval: 1m
       count: 5
       failureLimit: 1
-      successCondition: "result[0] < 0.75"     # p99 < 750ms (the recording rule is in seconds)
-      failureCondition: "result[0] >= 0.75"
+      successCondition: "len(result) > 0 && result[0] < 0.75"     # exists AND p99 < 750ms (rule is in seconds)
+      failureCondition: "len(result) == 0 || result[0] >= 0.75"   # absent OR breaching → abort
       provider:
         prometheus:
           address: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
