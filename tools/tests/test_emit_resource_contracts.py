@@ -53,6 +53,50 @@ def test_publish_is_best_effort_never_raises():
     assert ok == 0 and failed == 1
 
 
+# ── CPU throttle signal (makes CPU verdicts reachable beyond INCONCLUSIVE) ────
+def test_cpu_throttle_none_on_unreachable_prometheus():
+    # None (not {}) means "couldn't observe" → caller keeps CPU INCONCLUSIVE, never fakes PROVED
+    assert erc.cpu_throttle_by_pod("http://127.0.0.1:9/dead", "ns", 60) is None
+
+
+def test_cpu_throttle_parses_prometheus_result(monkeypatch):
+    import io, json as _j
+    canned = _j.dumps({"status": "success", "data": {"result": [
+        {"metric": {"pod": "api-abc-1"}, "value": [123, "7"]},
+        {"metric": {"pod": "api-abc-2"}, "value": [123, "0"]}]}}).encode()
+
+    class _Resp(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(erc.urllib.request, "urlopen", lambda *a, **k: _Resp(canned))
+    out = erc.cpu_throttle_by_pod("http://prom", "ns", 300)
+    assert out == {"api-abc-1": 7.0, "api-abc-2": 0.0}
+
+
+def test_cpu_throttle_drops_nonfinite_values(monkeypatch):
+    # adversarial: Prometheus returns NaN/Inf for an absent series; int(NaN) later would crash
+    # EMISSION. The parser must drop non-finite values, never propagate them.
+    import io, json as _j
+    canned = _j.dumps({"status": "success", "data": {"result": [
+        {"metric": {"pod": "p-nan"}, "value": [1, "NaN"]},
+        {"metric": {"pod": "p-inf"}, "value": [1, "+Inf"]},
+        {"metric": {"pod": "p-ok"}, "value": [1, "3"]}]}}).encode()
+
+    class _R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(erc.urllib.request, "urlopen", lambda *a, **k: _R(canned))
+    out = erc.cpu_throttle_by_pod("http://prom", "ns", 300)
+    assert out == {"p-ok": 3.0}                          # NaN/Inf dropped, no crash
+    assert all(v == v and v not in (float("inf"), float("-inf")) for v in out.values())
+
+
+def test_cpu_verdict_reaches_proved_when_throttle_fired():
+    # with a real throttle count the CPU limit can be PROVED, not stuck INCONCLUSIVE
+    assert erc.expected_verdict(peak=900, limit=1000, fired_count=7,
+                                gate_eligible=True, enforcement="throttle") == "PROVED"
+
+
 # ── the verdict algebra must discriminate all four branches ──────────────────────
 def test_gate_ineligible_is_inconclusive():
     # e.g. CPU: peak measured but the throttle signal (fired) is unknown → not gate-eligible
