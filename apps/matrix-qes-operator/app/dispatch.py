@@ -21,7 +21,7 @@ from .commands import OperatorCommand
 # ---------------------------------------------------------------------------
 
 DISPATCH_VERBS: frozenset[str] = frozenset(
-    {"cloudshell", "ctx", "csh", "doc", "git", "k3s", "mesh", "note", "noe", "runbook", "tunnel", "wormhole"}
+    {"arm", "cloudshell", "ctx", "csh", "doc", "git", "k3s", "mesh", "note", "noe", "runbook", "tunnel", "wormhole"}
 )
 
 _MAX_BODY = 4_000
@@ -548,11 +548,82 @@ def _handle_ctx(args: list[str]) -> DispatchResult:  # noqa: ARG001
         return DispatchResult(body=_error(str(exc)), ok=False)
 
 
+
+# ---------------------------------------------------------------------------
+# ARM verb handler
+# ---------------------------------------------------------------------------
+
+
+def _arm_bin() -> str:
+    """Locate the turtle-arm-generate binary."""
+    import shutil as _shutil
+
+    found = _shutil.which("turtle-arm-generate")
+    if found:
+        return found
+    candidate = Path.home() / ".local" / "share" / "sourceos" / "bin" / "turtle-arm-generate"
+    if candidate.exists():
+        return str(candidate)
+    return "turtle-arm-generate"
+
+
+def _handle_arm(args: list[str]) -> DispatchResult:
+    """Handle ``!qes arm`` sub-verbs: generate, show, search, status."""
+    import re as _re
+
+    sub = args[0] if args else "status"
+    bin_path = _arm_bin()
+
+    if sub == "generate":
+        ok, out = _run(["python3", bin_path, "generate"], timeout=60)
+        if ok:
+            m = _re.search(r"\((\d+) ADRs", out)
+            count = m.group(1) if m else "?"
+            body = f"ARM generated ({count} ADRs)"
+        else:
+            body = _error(out)
+        return DispatchResult(body=body, ok=ok)
+
+    elif sub == "show":
+        rest = args[1:]
+        cmd = ["python3", bin_path, "show"]
+        if rest:
+            cmd += ["--section", " ".join(rest)]
+        ok, out = _run(cmd, timeout=15)
+        body = _truncate(out[:3500] if ok else _error(out))
+        return DispatchResult(body=body, ok=ok)
+
+    elif sub == "search":
+        query_parts = args[1:]
+        if not query_parts:
+            return DispatchResult(body=_error("Usage: !qes arm search <query>"), ok=False)
+        query = " ".join(query_parts)
+        ok, out = _run(["python3", bin_path, "search", query], timeout=15)
+        body = _truncate(out[:3000] if ok else _error(out))
+        return DispatchResult(body=body, ok=ok)
+
+    elif sub == "status":
+        ok, out = _run(["python3", bin_path, "status"], timeout=10)
+        clean = _re.sub(r"\x1b\[[0-9;]*m", "", out)
+        body = _truncate(clean if ok else _error(clean))
+        return DispatchResult(body=body, ok=ok)
+
+    else:
+        return DispatchResult(
+            body=_error(
+                f"Unknown arm sub-verb: {sub!r}. "
+                "Try: generate, show [section], search <query>, status"
+            ),
+            ok=False,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
 _HANDLERS = {
+    "arm": _handle_arm,
     "cloudshell": _handle_cloudshell,
     "ctx": _handle_ctx,
     "csh": _handle_csh,
