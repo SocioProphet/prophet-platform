@@ -44,6 +44,11 @@ spec:
                 - socioprophet
                 - --publish-url
                 - http://global-devsecops-intelligence.socioprophet.svc.cluster.local:8840/mesh/telemetry
+                # CPU throttle signal (container_cpu_cfs_throttled_periods_total) so CPU limits can
+                # reach PROVED, not just INCONCLUSIVE. Best-effort: if Prometheus is unreachable,
+                # CPU stays INCONCLUSIVE and emission still completes.
+                - --prometheus-url
+                - http://kube-prometheus-stack-prometheus.observability.svc:9090
               volumeMounts:
                 - name: producer
                   mountPath: /opt/producer/emit_resource_contracts.py

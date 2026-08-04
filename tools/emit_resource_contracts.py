@@ -52,6 +52,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -225,6 +226,39 @@ def sample_peaks(ns: str, samples: int, interval: float) -> tuple[dict, int]:
     return peaks, taken
 
 
+def cpu_throttle_by_pod(prometheus_url: str, ns: str, window_s: float) -> dict[str, float] | None:
+    """Throttled CFS periods per pod over the window, from Prometheus (cAdvisor). None on failure.
+
+    This is the missing CPU enforcement signal: `container_cpu_cfs_throttled_periods_total` is the
+    number of scheduler periods in which the container was throttled because it hit its CPU limit.
+    The k8s API does not expose it, which is why CPU verdicts are INCONCLUSIVE without this — the
+    limit's teeth are simply unobserved. `increase(...[window])` > 0 means throttling FIRED.
+    None (query failed) is distinct from {} (queried, nothing throttled): the caller keeps CPU
+    INCONCLUSIVE on None, but can reach PROVED/VIOLATION on a real {} / positive result.
+    """
+    win = max(int(window_s), 60)
+    q = (f'sum by (pod) (increase(container_cpu_cfs_throttled_periods_total'
+         f'{{namespace="{ns}"}}[{win}s]))')
+    url = prometheus_url.rstrip("/") + "/api/v1/query?query=" + urllib.parse.quote(q)
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"Accept": "application/json"}),
+                                    timeout=15) as r:
+            data = json.load(r)
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        sys.stderr.write(f"[producer] prometheus throttle query failed: {e}\n")
+        return None
+    if data.get("status") != "success":
+        return None
+    out: dict[str, float] = {}
+    for res in data.get("data", {}).get("result", []):
+        pod = (res.get("metric") or {}).get("pod", "")
+        try:
+            out[pod] = float((res.get("value") or [None, "0"])[1])
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--namespace", default="socioprophet")
@@ -234,6 +268,10 @@ def main() -> int:
     ap.add_argument("--publish-url", default="",
                     help="POST each contract as a resource_contract EventEnvelope to a mesh "
                          "ingest URL (best-effort; emission always completes regardless)")
+    ap.add_argument("--prometheus-url", default="",
+                    help="Prometheus base URL to read the CPU throttle signal "
+                         "(container_cpu_cfs_throttled_periods_total). Without it, CPU stays "
+                         "INCONCLUSIVE — the throttle counter is not on the k8s API.")
     args = ap.parse_args()
     ns = args.namespace
 
@@ -260,6 +298,15 @@ def main() -> int:
             if cs.get("lastState", {}).get("terminated", {}).get("reason") == "OOMKilled":
                 oom[owner(nm)] = oom.get(owner(nm), 0) + 1
 
+    # CPU throttle count per workload (CPU enforcement FIRED), from Prometheus if wired.
+    # throttle is None when unavailable (CPU stays INCONCLUSIVE) vs a dict when queried.
+    throttle_by_pod = cpu_throttle_by_pod(args.prometheus_url, ns, window_s) if args.prometheus_url else None
+    wl_throttle: dict[str, float] | None = None
+    if throttle_by_pod is not None:
+        wl_throttle = {}
+        for pod, cnt in throttle_by_pod.items():
+            wl_throttle[owner(pod)] = wl_throttle.get(owner(pod), 0.0) + cnt
+
     # aggregate pod peaks -> workload peaks
     wl_peak: dict[str, dict] = {}
     for pod, d in pod_peak.items():
@@ -283,8 +330,12 @@ def main() -> int:
             specs.append(("memory", "bytes", _mem_to_bytes(lim["memory"]), peak["mem"],
                           "terminate", oom.get(name, 0)))          # OOMKill = real fired signal
         if lim.get("cpu"):
+            # throttle FIRED signal from Prometheus if wired; None keeps CPU INCONCLUSIVE (the
+            # counter is not on the k8s API). A workload with a CPU limit but no throttle series
+            # yet has fired 0 (queried, none) → still a real, gate-eligible observation.
+            cpu_fired = None if wl_throttle is None else int(wl_throttle.get(name, 0))
             specs.append(("cpu", "millicores", _cpu_to_millicores(lim["cpu"]), peak["cpu"],
-                          "throttle", None))                       # throttle counter not collected
+                          "throttle", cpu_fired))
         if not specs:
             unbounded.append(name)
             continue
