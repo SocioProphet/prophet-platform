@@ -417,7 +417,7 @@ def _load_round_fixtures() -> list[dict]:
     for p in sorted(examples.glob('leaderboard-round.*.example.json')):
         try:
             rounds.append(_json.loads(p.read_text(encoding='utf-8')))
-        except Exception:
+        except Exception:  # skip malformed fixture files — CI will surface them via the validate workflow
             pass
     return rounds
 
