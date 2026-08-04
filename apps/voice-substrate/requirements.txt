@@ -1,0 +1,6 @@
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.9.2
+# python-multipart is OPTIONAL: without it the service runs fine and simply does not
+# register POST /transcribe/upload (GET /healthz reports upload_endpoint_enabled=false).
+python-multipart==0.0.12
