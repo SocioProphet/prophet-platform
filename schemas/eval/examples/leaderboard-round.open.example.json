@@ -1,0 +1,66 @@
+{
+  "round_id": "sherlock-stage2-2026Q3-open",
+  "version": "v1",
+  "division": "OPEN",
+  "comparable": false,
+  "published_at": "2026-08-04T00:00:00Z",
+  "ranking_rule": {
+    "metric_id": "md.isota.tournament_composite",
+    "direction": "higher_is_better",
+    "mode": "tiered"
+  },
+  "entries": [
+    {
+      "entry_id": "e-gamma-open",
+      "candidate_id": "cand.novel-chain-gamma",
+      "tier": "tier-1",
+      "headline": {"metric_id": "md.isota.tournament_composite", "value": 0.861},
+      "submission": {
+        "submission_id": "sub-gamma-open",
+        "division": "OPEN",
+        "candidate_id": "cand.novel-chain-gamma",
+        "benchmark_contract_id": "bc.sherlock.stage2",
+        "governance": {"api": true, "rate": true, "auth": true, "cost": true, "observability": true},
+        "provider_neutrality": {"scored_by": "internal_runner", "provider_terms_in_scoring": false},
+        "metric_facts": [
+          {"metric_definition_id": "md.isota.tournament_composite", "reproduced_by_us": true,
+           "source_trust_class": "internal_reproduced", "is_headline": true, "trial_count": 30}
+        ],
+        "clean_eval_certificate": {"certificate_id": "ce-gamma-open", "status": "clean",
+                                    "corpus_ref": "corpus://sherlock", "checked_at": "2026-08-04T00:00:00Z"},
+        "repro_ledger_entry": {"repro_ledger_entry_id": "rl-gamma-open", "run_id": "run-gamma-open",
+                                "environment_hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+                                "methodology_snapshot_hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                                "seed_policy": "fixed:4242", "replay_artifact_id": "replay-gamma-open"},
+        "task_manifest": {"unchanged": false, "declared_deviations": ["extended_reasoning_chain"]},
+        "minimum_trial_count": 30
+      }
+    },
+    {
+      "entry_id": "e-delta-open",
+      "candidate_id": "cand.novel-chain-delta",
+      "tier": "tier-1",
+      "headline": {"metric_id": "md.isota.tournament_composite", "value": 0.834},
+      "submission": {
+        "submission_id": "sub-delta-open",
+        "division": "OPEN",
+        "candidate_id": "cand.novel-chain-delta",
+        "benchmark_contract_id": "bc.sherlock.stage2",
+        "governance": {"api": true, "rate": true, "auth": true, "cost": true, "observability": true},
+        "provider_neutrality": {"scored_by": "internal_runner", "provider_terms_in_scoring": false},
+        "metric_facts": [
+          {"metric_definition_id": "md.isota.tournament_composite", "reproduced_by_us": true,
+           "source_trust_class": "internal_reproduced", "is_headline": true, "trial_count": 31}
+        ],
+        "clean_eval_certificate": {"certificate_id": "ce-delta-open", "status": "clean",
+                                    "corpus_ref": "corpus://sherlock", "checked_at": "2026-08-04T00:00:00Z"},
+        "repro_ledger_entry": {"repro_ledger_entry_id": "rl-delta-open", "run_id": "run-delta-open",
+                                "environment_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                                "methodology_snapshot_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                                "seed_policy": "fixed:4242", "replay_artifact_id": "replay-delta-open"},
+        "task_manifest": {"unchanged": false, "declared_deviations": ["multi_agent_scaffold"]},
+        "minimum_trial_count": 30
+      }
+    }
+  ]
+}
