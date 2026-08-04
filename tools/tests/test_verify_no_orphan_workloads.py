@@ -14,6 +14,8 @@ Additional cases:
   * An allowlist entry that is now ArgoCD-managed → STALE entry detected (ratchet shrinks).
   * Multiple orphans → all reported, no short-circuit.
   * An empty deployment list → clean (no false positives on an empty cluster).
+  * Same bare name, different namespace → NOT conflated (the scm/gitea vs socioprophet/gitea
+    class: two distinct Deployments must never share an allowlist entry by name coincidence).
 """
 from __future__ import annotations
 
@@ -33,7 +35,7 @@ find_problems = MOD.find_problems
 SANCTIONED = MOD.SANCTIONED_OUT_OF_BAND
 
 
-def _deploy(name: str, *, argocd: bool = False, helm: bool = False) -> dict:
+def _deploy(name: str, *, namespace: str = "ns", argocd: bool = False, helm: bool = False) -> dict:
     """Build a minimal synthetic Deployment dict."""
     annotations: dict = {}
     labels: dict = {}
@@ -42,7 +44,7 @@ def _deploy(name: str, *, argocd: bool = False, helm: bool = False) -> dict:
         labels["argocd.argoproj.io/instance"] = "app"
     if helm:
         labels["app.kubernetes.io/managed-by"] = "Helm"
-    return {"metadata": {"name": name, "annotations": annotations, "labels": labels}}
+    return {"metadata": {"namespace": namespace, "name": name, "annotations": annotations, "labels": labels}}
 
 
 # ── NEGATIVE case (proves the gate can fire) ──────────────────────────────────
@@ -86,12 +88,36 @@ def test_helm_managed_clean():
 
 def test_sanctioned_out_of_band_allowed():
     """A deployment on the allowlist is NOT flagged even though it's out-of-band."""
-    problems = find_problems([_deploy("gitea")], allowlist=frozenset({"gitea"}))
+    problems = find_problems([_deploy("gitea")], allowlist=frozenset({"ns/gitea"}))
     assert problems == []
 
 
 def test_empty_cluster_clean():
     problems = find_problems([], allowlist=frozenset())
+    assert problems == []
+
+
+# ── Namespace-qualification (the scm/gitea vs socioprophet/gitea class) ───────
+
+def test_same_bare_name_different_namespace_not_conflated():
+    """Sanctioning 'ns/gitea' must NOT accidentally sanction 'other-ns/gitea' — two distinct
+    Deployments sharing a bare name (exactly the scm/gitea vs socioprophet/gitea situation)
+    must be judged independently."""
+    problems = find_problems(
+        [_deploy("gitea", namespace="other-ns")],
+        allowlist=frozenset({"ns/gitea"}),
+    )
+    assert len(problems) == 1
+    assert "ORPHAN" in problems[0]
+    assert "other-ns/gitea" in problems[0]
+
+
+def test_both_namespaces_sanctioned_independently_clean():
+    """Once both namespace-qualified entries are allowlisted, neither is flagged."""
+    problems = find_problems(
+        [_deploy("gitea", namespace="ns"), _deploy("gitea", namespace="other-ns")],
+        allowlist=frozenset({"ns/gitea", "other-ns/gitea"}),
+    )
     assert problems == []
 
 
@@ -101,18 +127,18 @@ def test_stale_allowlist_entry_detected():
     """If a workload in the allowlist is now ArgoCD-managed, that's a stale entry."""
     problems = find_problems(
         [_deploy("gitea", argocd=True)],
-        allowlist=frozenset({"gitea"}),
+        allowlist=frozenset({"ns/gitea"}),
     )
     assert len(problems) == 1
     assert "STALE" in problems[0]
-    assert "gitea" in problems[0]
+    assert "ns/gitea" in problems[0]
 
 
 def test_allowlist_entry_absent_from_cluster_is_clean():
     """An allowlisted workload that doesn't exist on the cluster is not a problem."""
     problems = find_problems(
         [_deploy("other-app", argocd=True)],
-        allowlist=frozenset({"gitea"}),   # gitea not present
+        allowlist=frozenset({"ns/gitea"}),   # gitea not present
     )
     assert problems == []
 
@@ -126,6 +152,6 @@ def test_mixed_managed_orphan_sanctioned():
         _deploy("rogue-service"),              # orphan
         _deploy("gitea"),                      # sanctioned
     ]
-    problems = find_problems(deployments, allowlist=frozenset({"gitea"}))
+    problems = find_problems(deployments, allowlist=frozenset({"ns/gitea"}))
     assert len(problems) == 1
     assert "rogue-service" in problems[0]

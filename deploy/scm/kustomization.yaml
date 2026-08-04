@@ -1,0 +1,8 @@
+# GitOps base for the scm-namespace sovereign SCM (code.socioprophet.ai). See
+# deploy/argocd/gitea-scm-sovereign.yaml for the Application that reconciles this, and the header
+# comment in gitea-sovereign.yaml for why this is a SEPARATE instance from
+# deploy/gitea-authority/k8s (namespace socioprophet, gitea.sourceos.dev).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gitea-sovereign.yaml

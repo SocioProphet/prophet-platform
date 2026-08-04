@@ -1,0 +1,40 @@
+# Brings the scm-namespace Gitea (code.socioprophet.ai — the REAL, data-holding sovereign SCM,
+# 125 repos) under ArgoCD continuous reconciliation. This is the THIRD out-of-band workload the
+# 2026-08-04 orphan-gitea postmortem class (#1401) missed: that postmortem and its follow-ups
+# (#1426/#1431/#1434) only ever knew about `gitea`/`gitea-authority` in namespace `socioprophet`
+# (an empty, never-DNS-cut-over instance) — `verify_no_orphan_workloads.py` defaults to
+# `--namespace socioprophet` and was never pointed at `scm`, so this instance stayed invisible to
+# the detector built specifically to catch this class. See tools/verify_no_orphan_workloads.py for
+# the fix (namespace-qualified allowlist + multi-namespace scan).
+#
+# On first sync ArgoCD ADOPTS the existing (kubectl-applied, 2026-07-15) resources and reconciles
+# them to deploy/scm/gitea-sovereign.yaml — which adds the fsGroupChangePolicy + digest-pin
+# hardening on top of the live spec — and thereafter self-heals drift.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea-scm-sovereign
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # reference: third-party pinned image (gitea/gitea:1@sha256:...), not built by images.yml —
+    # same posture as deploy/argocd/gitea-sovereign.yaml's gitea server. Vendoring to the
+    # sovereign registry is a tracked follow-up, like the CDN charts. Required by
+    # tools/preflight_deploy_contract.py check 5.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: scm
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: deploy/scm
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # clean adoption of the existing (kubectl-applied) resources
