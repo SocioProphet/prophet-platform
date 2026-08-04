@@ -1,0 +1,31 @@
+{
+  "_fixture_notes": "CheckCoverSufficiency: claim class 'financial-audit' has floor T1; evaluating at T2 is too coarse — INCONCLUSIVE + upgrade_tier.",
+  "t_eval": "T2",
+  "claim_class": "financial-audit",
+  "expected_verdict": "INCONCLUSIVE",
+  "graph": {
+    "evidence_cover_graph_version": 1,
+    "claim_id": "claim://balance-sheet-completeness/2026Q3",
+    "evidence_items": [
+      {
+        "id": "evi-balance-t2",
+        "type": "BalanceSheetEntry",
+        "digest_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    ],
+    "covers": [
+      {
+        "cover_id": "cov-t2-balance",
+        "claim_id": "claim://balance-sheet-completeness/2026Q3",
+        "tier": "T2",
+        "evidence_item_ids": ["evi-balance-t2"]
+      }
+    ],
+    "tier_policy": {
+      "tier_order": ["T1", "T2", "T3"],
+      "admissibility_floor_by_claim_class": {
+        "financial-audit": "T1"
+      }
+    }
+  }
+}

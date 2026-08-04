@@ -234,8 +234,8 @@ def test_fixture_runner_passes(tmp_path):
     import pathlib
     import subprocess
     root = pathlib.Path(__file__).resolve().parent.parent.parent
-    fixture_dir = str(root / "contracts" / "evidence" / "cover")
-    graph_path = str(root / "contracts" / "evidence" / "cover" / "check_cover_sufficiency_passes_floor.json")
+    fixture_dir = str(root / "contracts" / "evidence" / "sufficiency-check")
+    graph_path = str(root / "contracts" / "evidence" / "sufficiency-check" / "check_cover_sufficiency_passes_floor.json")
     result = subprocess.run(
         [sys.executable, str(root / "tools" / "check_cover_sufficiency.py"),
          graph_path, "--tier", "T1", "--fixture-dir", fixture_dir],
@@ -249,7 +249,7 @@ def test_fixture_runner_passes(tmp_path):
 def test_fixture_json_valid():
     """All three fixture JSONs are syntactically valid."""
     import pathlib
-    fixture_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "contracts" / "evidence" / "cover"
+    fixture_dir = pathlib.Path(__file__).resolve().parent.parent.parent / "contracts" / "evidence" / "sufficiency-check"
     for p in fixture_dir.glob("check_cover_sufficiency_*.json"):
         data = json.loads(p.read_text())
         assert "expected_verdict" in data
