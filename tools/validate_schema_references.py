@@ -74,10 +74,18 @@ def resolve_pointer(doc, fragment: str) -> bool:
     return True
 
 
+# Standard external meta-schemas: a $ref to these is legitimate and out of scope for LOCAL
+# referential integrity (we neither can nor need to resolve them here). Any OTHER external URL
+# is still flagged — it should be vendored, or it is a typo.
+EXTERNAL_OK_HOSTS = ("json-schema.org",)
+
+
 def resolve_ref(ref: str, *, from_path: Path, by_path, by_name, by_id) -> tuple[bool, str]:
     file_part, _, fragment = ref.partition("#")
     if file_part == "":
         target = by_path.get(from_path.resolve())
+    elif file_part.startswith(("http://", "https://")) and any(h in file_part for h in EXTERNAL_OK_HOSTS):
+        return True, ""   # standard external meta-schema — legitimately unresolvable locally
     else:
         # path-relative to the referring file first (most correct in a multi-dir tree)
         cand = (from_path.parent / file_part).resolve()

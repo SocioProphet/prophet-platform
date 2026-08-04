@@ -34,6 +34,15 @@ def test_resolve_ref_by_id_name_and_dangling():
     assert v.resolve_ref("Nope.json", from_path=p, **kw)[0] is False
 
 
+def test_external_metaschema_ref_is_not_a_false_positive():
+    # adversarial: a legit $ref to the standard meta-schema must NOT be flagged as dangling…
+    p = Path("/tmp/x.json").resolve()
+    kw = dict(by_path={}, by_name={}, by_id={})
+    assert v.resolve_ref("https://json-schema.org/draft/2020-12/schema", from_path=p, **kw)[0] is True
+    # …but an UNKNOWN external URL still fails (vendor it, or it's a typo — the gate stays strict)
+    assert v.resolve_ref("https://evil.example.com/schema.json", from_path=p, **kw)[0] is False
+
+
 def test_end_to_end_catches_a_dangling_ref(tmp_path, monkeypatch):
     (tmp_path / "contracts").mkdir()
     (tmp_path / "contracts" / "Good.json").write_text('{"$id":"g","$defs":{"a":{"type":"string"}}}')
