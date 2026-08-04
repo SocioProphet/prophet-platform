@@ -12,6 +12,13 @@
 // to a PVC in deploy/values/sherlock-engine.yaml), documents live in an append-only JSONL file
 // there, seeded once from the static corpus on first boot, and grown via POST /ingest. Without
 // SHERLOCK_DATA_DIR set, behavior is unchanged from before this fix: static in-image corpus only.
+//
+// Bounded (2026-08-04, boot-hydration audit / INV-DEP-16): the in-RAM index + doc Vec scale with
+// corpus size, so a store grown without limit via /ingest is the compute-gateway OOM class. /ingest
+// is therefore capped at SHERLOCK_MAX_DOCS (default 50_000): at capacity it returns {"ok": false}
+// instead of growing the resident set until the pod OOMs on the next boot. Unbounded scale is the
+// disk-backed (tantivy MmapDirectory) migration — deliberately deferred, since it reintroduces the
+// index/doc-list drift the in-RAM rebuild exists to avoid.
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
@@ -39,6 +46,29 @@ fn docs_store_path() -> Option<PathBuf> {
         .ok()
         .filter(|d| !d.is_empty())
         .map(|d| PathBuf::from(d).join("docs.jsonl"))
+}
+
+// Resident-corpus cap. The lexical index is in-RAM (Index::create_in_ram) and rebuilt from the
+// full Vec<Doc> on every boot, so BOTH the doc Vec and the index scale with corpus size — the same
+// class as the 2026-08-04 compute-gateway OOM, latent because the store grows only via /ingest on
+// the 2Gi PVC. Rather than reintroduce a persistent second index (the very drift the in-RAM design
+// deliberately avoids — see the module header), bound the resident set: /ingest REFUSES past
+// SHERLOCK_MAX_DOCS instead of growing until the pod OOMs mid-boot with no warning. A corpus that
+// must exceed this wants the disk-backed (tantivy MmapDirectory) migration, a separate decision.
+const DEFAULT_MAX_DOCS: usize = 50_000;
+
+fn parse_cap(raw: Option<String>) -> usize {
+    raw.and_then(|v| v.parse::<usize>().ok())
+        .filter(|&n| n > 0) // 0/garbage/absent all fall back to the default; a cap of 0 is meaningless
+        .unwrap_or(DEFAULT_MAX_DOCS)
+}
+
+fn corpus_cap() -> usize {
+    parse_cap(std::env::var("SHERLOCK_MAX_DOCS").ok())
+}
+
+fn at_capacity(current_docs: usize, cap: usize) -> bool {
+    current_docs >= cap
 }
 
 /// Loads the working doc set and, when SHERLOCK_DATA_DIR is configured, the path an
@@ -209,6 +239,17 @@ fn main() {
     let corpus_path =
         std::env::var("SHERLOCK_CORPUS").unwrap_or_else(|_| "corpus/frontier-labs.json".into());
     let (mut docs, store_path) = load_docs(&corpus_path);
+    let cap = corpus_cap();
+    // Normally /ingest keeps the store at or under the cap; a store that already exceeds it (a
+    // lowered cap, or docs added out of band) is loaded in full — dropping docs silently would be
+    // worse than the memory it costs — but says so loudly so the over-budget condition is visible.
+    if docs.len() > cap {
+        eprintln!(
+            "WARN: corpus has {} doc(s), over SHERLOCK_MAX_DOCS={} — the in-RAM index is over budget; \
+             scale via the disk-backed index migration",
+            docs.len(), cap
+        );
+    }
     for (i, d) in docs.iter().enumerate() {
         writer
             .add_document(doc!(
@@ -306,6 +347,16 @@ fn main() {
             } else {
                 match serde_json::from_str::<Doc>(&raw_body) {
                     Err(e) => json!({"ok": false, "error": format!("invalid document: {e}")}).to_string(),
+                    // Bound the resident set: reject at capacity rather than grow the in-RAM index
+                    // until the pod OOMs. Fail loud + stay up (the compute-gateway lesson), same
+                    // {"ok": false} shape as the parse-error arm above so clients handle it uniformly.
+                    Ok(_) if at_capacity(docs.len(), cap) => json!({
+                        "ok": false,
+                        "error": format!(
+                            "corpus at capacity ({cap} docs, SHERLOCK_MAX_DOCS); the in-RAM index is \
+                             bounded — migrate to the disk-backed index to grow further"
+                        )
+                    }).to_string(),
                     Ok(d) => {
                         let idx = docs.len();
                         // Persist first: if this fails, the doc must not become searchable
@@ -424,5 +475,30 @@ fn main() {
             tiny_http::Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
         );
         let _ = request.respond(resp);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The Rust-side equivalent of the boot-memory-invariance gate (INV-DEP-16): the resident set is
+    // bounded because /ingest stops accepting at the cap, so the in-RAM index cannot grow without
+    // limit. These pin the two pure seams the ingest guard is built on.
+
+    #[test]
+    fn at_capacity_rejects_only_once_full() {
+        assert!(!at_capacity(0, 3)); // empty: accept
+        assert!(!at_capacity(2, 3)); // room for one more: accept
+        assert!(at_capacity(3, 3)); // exactly full: the next ingest is refused
+        assert!(at_capacity(4, 3)); // over (e.g. cap lowered): still refused
+    }
+
+    #[test]
+    fn parse_cap_defaults_on_absent_zero_or_garbage() {
+        assert_eq!(parse_cap(None), DEFAULT_MAX_DOCS);
+        assert_eq!(parse_cap(Some("0".into())), DEFAULT_MAX_DOCS); // a cap of 0 is meaningless
+        assert_eq!(parse_cap(Some("not-a-number".into())), DEFAULT_MAX_DOCS);
+        assert_eq!(parse_cap(Some("100".into())), 100);
     }
 }

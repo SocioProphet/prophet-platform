@@ -20,6 +20,11 @@ config:
   # restart. This is the persistent doc store: seeded once from the fixture on first boot,
   # then grown via POST /ingest and reloaded from here on every subsequent boot.
   SHERLOCK_DATA_DIR: "/data"
+  # Resident-corpus cap. The lexical index is in-RAM and rebuilt from the full doc list on boot,
+  # so RAM scales with corpus size (the compute-gateway OOM class). /ingest refuses past this many
+  # docs rather than grow until the pod OOMs on the next boot. Default in-code is 50_000; set it
+  # to match this pod's memory limit. Unbounded scale = the disk-backed (MmapDirectory) migration.
+  SHERLOCK_MAX_DOCS: "50000"
 autoscaling: { enabled: false }
 replicaCount: 1
 # JSONL doc store is a single-writer file; same reasoning as compute-gateway's SQLite store
