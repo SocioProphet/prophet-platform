@@ -1,0 +1,440 @@
+# Reasoning / QA dataset catalogue — what each benchmark TESTS, how we USE it, and whether we
+# are actually allowed to.
+#
+# WHY THIS EXISTS. fixtures/reasoning-task-eval/*.json already carry task families derived from
+# this body of work (complex_qa.abstention, complex_qa.qa_as_entailment, argumentation.key_point_*,
+# complex_qa.annotation_taxonomy …) and cite their provenance only as prose — "UReQA / ARC complex
+# QA reasoning requirements", "AAAI19 external-knowledge NLI", "Key Point Analysis". Nothing named
+# the underlying datasets, so nothing recorded what capability each one actually probes, which
+# licence governs it, or whether a fixture is a faithful proxy for the real benchmark. Fixtures
+# existed; their grounding did not. This file is that grounding.
+#
+# THE GATE (admitted != governed). A dataset may be catalogued without being usable. `use.status`
+# may only be `adopted` when `licence.verified: true`. Everything below currently ships
+# `verified: false` — the licence names are BEST-KNOWLEDGE ONLY and none has been checked against
+# the actual distribution terms. tools/check_reasoning_dataset_catalog.py enforces the gate, so a
+# dataset cannot quietly graduate from "we know about it" to "we train/evaluate on it".
+#
+# PROVENANCE OF THIS LIST. Entries marked `source: ibm-research-deck` were taken from IBM Research
+# AI slides (© 2020 IBM Corporation) that are stamped **IBM Confidential**. The public datasets
+# below are public regardless of that deck. The IBM-internal artefacts (term-wikifier-mentions) are
+# marked `availability: internal-confidential` so they are never redistributed or published to an
+# external surface by anything reading this catalogue.
+version: 0.1
+schema: reasoning-dataset-catalog.v0
+
+datasets:
+  # ---------------------------------------------------------------- closed world (passage given)
+  - id: mctest
+    name: MCTest
+    citation: Richardson, Burges, and Renshaw 2013
+    source: ibm-research-deck
+    world: closed
+    family: machine-reading-comprehension
+    availability: public
+    tests:
+      - reading comprehension over a supplied short story, no retrieval
+      - multiple-choice selection where every answer is derivable from the passage
+    use:
+      status: candidate
+      fixture_families: []
+      rationale: >
+        Small and fictional-narrative shaped. Useful as a floor check that a reader is reading and
+        not retrieving, but too easy and too far from estate domains to earn adoption on its own.
+    licence:
+      name: Microsoft Research licence (believed)
+      verified: false
+      notes: Research-use terms; must be read before any ingestion.
+
+  - id: squad-v1
+    name: SQuAD 1.1
+    citation: Rajpurkar et al. 2016
+    source: ibm-research-deck
+    world: closed
+    family: extractive-qa
+    availability: public
+    tests:
+      - span extraction from a supplied passage
+      - answer is guaranteed present — no abstention pressure at all
+    use:
+      status: candidate
+      fixture_families: []
+      rationale: >
+        The canonical closed-world baseline. Deliberately NOT adopted alone: every question is
+        answerable, so it cannot exercise the abstention behaviour the estate actually cares about
+        (ZERO / "I do not know" is a first-class verdict here, not a failure).
+    licence:
+      name: CC BY-SA 4.0 (believed)
+      verified: false
+      notes: Share-alike — check obligations before deriving and redistributing fixtures.
+
+  - id: squad-v2
+    name: SQuAD 2.0
+    citation: Rajpurkar, Jia, and Liang 2018
+    source: ibm-research-deck
+    world: closed
+    family: extractive-qa-with-unanswerable
+    availability: public
+    tests:
+      - span extraction AND recognising that a question is unanswerable from the passage
+      - resistance to plausible-but-wrong spans planted adversarially
+    use:
+      status: candidate
+      fixture_families: [complex_qa.abstention]
+      rationale: >
+        The one closed-world benchmark that directly probes the estate's core commitment —
+        abstaining instead of confabulating. Its unanswerable questions are the public analogue of
+        our ZERO verdict, which is why complex_qa.abstention exists. Highest-value adoption
+        candidate in the closed-world group.
+    licence:
+      name: CC BY-SA 4.0 (believed)
+      verified: false
+      notes: Share-alike — check obligations before deriving and redistributing fixtures.
+
+  - id: newsqa
+    name: NewsQA
+    citation: Trischler et al. 2016
+    source: ibm-research-deck
+    world: closed
+    family: extractive-qa
+    availability: restricted
+    tests:
+      - comprehension over real news prose rather than curated encyclopaedic text
+      - questions written without seeing the answer, so lexical overlap is lower than SQuAD
+    use:
+      status: not-adopted
+      fixture_families: []
+      rationale: >
+        Domain-realistic, but the distribution terms are the blocker rather than the content. Not
+        adopted until licence.verified is true; recorded here so the decision is visible instead of
+        being silently re-litigated.
+    licence:
+      name: Maluuba/Microsoft research agreement (believed)
+      verified: false
+      notes: >
+        BLOCKER. Historically required accepting a research agreement and building the corpus from
+        CNN articles rather than downloading it outright. Treat as unusable until read.
+
+  # ------------------------------------------------------- open world (system must retrieve)
+  - id: squad-open
+    name: SQuAD_OPEN
+    citation: open-domain variant that discards the supplied passages
+    source: ibm-research-deck
+    world: open
+    family: open-domain-qa
+    availability: public
+    tests:
+      - retrieval quality when the gold passage is deliberately withheld
+      - separates "can read" from "can find" — the same question set, minus the crutch
+    use:
+      status: candidate
+      fixture_families: [complex_qa.retrieval_evidence]
+      rationale: >
+        Valuable precisely as an A/B against squad-v1: identical questions, retrieval removed as a
+        given. That difference isolates retrieval failure from reading failure, which is the split
+        our fibered-retrieval work needs to measure.
+    licence:
+      name: inherits SQuAD (CC BY-SA 4.0, believed)
+      verified: false
+      notes: Derived construction, not a separately licensed corpus.
+
+  - id: arc
+    name: ARC (AI2 Reasoning Challenge)
+    citation: Clark et al. 2018
+    source: ibm-research-deck
+    world: open
+    family: open-domain-science-qa
+    availability: public
+    tests:
+      - grade-school science questions that resist retrieval-only solutions (the Challenge split)
+      - multi-hop composition and world knowledge not present in any single retrieved sentence
+    use:
+      status: candidate
+      fixture_families: [complex_qa.retrieval_evidence, complex_qa.query_rewriting]
+      rationale: >
+        The anchor benchmark for this whole lane — the existing fixtures already cite "UReQA / ARC
+        complex QA reasoning requirements" and carry ARC-style query rewriting. Adopting it would
+        replace a prose citation with a measurable one.
+    licence:
+      name: CC BY-SA 4.0 (AI2, believed)
+      verified: false
+      notes: AI2 corpora are generally permissive; still unverified here.
+
+  # ---------------------------------------------------------------------- QA as entailment
+  - id: snli
+    name: SNLI
+    citation: Stanford Natural Language Inference corpus
+    source: ibm-research-deck
+    world: entailment
+    family: natural-language-inference
+    availability: public
+    tests:
+      - three-way entailment / contradiction / neutral over short image-caption premises
+      - whether a system distinguishes "not entailed" from "contradicted" — a distinction the
+        estate's ZERO-vs-NEG verdict split depends on
+    use:
+      status: candidate
+      fixture_families: [complex_qa.qa_as_entailment, complex_qa.entailment_resolver]
+      rationale: >
+        The neutral class is the point. It is the public mirror of abstention: neither supported nor
+        refuted. Maps directly onto the kernel's ZERO (abstain) versus NEG (contradicted) weights.
+    licence:
+      name: CC BY-SA 4.0 (believed)
+      verified: false
+      notes: Share-alike; caption premises are crowd-written.
+
+  - id: scitail
+    name: SciTail
+    citation: science entailment corpus derived from science QA
+    source: ibm-research-deck
+    world: entailment
+    family: natural-language-inference
+    availability: public
+    tests:
+      - entailment where premises are REAL retrieved sentences, not crowd-authored for the task
+      - the harder, more realistic case: no annotator wrote the premise to fit the hypothesis
+    use:
+      status: candidate
+      fixture_families: [complex_qa.qa_as_entailment, natural_language_inference.external_knowledge]
+      rationale: >
+        Closer to how the estate actually reasons — evidence is retrieved, not composed to suit the
+        claim. Better external validity than SNLI for our warrant/evidence path, which is why the
+        external-knowledge NLI family exists.
+    licence:
+      name: Apache-2.0 (AI2, believed)
+      verified: false
+      notes: If confirmed Apache-2.0 this is the cleanest fit for the estate's MIT/Apache posture.
+
+  # ------------------------------------------------- annotation layers over an existing corpus
+  - id: arc-knowledge-reasoning-annotations
+    name: Knowledge and Reasoning Types annotations over ARC
+    citation: >
+      Boratko et al. 2018, "A Systematic Classification of Knowledge, Reasoning, and Context within
+      the ARC Dataset", MRQA @ ACL 2018 and EMNLP Demo 2018
+    source: ibm-research-deck
+    world: annotation
+    family: reasoning-taxonomy
+    availability: public
+    dataset_url: http://ibm.biz/mrqa-dataset
+    size: 192 distinct questions, 665 annotations total
+    tests:
+      - WHICH knowledge type and WHICH reasoning type a question demands, rather than pass/fail
+      - retrieval relevance judgements per question, annotated alongside the reasoning label
+    use:
+      status: candidate
+      fixture_families: [complex_qa.annotation_taxonomy]
+      rationale: >
+        The most strategically useful item in this list and the least obvious. It does not score a
+        system — it explains WHY a system failed, by naming the knowledge and reasoning type the
+        question required. That converts an aggregate score into a diagnosis, which is exactly the
+        move from "benchmark number" to "capability register row" the estate keeps making. Small
+        (192 questions), so it is a lens over ARC, never a standalone score.
+    licence:
+      name: unknown — IBM/UMass collaboration
+      verified: false
+      notes: Distributed via an IBM short-link; terms not yet read.
+
+  # ------------------------------------------------------- argumentation / summarisation
+  - id: key-point-analysis-benchmark
+    name: Key Point Analysis (KPA) evaluation data
+    citation: IBM Research AI, Key Point Analysis deck (© 2020 IBM Corporation)
+    source: ibm-research-deck
+    world: argumentation
+    family: summarisation-with-prevalence
+    availability: unresolved
+    tests:
+      - extraction of concise key points from a collection of texts
+      - MATCHING each input sentence to a key point, which is what makes prevalence countable
+      - salience as "# of matching sentences" — a quantified summary, not a free-text one
+    use:
+      status: candidate
+      fixture_families: [argumentation.key_point_prevalence, argumentation.key_point_drilldown]
+      rationale: >
+        KPA is the closest public analogue to what the estate's own claim/evidence model does:
+        a human-readable summary point, a direct mapping back to the sentences that support it, and
+        a count. Prevalence is our confidence; drill-down is our evidence_refs. The two fixture
+        families already encode both halves.
+      caveat: >
+        The source deck describes the METHOD (quality model + match-scoring model, human in the
+        loop) and names no evaluation corpus. The public KPA benchmark (ArgKP, Bar-Haim et al.) is
+        NOT named in that deck — do not record it here as if it were. Resolve which corpus we would
+        actually evaluate against before this moves past `candidate`.
+    licence:
+      name: unresolved — depends which corpus is chosen
+      verified: false
+      notes: Cannot be assessed until the evaluation corpus is identified.
+
+  - id: term-wikifier-mentions
+    name: Term-Wikifier general-entity mention benchmark
+    citation: IBM Research AI, entity mention detection / Term-Wikifier deck (© 2020 IBM Corporation)
+    source: ibm-research-deck
+    world: mention-detection
+    family: entity-linking
+    availability: internal-confidential
+    size: >
+      3 sources (Wikipedia, News, Speech) x 1000 sentences, each labelled by 10 annotators in a
+      two-stage detection-then-confirmation process; ~5000 labelled mentions per source
+    tests:
+      - detection of GENERAL entities, not just named entities — the stated gap in public benchmarks
+      - nesting ("violent video games") and specificity ("Empire" vs "Empire of Brazil")
+      - disambiguation to a knowledge-base URI using anchor context (PMI / TF-IDF / ESA / Word2Vec)
+    use:
+      status: not-adopted
+      fixture_families: []
+      rationale: >
+        Recorded for its DESIGN, which is the transferable part: the general-vs-named entity
+        distinction, the nesting and specificity guidelines, and the two-stage annotation protocol
+        are directly applicable to our own entity-resolution plane. The corpus itself is not ours.
+      caveat: >
+        The documented Term-Wikifier limitations are the useful warning: it cannot resolve
+        disambiguation pages or non-trivial surface-form transformations (Body -> Human_body,
+        LLC -> Limited_liability_company), so a rule cascade sits underneath it. Any estate entity
+        linker will hit the same wall.
+    licence:
+      name: IBM Confidential — not redistributable
+      verified: false
+      notes: >
+        BLOCKER and a handling rule, not merely a licence field. The source deck is marked IBM
+        Confidential. Do not publish, mirror, or ingest this corpus; the entry exists so the design
+        is remembered and the boundary is explicit.
+
+# =====================================================================================
+# METHODS — the engines these datasets feed, and where each one BINDS to an existing
+# estate contract. Datasets alone are inert; what makes them strategic is that every one
+# of these methods emits the same shape we already write to Crystal Atlas:
+#   a typed node, a claim with a signed weight, and the evidence that produced it.
+# =====================================================================================
+methods:
+  - id: hope-causality
+    name: HOPE Causality Reasoning Engine (causal relation model)
+    source: ibm-research-deck
+    availability: internal-confidential
+    produces:
+      event: "{id, label, hypothesis, topics[], totalscore_pro, totalscore_con}"
+      causation: "{source, target, causal_type: positive|negative, causal_strength: [0,1]}"
+      causal_paths: "ordered edge sets — the logic chain from a root event to a leaf"
+      sent_causal_risk: "{level: High|Medium|Low, value: float} — aggregate over the model"
+    binds_to:
+      claim: >
+        A HOPE *event* is a claim.v0 almost field-for-field: `hypothesis` is the claim text
+        (a sentence asserting an occurrence), `label` is the display form, `topics[]` are the
+        retrieval keys, and totalscore_pro/con is the evidence tally behind it.
+      edge: >
+        A HOPE *causation* is a signed graph-edge.v0. This is the important one:
+        `causal_type: positive|negative` with `causal_strength` in [0,1] IS the MLN's signed
+        weight — POS is w>0, NEG is w<0, and absent is w=0 (abstain). HOPE independently
+        arrived at the estate's verdict algebra; adopting it is conformance, not translation.
+      evidence: >
+        "N article (pro/con)" per event is an evidence count — the same quantity KPA calls
+        salience and our claim.v0 carries as confidence. One concept, three names.
+    caveat: >
+      HOPE scores strength on articles about an event, not on a causal identification
+      procedure. `causal_strength` is therefore ASSERTED CORRELATION STRENGTH, not established
+      causation, and a default of 0.5 appears throughout the sample models — i.e. unset. Ingest
+      it as a weighted assertion with its provenance, never as a causal fact. The estate's
+      epistemic_level for such an edge is `empirical` at best, never `proved`.
+
+  - id: gasp
+    name: GASP — multilayered pattern learning
+    citation: IBM Research (Shnarch, Levy, Slonim)
+    source: ibm-research-deck
+    availability: internal-confidential
+    produces: a ranked list of multilayered patterns indicative of a target phenomenon
+    tests:
+      - whether a subtle phenomenon (argumentation, entailment) has recurring surface structure
+      - generalisation ACROSS layers at once — lexical, POS, sentiment, topic-lexicon, NE
+    binds_to:
+      annotation: >
+        GASP's alphabet is exactly the multilayer annotation stack: a token carries word, POS,
+        semantic type, topic-lexicon match and sentiment simultaneously, and a pattern is a
+        gapped sequence over ANY of those layers ([TOPIC][@thatcomp][SENTIMENT][NN]).
+      learning: >
+        Learns patterns for the NEGATIVE class too, and allows gaps — so it is a discriminative
+        structure learner, not a matcher. That is the estate's "learn, don't match dictionaries"
+        rule expressed as an algorithm.
+    caveat: >
+      Described in the deck as "a research tool that unveils common structures in your data" —
+      an exploratory instrument, not a production classifier. Treat output patterns as
+      hypotheses to be counter-tested, not as rules to enforce.
+
+  - id: kpa-method
+    name: Key Point Analysis pipeline
+    source: ibm-research-deck
+    availability: public-method
+    produces:
+      key_points: concise sentences selected from the input texts (never generated free-text)
+      matching: "(comment -> KP) mapping, which is what makes prevalence countable"
+      salience: "# of matching sentences per key point"
+    binds_to:
+      claim: a key point is a claim.v0 whose confidence is its salience
+      evidence: each matched comment is an evidence.v0 with source_ref back to the comment
+    caveat: >
+      Extractive by construction — key points are SELECTED from real input sentences, not
+      generated. That is a feature for us: every summary point is already grounded in a witness,
+      which is precisely the property our reconstruction work demands.
+
+  - id: term-wikifier
+    name: Term-Wikifier mention detection and disambiguation
+    source: ibm-research-deck
+    availability: internal-confidential
+    produces: text spans linked to knowledge-base URIs, for general entities as well as named ones
+    binds_to:
+      annotation: >
+        This is the FIRST layer of the conversational-annotation surface: raw tokens become typed
+        mentions before any slot or frame can be built on top of them.
+      node: a resolved mention is a graph-node.v0 with a stable external identifier
+    caveat: >
+      Documented limits are the useful part: it cannot resolve disambiguation pages or non-trivial
+      surface transformations (Body -> Human_body, LLC -> Limited_liability_company), so a rule
+      cascade and a pruning stage sit underneath it. Any estate linker meets the same wall.
+
+# =====================================================================================
+# INTEGRATION — the conversational annotation + logic-chain surface
+# =====================================================================================
+integration:
+  conversational_annotation:
+    surface: >
+      Ranked interpretation variants over an utterance, each a scored tree of typed slots
+      (:ActionShow / common:ShowDataMessage, :ContactLists / engage:GetContactLists,
+      :Organization / engage:GetOrganization) rendered beside a derivation DAG whose lower
+      nodes are tokens with POS (show VB, me PRON, lists NNS, in ADP) and whose upper nodes are
+      semantic frames (:Relation, :Contains, :SuggestedContent).
+    the_single_spine: >
+      These decks are not four unrelated technologies. Read bottom-up they are ONE pipeline, and
+      it is the pipeline already drawn in that screenshot:
+        tokens
+          -> multilayer annotation      (GASP's alphabet: word / POS / sentiment / topic / NE)
+          -> typed mentions             (Term-Wikifier: spans resolved to KB identifiers)
+          -> typed slots and frames     (the :Action / :Entity tree in the variants panel)
+          -> ranked variants w/ scores  (the (0.75, 0) per interpretation, weights per node)
+          -> claims + signed edges      (HOPE: hypothesis nodes, positive/negative causation)
+          -> prevalence over witnesses  (KPA: salience = count of matching inputs)
+      Every arrow already has a home in the estate, which is why this is integration and not
+      invention.
+    contract_mapping:
+      token_layer: annotation layers on a span — no contract needed, this is input
+      mention: graph-node.v0 (external_id = the resolved KB URI)
+      slot_frame: >
+        governed_semantic_parsing.* fixture families already model this — logical_form_fixture,
+        schema_grounded_dual_ir, sql_fixture. The variants panel is a dual-IR view.
+      variant_score: >
+        claim.v0.confidence. A ranked variant list is a set of COMPETING claims over one
+        utterance, which is exactly the case the kernel's meet() is for: the parse is not
+        decided by argmax alone, it is decided by law AND evidence.
+      derivation_edge: graph-edge.v0 (and graph-hyperedge.v0 when a frame binds N children by role)
+      causal_edge: graph-edge.v0 with signed weight — see hope-causality
+    why_the_visual_matters: >
+      The derivation DAG is not decoration; it is the witness. A ranked variant without its
+      derivation is an unexplained score, and the estate's standing rule is that a diagram is a
+      witness — the drill-down from a key point to its comments, and from a variant to the tokens
+      that produced it, are the same operation. Whatever renders this must therefore read from
+      the graph, not from a parallel store, or the picture and the proof will drift.
+    open_questions:
+      - >
+        Variant scores in the screenshot are pairs, e.g. (0.75, 0). If that is (confidence,
+        cost) it maps to claim confidence plus a penalty term; if it is (pro, con) it maps to
+        the HOPE pro/con tally. These are DIFFERENT bindings and the choice changes the contract.
+        Not guessed here — needs the source system's definition.
+      - >
+        Node weights (5.000, 3.000, 2.000) are unnormalised. Whether they are log-odds, counts,
+        or ad-hoc scores determines whether they compose additively like our evidence weights.
