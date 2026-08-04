@@ -4,6 +4,7 @@ metadata:
   name: contractforge
   labels:
     app: contractforge
+    app.kubernetes.io/name: contractforge
     bundle: contracts.forge
   annotations:
     socioprophet.ai/tier: "Tier 9 — contract lifecycle, settlement, and ledger-anchored execution"
@@ -16,6 +17,10 @@ spec:
     metadata:
       labels:
         app: contractforge
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: contractforge
         bundle: contracts.forge
     spec:
       containers:

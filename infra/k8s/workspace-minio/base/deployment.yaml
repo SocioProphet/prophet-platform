@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         app: workspace-minio
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: workspace-minio
     spec:
       # minio writes its data dir on the mounted PVC as UID/GID 1000; without fsGroup the
       # root-owned volume is unwritable → the gitea-class crashloop (kyverno require-fsgroup-pvc).

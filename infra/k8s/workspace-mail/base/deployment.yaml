@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         app: workspace-mail
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: workspace-mail
     spec:
       # dovecot/mail writes its maildir on the mounted PVC; fsGroup makes the volume group-writable
       # (via supplementary group) so the non-root container can write it (kyverno require-fsgroup-pvc).

@@ -4,6 +4,7 @@ metadata:
   name: cairnpath-mesh
   labels:
     app: cairnpath-mesh
+    app.kubernetes.io/name: cairnpath-mesh
     bundle: execution.trace
   annotations:
     socioprophet.ai/tier: "Tier 4.5 — execution path/trace mesh (cairn context, line, step audit trail)"
@@ -16,6 +17,10 @@ spec:
     metadata:
       labels:
         app: cairnpath-mesh
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: cairnpath-mesh
         bundle: execution.trace
     spec:
       containers:

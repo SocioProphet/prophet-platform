@@ -4,6 +4,7 @@ metadata:
   name: holmes
   labels:
     app: holmes
+    app.kubernetes.io/name: holmes
     bundle: intelligence.language
   annotations:
     socioprophet.ai/tier: "Tier 8 — language intelligence fabric (NLP/semantic/knowledge graphs)"
@@ -16,6 +17,10 @@ spec:
     metadata:
       labels:
         app: holmes
+        # NetworkPolicy's podSelector matches app.kubernetes.io/name, not app — without this label
+        # the policy silently selects zero pods and enforces nothing (same root cause found and fixed
+        # for acquire-worker/noetica-agent-machine; this is the repo-wide follow-up audit).
+        app.kubernetes.io/name: holmes
         bundle: intelligence.language
     spec:
       containers:
