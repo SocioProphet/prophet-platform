@@ -121,6 +121,42 @@ def test_app_hold_reason_helper():
     assert dha.app_hold_reason({}) is None
 
 
+# ── self-heal beacons: findings → kind_class the responder decides on ─────────
+def test_beacon_kind_class_maps_each_finding_type():
+    cases = [
+        ({"kind": "pod", "reason": "svc:CreateContainerConfigError"}, "missing_config"),
+        ({"kind": "pod", "reason": "svc:CrashLoopBackOff"}, "crashloop"),
+        ({"kind": "pod", "reason": "svc:restarts=70"}, "crashloop"),
+        ({"kind": "pod", "reason": "svc:ImagePullBackOff"}, "image_pull_failure"),
+        ({"kind": "argocd-app", "reason": "health=Degraded"}, "app_degraded"),
+        ({"kind": "argocd-app", "reason": "health=Missing"}, "app_missing"),
+        ({"kind": "argocd-app", "reason": "sync=OutOfSync (sync failing)"}, "sync_failure"),
+        ({"kind": "job-receipt", "reason": "stale"}, "job_receipt_stale"),
+    ]
+    for finding, expected in cases:
+        assert dha._beacon_kind_class(finding) == expected
+
+
+def test_beacon_of_shape_matches_responder_contract():
+    b = dha.beacon_of({"kind": "pod", "name": "gitea-x", "reason": "gitea:CrashLoopBackOff"})
+    # the responder routes on kind_class + system (sociosphere automation/responder.py)
+    assert b["kind_class"] == "crashloop" and b["system"] == "gitea-x"
+    assert b["source"] == "deploy-health-alerter" and "ts" in b
+
+
+def test_emit_beacons_writes_one_file_per_finding(tmp_path, monkeypatch):
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "svc-x"}, "status": {"health": {"status": "Degraded"},
+                                                   "sync": {"status": "Synced"}}}])
+    monkeypatch.setattr(dha, "collect_pods", lambda ns: [])
+    dha.main(["--namespace", "x", "--no-pods", "--emit-beacons", str(tmp_path)])
+    import json
+    files = list(tmp_path.glob("*.json"))
+    assert len(files) == 1
+    b = json.loads(files[0].read_text())
+    assert b["kind_class"] == "app_degraded" and b["system"] == "svc-x"
+
+
 # ── pod classification ───────────────────────────────────────────────────────
 def test_running_pod_is_clean():
     pod = {"status": {"phase": "Running", "containerStatuses": [

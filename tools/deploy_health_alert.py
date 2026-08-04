@@ -296,6 +296,49 @@ def _utc() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+# ── self-heal bridge: turn findings into beacons the sociosphere responder consumes ──
+# The reasoned self-heal responder (sociosphere automation/responder.py) decides on "beacons"
+# keyed by kind_class → its law_by_kind → an action (auto_fix / canary_fix / propose_pr / …).
+# This maps each deploy-health finding to a kind_class so detection can DRIVE remediation, not
+# just alert. The sociosphere side must add these classes to law_by_kind + register executors
+# (see the P1.5 integration issue) — until then the responder fail-closes them to `refuse`.
+def _beacon_kind_class(finding: dict) -> str:
+    reason = finding.get("reason", "")
+    if finding.get("kind") == "pod":
+        if "CreateContainerConfigError" in reason or "CreateContainerError" in reason:
+            return "missing_config"           # e.g. the arcticdb-gateway missing-secret class
+        if "ImagePull" in reason or "ErrImage" in reason or "InvalidImageName" in reason:
+            return "image_pull_failure"
+        if "CrashLoopBackOff" in reason or "restarts=" in reason:
+            return "crashloop"
+        return "pod_stuck"
+    if finding.get("kind") == "argocd-app":
+        if "health=Degraded" in reason:
+            return "app_degraded"
+        if "health=Missing" in reason:
+            return "app_missing"
+        if "health=Unknown" in reason:
+            return "app_unknown"
+        if "sync=OutOfSync" in reason:
+            return "sync_failure"
+        if "held-without-reason" in reason:
+            return "unaccountable_hold"
+    if finding.get("kind") == "job-receipt":
+        return "job_receipt_stale"
+    return "unknown"
+
+
+def beacon_of(finding: dict) -> dict:
+    """A responder beacon for one finding: kind_class (routes the Law) + system + evidence."""
+    return {
+        "kind_class": _beacon_kind_class(finding),
+        "system": finding.get("name", "?"),
+        "detail": finding.get("reason", ""),
+        "source": "deploy-health-alerter",
+        "ts": time.time(),
+    }
+
+
 def run(args: argparse.Namespace) -> tuple[int, dict]:
     """Return (exit_code, report). Pure-ish: all I/O is behind collect_*/load_*."""
     findings: list[dict] = []
@@ -467,6 +510,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--allow-blind", action="store_true",
                    help="do NOT fail when a scan observes nothing (default: fail-closed)")
     p.add_argument("--json", action="store_true", help="emit the report as JSON")
+    p.add_argument("--emit-beacons", metavar="DIR",
+                   help="also write each finding as a self-heal beacon (kind_class + system) to "
+                        "DIR, for the sociosphere responder to decide on (detection → remediation)")
     p.add_argument("--self-test", action="store_true",
                    help="run the classifier discrimination checks and exit")
     args = p.parse_args(argv)
@@ -479,6 +525,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2))
     else:
         _print_human(report)
+    if args.emit_beacons and report["findings"]:
+        d = Path(args.emit_beacons).expanduser()
+        d.mkdir(parents=True, exist_ok=True)
+        for i, f in enumerate(report["findings"]):
+            b = beacon_of(f)
+            (d / f"{b['kind_class']}-{b['system']}-{i}.json").write_text(json.dumps(b) + "\n")
+        print(f"  emitted {len(report['findings'])} self-heal beacon(s) to {d}")
     return code
 
 
