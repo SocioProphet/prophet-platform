@@ -1,0 +1,57 @@
+name: CI liveness (dead-man's switch)
+
+# Requires GREEN RECENTLY rather than waiting for red. A workflow that stops starting emits no
+# failure — its silence is observationally identical to success — so absence has to be asserted
+# against, on a clock, by something outside it.
+on:
+  schedule:
+    - cron: "23 6 * * *"      # daily, offset off the hour to avoid the scheduler stampede
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: "Days a workflow may go without a green run before it alarms"
+        required: false
+        default: "14"
+      escalate:
+        description: "File/update the escalation issues (Mary). Off = report only (Martha)."
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+  issues: write               # the escalation files and closes issues; nothing else is needed
+
+jobs:
+  sweep:
+    name: Sweep + escalate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sweep — when did each workflow last COMPLETE SUCCESSFULLY?
+        id: sweep
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/ci_liveness_sweep.py \
+            --repos-file contracts/ci-liveness-repos.txt \
+            --window-days "${{ inputs.window_days || '14' }}" \
+            --json > sweep.json
+          python3 -c "import json;d=json.load(open('sweep.json'));print(f\"alarms={len(d['alarms'])} checked={d['checked']}\")"
+
+      # Martha reports; Mary is what makes it land. Escalation files ONE issue per repo, raises its
+      # severity with the age of the silence, and closes it when the pipeline is green again.
+      - name: Escalate — make the finding land on someone
+        if: ${{ inputs.escalate != 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/ci_liveness_escalate.py --sweep-json sweep.json
+
+      - name: Publish the sweep as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-liveness-sweep
+          path: sweep.json
+          retention-days: 90
