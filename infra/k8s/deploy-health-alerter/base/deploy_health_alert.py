@@ -14,7 +14,10 @@ any condition that would otherwise sit unnoticed:
 
   * ArgoCD applications that are Degraded / Missing / Unknown, or OutOfSync.
   * Pods stuck in a waiting reason (CrashLoopBackOff, CreateContainerConfigError,
-    ImagePullBackOff, …) or restarting above a threshold.
+    ImagePullBackOff, …) or restarting above a threshold. A pod sitting in an
+    otherwise-benign startup reason (ContainerCreating, PodInitializing) past
+    --stuck-startup-grace (default 15m) is flagged too — the ingress-nginx
+    case, stuck ContainerCreating for 38h because nothing had a duration check.
   * Job receipts (see --receipts) that are STALE (a scheduled job silently
     stopped running) or record a non-zero exit (it ran but failed) or are
     MISSING (it never ran at all) — the generalized form of the backup that
@@ -114,6 +117,22 @@ STUCK_WAITING = frozenset({
     "ImagePullBackOff", "ErrImagePull", "InvalidImageName", "RunContainerError",
     "ImageInspectError", "ErrImageNeverPull",
 })
+# Waiting reasons that are normal for the first moments of a pod's life and
+# self-clear on their own — UNLESS they persist past STUCK_STARTUP_GRACE_S
+# (see classify_pod). That "unless" is the ingress-nginx lesson: its
+# admission-webhook pod sat in ContainerCreating for 38 HOURS because its
+# bootstrap Job failed and was never retried, and this classifier waved it
+# through as benign the entire time — a duration-blind exclusion list is a gap
+# of its own. A pod ten seconds into starting and a pod stuck for 38 hours
+# report the identical waiting reason; only elapsed time tells them apart.
+BENIGN_STARTUP_WAITING = frozenset({"ContainerCreating", "PodInitializing"})
+# How long a container may sit in a BENIGN_STARTUP_WAITING reason before it
+# flips from "still starting" to "stuck". Picked well above any normal start
+# (image pulls and node provisioning essentially never take this long even on
+# a slow/scaling-up node) and far below the 38h this is meant to catch —
+# there is a lot of room on both sides of this number, it does not need to be
+# precise. Overridable via --stuck-startup-grace.
+STUCK_STARTUP_GRACE_S = 900  # 15 minutes
 # ArgoCD Application health states that are not "the desired state is running".
 UNHEALTHY_APP_HEALTH = frozenset({"Degraded", "Missing", "Unknown"})
 
@@ -184,8 +203,15 @@ def _sync_failing(status: dict) -> bool:
     return False
 
 
-def classify_pod(pod: dict, *, restart_threshold: int) -> list[str]:
-    """Return the list of gap reasons for one Pod (empty = healthy / benign)."""
+def classify_pod(pod: dict, *, restart_threshold: int,
+                 stuck_startup_grace_s: int = STUCK_STARTUP_GRACE_S,
+                 now_epoch: float | None = None) -> list[str]:
+    """Return the list of gap reasons for one Pod (empty = healthy / benign).
+
+    ``now_epoch`` defaults to the real current time; tests pass an explicit
+    value so age-based checks stay deterministic (see classify_receipt for
+    the same pattern).
+    """
     meta = pod.get("metadata") or {}
     status = pod.get("status") or {}
     # A pod being torn down or already finished is not a gap.
@@ -193,6 +219,8 @@ def classify_pod(pod: dict, *, restart_threshold: int) -> list[str]:
         return []
     if (status.get("phase") or "") in ("Succeeded", "Completed"):
         return []
+    now = time.time() if now_epoch is None else now_epoch
+    age_s = _pod_age_seconds(pod, now_epoch=now)
     reasons: list[str] = []
     for cs in (status.get("containerStatuses") or []):
         name = cs.get("name", "?")
@@ -200,10 +228,33 @@ def classify_pod(pod: dict, *, restart_threshold: int) -> list[str]:
         reason = waiting.get("reason")
         if reason in STUCK_WAITING:
             reasons.append(f"{name}:{reason}")
+        elif reason in BENIGN_STARTUP_WAITING and age_s is not None \
+                and age_s > stuck_startup_grace_s:
+            # otherwise-benign startup reason, but it has been sitting there
+            # too long to still be "just starting" — the ingress-nginx class.
+            reasons.append(f"{name}:{reason} (stuck {int(age_s)}s > "
+                           f"{stuck_startup_grace_s}s startup grace)")
         restarts = int(cs.get("restartCount", 0) or 0)
         if restarts >= restart_threshold:
             reasons.append(f"{name}:restarts={restarts}")
     return reasons
+
+
+def _pod_age_seconds(pod: dict, *, now_epoch: float) -> float | None:
+    """Seconds since the pod started, or None if that can't be determined.
+
+    Prefers ``status.startTime`` — set once the kubelet accepts the pod and
+    begins trying to run its containers, i.e. the clock that actually matters
+    for "how long has this container been stuck starting". Falls back to
+    ``metadata.creationTimestamp`` (set at API-server admission, slightly
+    earlier) for the rare pod that has containerStatuses before startTime is
+    recorded.
+    """
+    status = pod.get("status") or {}
+    meta = pod.get("metadata") or {}
+    ts = status.get("startTime") or meta.get("creationTimestamp")
+    epoch = _to_epoch(ts)
+    return None if epoch is None else now_epoch - epoch
 
 
 def _to_epoch(ts: Any) -> float | None:
@@ -425,7 +476,8 @@ def run(args: argparse.Namespace) -> tuple[int, dict]:
         scanned["pods"] = len(pods)
         for pod in pods:
             name = (pod.get("metadata") or {}).get("name", "?")
-            for reason in classify_pod(pod, restart_threshold=args.restart_threshold):
+            for reason in classify_pod(pod, restart_threshold=args.restart_threshold,
+                                       stuck_startup_grace_s=args.stuck_startup_grace):
                 findings.append({"kind": "pod", "name": name, "reason": reason})
 
     if args.receipts:
@@ -520,6 +572,34 @@ def _self_test() -> int:
          classify_pod({"status": {"phase": "Succeeded", "containerStatuses": [
              {"name": "c", "state": {"terminated": {"reason": "Completed"}}, "restartCount": 0}]}},
              restart_threshold=5) == []),
+        ("freshly-creating pod (30s old) not flagged",
+         classify_pod({"status": {"phase": "Pending",
+             "startTime": datetime.fromtimestamp(now - 30, timezone.utc).isoformat(),
+             "containerStatuses": [{"name": "c", "state": {"waiting": {"reason": "ContainerCreating"}},
+                                    "restartCount": 0}]}},
+             restart_threshold=5, now_epoch=now) == []),
+        ("pod stuck ContainerCreating 40min flagged (the ingress-nginx class)",
+         any("ContainerCreating" in r for r in classify_pod({"status": {"phase": "Pending",
+             "startTime": datetime.fromtimestamp(now - 2400, timezone.utc).isoformat(),
+             "containerStatuses": [{"name": "c", "state": {"waiting": {"reason": "ContainerCreating"}},
+                                    "restartCount": 0}]}},
+             restart_threshold=5, now_epoch=now))),
+        ("pod stuck PodInitializing 40min flagged",
+         any("PodInitializing" in r for r in classify_pod({"status": {"phase": "Pending",
+             "startTime": datetime.fromtimestamp(now - 2400, timezone.utc).isoformat(),
+             "containerStatuses": [{"name": "c", "state": {"waiting": {"reason": "PodInitializing"}},
+                                    "restartCount": 0}]}},
+             restart_threshold=5, now_epoch=now))),
+        ("stuck-startup grace threshold is configurable",
+         classify_pod({"status": {"phase": "Pending",
+             "startTime": datetime.fromtimestamp(now - 2400, timezone.utc).isoformat(),
+             "containerStatuses": [{"name": "c", "state": {"waiting": {"reason": "ContainerCreating"}},
+                                    "restartCount": 0}]}},
+             restart_threshold=5, now_epoch=now, stuck_startup_grace_s=3600) == []),
+        ("no startTime/creationTimestamp: age unknown, stays benign not false-positive",
+         classify_pod({"status": {"phase": "Pending", "containerStatuses": [
+             {"name": "c", "state": {"waiting": {"reason": "ContainerCreating"}}, "restartCount": 0}]}},
+             restart_threshold=5, now_epoch=now) == []),
         ("fresh rc0 receipt clean",
          classify_receipt({"job": "b", "ts": now - 10, "rc": 0}, now_epoch=now, max_age_s=3600) == []),
         ("stale receipt flagged",
@@ -553,6 +633,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--ignore-sync", action="store_true", help="do not treat OutOfSync as a gap")
     p.add_argument("--restart-threshold", type=int, default=8,
                    help="restartCount at/above which a container is a gap")
+    p.add_argument("--stuck-startup-grace", type=int, default=STUCK_STARTUP_GRACE_S,
+                   help="seconds a container may sit in ContainerCreating/PodInitializing "
+                        "before it counts as stuck rather than still-starting "
+                        f"(default {STUCK_STARTUP_GRACE_S} = 15m)")
     p.add_argument("--receipts", help="directory of job-receipt *.json files to check for staleness")
     p.add_argument("--expect", action="append", default=[],
                    help="a job name that MUST have a receipt (repeatable); absent ⇒ gap")

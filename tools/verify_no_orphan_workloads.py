@@ -50,6 +50,13 @@ SANCTIONED_OUT_OF_BAND: frozenset[str] = frozenset({
                                       # ArgoCD by deploy/argocd/gitea-scm-sovereign.yaml in this same change; kept
                                       # sanctioned only until that Application is confirmed synced (mirrors the
                                       # socioprophet/* entries' own disposition) — remove once verified GitOps-managed.
+    "ingress-nginx/ingress-nginx-controller",  # the cluster's only ingress controller; installed by an
+                                      # imperative `kubectl apply -f <upstream-URL>` one-shot workflow_dispatch
+                                      # (.github/workflows/gitea-ingress-sovereign.yml), not ArgoCD. This
+                                      # out-of-band status is exactly why its Aug-2026 admission-secret bootstrap
+                                      # failure went undetected for 38h — no GitOps drift/health signal was
+                                      # watching it at all (see #1446 for the incident, #1453 for the tracked
+                                      # GitOps-adoption follow-up). Check with `make orphan-check NS=ingress-nginx`.
 })
 
 
