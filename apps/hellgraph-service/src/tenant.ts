@@ -28,6 +28,10 @@ import type { AuthState } from './auth.js'
 
 export interface TenantState {
   enforce: boolean
+  /** audit (dry-run): compute every would-be denial/scope and LOG it, but block/scope nothing. The
+   *  de-risking step before `on` — surfaces which callers lack a tenant token or do cross-tenant access
+   *  without breaking anyone. `enforce` and `audit` are never both true. */
+  audit: boolean
 }
 
 /** The identity a graph token carries for isolation: a tenant and the op_sets it is entitled to read. */
@@ -62,24 +66,36 @@ export const UNSCOPABLE_UNDER_ENFORCE: ReadonlySet<string> = new Set([
   '/api/graph/explore',  // engine.exploreFrom — traversal over engine internals
 ])
 
-/** Read TENANT_ENFORCE. Fail-closed: enforce-on without AUTH_ENFORCE=on throws (callers refuse startup).
- *  Off = passthrough, announced by exactly one WARN (mirrors initAuth). */
+/** Read TENANT_ENFORCE ∈ {off, audit, on}. Fail-closed: `on` without AUTH_ENFORCE=on throws (callers
+ *  refuse startup). `audit` is the safe dry-run (logs would-be denials, blocks nothing). Each mode
+ *  announces itself with exactly one WARN (mirrors initAuth). */
 export function initTenant(
   env: NodeJS.ProcessEnv = process.env,
   warn: (msg: string) => void = console.warn,
 ): TenantState {
-  const enforce = (env['TENANT_ENFORCE'] ?? 'off').trim().toLowerCase() === 'on'
-  if (!enforce) {
+  const mode = (env['TENANT_ENFORCE'] ?? 'off').trim().toLowerCase()
+  if (mode === 'audit') {
+    warn('[tenant] WARN TENANT_ENFORCE=audit — DRY RUN: every would-be tenant/op_set denial is LOGGED ' +
+      '("[tenant-audit] ..."), but NOTHING is blocked or scoped. Safe to enable anytime; use it to find ' +
+      'which callers lack a tenant token or do cross-tenant access BEFORE flipping to "on".')
+    return { enforce: false, audit: true }
+  }
+  if (mode !== 'on') {
     warn('[tenant] WARN TENANT_ENFORCE=off — graph reads/writes are NOT partitioned by tenant/op_set ' +
-      '(flagged rollout; set TENANT_ENFORCE=on WITH AUTH_ENFORCE=on to isolate per tenant/op_set).')
-    return { enforce: false }
+      '(flagged rollout; TENANT_ENFORCE=audit to observe, then =on WITH AUTH_ENFORCE=on to isolate).')
+    return { enforce: false, audit: false }
   }
   const authOn = (env['AUTH_ENFORCE'] ?? 'off').trim().toLowerCase() === 'on'
   if (!authOn) {
     throw new Error('TENANT_ENFORCE=on requires AUTH_ENFORCE=on — tenant isolation needs authenticated ' +
-      'principals to scope by (fail-closed). Set AUTH_ENFORCE=on + AUTH_HMAC_SECRET, or TENANT_ENFORCE=off.')
+      'principals to scope by (fail-closed). Set AUTH_ENFORCE=on + AUTH_HMAC_SECRET, or TENANT_ENFORCE=audit/off.')
   }
-  return { enforce: true }
+  return { enforce: true, audit: false }
+}
+
+/** True when the gate functions should COMPUTE a decision — under enforce (to apply) or audit (to log). */
+export function tenantActive(state: TenantState): boolean {
+  return state.enforce || state.audit
 }
 
 /** The verified principal (tenant + entitled op_sets) behind a request, or null when the token is absent
@@ -135,7 +151,7 @@ export function scopeForRead(
   principal: TenantPrincipal | null,
   url: URL,
 ): { tenant: string; opSet?: string } | TenantDenial | null {
-  if (!state.enforce) return null
+  if (!tenantActive(state)) return null
   if (!principal?.tenant) {
     return {
       code: 403,
@@ -161,7 +177,7 @@ export function assertWriteTenant(
   principal: TenantPrincipal | null,
   properties: Record<string, unknown> | undefined | null,
 ): TenantDenial | null {
-  if (!state.enforce) return null
+  if (!tenantActive(state)) return null
   if (!principal?.tenant) {
     return {
       code: 403,
@@ -182,7 +198,7 @@ export function assertWriteTenant(
 
 /** Refuse an endpoint that cannot be tenant-scoped in this layer (fail-closed under enforcement). */
 export function refuseUnscopable(state: TenantState, pathname: string): TenantDenial | null {
-  if (!state.enforce || !UNSCOPABLE_UNDER_ENFORCE.has(pathname)) return null
+  if (!tenantActive(state) || !UNSCOPABLE_UNDER_ENFORCE.has(pathname)) return null
   return {
     code: 403,
     body: { ok: false, error: 'forbidden', reason: 'tenant_isolation_unavailable',
@@ -190,4 +206,30 @@ export function refuseUnscopable(state: TenantState, pathname: string): TenantDe
         'service layer; it is refused under TENANT_ENFORCE=on. Use the scoped read surfaces ' +
         '(query/subgraph/surface/resource/ground/ask/analytics).' },
   }
+}
+
+/** Emit one structured dry-run line for a would-be denial or scope. Under TENANT_ENFORCE=audit the
+ *  service grep-ably logs exactly which callers would break — a request with no tenant token, a
+ *  cross-tenant write, an unscopable endpoint — BEFORE anything is enforced. Tenant ids + path + reason
+ *  only (no payloads), so it is safe to ship to the estate's log plane. */
+export function tenantAuditLog(
+  req: http.IncomingMessage,
+  url: URL,
+  principal: TenantPrincipal | null,
+  result: TenantDenial | { tenant: string; opSet?: string },
+  log: (msg: string) => void = console.warn,
+): void {
+  const entry: Record<string, unknown> = {
+    at: 'tenant-audit', method: req.method ?? 'GET', path: url.pathname,
+    principal_tenant: principal?.tenant ?? null,
+  }
+  if ('code' in result) {
+    entry['would'] = 'deny'
+    entry['reason'] = result.body.reason
+  } else {
+    entry['would'] = 'scope'
+    entry['tenant'] = result.tenant
+    entry['op_set'] = result.opSet ?? null
+  }
+  log('[tenant-audit] ' + JSON.stringify(entry))
 }

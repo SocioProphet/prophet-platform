@@ -7,11 +7,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  initTenant, tenantScope, scopeForRead, assertWriteTenant, refuseUnscopable, type TenantState,
+  initTenant, tenantActive, tenantScope, scopeForRead, assertWriteTenant, refuseUnscopable,
+  type TenantState,
 } from './tenant.js'
 
-const ENFORCING: TenantState = { enforce: true }
-const OFF: TenantState = { enforce: false }
+const ENFORCING: TenantState = { enforce: true, audit: false }
+const OFF: TenantState = { enforce: false, audit: false }
+const AUDIT: TenantState = { enforce: false, audit: true }
 
 // A fake graph: two tenants (acme/globex), two op_sets in acme (ingest/discourse), and a reified
 // hyperedge (an "argument" node + its role-edges) in acme/discourse — exactly what the writer lands.
@@ -53,7 +55,26 @@ test('initTenant: off is passthrough with one WARN', () => {
 test('initTenant: on REQUIRES AUTH_ENFORCE=on (fail-closed startup)', () => {
   assert.throws(() => initTenant({ TENANT_ENFORCE: 'on', AUTH_ENFORCE: 'off' }, () => {}),
     /requires AUTH_ENFORCE=on/)
-  assert.deepEqual(initTenant({ TENANT_ENFORCE: 'on', AUTH_ENFORCE: 'on' }, () => {}), { enforce: true })
+  assert.deepEqual(initTenant({ TENANT_ENFORCE: 'on', AUTH_ENFORCE: 'on' }, () => {}), { enforce: true, audit: false })
+})
+
+test('initTenant: audit is a safe dry-run — no AUTH requirement, enforces nothing', () => {
+  let warned = 0
+  // audit does NOT require AUTH_ENFORCE=on (it blocks nothing) — safe to enable anytime.
+  const s = initTenant({ TENANT_ENFORCE: 'audit', AUTH_ENFORCE: 'off' }, () => { warned++ })
+  assert.deepEqual(s, { enforce: false, audit: true })
+  assert.equal(warned, 1)
+})
+
+test('audit mode COMPUTES would-be decisions (so the server can log them) but is not enforcing', () => {
+  // THEOREM: under audit the gate functions still compute the denial/scope (tenantActive true), so a
+  // dry run surfaces would-be breaks; the SERVER decides to log-not-block (tested in the integration).
+  assert.equal(tenantActive(AUDIT), true)
+  const noTenant = scopeForRead(AUDIT, { id: 'ops' }, new URL('http://x/api/graph/query'))
+  assert.ok(noTenant && 'code' in noTenant && noTenant.body.reason === 'tenant_required')
+  const cross = assertWriteTenant(AUDIT, { tenant: 'acme' }, { tenant_id: 'globex' })
+  assert.ok(cross && cross.body.reason === 'cross_tenant_write')
+  assert.ok(refuseUnscopable(AUDIT, '/api/graph/sparql'))  // would-refuse computed
 })
 
 test('tenantScope: a read sees ONLY its own tenant — cross-tenant is invisible', () => {
