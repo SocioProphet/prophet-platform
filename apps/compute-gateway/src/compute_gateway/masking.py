@@ -157,13 +157,43 @@ def _decision(policy: dict[str, Any], project: str, actor: str, verdict: str,
     }
 
 
+_MAX_WALK_DEPTH = 6
+
+
 def _iter_records(output: ComputeOutput) -> list[dict[str, Any]]:
+    """Every dict anywhere in the payload is a candidate record.
+
+    This used to read `data["nodes"]` and nothing else, which meant a result shaped as
+    `rows` / `table` / `edges` was returned UNMASKED while the policy reported itself
+    active — and `rows` is a shape this estate actually emits, so it was a live hole, not a
+    theoretical one. An allowlist of container keys just moves the hole to the next shape
+    somebody adds.
+
+    Walking every nested dict is safe because _mask_record only rewrites keys that appear
+    in the policy's mask_fields: a dict with no configured field is returned untouched. So
+    the failure mode of over-walking is "nothing happens", while the failure mode of
+    under-walking is "personal data is served". Fail toward the former.
+    """
     if not output.data:
         return []
-    nodes = output.data.get("nodes")
-    if isinstance(nodes, list):
-        return [n for n in nodes if isinstance(n, dict)]
-    return []
+    seen: list[dict[str, Any]] = []
+    stack: list[tuple[Any, int]] = [(output.data, 0)]
+    while stack:
+        node, depth = stack.pop()
+        if depth > _MAX_WALK_DEPTH:
+            continue
+        if isinstance(node, dict):
+            seen.append(node)
+            for v in node.values():
+                if isinstance(v, (dict, list)):
+                    stack.append((v, depth + 1))
+        elif isinstance(node, list):
+            for v in node:
+                if isinstance(v, (dict, list)):
+                    stack.append((v, depth + 1))
+    # output.data itself is a container, not a record — masking its top level would rewrite
+    # envelope keys that happen to collide with a field name.
+    return seen[1:] if seen and seen[0] is output.data else seen
 
 
 def apply(outputs: list[ComputeOutput], *, kind: str, project: str, actor: str,

@@ -99,17 +99,48 @@ def test_non_read_kinds_are_untouched():
     assert "notebook" not in masking.READ_KINDS
 
 
-def test_masking_coverage_boundary_is_nodes_only():
-    """KNOWN LIMIT, asserted so it cannot be mistaken for coverage.
+def test_every_result_shape_is_masked_not_just_nodes():
+    """The gap this closes was live in production.
 
-    masking._iter_records reads `data["nodes"]` and returns [] for anything else, so a result
-    shaped as rows / table / edges is returned UNMASKED even with this policy active. That is
-    the current boundary of the moat, not a claim about it. Widening it means changing
-    _iter_records, which is a larger change than turning the policy on; this test exists so
-    the next person reads the boundary from a failing assertion rather than from an incident.
+    The PDP previously walked `data["nodes"]` only, so a result shaped as rows / table /
+    edges came back UNMASKED while the policy reported itself active. `rows` is a shape this
+    estate actually emits, so it was a hole in the moat, not a hypothetical one.
     """
-    rows = [ComputeOutput(type="table", data={"rows": [{"email": "ada@example.com"}]})]
-    out = masking.apply(rows, kind="graph-query", project="default",
-                        actor="analyst", entitlement=None)
-    assert out[0].data["rows"][0]["email"] == "ada@example.com", \
-        "row-shaped outputs are now masked — good; update this test and the PR note"
+    shapes = {
+        "nodes": [ComputeOutput(type="graph", data={"nodes": [{"email": "ada@example.com"}]})],
+        "rows": [ComputeOutput(type="table", data={"rows": [{"email": "ada@example.com"}]})],
+        "edges": [ComputeOutput(type="graph", data={"edges": [{"email": "ada@example.com"}]})],
+        "records": [ComputeOutput(type="result", data={"records": [{"email": "ada@example.com"}]})],
+    }
+    for name, outs in shapes.items():
+        got = masking.apply(outs, kind="graph-query", project="default",
+                            actor="analyst", entitlement=None)
+        payload = json.dumps(got[0].data)
+        assert "ada@example.com" not in payload, f"{name}-shaped output leaked cleartext email"
+
+
+def test_nested_payloads_are_reached():
+    """An allowlist of container keys moves the hole to the next nesting level. The walker
+    is depth-bounded but shape-agnostic, so a record nested under an envelope is still
+    masked."""
+    out = masking.apply(
+        [ComputeOutput(type="result", data={"result": {"page": {"items": [
+            {"email": "ada@example.com"}]}}})],
+        kind="graph-query", project="default", actor="analyst", entitlement=None)
+    assert "ada@example.com" not in json.dumps(out[0].data)
+
+
+def test_over_walking_is_harmless():
+    """The walker visits every dict, which is only safe because _mask_record rewrites ONLY
+    keys named in the policy. A payload with no configured field must come back byte-identical
+    — otherwise widening coverage would corrupt unrelated envelopes."""
+    original = {"nodes": [{"city": "Cambridge", "count": 3}], "meta": {"page": 1}}
+    out = masking.apply([ComputeOutput(type="graph", data=json.loads(json.dumps(original)))],
+                        kind="graph-query", project="default", actor="analyst", entitlement=None)
+    assert out[0].data == original, "masking altered a payload containing no configured field"
+
+
+def test_non_read_kinds_still_untouched():
+    """The PDP governs reads. Widening the walker must not widen the KINDS it governs."""
+    assert "notebook" not in masking.READ_KINDS
+    assert masking.READ_KINDS == frozenset({"graph-query", "graph-stats"})
