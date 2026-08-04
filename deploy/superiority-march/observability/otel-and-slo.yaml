@@ -1,0 +1,64 @@
+# Superiority-march move #2 — the observability keystone.
+# Wire Prometheus / Grafana / Loki / Tempo BEHIND the existing OTel collector. This is the
+# keystone the prophet-platform readiness diagram calls out: it unblocks metric-gated canary
+# (#3), chaos steady-state verification, and HPA/KEDA autoscale — all at once, from one signal.
+# Sovereign: self-hosted OSS, charts vendored via our own registry (pin-not-CDN); no SaaS APM.
+# Apply to a cluster to activate; structurally validated in CI (yaml-parse + kube schema).
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+  labels: {app.kubernetes.io/part-of: superiority-march, march.move: "2-observability"}
+data:
+  # The collector fans one OTLP ingest out to the three sovereign backends. Prometheus scrapes
+  # the collector's /metrics; traces go to Tempo; logs to Loki. This is the fan-out that was
+  # "partial" (collector runs, backends not wired) in the readiness diagram.
+  collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc: {endpoint: 0.0.0.0:4317}
+          http: {endpoint: 0.0.0.0:4318}
+    processors:
+      batch: {}
+      memory_limiter: {check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 25}
+      resourcedetection: {detectors: [env, system]}
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889          # scraped by Prometheus
+      otlp/tempo:
+        endpoint: tempo.observability.svc:4317
+        tls: {insecure: true}           # in-mesh mTLS provides transport security (move #5)
+      loki:
+        endpoint: http://loki.observability.svc:3100/otlp/v1/logs
+    service:
+      pipelines:
+        metrics: {receivers: [otlp], processors: [memory_limiter, resourcedetection, batch], exporters: [prometheus]}
+        traces:  {receivers: [otlp], processors: [memory_limiter, resourcedetection, batch], exporters: [otlp/tempo]}
+        logs:    {receivers: [otlp], processors: [memory_limiter, batch], exporters: [loki]}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: slo-rules
+  namespace: observability
+  labels: {app.kubernetes.io/part-of: superiority-march, march.move: "2-observability"}
+spec:
+  groups:
+    - name: slo.rules
+      rules:
+        # The exact signals move #3's canary analysis gates on: error-rate, p99, recall-latency.
+        - record: job:request_error_rate:ratio5m
+          expr: sum(rate(http_requests_total{code=~"5.."}[5m])) by (job)
+                / clamp_min(sum(rate(http_requests_total[5m])) by (job), 1)
+        - record: job:request_latency:p99_5m
+          expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le))
+        - record: job:recall_latency:p99_5m
+          expr: histogram_quantile(0.99, sum(rate(reasoning_recall_duration_seconds_bucket[5m])) by (job, le))
+        - alert: SLOErrorBudgetBurn
+          expr: job:request_error_rate:ratio5m > 0.01
+          for: 5m
+          labels: {severity: page}
+          annotations: {summary: "error-rate over 1% for {{ $labels.job }} (canary auto-abort threshold)"}

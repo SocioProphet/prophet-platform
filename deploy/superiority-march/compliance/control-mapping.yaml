@@ -1,0 +1,38 @@
+# Superiority-march move #9 — compliance evidence automation.
+# The competitive gap was "zero certifications." Our answer is not a point-in-time attestation but
+# machine-verifiable, continuous evidence: sealed receipts recompute, DSSE/SLSA attestations verify
+# with off-the-shelf tooling, and every gate is fail-closed. This maps each of our controls to the
+# standard control families (SOC2 TSC + NIST 800-53 / FedRAMP), so an auditor consumes our
+# provenance directly. Open mappings; the evidence is stronger than a snapshot because it is
+# reproducible and externally verifiable.
+apiVersion: gdsi.socioprophet.org/v0
+kind: ComplianceControlMapping
+metadata:
+  id: superiority-march-controls
+  version: 0.1.0
+  benchmark_target: SourceOS/Prophet continuum
+mappings:
+  - control: {soc2: CC7.1, nist_800_53: [CM-3, SI-7], name: "Detection of change / integrity monitoring"}
+    our_evidence:
+      - "vendor-freshness detector emits a typed EffectRequest on staleness (sociosphere)"
+      - "version-marker attestation proves the packed dist is the claimed release"
+    verify: "tools/assert_vendored_engine_marker.py; the graph-native freshness gate"
+  - control: {soc2: CC8.1, nist_800_53: [CM-3, CM-4], name: "Change management / authorization"}
+    our_evidence:
+      - "fail-closed promotion gate: no rollout without a sealed APPROVE verdict"
+      - "requiresHumanApproval enforced on contract-crossing changes (executor blocks)"
+    verify: "tools/promotion_gate.py; revendor_engine human-approval gate; each decision sealed"
+  - control: {soc2: CC6.1, nist_800_53: [AC-3, AC-6], name: "Logical access / least privilege"}
+    our_evidence:
+      - "MCP ops surface fail-closed: guarded tools refused unless an explicit policy grant"
+      - "every tool call sealed to a tamper-evident ledger"
+    verify: "tools/mcp_ops_server.py; the mcp-receipts evidence bundle"
+  - control: {soc2: CC7.2, nist_800_53: [SI-4, RA-5], name: "Vulnerability monitoring"}
+    our_evidence:
+      - "fail-closed OSV advisory gate blocks re-vendoring a known-vulnerable version"
+    verify: "tools/advisory_check.py (OSV.dev, open data)"
+  - control: {soc2: CC7.3, nist_800_53: [SR-4, SR-11], name: "Supply-chain provenance / integrity"}
+    our_evidence:
+      - "SLSA v1 provenance + in-toto/DSSE attestation, cosign-verifiable, governance embedded"
+      - "digest-pinned artifacts resolved from our own zot, sha256-verified before use"
+    verify: "tools/attest.py; revendor_engine resolve_tarball digest check"
