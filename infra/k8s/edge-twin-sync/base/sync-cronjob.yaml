@@ -26,6 +26,10 @@ metadata:
     # egress-allowed (mount_intent.may_egress); tools/validate_mount_intent_egress.py fails
     # the build otherwise. The HellGraph store is canonical_data (the source of truth).
     mount-intent.socioprophet.io/egress: canonical_data
+    # Per-mount intents (directional invariant): `store` is the single egress chokepoint
+    # (canonical_data); `rclone-config` is an ingress secret. At most one egress mount per
+    # workload — tools/validate_mount_intent_workload.py fails the build otherwise.
+    mount-intent.socioprophet.io/mounts: store=canonical_data,rclone-config=secrets
 spec:
   schedule: "*/30 * * * *"   # PRIMARY sync (federation not yet wired — see header). Drop to daily ONLY after the twin is verified replicating live.
   concurrencyPolicy: Forbid

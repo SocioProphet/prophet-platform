@@ -5,13 +5,15 @@ on:
     paths:
       - 'libs/python/mount-intent/**'
       - 'tools/validate_mount_intent_egress.py'
-      - 'infra/k8s/edge-twin-sync/**'
+      - 'tools/validate_mount_intent_workload.py'
+      - 'infra/k8s/**'
       - '.github/workflows/mount-intent.yml'
   pull_request:
     paths:
       - 'libs/python/mount-intent/**'
       - 'tools/validate_mount_intent_egress.py'
-      - 'infra/k8s/edge-twin-sync/**'
+      - 'tools/validate_mount_intent_workload.py'
+      - 'infra/k8s/**'
       - '.github/workflows/mount-intent.yml'
 
 jobs:
@@ -30,3 +32,5 @@ jobs:
         run: cd libs/python/mount-intent && pytest -q
       - name: Enforce mount-intent egress policy on edge→twin sync
         run: python tools/validate_mount_intent_egress.py
+      - name: Enforce directional invariants on workloads (single egress + pinned verity)
+        run: python tools/validate_mount_intent_workload.py

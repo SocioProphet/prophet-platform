@@ -57,3 +57,31 @@ hold**.
 declare `mount-intent.socioprophet.io/egress: <intent>[,...]`, and every declared intent must be
 egress-allowed. Adding `derived_index` or `secrets` to a sync job — or omitting the annotation —
 fails CI. Runs in `mount-intent.yml`.
+
+## Directional defaults (isolation by construction)
+
+Intent encodes *lifecycle* and *sensitivity*; it now also encodes **direction** and resolves
+to the **secure form by default**. Four invariants stick from day one:
+
+- **Direction axis** — every intent is `ingress` (ro input), `egress` (the one durable write
+  channel that survives the pod), or `none` (node-local). `canonical_data` is the *only* egress
+  intent. **At most one egress mount per workload** (`WorkloadDeclaration` /
+  `check_single_egress` / `validate_mount_intent_workload.py`) — one chokepoint, one place for
+  egress attestation.
+- **Verified-immutable corpus** — `curated_corpus` defaults to a `type=image` backend
+  (squashfs/erofs + **dm-verity**), and a `MountDeclaration` for it **must pin a
+  `verity_root_hash`**. Corpus integrity becomes a signature check, not a `readOnly: true`
+  trust assertion another view can bypass.
+- **Construction-enforced tenancy** — `canonical_data` binds the tenant in the mount *source*
+  (`tenant_scoped_source(store, tenant, path)` → `store:<tenant>:/path`), unforgeable from
+  inside the guest — not a path prefix or an admission rule a bad manifest can get wrong.
+- **`intent × link_availability × durability → backend`** — an egress mount over a *reliable*
+  link is **reference-mounted** (one object, no copy, no divergence, no reconciliation); over an
+  *intermittent* link it is forced into copy+snapshot+reconcile — the only case that needs the
+  conflict-resolution machinery. `resolve(intent, runtime, link)` returns `sync_semantics` and
+  `requires_conflict_resolution` accordingly.
+
+Workload manifests declare intents with
+`mount-intent.socioprophet.io/mounts: <vol>=<intent>,...` and pin verity with
+`mount-intent.socioprophet.io/verity.<vol>: <64-hex>`; both CI validators fail the build on a
+violation.
