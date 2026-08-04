@@ -253,6 +253,7 @@ jobs:
           # running server: grant-only → 401, both → 200.)
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401                              # neither → 401
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view)" = 401  # holder alone → 401 (the exposure membrane bites)
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "authorization: Bearer $HEALTH_TWIN_TOKEN" localhost:8098/api/health/doctor-view)" = 401  # deployment alone → 401 (the grant membrane bites)
           curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" \
             localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'                                                # both → the chart, receipted
           # An authenticated deployment allows NO browser origin unless one is named. The cockpit
