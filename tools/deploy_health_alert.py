@@ -35,15 +35,28 @@ tool does not cry wolf on a Missing/OutOfSync-by-design rollout (e.g. the kyvern
 controller, whose sync flips Enforce policies estate-wide). The hold is accountable,
 not a mute: it must carry a reason, and it never excuses a Degraded app.
 
+The pod scan is NAMESPACE-QUALIFIED and, like verify_no_orphan_workloads.py (see that
+tool's own history: it defaulted to `--namespace socioprophet` and so never looked at
+`scm`, leaving a second, real, 125-repo Gitea invisible to the orphan detector for 20
+days despite a postmortem that supposedly closed this failure class), this tool had the
+identical single-namespace blind spot: a Degraded app or crashlooping pod in any
+namespace other than `socioprophet` sat unwatched no matter how long it ran. The
+alerter's own RBAC (infra/k8s/deploy-health-alerter/base/rbac.yaml) was already a
+ClusterRole granting cluster-wide pod read — the CronJob's hardcoded `--namespace
+socioprophet` arg was the only thing narrowing that to one namespace. `--namespace` now
+accepts a comma-separated list and defaults to DEFAULT_NAMESPACES (below).
+
 Stdlib only. Read-only against the cluster (get/list); it never mutates. Runs
 either locally via kubectl or as an in-cluster CronJob talking to the API server
 directly over the mounted ServiceAccount token (auto-detected — no kubectl needed
 in the pod); see infra/k8s/deploy-health-alerter/.
 
-  deploy_health_alert.py --namespace socioprophet          # pods + argocd apps
-  deploy_health_alert.py --receipts ~/.local/state/receipts # + job-receipt staleness
-  deploy_health_alert.py --json                             # machine-readable findings
-  deploy_health_alert.py --self-test                        # prove the classifier has teeth
+  deploy_health_alert.py                                     # live scan of DEFAULT_NAMESPACES (below)
+  deploy_health_alert.py --namespace scm                      # scan one namespace only
+  deploy_health_alert.py --namespace a,b,c                    # scan an explicit comma-separated list
+  deploy_health_alert.py --receipts ~/.local/state/receipts   # + job-receipt staleness
+  deploy_health_alert.py --json                                # machine-readable findings
+  deploy_health_alert.py --self-test                           # prove the classifier has teeth
 """
 from __future__ import annotations
 
@@ -59,6 +72,39 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Prod namespaces this alerter is responsible for by default. Adding a namespace here is
+# how you close a blind spot like the one that hid scm/gitea from verify_no_orphan_workloads.py
+# for 20 days — do this whenever a new namespace gets a real, estate-owned workload.
+#
+# Chosen from a live-cluster read (`kubectl get ns`, `kubectl get deploy,statefulset -A`) plus
+# deploy/argocd/*.yaml's own declared Application destinations, not copied blind from the
+# orphan-workload detector's tuple:
+#   - socioprophet      the original default; ~60 Deployments, the bulk of the estate.
+#   - scm                the real, data-holding sovereign SCM (code.socioprophet.ai, 125 repos) —
+#                        same instance verify_no_orphan_workloads.py added; see that tool's
+#                        module docstring and docs/postmortems/2026-08-04-orphan-gitea-crashloop.md.
+#   - sovereign-runtime   ArgoCD-declared prod namespace (deploy/argocd/runtime-services.yaml,
+#                        runtime-namespace.yaml). Live-checked at fix time: Deployment
+#                        `spark-runner` was Unavailable/ProgressDeadlineExceeded — a real,
+#                        currently-unmonitored gap of exactly the class this tool exists to catch.
+#   - observability       ArgoCD-declared prod namespace (deploy/argocd/observability-services.yaml
+#                        and friends) — and where THIS alerter's own CronJob runs
+#                        (infra/k8s/deploy-health-alerter/base/cronjob.yaml): without this entry
+#                        the alerter could not see its own namespace degrade. Live-checked at fix
+#                        time: Deployment `otel-collector` was Unavailable.
+# Considered and deliberately left OUT of the default (pass --namespace explicitly to include):
+# `kyverno`/`argo-rollouts` (ArgoCD-declared control-plane addons, currently healthy, lower direct
+# blast radius than the four above); `ingress-nginx` (NOT GitOps-managed at all — a kubectl-applied
+# orphan workload, so verify_no_orphan_workloads.py is the right gate for its GitOps-management
+# gap. It is ALSO live-broken right now — pod wedged in ContainerCreating on a FailedMount of
+# secret "ingress-nginx-admission" — but adding this namespace would not by itself catch that: the
+# classifier treats ContainerCreating as benign startup (see STUCK_WAITING/test_benign_waiting_
+# reason_not_flagged) with no stuck-duration check, so this needs its own classifier fix, not a
+# namespace-tuple entry that would silently fail to alert on the very incident that justified it —
+# flagged separately, not folded into this change); `fogstack-federal`/`fogstack-standard`/
+# `serving` (real workloads, narrower blast radius / separate ownership). Revisit if evidence changes.
+DEFAULT_NAMESPACES: tuple[str, ...] = ("socioprophet", "scm", "sovereign-runtime", "observability")
 
 # ── what counts as a gap (the vocabulary the classifier discriminates on) ─────
 # Pod container waiting-reasons that mean "stuck", not "starting". These are the
@@ -366,17 +412,21 @@ def run(args: argparse.Namespace) -> tuple[int, dict]:
                     held.append({"name": name, "reason": hold.strip()})
 
     if not args.no_pods:
-        pods = collect_pods(args.namespace)
-        if pods is None:
-            blind.append(f"pods in ns/{args.namespace}")
-        else:
-            scanned["pods"] = len(pods)
-            if not pods:
-                blind.append(f"pods in ns/{args.namespace} (zero found)")
-            for pod in pods:
-                name = (pod.get("metadata") or {}).get("name", "?")
-                for reason in classify_pod(pod, restart_threshold=args.restart_threshold):
-                    findings.append({"kind": "pod", "name": name, "reason": reason})
+        namespaces = [ns.strip() for ns in (args.namespace or "").split(",") if ns.strip()]
+        pods: list[dict] = []
+        for ns in namespaces:
+            found = collect_pods(ns)
+            if found is None:
+                blind.append(f"pods in ns/{ns}")
+                continue
+            if not found:
+                blind.append(f"pods in ns/{ns} (zero found)")
+            pods.extend(found)
+        scanned["pods"] = len(pods)
+        for pod in pods:
+            name = (pod.get("metadata") or {}).get("name", "?")
+            for reason in classify_pod(pod, restart_threshold=args.restart_threshold):
+                findings.append({"kind": "pod", "name": name, "reason": reason})
 
     if args.receipts:
         directory = Path(args.receipts).expanduser()
@@ -495,7 +545,8 @@ def _self_test() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Alert on live deploy-health gaps (fail-closed).")
-    p.add_argument("--namespace", default="socioprophet", help="pod namespace to scan")
+    p.add_argument("--namespace", default=",".join(DEFAULT_NAMESPACES),
+                   help="comma-separated list of pod namespaces to scan")
     p.add_argument("--argocd-namespace", default="argocd", help="ArgoCD Application namespace")
     p.add_argument("--no-pods", action="store_true", help="skip the pod scan")
     p.add_argument("--no-argocd", action="store_true", help="skip the ArgoCD app scan")
