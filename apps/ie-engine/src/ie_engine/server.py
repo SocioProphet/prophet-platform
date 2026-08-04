@@ -7,9 +7,11 @@ so extraction feeds the same knowledge graph every other surface reads.
 
 Endpoints:
   GET  /healthz
-  POST /extract   { text }  → entities, relations, claims, topics, sentiment
-  POST /vectorize { texts[] } → lexical hashing vectors + pairwise cosine similarity
-  POST /to-graph  { text }  → extract, then upsert nodes/edges into hellgraph-service (:8090)
+  POST /extract     { text }  → entities, relations, claims, topics, sentiment
+  POST /vectorize   { texts[] } → lexical hashing vectors + pairwise cosine similarity
+  POST /to-graph    { text }  → extract, then upsert nodes/edges into hellgraph-service (:8090)
+  POST /personality { text }  → lexicon-based Big-Five (OCEAN) trait scores — see _personality()
+                                 docstring for the honesty/validity disclaimer this endpoint carries.
 """
 from __future__ import annotations
 import math, os, re
@@ -35,6 +37,83 @@ HEDGES = {"expect", "expected", "likely", "may", "might", "could", "should", "es
           "propose", "proposed", "reportedly", "seem", "suggest"}
 POS = {"gain", "growth", "improve", "improved", "strong", "success", "benefit", "up", "rise", "align", "support", "approve"}
 NEG = {"loss", "decline", "risk", "weak", "fail", "concern", "down", "fall", "penalty", "breach", "dispute", "cost", "costs"}
+
+# ---------------------------------------------------------------------------------------------
+# Big-Five (OCEAN) lexicon — a HAND-BUILT, hand-curated word-count heuristic, same category of
+# approach as POS/NEG above (plain English word sets, not a trained model). This is NOT a
+# reproduction of LIWC or any other licensed/proprietary lexicon: no LIWC category files, word
+# lists, or weights were consulted or copied. It is our own vocabulary, chosen using the same
+# published, non-proprietary finding that decades of psycholinguistics research keeps landing on
+# (Pennebaker & King 1999 "Linguistic styles"; Yarkoni 2010; Schwartz et al. 2013 "Personality,
+# gender, and age in the language of social media") — namely *which semantic direction* each
+# Big-Five trait skews language in. We use that published direction-of-association only; the
+# specific words below, and the scoring formula, are ours.
+#
+# Each trait has a HIGH set (words that push the trait up when present) and a LOW set (words
+# that push it down) — mirroring how POS/NEG work for sentiment above, generalized to five
+# bipolar axes instead of one.
+OCEAN_LEXICON: dict[str, dict[str, set[str]]] = {
+    # Openness to Experience: high = curiosity, imagination, ideas, art, novelty-seeking;
+    # low = preference for the familiar, concrete, routine, conventional.
+    "openness": {
+        "high": {"imagine", "curious", "curiosity", "explore", "art", "artistic", "creative", "creativity",
+                  "idea", "ideas", "philosophy", "novel", "abstract", "wonder", "aesthetic", "insight",
+                  "imagination", "discover", "invent", "inventive", "theory", "possibility", "unconventional",
+                  "diverse", "original", "experiment", "imaginative", "innovate", "innovative", "curiously",
+                  "wander", "dream", "dreamy", "unusual", "beauty", "profound", "metaphor", "poetry"},
+        "low": {"routine", "familiar", "conventional", "traditional", "practical", "concrete", "ordinary",
+                 "predictable", "literal", "simple", "plain", "boring", "usual", "habit", "custom"},
+    },
+    # Conscientiousness: high = order, planning, discipline, achievement, duty;
+    # low = disorganization, carelessness, impulsivity, procrastination.
+    "conscientiousness": {
+        "high": {"plan", "planned", "organize", "organized", "schedule", "scheduled", "deadline",
+                  "responsible", "duty", "disciplined", "discipline", "thorough", "efficient", "goal",
+                  "goals", "achieve", "achievement", "complete", "completed", "punctual", "systematic",
+                  "detail", "detailed", "diligent", "careful", "prepare", "prepared", "task", "checklist",
+                  "procedure", "routine", "reliable", "orderly", "meticulous", "committed", "persevere"},
+        "low": {"disorganized", "careless", "impulsive", "procrastinate", "procrastinated", "sloppy",
+                 "messy", "forgetful", "lazy", "late", "unreliable", "reckless", "haphazard", "chaotic",
+                 "distracted", "neglect", "neglected", "unprepared"},
+    },
+    # Extraversion: high = sociability, assertiveness, activity, positive excitement;
+    # low = reserve, solitude, quiet, withdrawal.
+    "extraversion": {
+        "high": {"party", "friends", "social", "excited", "excitement", "fun", "outgoing", "energetic",
+                  "talk", "talkative", "crowd", "adventure", "laugh", "laughed", "enthusiastic", "team",
+                  "celebrate", "spontaneous", "bold", "confident", "loud", "gregarious", "chat", "chatty",
+                  "gathering", "socialize", "assertive", "lively", "cheerful"},
+        "low": {"alone", "quiet", "reserved", "shy", "solitude", "solitary", "withdrawn", "introvert",
+                 "silent", "isolated", "timid", "reticent", "loner", "hesitant", "subdued", "unnoticed"},
+    },
+    # Agreeableness: high = warmth, cooperation, empathy, trust, politeness;
+    # low = antagonism, suspicion, coldness, hostility.
+    "agreeableness": {
+        "high": {"kind", "help", "helped", "helpful", "care", "caring", "please", "thank", "thanks",
+                  "trust", "friendly", "cooperate", "cooperative", "gentle", "generous", "compassion",
+                  "compassionate", "warm", "polite", "considerate", "supportive", "forgive", "forgiving",
+                  "share", "shared", "gratitude", "sympathy", "sympathetic", "agree", "kindness", "empathy",
+                  "understanding", "gracious"},
+        "low": {"rude", "selfish", "hostile", "hostility", "cruel", "cold", "suspicious", "distrust",
+                 "argue", "argued", "argument", "stubborn", "insult", "insulted", "contempt", "spiteful",
+                 "ruthless", "manipulative", "callous", "harsh"},
+    },
+    # Neuroticism: high = anxiety, worry, negative emotion, emotional instability;
+    # low = calm, emotional stability, security.
+    "neuroticism": {
+        "high": {"worry", "worried", "anxious", "anxiety", "afraid", "stress", "stressed", "nervous",
+                  "upset", "sad", "angry", "anger", "fear", "afraid", "panic", "insecure", "depressed",
+                  "overwhelmed", "hurt", "frustrated", "frustration", "guilty", "lonely", "doubt", "tense",
+                  "unstable", "dread", "miserable", "irritable", "restless"},
+        "low": {"calm", "secure", "relaxed", "stable", "confident", "content", "peaceful", "steady",
+                 "composed", "serene", "unworried", "grounded", "reassured", "settled"},
+    },
+}
+# Density-difference saturation cap: at (high_count - low_count) / alpha_tokens == this value,
+# the score saturates to 0.0 or 1.0. 0.12 is a deliberately conservative constant chosen because
+# even lexicon-dense text rarely exceeds ~10-15% single-category word density; it is NOT fit to
+# any labeled data (none exists for this task — see _personality() docstring).
+TRAIT_SATURATION_CAP = 0.12
 
 class TextReq(BaseModel):
     text: str
@@ -95,6 +174,62 @@ def _extract(text: str) -> dict[str, Any]:
             "counts": {"entities": len(seen), "relations": len(rel_out), "claims": len(claims), "tokens": len(doc)},
             "provenance": {"model": "spaCy en_core_web_sm", "extractor": "ie-engine", "real": True}}
 
+def _personality(text: str) -> dict[str, Any]:
+    """Lexicon-based Big-Five (OCEAN) scorer — a coarse heuristic, NOT a validated psychometric
+    instrument, and NOT comparable to IBM Watson Personality Insights or any clinically-validated
+    tool. There is no labeled personality ground-truth data anywhere in this estate, so this is
+    deliberately NOT a trained/supervised classifier (that would require labels we don't have and
+    can't honestly claim). Instead it is the same category of technique as the sentiment scorer
+    above: per-trait word-count density over a hand-built, hand-curated lexicon (see
+    OCEAN_LEXICON), normalized by text length. This is the standard "LIWC-style" lexicon-counting
+    approach used as an academic baseline in psycholinguistics research — a real, working,
+    honestly-labeled heuristic, not an approximation of a trained model.
+
+    Scale: each trait score is 0.0-1.0.
+      - 0.5 = the midpoint — no net lexical signal was detected either way (this is NOT the
+        same thing as "average trait level"; it just means the text didn't contain enough
+        high/low marker words to move the needle).
+      - Values above/below 0.5 indicate the direction and (saturating) strength of lexical
+        signal toward the high or low pole of the trait, capped at 0.0/1.0 once the marker-word
+        density difference reaches TRAIT_SATURATION_CAP.
+    Confidence is explicitly weak for short text: `tokens_considered` is returned per-trait so a
+    caller can see how little (or how much) evidence the score is based on.
+    """
+    doc = NLP(text)
+    lemmas = [w.lemma_.lower() for w in doc if w.is_alpha]
+    n_tokens = len(lemmas)
+    traits: dict[str, Any] = {}
+    for trait, sets in OCEAN_LEXICON.items():
+        high_hits = [w for w in lemmas if w in sets["high"]]
+        low_hits = [w for w in lemmas if w in sets["low"]]
+        raw = (len(high_hits) - len(low_hits)) / max(n_tokens, 1)
+        score = 0.5 + (raw / (2 * TRAIT_SATURATION_CAP))
+        score = max(0.0, min(1.0, score))
+        traits[trait] = {
+            "score": round(score, 3),
+            "high_matches": sorted(set(high_hits)),
+            "low_matches": sorted(set(low_hits)),
+            "tokens_considered": n_tokens,
+        }
+    return {
+        "traits": traits,
+        "scale": "0.0-1.0 per trait; 0.5 = no lexical signal (neutral midpoint, not a measured "
+                 "average); values move toward 0.0 (low-pole marker words) or 1.0 (high-pole "
+                 "marker words), saturating once marker-word density exceeds "
+                 f"{TRAIT_SATURATION_CAP:.0%} of tokens.",
+        "disclaimer": "HEURISTIC ONLY. This is a hand-built lexicon word-count baseline (same "
+                      "technique family as the POS/NEG sentiment lexicon in this service), not a "
+                      "trained model and not a validated psychometric instrument. It has NOT been "
+                      "validated against any ground-truth personality labels (none exist in this "
+                      "estate) and must not be treated as clinically or psychometrically accurate, "
+                      "or as comparable to IBM Watson Personality Insights or similar commercial "
+                      "products. Scores on short text are especially unreliable — see "
+                      "tokens_considered per trait.",
+        "counts": {"tokens": len(doc), "alpha_tokens": n_tokens},
+        "provenance": {"model": "hand-built OCEAN lexicon (word-count heuristic)",
+                        "extractor": "ie-engine", "real": True, "validated": False},
+    }
+
 def _span(tok) -> str:
     # widen a token to its noun-phrase span when possible
     for c in tok.doc.noun_chunks:
@@ -121,6 +256,13 @@ def healthz() -> dict[str, Any]:
 @app.post("/extract")
 def extract(req: TextReq) -> dict[str, Any]:
     return _extract(req.text)
+
+@app.post("/personality")
+def personality(req: TextReq) -> dict[str, Any]:
+    """Lexicon-based Big-Five (OCEAN) trait scoring. See _personality() docstring for the full
+    honesty/validity disclaimer — this is a heuristic word-count baseline, not a validated
+    psychometric instrument, and not comparable to any commercial personality-scoring product."""
+    return _personality(req.text)
 
 @app.post("/glossary")
 def glossary(req: TextReq) -> dict[str, Any]:
