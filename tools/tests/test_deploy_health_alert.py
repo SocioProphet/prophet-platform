@@ -11,6 +11,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 import deploy_health_alert as dha  # noqa: E402
@@ -195,6 +197,92 @@ def test_benign_waiting_reason_not_flagged():
         assert dha.classify_pod(pod, restart_threshold=5) == []
 
 
+# ── stuck-duration: the ingress-nginx class (benign reason, 38h stuck) ────────
+# ContainerCreating/PodInitializing are excluded above as benign startup — correct
+# for a pod ten seconds old, wrong for one that has sat there for 38 hours, which
+# is exactly what happened to ingress-nginx's admission-webhook pod: its bootstrap
+# Job failed at install time, was never retried, and nothing had a duration check
+# to tell "just starting" apart from "stuck". These pin that discrimination.
+def _pod_in_benign_wait(reason: str, age_s: float, *, use_creation_ts: bool = False) -> dict:
+    from datetime import datetime, timezone
+    ts = datetime.fromtimestamp(NOW - age_s, timezone.utc).isoformat()
+    status: dict = {"phase": "Pending", "containerStatuses": [
+        {"name": "c", "state": {"waiting": {"reason": reason}}, "restartCount": 0}]}
+    if use_creation_ts:
+        return {"metadata": {"creationTimestamp": ts}, "status": status}
+    status["startTime"] = ts
+    return {"status": status}
+
+
+def test_freshly_creating_pod_stays_clean():
+    # 30s into ContainerCreating — completely normal, must not fire
+    pod = _pod_in_benign_wait("ContainerCreating", 30)
+    assert dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW) == []
+
+
+def test_long_stuck_container_creating_pod_is_flagged():
+    # 40 minutes in ContainerCreating — this is the ingress-nginx shape
+    pod = _pod_in_benign_wait("ContainerCreating", 40 * 60)
+    out = dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW)
+    assert any("ContainerCreating" in r for r in out)
+
+
+def test_long_stuck_pod_initializing_is_flagged():
+    pod = _pod_in_benign_wait("PodInitializing", 40 * 60)
+    out = dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW)
+    assert any("PodInitializing" in r for r in out)
+
+
+def test_stuck_duration_right_at_the_grace_boundary():
+    just_under = _pod_in_benign_wait("ContainerCreating", dha.STUCK_STARTUP_GRACE_S - 1)
+    just_over = _pod_in_benign_wait("ContainerCreating", dha.STUCK_STARTUP_GRACE_S + 1)
+    assert dha.classify_pod(just_under, restart_threshold=5, now_epoch=NOW) == []
+    assert dha.classify_pod(just_over, restart_threshold=5, now_epoch=NOW) != []
+
+
+def test_stuck_startup_grace_is_configurable():
+    pod = _pod_in_benign_wait("ContainerCreating", 40 * 60)
+    # raise the grace above the pod's actual age -> no longer a gap
+    assert dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW,
+                            stuck_startup_grace_s=3600) == []
+
+
+def test_stuck_duration_falls_back_to_creation_timestamp():
+    # a pod with no startTime yet (rare) still gets an age from creationTimestamp
+    pod = _pod_in_benign_wait("ContainerCreating", 40 * 60, use_creation_ts=True)
+    out = dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW)
+    assert any("ContainerCreating" in r for r in out)
+
+
+def test_stuck_duration_unknown_age_does_not_false_positive():
+    # no startTime and no creationTimestamp at all -> age is unknowable, stay benign
+    pod = {"status": {"phase": "Pending", "containerStatuses": [
+        {"name": "c", "state": {"waiting": {"reason": "ContainerCreating"}}, "restartCount": 0}]}}
+    assert dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW) == []
+
+
+def test_stuck_waiting_reasons_ignore_duration_entirely():
+    # STUCK_WAITING reasons (CrashLoopBackOff etc) fire immediately regardless of
+    # age -- the duration check only widens the benign-startup set, never narrows
+    # the reasons that were already always-a-gap.
+    pod = _pod_in_benign_wait("CrashLoopBackOff", 5)
+    assert dha.classify_pod(pod, restart_threshold=5, now_epoch=NOW) == ["c:CrashLoopBackOff"]
+
+
+def test_pod_age_seconds_prefers_start_time_over_creation_timestamp():
+    from datetime import datetime, timezone
+    start = datetime.fromtimestamp(NOW - 100, timezone.utc).isoformat()
+    created = datetime.fromtimestamp(NOW - 999, timezone.utc).isoformat()
+    pod = {"metadata": {"creationTimestamp": created},
+           "status": {"startTime": start}}
+    age = dha._pod_age_seconds(pod, now_epoch=NOW)
+    assert age == pytest.approx(100, abs=1)
+
+
+def test_pod_age_seconds_none_when_unset():
+    assert dha._pod_age_seconds({"status": {}}, now_epoch=NOW) is None
+
+
 def test_high_restarts_flagged_at_threshold():
     pod = {"status": {"phase": "Running", "containerStatuses": [
         {"name": "c", "state": {"running": {}}, "restartCount": 5}]}}
@@ -249,7 +337,8 @@ def test_iso_and_epoch_timestamps_both_parse():
 def _args(**kw):
     import argparse
     base = dict(namespace="x", argocd_namespace="argocd", no_pods=False, no_argocd=False,
-                ignore_sync=False, restart_threshold=8, receipts=None, expect=[],
+                ignore_sync=False, restart_threshold=8, stuck_startup_grace=dha.STUCK_STARTUP_GRACE_S,
+                receipts=None, expect=[],
                 max_receipt_age=93600, allow_blind=False, json=False, self_test=False)
     base.update(kw)
     return argparse.Namespace(**base)

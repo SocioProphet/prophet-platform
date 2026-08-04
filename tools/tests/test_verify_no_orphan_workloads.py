@@ -92,6 +92,29 @@ def test_sanctioned_out_of_band_allowed():
     assert problems == []
 
 
+def test_ingress_nginx_controller_is_sanctioned():
+    # the 2026-08-04 38h outage (#1446): out-of-band (workflow_dispatch kubectl apply,
+    # not ArgoCD) is why nothing tracked it going wedged. Tracked here pending #1453
+    # (full GitOps adoption) so the gap is visible instead of silently unscanned.
+    problems = find_problems(
+        [_deploy("ingress-nginx-controller", namespace="ingress-nginx")],
+        allowlist=SANCTIONED,
+    )
+    assert problems == []
+    assert "ingress-nginx/ingress-nginx-controller" in SANCTIONED
+
+
+def test_ingress_nginx_controller_not_conflated_across_namespace():
+    """The sanctioned ingress-nginx-controller entry must not accidentally sanction a
+    same-named Deployment in a different namespace (same discipline as the gitea case)."""
+    problems = find_problems(
+        [_deploy("ingress-nginx-controller", namespace="other-ns")],
+        allowlist=SANCTIONED,
+    )
+    assert len(problems) == 1
+    assert "ORPHAN" in problems[0]
+
+
 def test_empty_cluster_clean():
     problems = find_problems([], allowlist=frozenset())
     assert problems == []
