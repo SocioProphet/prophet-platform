@@ -1,0 +1,45 @@
+# The sibling of preflight-deploy-contract.yml, one layer down.
+#
+# The deploy contract guarantees that what we DEPLOY is immutable — no moving tags, no
+# omitted tags, no foreign registries. It stops at the image reference. Nothing checked
+# what we BUILD FROM, so a sha-pinned image tag was a reproducible IDENTIFIER sitting on
+# top of a non-reproducible BUILD: `FROM python:3.12-slim` + `fastapi>=0.110` resolve
+# differently every time, and no artifact recorded which closure a running image contained.
+#
+# Ratcheted, not big-bang: 65 pre-existing violations are deferred in
+# tools/build_contract_ratchet.json so this gate is green on day one and rejects NEW ones.
+# The ratchet only shrinks — a healed entry left behind fails the gate until deleted.
+name: preflight-build-contract
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**/Dockerfile'
+      - 'apps/**/requirements.txt'
+      - 'apps/**/requirements.lock'
+      - 'tools/preflight_build_contract.py'
+      - 'tools/build_contract_ratchet.json'
+      - '.github/workflows/preflight-build-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**/Dockerfile'
+      - 'apps/**/requirements.txt'
+      - 'apps/**/requirements.lock'
+      - 'tools/preflight_build_contract.py'
+      - 'tools/build_contract_ratchet.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: What we build from must be as immutable as what we deploy
+        run: python3 tools/preflight_build_contract.py
