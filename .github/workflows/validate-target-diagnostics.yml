@@ -229,6 +229,17 @@ jobs:
             working-directory: apps/device-service
             install: pip install -r requirements.txt -r requirements-test.txt
             test: PYTHONPATH=src pytest -q tests
+          # ie-engine (NLP/IE service). Gates the sentiment / tone / entity-level-sentiment
+          # lexicon heuristics, the variable-length input tiers, and the lexicon-based
+          # Big-Five (OCEAN) scorer — suites that landed in #1363/#1364 and until now
+          # protected nothing on merge. src/ie_engine/server.py calls spacy.load() at
+          # IMPORT time, so the en_core_web_sm download is part of install rather than an
+          # optional extra: without it every test in this leg fails at collection. Same
+          # model the Dockerfile bakes in, so CI and the runtime image agree.
+          - name: ie-engine
+            working-directory: apps/ie-engine
+            install: pip install -r requirements.txt -r requirements-test.txt && python -m spacy download en_core_web_sm
+            test: PYTHONPATH=src pytest -q tests
           - name: tools-tests
             working-directory: .
             install: pip install pytest pyyaml jsonschema
