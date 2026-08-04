@@ -1,0 +1,22 @@
+{
+  "source_repo": "SocioProphet/ProCybernetica",
+  "source_path": "procyber/semantic",
+  "source_commit": "dc39fa3",
+  "spec_version": "0.2.0",
+  "files": {
+    "__init__.py": "cf7d03262dbff41da8dd32f1c2a26af245bcf079b7af85977083dae1f9bbcae9",
+    "abstraction_level_gate.py": "6f8b1dfc54cfd977e2e650dbb41cbc4da216c72159aa1ff9ca6b7041467b227e",
+    "agent_coordinate_vector.py": "13656fda9772ce4d798e75308e83b9f000aa651734d03da6b024f6ed816f9718",
+    "boundary_transition_actants.py": "1d98ae84c4efb46c539fc8385ce7832d86a4a98a845565b059fe4ee93af2bc3d",
+    "check_cleanroom.py": "ed52a2a1ae655b0caa3429e817336431cf9c5e2ffa9072e418aa79fb994ef61c",
+    "intent_address.py": "8d5280942283f20f37cc9ad24ea5cc1ad53aaec3cb9f13308f474a280fa9a53b",
+    "interferometry.py": "cc5b89238f667754dacd8b696542776efed9995e953cfad1f23311fa21fa2e34",
+    "internal_model.py": "dc15556c3f8b75bb617ecaac26fa742eb76b5e8f5ccb9003ef378982c9cd4249",
+    "market_paradigm.py": "3ec185a89f750c14081fd8c36b5ec3efa2fc3b8fb6a38fc23962546f84b9e47d",
+    "semantic_algebra.py": "c3cdc56dab4cb5edc4a65b5e139a1f022c0c2a40a1efe6886b69a5ff919c0068",
+    "spectral_grounding.py": "f58b7d489e93bb5010b3d341038db3a1b9531f6f6b9e37889e776e84ab338387",
+    "twin.py": "0012ed4896a50bcb974d6bc0a63fc94ce29dc5720cc767915e7399040f2586db",
+    "vrf.py": "38fc22f5d197bd1e59f2b2032f2f3320c8291507c74e81021962ded05fb7fa08",
+    "vsa.py": "6784aa70e466818ffd86114ada3a3edb5d50252823695f0a67cf8587c7d7de81"
+  }
+}
