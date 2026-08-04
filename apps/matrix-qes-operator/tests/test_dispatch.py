@@ -42,7 +42,7 @@ def _fake_run_fail(stdout: str = "", stderr: str = "error text") -> subprocess.C
 
 
 def test_is_dispatch_verb_true() -> None:
-    for verb in ("cloudshell", "k3s", "runbook", "noe", "wormhole"):
+    for verb in ("cloudshell", "k3s", "runbook", "noe", "wormhole", "ticket"):
         assert is_dispatch_verb(verb), f"Expected {verb!r} to be a dispatch verb"
 
 
@@ -232,6 +232,133 @@ def test_wormhole_unknown_sub() -> None:
     result = execute(_cmd("wormhole", "list"))
     assert not result.ok
     assert "Unknown wormhole sub-verb" in result.body
+
+
+# ---------------------------------------------------------------------------
+# ticket verb
+# ---------------------------------------------------------------------------
+
+
+def test_ticket_is_dispatch_verb() -> None:
+    assert is_dispatch_verb("ticket")
+
+
+def test_ticket_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("[abc12345] OPEN       p2   Test ticket"),
+    )
+    result = execute(_cmd("ticket", "list"))
+    assert result.ok
+    assert "ticket" in result.body.lower() or "OPEN" in result.body
+
+
+def test_ticket_ls_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("(no tickets)"),
+    )
+    result = execute(_cmd("ticket", "ls"))
+    assert result.ok
+
+
+def test_ticket_open_no_title() -> None:
+    result = execute(_cmd("ticket", "open"))
+    assert not result.ok
+    assert "Usage" in result.body
+
+
+def test_ticket_open_with_title(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("✅ Ticket opened: [abc12345] Something broken"),
+    )
+    result = execute(_cmd("ticket", "open", "Something", "broken"))
+    assert result.ok
+    assert "abc12345" in result.body or "opened" in result.body.lower()
+
+
+def test_ticket_show_no_id() -> None:
+    result = execute(_cmd("ticket", "show"))
+    assert not result.ok
+    assert "Usage" in result.body
+
+
+def test_ticket_show_with_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("[abc12345] OPEN       p2   Test ticket"),
+    )
+    result = execute(_cmd("ticket", "show", "abc12345"))
+    assert result.ok
+
+
+def test_ticket_close_no_id() -> None:
+    result = execute(_cmd("ticket", "close"))
+    assert not result.ok
+    assert "Usage" in result.body
+
+
+def test_ticket_close_with_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("✅ Ticket closed: [abc12345] Test ticket"),
+    )
+    result = execute(_cmd("ticket", "close", "abc12345"))
+    assert result.ok
+
+
+def test_ticket_comment_insufficient_args() -> None:
+    result = execute(_cmd("ticket", "comment", "abc12345"))
+    assert not result.ok
+    assert "Usage" in result.body
+
+
+def test_ticket_comment_note_alias(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("💬 Comment added to [abc12345]"),
+    )
+    result = execute(_cmd("ticket", "note", "abc12345", "reproduces", "on", "main"))
+    assert result.ok
+
+
+def test_ticket_search_no_query() -> None:
+    result = execute(_cmd("ticket", "search"))
+    assert not result.ok
+    assert "Usage" in result.body
+
+
+def test_ticket_search_with_query(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("[abc12345] OPEN       p2   Something"),
+    )
+    result = execute(_cmd("ticket", "search", "memory", "leak"))
+    assert result.ok
+
+
+def test_ticket_summary(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: _fake_run_ok("Total tickets: 3\nBy status:\n  open 2\n  closed 1"),
+    )
+    result = execute(_cmd("ticket", "summary"))
+    assert result.ok
+    assert "tickets" in result.body.lower() or "Total" in result.body
+
+
+def test_ticket_binary_missing() -> None:
+    result = execute(_cmd("ticket", "list"))
+    # turtle-ticket is not installed in the test environment; verifies graceful error
+    assert isinstance(result.ok, bool)
+    assert isinstance(result.body, str)
+
+
+def test_ticket_unknown_sub() -> None:
+    result = execute(_cmd("ticket", "invalidverb"))
+    assert not result.ok
+    assert "Unknown ticket sub-verb" in result.body
 
 
 # ---------------------------------------------------------------------------

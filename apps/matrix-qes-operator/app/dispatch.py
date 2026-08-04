@@ -17,7 +17,7 @@ from .commands import OperatorCommand
 # ---------------------------------------------------------------------------
 
 DISPATCH_VERBS: frozenset[str] = frozenset(
-    {"cloudshell", "k3s", "runbook", "noe", "wormhole"}
+    {"cloudshell", "k3s", "runbook", "noe", "wormhole", "ticket"}
 )
 
 _MAX_BODY = 4_000
@@ -156,6 +156,51 @@ def _handle_noe(args: list[str]) -> DispatchResult:
     return DispatchResult(body=body, ok=ok)
 
 
+def _handle_ticket(args: list[str]) -> DispatchResult:
+    sub = args[0] if args else "list"
+    rest = args[1:] if len(args) > 1 else []
+
+    if sub == "open":
+        if not rest:
+            return DispatchResult(body=_error("Usage: !qes ticket open <title>"), ok=False)
+        cmd = ["turtle-ticket", "open"] + rest
+    elif sub in ("list", "ls"):
+        cmd = ["turtle-ticket", "list", "--open"]
+    elif sub == "show":
+        if not rest:
+            return DispatchResult(body=_error("Usage: !qes ticket show <id>"), ok=False)
+        cmd = ["turtle-ticket", "show", rest[0]]
+    elif sub == "close":
+        if not rest:
+            return DispatchResult(body=_error("Usage: !qes ticket close <id>"), ok=False)
+        cmd = ["turtle-ticket", "close", rest[0]]
+    elif sub in ("comment", "note"):
+        if len(rest) < 2:
+            return DispatchResult(
+                body=_error("Usage: !qes ticket comment <id> <text>"), ok=False
+            )
+        cmd = ["turtle-ticket", "comment"] + rest
+    elif sub == "search":
+        if not rest:
+            return DispatchResult(body=_error("Usage: !qes ticket search <query>"), ok=False)
+        cmd = ["turtle-ticket", "search"] + rest
+    elif sub == "summary":
+        cmd = ["turtle-ticket", "summary"]
+    else:
+        return DispatchResult(
+            body=_error(
+                f"Unknown ticket sub-verb: {sub!r}. "
+                "Try: open <title>, list, show <id>, close <id>, "
+                "comment <id> <text>, search <query>, summary"
+            ),
+            ok=False,
+        )
+
+    ok, out = _run(cmd, timeout=15)
+    body = _truncate(out if ok else _error(out))
+    return DispatchResult(body=body, ok=ok)
+
+
 def _handle_wormhole(args: list[str]) -> DispatchResult:
     sub = args[0] if args else ""
 
@@ -206,6 +251,7 @@ _HANDLERS = {
     "runbook": _handle_runbook,
     "noe": _handle_noe,
     "wormhole": _handle_wormhole,
+    "ticket": _handle_ticket,
 }
 
 
