@@ -3,6 +3,7 @@
 // LIVE path is proven too — no paid feed, no real PHI. Run: `npx tsx src/connectors/verify.ts`.
 import { CONNECTORS, runConnector } from './index.js';
 import { resultCounts, type IngestResult } from '../ingest.js';
+import { carriesEpistemicTier } from './recordProof.js';
 
 let failures = 0;
 const assert = (cond: boolean, msg: string) => { if (!cond) { console.error(`  ✗ ${msg}`); failures++; } };
@@ -23,7 +24,9 @@ for (const c of CONNECTORS) {
     assert(r.provenance?.source === c.id, `record ${r.id} provenance.source === ${c.id}`);
     assert(!!r.provenance?.uscdi, `record ${r.id} has a USCDI class`);
     assert(!!r.provenance?.sourceShape, `record ${r.id} names its source shape`);
-    assert(!!(r.epistemic || r.provenance), `record ${r.id} carries an epistemic tier or provenance`);
+    // A REAL gate on the epistemic tier — not OR'd with provenance (already asserted just
+    // above), which made the old check unfailable regardless of whether epistemic was set.
+    assert(carriesEpistemicTier(r), `record ${r.id} carries an epistemic tier`);
   }
   // codes are present where the type demands them
   for (const o of res.observations) assert(o.code !== '' && o.codeSystem === 'LOINC', `obs ${o.id} is LOINC-coded`);
