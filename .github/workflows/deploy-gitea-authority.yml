@@ -39,7 +39,13 @@ jobs:
         run: |
           set -euo pipefail
           sed "s#IMAGE_PLACEHOLDER#${IMG}#" deploy/gitea-authority/k8s/gitea-sovereign.yaml | kubectl apply -f -
+          # Verify EVERY workload this manifest creates — not just the authority. The gitea git
+          # server crashlooped unnoticed for 26h (2026-08-04 postmortem) because this step checked
+          # only deploy/gitea-authority and swallowed gitea's failure with `|| true`, reporting
+          # GREEN while gitea was broken. A deploy control that does not verify what it deploys is
+          # the paper control this estate refuses.
           kubectl -n socioprophet rollout status deploy/gitea-authority --timeout=180s
-          echo "── authority ready. Gitea + ingress:"
-          kubectl -n socioprophet get deploy/gitea svc/gitea-authority ingress/gitea -o wide || true
+          kubectl -n socioprophet rollout status deploy/gitea            --timeout=180s
+          echo "── authority + gitea both ready:"
+          kubectl -n socioprophet get deploy/gitea-authority deploy/gitea svc/gitea-authority ingress/gitea -o wide
           echo "→ Point gitea.sourceos.dev DNS at the ingress address to finish."

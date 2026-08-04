@@ -1,0 +1,45 @@
+# LAYER 1 (admission / prevent) of the orphan-gitea-crashloop remediation (2026-08-04 postmortem).
+#
+# The gitea git server crashlooped for 26h because it mounts a PVC but set no fsGroup: a non-root
+# (rootless) container cannot write a root-owned volume → "Permission denied" at setup → forever.
+# This policy would have REJECTED that Pod at admission. Any Pod that mounts a PersistentVolumeClaim
+# must declare spec.securityContext.fsGroup so the mounted volume is group-writable by the workload.
+#
+# Audit-first (like the estate's other kyverno policies): it REPORTS violations in a PolicyReport,
+# it does not block yet. Flip to Enforce once the Audit reports are clean (the documented rollout).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-fsgroup-for-pvc-writers
+  annotations:
+    policies.kyverno.io/title: Require fsGroup for PVC writers
+    policies.kyverno.io/category: Workload Safety
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      A Pod that mounts a PersistentVolumeClaim must set spec.securityContext.fsGroup, or a
+      non-root container cannot write the volume and crashloops (the 2026-08-04 gitea class).
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: pvc-writer-must-set-fsgroup
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      preconditions:
+        # only Pods that actually mount a PVC (a bare emptyDir/configMap pod needs no fsGroup)
+        any:
+          - key: "{{ request.object.spec.volumes[?persistentVolumeClaim] | length(@) || `0` }}"
+            operator: GreaterThan
+            value: 0
+      validate:
+        message: >-
+          This Pod mounts a PersistentVolumeClaim but sets no spec.securityContext.fsGroup. A
+          rootless container cannot write a root-owned volume → CrashLoopBackOff at setup (the
+          gitea 26h class). Set spec.securityContext.fsGroup (e.g. 1000).
+        pattern:
+          spec:
+            securityContext:
+              fsGroup: "?*"
