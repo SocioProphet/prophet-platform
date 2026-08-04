@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
+import { isExpertise, type Expertise } from '../features/depth/expertise';
 
 // User settings + nav personalization, all persisted to localStorage:
 //   operatorMode  when on, the operator/SourceOS drawer sections default to expanded
@@ -7,6 +8,11 @@ import { ref, watch } from 'vue';
 //   theme         'dark' | 'light' — applied as data-theme on <html>.
 //   pinned        surface routes the user pinned to the top of the drawer.
 //   openSections  per-section accordion open/closed state (id -> bool).
+//   expertise     W11.6 — novice | journeyman | expert. Drives progressive disclosure on the
+//                 proof surfaces. Lives HERE, next to the other durable preferences, rather
+//                 than as per-page state: the point of TA-E is that a consumer sets their
+//                 depth once and every surface honours it. Depth gates supporting detail
+//                 only — never a warrant type, a seal state, or a model-generated marker.
 
 type Theme = 'dark' | 'light';
 const LS_KEY = 'sp.settings.v1';
@@ -17,6 +23,7 @@ interface Persisted {
   pinned: string[];
   openSections: Record<string, boolean>;
   meshChat: boolean;
+  expertise: Expertise;
 }
 
 function load(): Persisted {
@@ -30,10 +37,16 @@ function load(): Persisted {
         pinned: Array.isArray(p.pinned) ? p.pinned : [],
         openSections: p.openSections && typeof p.openSections === 'object' ? p.openSections : {},
         meshChat: !!p.meshChat,
+        // Unrecognized/absent → novice. The shallow default is the safe one: it shows less,
+        // and depth can never weaken a warrant, so a wrong guess here cannot mislead.
+        expertise: isExpertise(p.expertise) ? p.expertise : 'novice',
       };
     }
   } catch { /* ignore */ }
-  return { operatorMode: false, theme: 'dark', pinned: [], openSections: {}, meshChat: false };
+  return {
+    operatorMode: false, theme: 'dark', pinned: [], openSections: {}, meshChat: false,
+    expertise: 'novice',
+  };
 }
 
 function applyTheme(theme: Theme) {
@@ -47,18 +60,22 @@ export const useSettings = defineStore('settings', () => {
   const pinned = ref<string[]>(initial.pinned);
   const openSections = ref<Record<string, boolean>>(initial.openSections);
   const meshChat = ref<boolean>(initial.meshChat);
+  const expertise = ref<Expertise>(initial.expertise);
 
   applyTheme(theme.value);
 
-  watch([operatorMode, theme, pinned, openSections, meshChat], () => {
+  watch([operatorMode, theme, pinned, openSections, meshChat, expertise], () => {
     applyTheme(theme.value);
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({
         operatorMode: operatorMode.value, theme: theme.value,
         pinned: pinned.value, openSections: openSections.value, meshChat: meshChat.value,
+        expertise: expertise.value,
       }));
     } catch { /* ignore */ }
   }, { deep: true });
+
+  const setExpertise = (e: Expertise) => { expertise.value = e; };
 
   const toggleMeshChat = () => { meshChat.value = !meshChat.value; };
 
@@ -82,8 +99,8 @@ export const useSettings = defineStore('settings', () => {
   };
 
   return {
-    operatorMode, theme, pinned, openSections, meshChat,
-    toggleOperatorMode, setTheme, toggleTheme, toggleMeshChat,
+    operatorMode, theme, pinned, openSections, meshChat, expertise,
+    toggleOperatorMode, setTheme, toggleTheme, toggleMeshChat, setExpertise,
     isPinned, togglePin, isSectionOpen, toggleSection,
   };
 });
