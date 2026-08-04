@@ -182,11 +182,11 @@ spec:
           - name: acquire-worker
             path: infra/k8s/acquire-worker/overlays/p0-lab
             bundle: acquisition.worker
-            wave: "11"
+            wave: "14"
           - name: noetica-agent-machine
             path: infra/k8s/noetica-agent-machine/overlays/p0-lab
             bundle: governance.agent-machine
-            wave: "11"
+            wave: "14"
           # Observability is deployed via deploy/argocd/observability-services.yaml (Wave 1 keystone),
           # not through this appset — #674's duplicate observability entry dropped on merge.
           # ── Sovereign Identity Broker ────────────────────────────────────
