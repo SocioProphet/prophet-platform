@@ -1,0 +1,22 @@
+{
+  "fixture": "pii_sampler",
+  "NOT_REAL_ASR": true,
+  "description": "A canned two-party support-call transcript carrying at least one instance of every PII class this substrate claims to redact, including ASR-specific spoken-digit and spoken-email forms. Every value below is synthetic: the card number and IBAN are published test values, the SSN and phone numbers are reserved/never-issued ranges, the addresses are fictional. Segment timings include silence gaps so HeuristicDiarizer has turn boundaries to find.",
+  "segments": [
+    {"start": 0.0,  "end": 3.4,  "text": "Thanks for calling, could I take your name and a contact number please."},
+    {"start": 4.6,  "end": 9.1,  "text": "Sure, my mobile is 07700 900482 and you can also reach me on +44 20 7946 0958."},
+    {"start": 10.4, "end": 13.2, "text": "Great, and what email should I put on the account."},
+    {"start": 14.5, "end": 19.8, "text": "It's jane dot harper at example dot com, or the work one, j.harper@contoso.co.uk."},
+    {"start": 21.0, "end": 24.6, "text": "Perfect. Can you confirm your date of birth for security."},
+    {"start": 25.9, "end": 29.4, "text": "I was born on 14/03/1979, and my social security number is 123-45-6789."},
+    {"start": 30.8, "end": 35.2, "text": "Thank you. And the billing address we have on file."},
+    {"start": 36.5, "end": 42.9, "text": "That's 221B Baker Street, London, NW1 6XE, though post goes to PO Box 4471."},
+    {"start": 44.1, "end": 50.7, "text": "Now the card on the account ends in six seven, the full number is 4539 1488 0343 6467."},
+    {"start": 52.0, "end": 58.6, "text": "And the refund should go to the account at GB82 WEST 12345698765432 if that's easier."},
+    {"start": 60.2, "end": 66.8, "text": "One more thing, the reference the agent gave me was double four seven three one nine two eight."},
+    {"start": 68.0, "end": 72.4, "text": "My US number for the callback is (413) 555-0134, that's the best line."},
+    {"start": 73.9, "end": 79.5, "text": "Read the long one back to me, it's four one three five five five oh one three four."},
+    {"start": 81.0, "end": 84.2, "text": "All confirmed, we ship to 1600 Pennsylvania Avenue, Washington DC 20500."},
+    {"start": 85.5, "end": 88.9, "text": "Order forty two shipped, and the invoice reference is 4539148803436460."}
+  ]
+}

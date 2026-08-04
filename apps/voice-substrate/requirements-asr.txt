@@ -1,0 +1,13 @@
+# OPTIONAL real-ASR / real-diarization dependencies. NONE of these are installed in the
+# environment this service was written in, and NONE of the code paths below have been
+# executed here — see README.md. Installing them is the entire migration: the pipeline,
+# the redactor and the HTTP surface are written against adapter protocols and do not change.
+#
+# Real transcription (FasterWhisperAdapter). Also needs ffmpeg on PATH (brew install ffmpeg).
+faster-whisper==1.0.3
+# Real speaker diarization (PyannoteAdapter). Additionally requires a Hugging Face token and
+# acceptance of the gated terms for pyannote/speaker-diarization-3.1.
+pyannote.audio==3.3.2
+# Optional PERSON-name redaction (opt-in via enable_person_names). Also needs the model:
+#   python -m spacy download en_core_web_sm
+spacy==3.8.2

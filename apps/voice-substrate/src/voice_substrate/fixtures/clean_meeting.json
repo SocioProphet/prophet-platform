@@ -1,0 +1,13 @@
+{
+  "fixture": "clean_meeting",
+  "NOT_REAL_ASR": true,
+  "description": "A canned transcript with no PII in any class the substrate covers. Used to pin that the redactor does not fire on ordinary speech — a redactor that never has a false positive on a call like this is the other half of being useful.",
+  "segments": [
+    {"start": 0.0,  "end": 4.2,  "text": "Right, shall we start with the roadmap review, we have about twenty minutes."},
+    {"start": 5.4,  "end": 10.1, "text": "Yes, I have to go for the numbers first, we shipped two releases this quarter."},
+    {"start": 11.6, "end": 16.3, "text": "The second one was late but nothing broke, so I'd call that a reasonable trade."},
+    {"start": 17.9, "end": 23.0, "text": "Agreed. In 2026 we expect 1500 units, which is up on the 900 we did last year."},
+    {"start": 24.5, "end": 29.8, "text": "One two three, testing the audio again, sorry, the room mic keeps dropping out."},
+    {"start": 31.0, "end": 35.7, "text": "No problem. Let's pick this up on Thursday and close out the actions then."}
+  ]
+}
