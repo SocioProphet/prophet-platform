@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prophet-holography-gate"
+version = "0.1.0"
+description = "The holography disclosure gate (INV-22..26) — enforced in the swarm plane, for any Python service on the mesh"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

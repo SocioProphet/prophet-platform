@@ -148,11 +148,28 @@ register:
     wave: unassigned
 
   - id: swarm-holography-gate
-    source: agentic-swarm-holography-fabric design (3-layer gate)
-    mechanism: "holography gate enforced in the swarm plane"
+    source: agentic-swarm-holography-fabric design (3-layer gate, INV-22..26)
+    mechanism: >-
+      libs/python/holography-gate: a disclosure gate any swarm agent calls to project a
+      subject's fields. L1 legality (hard prohibitions never dilate; soft budgets dilate
+      with trust) ∧ L2 Ω-readiness, per field. INV-26 Holographic Completeness: the
+      projection domain is ALWAYS the full field set — a denied field carries a structured
+      Denial(reason, policy_ref, class), never ⊥, so a refusal shows the shape of what was
+      withheld (hologram, not a cropped photograph). Denial class distinguishes polytope
+      (architecturally illegal, unearnable) from omega (earnable by advancing readiness).
     owner: prophet-mesh / agentplane
-    status: absent
+    status: wired
+    # absent→wired 2026-08-03: gate implemented + 9 invariant tests (INV-26 completeness,
+    # hard-facet non-dilation at max trust, soft-budget dilation, permit-monotonicity =
+    # I(T;π_S(T)) non-decreasing, omega-earnability). First caller +
+    # observable decision = tools/smoke_swarm_holography_gate.py (the register's own probe,
+    # literally "gate decision observable on a sample swarm dispatch"): name/email disclosed,
+    # HEALTH∧ADS hard-denied unearnably, location soft-denied at trust 0.6. Next toward
+    # `measured`: embed in a production swarm-runtime dispatch + count real gate decisions.
     probe: "gate decision observable on a sample swarm dispatch"
+    probe_cmd: >-
+      test -f libs/python/holography-gate/src/holography_gate/__init__.py
+      && python3 tools/smoke_swarm_holography_gate.py
     wave: unassigned
 
   - id: sovereign-config-plane

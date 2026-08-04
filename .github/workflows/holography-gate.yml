@@ -1,0 +1,35 @@
+name: holography-gate
+
+# The holography disclosure gate (INV-22..26), enforced in the swarm plane: a projection's
+# domain is ALWAYS the full field set (INV-26 holographic completeness), denied fields carry
+# a structured reason + policy row (never ⊥), and trust dilates only SOFT budgets — hard
+# prohibitions never move. Library-level so any Python service on the mesh imports the same
+# gate rather than each swarm re-deriving disclosure.
+on:
+  pull_request:
+    paths:
+      - 'libs/python/holography-gate/**'
+      - 'tools/smoke_swarm_holography_gate.py'
+      - '.github/workflows/holography-gate.yml'
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  holography-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Gate invariants (INV-26 completeness, hard-facet non-dilation, monotonicity)
+        working-directory: libs/python/holography-gate
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pytest -q
+      - name: Gate decision observable on a sample swarm dispatch (the register probe)
+        run: python3 tools/smoke_swarm_holography_gate.py
