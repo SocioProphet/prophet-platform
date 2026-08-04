@@ -149,10 +149,11 @@ export interface DateShiftCounts {
   unshiftable: number;  // replaced with DATE_UNSHIFTABLE — the receipt must not hide these
 }
 
-// The value shape shiftDateField can return. Copilot #1074: the previous signature
-// declared `{ value: string }` but the absent branch preserved the original null /
+// The value shape shiftDateField can return. Copilot round-2 on the platform twin
+// (SocioProphet/prophet-platform#1095) flagged the same defect here: the previous
+// signature said `{ value: string }` but the absent branch preserved the original null /
 // undefined so `undefined` fields stayed undefined rather than becoming '' — the type
-// was lying by cast, and a caller that trusted it would deref .length on null. The
+// was lying by cast, and a caller that trusted it would deref `.length` on null. The
 // three outcomes that DO carry a string still say so via the discriminated union.
 export type ShiftDateResult =
   | { value: string; outcome: 'shifted' | 'yearOnly' | 'unshiftable' }
@@ -183,10 +184,10 @@ const SHIFTED_FORM = /^\d{4}-\d{2}-\d{2}$/;
 function shiftDateField(value: unknown, days: number): ShiftDateResult {
   // (3) ABSENT — there was no date. Not an error, and not something to stamp a sentinel onto.
   // Preserve the original value so an undefined field stays undefined rather than becoming ''
-  // — but say so honestly in the return type. Copilot #1074: dropping the `as string` cast
-  // means a caller can no longer read .length on the returned value without narrowing first,
-  // which is the correct constraint (the caller in deidentify() reads .value only on the
-  // three string-carrying branches; the absent branch is discarded via `dates[r.outcome]++`).
+  // — but say so honestly in the return type. Dropping the `as string` cast means a caller
+  // can no longer read `.length` on the returned value without narrowing first (the caller
+  // in deidentify() reads `.value` only on the string-carrying branches; the absent branch
+  // is discarded via `dates[r.outcome]++`).
   if (value === null || value === undefined || value === '') {
     return { value: value as null | undefined | '', outcome: 'absent' };
   }

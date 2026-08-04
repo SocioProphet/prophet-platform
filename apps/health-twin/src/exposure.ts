@@ -17,34 +17,16 @@
 //
 // Pure and parameterised so it is testable without standing up a server; server.ts binds a
 // port at import time, which would otherwise make the gate provable only by running it.
-
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 export type Exposure = 'synthetic-only' | 'authenticated';
 
 /** Constant-time compare whose control flow does not depend on either value's length.
- *
- *  `timingSafeEqual` throws on a length mismatch, so something has to handle unequal lengths
- *  before calling it. The first version of this function guarded that with an early branch —
- *  correct and necessary — but inside the branch it called `timingSafeEqual(ab, ab)`, the
- *  presented value against ITSELF, and its docstring described that as comparing "against a
- *  same-length decoy". It was not a decoy. It compared the attacker's own input to itself,
- *  discarded the result, and returned false; deleting the line would have changed nothing.
- *
- *  The practical leak was negligible: the work is proportional to the presented value in both
- *  branches, and the attacker already knows how long their own guess is. The defect is that a
- *  security primitive's comment asserted a mechanism the code did not implement — and comments
- *  on auth primitives are load-bearing, because the next reader audits the claim rather than
- *  re-deriving the bytes.
- *
- *  Digesting both sides first removes the problem instead of restating it. SHA-256 output is
- *  always 32 bytes, so the lengths can never differ: there is no throw to dodge, no branch to
- *  balance, and no decoy to owe anyone. Nothing observable depends on the secret's length or
- *  its contents. Total work still scales with the PRESENTED value's length, which is the
- *  attacker's own input — that is unavoidable (it must be read) and discloses nothing.
- *
- *  A plain digest rather than an HMAC: the digests are computed and compared inside this
- *  function and never escape it, so a keyed hash would buy nothing here. */
+ *  SHA-256 output is always 32 bytes, so the lengths can never differ: there is no `timingSafeEqual`
+ *  throw to dodge, no branch to balance, and no decoy to owe anyone. Nothing observable depends on the
+ *  secret's length or contents; total work scales only with the presented value, which the attacker
+ *  already controls. A plain digest, not an HMAC — the digests are computed and compared here and
+ *  never escape this function. (Back-ported from prophet-platform #1086/#1109 into the canonical.) */
 function timingSafeEquals(a: string, b: string): boolean {
   const ad = createHash('sha256').update(a, 'utf8').digest();
   const bd = createHash('sha256').update(b, 'utf8').digest();
@@ -84,26 +66,17 @@ export function exposureDenial(input: ExposureInputs): ExposureDenial | null {
       };
     }
     // REQUIRE the Bearer scheme rather than stripping it when it happens to be there.
-    // `replace(/^Bearer\s+/i, '')` is a no-op on a header that carries any other scheme,
-    // so the entire header value was then compared as though it were the credential: a
-    // bare `Authorization: <secret>` authenticated, and `Authorization: Basic <secret>`
-    // was compared as the string `Basic <secret>`. Neither is a bearer credential, and an
-    // auth path that accepts things it never meant to accept is one bad refactor away
-    // from accepting the wrong one. Match the scheme, then take the rest as the token.
-    // The token group is `\S.*`, not `.+`: `[ \t]+` and `.+` both match a space/tab, so on a header
-    // like `Bearer \t\t\t…` the two quantifiers share the boundary and matching is worst-case quadratic
-    // — a polynomial-ReDoS on the PHI auth path (CodeQL js/polynomial-redos, high). Requiring the token
-    // to START non-whitespace makes the split unique (`\S` and `[ \t]` are disjoint), so there is nothing
-    // to backtrack over. `.trim()` already stripped the outer spaces and a bearer token never begins with
-    // whitespace, so nothing legitimate is lost; a whitespace-only tail still fails to match and 401s.
+    // `replace(/^Bearer\s+/i, '')` was a no-op on a header carrying any other scheme, so the whole
+    // value was then compared as the credential: a bare `Authorization: <secret>` authenticated, and
+    // `Authorization: Basic <secret>` was compared as the string `Basic <secret>`. Neither is a bearer
+    // credential. Match the scheme, then take the rest. The token group is `\S.*`, not `.+`, so `[ \t]+`
+    // and the token do not share a character class and `Bearer\t\t…` cannot backtrack quadratically
+    // (polynomial ReDoS) on this externally reachable PHI read gate.
     const match = /^Bearer[ \t]+(\S.*)$/is.exec(input.authorization.trim());
     const presented = match ? match[1].trim() : '';
-    // Constant-time. The previous note here argued a length-independent compare was not the
-    // concern because the token is a deployment secret rather than a per-user credential.
-    // That reasoning is weaker than it looks on THIS endpoint: it is externally reachable
-    // (deploy/values routes it through the cockpit's nginx at /svc/health) and it guards
-    // PHI, so an attacker gets unlimited free attempts against a single long-lived secret —
-    // exactly the case where a byte-at-a-time oracle is worth having. Cheap to remove.
+    // Constant-time. This endpoint is reachable cross-origin (nginx /svc/health) and guards PHI, so an
+    // attacker gets unlimited free attempts against one long-lived secret — exactly the case where a
+    // byte-at-a-time timing oracle is worth removing, deployment secret or not.
     if (!presented || !timingSafeEquals(presented, input.token)) {
       return { code: 401, body: { error: 'unauthorized' } };
     }
