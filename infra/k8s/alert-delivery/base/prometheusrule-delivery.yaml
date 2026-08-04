@@ -56,8 +56,18 @@ spec:
             runbook: infra/k8s/alert-delivery/README.md
 
         # The sink process being gone is itself an alert, not an absence.
+        #
+        # job="alert-sink" matches today because the Service (service.yaml) and the
+        # ServiceMonitor (servicemonitor.yaml) both happen to be named "alert-sink" --
+        # Prometheus Operator derives the `up` series' job label from the Service name,
+        # not the ServiceMonitor's, and no jobLabel override is set here. Scoping to
+        # namespace="observability" as well removes any ambiguity if another "alert-sink"
+        # job ever exists in a different namespace, rather than relying on name
+        # uniqueness holding cluster-wide by convention alone.
         - alert: AlertSinkDown
-          expr: up{job="alert-sink"} == 0 or absent(up{job="alert-sink"})
+          expr: |
+            up{job="alert-sink", namespace="observability"} == 0
+            or absent(up{job="alert-sink", namespace="observability"})
           for: 5m
           labels: { severity: critical, namespace: observability }
           annotations:
