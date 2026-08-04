@@ -29,9 +29,29 @@ spec:
     - name: socioprophet.request-slo
       rules:
         # 5xx error ratio per service — the canary gate metric.
+        #
+        # The `or ... * 0` on the numerator is load-bearing, not decoration: a service with
+        # real traffic but ZERO 5xx responses ever has NO time series at all under the
+        # {http_response_status_code=~"5.."} selector (PromQL only tracks label combinations
+        # that actually occurred). `sum by (job) (rate(<empty selector>[5m]))` is then an EMPTY
+        # vector, not a `0` — and PromQL's `/` only returns results where both sides' label sets
+        # match, so dividing empty-by-nonempty silently produces NO series for that job. The
+        # AnalysisTemplate's failureCondition (correctly, per its own no-data doctrine) treats an
+        # empty result as a failure — so a hellgraph-service with a perfect zero-error record
+        # aborted its own canary, read as "no data" when the true value was "zero errors" (the
+        # BEST possible reading, not an absent one). Confirmed live 2026-08-03: AnalysisRun
+        # hellgraph-service-679645b5bf-3-2 failed both error-ratio measurements with value "[]"
+        # while the denominator alone had real traffic (2.2 req/s) and zero 5xx ever recorded.
+        # The `or` fallback supplies a real, job-grouped `0` for exactly this case (traffic
+        # exists, no 5xx series exists) without masking the true "the service exports no metrics
+        # at all" case, which still resolves both sides to nothing and correctly stays empty.
         - record: job:request_error_ratio:rate5m
           expr: |
-            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            (
+              sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+              or
+              sum by (job) (rate(http_server_request_duration_seconds_count[5m]) * 0)
+            )
             /
             clamp_min(sum by (job) (rate(http_server_request_duration_seconds_count[5m])), 1)
         # p99 latency per service — the second canary gate metric.

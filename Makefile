@@ -699,6 +699,15 @@ validate-eval-surfaces: validate-leaderboard-round validate-oais-deposition
 canary-slo-gate-check:
 	python3 tools/check_canary_slo_gate.py
 
+# promtool unit tests for the SLO recording rules themselves (job:request_error_ratio:rate5m /
+# job:request_latency_p99:5m), extracted from the real PrometheusRule CRD at test time so there is
+# no hand-duplicated copy to drift from what's actually applied. Proves the zero-5xx case resolves
+# to a real 0 (not an absent series read as "no data"), the genuinely-absent-metrics case stays
+# absent, and a real SLO breach still fails -- see tools/check_slo_recording_rules.py.
+.PHONY: slo-recording-rules-check
+slo-recording-rules-check:
+	python3 tools/check_slo_recording_rules.py
+
 .PHONY: rollout-analysis-refs-check
 # Self-contained overlays (INV-DEP-9): a Rollout may only reference an AnalysisTemplate the
 # overlay renders (namespaced, same ns) or a declared ClusterAnalysisTemplate (clusterScope).

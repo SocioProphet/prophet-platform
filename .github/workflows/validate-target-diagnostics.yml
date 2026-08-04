@@ -123,6 +123,7 @@ jobs:
           - validate-storage-suite
           - trustops-art-runner-smoke
           - canary-slo-gate-check
+          - slo-recording-rules-check
           - rollout-analysis-refs-check
           - overlay-self-contained-check
           - manifest-completeness-check
@@ -142,6 +143,13 @@ jobs:
       - name: Setup kubectl (renders overlays for the completeness gates, INV-DEP-9/10/11)
         if: matrix.target == 'rollout-analysis-refs-check' || matrix.target == 'overlay-self-contained-check' || matrix.target == 'manifest-completeness-check'
         uses: azure/setup-kubectl@v4
+      - name: Setup promtool (unit-tests the SLO recording rules against synthetic series)
+        if: matrix.target == 'slo-recording-rules-check'
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/prom.tar.gz https://github.com/prometheus/prometheus/releases/download/v2.55.1/prometheus-2.55.1.linux-amd64.tar.gz
+          tar -xzf /tmp/prom.tar.gz -C /tmp
+          sudo mv /tmp/prometheus-2.55.1.linux-amd64/promtool /usr/local/bin/promtool
       - name: Setup Python
         uses: actions/setup-python@v5
         with:

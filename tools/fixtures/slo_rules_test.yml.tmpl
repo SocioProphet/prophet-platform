@@ -1,0 +1,48 @@
+rule_files:
+  - __RULES_FILE__
+
+evaluation_interval: 1m
+
+tests:
+  # A healthy service: real traffic, ZERO 5xx responses ever. Before the fix, the numerator's
+  # {http_response_status_code=~"5.."} selector matched no series at all (PromQL only tracks
+  # label combinations that actually occurred), so the division produced an EMPTY result --
+  # read by the AnalysisTemplate's no-data doctrine as a FAILURE for a service with a perfect
+  # record. This is the exact case that aborted hellgraph-service's canary on 2026-08-03.
+  - interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="hellgraph-service",http_response_status_code="200"}'
+        values: "0 60 120 180 240 300"
+    promql_expr_test:
+      - expr: job:request_error_ratio:rate5m{job="hellgraph-service"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'job:request_error_ratio:rate5m{job="hellgraph-service"}'
+            value: 0
+
+  # A service that genuinely exports no metrics at all -- the fix must NOT force this to 0.
+  # Both sides of the division still resolve to nothing, so the result correctly stays absent,
+  # which is the real "no data, cannot certify healthy" case the fail-closed design exists for.
+  - interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="hellgraph-service",http_response_status_code="200"}'
+        values: "0 60 120 180 240 300"
+    promql_expr_test:
+      - expr: job:request_error_ratio:rate5m{job="totally-unmonitored-service"}
+        eval_time: 5m
+        exp_samples: []
+
+  # A service with a REAL elevated error rate must still abort -- the fix only repairs the
+  # zero-5xx false negative, it must not weaken real breach detection.
+  - interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="flaky-service",http_response_status_code="200"}'
+        values: "0 57 114 171 228 285"
+      - series: 'http_server_request_duration_seconds_count{job="flaky-service",http_response_status_code="500"}'
+        values: "0 3 6 9 12 15"
+    promql_expr_test:
+      - expr: job:request_error_ratio:rate5m{job="flaky-service"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'job:request_error_ratio:rate5m{job="flaky-service"}'
+            value: 0.05
