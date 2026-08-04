@@ -4,14 +4,14 @@
   "description": "An N-ary typed relation over two or more graph nodes, each in a declared role — the AtomSpace/KKO hyperedge the binary graph-edge.v0 cannot express (e.g. a claim together with its premises and stance as ONE relation, not three edges). Tenant- and operational-set-scoped: isolation is a property of the relation itself.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["hyperedge_id", "tenant_id", "hyperedge_type", "members", "created_at", "updated_at"],
+  "required": ["hyperedge_id", "tenant_id", "op_set", "hyperedge_type", "members", "created_at", "updated_at"],
   "properties": {
     "hyperedge_id": { "type": "string", "minLength": 3 },
     "tenant_id": { "type": "string", "minLength": 1 },
     "op_set": {
       "type": "string",
       "minLength": 1,
-      "description": "Operational set / namespace within the tenant. Isolation boundary by default: a read scoped to one op_set never sees another."
+      "description": "Operational set / namespace within the tenant — REQUIRED, the isolation label the relation always carries. An op_set-scoped reader partitions on it; the label is mandatory so there is always a boundary to enforce ON (enforcement itself is the graph service's responsibility, not this contract's)."
     },
     "hyperedge_type": { "type": "string", "minLength": 1 },
     "members": {
