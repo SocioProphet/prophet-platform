@@ -259,10 +259,31 @@ def extract(req: TextReq) -> dict[str, Any]:
 
 @app.post("/personality")
 def personality(req: TextReq) -> dict[str, Any]:
-    """Lexicon-based Big-Five (OCEAN) trait scoring. See _personality() docstring for the full
-    honesty/validity disclaimer — this is a heuristic word-count baseline, not a validated
-    psychometric instrument, and not comparable to any commercial personality-scoring product."""
-    return _personality(req.text)
+    """Lexicon-based Big-Five (OCEAN) trait scoring — the UNGATED substrate scorer.
+
+    See _personality() docstring for the full honesty/validity disclaimer: this is a heuristic
+    word-count baseline, not a validated psychometric instrument, and not comparable to any
+    commercial personality-scoring product.
+
+    IMPORTANT — this endpoint is a SUBSTRATE, not an instrument. It applies no evidence-
+    sufficiency gate (it will score 15 words and return five confident-looking numbers) and no
+    domain/use-case gate (nothing here stops a caller using the output for hiring or eligibility
+    screening). Those gates deliberately live in a DIFFERENT service, needs-wants-instrument,
+    which consumes this endpoint and enforces the Needs/Wants two-regime framework on top of it:
+    trait-like output is Regime W (a satisfier PREFERENCE, gated on evidence and domain) and is
+    never emitted as a "need". Consumers making consequential decisions should call that service,
+    not this one. The separation is intentional — co-locating the ungated scorer with its own
+    gates would make the gates optional.
+    """
+    out = _personality(req.text)
+    out["governance"] = {
+        "gated": False,
+        "regime": "substrate — ungated; trait-like output is Regime W (a preference) once gated",
+        "instrument": "needs-wants-instrument (POST /wants) applies G1_W evidence sufficiency "
+                      "and G4 domain/use-case gates over this scorer",
+        "never": "this output is NOT a 'need' and carries no deprivation or harm claim",
+    }
+    return out
 
 @app.post("/glossary")
 def glossary(req: TextReq) -> dict[str, Any]:
