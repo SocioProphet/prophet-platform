@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+labels:
+  - includeSelectors: false
+    pairs:
+      app: resource-contract-producer
+      app.kubernetes.io/part-of: platform-ops
+resources:
+  - rbac.yaml
+  - cronjob.yaml
+  - prometheusrule.yaml
+
+# Generated, name-hashed (same reasoning as pvc-capacity-guard): a change to the producer shows
+# up in ArgoCD as a diff on the CronJob rather than a silent ConfigMap mutation.
+#
+# NOTE: emit_resource_contracts.py here is a MIRROR of tools/emit_resource_contracts.py (kustomize's
+# default load-restrictor forbids a base from reading tools/). They are kept byte-identical by
+# tools/verify_cronjob_script_mirrors.py, wired into `make validate` — a drifted mirror fails CI.
+configMapGenerator:
+  - name: resource-contract-producer
+    files:
+      - emit_resource_contracts.py

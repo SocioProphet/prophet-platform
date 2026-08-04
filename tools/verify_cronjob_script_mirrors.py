@@ -26,6 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MIRRORS: list[tuple[str, str]] = [
     ("tools/deploy_health_alert.py",
      "infra/k8s/deploy-health-alerter/base/deploy_health_alert.py"),
+    ("tools/emit_resource_contracts.py",
+     "infra/k8s/resource-contract-producer/base/emit_resource_contracts.py"),
 ]
 
 

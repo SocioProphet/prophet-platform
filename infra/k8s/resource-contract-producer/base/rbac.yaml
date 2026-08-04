@@ -1,0 +1,39 @@
+# Least privilege for the ResourceContract producer: it READS deployment limits, pod state
+# (OOMKilled counts), and pod metrics, and emits evidence. It mutates nothing in the cluster.
+# No Workload Identity / GSA — it talks only to the in-cluster Kubernetes + metrics APIs via the
+# mounted ServiceAccount token.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: resource-contract-producer
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: resource-contract-producer
+rules:
+  # Declared limits (apps/v1 deployments) and observed pod state (OOMKilled from lastState).
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+  # Observed peak usage (metrics-server aggregated API — the data `kubectl top` prints).
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: resource-contract-producer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: resource-contract-producer
+subjects:
+  - kind: ServiceAccount
+    name: resource-contract-producer
+    namespace: observability
