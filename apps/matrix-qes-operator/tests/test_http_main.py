@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import io
+import json
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -82,3 +87,43 @@ def test_invalid_transition(monkeypatch, tmp_path: Path) -> None:
         },
     )
     assert resp.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# GET /v1/matrix-qes/rooms
+# ---------------------------------------------------------------------------
+
+
+def test_rooms_with_token_returns_room_list(monkeypatch) -> None:
+    monkeypatch.setenv("MATRIX_HOMESERVER_URL", "https://matrix.example.org")
+    monkeypatch.setenv("MATRIX_ACCESS_TOKEN", "syt_test_token")
+
+    fake_payload = json.dumps(
+        {"joined_rooms": ["!roomA:example.org", "!roomB:example.org"]}
+    ).encode()
+
+    mock_response = MagicMock()
+    mock_response.read.return_value = fake_payload
+    mock_response.__enter__ = lambda self: self
+    mock_response.__exit__ = MagicMock(return_value=False)
+
+    with patch("app.main.urllib.request.urlopen", return_value=mock_response):
+        resp = client.get("/v1/matrix-qes/rooms")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "!roomA:example.org" in body["rooms"]
+    assert "!roomB:example.org" in body["rooms"]
+    assert "warning" not in body
+
+
+def test_rooms_without_token_returns_empty_with_warning(monkeypatch) -> None:
+    monkeypatch.delenv("MATRIX_HOMESERVER_URL", raising=False)
+    monkeypatch.delenv("MATRIX_ACCESS_TOKEN", raising=False)
+
+    resp = client.get("/v1/matrix-qes/rooms")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["rooms"] == []
+    assert "warning" in body
+    assert "MATRIX_ACCESS_TOKEN" in body["warning"]
