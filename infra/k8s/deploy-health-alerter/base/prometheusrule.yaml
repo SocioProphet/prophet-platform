@@ -1,0 +1,50 @@
+# Meta-monitoring for the deploy-health alerter itself.
+#
+# The alerter watches the estate for runtime gaps. But an alerter whose CronJob quietly
+# stops running looks exactly like an estate with no gaps — the same silent-failure the
+# whole program refuses. So the alerter's own liveness is a rule, and its findings surface
+# as a rule. Same discipline, same file shape, as infra/k8s/rule-liveness-guard.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: deploy-health-alerter
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: deploy-health-alerter.meta
+      rules:
+        - alert: DeployHealthAlerterNotRunning
+          # The CronJob runs every 10 min; no successful completion in 40 min means it has
+          # stopped running at all — detection is down and nothing would otherwise notice.
+          # The explicit namespace label mirrors rule-liveness-guard: the absent() branch
+          # emits no labels of its own, and without it the alert would not route.
+          expr: |
+            time() - max(kube_job_status_completion_time{job_name=~"deploy-health-alerter-.*"}) > 2400
+            or absent(kube_job_status_completion_time{job_name=~"deploy-health-alerter-.*"})
+          for: 20m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "deploy-health-alerter has not completed a run in over 40m"
+            description: >-
+              Live runtime-gap detection has stopped. A Degraded app, a crashlooping pod, or
+              a missing secret could now sit unnoticed exactly as arcticdb-gateway did for 20h.
+            runbook: infra/k8s/deploy-health-alerter/README.md
+    - name: deploy-health-alerter.findings
+      rules:
+        - alert: DeployHealthGapsDetected
+          # The alerter exits non-zero (1 = gaps found, 2 = could-not-observe) when it finds
+          # a runtime gap, which fails the Job. A sustained failure means a real, untriaged
+          # gap — fix it, or declare a justified socioprophet.io/deploy-health-hold.
+          expr: increase(kube_job_status_failed{job_name=~"deploy-health-alerter-.*"}[30m]) > 0
+          for: 15m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "deploy-health-alerter is reporting runtime gaps"
+            description: >-
+              The last deploy-health scan failed: a Degraded/Missing ArgoCD app, a
+              stuck/crashlooping pod, or a stale job receipt. See the gap detail in the pod
+              logs: `kubectl -n observability logs job/<latest deploy-health-alerter job>`.
+            runbook: infra/k8s/deploy-health-alerter/README.md

@@ -1,0 +1,36 @@
+# The deploy-health alerter's heartbeat. The tool (tools/deploy_health_alert.py) reads live
+# runtime state and fails on the gaps every static gate misses — but a tool nobody schedules
+# is itself the paper control the program exists to abolish. This CronJob is its heartbeat.
+#
+# Lives in deploy/argocd/, NOT infra/argocd/: the tofu-created root app-of-apps
+# (infra/tofu/environments/gcp-gke/argocd.tf) watches deploy/argocd with directory.recurse,
+# and nothing under infra/argocd/ has ever reached the cluster. Same move, same reason, as
+# pvc-capacity-guard and the observability apps — the kustomize base stays where it was
+# authored; only the Application manifest has to live in the watched tree.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: deploy-health-alerter
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # reference, not foundation: a replaceable implementation of runtime-gap detection that
+    # runs a digest-pinned stock python image, not part of the interoperability spine and not
+    # built by images.yml. Required by tools/preflight_deploy_contract.py check 5.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/deploy-health-alerter/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
