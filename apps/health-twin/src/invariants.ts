@@ -978,5 +978,30 @@ console.log('\n▶ INVARIANT 22 — patient identity plane: one-time credential,
   ok(after.ok === false && /revoked/.test((after as any).reason), 'a revoked credential no longer authenticates');
 }
 
-console.log(`\n${fails === 0 ? '✓ ALL 22 GUARDRAIL INVARIANTS HOLD (…+ patient identity plane)' : `✗ ${fails} invariant(s) violated`}`);
+console.log('\n▶ INVARIANT 23 — audit trail (HIPAA §164.312(b)): append-only, records blocks, query cannot mutate it');
+{
+  const { audit, auditQuery, auditSize } = await import('./audit.js');
+
+  const before = auditSize();
+  const ok1 = audit({ actor: 'holder-x', action: 'doctor-view', resource: 'grant-1', outcome: 'ok', receipt: 'r1' });
+  audit({ actor: 'clinician', action: 'doctor-view', resource: 'twin', outcome: 'blocked', reason: 'unauthorized' });
+  ok(auditSize() === before + 2, 'audit() appends (the log only grows)');
+  ok(!!ok1.id && !!ok1.at, 'every entry is minted with an id + timestamp');
+
+  // a BLOCK is recorded, not just successes (a denied access is a security event)
+  const blocks = auditQuery({ outcome: 'blocked' });
+  ok(blocks.events.some((e: any) => e.action === 'doctor-view' && e.reason === 'unauthorized'), 'a blocked access is audited with its reason');
+
+  // the query returns a defensive COPY — mutating it does not corrupt the trail
+  const q = auditQuery({ actor: 'holder-x' });
+  const n = q.events.length;
+  q.events.push({ id: 'forged', at: 'x', actor: 'attacker', action: 'x', resource: 'x', outcome: 'ok' } as any);
+  ok(auditQuery({ actor: 'holder-x' }).events.length === n, 'mutating a query result does not alter the append-only log');
+
+  // there is NO exported way to delete/mutate a past entry
+  const mod = await import('./audit.js');
+  ok(!('deleteAudit' in mod) && !('clearAudit' in mod) && !('mutateAudit' in mod), 'the module exposes no delete/clear/mutate — append-only by construction');
+}
+
+console.log(`\n${fails === 0 ? '✓ ALL 23 GUARDRAIL INVARIANTS HOLD (…+ HIPAA-shaped audit trail)' : `✗ ${fails} invariant(s) violated`}`);
 process.exit(fails === 0 ? 0 : 1);

@@ -121,6 +121,9 @@ async function main() {
   check('reference: real drug safety (severity + dual-RAAS + class dup)', r.st === 200 && (r.d.interactions?.length ?? 0) >= 2 && !!r.d.highestSeverity, `${r.d.interactions?.length} interactions, worst=${r.d.highestSeverity}, dups=${(r.d.duplicates ?? []).length}`);
   r = await call('GET', '/api/health/reference/guideline-deltas');
   check('reference: guideline-delta engine', r.st === 200 && (r.d.deltas?.length ?? 0) > 0, `${r.d.deltas?.length} deltas`);
+  // live FDA drug label (openFDA) — real data when online, clean degradation otherwise
+  r = await call('GET', '/api/health/reference/drug-label?name=simvastatin');
+  check('reference: live FDA drug label', r.st === 200 && typeof r.d.degraded === 'boolean' && /non-diagnostic/i.test(r.d.disclaimer ?? ''), r.d.degraded ? 'degraded (offline)' : `live: ${r.d.genericName} rxcui=${r.d.rxcui}`);
 
   // care-access booking (verb 6) — find slots + hold; fail-closed on unknown slot
   r = await call('GET', '/api/health/booking/slots?specialty=Cardiology&modality=telehealth');
@@ -146,6 +149,10 @@ async function main() {
   check('terminology: lookup emits ontogenesis-typed node', r.st === 200 && !!r.d.ontogenesis?.classIri && !!r.d.ontogenesis?.organIri, `${r.d.concept?.display} → ${r.d.ontogenesis?.classIri?.split('#').pop()}`);
   r = await call('GET', '/api/health/terminology/crosswalk?system=SNOMED&code=38341003');
   check('terminology: SNOMED→ICD-10 crosswalk', r.st === 200 && (r.d.maps ?? []).some((m: any) => m.system === 'ICD-10'), (r.d.maps ?? []).map((m: any) => `${m.system} ${m.code}`).join(', '));
+
+  // HIPAA audit trail — a doctor-view read/block should appear in the append-only log
+  r = await call('GET', '/api/health/audit?action=doctor-view');
+  check('audit: append-only access trail (HIPAA §164.312(b))', r.st === 200 && Array.isArray(r.d.events) && typeof r.d.total === 'number' && typeof r.d.droppedAtCap === 'number', `${r.d.total} doctor-view events logged`);
 
   // population & operations layer — cohort risk + early warnings, k-anonymity + aggregates only
   r = await call('GET', '/api/health/population');
