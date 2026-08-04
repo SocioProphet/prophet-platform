@@ -90,6 +90,32 @@ def save_receipt(project: str, seq: int, receipt_id: str, body_json: str) -> Non
         c.commit()
 
 
+def load_tips() -> list[tuple[str, str, int]]:
+    """(project, tip_receipt_id, count) per project — the last receipt's id and the chain
+    length, computed in SQL so a restart loads O(projects), NEVER O(receipts). `count` is the
+    next seal's seq (chains are contiguous 0..count-1). This is what keeps boot memory flat as
+    the store grows — the 2026-08-04 OOM was hydrate() materializing every receipt at import.
+    Empty when persistence is disabled."""
+    if not enabled():
+        return []
+    c = _conn()
+    tips = c.execute(
+        "SELECT project, id, seq FROM receipts WHERE (project, seq) IN "
+        "(SELECT project, MAX(seq) FROM receipts GROUP BY project)"
+    ).fetchall()
+    counts = dict(c.execute("SELECT project, COUNT(*) FROM receipts GROUP BY project").fetchall())
+    return [(project, rid, int(counts.get(project, seq + 1))) for (project, rid, seq) in tips]
+
+
+def load_project(project: str) -> list[dict]:
+    """One project's receipt bodies in seal order — for lazy chain materialization on read.
+    The caller rebuilds Receipt objects. Empty when persistence is disabled."""
+    if not enabled():
+        return []
+    return [json.loads(body) for (body,) in _conn().execute(
+        "SELECT body FROM receipts WHERE project=? ORDER BY seq", (project,)).fetchall()]
+
+
 # ── content-addressed artifact blobs + the receipt→digests index ─────────────
 def get_blob(d: str) -> Any | None:
     if not enabled():
@@ -132,6 +158,26 @@ def save_index(receipt_id: str, digests: list[str]) -> None:
         c.executemany("INSERT OR REPLACE INTO artifact_index (receipt_id, ord, digest) VALUES (?,?,?)",
                       [(receipt_id, i, d) for i, d in enumerate(digests)])
         c.commit()
+
+
+def load_index_for(receipt_id: str) -> list[str]:
+    """One receipt's ordered artifact digests — for lazy data-lineage lookup, so the whole index
+    need not be resident. Empty when persistence is disabled."""
+    if not enabled():
+        return []
+    return [d for (d,) in _conn().execute(
+        "SELECT digest FROM artifact_index WHERE receipt_id=? ORDER BY ord", (receipt_id,)).fetchall()]
+
+
+def index_stats() -> tuple[int, int]:
+    """(unique_blobs, receipts_indexed) computed in SQL — so artifacts.stats() need not hold the
+    whole lineage index in memory. (0, 0) when persistence is disabled."""
+    if not enabled():
+        return (0, 0)
+    c = _conn()
+    (uniq,) = c.execute("SELECT COUNT(DISTINCT digest) FROM artifact_index").fetchone()
+    (recs,) = c.execute("SELECT COUNT(DISTINCT receipt_id) FROM artifact_index").fetchone()
+    return (int(uniq), int(recs))
 
 
 def _reset_connection() -> None:

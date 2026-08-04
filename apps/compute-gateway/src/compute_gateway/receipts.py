@@ -11,15 +11,40 @@ import hashlib
 import json
 import threading
 import time
-from typing import Any
+from collections import OrderedDict
+from typing import Any, Iterator
 
 from . import persistence, signing
 from .contract import EpistemicStatus, Receipt
 
-# per-project hash chain — the in-memory index. When GATEWAY_STORE_DIR is set it is a
-# cache hydrated from durable storage on boot (see hydrate) and written through on seal,
-# so the chain survives a restart; unset, it is the whole store (ephemeral).
-_CHAINS: dict[str, list[Receipt]] = {}
+# per-project hash chain — the in-memory structure.
+#   persistence DISABLED (tests / ephemeral dev): _CHAINS IS the whole store — seal appends here,
+#     reads come from here, and there is nowhere else for a receipt to live.
+#   persistence ENABLED (prod): _CHAINS is a BOUNDED LRU cache over the SQLite-backed store. Boot no
+#     longer materializes it (see hydrate) — only _TIPS is loaded, O(projects) — so resident memory
+#     does not scale with the store. The 2026-08-04 OOM was hydrate() reading EVERY receipt into this
+#     dict at import, on top of the hellgraph + embedding libs, OOMKilling the pod ~9s into startup.
+#   OrderedDict so the enabled-mode cache can evict least-recently-used projects; tests that call
+#   _CHAINS.clear() or index _CHAINS["p"] keep working unchanged (both are OrderedDict operations).
+_CHAINS: "OrderedDict[str, list[Receipt]]" = OrderedDict()
+_CACHE_MAX_PROJECTS = 64  # enabled-mode cache bound; boot memory is bounded by _TIPS alone
+
+
+class _Tip:
+    """The last receipt id + chain length for one project — all seal() needs to compute the next
+    receipt's `prev` and `seq` without the whole chain resident. Loaded O(projects) at boot."""
+
+    __slots__ = ("tip_id", "count")
+
+    def __init__(self, tip_id: str | None, count: int) -> None:
+        self.tip_id = tip_id
+        self.count = count
+
+
+# Per-project tips — the authoritative project index in ENABLED mode (loaded at boot, advanced on
+# seal). In DISABLED mode this stays empty and _CHAINS is authoritative, so a test's _CHAINS.clear()
+# remains a full reset.
+_TIPS: dict[str, _Tip] = {}
 
 # per-project seal lock. The seal window (setdefault chain → read prev → attest → append
 # → persist) is a read-modify-write on the chain: two concurrent seals for the same
@@ -52,14 +77,53 @@ def _project_lock(project: str) -> threading.Lock:
 
 
 def hydrate() -> None:
-    """Rebuild the in-memory chains from durable storage. Idempotent; a no-op when
-    persistence is disabled. Called at import so a restarted process comes up with its
-    full, verifiable history already in hand."""
+    """Load ONLY per-project tips (id + count) from durable storage — O(projects), NOT O(receipts).
+    Full chains are materialized lazily by chain()/verify() and bounded by the _CHAINS LRU. Idempotent;
+    a no-op when persistence is disabled (then _CHAINS is the ephemeral store). This is the fix for the
+    2026-08-04 OOM: a restarted process comes up ready to seal and verify with FLAT boot memory no
+    matter how large /data has grown, instead of reading the whole store into RAM at import."""
     if not persistence.enabled():
         return
-    _CHAINS.clear()
-    for project, bodies in persistence.load_receipts().items():
-        _CHAINS[project] = [Receipt(**b) for b in bodies]
+    with _LOCKS_LOCK:
+        _TIPS.clear()
+        _CHAINS.clear()
+        for project, tip_id, count in persistence.load_tips():
+            _TIPS[project] = _Tip(tip_id, count)
+
+
+def _project_names() -> list[str]:
+    """Every known project. _TIPS is authoritative when persistence is enabled (loaded at boot +
+    advanced on seal); otherwise _CHAINS is the store. Snapshotted under _LOCKS_LOCK so a concurrent
+    seal creating a new project cannot change the dict mid-iteration."""
+    with _LOCKS_LOCK:
+        return list(_TIPS.keys()) if persistence.enabled() else list(_CHAINS.keys())
+
+
+def _load_chain(project: str) -> list[Receipt]:
+    """The project's full chain as the LIVE cached list (callers copy). Cache hit → LRU-touch and
+    return. Miss + enabled → materialize from SQLite, cache, evict LRU. Miss + disabled → empty (not
+    cached means it does not exist — _CHAINS is the whole store in that mode). Call under the
+    per-project lock so a concurrent seal cannot mutate the list during materialization."""
+    cached = _CHAINS.get(project)
+    if cached is not None:
+        _CHAINS.move_to_end(project)
+        return cached
+    if not persistence.enabled():
+        return []
+    receipts = [Receipt(**b) for b in persistence.load_project(project)]
+    _CHAINS[project] = receipts
+    _CHAINS.move_to_end(project)
+    while len(_CHAINS) > _CACHE_MAX_PROJECTS:
+        _CHAINS.popitem(last=False)  # evict LRU — the durable copy stays in SQLite, the tip in _TIPS
+    return receipts
+
+
+def _read_chain_fresh(project: str) -> list[Receipt]:
+    """A chain read that does NOT pollute the LRU cache — for full scans (snapshot_all) that would
+    otherwise churn it. From SQLite when enabled, else a copy of the in-memory store."""
+    if not persistence.enabled():
+        return list(_CHAINS.get(project, []))
+    return [Receipt(**b) for b in persistence.load_project(project)]
 
 
 def sha(obj: Any) -> str:
@@ -87,20 +151,21 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
     # committed by the time it runs. Do NOT hold across arbitrary caller code — the
     # window is bounded to hash + attest + persist, all pure/local.
     with _project_lock(project):
-        # Copilot #1106 round 2: the setdefault below GROWS _CHAINS the first time
-        # a project is sealed, and snapshot_all() iterates its keyset. The prior
-        # revision leaned on the incidental fact that _project_lock() briefly holds
-        # _LOCKS_LOCK on the create-path — but that lock is already RELEASED by
-        # the time we get here, so a concurrent snapshot_all() could still catch
-        # the dict mid-mutation and raise `RuntimeError: dictionary changed size
-        # during iteration`. Hold _LOCKS_LOCK for the mutation itself so the
-        # keyset snapshot and the new-project insert are properly serialized. The
-        # window is a single dict lookup — no risk of contention starvation, and
-        # snapshot_all() only takes _LOCKS_LOCK to snapshot keys (not per-project
-        # locks), so there is no reversed-order lock cycle.
-        with _LOCKS_LOCK:
-            chain = _CHAINS.setdefault(project, [])
-        prev = chain[-1].id if chain else None
+        # Read prev + seq for THIS receipt. Enabled: from the O(projects) tip index; the whole chain
+        # is never needed to append. Disabled: straight from _CHAINS, which is the store. Either read
+        # that MUTATES a dict (creating a new project's entry) is done under _LOCKS_LOCK, because
+        # snapshot_all()/_project_names() snapshot the keyset and a concurrent create would otherwise
+        # raise `RuntimeError: dictionary changed size during iteration` (Copilot #1106 round 2).
+        if persistence.enabled():
+            with _LOCKS_LOCK:
+                tip = _TIPS.get(project)
+            prev = tip.tip_id if tip is not None else None
+            seq = tip.count if tip is not None else 0
+        else:
+            with _LOCKS_LOCK:
+                stored = _CHAINS.setdefault(project, [])
+            prev = stored[-1].id if stored else None
+            seq = len(stored)
         body = {
             "project": project, "kind": kind, "backend": backend, "runtime": runtime,
             "inputs_sha": sha(inputs), "outputs_sha": sha(outputs), "status": status,
@@ -113,34 +178,43 @@ def seal(project: str, *, kind: str, backend: str, runtime: str, inputs: Any,
         # standards-based authenticity, layered on top of the chain's integrity:
         # in-toto Statement v1 + Ed25519 signature (unsigned if no key configured).
         signing.attest(receipt, signing.load_signing_key())
-        chain.append(receipt)
-        # write-through AFTER attestation so the durable copy carries the signature/statement,
-        # and at the receipt's chain position so the ordered prev-links reload intact.
-        persistence.save_receipt(project, len(chain) - 1, receipt.id, receipt.model_dump_json())
+        # write-through AFTER attestation so the durable copy carries the signature/statement, and at
+        # the receipt's chain position (seq) so the ordered prev-links reload intact. No-op when disabled.
+        persistence.save_receipt(project, seq, receipt.id, receipt.model_dump_json())
+        if persistence.enabled():
+            # Advance the tip (create-or-replace under _LOCKS_LOCK, safe vs the keyset snapshot), and
+            # keep the cache coherent if this project's chain is currently materialized — so a reader
+            # holding a cached chain sees the new receipt without a reload.
+            with _LOCKS_LOCK:
+                _TIPS[project] = _Tip(receipt.id, seq + 1)
+            cached = _CHAINS.get(project)
+            if cached is not None:
+                cached.append(receipt)
+                _CHAINS.move_to_end(project)
+        else:
+            stored.append(receipt)  # disabled: _CHAINS is the store — append the receipt in place
     return receipt
 
 
 def chain(project: str) -> list[Receipt]:
-    return list(_CHAINS.get(project, []))
+    """The project's full chain — lazily materialized from SQLite and LRU-cached when persistence is
+    enabled; straight from the in-memory store when disabled. Returns a copy."""
+    with _project_lock(project):
+        return list(_load_chain(project))
 
 
-def snapshot_all() -> list[tuple[str, list[Receipt]]]:
-    """A consistent (project, chain) snapshot for read-only aggregators like
-    /healthz's signed_ratio. Copilot #1106: iterating `_CHAINS.values()` in the
-    server hits `RuntimeError: dictionary changed size during iteration` when a
-    concurrent seal() runs setdefault() on a new project. Take the dict snapshot
-    under `_LOCKS_LOCK` (which setdefault contends with because _project_lock()
-    holds it while creating a new entry) and per-chain snapshots under the
-    per-project seal lock so we do not observe a chain mid-append."""
-    with _LOCKS_LOCK:
-        projects = list(_CHAINS.keys())
-    out: list[tuple[str, list[Receipt]]] = []
-    for project in projects:
+def snapshot_all() -> Iterator[tuple[str, list[Receipt]]]:
+    """Yield (project, chain) for EVERY project, one at a time, for read-only aggregators like
+    /healthz's signed_ratio. A GENERATOR, not a list: peak memory is a single project's chain, not
+    O(total receipts) — so the aggregation that folds over the whole store cannot itself reproduce
+    the boot-time OOM. Projects are snapshotted under _LOCKS_LOCK (so a concurrent seal creating a
+    new project cannot change the set mid-iteration — Copilot #1106), and each chain is read under
+    its per-project lock so we never observe one mid-append. Reads bypass the LRU cache so a full
+    scan does not churn it."""
+    for project in _project_names():
         with _project_lock(project):
-            # Copy defensively: the receipt list may have grown or been rebuilt
-            # by hydrate() since we snapshotted the keyset.
-            out.append((project, list(_CHAINS.get(project, []))))
-    return out
+            ch = _read_chain_fresh(project)
+        yield (project, ch)
 
 
 def verify(project: str) -> dict:
@@ -152,7 +226,7 @@ def verify(project: str) -> dict:
     that carries a signature which does NOT verify fails the whole check
     (`valid=False`) — a broken signature is tampering, not "unsigned".
     """
-    ch = _CHAINS.get(project, [])
+    ch = chain(project)  # lazily materialized (cached) when persistence is enabled
     prev: str | None = None
     signed = 0
     for r in ch:
