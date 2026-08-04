@@ -4,13 +4,19 @@
 # Rust 1.83 was too old to parse a bumped transitive manifest (idna_adapter 1.2.2 via url/idna);
 # pin a newer toolchain + a committed Cargo.lock so the build is reproducible and stops resolving
 # newer, toolchain-incompatible deps on every run.
-FROM rust:1.97-slim AS build
+#
+# GLIBC ALIGNMENT: the build and runtime bases MUST share a Debian codename. When the toolchain
+# was bumped to rust:1.97-slim its base moved to Debian trixie (glibc 2.41), while the runtime
+# stayed debian:bookworm-slim (glibc 2.36) — so the dynamically-linked binary required GLIBC_2.38
+# the runtime could not provide and crashlooped ("version `GLIBC_2.38' not found"). Both stages are
+# now pinned to trixie explicitly; keep them on the same codename whenever either is bumped.
+FROM rust:1.97-slim-trixie AS build
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 RUN cargo build --release --locked && strip target/release/sherlock-engine
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 WORKDIR /app
 RUN useradd -r -u 10001 sherlock
 COPY --from=build /build/target/release/sherlock-engine /usr/local/bin/sherlock-engine
