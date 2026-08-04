@@ -21,15 +21,58 @@ without Harbor's Postgres+Redis+jobservice fleet. JFrog rejected as heavy/commer
 Secrets are created out of band, like `minio-credentials`:
 
 1. **`minio-credentials`** (reused for the S3 backend) — already created in `socioprophet`.
-2. **`zot-htpasswd`** — bootstrap `admin` + `ci` users. Create with:
+2. **`zot-htpasswd`** — bootstrap `admin` + `ci-push` users. Create with:
    ```sh
-   # bcrypt htpasswd for admin + ci (use strong, stored passwords)
-   htpasswd -Bbn admin "<ADMIN_PW>"  > /tmp/zot.htpasswd
-   htpasswd -Bbn ci    "<CI_PW>"    >> /tmp/zot.htpasswd
+   # bcrypt htpasswd (use strong, stored passwords)
+   htpasswd -Bbn admin   "<ADMIN_PW>"    > /tmp/zot.htpasswd
+   htpasswd -Bbn ci-push "<CI_PUSH_PW>" >> /tmp/zot.htpasswd
    kubectl create secret generic zot-htpasswd -n socioprophet --from-file=htpasswd=/tmp/zot.htpasswd
    rm /tmp/zot.htpasswd
    ```
-   Persist both passwords in the secret manager. `ci` is the identity CI uses to push images.
+   Persist both passwords in the secret manager.
+
+### `ci-push` — the identity CI uses to push images
+`ci-push` holds `read, create, update` and **NOT `delete`** (see the accessControl block in
+`base/configmap.yaml`). A publishing pipeline needs to push; it has no reason to be able to erase
+production images, so a leaked CI credential cannot empty the registry. Deleting stays with `admin`
+and with zot's own retention/gc, which is what actually reclaims space.
+
+**Adding a user to accessControl grants authorization only** — zot authenticates against this
+htpasswd file, so a user that is not in it gets a 401 on `podman login` no matter what the policy
+says. To add `ci-push` to an EXISTING deployment without disturbing the other users:
+
+```sh
+kubectl get secret zot-htpasswd -n socioprophet -o jsonpath='{.data.htpasswd}' | base64 -d > /tmp/zot.htpasswd
+htpasswd -Bbn ci-push "<CI_PUSH_PW>" >> /tmp/zot.htpasswd
+kubectl create secret generic zot-htpasswd -n socioprophet \
+  --from-file=htpasswd=/tmp/zot.htpasswd --dry-run=client -o yaml | kubectl apply -f -
+rm /tmp/zot.htpasswd
+kubectl rollout restart deployment/zot -n socioprophet    # zot does NOT hot-reload
+```
+
+**Verify the credential locally before putting it in CI** — a wrong password is a 401 you would
+otherwise discover as a red pipeline:
+
+```sh
+podman login registry.socioprophet.ai -u ci-push
+```
+
+Then set it once as an **org** secret (one credential, one rotation point — never a copy per repo):
+
+```sh
+gh secret set ZOT_CI_USERNAME --org SocioProphet --visibility selected \
+  --repos prophet-platform,sociosphere --body ci-push
+gh secret set ZOT_CI_PASSWORD --org SocioProphet --visibility selected \
+  --repos prophet-platform,sociosphere          # no --body → interactive paste, stays out of shell history
+```
+
+**Rotation** is ordered and needs a restart: regenerate the htpasswd entry → apply the secret →
+`kubectl rollout restart deployment/zot` → re-paste the org secret. Doing GitHub first breaks CI;
+doing zot first breaks CI. For zero downtime add a second user, cut CI over, then drop the old one.
+
+> Follow-up (not done here): `ci` and `github-ci` still hold `delete`. Once every pipeline is on
+> `ci-push`, demote or remove them so no CI identity can delete. Left alone in this change because
+> prophet-platform's image pipeline is actively publishing with them.
 
 ## Deploy checklist
 1. Create the `zot-htpasswd` secret (above).
