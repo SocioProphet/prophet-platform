@@ -17,11 +17,15 @@ spec:
       labels:
         app: workspace-caldav
     spec:
-      # radicale writes its collections dir on the mounted PVC; fsGroup makes the volume
-      # group-writable (via supplementary group) so the non-root container can write it
-      # (kyverno require-fsgroup-pvc — same class that crashlooped gitea for 26h).
+      # radicale runs non-root, uid/gid 999 — VERIFIED via `id` in the live pod, NOT 1000 (a prior
+      # revision guessed 1000; that only works by accident via a supplementary group). Its PVC mounts
+      # root-owned, so WITHOUT fsGroup it gets "Permission denied" writing /var/lib/radicale/collections
+      # — CalDAV silently fails to persist while /healthz stays green (the gitea-class trap Kyverno
+      # require-fsgroup-for-pvc-writers flags). fsGroup: 999 chowns the volume to radicale's actual
+      # primary group; OnRootMismatch does it only when the root dir is wrong, not every mount.
       securityContext:
-        fsGroup: 1000
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
       imagePullSecrets:
         - name: zot-pull
       containers:

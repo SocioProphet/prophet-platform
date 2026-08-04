@@ -10,7 +10,12 @@ spec:
   template:
     metadata: { labels: { app: workspace-caldav } }
     spec:
-      securityContext: { fsGroup: 999 }
+      # radicale runs non-root (uid/gid 999, verified via `id` in the live pod); its PVC
+      # workspace-caldav-pvc mounts root-owned, so without fsGroup the collections can't be
+      # written — the gitea-class failure Kyverno require-fsgroup-for-pvc-writers flags. fsGroup: 999
+      # matches the runtime GID; OnRootMismatch chowns the volume group only when the root dir is
+      # wrong, so a large collection store isn't re-chowned on every mount.
+      securityContext: { fsGroup: 999, fsGroupChangePolicy: OnRootMismatch }
       containers:
         - name: radicale
           image: {{ include "pw.image" (dict "root" . "name" "radicale") }}
