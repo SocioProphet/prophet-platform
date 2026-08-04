@@ -1,0 +1,36 @@
+{
+  "_fixture_notes": "CheckCoverSufficiency: a graph with a cover at T1 evaluated at T1 is SUFFICIENT.",
+  "t_eval": "T1",
+  "claim_class": null,
+  "expected_verdict": "SUFFICIENT",
+  "graph": {
+    "evidence_cover_graph_version": 1,
+    "claim_id": "claim://audit-log-completeness/2026Q3",
+    "evidence_items": [
+      {
+        "id": "evi-001",
+        "type": "AuditLogSnapshot",
+        "digest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "id": "evi-002",
+        "type": "AuditLogSnapshot",
+        "digest_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "covers": [
+      {
+        "cover_id": "cov-t1-audit",
+        "claim_id": "claim://audit-log-completeness/2026Q3",
+        "tier": "T1",
+        "evidence_item_ids": ["evi-001", "evi-002"]
+      }
+    ],
+    "tier_policy": {
+      "tier_order": ["T1", "T2", "T3"],
+      "admissibility_floor_by_claim_class": {
+        "financial-audit": "T1"
+      }
+    }
+  }
+}

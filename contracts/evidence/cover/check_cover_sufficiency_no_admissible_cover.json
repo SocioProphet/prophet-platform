@@ -1,0 +1,28 @@
+{
+  "_fixture_notes": "CheckCoverSufficiency: graph only has a T3 cover but T_eval=T1 — no cover is admissible, so INCONCLUSIVE with need_additional_evidence.",
+  "t_eval": "T1",
+  "claim_class": null,
+  "expected_verdict": "INCONCLUSIVE",
+  "graph": {
+    "evidence_cover_graph_version": 1,
+    "claim_id": "claim://audit-log-completeness/2026Q3-restricted",
+    "evidence_items": [
+      {
+        "id": "evi-t3-only",
+        "type": "ConfidentialAuditLog",
+        "digest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ],
+    "covers": [
+      {
+        "cover_id": "cov-t3-restricted",
+        "claim_id": "claim://audit-log-completeness/2026Q3-restricted",
+        "tier": "T3",
+        "evidence_item_ids": ["evi-t3-only"]
+      }
+    ],
+    "tier_policy": {
+      "tier_order": ["T1", "T2", "T3"]
+    }
+  }
+}
