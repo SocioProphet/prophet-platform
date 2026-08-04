@@ -7,8 +7,8 @@ FROM python:3.12-slim
 RUN useradd -m -u 10001 forge
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 COPY src ./src
 ENV PORT=8870 PYTHONUNBUFFERED=1
