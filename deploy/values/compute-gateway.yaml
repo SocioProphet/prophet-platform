@@ -21,6 +21,29 @@ config:
   COMPUTE_ENTITLEMENTS: "demo,default,graph-query,graph-stats,gyg-reporting,materialize,governance,engine-seal"
   # every ok run writes its ComputeRun/Receipt subgraph to hellgraph (best-effort).
   GATEWAY_WRITE_PROVENANCE: "true"
+  # READ-PATH MASKING PDP — ON. Until now this was code that never ran: masking.py has been
+  # mounted in the dispatch path since it landed, but with no policy configured it returned
+  # outputs unchanged, so the moat existed and was switched off. The 2026-08-04 catalog/masking
+  # audit found GATEWAY_MASKING_POLICY set nowhere in deploy/ — not a missing mechanism, an
+  # unused one.
+  #
+  # Applies to graph-query/graph-stats reads only (masking.READ_KINDS). Direct identifiers are
+  # masked before the outputs are sealed, so the Ed25519 receipt attests exactly what the
+  # caller received, and the masking decision is appended as a sealed output — the property
+  # WKC-style dynamic masking does not produce, because there the enforcement leaves no
+  # verifiable artifact.
+  #
+  # forbidden_mixtures encodes the no_health_adtech veto: a requester whose realm carries the
+  # adtech topic reading records that carry the health topic is DENIED outright and the records
+  # are withheld, not merely masked.
+  #
+  # The exact JSON below is parsed out of this file and exercised by
+  # apps/compute-gateway/tests/test_masking_policy_values.py, so a typo here fails CI rather
+  # than silently reverting the gateway to passthrough. A policy nobody tests is a policy that
+  # is one YAML mistake away from being off again.
+  GATEWAY_MASKING_POLICY: >-
+    {"policy_version":"masking-v1-2026-08-04","decided_by":"prophet-platform/compute-gateway","record_topic_fields":["topic","domain"],"requesting_realm_topics":{"adtech":"adtech","marketing":"adtech"},"forbidden_mixtures":[["health","adtech"]],"mask_fields":{"email":"hmac_pseudonym","email_address":"hmac_pseudonym","phone":"hmac_pseudonym","msisdn":"hmac_pseudonym","ssn":"one_way_hash","national_id":"one_way_hash","patient_mrn":"chameleon_token","date_of_birth":"generalize","dob":"generalize","full_name":"redact","street_address":"redact"}}
+
   # Durable proof store: receipts + content-addressed artifacts + the doc→SQL sink land on
   # the PVC mounted here, so a governed run survives a restart (compute-gateway persistence).
   GATEWAY_STORE_DIR: "/data"
