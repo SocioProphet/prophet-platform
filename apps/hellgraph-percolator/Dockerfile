@@ -4,8 +4,9 @@
 # (idempotent, isolation-carrying upserts), and seals ONE receipt per batch on compute-gateway.
 #
 # Build context is the REPO ROOT (images.yml `context: .`) so the image can carry the CANONICAL shared
-# library `tools/hellgraph_percolation` without forking it. python:3.11-slim mirrors the materializer.
-FROM python:3.11-slim
+# library `tools/hellgraph_percolation` without forking it. Base digest-pinned (preflight doctrine:
+# "what we build from must be as immutable as what we deploy") — the estate-standard python:3.11-slim pin.
+FROM python:3.11-slim@sha256:00af38ae2ed311628970782e8a2d7f014d8909dbc63cb97bc0a158187f4db045
 WORKDIR /app
 COPY apps/hellgraph-percolator/requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
