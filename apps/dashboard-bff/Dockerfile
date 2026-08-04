@@ -3,12 +3,18 @@
 # those producers read files from SEVERAL sibling trees at REQUEST time. Every path
 # below was found by running the container and hitting each /v1 route the SPA calls,
 # not by reading imports — the failures only show up at request time:
-#   apps/dashboard-bff        main.py + its data/ (vdt, gyg)
-#   tools                     the 7 emit_* producers (stdlib-only)
+#   apps/dashboard-bff             main.py + its data/ (vdt, gyg, risk_ep fixture)
+#   tools                         the emit_* producers
+#   third_party/open_ep_framework the vendored Omnirisk/EP spine — emit_risk_ep_facts.py
+#                                 does sys.path.insert(ROOT/third_party) then imports it
+#                                 (pure stdlib, no pip deps); /v1/risk/portfolio-facts needs it
 #   apps/hellgraph-service/seeds   gyg-supply-chain-causal.json (/v1/valuation/causal)
-#   schemas/eval              metric-*.schema.json (/v1/intelligence-superiority validates)
-# Missing any one = a 200 on /health and a 500 on the route that needs it — the
+#   schemas/eval                  metric-*.schema.json (/v1/intelligence-superiority validates)
+# Missing any one = a 200 on /health and a 500/503 on the route that needs it — the
 # estate's signature "healthy-looking, broken" shape. Copy exactly these, no more.
+# (emit_risk_ep_facts.py is NOT stdlib-only — it dogfoods third_party/open_ep_framework;
+# omitting that tree is what put dashboard-bff in CrashLoopBackOff before #1369 made the
+# import failure degrade to a per-endpoint 503 instead of a whole-service crash.)
 FROM python:3.11-slim
 
 RUN useradd -u 10001 -m -s /usr/sbin/nologin app
@@ -19,6 +25,7 @@ RUN pip install --no-cache-dir -r apps/dashboard-bff/requirements.txt
 
 COPY apps/dashboard-bff ./apps/dashboard-bff
 COPY tools ./tools
+COPY third_party/open_ep_framework ./third_party/open_ep_framework
 COPY apps/hellgraph-service/seeds ./apps/hellgraph-service/seeds
 COPY schemas/eval ./schemas/eval
 
