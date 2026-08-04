@@ -73,6 +73,24 @@ def test_cpu_throttle_parses_prometheus_result(monkeypatch):
     assert out == {"api-abc-1": 7.0, "api-abc-2": 0.0}
 
 
+def test_cpu_throttle_drops_nonfinite_values(monkeypatch):
+    # adversarial: Prometheus returns NaN/Inf for an absent series; int(NaN) later would crash
+    # EMISSION. The parser must drop non-finite values, never propagate them.
+    import io, json as _j
+    canned = _j.dumps({"status": "success", "data": {"result": [
+        {"metric": {"pod": "p-nan"}, "value": [1, "NaN"]},
+        {"metric": {"pod": "p-inf"}, "value": [1, "+Inf"]},
+        {"metric": {"pod": "p-ok"}, "value": [1, "3"]}]}}).encode()
+
+    class _R(io.BytesIO):
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(erc.urllib.request, "urlopen", lambda *a, **k: _R(canned))
+    out = erc.cpu_throttle_by_pod("http://prom", "ns", 300)
+    assert out == {"p-ok": 3.0}                          # NaN/Inf dropped, no crash
+    assert all(v == v and v not in (float("inf"), float("-inf")) for v in out.values())
+
+
 def test_cpu_verdict_reaches_proved_when_throttle_fired():
     # with a real throttle count the CPU limit can be PROVED, not stuck INCONCLUSIVE
     assert erc.expected_verdict(peak=900, limit=1000, fired_count=7,

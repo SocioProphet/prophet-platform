@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import ssl
 import subprocess
@@ -253,9 +254,14 @@ def cpu_throttle_by_pod(prometheus_url: str, ns: str, window_s: float) -> dict[s
     for res in data.get("data", {}).get("result", []):
         pod = (res.get("metric") or {}).get("pod", "")
         try:
-            out[pod] = float((res.get("value") or [None, "0"])[1])
+            val = float((res.get("value") or [None, "0"])[1])
         except (TypeError, ValueError):
             continue
+        # Prometheus returns NaN/Inf for absent or divide-by-zero series; int(NaN) would later
+        # raise and crash EMISSION, which must never happen for a best-effort signal. Drop them.
+        if not math.isfinite(val):
+            continue
+        out[pod] = val
     return out
 
 
