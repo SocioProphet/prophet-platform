@@ -29,6 +29,13 @@ drift-check:
 standards-check:
 	python3 tools/check_standards_lock.py
 
+# The meta-control: census every enforcement control and report which can actually be shown to
+# FAIL (has a negative control), which run on a schedule, which are meta-monitored. Reads the SOTA
+# scorecard from reality instead of by hand. Informational here; `controls_census.py
+# --fail-on-undiscriminating` is the gate form (turn it on once the current guards get self-tests).
+controls-census:
+	python3 tools/controls_census.py
+
 topology-check:
 	python3 tools/check_transport_topology.py
 
