@@ -1,0 +1,5 @@
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+# The vendored procyber.semantic subset (semantic_algebra + market_paradigm) is
+# stdlib-only by design, so it adds no runtime dependency here. See
+# third_party/procyber/VENDOR.json for its pins.

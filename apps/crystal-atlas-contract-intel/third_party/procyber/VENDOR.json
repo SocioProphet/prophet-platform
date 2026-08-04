@@ -1,0 +1,12 @@
+{
+  "files": {
+    "__init__.py": "cf7d03262dbff41da8dd32f1c2a26af245bcf079b7af85977083dae1f9bbcae9",
+    "market_paradigm.py": "3ec185a89f750c14081fd8c36b5ec3efa2fc3b8fb6a38fc23962546f84b9e47d",
+    "semantic_algebra.py": "c3cdc56dab4cb5edc4a65b5e139a1f022c0c2a40a1efe6886b69a5ff919c0068"
+  },
+  "note": "Minimal subset: this app consumes market_paradigm, which imports only semantic_algebra. Vendoring the whole kernel here would add surface this app never calls. Byte-identical to apps/identity-twin's tree at the same commit; tools/tests/test_vendor_coherence.py holds every VENDOR.json to one commit.",
+  "source_commit": "dc39fa3",
+  "source_path": "procyber/semantic",
+  "source_repo": "SocioProphet/ProCybernetica",
+  "spec_version": "0.2.0"
+}

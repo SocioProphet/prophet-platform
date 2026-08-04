@@ -237,6 +237,16 @@ jobs:
             working-directory: apps/identity-twin
             install: pip install -r requirements.txt -r requirements-test.txt
             test: pytest -q tests
+          # crystal-atlas-contract-intel. Gates the value-driver -> market-paradigm
+          # bridge: the epistemic_level mapping is asserted TOTAL against the shipped
+          # schema enum (a new level fails rather than defaulting permissive), tenant
+          # scoping refuses rather than filters, and widening a map onto further axes
+          # must be declared, never inferred. The procyber semantic subset is VENDORED
+          # and sha256-pinned, so this leg also catches vendor drift on edit.
+          - name: crystal-atlas-contract-intel
+            working-directory: apps/crystal-atlas-contract-intel
+            install: pip install -r requirements.txt -r requirements-test.txt
+            test: pytest -q tests
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2 (Copilot #1080: SHA-pinned — this workflow is the repo's only required check)
       - name: Setup Python
