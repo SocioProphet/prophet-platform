@@ -528,9 +528,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.emit_beacons and report["findings"]:
         d = Path(args.emit_beacons).expanduser()
         d.mkdir(parents=True, exist_ok=True)
+
+        def _safe(s: str) -> str:
+            # keep the filename inside DIR: no '/', '..', or odd chars can steer the write path.
+            # k8s names are already DNS-safe, but a finding name is data — sanitize defensively.
+            return "".join(c if (c.isalnum() or c in "._-") else "_" for c in str(s))[:120] or "x"
+
         for i, f in enumerate(report["findings"]):
             b = beacon_of(f)
-            (d / f"{b['kind_class']}-{b['system']}-{i}.json").write_text(json.dumps(b) + "\n")
+            (d / f"{_safe(b['kind_class'])}-{_safe(b['system'])}-{i}.json").write_text(json.dumps(b) + "\n")
         print(f"  emitted {len(report['findings'])} self-heal beacon(s) to {d}")
     return code
 

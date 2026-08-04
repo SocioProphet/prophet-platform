@@ -157,6 +157,22 @@ def test_emit_beacons_writes_one_file_per_finding(tmp_path, monkeypatch):
     assert b["kind_class"] == "app_degraded" and b["system"] == "svc-x"
 
 
+def test_emit_beacons_filename_is_path_safe(tmp_path, monkeypatch):
+    # adversarial: a finding name with path chars must not steer the write outside DIR
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "../../etc/evil"}, "status": {"health": {"status": "Degraded"},
+                                                            "sync": {"status": "Synced"}}}])
+    monkeypatch.setattr(dha, "collect_pods", lambda ns: [])
+    outdir = tmp_path / "beacons"
+    dha.main(["--namespace", "x", "--no-pods", "--emit-beacons", str(outdir)])
+    files = list(outdir.glob("*.json"))
+    assert len(files) == 1                       # written INSIDE outdir, not traversed out
+    assert files[0].parent == outdir             # the real safety property: it lands in the dir…
+    assert "/" not in files[0].name              # …because no path separator survives sanitization
+    import json
+    assert json.loads(files[0].read_text())["system"] == "../../etc/evil"  # content keeps the real name
+
+
 # ── pod classification ───────────────────────────────────────────────────────
 def test_running_pod_is_clean():
     pod = {"status": {"phase": "Running", "containerStatuses": [
