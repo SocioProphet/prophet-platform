@@ -81,8 +81,22 @@ func MarshalJSONFrame(service, method string, payload any, key [32]byte) (nonce 
     if _, err = rand.Read(nonce[:]); err != nil {
         return nonce, nil, err
     }
-    frame, _, err = tritrpcv1.EnvelopeWithTag(service, method, payloadBytes, nil, key, nonce)
+    frame, _, err = tritrpcv1.EnvelopeWithTagMode(CryptoSuiteMode(), service, method, payloadBytes, nil, key, nonce)
     return nonce, frame, err
+}
+
+// CryptoSuiteMode selects the outbound crypto suite from $TRITRPC_SUITE: default (unset or
+// "classic") keeps XChaCha20-Poly1305 (Mode 0, wire-identical to before); "fips" selects
+// HMAC-SHA256 (Mode 1, FIPS 198-1). Receivers verify whichever suite the frame's Mode field
+// declares, so a sender may be flipped to fips only after every receiver runs a build that
+// understands Mode 1 — a safe, staged cutover.
+func CryptoSuiteMode() byte {
+    switch strings.ToLower(strings.TrimSpace(os.Getenv("TRITRPC_SUITE"))) {
+    case "fips", "hmac", "hmac-sha256":
+        return tritrpcv1.ModeHMACSHA256
+    default:
+        return tritrpcv1.ModeXChaCha20Poly1305
+    }
 }
 
 func VerifyEnvelope(frame []byte, nonce [24]byte, key [32]byte) (*tritrpcv1.Envelope, error) {
@@ -97,11 +111,11 @@ func VerifyEnvelope(frame []byte, nonce [24]byte, key [32]byte) (*tritrpcv1.Enve
     if !env.AeadOn {
         return nil, errors.New("tritrpcbridge: AEAD must be enabled")
     }
-    aead, err := chacha20poly1305.NewX(key[:])
+    mode, err := tritrpcv1.CryptoMode(env)
     if err != nil {
         return nil, err
     }
-    if _, err := aead.Open(nil, nonce[:], env.Tag, aad); err != nil {
+    if err := tritrpcv1.VerifyTag(mode, key, nonce, aad, env.Tag); err != nil {
         return nil, fmt.Errorf("tritrpcbridge: tag verification failed: %w", err)
     }
     return env, nil
