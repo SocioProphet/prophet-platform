@@ -112,17 +112,6 @@ export const DOMAIN_MENU: NavGroup[] = [
     ],
   },
   {
-    label: 'Academy',
-    to: '/academy',
-    items: [
-      { label: 'Academy Overview', to: '/academy' },
-      { label: 'Homeschool · K-12', to: '/academy/homeschool' },
-      { label: 'University Degrees', to: '/academy/degrees' },
-      { label: 'Flagship Course · 8.01', to: '/academy/course/ocw-801' },
-      { label: 'Grounded Tutor', to: '/academy/tutor' },
-    ],
-  },
-  {
     label: 'Knowledge',
     to: '/knowledge/graph',
     items: [
@@ -201,7 +190,6 @@ export const OPERATOR_SHORTCUTS: NavLeaf[] = [
   { label: 'Research Capture', to: '/research' },
   { label: 'Reader', to: '/reader' },
   { label: 'Journal', to: '/journal' },
-  { label: 'Health Self (opt-in)', to: '/health' },
 ];
 
 // Agent Machine cockpit — live on-device surfaces backed by the Noetica
@@ -219,7 +207,6 @@ export const AGENT_COCKPIT: NavGroup[] = [
     items: [
       { label: 'Notebooks', to: '/studio?section=notebooks' },
       { label: 'Compute Plane', to: '/studio?section=compute' },
-      { label: 'Data Catalog', to: '/studio?section=catalog' },
       { label: 'Graph Explorer', to: '/studio?section=graph' },
       { label: 'Query Console', to: '/studio?section=query' },
       { label: 'Analytics', to: '/studio?section=analytics' },
@@ -232,7 +219,6 @@ export const AGENT_COCKPIT: NavGroup[] = [
       { label: 'Operations', to: '/studio?section=operations' },
       { label: 'Governance', to: '/studio?section=governance' },
       { label: 'Commons', to: '/studio?section=commons' },
-      { label: 'Agora (work + wiki)', to: '/agora' },
     ],
   },
   {
@@ -241,8 +227,13 @@ export const AGENT_COCKPIT: NavGroup[] = [
     items: [
       { label: 'Agentic OS', to: '/agentic-os' },
       { label: 'Control Plane', to: '/control-plane/org' },
+      { label: 'Executions Ledger', to: '/control-plane/executions' },
+      { label: 'Delivery Excellence (WBS)', to: '/delivery/wbs' },
+      { label: 'Cowork (collaboration)', to: '/delivery/cowork' },
+      { label: 'Containment (blast-radius)', to: '/control-plane/containment' },
       { label: 'Provenance (why a decision)', to: '/control-plane/provenance' },
       { label: 'Universe Viewer', to: '/universe' },
+      { label: 'Space Twin (4D)', to: '/space' },
       { label: 'Situations (n-ary)', to: '/situations' },
     ],
   },
@@ -266,14 +257,18 @@ export const AGENT_COCKPIT: NavGroup[] = [
       { label: 'Deploy', to: '/workstation/deploy' },
       { label: 'Services · DevSpaces', to: '/workstation/services' },
       { label: 'Terminal', to: '/workstation/terminal' },
-      { label: 'DevSecOps Workroom', to: '/workstation/devsecops' },
       { label: 'Add Local Repo', to: '/forge/import' },
     ],
   },
   {
     label: 'SourceOS',
-    to: '/nlboot',
+    to: '/sourceos/image-builder',
     items: [
+      { label: 'Image Builder', to: '/sourceos/image-builder' },
+      { label: 'My Builds', to: '/sourceos/builds' },
+      { label: 'Fleet', to: '/sourceos/fleet' },
+      { label: 'Cloud Broker', to: '/sourceos/cloud' },
+      { label: 'Mail', to: '/mail' },
       { label: 'NLBoot Evidence', to: '/nlboot' },
       { label: 'Operator Workbench', to: '/workbench' },
       { label: 'Code Search', to: '/code' },
@@ -331,6 +326,8 @@ export const DRAWER_SECTIONS: DrawerSection[] = [
     items: [
       { label: 'Knowledge Graph', to: '/knowledge/graph' },
       { label: 'Search', to: '/data/search' },
+      { label: 'Data Catalogue', to: '/data/catalogue' },
+      { label: 'Governed Acquisition', to: '/data/acquisition' },
       { label: 'Living Ontology', to: '/ontology' },
       { label: 'Noetica Chat', to: '/noetica' },
     ],

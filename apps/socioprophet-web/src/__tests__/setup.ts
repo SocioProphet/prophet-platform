@@ -9,10 +9,28 @@ import { beforeEach, vi } from 'vitest';
 import { config } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
+// Working in-memory localStorage. Node 26 ships a NATIVE global `localStorage` that is a
+// non-functional stub without --localstorage-file, and it shadows happy-dom's — so stores
+// that persist (research, control-plane audit, …) silently no-op under test. Install a real
+// one per test so persistence is exercised (production browsers use the real localStorage).
+class MemoryStorage implements Storage {
+  private m = new Map<string, string>();
+  get length() { return this.m.size; }
+  getItem(k: string) { return this.m.has(k) ? this.m.get(k)! : null; }
+  setItem(k: string, v: string) { this.m.set(k, String(v)); }
+  removeItem(k: string) { this.m.delete(k); }
+  clear() { this.m.clear(); }
+  key(i: number) { return [...this.m.keys()][i] ?? null; }
+  [name: string]: unknown;
+}
+
 beforeEach(() => {
   const pinia = createPinia();
   setActivePinia(pinia);
   config.global.plugins = [pinia];
+  const ls = new MemoryStorage();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: ls });
+  if (typeof window !== 'undefined') Object.defineProperty(window, 'localStorage', { configurable: true, value: ls });
 });
 
 class MapStub {

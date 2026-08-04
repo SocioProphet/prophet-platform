@@ -3,6 +3,9 @@ import { ref } from 'vue';
 import { useAuth } from '../stores/auth';
 import { useSettings } from '../stores/settings';
 import { meshBase, setMeshBase, meshToken, setMeshToken, checkMesh, DEFAULT_MESH_BASE, type MeshStatus } from '../config/mesh';
+import { onMounted } from 'vue';
+import { loadReceipts, type Receipts } from '../services/studioApi';
+import { govDecisions, type GovDecisionRecord } from '../services/agentMachineApi';
 
 const auth = useAuth();
 const settings = useSettings();
@@ -25,6 +28,33 @@ async function checkMeshConnection() {
 // persisted to localStorage; a live build wires these to the platform connection store.
 const giteaToken = ref(localStorage.getItem('sp.conn.gitea') ?? '');
 const savedNote = ref('');
+// ── Console: usage & receipts (the sovereign answer to a vendor console's usage page).
+// Everything below binds REAL planes: the evidence fabric's receipts feed and the
+// agent-machine governance ledger. Unreachable planes render as unreachable — no
+// invented numbers.
+// Page size for the receipts feed. Named because it caps how much of the ledger the
+// operator sees; a future paging control derives from this. The receipt-hash preview
+// length is bounded here for the same reason — a 60-char hash in the row would push
+// the layout wider than the settings shell.
+const RECEIPT_PAGE_SIZE = 8;
+const RECEIPT_PREVIEW_LEN = 18;
+const receipts = ref<Receipts | null>(null);
+const receiptsErr = ref('');
+const decisions = ref<GovDecisionRecord[] | null>(null);
+const decisionsErr = ref('');
+onMounted(async () => {
+  // The two feeds are independent — a slow governance ledger must not delay receipts,
+  // and vice versa. Promise.allSettled so one failing does not abort the other.
+  const [rReceipts, rDecisions] = await Promise.allSettled([
+    loadReceipts(RECEIPT_PAGE_SIZE),
+    govDecisions(),
+  ]);
+  if (rReceipts.status === 'fulfilled') receipts.value = rReceipts.value;
+  else receiptsErr.value = rReceipts.reason instanceof Error ? rReceipts.reason.message : String(rReceipts.reason);
+  if (rDecisions.status === 'fulfilled') decisions.value = rDecisions.value.decisions;
+  else decisionsErr.value = rDecisions.reason instanceof Error ? rDecisions.reason.message : String(rDecisions.reason);
+});
+
 function saveConnections() {
   localStorage.setItem('sp.conn.gitea', giteaToken.value);
   savedNote.value = 'Saved locally';
@@ -44,6 +74,7 @@ function saveConnections() {
       <a href="#appearance">Appearance</a>
       <a href="#operator">Operator mode</a>
       <a href="#connections">Connections</a>
+      <a href="#console">Console</a>
     </nav>
 
     <section id="profile" class="st-card">
@@ -113,6 +144,41 @@ function saveConnections() {
       </div>
       <p class="st-hint">Stored locally in this browser for now. A live build binds connection credentials to the platform connection store (Watson Studio-style integrations).</p>
     </section>
+
+    <section id="console" class="st-card">
+      <h2>Console — usage &amp; receipts</h2>
+      <p class="st-hint" style="margin:.1rem 0 .6rem;">Where a vendor console shows token usage, the cockpit shows <em>receipts</em>: every governed run is attributable, signed, and replayable. Live from the evidence fabric and the agent-machine governance ledger.</p>
+
+      <div class="st-row">
+        <span class="st-label">Verified-compute services</span>
+        <span v-if="receipts">
+          <span class="st-pill" :class="{ ok: receipts.services_reachable > 0 }">{{ receipts.services_reachable }}/{{ Object.keys(receipts.services).length }} reachable</span>
+        </span>
+        <span v-else-if="receiptsErr" class="st-mesh" :title="receiptsErr"><span class="st-dot"></span>evidence fabric: {{ receiptsErr }}</span>
+        <span v-else class="st-hint-inline">loading…</span>
+      </div>
+
+      <div v-if="receipts && receipts.receipts.length" class="st-receipts">
+        <div v-for="r in receipts.receipts" :key="`${r.service}:${r.correlation_id}`" class="st-receipt">
+          <span class="st-receipt-svc">{{ r.service }}</span>
+          <span class="st-receipt-kind">{{ r.kind ?? '—' }}</span>
+          <span class="st-receipt-verdict" :class="{ ok: r.verdict === 'ok' || r.verdict === 'sound' || r.verdict === 'merged' }">{{ r.verdict ?? '—' }}</span>
+          <span class="st-receipt-when">{{ r.received_at ?? '' }}</span>
+        </div>
+      </div>
+
+      <div class="st-row" style="margin-top:.5rem;">
+        <span class="st-label">Governed decisions (agent machine)</span>
+        <span v-if="decisions" class="st-pill">{{ decisions.length }} on ledger</span>
+        <span v-else-if="decisionsErr" class="st-mesh" :title="decisionsErr"><span class="st-dot"></span>agent machine: {{ decisionsErr }}</span>
+        <span v-else class="st-hint-inline">loading…</span>
+      </div>
+      <div v-if="decisions && decisions.length" class="st-hint" style="margin-top:.25rem;">
+        Latest: <code>{{ decisions[decisions.length - 1]!.decision }}</code> on run <code>{{ decisions[decisions.length - 1]!.run_id }}</code> by {{ decisions[decisions.length - 1]!.actor }} — receipt {{ decisions[decisions.length - 1]!.receipt.slice(0, RECEIPT_PREVIEW_LEN) }}…
+      </div>
+
+      <p class="st-hint">Per-provider token spend lands here once the mesh conductor exports per-key metering; the receipts feed above is the source it will roll up from.</p>
+    </section>
   </section>
 </template>
 
@@ -149,4 +215,13 @@ function saveConnections() {
 .st-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; }
 .st-dot.ok { background: #10b981; }
 .st-models { margin-top: .5rem; display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; font-size: .8rem; opacity: .8; }
+.st-pill.ok { border-color: #a7f3d0; color: #065f46; }
+.st-receipts { margin-top: .5rem; border: 1px solid #f1f5f9; border-radius: 8px; overflow: hidden; }
+.st-receipt { display: grid; grid-template-columns: 1.4fr 1fr .8fr .8fr; gap: .5rem; padding: .35rem .6rem; font-size: .78rem; border-bottom: 1px solid #f1f5f9; }
+.st-receipt:last-child { border-bottom: 0; }
+.st-receipt-svc { font-weight: 600; }
+.st-receipt-kind { opacity: .7; }
+.st-receipt-verdict { color: #991b1b; }
+.st-receipt-verdict.ok { color: #065f46; }
+.st-receipt-when { opacity: .55; text-align: right; }
 </style>

@@ -257,10 +257,10 @@ export interface Receipts { receipts: Receipt[]; count: number; services: Record
 const STUB_RECEIPTS: Receipts = {
   receipts: [
     { service: "hellgraph-service", correlation_id: "hg-9f2a", received_at: "just now", verdict: "ok", kind: "graph-write", bundle_ref: "/v1/receipts/hellgraph-service/hg-9f2a" },
-    { service: "sophos-reasoner", correlation_id: "owl-71c", received_at: "2m ago", verdict: "sound", kind: "reason", bundle_ref: "/v1/receipts/sophos-reasoner/owl-71c" },
+    { service: "owl-reasoner", correlation_id: "owl-71c", received_at: "2m ago", verdict: "sound", kind: "reason", bundle_ref: "/v1/receipts/owl-reasoner/owl-71c" },
     { service: "entity-resolution", correlation_id: "er-33b", received_at: "6m ago", verdict: "merged", kind: "resolve", bundle_ref: "/v1/receipts/entity-resolution/er-33b" },
   ],
-  count: 3, services: { "hellgraph-service": true, "sophos-reasoner": true, "entity-resolution": true }, services_reachable: 3,
+  count: 3, services: { "hellgraph-service": true, "owl-reasoner": true, "entity-resolution": true }, services_reachable: 3,
   detail_endpoint: "/v1/receipts/{service}/{correlation_id}",
 };
 
@@ -474,10 +474,7 @@ export interface PipelineStepDef { id: string; kind: string; inputs?: string[]; 
 export interface Pipeline { pipeline_id: string; name: string; steps: PipelineStepDef[]; step_count: number }
 export interface ModelVersion { model_id: string; version: string; stage: string; metrics: Record<string, number>; run?: string | null }
 export interface ModelEntry { name: string; versions: ModelVersion[] }
-// volume_trend: optional per-dataset ingest-volume series (row count over recent snapshots). When
-// the catalog backend supplies it the Catalog renders a live sparkline; otherwise the surface shows
-// a deterministic demo series (marked ~) — the same "shaped-like-real, live swaps in" seam as the rest.
-export interface Dataset { id: string; name: string; labels: string[]; connector?: string | null; epistemic_mode: string; columns: string[]; volume_trend?: number[] }
+export interface Dataset { id: string; name: string; labels: string[]; connector?: string | null; epistemic_mode: string; columns: string[] }
 export interface ComputeBackend { id: string; kind: string; note: string; entitled: boolean; default?: boolean }
 export interface Compute { backends: ComputeBackend[]; entitled_any: boolean; model: string }
 export interface Community { community: string; size: number; top_members: { id: string; label: string; degree: number }[]; epistemic_distribution: Record<string, number> }
@@ -522,33 +519,6 @@ export const loadPipelines = (project: string) => _read(`/api/studio/pipelines?p
 export const loadModels = (project: string) => _read(`/api/studio/models?project=${encodeURIComponent(project)}`, STUB_MODELS);
 export const loadCatalog = (project: string) => _read(`/api/studio/catalog?project=${encodeURIComponent(project)}`, STUB_CATALOG);
 export const loadCompute = (project: string) => _read(`/api/studio/compute?project=${encodeURIComponent(project)}`, STUB_COMPUTE);
-
-// Execution timeline events — real per-run timings (started_at + duration_ms) for the Operations
-// gantt. Live from the bff when available; a demo window otherwise. Self-contained + fault-tolerant
-// (returns the demo window on a missing/failed endpoint) so a not-yet-wired bff never breaks Ops.
-export interface ExecutionEvent { id: string; label: string; backend: string; kind: string; epistemic: string; status: string; started_at: number; duration_ms: number }
-function demoExecutions(): { executions: ExecutionEvent[] } {
-  const now = Date.now();
-  const mk = (id: string, label: string, backend: string, kind: string, epi: string, status: string, agoMs: number, dur: number): ExecutionEvent =>
-    ({ id, label, backend, kind, epistemic: epi, status, started_at: now - agoMs, duration_ms: dur });
-  return { executions: [
-    mk("x-a", "ETL → train", "mesh-k8s", "pipeline-step", "observed", "done", 9 * 60000, 132000),
-    mk("x-b", "sweep-lr", "mesh-k8s", "job", "observed", "done", 7 * 60000, 210000),
-    mk("x-c", "doc-ingest — governed", "byo-ray", "job", "derived", "done", 5 * 60000, 96000),
-    mk("x-d", "graphrag-communities", "mesh-k8s", "query", "verified", "done", 165000, 41000),
-    mk("x-e", "notebook cell 14", "mesh-k8s", "notebook-cell", "observed", "running", 90000, 90000),
-  ] };
-}
-export async function loadExecutions(project: string): Promise<{ executions: ExecutionEvent[] }> {
-  const stub = demoExecutions();
-  if (!BASE) return stub;
-  try {
-    const res = await fetch(`${BASE.replace(/\/$/, "")}/api/studio/executions?project=${encodeURIComponent(project)}`, { headers: { accept: "application/json" } });
-    if (!res.ok) return stub;
-    const d = await res.json();
-    return Array.isArray(d?.executions) && d.executions.length ? d : stub;
-  } catch { return stub; }
-}
 export const loadCommunities = (project: string) => _read(`/api/studio/communities?project=${encodeURIComponent(project)}`, STUB_COMMUNITIES);
 
 export async function runPipeline(input: { project: string; pipeline: string; status?: string }, token: string): Promise<{ run_id: string; status: string }> {
@@ -619,7 +589,7 @@ export async function loadNotebookAdapters(): Promise<{ default: string; adapter
 
 export async function createNotebookSession(input: { project: string; adapter?: string; name?: string }): Promise<NbSession> {
   const b = nbBase();
-  if (!b) return { id: "stub-" + Array.from(crypto.getRandomValues(new Uint8Array(3)), (n) => n.toString(16).padStart(2, "0")).join(""), project: input.project, adapter: input.adapter || "jupyterlab",
+  if (!b) return { id: "stub-" + Math.random().toString(16).slice(2, 8), project: input.project, adapter: input.adapter || "jupyterlab",
                    role: "scientific-notebook", mode: "session", kernel: "python3", name: input.name || "Notebook session", status: "stub", url: null };
   const r = await fetch(`${b}/api/studio/notebook/session`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
   if (!r.ok) throw new Error(`session failed (HTTP ${r.status})`);
@@ -975,4 +945,72 @@ export async function loadStudio(projectId?: string): Promise<StudioBundle> {
   const res = await fetch(`${BASE.replace(/\/$/, "")}/api/studio${q}`, { headers: { accept: "application/json" } });
   if (!res.ok) throw new Error(`studio load failed: ${res.status}`);
   return (await res.json()) as StudioBundle;
+}
+
+// ── Project compute settings (governed cluster + federated volunteer-mesh) ──
+// Renders the Studio "Compute" tab. Governed-compute view (region/enclave, data-class, TPM
+// attestation, policy-drift, legal-basis) + the two planes; mesh rides the agent-machine
+// inception-twin. Contract: schemas/control-plane/project-compute-setting.schema.json.
+export interface ComputeDeployment {
+  name: string;
+  type: "cluster" | "mesh";
+  status: string;
+  regionEnclave: string;
+  dataClass: string;
+  ownerRef: string;
+  iamRoles: string[];
+  attestation: { tpmVerified: boolean; firmwareHash: string };
+  policyDrift: { compliant: boolean; residencyPolicyRef: string };
+  legalBasis: { kind: string; ref: string };
+}
+export interface ComputeTrustedNode { nodeRef: string; hostRef: string; attestationRef: string }
+export interface ComputeSettings {
+  projectRef: string;
+  planes: {
+    governed: { enabled: boolean; clusterRef?: string; region?: string; defaultEnclave?: string };
+    mesh: {
+      enabled: boolean;
+      twinRef?: string;
+      trustedNodes?: ComputeTrustedNode[];
+      minTrust?: number;
+      revocation?: { required: boolean; propagationSeconds: number };
+    };
+  };
+  cryptoProfileRef: string;
+  federationCryptoProfileRef: string;
+  deployments: ComputeDeployment[];
+  degraded?: boolean;
+}
+
+const STUB_COMPUTE_SETTINGS = (project: string): ComputeSettings => ({
+  projectRef: project,
+  planes: {
+    governed: { enabled: true, clusterRef: "cluster:us-east-gov-1", region: "us-east", defaultEnclave: "US-East-Gov-1" },
+    mesh: {
+      enabled: true,
+      twinRef: "urn:srcos:agent-machine:a2a-state-machine:inception-twin-default",
+      trustedNodes: [
+        { nodeRef: "node:edge-a-01", hostRef: "urn:srcos:agent-machine:m2-asahi-local", attestationRef: "attest:edge-a-01" },
+        { nodeRef: "node:twin-k8s", hostRef: "urn:srcos:agent-machine:twin-k8s", attestationRef: "attest:twin-k8s" },
+      ],
+      minTrust: 3,
+      revocation: { required: true, propagationSeconds: 5 },
+    },
+  },
+  cryptoProfileRef: "crypto://tritrpc/fips",
+  federationCryptoProfileRef: "fedcrypto://fips/ecdsa",
+  deployments: [
+    { name: "FraudDetector-v2", type: "cluster", status: "running", regionEnclave: "US-East-Gov-1", dataClass: "PII-restricted", ownerRef: "user:j-rivera", iamRoles: ["Users"], attestation: { tpmVerified: true, firmwareHash: "sha256:1c8437…" }, policyDrift: { compliant: true, residencyPolicyRef: "policy://residency/us-gov" }, legalBasis: { kind: "DPA", ref: "DPA-001324578" } },
+    { name: "BatchRiskScore", type: "mesh", status: "stopped", regionEnclave: "EU-Sovereign-2", dataClass: "Trusted-TPM", ownerRef: "user:s-lee", iamRoles: ["Trusted"], attestation: { tpmVerified: true, firmwareHash: "sha256:aa0011…" }, policyDrift: { compliant: true, residencyPolicyRef: "policy://residency/eu-sovereign" }, legalBasis: { kind: "DPA", ref: "DPA-001324579" } },
+  ],
+  degraded: true,
+});
+
+export async function loadComputeSettings(project: string): Promise<ComputeSettings> {
+  const b = nbBase();
+  if (!b) return STUB_COMPUTE_SETTINGS(project);
+  const r = await fetch(`${b}/api/studio/compute/settings?project=${encodeURIComponent(project)}`, { headers: { accept: "application/json" } }).catch(() => null);
+  if (!r || !r.ok) return STUB_COMPUTE_SETTINGS(project);
+  const d = await r.json();
+  return Array.isArray(d?.deployments) ? (d as ComputeSettings) : STUB_COMPUTE_SETTINGS(project);
 }

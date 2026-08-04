@@ -5,20 +5,18 @@
 // Foundry but sovereign + multi-backend.
 import { ref, onMounted, watch } from "vue";
 import {
-  loadPipelines, runPipeline, loadModels, promoteModel, loadCompute, execute, loadCommunities, loadExecutions,
+  loadPipelines, runPipeline, loadModels, promoteModel, loadCatalog, loadCompute, execute, loadCommunities,
   EPISTEMIC_COLORS,
-  type Pipeline, type ModelEntry, type Compute, type Community, type ExecResult, type ExecutionEvent,
+  type Pipeline, type ModelEntry, type Dataset, type Compute, type Community, type ExecResult,
 } from "../../services/studioApi";
-import LineageDag from "./LineageDag.vue";
-import ExecutionTimeline from "./ExecutionTimeline.vue";
 
 const props = defineProps<{ project: string }>();
 
 const pipelines = ref<Pipeline[]>([]);
 const models = ref<ModelEntry[]>([]);
+const datasets = ref<Dataset[]>([]);
 const compute = ref<Compute | null>(null);
 const communities = ref<Community[]>([]);
-const executions = ref<ExecutionEvent[]>([]);
 const loading = ref(true);
 const err = ref("");
 const token = ref("");
@@ -26,12 +24,12 @@ const token = ref("");
 async function load() {
   loading.value = true; err.value = "";
   try {
-    const [p, m, cp, cm, ex] = await Promise.all([
-      loadPipelines(props.project), loadModels(props.project),
-      loadCompute(props.project), loadCommunities(props.project), loadExecutions(props.project),
+    const [p, m, c, cp, cm] = await Promise.all([
+      loadPipelines(props.project), loadModels(props.project), loadCatalog(props.project),
+      loadCompute(props.project), loadCommunities(props.project),
     ]);
-    pipelines.value = p.pipelines; models.value = m.models;
-    compute.value = cp; communities.value = cm.communities; executions.value = ex.executions;
+    pipelines.value = p.pipelines; models.value = m.models; datasets.value = c.datasets;
+    compute.value = cp; communities.value = cm.communities;
   } catch (e) { err.value = e instanceof Error ? e.message : "failed to load operations"; }
   finally { loading.value = false; }
 }
@@ -85,13 +83,6 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
     <p v-else-if="loading" class="msg">Loading operations…</p>
 
     <div v-else class="grid">
-      <!-- Execution timeline — real time-scaled gantt of recent runs -->
-      <section class="card wide" v-if="executions.length">
-        <header class="ch"><span class="ci">▦</span> Execution timeline<span class="tagline">live · time-scaled</span></header>
-        <ExecutionTimeline :events="executions" />
-        <p class="sub">Every bar is placed + sized from real timings (<b>started_at + duration</b>) on a shared axis, grouped by backend, with a live now-line and running tasks that grow to the present — a governed answer to the Databricks/Foundry run timeline. Each bar's stripe is the run's epistemic status.</p>
-      </section>
-
       <!-- Pay-gated compute -->
       <section class="card wide" v-if="compute">
         <header class="ch"><span class="ci">⚙</span> Compute<span class="tagline">pay-gated · sovereign · multi-backend</span></header>
@@ -150,13 +141,30 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
             <span class="pname">{{ p.name }}</span>
             <button class="run" @click="doRun(p.name)" :disabled="busy === p.name">▷ Run</button>
           </div>
-          <LineageDag :steps="p.steps" />
+          <div class="dag">
+            <template v-for="(s, i) in p.steps" :key="s.id">
+              <span class="step" :title="s.kind">{{ s.id }}</span><span v-if="i < p.steps.length - 1" class="arrow">→</span>
+            </template>
+          </div>
         </div>
         <p class="sub">A proof-carrying DAG with a governed run ledger; lineage IS the graph — beats Databricks Workflows / Foundry Pipeline Builder.</p>
       </section>
 
-      <!-- Data catalog moved to its own Studio section (StudioCatalog.vue) — density + epistemic
-           stripe + inline ingest-volume sparklines. Operations stays focused on run-time surfaces. -->
+      <!-- Data catalog -->
+      <section class="card" v-if="datasets.length">
+        <header class="ch"><span class="ci">▤</span> Data catalog<span class="score">{{ datasets.length }}</span></header>
+        <table class="cat">
+          <tbody>
+            <tr v-for="d in datasets" :key="d.id">
+              <td class="nm">{{ d.name }}</td>
+              <td><span v-if="d.connector" class="pill">{{ d.connector }}</span></td>
+              <td class="mono cols">{{ d.columns.join(", ") }}</td>
+              <td><span class="epi" :style="{ borderColor: color(d.epistemic_mode), color: color(d.epistemic_mode) }">{{ d.epistemic_mode }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="sub">Datasets are proof-carrying graph nodes — provenance + epistemic status native, not a bolt-on catalog.</p>
+      </section>
 
       <!-- GraphRAG communities -->
       <section class="card wide" v-if="communities.length">
@@ -223,6 +231,14 @@ function kv(o: Record<string, number>): string { return Object.entries(o).map(([
 /* pipelines */
 .pipe { margin-bottom: 8px; } .prow { display: flex; align-items: center; gap: var(--sp-2); }
 .pname { font-weight: 600; } .run { margin-left: auto; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); border-radius: var(--r-2); padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.dag { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.step { font-size: 11.5px; background: var(--sunken); border-radius: var(--r-2); padding: 2px 9px; } .arrow { color: var(--faint); }
+
+/* catalog */
+.cat { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cat td { padding: 5px 8px; border-bottom: 1px solid var(--sunken); } .cat tr:last-child td { border-bottom: 0; }
+.cat .nm { font-weight: 600; } .cat .cols { color: var(--muted); } .pill { font-size: 10px; background: var(--hairline); border-radius: var(--r-2); padding: 1px 7px; color: var(--muted); }
+.epi { font-size: 10px; border: 1px solid; border-radius: var(--r-1); padding: 1px 7px; }
 
 /* communities */
 .comms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }

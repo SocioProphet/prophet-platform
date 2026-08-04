@@ -29,7 +29,6 @@ export interface Docket {
   commentDeadline?: string;
   effectiveDate?: string;
   url?: string; // real source link when the docket is live (e.g. federalregister.gov)
-  supersededBy?: string; // docketId of a later authority that supersedes this (in whole or part)
 }
 
 export const dockets: Docket[] = [
@@ -53,16 +52,12 @@ export const dockets: Docket[] = [
   },
   {
     id: 'd-audit', cite: 'WG-AUD-07', title: 'Audit-Trail Guidance (Cross-Jurisdiction)', type: 'rule', jurisdiction: 'International', status: 'pending', updated: '2026-07-03T09:45:00-04:00',
-    summary: 'Recommends hash-sealed, replayable audit trails sufficient to reconstruct each high-stakes automated decision, interoperable with existing evidence frameworks.',
+    summary: 'Recommends hash-sealed, replayable audit trails for high-stakes automation; aligns with existing evidence frameworks.',
     agency: 'Cross-Jurisdiction Working Group',
     tags: ['audit-trail', 'evidence', 'interoperability'],
     affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT', 'JPM'], topics: ['Audit Trail'] },
-    impact: 'Regulated operators would have to retain reconstruction-grade logs — not summaries — for every high-stakes automated decision. For firms like MSFT and JPM running automated decisioning at scale, that is a materially higher retention and storage burden, and shifts the evidentiary default from "documented" to "replayable".',
-    citations: [
-      { cite: 'ODG-2026-114', title: 'Model-Provenance Disclosure Rule', docketId: 'd-provenance' },
-      { cite: 'EV-STD-3', title: 'Digital Evidence Interoperability Standard', docketId: 'd-evstd' },
-    ],
-    supersededBy: 'd-liability',
+    impact: 'Recommends hash-sealed, replayable audit trails sufficient to reconstruct each high-stakes decision — raising the evidentiary standard for automated systems in regulated industries.',
+    citations: [{ cite: 'ODG-2026-114', title: 'Model-Provenance Disclosure Rule', docketId: 'd-provenance' }],
     effectiveDate: 'on adoption',
     provenanceHash: 'sha256:wgaud07…41a', redline: [
       { type: 'ctx', text: 'Recommendation 3 — Evidentiary retention.' },
@@ -113,83 +108,6 @@ export const dockets: Docket[] = [
     provenanceHash: 'sha256:case4471…8fa', redline: [
       { type: 'ctx', text: 'Interim order — routing and inspection.' },
       { type: 'add', text: '  Convoys may transit under the inspection protocol in Annex B pending final determination.' },
-    ],
-  },
-  {
-    id: 'd-evstd', cite: 'EV-STD-3', title: 'Digital Evidence Interoperability Standard', type: 'rule', jurisdiction: 'International', status: 'enacted', updated: '2026-05-12T09:00:00-04:00',
-    summary: 'Common schema and exchange format for machine-generated evidence so audit records are portable across jurisdictions and tribunals.',
-    agency: 'International Standards Board',
-    tags: ['evidence', 'interoperability', 'standard'],
-    affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT'], topics: ['Evidence Standard', 'Interoperability'] },
-    impact: 'Sets the interchange format later guidance builds on. Once adopted, evidence produced under one regime is admissible under another — lowering the cost of cross-border compliance but fixing the record schema vendors must emit.',
-    citations: [],
-    effectiveDate: '2026-06-01T00:00:00-04:00',
-    provenanceHash: 'sha256:evstd3…7b1', redline: [
-      { type: 'ctx', text: 'Clause 2 — Record schema.' },
-      { type: 'add', text: '  Conforming systems shall emit evidence in the EV-STD-3 envelope (subject, decision, inputs-hash, replay-seed).' },
-    ],
-  },
-  {
-    id: 'd-liability', cite: 'DIR-2026-ASL', title: 'Automated-Systems Liability Directive', type: 'bill', jurisdiction: 'International', status: 'pending', updated: '2026-07-01T11:30:00-04:00',
-    summary: 'Establishes a rebuttable presumption of fault where an operator cannot produce a replayable record for a challenged automated decision; supersedes the retention recommendation in WG-AUD-07 Rec 3 with a binding standard.',
-    agency: 'Cross-Jurisdiction Working Group',
-    tags: ['liability', 'automated-decisions', 'audit-trail', 'evidence'],
-    affects: { sectors: ['Technology', 'Financials', 'Healthcare'], symbols: ['MSFT', 'JPM'], topics: ['Automated Decisions', 'Liability'] },
-    impact: 'Turns the audit-trail recommendation into a liability rule: no replayable record means the operator, not the claimant, carries the burden. This is the operative instrument that supersedes the earlier voluntary guidance — firms that treated WG-AUD-07 as optional are now exposed.',
-    citations: [{ cite: 'WG-AUD-07', title: 'Audit-Trail Guidance (Cross-Jurisdiction)', docketId: 'd-audit' }],
-    commentDeadline: '2026-08-15T23:59:00-04:00',
-    provenanceHash: 'sha256:dirasl…c40', redline: [
-      { type: 'ctx', text: 'Article 4 — Burden of proof.' },
-      { type: 'del', text: '  Claimant must establish the system acted wrongfully.' },
-      { type: 'add', text: '  Where the operator cannot produce a replayable record under EV-STD-3, fault is presumed and the operator bears the burden of rebuttal.' },
-    ],
-  },
-
-  // ── Case-law citator chain — the canonical Shepard's demo: a foundational precedent,
-  // a decision that distinguishes it, and a later decision that OVERRULES it. The citator
-  // flags the precedent red ("overruled") and the depth-of-treatment tally shows the split.
-  {
-    id: 'd-meridian', cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2024-03-11T10:00:00-04:00',
-    summary: 'Held that an operator of an automated decision system is liable only where the claimant proves the system departed from a documented internal standard.',
-    agency: 'Court of Appeals (9th Cir.)',
-    tags: ['automated-decisions', 'liability', 'precedent'],
-    affects: { sectors: ['Technology', 'Financials'], symbols: ['MSFT'], topics: ['Automated Decisions', 'Liability'] },
-    impact: 'For a decade this was the controlling standard: plaintiffs had to reverse-engineer an internal deviation to recover, which in practice shielded operators that kept only summary documentation.',
-    citations: [],
-    supersededBy: 'd-calder',
-    effectiveDate: '2024-03-11T00:00:00-04:00',
-    provenanceHash: 'sha256:meridian…a11', redline: [
-      { type: 'ctx', text: 'Holding — standard of liability.' },
-      { type: 'add', text: '  Liability attaches only on proof of departure from a documented internal standard.' },
-    ],
-  },
-  {
-    id: 'd-doe', cite: 'Doe v. Data Authority', title: 'Doe v. Data Authority', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2025-06-20T10:00:00-04:00',
-    summary: 'Distinguished Meridian on its facts: where no internal standard exists at all, the documented-deviation test cannot apply and the operator must show its process was reasonable.',
-    agency: 'District Court (S.D.N.Y.)',
-    tags: ['automated-decisions', 'liability', 'distinguished'],
-    affects: { sectors: ['Technology'], symbols: ['GOOGL'], topics: ['Automated Decisions'] },
-    impact: 'Carved out the "no-standard" case from Meridian without disturbing it — the first crack, narrowing where operators could hide behind the absence of documentation.',
-    citations: [{ cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', docketId: 'd-meridian' }],
-    effectiveDate: '2025-06-20T00:00:00-04:00',
-    provenanceHash: 'sha256:doe…b20', redline: [
-      { type: 'ctx', text: 'Holding — scope of Meridian.' },
-      { type: 'add', text: '  Where no internal standard exists, the operator must affirmatively show a reasonable process.' },
-    ],
-  },
-  {
-    id: 'd-calder', cite: 'Calder v. Meridian Logistics', title: 'Calder v. Meridian Logistics', type: 'case', jurisdiction: 'Federal', status: 'enacted', updated: '2026-06-15T10:00:00-04:00',
-    summary: 'Overruled Meridian: an operator that cannot produce a replayable record of a challenged automated decision is presumed at fault, aligning the common-law standard with the DIR-2026-ASL evidence regime.',
-    agency: 'Supreme Court',
-    tags: ['automated-decisions', 'liability', 'overruled', 'audit-trail'],
-    affects: { sectors: ['Technology', 'Financials', 'Healthcare'], symbols: ['MSFT', 'JPM'], topics: ['Automated Decisions', 'Liability'] },
-    impact: 'Flips the decade-old default: the burden now sits with the operator, and "we only kept summaries" is no longer a defense. Every firm relying on Meridian must revisit its retention posture.',
-    citations: [{ cite: 'Meridian Logistics v. State', title: 'Meridian Logistics v. State', docketId: 'd-meridian' }],
-    effectiveDate: '2026-06-15T00:00:00-04:00',
-    provenanceHash: 'sha256:calder…c15', redline: [
-      { type: 'ctx', text: 'Holding — overruling Meridian.' },
-      { type: 'del', text: '  Liability attaches only on proof of departure from a documented internal standard.' },
-      { type: 'add', text: '  Absent a replayable record, fault is presumed and the burden shifts to the operator.' },
     ],
   },
 ];
