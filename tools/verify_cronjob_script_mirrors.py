@@ -31,10 +31,15 @@ MIRRORS: list[tuple[str, str]] = [
 ]
 
 
-def main() -> int:
+def mirror_problems(root: Path, mirrors: list[tuple[str, str]]) -> list[str]:
+    """Pure seam: return one problem string per broken (canonical, mirror) pair.
+
+    Empty list == every mirror is byte-identical to its canonical source. Kept free of I/O
+    side effects and module globals so the teeth-test can drive drift/missing/identical
+    fixtures under tmp_path and prove the gate fires (never-fired == suspect)."""
     problems: list[str] = []
-    for canonical, mirror in MIRRORS:
-        cpath, mpath = ROOT / canonical, ROOT / mirror
+    for canonical, mirror in mirrors:
+        cpath, mpath = root / canonical, root / mirror
         if not cpath.is_file():
             problems.append(f"canonical missing: {canonical}")
             continue
@@ -44,6 +49,11 @@ def main() -> int:
         if cpath.read_bytes() != mpath.read_bytes():
             problems.append(
                 f"DRIFT: {mirror} != {canonical} — re-copy: cp {canonical} {mirror}")
+    return problems
+
+
+def main() -> int:
+    problems = mirror_problems(ROOT, MIRRORS)
     if problems:
         print(f"FAIL: {len(problems)} CronJob-script mirror problem(s):")
         for p in problems:
