@@ -12,11 +12,13 @@ export interface SurfaceContext {
   entityLabel?: string;   // e.g. 'SPX · S&P 500'
   detail?: string;        // e.g. '5,259.71 · -1.14%'
   route?: string;         // current path
+  text?: string;          // the surface's primary text — feeds the ubiquitous Extract dock (live IE)
 }
 
 export const useCockpit = defineStore('cockpit', () => {
   const dockOpen = ref(false);
   const graphOpen = ref(false);
+  const extractOpen = ref(false);
   const context = ref<SurfaceContext>({ surface: '' });
 
   function setContext(c: SurfaceContext) { context.value = c; }
@@ -25,6 +27,9 @@ export const useCockpit = defineStore('cockpit', () => {
   function toggleDock() { dockOpen.value = !dockOpen.value; }
   function toggleGraph() { graphOpen.value = !graphOpen.value; }
   function closeGraph() { graphOpen.value = false; }
+  // Ubiquitous IE: the Extract dock (live ie-engine) is available on every surface.
+  function toggleExtract() { extractOpen.value = !extractOpen.value; }
+  function closeExtract() { extractOpen.value = false; }
 
   // One-tap "ask Noetica about what I'm looking at": open the dock + send a
   // context-framed prompt into the shared chat session.
@@ -33,5 +38,5 @@ export const useCockpit = defineStore('cockpit', () => {
     useNoeticaChat().send(prompt);
   }
 
-  return { dockOpen, graphOpen, context, setContext, openDock, closeDock, toggleDock, toggleGraph, closeGraph, askAbout };
+  return { dockOpen, graphOpen, extractOpen, context, setContext, openDock, closeDock, toggleDock, toggleGraph, closeGraph, toggleExtract, closeExtract, askAbout };
 });
