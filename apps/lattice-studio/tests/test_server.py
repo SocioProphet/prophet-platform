@@ -1,6 +1,7 @@
 """Studio BFF smoke: healthz + the studio bundle (live fabric services unreachable in test → graceful degrade)."""
 from __future__ import annotations
 
+import json
 from urllib.parse import urlparse, parse_qs
 
 from fastapi.testclient import TestClient
@@ -1549,13 +1550,224 @@ def test_hdt_promote_to_delivered_is_attested(monkeypatch):
     assert ev["properties"]["hdt:promotedToState"] == "DELIVERED"
 
 
-def test_hdt_ontology_closes_the_three_twin_triangle():
+def test_hdt_ontology_closes_the_four_twin_square():
     b = client.get("/api/studio/hdt/ontology").json()
     assert b["omega_states"] == ["ABSENT", "SEEDED", "NORMALIZED", "LINKED", "TRUSTED", "ACTIONABLE", "DELIVERED"]
     deliv = next(s for s in b["omega_epistemic_lattice"] if s["state"] == "DELIVERED")
     assert deliv["epistemic_human"] == "attested" and deliv["canonical"]
-    assert set(b["three_twins_closed"]) >= {"knowledge", "human", "earth"}
+    # renamed three_twins_closed -> four_twins_closed (WS#53 adds the asset twin) -- additive superset,
+    # not a silent removal: knowledge/human/earth are still all present, "asset" is the new fourth entry.
+    assert set(b["four_twins_closed"]) >= {"knowledge", "human", "earth", "asset"}
     assert set(b["kfs_triad"]) == {"CBD", "CGT", "NHY"}
+
+
+# ── WS#53 AssetTwin tests — the fourth twin (claim/seal/configure/grant/revoke) ──────────────────────
+
+def _graph_and_identity_twin(seed=None, attest_ok=True):
+    """Like _stateful_graph, but also answers identity-twin's /attest so claim tests can exercise both
+    the SEALED (attest succeeds) and the honest-degradation (attest fails) paths."""
+    state, graph_fake = _stateful_graph(seed)
+
+    async def fake_req(client, method, url, json=None):
+        if "/attest" in url:
+            if attest_ok:
+                return ({"proof": "p", "verify_key": "vk", "medium_digest": "d", "records": 1, "d": 8}, None)
+            return (None, "identity-twin unreachable")
+        return await graph_fake(client, method, url, json)
+    return state, fake_req
+
+
+def test_asset_claim_requires_write_token(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "")
+    r = client.post("/api/studio/asset-twin/claim",
+                    json={"project": "team-x", "asset_type": "house", "name": "123 Main St", "owner_identity": "kim"})
+    assert r.status_code == 503
+
+
+def test_asset_claim_rejects_unknown_asset_type(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/asset-twin/claim",
+                    json={"project": "team-x", "asset_type": "spaceship", "name": "x", "owner_identity": "kim"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422 and "asset_type" in r.json()["detail"]
+
+
+def test_asset_claim_rejects_unknown_function_tag(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/asset-twin/claim",
+                    json={"project": "team-x", "asset_type": "house", "name": "x", "owner_identity": "kim",
+                          "function_tag": "entertainment"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422 and "function_tag" in r.json()["detail"]
+
+
+def test_asset_claim_seals_via_identity_twin_attest(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _graph_and_identity_twin(attest_ok=True)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/asset-twin/claim",
+                    json={"project": "team-x", "asset_type": "house", "name": "123 Main St", "owner_identity": "kim",
+                          "function_tag": "safety", "geo": {"lat": 1.0, "lng": 2.0}},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["state"] == "SEALED" and r["sealed"] is True and r["epistemic_mode"] == "attested" and r["sealError"] is None
+    node = state["nodes"][r["asset_id"]]["properties"]
+    assert node["seal_proof"] == "p" and node["seal_medium_digest"] == "d" and node["twin:hasAssetState"] == "SEALED"
+
+
+def test_asset_claim_degrades_honestly_when_identity_twin_unreachable(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _graph_and_identity_twin(attest_ok=False)
+    monkeypatch.setattr(srv, "_req", fake_req)
+
+    r = client.post("/api/studio/asset-twin/claim",
+                    json={"project": "team-x", "asset_type": "car", "name": "my car", "owner_identity": "kim"},
+                    headers={"Authorization": "Bearer T"}).json()
+    # the claim itself must NEVER be blocked on the seal succeeding — same discipline as
+    # hellgraph-service's GATEWAY_RECEIPTS honest degradation.
+    assert r["state"] == "CLAIMED" and r["sealed"] is False and r["epistemic_mode"] == "observed"
+    assert r["sealError"] == "identity-twin unreachable"
+    node = state["nodes"][r["asset_id"]]["properties"]
+    assert node["seal_proof"] == "" and node["sealed"] is False
+
+
+def test_asset_configure_advances_sealed_claim_to_configured(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:asset:house:1": {"id": "proj-teamx:asset:house:1", "labels": ["proj-teamx", "AssetTwin", "Claimed"],
+                                     "properties": {"state": "SEALED", "sealed": True, "asset_type": "house",
+                                                    "owner_identity": "kim", "geo": "{}"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/configure",
+                    json={"project": "team-x", "asset_id": "proj-teamx:asset:house:1", "function_tag": "climate_comfort"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["state"] == "CONFIGURED" and r["epistemic_mode"] == "attested"
+    assert state["nodes"]["proj-teamx:asset:house:1"]["properties"]["function_tag"] == "climate_comfort"
+
+
+def test_asset_configure_refuses_revoked_claim(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:asset:house:1": {"id": "proj-teamx:asset:house:1", "labels": ["proj-teamx", "AssetTwin"],
+                                     "properties": {"state": "REVOKED", "sealed": True}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/configure",
+                    json={"project": "team-x", "asset_id": "proj-teamx:asset:house:1", "note": "x"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 409
+
+
+def test_asset_configure_missing_asset_is_404(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({})
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/configure",
+                    json={"project": "team-x", "asset_id": "nope"}, headers={"Authorization": "Bearer T"})
+    assert r.status_code == 404
+
+
+def test_asset_grant_agentic_ops_model_actor_is_refused(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/asset-twin/grant-agentic-ops",
+                    json={"project": "team-x", "asset_id": "x", "allowed_actions": ["monitor"], "actor_kind": "model"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 403 and "human" in r.json()["detail"]["message"]
+
+
+def test_asset_grant_agentic_ops_requires_nonempty_scope(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    r = client.post("/api/studio/asset-twin/grant-agentic-ops",
+                    json={"project": "team-x", "asset_id": "x", "allowed_actions": [], "actor_kind": "human"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 422
+
+
+def test_asset_grant_agentic_ops_by_owner_promotes_and_writes_governs_edge(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "proj-teamx:asset:house:1": {"id": "proj-teamx:asset:house:1", "labels": ["proj-teamx", "AssetTwin"],
+                                     "properties": {"state": "CONFIGURED", "sealed": True, "owner_identity": "kim"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/grant-agentic-ops",
+                    json={"project": "team-x", "asset_id": "proj-teamx:asset:house:1",
+                          "allowed_actions": ["monitor", "toggle"], "conditions": {"hours": "09:00-21:00"},
+                          "actor": "kim", "actor_kind": "owner"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["state"] == "AGENTIC_ACTIVE" and r["allowed_actions"] == ["monitor", "toggle"]
+    asset = state["nodes"]["proj-teamx:asset:house:1"]["properties"]
+    assert asset["state"] == "AGENTIC_ACTIVE" and asset["epistemic_mode"] == "verified"
+    grant = state["nodes"][r["grant_id"]]["properties"]
+    assert json.loads(grant["allowed_actions"]) == ["monitor", "toggle"]
+    edge = next(e for e in state["edges"] if e["label"] == "governs")
+    assert edge["from"] == r["grant_id"] and edge["to"] == "proj-teamx:asset:house:1"
+
+
+def test_asset_grant_refuses_revoked_asset(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "a1": {"id": "a1", "labels": ["proj-teamx", "AssetTwin"], "properties": {"state": "REVOKED"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/grant-agentic-ops",
+                    json={"project": "team-x", "asset_id": "a1", "allowed_actions": ["monitor"], "actor_kind": "human"},
+                    headers={"Authorization": "Bearer T"})
+    assert r.status_code == 409
+
+
+def test_asset_revoke_is_immediate_and_terminal(monkeypatch):
+    import lattice_studio.server as srv
+    monkeypatch.setattr(srv, "STUDIO_WRITE_TOKEN", "T")
+    state, fake_req = _stateful_graph({
+        "a1": {"id": "a1", "labels": ["proj-teamx", "AssetTwin"], "properties": {"state": "AGENTIC_ACTIVE", "sealed": True}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    r = client.post("/api/studio/asset-twin/revoke", json={"project": "team-x", "asset_id": "a1"},
+                    headers={"Authorization": "Bearer T"}).json()
+    assert r["from_state"] == "AGENTIC_ACTIVE" and r["state"] == "REVOKED"
+    node = state["nodes"]["a1"]["properties"]
+    assert node["state"] == "REVOKED" and node["epistemic_mode"] == "observed" and node["revoked_at"]
+
+
+def test_list_asset_twins_filters_by_function_tag_and_owner(monkeypatch):
+    import lattice_studio.server as srv
+    state, fake_req = _stateful_graph({
+        "a1": {"id": "a1", "labels": ["proj-teamx", "AssetTwin"],
+               "properties": {"name": "house", "asset_type": "house", "owner_identity": "kim",
+                              "function_tag": "safety", "state": "SEALED", "sealed": True, "geo": "{}"}},
+        "a2": {"id": "a2", "labels": ["proj-teamx", "AssetTwin"],
+               "properties": {"name": "tv", "asset_type": "appliance", "owner_identity": "kim",
+                              "function_tag": "multimedia", "state": "CLAIMED", "sealed": False, "geo": "{}"}},
+        "a3": {"id": "a3", "labels": ["proj-teamx", "AssetTwin"],
+               "properties": {"name": "other's car", "asset_type": "car", "owner_identity": "sam",
+                              "function_tag": "safety", "state": "SEALED", "sealed": True, "geo": "{}"}},
+    })
+    monkeypatch.setattr(srv, "_req", fake_req)
+    b = client.get("/api/studio/asset-twins?project=team-x&function_tag=safety&owner_identity=kim").json()
+    assert b["count"] == 1 and b["assets"][0]["asset_id"] == "a1"
+
+
+def test_asset_twin_ontology_lattice():
+    b = client.get("/api/studio/asset-twin/ontology").json()
+    assert b["asset_states"] == ["CLAIMED", "SEALED", "CONFIGURED", "AGENTIC_ACTIVE", "REVOKED"]
+    revoked = next(s for s in b["asset_epistemic_lattice"] if s["state"] == "REVOKED")
+    assert revoked["terminal"] is True
+    assert set(b["function_taxonomy"]) == {"safety", "multimedia", "climate_comfort", "control_savings"}
+    assert "house" in b["asset_types"] and "network_device" in b["asset_types"]
 
 
 def test_model_board_endpoint_serves_the_sovereign_board():

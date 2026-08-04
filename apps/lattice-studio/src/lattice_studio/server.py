@@ -34,7 +34,7 @@ import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
-from lattice_studio import gaia, hdt, ontology, product_spine, shacl
+from lattice_studio import gaia, hdt, ontology, product_spine, shacl, twin_asset
 from lattice_studio.inference_gateway_leaderboard import notebook_fixture
 
 SERVICE_VERSION = "0.2.0"
@@ -68,6 +68,7 @@ FORGE_TOKEN = os.getenv("FORGE_TOKEN", "")
 FORGE_TIMEOUT = float(os.getenv("FORGE_TIMEOUT", "90"))
 # Universal Compute Plane gateway (any compute, one governed door).
 COMPUTE_GATEWAY_URL = os.getenv("COMPUTE_GATEWAY_URL", "http://compute-gateway:8080")
+IDENTITY_TWIN_URL = os.getenv("IDENTITY_TWIN_URL", "http://identity-twin:8080")
 GATEWAY_TOKEN = os.getenv("GATEWAY_TOKEN", "")
 GATEWAY_TIMEOUT = float(os.getenv("GATEWAY_TIMEOUT", "120"))
 
@@ -2165,12 +2166,257 @@ async def hdt_ontology(_auth: dict[str, Any] | None = Depends(require_read)) -> 
         "ontology": "HDT — Human Digital Twin", "namespace": hdt.HDT_NS,
         "omega_states": hdt.OMEGA_STATES, "omega_epistemic_lattice": lattice, "kfs_triad": hdt.TRIAD_ROLES,
         "invariant": "a model may advance an observation but only a human/clinician/policy actor may DELIVER to canonical human-actionable truth",
-        "three_twins_closed": {
+        "four_twins_closed": {
             "knowledge": "HellGraph fact · observed→attested",
             "human": "HDT Observation · OmegaState ABSENT→DELIVERED",
             "earth": "GAIA WorldSignal · PromotionState EvidenceOnly→Promoted",
-            "note": "all three twins now run one governed-evidence discipline in the same substrate — the promotion membrane IS the epistemic ladder, everywhere",
+            "asset": "AssetTwin Claim · AssetState CLAIMED→AGENTIC_ACTIVE (WS#53)",
+            "note": "all four twins now run one governed-evidence discipline in the same substrate — the promotion membrane IS the epistemic ladder, everywhere",
         },
+    }
+
+
+# ── WS#53: AssetTwin — the FOURTH twin, extending the three-twin closure to physical, owned property: a
+# house, car, appliance, or network device a real person claims (e.g. by clicking it on a map) and configures.
+# SAME discipline as the other three: a twin:Claim carries a twin:AssetState promotion lattice (CLAIMED ->
+# SEALED -> CONFIGURED -> AGENTIC_ACTIVE, + terminal REVOKED) that IS its epistemic status. The invariant
+# mirrors HDT's exactly: a model/agent may claim/seal/configure, but only the owning human identity (or a
+# policy actor) may promote an asset to AGENTIC_ACTIVE — standing autonomous authority over owned property is
+# a human decision, never a model's own escalation. Sealing is CRYPTOGRAPHIC, not epistemic: CLAIMED->SEALED
+# goes through identity-twin's /attest (Ed25519 + VRF context-binding on the vendored Multiverseal Twin,
+# apps/identity-twin) — a claim's provenance is a VerifiableReference, not a bare database row a caller could
+# forge. Degrades honestly: identity-twin unreachable -> the claim still lands at CLAIMED (sealed:false +
+# sealError), never blocked on the seal (the same pattern hellgraph-service's GATEWAY_RECEIPTS uses). ────────
+class AssetClaimRequest(BaseModel):
+    project: str = "default"
+    asset_type: str
+    name: str
+    owner_identity: str
+    function_tag: str | None = None
+    geo: dict[str, float] | None = None       # {"lat": ..., "lng": ...} — where MapPage.vue clicked
+    note: str | None = None
+
+
+def _asset_id(coll: str, asset_type: str, name: str) -> str:
+    return f"{coll}:asset:{asset_type}:{hashlib.sha256(_norm(name).encode()).hexdigest()[:12]}"
+
+
+@app.post("/api/studio/asset-twin/claim")
+async def claim_asset(req: AssetClaimRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Claim a physical asset as a proof-carrying AssetTwin node bound to an owning identity, sealed via
+    identity-twin's /attest. Enters at AssetState=CLAIMED (an assertion); a successful seal advances it to
+    SEALED (attested) in the same write — same discipline as HDT entering at SEEDED, not canonical."""
+    _require_write_token(authorization)
+    if req.asset_type not in twin_asset.ASSET_TYPES:
+        raise HTTPException(status_code=422, detail=f"asset_type must be one of {sorted(twin_asset.ASSET_TYPES)}")
+    if req.function_tag is not None and req.function_tag not in twin_asset.FUNCTION_TAXONOMY:
+        raise HTTPException(status_code=422, detail=f"function_tag must be one of {sorted(twin_asset.FUNCTION_TAXONOMY)}")
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    owner = req.owner_identity.strip()
+    if not owner:
+        raise HTTPException(status_code=422, detail="owner_identity required")
+    coll = proj_collection(req.project)
+    aid = _asset_id(coll, req.asset_type, name)
+    claimed_at = _now_iso()
+    claim_value = json.dumps({"asset_id": aid, "owner_identity": owner, "claimed_at": claimed_at}, sort_keys=True)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        att, aerr = await _req(client, "POST", f"{IDENTITY_TWIN_URL}/attest",
+                               json={"context": aid, "value": claim_value})
+        sealed = aerr is None
+        state = "SEALED" if sealed else "CLAIMED"
+        epi = twin_asset.epistemic_for_state(state, sealed)
+        prov = _workbench_prov(coll, epi, "studio/asset-twin")
+        prov["extractor"] = "lattice-studio/asset-twin-v0"
+        props = {"name": name, "asset_type": req.asset_type, "owner_identity": owner, "state": state,
+                 "twin:hasAssetState": state, "function_tag": req.function_tag or "",
+                 "geo": json.dumps(req.geo or {}), "note": req.note or "", "claimed_at": claimed_at,
+                 "revoked_at": "", "sealed": sealed, "seal_error": aerr or "",
+                 "seal_proof": (att or {}).get("proof", "") if sealed else "",
+                 "seal_verify_key": (att or {}).get("verify_key", "") if sealed else "",
+                 "seal_medium_digest": (att or {}).get("medium_digest", "") if sealed else "",
+                 "updated_at": claimed_at, **prov}
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": aid, "labels": [coll, "AssetTwin", "Claimed"], "properties": props})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"graph write failed: {werr}")
+    return {"asset_id": aid, "asset_type": req.asset_type, "owner_identity": owner, "state": state,
+            "epistemic_mode": epi, "proof_carrying": True, "sealed": sealed, "sealError": aerr,
+            "beat": "a claim is a VerifiableReference bound to your identity (Ed25519+VRF), not a database row you could forge"}
+
+
+class AssetConfigureRequest(BaseModel):
+    project: str = "default"
+    asset_id: str
+    function_tag: str | None = None
+    geo: dict[str, float] | None = None
+    note: str | None = None
+
+
+async def _load_asset(client: httpx.AsyncClient, coll: str, asset_id: str) -> dict[str, Any]:
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    node = next((n for n in raw if n.get("id") == asset_id and "AssetTwin" in (n.get("labels") or [])), None)
+    if not node:
+        raise HTTPException(status_code=404, detail=f"asset not found: {asset_id}")
+    return node
+
+
+@app.post("/api/studio/asset-twin/configure")
+async def configure_asset(req: AssetConfigureRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Advance a claimed asset to AssetState=CONFIGURED — update its function-taxonomy tag / geo / note.
+    Fail-closed: a revoked asset cannot be reconfigured without a fresh claim."""
+    _require_write_token(authorization)
+    if req.function_tag is not None and req.function_tag not in twin_asset.FUNCTION_TAXONOMY:
+        raise HTTPException(status_code=422, detail=f"function_tag must be one of {sorted(twin_asset.FUNCTION_TAXONOMY)}")
+    coll = proj_collection(req.project)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        node = await _load_asset(client, coll, req.asset_id)
+        p = dict(node.get("properties") or {})
+        if p.get("state") == "REVOKED":
+            raise HTTPException(status_code=409, detail="asset claim was revoked — claim it again before configuring")
+        sealed = bool(p.get("sealed"))
+        state = "CONFIGURED" if sealed else p.get("state", "CLAIMED")
+        p["state"] = state
+        p["twin:hasAssetState"] = state
+        p["epistemic_mode"] = twin_asset.epistemic_for_state(state, sealed)
+        if req.function_tag is not None:
+            p["function_tag"] = req.function_tag
+        if req.geo is not None:
+            p["geo"] = json.dumps(req.geo)
+        if req.note is not None:
+            p["note"] = req.note
+        p["updated_at"] = _now_iso()
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.asset_id, "labels": node.get("labels") or [coll, "AssetTwin"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"configure write failed: {werr}")
+    return {"asset_id": req.asset_id, "state": state, "epistemic_mode": p["epistemic_mode"], "proof_carrying": True}
+
+
+class AgenticOpsGrantRequest(BaseModel):
+    project: str = "default"
+    asset_id: str
+    allowed_actions: list[str]
+    conditions: dict[str, Any] = {}
+    actor: str | None = None
+    actor_kind: str = "human"
+
+
+@app.post("/api/studio/asset-twin/grant-agentic-ops")
+async def grant_agentic_ops(req: AgenticOpsGrantRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Promote a claimed asset to AssetState=AGENTIC_ACTIVE — attach a scoped grant (which actions an
+    autonomous agent may take, under what conditions) that Superconscious/agentplane must consult before
+    acting. Enforces the invariant: only a human/owner/policy actor may grant standing autonomous authority;
+    a model actor attempting this promotion is refused with 403, the same shape as HDT's DELIVERED gate."""
+    _require_write_token(authorization)
+    if not twin_asset.can_promote(req.actor_kind, "AGENTIC_ACTIVE"):
+        raise HTTPException(status_code=403, detail={
+            "message": "AssetTwin invariant — a model may claim/seal/configure an asset but only the owning "
+                       "human identity (or a policy actor) may grant it standing autonomous authority",
+            "actor_kind": req.actor_kind})
+    if not req.allowed_actions:
+        raise HTTPException(status_code=422, detail="allowed_actions must be non-empty — a grant with no scope is not a grant")
+    coll = proj_collection(req.project)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        node = await _load_asset(client, coll, req.asset_id)
+        p = dict(node.get("properties") or {})
+        if p.get("state") == "REVOKED":
+            raise HTTPException(status_code=409, detail="asset claim was revoked — cannot grant agentic ops on a revoked claim")
+        p["state"] = "AGENTIC_ACTIVE"
+        p["twin:hasAssetState"] = "AGENTIC_ACTIVE"
+        p["epistemic_mode"] = twin_asset.epistemic_for_state("AGENTIC_ACTIVE", bool(p.get("sealed")))
+        p["updated_at"] = _now_iso()
+        prov = _workbench_prov(coll, "verified", req.actor or "asset-twin/grant")
+        prov["extractor"] = "lattice-studio/asset-twin-grant-v0"
+        gid = f"{coll}:assetgrant:{hashlib.sha256((req.asset_id + _now_iso()).encode()).hexdigest()[:12]}"
+        grant_props = {"asset_id": req.asset_id, "allowed_actions": json.dumps(sorted(set(req.allowed_actions))),
+                       "conditions": json.dumps(req.conditions), "actor": req.actor or "", "actor_kind": req.actor_kind,
+                       "revoked_at": "", "granted_at": _now_iso(), **prov}
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.asset_id, "labels": node.get("labels") or [coll, "AssetTwin"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"grant writeback failed: {werr}")
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                   json={"id": gid, "labels": [coll, "AgenticOpsGrant", "Grant"], "properties": grant_props})
+        await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/edge",
+                   json={"label": "governs", "from": gid, "to": req.asset_id, "properties": prov})
+    return {"grant_id": gid, "asset_id": req.asset_id, "state": "AGENTIC_ACTIVE",
+            "allowed_actions": sorted(set(req.allowed_actions)), "proof_carrying": True,
+            "note": "Superconscious/agentplane must walk the 'governs' edge and honor allowed_actions/conditions before acting — this ships the grant's shape and gate; wiring the consuming side is tracked separately"}
+
+
+class AssetRevokeRequest(BaseModel):
+    project: str = "default"
+    asset_id: str
+    actor: str | None = None
+
+
+@app.post("/api/studio/asset-twin/revoke")
+async def revoke_asset(req: AssetRevokeRequest, authorization: str = Header(default="")) -> dict[str, Any]:
+    """Revoke a claim (and any agentic-ops grant riding on it) — AssetState -> REVOKED, terminal until a
+    fresh claim. Immediate (observed), not gated on a fresh cryptographic seal: revocation must never be
+    slower or weaker than the authority it withdraws."""
+    _require_write_token(authorization)
+    coll = proj_collection(req.project)
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        node = await _load_asset(client, coll, req.asset_id)
+        p = dict(node.get("properties") or {})
+        prev_state = p.get("state", "CLAIMED")
+        p["state"] = "REVOKED"
+        p["twin:hasAssetState"] = "REVOKED"
+        p["epistemic_mode"] = twin_asset.epistemic_for_state("REVOKED", bool(p.get("sealed")))
+        p["revoked_at"] = _now_iso()
+        p["updated_at"] = p["revoked_at"]
+        _, werr = await _req(client, "POST", f"{HELLGRAPH_URL}/api/graph/node",
+                             json={"id": req.asset_id, "labels": node.get("labels") or [coll, "AssetTwin"], "properties": p})
+        if werr:
+            raise HTTPException(status_code=502, detail=f"revoke write failed: {werr}")
+    return {"asset_id": req.asset_id, "from_state": prev_state, "state": "REVOKED", "proof_carrying": True}
+
+
+@app.get("/api/studio/asset-twins")
+async def list_asset_twins(project: str = "default", function_tag: str = "", owner_identity: str = "",
+                           _auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """Claimed assets, optionally filtered by the function taxonomy (safety/multimedia/climate_comfort/
+    control_savings) — the human-facing lens an owner reviews their claimed twins through, not by
+    protocol/device-service type — or by owner_identity (whose twins these are)."""
+    coll = proj_collection(project)
+    raw, err = await _fetch_raw_nodes(coll, 2000)
+    out = []
+    for n in raw:
+        if "AssetTwin" not in (n.get("labels") or []):
+            continue
+        p = n.get("properties") or {}
+        if function_tag and p.get("function_tag") != function_tag:
+            continue
+        if owner_identity and p.get("owner_identity") != owner_identity:
+            continue
+        try:
+            geo = json.loads(p.get("geo") or "{}")
+        except (ValueError, TypeError):
+            geo = {}
+        out.append({"asset_id": n.get("id"), "name": p.get("name"), "asset_type": p.get("asset_type"),
+                    "owner_identity": p.get("owner_identity"), "function_tag": p.get("function_tag") or None,
+                    "state": p.get("state", "CLAIMED"), "sealed": bool(p.get("sealed")), "geo": geo,
+                    "epistemic_mode": p.get("epistemic_mode"), "updated_at": p.get("updated_at")})
+    out.sort(key=lambda x: x.get("updated_at") or "", reverse=True)
+    return {"project": project, "assets": out, "count": len(out),
+            "beat": "claimed physical assets, browsable by function (safety/comfort/media/savings) not protocol",
+            "degraded": err}
+
+
+@app.get("/api/studio/asset-twin/ontology")
+async def asset_twin_ontology(_auth: dict[str, Any] | None = Depends(require_read)) -> dict[str, Any]:
+    """The AssetState lattice for the fourth twin."""
+    lattice = [{"state": s, "epistemic_sealed": twin_asset.epistemic_for_state(s, True),
+                "epistemic_unsealed": twin_asset.epistemic_for_state(s, False), "terminal": s == "REVOKED"}
+               for s in twin_asset.ASSET_STATES]
+    return {
+        "ontology": "AssetTwin — the fourth twin", "asset_states": twin_asset.ASSET_STATES,
+        "asset_epistemic_lattice": lattice, "asset_types": sorted(twin_asset.ASSET_TYPES),
+        "function_taxonomy": sorted(twin_asset.FUNCTION_TAXONOMY),
+        "invariant": "a model/agent may claim/seal/configure an asset but only the owning human identity (or a policy actor) may promote it to AGENTIC_ACTIVE",
     }
 
 
