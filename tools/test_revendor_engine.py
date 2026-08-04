@@ -415,3 +415,27 @@ def test_a_failed_verify_guard_rolls_back_all_mutations(tmp_path, monkeypatch):
         vd = root / "apps" / consumer / "vendor"
         assert not (vd / "socioprophet-hellgraph-0.4.45.tgz").exists(), "new tarball not removed on rollback"
         assert (vd / "socioprophet-hellgraph-0.4.40.tgz").exists(), "old tarball not restored on rollback"
+
+
+# ── advisory gate wired into execute: don't re-vendor a known-vulnerable version ────
+
+def test_advisory_gate_blocks_a_vulnerable_version_before_mutating(tmp_path):
+    root = _fixture(tmp_path)
+    plan = eng.RevendorPlan(to_version="0.4.45", tarball=REAL_045, expect_markers=[MARKER], consumers=CONSUMERS)
+    block = lambda v: {"recommendation": "block", "reason": f"known advisory for {v}",
+                       "advisories": [{"id": "GHSA-x"}]}
+    r = eng.execute(plan, root, apply=True, advisory_assessor=block)
+    assert r["status"] == "failed"
+    gate = next(s for s in r["steps"] if s["step"] == "advisory_gate")
+    assert gate["ok"] is False and "advisory" in gate["evidence"]["reason"]
+    for c in CONSUMERS:  # fail-closed: nothing mutated
+        assert (root / "apps" / c / "vendor" / "socioprophet-hellgraph-0.4.40.tgz").exists()
+
+
+def test_advisory_gate_allows_a_clean_version(tmp_path):
+    root = _fixture(tmp_path)
+    plan = eng.RevendorPlan(to_version="0.4.45", tarball=REAL_045, expect_markers=[MARKER], consumers=CONSUMERS)
+    allow = lambda v: {"recommendation": "allow", "reason": "no known advisories", "advisories": []}
+    r = eng.execute(plan, root, apply=True, advisory_assessor=allow)
+    assert r["status"] in ("applied", "noop")
+    assert any(s["step"] == "advisory_gate" and s["ok"] for s in r["steps"])

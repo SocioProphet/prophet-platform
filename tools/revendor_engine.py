@@ -433,7 +433,8 @@ def _rollback(state: dict) -> None:
                 f.unlink()
 
 
-def execute(plan: RevendorPlan, root: Path, apply: bool = False, human_approved: bool = False) -> dict:
+def execute(plan: RevendorPlan, root: Path, apply: bool = False, human_approved: bool = False,
+            advisory_assessor=None) -> dict:
     """Run the disciplined re-vendor. Returns a sealed receipt. Fail-closed AND atomic under
     apply: read-only proofs (marker, precheck) run before any mutation, and if a later step
     fails — including verify_guard, which necessarily runs against the mutated files — every
@@ -470,6 +471,18 @@ def execute(plan: RevendorPlan, root: Path, apply: bool = False, human_approved:
         record(abort.step, False, {"reason": abort.reason, **abort.evidence})
         receipt["status"] = "failed"
         return _seal(receipt)
+
+    # Fail-closed advisory gate: never re-vendor INTO a version with known advisories, and never
+    # into one we cannot check (advisory_check.assess is itself fail-closed on an unreachable
+    # service). The assessor is injectable/skippable (air-gap); a read-only proof, so it runs
+    # before any mutation. Given only a version, so private-package re-vendors pass cleanly.
+    if advisory_assessor is not None:
+        assessment = advisory_assessor(plan.to_version)
+        gate_ok = assessment.get("recommendation") != "block"
+        record("advisory_gate", gate_ok, assessment)
+        if not gate_ok:
+            receipt["status"] = "failed"
+            return _seal(receipt)
 
     if _already_current(plan, root):
         receipt["status"] = "noop"
@@ -572,6 +585,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--human-approved", action="store_true",
                     help="an approving EffectDecision is present; permits applying an effect whose "
                          "EffectRequest set requiresHumanApproval")
+    ap.add_argument("--skip-advisory", action="store_true",
+                    help="skip the fail-closed OSV advisory gate (air-gapped runs only)")
     args = ap.parse_args(argv)
 
     if args.from_effect_request:
@@ -587,8 +602,16 @@ def main(argv: list[str] | None = None) -> int:
     else:
         ap.error("provide --from-effect-request, or both --to-version and --tarball")
 
+    advisory_assessor = None
+    if not args.skip_advisory:
+        adv = importlib.util.module_from_spec(
+            importlib.util.spec_from_file_location("advisory_check", _HERE / "advisory_check.py"))
+        importlib.util.spec_from_file_location("advisory_check", _HERE / "advisory_check.py").loader.exec_module(adv)
+        advisory_assessor = lambda v, _a=adv: _a.assess("@socioprophet/hellgraph", "npm", v)
+
     apply = args.apply or args.open_pr
-    receipt = execute(plan, args.root, apply=apply, human_approved=args.human_approved)
+    receipt = execute(plan, args.root, apply=apply, human_approved=args.human_approved,
+                      advisory_assessor=advisory_assessor)
     if receipt["status"] == "applied" and args.open_pr:
         # Copilot #1062 round 2: the receipt IS the deliverable. If open_pr raises
         # (RevendorAbort for a non-applied state, subprocess.CalledProcessError from
