@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/action.next_best.recommended.v0.schema.json",
+  "title": "action.next_best.recommended.v0",
+  "description": "Emitted when the next-best-action / next-best-offer model recommends an ordered set of actions for a customer or entity given their current state and context.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "context_snapshot_ref", "actions",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":              { "type": "string", "minLength": 8 },
+    "emitted_at":            { "type": "string" },
+    "tenant_id":             { "type": "string" },
+    "producer":              { "type": "string" },
+    "entity_ref":            { "type": "string", "description": "Stable URI reference to the customer / entity for whom actions are recommended." },
+    "context_snapshot_ref":  { "type": "string", "description": "Ref to the context snapshot that seeded the ranking." },
+    "actions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["rank", "action_id", "action_type", "score"],
+        "properties": {
+          "rank":        { "type": "integer", "minimum": 1 },
+          "action_id":   { "type": "string" },
+          "action_type": { "type": "string", "description": "e.g. offer.upgrade, offer.cross-sell, engagement.call, retention.discount" },
+          "score":       { "type": "number", "description": "Model-assigned utility / propensity score for this action." },
+          "offer_ref":   { "type": "string", "description": "Optional ref to the offer catalogue entry, if action_type is an offer." },
+          "channel":     { "type": "string", "description": "Recommended delivery channel (email, push, in-app, agent)." },
+          "notes":       { "type": "string" }
+        }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

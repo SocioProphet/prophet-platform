@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/offering.recommended.v0.schema.json",
+  "title": "offering.recommended.v0",
+  "description": "Emitted when a collaborative-filtering / co-clustering recommender generates a ranked list of offerings (products, content, services) for an entity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "recommendation_context", "offerings",
+    "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":               { "type": "string", "minLength": 8 },
+    "emitted_at":             { "type": "string" },
+    "tenant_id":              { "type": "string" },
+    "producer":               { "type": "string" },
+    "entity_ref":             { "type": "string" },
+    "recommendation_context": { "type": "string", "description": "Context key (e.g. homepage, post-purchase, onboarding)." },
+    "offerings": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["rank", "offering_id", "score"],
+        "properties": {
+          "rank":        { "type": "integer", "minimum": 1 },
+          "offering_id": { "type": "string" },
+          "score":       { "type": "number", "description": "Predicted affinity / collaborative score." },
+          "cluster_id":  { "type": "string", "description": "Co-cluster the entity was assigned to for this recommendation." },
+          "reason_code": { "type": "string", "description": "Human-readable shorthand for the principal signal (e.g. co-purchase, collaborative, trending-in-segment)." }
+        }
+      }
+    },
+    "epistemic_level": { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string" },
+        "scored_at":     { "type": "string" }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}

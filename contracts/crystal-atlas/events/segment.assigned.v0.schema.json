@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.dev/schemas/crystal-atlas/segment.assigned.v0.schema.json",
+  "title": "segment.assigned.v0",
+  "description": "Emitted when a segmentation/clustering model assigns an entity to a named segment or cluster. Carries the assignment rationale and the segment's descriptive profile.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id", "emitted_at", "tenant_id", "producer",
+    "entity_ref", "segment_id", "segment_run_id",
+    "assignment_confidence", "epistemic_level", "provenance"
+  ],
+  "properties": {
+    "event_id":              { "type": "string", "minLength": 8 },
+    "emitted_at":            { "type": "string" },
+    "tenant_id":             { "type": "string" },
+    "producer":              { "type": "string" },
+    "entity_ref":            { "type": "string" },
+    "segment_id":            { "type": "string", "description": "Stable identifier for the segment / cluster the entity is assigned to." },
+    "segment_label":         { "type": "string", "description": "Human-readable segment name." },
+    "segment_run_id":        { "type": "string", "description": "Identifies the clustering run that produced this segment set." },
+    "assignment_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "epistemic_level":       { "enum": ["proved", "bounded", "empirical", "synthetic", "speculative", "rejected"] },
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model_id", "model_version", "method", "scored_at"],
+      "properties": {
+        "model_id":      { "type": "string" },
+        "model_version": { "type": "string" },
+        "method":        { "type": "string", "description": "e.g. k-means, co-clustering, HDBSCAN" },
+        "scored_at":     { "type": "string" },
+        "k":             { "type": "integer", "minimum": 2, "description": "Number of clusters in this run, when applicable." }
+      }
+    },
+    "centroid_proximity": { "type": "number", "description": "Distance or similarity to the segment centroid (higher = closer), algorithm-specific scale." },
+    "neighbouring_segments": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["segment_id", "distance"],
+        "properties": {
+          "segment_id": { "type": "string" },
+          "distance":   { "type": "number" }
+        }
+      }
+    },
+    "membrane_decision_ref": { "type": "string" },
+    "non_claims": { "type": "array", "items": { "type": "string" } }
+  }
+}
