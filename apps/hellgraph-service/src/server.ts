@@ -51,8 +51,8 @@ import { askGraph, retrieveGrounding, retrieveGroundingAuto, synthesisEnabled, s
 import { pagerank, connectedComponents, bfs, sssp, cdlp, lcc, analyticsBackend, dataScope } from './analytics.js'
 import { initAuth, authorize, type AuthState } from './auth.js'
 import {
-  initTenant, tenantPrincipal, tenantScope, scopeForRead, assertWriteTenant, refuseUnscopable,
-  type TenantState,
+  initTenant, tenantActive, tenantPrincipal, tenantScope, scopeForRead, assertWriteTenant,
+  refuseUnscopable, tenantAuditLog, type TenantState,
 } from './tenant.js'
 import { assembleOrgans } from './organs.js'
 import { initMembrane, handleMembrane, membraneCheckNodeWrite, type MembraneState } from './membrane.js'
@@ -130,16 +130,25 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
   const authDenied = authorize(auth, req, url)
   if (authDenied) return void json(res, authDenied.code, authDenied.body)
 
-  // Tenant/op_set isolation (tenant.ts): with TENANT_ENFORCE=on — (1) refuse endpoints that run in the
-  // fenced engine and can't be scoped here; (2) resolve the caller's read scope (deny a tokenless-tenant
-  // or an unentitled op_set); (3) expose `gv`, a view of the graph filtered to the caller's tenant/op_set
-  // that every read uses instead of `g`. Off ⇒ principal=null, gv===g — behaviour identical to today.
+  // Tenant/op_set isolation (tenant.ts). TENANT_ENFORCE ∈ {off, audit, on}:
+  //   on    → refuse unscopable endpoints, deny tokenless/unentitled reads, scope every read to `gv`.
+  //   audit → compute the SAME decisions but only LOG them ("[tenant-audit] ...") and ALLOW — the dry
+  //           run that surfaces which callers would break, before enforcing. gv === g (nothing scoped).
+  //   off   → principal=null, gv===g — behaviour identical to today.
+  const principal = tenantActive(tenant) ? tenantPrincipal(auth, req) : null
   const unscopable = refuseUnscopable(tenant, url.pathname)
-  if (unscopable) return void json(res, unscopable.code, unscopable.body)
-  const principal = tenant.enforce ? tenantPrincipal(auth, req) : null
+  if (unscopable) {
+    if (tenant.enforce) return void json(res, unscopable.code, unscopable.body)
+    tenantAuditLog(req, url, principal, unscopable)
+  }
   const readScope = scopeForRead(tenant, principal, url)
-  if (readScope && 'code' in readScope) return void json(res, readScope.code, readScope.body)
-  const gv = readScope ? tenantScope(g, readScope.tenant, readScope.opSet) : g
+  if (readScope && 'code' in readScope) {
+    if (tenant.enforce) return void json(res, readScope.code, readScope.body)
+    tenantAuditLog(req, url, principal, readScope)
+  }
+  // Scope reads ONLY under enforce; in audit/off gv === g (the decision was logged, not applied).
+  const gv = (tenant.enforce && readScope && !('code' in readScope))
+    ? tenantScope(g, readScope.tenant, readScope.opSet) : g
 
   // Membrane governance surface (membrane.ts): POST /api/membrane/decide. Same port.
   if (url.pathname.startsWith('/api/membrane/')) {
@@ -353,7 +362,10 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
         if (!id || !Array.isArray(labels)) throw new Error('id and labels[] required')
         // Tenant guard: no cross-tenant (or unlabeled) write when TENANT_ENFORCE=on.
         const tw = assertWriteTenant(tenant, principal, properties)
-        if (tw) return json(res, tw.code, tw.body)
+        if (tw) {
+          if (tenant.enforce) return json(res, tw.code, tw.body)
+          tenantAuditLog(req, url, principal, tw)
+        }
         // Membrane B-after-A gate (membrane.ts): an ExecutionReport write REQUIRES an
         // approved EffectDecision; EffectDecision nodes mint only via /api/membrane/decide.
         const gate = membraneCheckNodeWrite(membrane, g, { id, labels, properties })
@@ -371,7 +383,10 @@ function requestHandler(req: http.IncomingMessage, res: http.ServerResponse): vo
         if (!label || !from || !to) throw new Error('label, from, to required')
         // Tenant guard: no cross-tenant (or unlabeled) write when TENANT_ENFORCE=on.
         const tw = assertWriteTenant(tenant, principal, properties)
-        if (tw) return json(res, tw.code, tw.body)
+        if (tw) {
+          if (tenant.enforce) return json(res, tw.code, tw.body)
+          tenantAuditLog(req, url, principal, tw)
+        }
         g.addEdge(label, from, to, (properties ?? {}) as Record<string, never>)
         json(res, 200, { ok: true })
       } catch (e) { json(res, 400, { error: String(e) }) }
