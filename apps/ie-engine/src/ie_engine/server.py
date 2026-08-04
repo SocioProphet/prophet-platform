@@ -114,6 +114,21 @@ OCEAN_LEXICON: dict[str, dict[str, set[str]]] = {
 # even lexicon-dense text rarely exceeds ~10-15% single-category word density; it is NOT fit to
 # any labeled data (none exists for this task — see _personality() docstring).
 TRAIT_SATURATION_CAP = 0.12
+# Tone (multi-class emotion) — same hand-built keyword-set pattern as POS/NEG above, just split
+# into Watson Tone Analyzer's document-tone categories instead of a single pos/neg axis. This is
+# a lexicon heuristic (dict[str, set[str]] keyword matching), NOT a trained emotion classifier —
+# same honesty as the sentiment lexicon it sits next to; see `_extract()`'s `tone.method` and
+# `provenance.sentiment_method` in the response, and SocialSignals.vue / NlpExtractionBench.vue
+# in socioprophet-web, which surface this with the same "heuristic, not a trained model" wording.
+ANGER = {"angry", "anger", "furious", "fury", "outrage", "outraged", "rage", "hostile", "hostility",
+         "irate", "resent", "resentment", "indignant", "incensed"}
+JOY = {"happy", "happiness", "joy", "joyful", "delight", "delighted", "excited", "excitement",
+       "celebrate", "celebration", "pleased", "glad", "thrilled", "cheerful", "optimistic"}
+SADNESS = {"sad", "sadness", "sorrow", "grief", "mourn", "mourning", "unhappy", "disappoint",
+           "disappointed", "disappointing", "regret", "despair", "gloom", "gloomy", "heartbroken"}
+FEAR = {"fear", "afraid", "scared", "anxious", "anxiety", "worry", "worried", "worrying", "dread",
+        "panic", "threat", "threaten", "threatened", "alarm", "alarmed", "nervous"}
+EMOTIONS: dict[str, set[str]] = {"anger": ANGER, "joy": JOY, "sadness": SADNESS, "fear": FEAR}
 
 class TextReq(BaseModel):
     text: str
@@ -163,16 +178,90 @@ def _extract(text: str) -> dict[str, Any]:
         claims.append({"type": "HEDGE" if hedged else "ASSERT", "text": sent.text.strip(),
                        "verifiable": (not hedged) and has_fact})
 
-    # sentiment: real polarity lexicon
+    # sentiment: real polarity lexicon (document-level — kept as-is; consumers such as
+    # socioprophet-web's NlpExtractionBench.vue / SocialSignals.vue read this field directly)
     lemmas = [w.lemma_.lower() for w in doc if w.is_alpha]
     p = sum(1 for w in lemmas if w in POS); n = sum(1 for w in lemmas if w in NEG)
     score = round((p - n) / max(len(lemmas), 1), 3)
     label = "positive" if score > 0.02 else "negative" if score < -0.02 else "neutral"
 
+    # tone: multi-class emotion, same lexicon-heuristic method as sentiment above (Gap 1 vs.
+    # Watson Tone Analyzer's document-tone categories: anger/joy/sadness/fear)
+    n_tok = max(len(lemmas), 1)
+    emo_counts = {name: sum(1 for w in lemmas if w in words) for name, words in EMOTIONS.items()}
+    emotions = {name: round(c / n_tok, 3) for name, c in emo_counts.items()}
+    dominant = max(emotions, key=emotions.get) if any(emo_counts.values()) else None
+    tone = {"emotions": emotions, "dominant": dominant,
+            "method": "hand-built keyword-set lexicon (heuristic), not a trained emotion classifier"}
+
+    # entity-level sentiment (Gap 2): attribute each POS/NEG lexicon word to the entity/entities
+    # its dependency-parse relation attaches to, reusing the same nsubj/dobj/attr/pobj walk the
+    # relation extraction above already does — not new infrastructure, just aimed at sentiment
+    # words instead of arbitrary verbs. Document-level `sentiment` above is unchanged/still present.
+    entity_sentiment = _entity_sentiment(doc, seen)
+
     return {"entities": entities[:24], "relations": rel_out[:16], "claims": claims[:12],
             "topics": topics, "sentiment": {"label": label, "score": score},
+            "tone": tone, "entity_sentiment": entity_sentiment,
             "counts": {"entities": len(seen), "relations": len(rel_out), "claims": len(claims), "tokens": len(doc)},
-            "provenance": {"model": "spaCy en_core_web_sm", "extractor": "ie-engine", "real": True}}
+            "provenance": {"model": "spaCy en_core_web_sm", "extractor": "ie-engine", "real": True,
+                           "sentiment_method": "hand-built polarity/emotion lexicon (heuristic keyword "
+                                                "matching over spaCy lemmas), not a trained classifier"}}
+
+
+def _entity_sentiment(doc, seen: dict[str, dict]) -> list[dict]:
+    """Attribute POS/NEG lexicon words to the entity(ies) they are syntactically attached to.
+
+    Heuristic only (same hand-built keyword-set method as document sentiment/tone above, not a
+    trained aspect-based-sentiment model): for each sentiment word, candidate entities are those
+    reachable via its dependency-tree ancestors/subtree, plus — mirroring the SVO relation walk
+    above — the nsubj/nsubjpass/dobj/attr/dative/prep-pobj children of its governing verb.
+    """
+    tok_ent: dict[int, str] = {}
+    for e in doc.ents:
+        key = e.text.strip()
+        if key in seen:
+            for tok in e:
+                tok_ent[tok.i] = key
+
+    hits: dict[str, list[str]] = {}
+
+    def attach(word, polarity: str) -> None:
+        cands: set[str] = set()
+        for a in list(word.ancestors) + [word]:
+            if a.i in tok_ent:
+                cands.add(tok_ent[a.i])
+        for t in word.subtree:
+            if t.i in tok_ent:
+                cands.add(tok_ent[t.i])
+        verb = word if word.pos_ == "VERB" else word.head
+        for child in verb.children:
+            if child.dep_ in ("nsubj", "nsubjpass", "dobj", "attr", "dative") and child.i in tok_ent:
+                cands.add(tok_ent[child.i])
+            if child.dep_ == "prep":
+                for gc in child.children:
+                    if gc.dep_ == "pobj" and gc.i in tok_ent:
+                        cands.add(tok_ent[gc.i])
+        for key in cands:
+            hits.setdefault(key, []).append(polarity)
+
+    for w in doc:
+        if not w.is_alpha:
+            continue
+        lemma = w.lemma_.lower()
+        if lemma in POS:
+            attach(w, "positive")
+        elif lemma in NEG:
+            attach(w, "negative")
+
+    out = []
+    for key, polarities in hits.items():
+        pc = polarities.count("positive"); nc = polarities.count("negative")
+        s = round((pc - nc) / len(polarities), 3)
+        lbl = "positive" if s > 0.02 else "negative" if s < -0.02 else "neutral"
+        out.append({"entity": key, "label": lbl, "score": s, "mentions": len(polarities)})
+    out.sort(key=lambda x: (-x["mentions"], x["entity"]))
+    return out
 
 def _personality(text: str) -> dict[str, Any]:
     """Lexicon-based Big-Five (OCEAN) scorer — a coarse heuristic, NOT a validated psychometric

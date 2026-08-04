@@ -7,10 +7,16 @@ const BASE = resolveBase('ie', 'VITE_IE_BASE', '/svc/ie');
 export interface Entity { text: string; type: string; spacy_label?: string; mentions?: number; count?: number }
 export interface Relation { from: string; relation: string; to: string }
 export interface Claim { type: 'ASSERT' | 'HEDGE'; text: string; verifiable: boolean }
+// Tone (multi-class emotion) and entity-level sentiment are both lexicon heuristics — same
+// hand-built keyword-set method as `sentiment` below, NOT trained classifiers. Keep the "heuristic,
+// not a trained model" framing wherever these are shown (see SocialSignals.vue's Bluesky toggle).
+export interface Tone { emotions: { anger: number; joy: number; sadness: number; fear: number }; dominant: string | null; method: string }
+export interface EntitySentiment { entity: string; label: string; score: number; mentions: number }
 export interface Extraction {
   entities: Entity[]; relations: Relation[]; claims: Claim[]; topics: Entity[];
-  sentiment: { label: string; score: number }; counts: Record<string, number>;
-  provenance: { model: string; extractor: string; real: boolean };
+  sentiment: { label: string; score: number }; tone?: Tone; entity_sentiment?: EntitySentiment[];
+  counts: Record<string, number>;
+  provenance: { model: string; extractor: string; real: boolean; sentiment_method?: string };
 }
 export interface GraphWrite extends Extraction { ok: boolean; nodes_written: number; edges_written: number; graph: string }
 
