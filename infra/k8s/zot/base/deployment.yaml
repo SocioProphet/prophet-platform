@@ -47,14 +47,19 @@ spec:
           # only reason it ever came back). A registry that cannot survive its own restart is a
           # latent outage waiting for the next node drain or config change.
           #
-          # startupProbe suspends liveness/readiness until the first success, then hands over:
-          # 30 x 10s = up to 5 minutes to finish the restore, while STILL killing a genuinely
-          # hung boot. Liveness keeps its tight loop afterwards, so steady-state detection of a
+          # startupProbe suspends liveness/readiness until the first success, then hands over.
+          # MEASURED, not guessed: 30 x 10s (5 min) was still too short — the pod was killed at
+          # exactly 5 minutes on 2026-08-04 and the registry 502'd. The dominant boot cost is not
+          # the dedupe restore but RETENTION POLICY EVALUATION, which walks every repo and tag
+          # ('applied policy' / 'will keep tag' dominate the boot log). Both scale with registry
+          # size, so this budget must be generous or it becomes a self-inflicted outage every
+          # time the registry grows. 180 x 10s = 30 minutes, while STILL killing a genuinely hung
+          # boot. Liveness keeps its tight 20s loop afterwards, so steady-state detection of a
           # wedged process is unchanged.
           startupProbe:
             tcpSocket: { port: 5000 }
             periodSeconds: 10
-            failureThreshold: 30
+            failureThreshold: 180
           readinessProbe:
             tcpSocket: { port: 5000 }
             initialDelaySeconds: 10
