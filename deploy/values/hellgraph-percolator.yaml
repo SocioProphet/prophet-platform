@@ -1,0 +1,47 @@
+# hellgraph-percolator — the live percolation trigger (RLD/Twin/ISN hellgraph work). Tails
+# hellgraph-service GET /api/graph/log AND accepts exchange-envelope.v0 on POST /percolate; rebuilds
+# the dependency catalog from live GET /api/graph/subgraph, re-materialises the affected closure through
+# tools.hellgraph_percolation (idempotent, tenant+op_set-carrying upserts back into the graph), and seals
+# ONE receipt per batch on compute-gateway POST /v1/compute kind=materialize (never a parallel lineage).
+# Fail-closed: no receipt => no checkpoint => the batch retries. Mirrors prophet-materializer-clickhouse.
+nameOverride: hellgraph-percolator
+
+image:
+  repository: hellgraph-percolator
+  # sha-pinned by gitops-promote after the first CI build (materializer/arcticdb-gateway precedent).
+  tag: latest
+  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless once
+  # promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  pullPolicy: Always
+
+service: { port: 8080, portName: http }
+
+config:
+  HELLGRAPH_URL: "http://hellgraph-service:8090"   # reads (log/subgraph) AND writes (node/edge)
+  COMPUTE_GATEWAY_URL: "http://compute-gateway:8080"
+  PERCOLATOR_PROJECT: "default"
+  POLL_INTERVAL_SECONDS: "5"
+  BATCH_LIMIT: "500"
+  SUBGRAPH_LIMIT: "2000"   # /api/graph/subgraph read cap; a paginated bulk export is a follow-on
+secretEnv:
+  # compute-gateway receipt token — the SAME Secret the materializer already requires in this namespace;
+  # nothing new is provisioned (see provision-secrets + prophet-materializer-clickhouse.yaml).
+  GATEWAY_TOKEN: { secretName: compute-gateway-token, key: token }
+  # GRAPH_TOKEN (a minted graph:write bearer) is only needed once hellgraph-service flips AUTH_ENFORCE=on
+  # (deploy/values/hellgraph-service.yaml). Until then the writer needs no token. Provision a
+  # `hellgraph-graph-token` Secret and uncomment when enabling auth:
+  # GRAPH_TOKEN: { secretName: hellgraph-graph-token, key: token }
+
+# One percolator: the log cursor is a single-writer position. No HPA; a brief gap during Recreate just
+# means the next poll drains a slightly larger batch — restart-safe by idempotent replay from cursor 0.
+replicaCount: 1
+autoscaling: { enabled: false }
+strategy: { type: Recreate }
+
+probes:
+  path: /healthz   # reports last committed cursor + lag vs the log's clock (honest liveness)
+
+# Honest floor for a poll->percolate->write loop: httpx + fastapi resident, batches small (BATCH_LIMIT 500).
+resources:
+  requests: { cpu: 50m,  memory: 256Mi }
+  limits:   { cpu: 500m, memory: 512Mi }

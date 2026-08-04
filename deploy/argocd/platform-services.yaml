@@ -82,6 +82,13 @@ spec:
           # Seal-the-Walls W1.1: proof-carrying log→ClickHouse materializer (first-party;
           # tails hellgraph-service /api/graph/log, receipts via compute-gateway kind=materialize).
           - { name: prophet-materializer-clickhouse, tier: foundation }  # the log→store spine leg
+          # Live percolation trigger (first-party): tails hellgraph-service /api/graph/log AND accepts
+          # exchange-envelope.v0 on POST /percolate → rebuilds the dependency catalog from live graph
+          # state → re-materialises the affected closure (idempotent, tenant+op_set-scoped upserts) →
+          # one receipt per batch via compute-gateway kind=materialize. Fail-closed: no receipt ⇒ no
+          # checkpoint. tier: foundation — it makes "triggered automatically via the percolate + dependency
+          # graphs" real; the dependency-closure contract is the spine, the parser is swappable.
+          - { name: hellgraph-percolator, tier: foundation }     # the change→closure re-materialisation leg
           # Seal-the-Walls W1.2: synthetic MarketDataEvent replay emitter (first-party;
           # schema-validated sourceos-spec events → hellgraph graph writes → the log above).
           - { name: market-replay, tier: foundation }            # the MarketDataEvent contract emitter feeding the spine
