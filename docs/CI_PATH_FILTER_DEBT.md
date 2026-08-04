@@ -7,15 +7,12 @@ in its `VOUCHED` set are enforced and must stay clean; everything below is
 
 Regenerate with `python3 tools/check_workflow_path_filters.py`.
 
-## Uncovered inputs (33 workflows)
+## Uncovered inputs (32 workflows)
 
 A change to these paths does **not** trigger the validator that reads them.
 
 - **access-prewalk.yml**
   - libs/python/access-prewalk/src/access_prewalk/__init__.py reads libs/python, not matched by paths: filter
-- **cloudshell-fog-structural-conformance.yml**
-  - tools/validate-cloudshell-fog-structural-conformance.sh reads docs/FOGSTACK_SIGNED_MANIFESTS.md, not matched by paths: filter
-  - tools/validate-cloudshell-fog-structural-conformance.sh reads tools/attach_fogstack_manifest_signature.py, not matched by paths: filter
 - **control-plane-broker.yml**
   - tools/tests/test_capability_broker.py reads contracts/workspace-control-plane, not matched by paths: filter
 - **control-plane-connectors.yml**
@@ -175,14 +172,13 @@ A change to these paths does **not** trigger the validator that reads them.
 - **wordops-seam-smoke.yml**
   - tools/smoke_wordops_lease_seam.sh reads apps/, not matched by paths: filter
 
-## No unfiltered push-on-main trigger (107 workflows)
+## No unfiltered push-on-main trigger (106 workflows)
 
 Filtered on `pull_request` with no unfiltered push-on-main run.
 
 - access-prewalk.yml
 - agent-action-trace-contracts.yml
 - agentic-task-contract.yml
-- cloudshell-fog-structural-conformance.yml
 - control-plane-broker.yml
 - control-plane-connectors.yml
 - control-plane-contracts.yml

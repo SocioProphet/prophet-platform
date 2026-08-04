@@ -6,22 +6,18 @@ on:
       - 'apps/cloudshell-fog/**'
       - 'contracts/cloudshell-fog/**'
       - 'docs/CLOUDSHELL_FOG_*.md'
+      - 'docs/FOGSTACK_SIGNED_MANIFESTS.md'
       - 'infra/argocd/cloudshell-fog*'
       - 'infra/k8s/cloudshell-fog/**'
       - 'infra/policy/cloudshell-fog/**'
       - 'releases/manifests/fogstack.access-cloudshell-fog*'
       - 'tools/validate-cloudshell-fog-*.sh'
+      - 'tools/attach_fogstack_manifest_signature.py'
+  # Unfiltered push-on-main: this is lightweight structural validation (no build/plan), so
+  # it's cheap to run on every main push, and that safety net means a wrong pull_request
+  # filter degrades to merge-time detection, never to the check silently never running.
   push:
     branches: [main]
-    paths:
-      - 'apps/cloudshell-fog/**'
-      - 'contracts/cloudshell-fog/**'
-      - 'docs/CLOUDSHELL_FOG_*.md'
-      - 'infra/argocd/cloudshell-fog*'
-      - 'infra/k8s/cloudshell-fog/**'
-      - 'infra/policy/cloudshell-fog/**'
-      - 'releases/manifests/fogstack.access-cloudshell-fog*'
-      - 'tools/validate-cloudshell-fog-*.sh'
   workflow_dispatch: {}
 
 jobs:
