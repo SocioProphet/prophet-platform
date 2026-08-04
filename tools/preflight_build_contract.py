@@ -104,6 +104,33 @@ def unpinned_requirements(rf: Path) -> list[str]:
     return out
 
 
+def lock_install_is_reachable(df: Path) -> str | None:
+    """A --require-hashes install must target a path some COPY actually creates.
+
+    Renaming only the COPY source yields `COPY requirements.lock ./requirements.txt` plus
+    `pip install -r requirements.lock`: an install of a file that was never created. The
+    image build fails, but only at build time and only for that one service — this makes it
+    a static check so the whole estate is covered by the gate rather than by luck.
+    """
+    text = df.read_text(encoding="utf-8", errors="replace")
+    if "--require-hashes" not in text:
+        return None
+    targets = re.findall(r"pip install[^\n]*?--require-hashes[^\n]*?-r\s+(\S+)", text)
+    copies = re.findall(r"^COPY\s+(?:--\S+\s+)*(\S+)\s+(\S+)\s*$", text, re.MULTILINE)
+    for tgt in targets:
+        name = tgt.rsplit("/", 1)[-1]
+        ok = False
+        for src, dst in copies:
+            # `COPY x ./` keeps the source filename; `COPY x ./y` names it y.
+            landed = src.rsplit("/", 1)[-1] if dst.endswith("/") else dst.rsplit("/", 1)[-1]
+            if landed == name:
+                ok = True
+                break
+        if not ok:
+            return f"installs {tgt!r} but no COPY creates it"
+    return None
+
+
 def load_ratchet() -> dict:
     if not RATCHET_PATH.exists():
         return {"unpinned_base_images": {}, "unpinned_requirements": {}}
@@ -183,6 +210,12 @@ def heal_requirements(rf: Path) -> tuple[bool, str]:
     # (`COPY apps/x/requirements.txt /app/requirements.txt` + `pip install -r /app/requirements.txt`),
     # so rewrite the filename wherever it appears rather than matching one spelling.
     text = text.replace("requirements.txt", "requirements.lock")
+    # A COPY whose DESTINATION names the file explicitly must name the LOCK too. Renaming only
+    # the source produces `COPY requirements.lock ./requirements.txt` followed by
+    # `pip install -r requirements.lock` — an install of a path that was never created. This
+    # broke cloud-twin and identity-twin, and only surfaced in a real image build.
+    text = re.sub(r"^(COPY\s+\S*requirements\.lock\s+\S*)requirements\.txt\s*$",
+                  r"\1requirements.lock", text, flags=re.MULTILINE)
     # --require-hashes makes pip refuse any wheel whose hash is not declared, so a tampered or
     # substituted package fails the build instead of shipping. Add it to whichever pip install
     # consumes the lock, and drop the unpinned `--upgrade pip` that would run before it.
@@ -249,6 +282,12 @@ def main() -> int:
                             f"The ratchet only shrinks, or a fixed violation silently re-permits itself")
         else:
             checks[f"base-pinned:{rel}"] = True
+
+        unreachable = lock_install_is_reachable(df)
+        if unreachable:
+            failures.append(f"{rel}: {unreachable} — the build would fail at pip install")
+        else:
+            checks[f"lock-reachable:{rel}"] = True
 
     for rf in requirement_files():
         rel = str(rf.relative_to(ROOT))
