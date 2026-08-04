@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://socioprophet.ai/crystal-atlas/reconstruction-manifest.v0.schema.json",
+  "title": "reconstruction-manifest.v0",
+  "description": "A pinned, attested description of a three-space (LSA/LSI/LDA) reconstruction built over a raw corpus. It exists to make faithful regeneration of content that a model has lost to compaction REPRODUCIBLE and AUDITABLE: the document boundary is a declared decision, the spaces are seed/hash-pinned, and coverage (what was and was NOT represented) is stated with full weight rather than as a footnote. A manifest whose spaces are unpinned, or whose coverage is undeclared, is not a reconstruction — it is an unrepeatable guess.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["corpus_id", "corpus_sha256", "document_policy", "vectorizer", "spaces", "coverage"],
+  "properties": {
+    "corpus_id": { "type": "string", "minLength": 1 },
+    "corpus_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "document_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The single most important methodological decision: WHAT counts as a document. Naive inclusion of tool-result blobs yields a topic model of base64/hex noise, not topics.",
+      "required": ["include", "min_chars"],
+      "properties": {
+        "include": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "exclude": { "type": "array", "items": { "type": "string" } },
+        "min_chars": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "vectorizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_df", "min_df"],
+      "properties": {
+        "max_df": { "type": "number" },
+        "min_df": { "type": "integer" },
+        "token_pattern": { "type": "string" },
+        "stopwords_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "spaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "At least one of the three spaces. Any space PRESENT must be fully pinned (seed + hash), enforced by the validator — an unpinned space cannot be reproduced.",
+      "minProperties": 1,
+      "properties": {
+        "lsa": {
+          "type": "object", "additionalProperties": false,
+          "required": ["dim", "seed", "hash"],
+          "properties": { "dim": { "type": "integer", "minimum": 1 }, "seed": { "type": "integer" }, "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+        },
+        "lsi": {
+          "type": "object", "additionalProperties": false,
+          "required": ["rank", "seed", "sv_hash"],
+          "properties": { "rank": { "type": "integer", "minimum": 1 }, "seed": { "type": "integer" }, "sv_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+        },
+        "lda": {
+          "type": "object", "additionalProperties": false,
+          "required": ["k", "seed", "topics_hash"],
+          "properties": { "k": { "type": "integer", "minimum": 1 }, "seed": { "type": "integer" }, "topics_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" } }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Declared coverage. declared_gaps is REQUIRED (empty array = an explicit affirmation of no gaps) — the reconstruction must never let 'comprehensive' quietly mean 'comprehensive about part of it'.",
+      "required": ["declared_gaps"],
+      "properties": {
+        "ts_min": { "type": "string" },
+        "ts_max": { "type": "string" },
+        "document_count": { "type": "integer", "minimum": 0 },
+        "declared_gaps": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "investigator": { "type": "string" },
+        "attested": { "type": "boolean" },
+        "signed": { "type": "string" }
+      }
+    }
+  }
+}
