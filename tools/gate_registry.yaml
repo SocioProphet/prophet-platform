@@ -84,6 +84,13 @@ gates:
     # the FailedCreate — the standing proof the effect-canary can still fire.
     toothless_guard_marker: toothless
 
+  - id: INV-ORPHAN-1
+    name: No unmanaged (out-of-band) workloads — enforced ≠ declared gap detector
+    kind: pytest
+    tool: tools/verify_no_orphan_workloads.py
+    teeth_test: tools/tests/test_verify_no_orphan_workloads.py
+    min_negative_tests: 1
+
 # Acknowledged debt: gates that exist but have NOT yet proven they can fire (no teeth-test with a
 # negative case). Surfaced by this registry rather than hidden. Each owes a teeth-test; until then
 # it is treated as unproven, not trusted. Adding an entry here is a deliberate, reviewable act.
