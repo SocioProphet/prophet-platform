@@ -75,8 +75,11 @@ class SqliteBackend:
 
 
 _backend: Backend = MemoryBackend()
-# receipt id → the ordered artifact digests it produced (the data-lineage index). A cache
-# hydrated from durable storage on boot and written through on store_outputs when enabled.
+# receipt id → the ordered artifact digests it produced (the data-lineage index).
+#   persistence ENABLED: a write-through cache — store_outputs writes here AND to SQLite; boot no
+#     longer loads the whole index (that scaled with the store), so a cache miss on for_receipt is
+#     served lazily from SQLite. Flat boot memory.
+#   persistence DISABLED: this dict IS the ephemeral index (nowhere else to live).
 _by_receipt: dict[str, list[str]] = {}
 _stats = {"puts": 0, "dedup_hits": 0}
 
@@ -87,13 +90,13 @@ def set_backend(b: Backend) -> None:
 
 
 def hydrate() -> None:
-    """Point at the durable backend and reload the data-lineage index. No-op when
-    persistence is disabled. Called at import so restarts keep full data lineage."""
+    """Point at the durable backend. Does NOT reload the whole data-lineage index — that scaled
+    with the store and was part of the 2026-08-04 boot OOM; for_receipt() now serves misses lazily
+    from SQLite. No-op when persistence is disabled. Called at import."""
     if not persistence.enabled():
         return
     set_backend(SqliteBackend())
     _by_receipt.clear()
-    _by_receipt.update(persistence.load_index())
 
 
 def store_outputs(receipt_id: str, outputs: list[Any]) -> list[str]:
@@ -129,14 +132,22 @@ def get(d: str) -> Any | None:
 
 
 def for_receipt(receipt_id: str) -> list[str]:
-    return list(_by_receipt.get(receipt_id, []))
+    """The ordered artifact digests a receipt produced. From the in-process cache, else (enabled)
+    lazily from SQLite — so a restarted process resolves data lineage without the whole index
+    resident. Empty when unknown."""
+    cached = _by_receipt.get(receipt_id)
+    if cached is not None:
+        return list(cached)
+    if not persistence.enabled():
+        return []
+    return persistence.load_index_for(receipt_id)
 
 
 def diff(a_receipt: str, b_receipt: str) -> dict[str, list[str]]:
     """Data-level diff of two runs: which output blobs are shared, added, removed.
     A pure set operation over content digests — reproducibility you can SEE."""
-    a = set(_by_receipt.get(a_receipt, []))
-    b = set(_by_receipt.get(b_receipt, []))
+    a = set(for_receipt(a_receipt))
+    b = set(for_receipt(b_receipt))
     return {
         "a": a_receipt, "b": b_receipt,
         "shared": sorted(a & b),
@@ -147,9 +158,15 @@ def diff(a_receipt: str, b_receipt: str) -> dict[str, list[str]]:
 
 
 def stats() -> dict[str, Any]:
-    unique = len({d for ds in _by_receipt.values() for d in ds})
+    # When persistence is enabled the index is not fully resident, so count it in SQL rather than
+    # from the (partial) cache; disabled, the cache IS the index.
+    if persistence.enabled():
+        unique, receipts_indexed = persistence.index_stats()
+    else:
+        unique = len({d for ds in _by_receipt.values() for d in ds})
+        receipts_indexed = len(_by_receipt)
     return {"unique_blobs": unique, "puts": _stats["puts"],
-            "dedup_hits": _stats["dedup_hits"], "receipts_indexed": len(_by_receipt)}
+            "dedup_hits": _stats["dedup_hits"], "receipts_indexed": receipts_indexed}
 
 
 def _reset() -> None:   # test hook

@@ -27,7 +27,12 @@ def durable():
     with tempfile.TemporaryDirectory() as d:
         os.environ["GATEWAY_STORE_DIR"] = d
         persistence._reset_connection()
+        # Reset BOTH the chain cache and the tip index for the fresh store. seal() reads prev/seq
+        # from _TIPS in persistence-enabled mode, so a stale tip carried from a prior durable()
+        # context would give the first receipt a bogus prev and break verify(). (The restart-sim
+        # test below reloads tips via receipts.hydrate() for the same reason.)
         receipts._CHAINS.clear()
+        receipts._TIPS.clear()
         try:
             yield d
         finally:
@@ -37,6 +42,7 @@ def durable():
                 os.environ["GATEWAY_STORE_DIR"] = prev
             persistence._reset_connection()
             receipts._CHAINS.clear()
+            receipts._TIPS.clear()
 
 
 def test_reads_are_open_so_an_outage_cannot_be_made_worse():
