@@ -17,6 +17,10 @@ spec:
       labels:
         app: workspace-minio
     spec:
+      # minio writes its data dir on the mounted PVC as UID/GID 1000; without fsGroup the
+      # root-owned volume is unwritable → the gitea-class crashloop (kyverno require-fsgroup-pvc).
+      securityContext:
+        fsGroup: 1000
       containers:
         - name: minio
           # Pinned to an immutable digest (was minio/minio:latest — a moving tag that re-pulls
