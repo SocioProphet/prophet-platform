@@ -13,6 +13,9 @@ spec:
   # Audit-first (was Enforce) — see require-image-digest.yaml. Syncing at Enforce could reject
   # existing Pods that violate the baseline, estate-wide. Audit → observe → Enforce (#1344).
   validationFailureAction: Audit
+  # Audit-phase: kyverno being unavailable must NOT block admissions (it is an observer, not a
+  # gate yet). Flip to Fail only when this policy goes Enforce, deliberately (#1344).
+  failurePolicy: Ignore
   background: true
   rules:
     - name: require-hardened-managed-session-pods

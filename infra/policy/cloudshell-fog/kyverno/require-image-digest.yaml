@@ -15,6 +15,9 @@ spec:
   # documented rollout (deploy/argocd/kyverno.yaml, ROLLOUT.md) is Audit → observe → Enforce.
   # Flip back to Enforce in the final rollout step once Audit logs are clean. Tracked: #1344.
   validationFailureAction: Audit
+  # Audit-phase: kyverno being unavailable must NOT block admissions (it is an observer, not a
+  # gate yet). Flip to Fail only when this policy goes Enforce, deliberately (#1344).
+  failurePolicy: Ignore
   background: true
   rules:
     - name: require-image-checksum
