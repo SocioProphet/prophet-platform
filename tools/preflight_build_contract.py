@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -36,6 +37,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RATCHET_PATH = ROOT / "tools" / "build_contract_ratchet.json"
+
+# This estate's registry is zot. It runs `sync` pull-through for docker.io, ghcr.io, gcr.io and
+# registry.k8s.io precisely so nothing has to depend on a hyperscaler registry being up or
+# generous — the de-Google lever. CI already PUSHES here (ZOT_CI_USERNAME/PASSWORD).
+#
+# The pull side never moved. Every `FROM python:3.12-slim` resolves to Docker Hub at build
+# time, so the pull-through cache is bypassed by every build in the repo. That is not a
+# theoretical gap: an unreachable registry-1.docker.io failed a real dashboard-bff build on
+# 2026-08-04, and Docker Hub's 100/hour anonymous limit is a rate limit on our own CI.
+SOVEREIGN_REGISTRY = "registry.socioprophet.ai"
 
 FROM_RE = re.compile(r"^\s*FROM\s+(?!--)(\S+)", re.IGNORECASE | re.MULTILINE)
 # A requirement line that pins exactly. Everything else (>=, ~=, bare name, <) is a range.
@@ -90,6 +101,36 @@ def lock_is_live(rf: Path) -> bool:
         return True  # no image is built here; the lock is the whole pin
     text = df.read_text(encoding="utf-8", errors="replace")
     return "requirements.lock" in text and "--require-hashes" in text
+
+
+def foreign_bases(df: Path) -> list[str]:
+    """Base images pulled from somewhere other than the sovereign registry.
+
+    A bare `python:3.12-slim` is Docker Hub by default — the implicit host is the problem, so
+    anything without the sovereign prefix counts, including explicit gcr.io/ghcr.io refs. zot
+    proxies all of them; there is no reason for a build to reach past it.
+    """
+    out = []
+    for ref in _all_bases(df):
+        if not ref.startswith(SOVEREIGN_REGISTRY + "/"):
+            out.append(ref)
+    return out
+
+
+def _all_bases(df: Path) -> list[str]:
+    aliases: set[str] = set()
+    out: list[str] = []
+    for line in df.read_text(encoding="utf-8", errors="replace").splitlines():
+        m = re.match(r"^\s*FROM\s+(?!--)(\S+)(?:\s+AS\s+(\S+))?", line, re.IGNORECASE)
+        if not m:
+            continue
+        ref, alias = m.group(1), m.group(2)
+        if alias:
+            aliases.add(alias.lower())
+        if ref.lower() in aliases or ref.lower() == "scratch":
+            continue
+        out.append(ref)
+    return out
 
 
 def unpinned_requirements(rf: Path) -> list[str]:
@@ -168,6 +209,64 @@ def _try_manifest(ref: str) -> str | None:
         return None
 
 
+# Upstreams zot proxies, in the order its sync block lists them.
+_UPSTREAM_HOSTS = ("docker.io", "ghcr.io", "gcr.io", "registry.k8s.io")
+
+
+def to_sovereign(ref: str) -> str:
+    """Rewrite a base-image ref to pull through zot, preserving the repository path.
+
+    A bare `python:3.12-slim` is Docker Hub's `library/python`, so the implicit `library/`
+    has to become explicit once the host is named. An explicit upstream host is stripped —
+    zot's sync resolves the path against its configured upstreams.
+    """
+    body = ref.split("@")[0]
+    for host in _UPSTREAM_HOSTS:
+        if body.startswith(host + "/"):
+            return f"{SOVEREIGN_REGISTRY}/{body[len(host) + 1:]}"
+    if "/" not in body.split(":")[0]:
+        return f"{SOVEREIGN_REGISTRY}/library/{body}"     # docker.io official image
+    return f"{SOVEREIGN_REGISTRY}/{body}"
+
+
+def heal_sovereign(df: Path) -> tuple[bool, str]:
+    """Repoint base images at zot and re-resolve each digest FROM zot.
+
+    The digest is deliberately re-resolved rather than carried over: a digest is only
+    meaningful relative to the registry serving it, and pinning a Docker Hub digest onto a
+    zot ref would assert a correspondence nobody verified.
+    """
+    import base64
+    user, pwd = os.getenv("ZOT_USERNAME"), os.getenv("ZOT_PASSWORD")
+    if not (user and pwd):
+        return False, ("ZOT_USERNAME/ZOT_PASSWORD unset — zot requires auth, so the digest cannot "
+                       "be resolved here; run this in CI where ZOT_CI_* exist")
+    auth = base64.b64encode(f"{user}:{pwd}".encode()).decode()
+    text = df.read_text(encoding="utf-8")
+    changed = False
+    for ref in _all_bases(df):
+        if ref.startswith(SOVEREIGN_REGISTRY + "/"):
+            continue
+        sov = to_sovereign(ref)
+        repo, _, tag = sov[len(SOVEREIGN_REGISTRY) + 1:].partition(":")
+        out = subprocess.run(
+            ["curl", "-sI", "-H", f"Authorization: Basic {auth}", "-H",
+             "Accept: application/vnd.oci.image.index.v1+json,"
+             "application/vnd.docker.distribution.manifest.list.v2+json,"
+             "application/vnd.docker.distribution.manifest.v2+json",
+             f"https://{SOVEREIGN_REGISTRY}/v2/{repo}/manifests/{tag or 'latest'}"],
+            capture_output=True, text=True, timeout=180)
+        m = re.search(r"docker-content-digest:\s*(sha256:[0-9a-f]{64})", out.stdout, re.I)
+        if not m:
+            return False, f"zot did not serve a digest for {sov} (sync may not have pulled it yet)"
+        text = re.sub(rf"(^\s*FROM\s+){re.escape(ref)}(\s|$)",
+                      rf"\g<1>{sov}@{m.group(1)}\g<2>", text, flags=re.IGNORECASE | re.MULTILINE)
+        changed = True
+    if changed:
+        df.write_text(text, encoding="utf-8")
+    return changed, "repointed at zot" if changed else "already sovereign"
+
+
 def heal_dockerfile(df: Path) -> tuple[bool, str]:
     text = df.read_text(encoding="utf-8")
     changed = False
@@ -244,6 +343,7 @@ def main() -> int:
     ratchet = load_ratchet()
     r_base = ratchet.get("unpinned_base_images", {})
     r_reqs = ratchet.get("unpinned_requirements", {})
+    r_foreign = ratchet.get("foreign_base_registry", {})
 
     if args.heal is not None:
         targets = set(args.heal)
@@ -252,6 +352,9 @@ def main() -> int:
             app = df.parent.name
             if targets and app not in targets:
                 continue
+            if foreign_bases(df):
+                ok, msg = heal_sovereign(df)
+                healed[f"{app}/Dockerfile:sovereign"] = msg
             if unpinned_bases(df):
                 ok, msg = heal_dockerfile(df)
                 healed[f"{app}/Dockerfile"] = msg
@@ -282,6 +385,20 @@ def main() -> int:
                             f"The ratchet only shrinks, or a fixed violation silently re-permits itself")
         else:
             checks[f"base-pinned:{rel}"] = True
+
+        foreign = foreign_bases(df)
+        if foreign and rel not in r_foreign:
+            failures.append(
+                f"{rel}: base image(s) {foreign} are not pulled through the sovereign registry "
+                f"({SOVEREIGN_REGISTRY}) — zot proxies docker.io/ghcr/gcr/k8s, so a build reaching "
+                f"past it depends on a hyperscaler registry we deliberately do not rely on")
+        elif foreign:
+            deferred += 1
+        elif rel in r_foreign:
+            failures.append(f"{rel}: now pulls through {SOVEREIGN_REGISTRY} but is still in the "
+                            f"ratchet — remove it")
+        else:
+            checks[f"sovereign-base:{rel}"] = True
 
         unreachable = lock_install_is_reachable(df)
         if unreachable:

@@ -32,7 +32,7 @@ Worth stating first, because the gap is narrower than "we have no supply-chain d
 | F2 | **Python dependencies are ranges, not pins** | 14 of 38 `apps/*/requirements.txt` carry `>=` ranges with no lockfile. `fastapi>=0.110,<1` resolves to **0.141.1** today — 31 minor versions of drift the range concealed | High |
 | F3 | **`cryptography>=42.0` unbounded on compute-gateway** | The service that mounts the masking PDP — the one whose entire claim is that its cryptographic behaviour is provable — floats its crypto library | High |
 | F4 | **No SBOM for any app** | Estate-wide search returns only `apps/lattice-studio/uv.lock` | Medium |
-| F5 | **Base images bypass the sovereign registry** | `FROM python:3.12-slim` pulls Docker Hub directly rather than zot's pull-through cache. The de-Google lever exists and is unused at build time | Medium |
+| F5 | **Base images bypass the sovereign registry** | `FROM python:3.12-slim` pulls Docker Hub directly rather than zot's pull-through cache. **0 of 54** Dockerfiles reference `registry.socioprophet.ai`. The de-Google lever exists and is unused at build time | **High — corrected 2026-08-04** |
 | F6 | **PyPI is an unmediated external dependency** | zot mirrors OCI artifacts, not Python packages; `pip install` at build time reaches PyPI with no mirror and (until now) no hashes | Medium |
 | F7 | **The masking PDP has no IaC configuration** | `GATEWAY_MASKING_POLICY` appears nowhere under `deploy/`. Not a missing mechanism — `extraEnv`/`secretEnv` exist — an **unused** one. The moat is code that is switched off | High |
 | F8 | **Spec-repo validators install unpinned at run time** | `sourceos-spec` and `prophet-core-catalog` Makefiles run `python3 -m pip install --user jsonschema >/dev/null` — unpinned, network-dependent, mutating user site-packages, and silencing its own failure output | Medium |
@@ -129,3 +129,35 @@ Named so they are not assumed closed:
 - **F8 (spec-repo validators)** — different repos; needs the same treatment there.
 - The remaining **65 ratcheted violations**. The ratchet makes the debt visible and
   non-increasing; it does not pay it down.
+
+
+---
+
+## Correction (2026-08-04, same day)
+
+**F5 was under-rated and I then made it worse.**
+
+Rated Medium and treated as hygiene. It is High: this estate's registry *is* zot, which runs
+`sync` pull-through for docker.io / ghcr.io / gcr.io / registry.k8s.io precisely so no build
+depends on a hyperscaler registry. CI already **pushes** there. The pull side never moved —
+**0 of 54 Dockerfiles reference the sovereign registry.**
+
+Then I compounded it. Told the pins were blocked by Docker Hub's 100/hour limit, I treated that
+rate limit as an environmental constraint to design around and digest-pinned 13 base images
+**against Docker Hub** — entrenching a dependency the estate deliberately does not have. The
+rate limit was not a constraint. It was the symptom of using the wrong registry, and I optimised
+against the symptom.
+
+I also considered `mirror.gcr.io` as a workaround and rejected it for digest-provenance reasons.
+That reasoning was sound and the framing was still wrong: the question was never which
+*hyperscaler* mirror to trust, it was why a build was reaching a hyperscaler at all.
+
+**Fixed by making it enforced rather than intended:** the build contract now refuses any
+first-party Dockerfile whose base images are not pulled through `registry.socioprophet.ai`,
+ratcheted at the current 54 so it blocks new violations immediately. `--heal` repoints refs at
+zot and **re-resolves each digest from zot** — a digest is only meaningful relative to the
+registry serving it, so carrying a Docker Hub digest onto a zot ref would assert a
+correspondence nobody verified.
+
+The heal needs `ZOT_USERNAME`/`ZOT_PASSWORD`; CI holds `ZOT_CI_USERNAME`/`ZOT_CI_PASSWORD`
+already.
