@@ -59,3 +59,17 @@ test('noteId is content-addressed (idempotent re-landing)', () => {
 test('WorkspaceNoteSink names itself by its inbox dir', () => {
   assert.equal(new WorkspaceNoteSink('./inbox').name, 'note:./inbox');
 });
+
+test('stripHtml strips script/style/head end tags even with trailing garbage before >', () => {
+  // Per the HTML parsing spec, `</script foo="bar">` and `</style\t\nbar>` are still recognized as
+  // the closing tag by real browsers — a stripper that only matches the exact `</script>` bytes (or
+  // only tolerates whitespace) lets the "sanitized" payload leak into bodyText (CodeQL js/bad-tag-filter).
+  const rec: LandedRecord = {
+    provenance: prov(),
+    body: '<html><body><p>safe</p><script>evil()</script foo="bar"><style>.x{}</style\t\nbar></body></html>',
+  };
+  const note = landedToNote(rec);
+  assert.ok(note.bodyText?.includes('safe'));
+  assert.ok(!note.bodyText?.includes('evil'), `script content leaked into bodyText: ${note.bodyText}`);
+  assert.ok(!note.bodyText?.includes('foo='), `stray script end-tag attribute leaked into bodyText: ${note.bodyText}`);
+});
