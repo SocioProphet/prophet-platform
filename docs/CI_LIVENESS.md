@@ -43,6 +43,24 @@ as DEAD; they had simply never been invoked. **A checker that cries wolf gets mu
 control is exactly the dead control this was built to find** — so precision here is load-bearing,
 not politeness.
 
+## Dead or dormant — the distinction the verdicts exist for
+
+A winter garden and a dead garden look the same. The hellebore is how you tell: it flowers in the
+dead season, when nothing else does, and its bloom is the proof that the ground is still alive.
+
+That is the whole difficulty here. A repo emitting no signal might be **dormant** — nobody has
+pushed, the workflow is manual, the project is between phases — or it might be **dead**. Both look
+identical from outside, and the estate spent five weeks unable to tell.
+
+So the verdicts do the telling, and getting the line right is the work:
+
+- `UNUSED` — **dormant**. Manual-dispatch, never invoked. Idle by design, and *not* an alarm.
+- `DEAD` — **dead**. It runs automatically, or it has run and failed, and it has never once been green.
+- `SILENT` — **the deceptive case**: it is running, so it looks alive, and it never wins.
+
+Calling dormant things dead is how a checker gets muted; calling dead things dormant is how five
+weeks pass. The `UNUSED` verdict exists because the first draft of this tool made the first mistake.
+
 ## Relationship to `controls_census.py`
 
 The census already names the property: *meta-monitored — something alerts if the control itself
