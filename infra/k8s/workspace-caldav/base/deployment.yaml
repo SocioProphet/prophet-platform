@@ -17,6 +17,11 @@ spec:
       labels:
         app: workspace-caldav
     spec:
+      # radicale writes its collections dir on the mounted PVC; fsGroup makes the volume
+      # group-writable (via supplementary group) so the non-root container can write it
+      # (kyverno require-fsgroup-pvc — same class that crashlooped gitea for 26h).
+      securityContext:
+        fsGroup: 1000
       imagePullSecrets:
         - name: zot-pull
       containers:
