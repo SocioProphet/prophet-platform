@@ -154,7 +154,7 @@ export function authorize(state: AuthState, req: http.IncomingMessage, url: URL)
 /** Mint a graph-API token (tests + operator CLI). Same HMAC format as federation admit tokens. */
 export function mintGraphToken(
   secret: string,
-  principal: { id: string; scopes: GraphScope[]; tenant?: string; exp?: number },
+  principal: { id: string; scopes: GraphScope[]; tenant?: string; op_sets?: string[]; exp?: number },
 ): string {
   const verifier = HmacTokenVerifier.fromSecret(secret)
   return verifier.mint(principal as unknown as Parameters<HmacTokenVerifier['mint']>[0])
