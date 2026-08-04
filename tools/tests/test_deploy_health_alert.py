@@ -329,3 +329,109 @@ def test_expected_but_absent_receipt_is_a_gap(tmp_path, monkeypatch):
     assert code == dha.EXIT_GAPS
     assert any(f["name"] == "nightly-backup" and "missing" in f["reason"]
                for f in report["findings"])
+
+
+# ── multi-namespace pod scan (the scm/gitea-class blind spot) ────────────────
+# deploy_health_alert.py had the identical single-namespace shape of blind spot
+# verify_no_orphan_workloads.py did: `--namespace socioprophet` was the only namespace
+# ever scanned, so a gap in `scm` (or any other prod namespace) sat unwatched no matter
+# how long it ran. `--namespace` is now a comma-separated list, defaulting to
+# DEFAULT_NAMESPACES.
+
+def test_default_namespaces_covers_socioprophet_and_scm():
+    # the floor this fix must not regress below — mirrors verify_no_orphan_workloads.py's
+    # DEFAULT_NAMESPACES, which was added for the exact same reason (the scm/gitea instance
+    # invisible to a single-namespace default for 20 days).
+    assert "socioprophet" in dha.DEFAULT_NAMESPACES
+    assert "scm" in dha.DEFAULT_NAMESPACES
+
+
+def test_no_namespace_flag_scans_default_namespaces_end_to_end(monkeypatch):
+    # exercises the real wiring (main() -> argparse default -> run()), not a re-derived string
+    seen: list[str] = []
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "a"}, "status": {"health": {"status": "Healthy"},
+                                               "sync": {"status": "Synced"}}}])
+
+    def fake_pods(ns):
+        seen.append(ns)
+        return [{"metadata": {"name": f"{ns}-pod"}, "status": {"phase": "Running",
+                 "containerStatuses": [{"name": "c", "state": {"running": {}}, "restartCount": 0}]}}]
+
+    monkeypatch.setattr(dha, "collect_pods", fake_pods)
+    dha.main([])
+    assert seen == list(dha.DEFAULT_NAMESPACES)
+
+
+def test_multi_namespace_pods_are_aggregated(monkeypatch):
+    # pods from every listed namespace are pooled into one scan, not just the first
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "a"}, "status": {"health": {"status": "Healthy"},
+                                               "sync": {"status": "Synced"}}}])
+
+    def fake_pods(ns):
+        return [{"metadata": {"name": f"{ns}-pod"}, "status": {"phase": "Running",
+                 "containerStatuses": [{"name": "c", "state": {"running": {}}, "restartCount": 0}]}}]
+
+    monkeypatch.setattr(dha, "collect_pods", fake_pods)
+    code, report = dha.run(_args(namespace="socioprophet,scm"))
+    assert code == dha.EXIT_CLEAN
+    assert report["scanned"]["pods"] == 2
+
+
+def test_gap_in_second_namespace_is_still_caught(monkeypatch):
+    # the scm/gitea class: a gap that lives in a namespace other than the first one listed
+    # must not be lost by aggregation.
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "a"}, "status": {"health": {"status": "Healthy"},
+                                               "sync": {"status": "Synced"}}}])
+
+    def fake_pods(ns):
+        if ns == "socioprophet":
+            return [{"metadata": {"name": "clean-pod"}, "status": {"phase": "Running",
+                     "containerStatuses": [{"name": "c", "state": {"running": {}}, "restartCount": 0}]}}]
+        return [{"metadata": {"name": "scm-pod"}, "status": {"phase": "Pending",
+                 "containerStatuses": [{"name": "c",
+                 "state": {"waiting": {"reason": "CrashLoopBackOff"}}, "restartCount": 0}]}}]
+
+    monkeypatch.setattr(dha, "collect_pods", fake_pods)
+    code, report = dha.run(_args(namespace="socioprophet,scm"))
+    assert code == dha.EXIT_GAPS
+    assert any(f["name"] == "scm-pod" for f in report["findings"])
+
+
+def test_one_blind_namespace_among_several_still_fails_closed(monkeypatch):
+    # a namespace that can't be observed must not be masked by its healthy siblings —
+    # absence of observed failure in ONE namespace is not evidence of health estate-wide.
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "a"}, "status": {"health": {"status": "Healthy"},
+                                               "sync": {"status": "Synced"}}}])
+
+    def fake_pods(ns):
+        if ns == "scm":
+            return None  # no access / wrong context for this one namespace
+        return [{"metadata": {"name": "clean-pod"}, "status": {"phase": "Running",
+                 "containerStatuses": [{"name": "c", "state": {"running": {}}, "restartCount": 0}]}}]
+
+    monkeypatch.setattr(dha, "collect_pods", fake_pods)
+    code, report = dha.run(_args(namespace="socioprophet,scm"))
+    assert code == dha.EXIT_BLIND
+    assert any("scm" in b for b in report["blind"])
+
+
+def test_namespaces_are_scanned_independently_not_conflated(monkeypatch):
+    # each namespace in the list gets its own collect_pods call with its own name — a
+    # multi-namespace scan must not silently collapse into scanning one namespace twice.
+    seen: list[str] = []
+    monkeypatch.setattr(dha, "collect_apps", lambda ns: [
+        {"metadata": {"name": "a"}, "status": {"health": {"status": "Healthy"},
+                                               "sync": {"status": "Synced"}}}])
+
+    def fake_pods(ns):
+        seen.append(ns)
+        return [{"metadata": {"name": f"{ns}-pod"}, "status": {"phase": "Running",
+                 "containerStatuses": [{"name": "c", "state": {"running": {}}, "restartCount": 0}]}}]
+
+    monkeypatch.setattr(dha, "collect_pods", fake_pods)
+    dha.run(_args(namespace=" socioprophet , scm , sovereign-runtime "))
+    assert seen == ["socioprophet", "scm", "sovereign-runtime"]  # order kept, whitespace stripped

@@ -36,7 +36,14 @@ spec:
               # A non-zero exit (1 = gaps found, 2 = could-not-observe) fails the Job, which
               # surfaces as kube_job_status_failed -> the PrometheusRule alert below. Exit 0
               # (clean scan) succeeds silently. The gap detail is in the pod logs.
-              command: ["python3", "/opt/alerter/deploy_health_alert.py", "--namespace", "socioprophet"]
+              #
+              # No --namespace arg: the script's own DEFAULT_NAMESPACES ("socioprophet, scm,
+              # sovereign-runtime, observability" today) governs what gets scanned. This CronJob
+              # used to hardcode `--namespace socioprophet` — the exact single-namespace blind
+              # spot that left verify_no_orphan_workloads.py unable to see the scm/gitea instance
+              # for 20 days; the RBAC below already grants cluster-wide pod read, so the flag was
+              # the only thing narrowing the scan.
+              command: ["python3", "/opt/alerter/deploy_health_alert.py"]
               volumeMounts:
                 - name: alerter
                   mountPath: /opt/alerter/deploy_health_alert.py

@@ -282,8 +282,12 @@ test-tools-hermetic:
 # of hermetic `validate`; run it in a scheduled CI job with a read-only cluster role, or
 # locally against the current kube-context. The classifier's teeth are proven hermetically
 # under `test-tools` (tools/tests/test_deploy_health_alert.py) and via `--self-test`.
+# NS overrides the pod-namespace list (comma-separated); unset scans the tool's own
+# DEFAULT_NAMESPACES ("socioprophet,scm,sovereign-runtime,observability" today — the prod
+# namespaces a live-cluster check found real, estate-owned workloads in, not just the one
+# the original hardcoded default happened to name).
 deploy-health:
-	python3 tools/deploy_health_alert.py --namespace $(or $(NS),socioprophet)
+	python3 tools/deploy_health_alert.py $(if $(NS),--namespace $(NS))
 
 # Detect out-of-band (non-GitOps) workloads — the class GitOps is structurally blind to (the
 # 2026-08-04 orphan-gitea postmortem). Live (needs a cluster credential; honors KUBE_CONTEXT), so
