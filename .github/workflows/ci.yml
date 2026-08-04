@@ -246,11 +246,13 @@ jobs:
           # BOTH → the read goes through, receipted. This is the path that serves a real chart.
           curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" \
             -X POST localhost:8098/api/health/agent-read -H 'content-type: application/json' -d '{}' | grep -q '"presentedBy":"sha256-'
-          # /doctor-view is not exposure-gated in this mirror (prophet-health is ahead there), so the
-          # holder credential alone is what stands between a caller and the chart. Assert exactly that
-          # rather than an exposure refusal this code does not make.
+          # /doctor-view IS exposure-gated in this mirror (denyExposure runs first): like /agent-read
+          # it needs BOTH the deployment credential AND the holder. No creds — or the holder alone —
+          # are refused; the two together serve the chart, receipted. (The smoke previously assumed
+          # holder-alone, which this server has never done here; aligned to the actual gate.)
           test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401
-          curl -fsS -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view)" = 401
+          curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
           # An authenticated deployment allows NO browser origin unless one is named. The cockpit
           # reaches this service same-origin through the nginx /svc/health proxy and never needs one;
           # a deployment that does need one says so, rather than inheriting a wildcard by default.
