@@ -157,6 +157,11 @@ class BoardCellView(BaseModel):
     maturity: Optional[str] = None
     basis: Optional[str] = None
     note: Optional[str] = None
+    # Mirrors the emitter's own honesty flag (emit_intelligence_superiority_board._expand_score):
+    # a thin BEAT/MEET lead (maturity=='spec' OR fewer than MIN_EVIDENCE_REFS evidence pointers) is
+    # REQUIRED by validate_intelligence_superiority_board to set this, on pain of rejection. Dropping
+    # it here would let the API serve a thin lead indistinguishable from a solid one.
+    provisional: bool = False
 
 
 class CategoryBoardView(BaseModel):

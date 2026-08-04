@@ -58,7 +58,12 @@ def _slug(name: str) -> str:
 
 
 def _evidence_for(ref: dict):
-    """One evidence_ref -> a web-linkable BoardEvidence, or None (memory nodes aren't URLs)."""
+    """One evidence_ref -> a web-linkable BoardEvidence, or None (memory-only nodes aren't URLs).
+
+    A ref that carries BOTH `repo` and `memory` (e.g. a repo pointer annotated with a related
+    memory-node id) must still resolve to the repo link — `memory` here is supplementary context,
+    not a signal to suppress an otherwise-linkable repo reference. Only a ref with no `repo` at
+    all (memory-only) is unlinkable."""
     repo = ref.get('repo')
     if not repo:
         return None
@@ -68,8 +73,6 @@ def _evidence_for(ref: dict):
     elif ref.get('pr'):
         href = f'https://github.com/SocioProphet/{repo}/pull/{ref["pr"]}'
         label = f'{repo}#{ref["pr"]}'
-    elif ref.get('memory'):
-        return None
     else:
         href = f'https://github.com/SocioProphet/{repo}'
         label = repo
@@ -343,6 +346,7 @@ def competitive_boards() -> object:
                 maturity=s.get('maturity'),
                 basis='self-assessed' if s.get('assessment_basis') == 'self_assessed' else 'externally-certified',
                 note=s.get('rationale'),
+                provisional=bool(s.get('provisional', False)),
             ))
         categories.append(_contracts.CategoryBoardView(
             id=cat['category_id'], name=cat['name'], description=cat['description'],
