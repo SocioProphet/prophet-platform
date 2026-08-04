@@ -158,13 +158,11 @@ jobs:
               body: `## OpenTofu Plan — gcp-landing\n\`\`\`hcl\n${truncated}\n\`\`\``
             });
 
-  provider-leakage-check:
-    name: Reject provider names in canonical contracts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check for provider leakage
-        run: python3 tools/validate_no_provider_leakage.py
+  # provider-leakage-check moved to its OWN workflow (provider-leakage.yml, #1046): it scans
+  # contracts/schemas/specs/infra-* but tofu-plan only TRIGGERS on infra/tofu/**, so a leak
+  # in a contract or an argocd/k8s manifest never ran this check. Its new home is filtered to
+  # what it actually reads, and tofu-plan stays scoped to tofu (its heavy plan jobs shouldn't
+  # run on every contract edit).
 
   dns-plan-readiness:
     name: Check dns-plan secret readiness

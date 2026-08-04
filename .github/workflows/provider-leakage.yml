@@ -1,0 +1,40 @@
+name: provider-leakage
+
+# Rejects provider-specific names (aws/gcp/azure/…) in canonical contracts, schemas, specs
+# and infra manifests — provider specifics belong in infra/tofu/envs/* and adapter modules.
+#
+# tools/validate_no_provider_leakage.py scans contracts/, schemas/, specs/, and
+# infra/{tofu,k8s,local,argocd}. It used to live inside tofu-plan.yml, which only triggers
+# on infra/tofu/**, so a leak introduced into a contract or an argocd/k8s manifest never ran
+# the check (#1046). Filtered here to exactly what the check reads, with an unfiltered
+# push-on-main safety net so a wrong filter degrades to merge-time detection, never to never.
+on:
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'schemas/**'
+      - 'specs/**'
+      - 'infra/tofu/**'
+      - 'infra/k8s/**'
+      - 'infra/local/**'
+      - 'infra/argocd/**'
+      - 'tools/validate_no_provider_leakage.py'
+      - '.github/workflows/provider-leakage.yml'
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-leakage-check:
+    name: Reject provider names in canonical contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check for provider leakage
+        run: python3 tools/validate_no_provider_leakage.py

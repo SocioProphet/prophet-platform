@@ -3,19 +3,27 @@
 `tools/check_workflow_path_filters.py` re-derives what each path-filtered
 workflow actually reads and checks that the filter still covers it. Workflows
 in its `VOUCHED` set are enforced and must stay clean; everything below is
-**pre-existing** and reported as advisory, so the audit could ship without a
-90-workflow rewrite. The list is meant to shrink.
+**pre-existing** and reported as advisory. The list is meant to shrink.
 
 Regenerate with `python3 tools/check_workflow_path_filters.py`.
 
-## Uncovered inputs (22 workflows)
+## Uncovered inputs (33 workflows)
 
-A change to these paths does **not** trigger the validator that reads them —
-the check stays green because it is never asked.
+A change to these paths does **not** trigger the validator that reads them.
 
+- **access-prewalk.yml**
+  - libs/python/access-prewalk/src/access_prewalk/__init__.py reads libs/python, not matched by paths: filter
 - **cloudshell-fog-structural-conformance.yml**
   - tools/validate-cloudshell-fog-structural-conformance.sh reads docs/FOGSTACK_SIGNED_MANIFESTS.md, not matched by paths: filter
   - tools/validate-cloudshell-fog-structural-conformance.sh reads tools/attach_fogstack_manifest_signature.py, not matched by paths: filter
+- **control-plane-broker.yml**
+  - tools/tests/test_capability_broker.py reads contracts/workspace-control-plane, not matched by paths: filter
+- **control-plane-connectors.yml**
+  - runs tools/validate_control_plane_contracts.py, which its paths: filter does not match
+- **control-plane-rails.yml**
+  - tools/tests/test_rails_attention.py reads contracts/workspace-control-plane, not matched by paths: filter
+- **control-plane-trust.yml**
+  - runs tools/validate_control_plane_contracts.py, which its paths: filter does not match
 - **deploy-tests.yml**
   - runs tests/test_head_to_head.py, which its paths: filter does not match
 - **devsecops-investigation-run.yml**
@@ -66,6 +74,10 @@ the check stays green because it is never asked.
   - tools/tests/test_fogstack_filesystem_registry.py reads tools/publish_fogstack_filesystem_registry.py, not matched by paths: filter
 - **fogstack-validation.yml**
   - runs tools/tests/test_fogstack_validation_to_evidence.py, which its paths: filter does not match
+- **governance-retention-policy.yml**
+  - runs tests/test_governance_enroll.py, which its paths: filter does not match
+- **lawful-verdict.yml**
+  - libs/python/lawful-verdict/src/lawful_verdict/__init__.py reads libs/python, not matched by paths: filter
 - **mount-intent.yml**
   - libs/python/mount-intent/src/mount_intent/intents.py reads apps/regis-acr-api, not matched by paths: filter
 - **personal-intelligence-cell.yml**
@@ -78,6 +90,7 @@ the check stays green because it is never asked.
   - tools/validate_repo.py reads contracts/imported/memory-mesh/SOURCE_MANIFEST.yaml, not matched by paths: filter
   - tools/validate_repo.py reads contracts/imported/new-hope/SOURCE_MANIFEST.yaml, not matched by paths: filter
   - tools/validate_repo.py reads contracts/imported/semantic-serdes/SOURCE_MANIFEST.yaml, not matched by paths: filter
+  - tools/validate_repo.py reads contracts/imported/slash-topics/SOURCE_MANIFEST.yaml, not matched by paths: filter
   - tools/validate_repo.py reads docs/ARCHITECTURE.md, not matched by paths: filter
   - tools/validate_repo.py reads docs/DROPZONE_MEMBRANES.md, not matched by paths: filter
   - tools/validate_repo.py reads docs/EVENT_BUS_TOPICS.md, not matched by paths: filter
@@ -88,10 +101,6 @@ the check stays green because it is never asked.
   - tools/validate_repo.py reads tools/run_prophet_understand_vertical_slice.py, not matched by paths: filter
   - tools/validate_repo.py reads tools/validate_professional_intelligence.py, not matched by paths: filter
   - tools/validate_repo.py reads tools/validate_prophet_understand.py, not matched by paths: filter
-- **preflight-deploy-contract.yml**
-  - tools/preflight_deploy_contract.py reads apps/device-service, not matched by paths: filter
-  - tools/preflight_deploy_contract.py reads apps/embeddings, not matched by paths: filter
-  - tools/preflight_deploy_contract.py reads apps/nugget-extractor, not matched by paths: filter
 - **professional-intelligence-gate4.yml**
   - tools/validate_professional_intelligence.py reads contracts/evidence/adoption-event.schema.json, not matched by paths: filter
   - tools/validate_professional_intelligence.py reads contracts/evidence/adoption-event.v0.1.example.json, not matched by paths: filter
@@ -130,22 +139,56 @@ the check stays green because it is never asked.
   - tools/run_prometheus_local_demo.py reads tools/prometheus_ai_descartes_mvp.py, not matched by paths: filter
   - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_jsonld_shacl.py, not matched by paths: filter
   - tools/run_prometheus_local_demo.py reads tools/validate_prometheus_ontogenesis_compat.py, not matched by paths: filter
+- **search-orchestrator-image-pin.yml**
+  - runs tools/apply_search_orchestrator_image_lock.py, which its paths: filter does not match
+  - runs tools/apply_wave_promotion.py, which its paths: filter does not match
+  - runs tools/freeze_release_train_manifest.py, which its paths: filter does not match
+  - runs tools/validate_search_orchestrator_image_release.py, which its paths: filter does not match
+  - tools/apply_search_orchestrator_image_lock.py reads infra/k8s/search-orchestrator/overlays/policy/image-patch.yaml, not matched by paths: filter
+  - tools/apply_search_orchestrator_image_lock.py reads releases/images/search-orchestrator.image-lock.json, not matched by paths: filter
+  - tools/apply_wave_promotion.py reads infra/k8s/search-orchestrator/overlays/promote/canary/image-patch.yaml, not matched by paths: filter
+  - tools/apply_wave_promotion.py reads releases/manifests/release-train.2026-08-02.manifest.json, not matched by paths: filter
+  - tools/apply_wave_promotion.py reads tools/apply_wave_promotion.py, not matched by paths: filter
+  - tools/freeze_release_train_manifest.py reads releases/images/component-inventory.v1.yaml, not matched by paths: filter
+  - tools/validate_search_orchestrator_image_release.py reads releases/images/search-orchestrator.image-lock.example.json, not matched by paths: filter
+  - tools/validate_search_orchestrator_image_release.py reads tools/apply_search_orchestrator_image_lock.py, not matched by paths: filter
+  - tools/validate_search_orchestrator_image_release.py reads tools/render_search_orchestrator_image_patch.py, not matched by paths: filter
+- **search-orchestrator-image.yml**
+  - runs tools/compute_source_content_digest.py, which its paths: filter does not match
+  - tools/compute_source_content_digest.py reads docs/DEPLOY-WAVE-STRATEGY.md, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads releases/images/search-orchestrator.image-lock.json, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads tools/verify_pinned_digest_exists.py, not matched by paths: filter
+- **socioprophet-api-image.yml**
+  - runs tools/compute_source_content_digest.py, which its paths: filter does not match
+  - tools/compute_source_content_digest.py reads docs/DEPLOY-WAVE-STRATEGY.md, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads releases/images/search-orchestrator.image-lock.json, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads tools/verify_pinned_digest_exists.py, not matched by paths: filter
 - **sourceos-contracts.yml**
   - tools/smoke_sourceos_synthetic_boot_fingerprint.py reads tools/check_sourceos_boot_fingerprint_compliance.py, not matched by paths: filter
-- **tofu-plan.yml**
-  - runs tools/validate_no_provider_leakage.py, which its paths: filter does not match
-  - tools/validate_no_provider_leakage.py reads infra/argocd, not matched by paths: filter
-  - tools/validate_no_provider_leakage.py reads infra/k8s, not matched by paths: filter
-  - tools/validate_no_provider_leakage.py reads infra/local, not matched by paths: filter
+- **tritrpc-gateway-image.yml**
+  - runs tools/compute_source_content_digest.py, which its paths: filter does not match
+  - tools/compute_source_content_digest.py reads docs/DEPLOY-WAVE-STRATEGY.md, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads releases/images/search-orchestrator.image-lock.json, not matched by paths: filter
+  - tools/compute_source_content_digest.py reads tools/verify_pinned_digest_exists.py, not matched by paths: filter
+- **validate-mesh-deployment.yml**
+  - tools/validate_mesh_deployment.py reads tools/mesh_dockerfile_stubs/, not matched by paths: filter
+- **wordops-seam-smoke.yml**
+  - tools/smoke_wordops_lease_seam.sh reads apps/, not matched by paths: filter
 
-## No unfiltered push-on-main trigger (82 workflows)
+## No unfiltered push-on-main trigger (107 workflows)
 
-Filtered on `pull_request` with no unfiltered push-on-main run, so a wrong
-filter means the check never runs at all rather than running at merge time.
-Adding the safety net is cheap and should come first.
+Filtered on `pull_request` with no unfiltered push-on-main run.
 
+- access-prewalk.yml
 - agent-action-trace-contracts.yml
+- agentic-task-contract.yml
 - cloudshell-fog-structural-conformance.yml
+- control-plane-broker.yml
+- control-plane-connectors.yml
+- control-plane-contracts.yml
+- control-plane-overlay.yml
+- control-plane-rails.yml
+- control-plane-trust.yml
 - cross-repo-orchestration-interop.yml
 - deploy-tests.yml
 - devsecops-action-grant.yml
@@ -158,6 +201,9 @@ Adding the safety net is cheap and should come first.
 - devsecops-workroom-demo-readiness.yml
 - devsecops-workroom-rca-guards.yml
 - devsecops-workroom-report.yml
+- ecosystem-sim-wave2.yml
+- ephemeral-apply-preflight.yml
+- eval-surfaces-gate.yml
 - fogstack-agent-core-plan.yml
 - fogstack-agent-machine-node-profile.yml
 - fogstack-apply-plan-index.yml
@@ -185,8 +231,13 @@ Adding the safety net is cheap and should come first.
 - ghost-event-v3-validate.yml
 - ghost-governance-fracture.yml
 - ghost-v3-combined-control-plane.yml
+- helm-release.yml
+- infra-drift-detect.yml
+- isota-tournament.yml
+- lawful-verdict.yml
 - mount-intent.yml
 - multidomain-geospatial-program-state.yml
+- newhope-slashtopics-integration.yml
 - openai-research-mcp-smoke.yml
 - ops-fabric-api.yml
 - osm-map-api.yml
@@ -208,11 +259,16 @@ Adding the safety net is cheap and should come first.
 - provider-binding-evidence.yml
 - provider-binding-validation.yml
 - reasoning-failure-runner.yml
+- recipe-proof-gate.yml
 - regis-acr-service.yml
+- repo-health-matrix.yml
+- reproduce-bench-gate.yml
+- search-orchestrator-image-pin.yml
 - search-orchestrator-image.yml
 - search-orchestrator-multicloud-rollout.yml
 - search-orchestrator.yml
 - socioprophet-api-image.yml
+- solution-ranker.yml
 - sourceos-contracts.yml
 - telemetry-runtime-slice.yml
 - tofu-plan.yml
@@ -221,8 +277,12 @@ Adding the safety net is cheap and should come first.
 - validate-change-v2-agentplane-run-link.yml
 - validate-forensic-genesis-edge-tightening.yml
 - validate-forensic-genesis-edge.yml
+- validate-mesh-deployment.yml
 - validate-telemetry.yml
+- value-driver-seam.yml
+- web-intel-lane.yml
 - wopi-host-validation.yml
+- wordops-seam-smoke.yml
 - workspace-context.yml
 - workspace-services-image.yml
 - workspace-terraform-validate.yml
