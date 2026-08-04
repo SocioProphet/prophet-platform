@@ -246,11 +246,15 @@ jobs:
           # BOTH → the read goes through, receipted. This is the path that serves a real chart.
           curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" \
             -X POST localhost:8098/api/health/agent-read -H 'content-type: application/json' -d '{}' | grep -q '"presentedBy":"sha256-'
-          # /doctor-view is not exposure-gated in this mirror (prophet-health is ahead there), so the
-          # holder credential alone is what stands between a caller and the chart. Assert exactly that
-          # rather than an exposure refusal this code does not make.
-          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401
-          curl -fsS -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'
+          # /doctor-view IS exposure-gated in authenticated mode: #1341 (vendor-parity cutover) brought
+          # this mirror to parity with prophet-health by adding denyExposure() to the doctor-view
+          # handler. Reading a chart now needs BOTH the deployment credential AND the holder grant —
+          # exactly like /agent-read above. Neither membrane alone is enough. (Verified against the
+          # running server: grant-only → 401, both → 200.)
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:8098/api/health/doctor-view)" = 401                              # neither → 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "x-health-grant: $TOKEN" localhost:8098/api/health/doctor-view)" = 401  # holder alone → 401 (the exposure membrane bites)
+          curl -fsS -H "authorization: Bearer $HEALTH_TWIN_TOKEN" -H "x-health-grant: $TOKEN" \
+            localhost:8098/api/health/doctor-view | grep -q '"presentedBy":"sha256-'                                                # both → the chart, receipted
           # An authenticated deployment allows NO browser origin unless one is named. The cockpit
           # reaches this service same-origin through the nginx /svc/health proxy and never needs one;
           # a deployment that does need one says so, rather than inheriting a wildcard by default.
