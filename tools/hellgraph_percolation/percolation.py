@@ -9,8 +9,11 @@ Properties, by construction:
 - **Incremental** — only the affected closure re-materialises, never the whole graph.
 - **Bounded / governed** — the dependency graph must be a DAG; a cycle is fail-closed (CycleError),
   not an open loop.
-- **Isolated by default** — every emitted write carries its object's own tenant_id (+ op_set for
-  hyperedges), so a materialisation can't bleed across operational sets.
+- **Isolated by default** — every emitted write carries its object's own tenant_id AND op_set (op_set
+  top-level on a hyperedge, in `attributes` on a node/edge), so the isolation label is ALWAYS present.
+  Enforcing that boundary at read/write time is the graph service's responsibility (see the W2 "doors"
+  governance layer); this trigger's job is to guarantee there is a label to enforce ON — never to emit
+  an unlabelled object that a later reader cannot scope.
 - **Engine-agnostic** — it emits `graph-upsert-request.v0` (the Crystal-Atlas MLN write interface)
   through a pluggable Writer; it never reaches inside the (fenced) graph engine.
 
@@ -63,7 +66,8 @@ class PercolationResult:
 class Writer(Protocol):
     """Anything that accepts a graph-upsert-request.v0 — the real engine client, or a recorder."""
 
-    def upsert(self, request: dict) -> None: ...
+    def upsert(self, request: dict) -> None:
+        """Accept a graph-upsert-request.v0 and apply it (the engine client, or a recorder)."""
 
 
 @dataclass
@@ -117,12 +121,20 @@ class Catalog:
 
 
 def to_upsert_request(obj: CatalogObject) -> dict:
-    """Wrap an object's body in a graph-upsert-request.v0 envelope, scoped to its tenant. The op_set
-    is stamped onto a hyperedge body so isolation travels with the relation."""
+    """Wrap an object's body in a graph-upsert-request.v0 envelope, scoped to its tenant AND its
+    operational set. op_set travels with EVERY object so isolation is by default, not best-effort:
+    top-level on a hyperedge (graph-hyperedge.v0 has the field), and in `attributes.op_set` on a
+    node/edge — graph-node/edge.v0 are additionalProperties:false, so the open `attributes` bag is
+    op_set's home, where the writer and any op_set-scoped reader look for it. The attributes dict is
+    copied, never mutated in place, so the catalog's payload is untouched."""
     body = dict(obj.payload)
     body.setdefault("tenant_id", obj.tenant_id)
     if obj.materializes == HYPEREDGE:
         body.setdefault("op_set", obj.op_set)
+    else:
+        attrs = dict(body.get("attributes") or {})
+        attrs.setdefault("op_set", obj.op_set)
+        body["attributes"] = attrs
     return {"tenant_id": obj.tenant_id, _ARRAY[obj.materializes]: [body]}
 
 
