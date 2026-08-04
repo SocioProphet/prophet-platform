@@ -4,3 +4,4 @@ resources:
   - require-image-digest.yaml
   - verify-signed-images.yaml
   - runtime-baseline.yaml
+  - require-fsgroup-pvc.yaml   # Layer 1 of the 2026-08-04 orphan-gitea remediation

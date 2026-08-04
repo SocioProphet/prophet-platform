@@ -40,6 +40,10 @@ spec:
   template:
     metadata: { labels: { app: gitea } }
     spec:
+      # gitea/gitea:*-rootless runs as UID/GID 1000 and must write /var/lib/gitea on the mounted
+      # PVC. WITHOUT fsGroup the volume is root-owned and the container gets "Permission denied"
+      # at setup → CrashLoopBackOff forever. This is the exact bug that ran unnoticed for 26h.
+      securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000 }
       containers:
         - name: gitea
           image: gitea/gitea:1.26.2-rootless

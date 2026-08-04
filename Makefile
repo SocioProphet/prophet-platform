@@ -279,6 +279,13 @@ test-tools-hermetic:
 deploy-health:
 	python3 tools/deploy_health_alert.py --namespace $(or $(NS),socioprophet)
 
+# Detect out-of-band (non-GitOps) workloads — the class GitOps is structurally blind to (the
+# 2026-08-04 orphan-gitea postmortem). Live (needs a cluster credential; honors KUBE_CONTEXT), so
+# NOT part of hermetic validate — run it scheduled or locally. Teeth proven by --self-test.
+.PHONY: orphan-check
+orphan-check:
+	python3 tools/verify_no_orphan_workloads.py --namespace $(or $(NS),socioprophet)
+
 trustops-art-runner-smoke:
 	PYTHONPATH=apps/trustops-art-runner/src python3 tools/smoke_trustops_art_runner.py
 
