@@ -1,0 +1,9 @@
+{
+  "chunk_id": "vc-4a9bf2c81e7d",
+  "embedding_ref": "ec-7d3a1f9e2b84",
+  "scope": {
+    "topic_set": ["medical.cardiology"],
+    "domain": "medical"
+  },
+  "indexed_at": "2026-08-04T18:00:00Z"
+}
