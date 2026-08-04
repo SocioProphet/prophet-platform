@@ -1,0 +1,34 @@
+name: control-plane-phase12
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/consensus_arbitrator.py'
+      - 'tools/tests/test_consensus_arbitrator.py'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE12.md'
+      - '.github/workflows/control-plane-phase12.yml'
+  pull_request:
+    paths:
+      - 'tools/consensus_arbitrator.py'
+      - 'tools/tests/test_consensus_arbitrator.py'
+      - 'docs/WORKSPACE_CONTROL_PLANE_PHASE12.md'
+      - '.github/workflows/control-plane-phase12.yml'
+
+jobs:
+  control-plane-phase12:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Consensus arbitrator tests
+        run: pytest -q tools/tests/test_consensus_arbitrator.py
