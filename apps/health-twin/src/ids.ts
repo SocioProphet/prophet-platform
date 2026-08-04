@@ -37,6 +37,17 @@
 // label. 128 bits would be ample and would trip that ratchet for no gain, so the mint is 32 bytes and
 // the existing guard keeps working unchanged. The width matches a sha256 digest; the bytes do not
 // come from one, and this comment is the only place that distinction is recoverable from the string.
+//
+// ESTATE SAFETY KIT CROSS-REFERENCE. This exact pattern — mint, don't derive — was independently
+// re-derived a third time for `bootProofRecord` in socioprophet's server contracts (socioprophet#484),
+// with no code shared between here and there. SourceOS-Linux/sourceos-spec#276 generalizes this file
+// into `estate-safety-kit/js/mintId.ts`: same mint-not-derive decision, default width 128 bits with a
+// `bytes` parameter so a caller can ask for this file's own stricter 256-bit/64-hex shape explicitly
+// (`mintId(prefix, 32)`) instead of forking the helper. This file is NOT vendored from that kit yet —
+// converting it is a fast-follow (tracked: prophet-platform#1335) rather than done here, because a
+// blind file-swap would silently narrow every id this service mints from 256 to the kit's 128-bit
+// default unless every call site below is updated to pass `bytes: 32` explicitly, and that deserves
+// its own reviewed change, not a rushed one bundled into unrelated work.
 import { randomBytes } from 'node:crypto';
 
 /** 256 CSPRNG bits, hex, behind a human-readable prefix: `grant-…`, `consult-…`, `op-…`, `more-…`. */
