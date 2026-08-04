@@ -1,0 +1,22 @@
+{
+  "adr_id": "ADR-0001-nix-to-guix",
+  "title": "Migrate source-os / the Nix estate to Guix (+nonguix)",
+  "kind": "swap",
+  "decided_at": "2026-08-02",
+  "decided_by": "michael",
+  "rationale": "Nix project-governance instability; Guix+nonguix keeps the same nonfree posture with a Scheme-native design. Tool/language/ecosystem/governance change, not a freedom-posture change.",
+  "from": {"lang": "nix", "globs": ["*.nix"], "markers": ["flake.nix", "default.nix", "flake.lock"]},
+  "to": {"lang": "guix", "globs": ["*.scm"], "markers": ["channels.scm", "guix.scm", "manifest.scm"]},
+  "scope": [],
+  "scope_note": "empty scope = the whole source-os repo is under the swap",
+  "parity_doc": "guix/NIX_BASELINE.md",
+  "status": "parity",
+  "phases": ["spike", "parity", "cutover", "done"],
+  "waivers": [],
+  "policy": {"new_from": "forbid", "new_from_reason": "no new Nix while the estate migrates to Guix"},
+  "firewalls": {
+    "firewall_1": "adr_dependency_graph",
+    "firewall_2": "adr_conformance_sentinel"
+  },
+  "provenance": "source-os#314 (guix/channels.scm + guix/system/workstation.scm) + source-os#315 (desktop.scm + guix/NIX_BASELINE.md parity checklist), both MERGED 2026-08-02. Build on a Linux/Guix runner; cannot `guix system build` from macOS."
+}
