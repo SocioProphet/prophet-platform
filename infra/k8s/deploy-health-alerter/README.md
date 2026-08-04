@@ -26,6 +26,23 @@ A non-zero exit (**1** = gaps found, **2** = could-not-observe) fails the Job. T
   the alerter has lost its own heartbeat. (The check checks the checker — same discipline as
   `rule-liveness-guard`.)
 
+## How findings become action (the detect→act loop)
+The two alerts above were not enough on their own: `DeployHealthGapsDetected` is *binary* —
+it fires whenever ANY gap exists — and because the estate always carries some chronic gap it
+fires forever and gets ignored. The 2026-08-04 workspace sync-trap proved the cost: three
+ArgoCD apps sat OutOfSync for ~40h, flagged every single cycle, into a void.
+
+So findings are also routed to **durable, per-workload GitHub issues**:
+- [`tools/deploy_health_to_issues.py`](../../../tools/deploy_health_to_issues.py) reconciles a
+  `--json` report into one self-closing issue per `(kind, workload)` gap (label `deploy-health`).
+  A chronic gap is one standing issue (not re-fired noise); a NEW gap opens a new issue; a gap
+  that CLEARS closes its own issue — the control witnesses its own remediation. A **blind** scan
+  (could-not-observe) refuses to reconcile, so nothing is falsely marked resolved.
+- [`.github/workflows/deploy-health-detect.yml`](../../../.github/workflows/deploy-health-detect.yml)
+  runs the classifier against the live cluster hourly (OIDC/WIF, same as `infra-drift-detect`)
+  and drives the reconciler. It routes findings to issues; it does **not** auto-mutate the
+  cluster. (Wiring the sociosphere responder to *remediate* — `law_by_kind` — is the next layer.)
+
 ## Wiring
 - Deployed by [`deploy/argocd/deploy-health-alerter.yaml`](../../../deploy/argocd/deploy-health-alerter.yaml)
   (in the root-recursed `deploy/argocd/` tree; the base stays here).
