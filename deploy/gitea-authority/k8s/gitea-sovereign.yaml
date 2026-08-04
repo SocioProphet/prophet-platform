@@ -22,7 +22,11 @@ spec:
             - name: AUTHORITY_CALLER_TOKEN
               valueFrom: { secretKeyRef: { name: authority-caller-token, key: token } }
           readinessProbe: { httpGet: { path: /healthz, port: 8081 }, initialDelaySeconds: 3 }
-          resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { cpu: 250m, memory: 128Mi } }
+          # Values declared to MATCH GKE Autopilot's normalization so its resource mutator
+          # doesn't rewrite them (cpu 25m→50m, +ephemeral-storage 1Gi) — that rewrite kept the
+          # gitea-sovereign ArgoCD app perpetually OutOfSync after adoption (#1426). The gitea
+          # server container below already declares Autopilot-clean values and stays Synced.
+          resources: { requests: { cpu: 50m, memory: 64Mi, ephemeral-storage: 1Gi }, limits: { cpu: 250m, memory: 128Mi, ephemeral-storage: 1Gi } }
 ---
 apiVersion: v1
 kind: Service
