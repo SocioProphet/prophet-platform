@@ -1,0 +1,33 @@
+name: autonomy-quorum
+
+# The Genesis Guard: high-autonomy admission requires a validator quorum (QuorumProof),
+# conforming to the authoritative shape. This gate proves the verifier is fail-closed.
+on:
+  push:
+    paths:
+      - 'tools/quorum.py'
+      - 'tools/test_quorum.py'
+      - 'tools/emit_autonomy_admission_receipt.py'
+      - '.github/workflows/autonomy-quorum.yml'
+  pull_request:
+    paths:
+      - 'tools/quorum.py'
+      - 'tools/test_quorum.py'
+      - 'tools/emit_autonomy_admission_receipt.py'
+      - '.github/workflows/autonomy-quorum.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  quorum:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test deps
+        run: pip install pytest
+      - name: Verify quorum gate is fail-closed and threshold-correct
+        run: python3 -m pytest tools/test_quorum.py -q
