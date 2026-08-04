@@ -82,3 +82,59 @@ def test_invalid_transition(monkeypatch, tmp_path: Path) -> None:
         },
     )
     assert resp.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# /execute endpoint — dispatch verbs
+# ---------------------------------------------------------------------------
+
+
+def test_execute_runbook_verb(monkeypatch) -> None:
+    """POST /execute with a dispatch verb (runbook) calls the shell handler."""
+    import subprocess
+
+    monkeypatch.setattr(
+        "app.dispatch.subprocess.run",
+        lambda *a, **kw: subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="runbook-alpha\nrunbook-beta", stderr=""
+        ),
+    )
+
+    resp = client.post(
+        "/v1/matrix-qes/commands/execute",
+        json={
+            "actor": "@ops:example.org",
+            "room_id": "!incident:example.org",
+            "thread_id": "$thread3",
+            "body": "!qes runbook list",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["verb"] == "runbook"
+    assert "runbook-alpha" in body["reply"]
+    # Dispatch replies must not have state-machine fields.
+    assert "current_state" not in body
+
+
+def test_execute_incident_verb_ack(monkeypatch, tmp_path: Path) -> None:
+    """POST /execute with an incident verb (ack) falls through to the state machine."""
+    monkeypatch.setenv("SOCIOPROFIT_STATE_HOME", str(tmp_path))
+    main.store = main.SQLiteThreadStateStore()
+
+    resp = client.post(
+        "/v1/matrix-qes/commands/execute",
+        json={
+            "actor": "@ops:example.org",
+            "room_id": "!incident:example.org",
+            "thread_id": "$thread4",
+            "body": "!qes ack",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["previous_state"] == "triage"
+    assert body["current_state"] == "acknowledged"
+    # State-machine response must not have dispatch-only fields.
+    assert "reply" not in body

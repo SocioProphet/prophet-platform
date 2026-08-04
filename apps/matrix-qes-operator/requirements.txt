@@ -2,3 +2,7 @@ fastapi==0.115.0
 uvicorn==0.30.6
 httpx==0.27.2
 pydantic==2.9.2
+
+# External binary dependencies (not Python packages — install separately on the host):
+#   magic-wormhole  → `pip install magic-wormhole`  or  wormhole-william binary at /usr/local/bin/wormhole-william
+#   turtle-ssh-tunnel, turtle-runbook, turtle-noetica-stream, kubectl  → sovereign tooling / PATH
