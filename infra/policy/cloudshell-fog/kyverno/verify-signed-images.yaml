@@ -16,6 +16,9 @@ spec:
   # follow-up PR once the Audit logs are clean (see ROLLOUT.md). The controller is installed
   # HELD via deploy/argocd/kyverno.yaml.
   validationFailureAction: Audit
+  # Audit-phase: kyverno being unavailable must NOT block admissions (it is an observer, not a
+  # gate yet). Flip to Fail only when this policy goes Enforce, deliberately (#1344).
+  failurePolicy: Ignore
   background: false
   webhookTimeoutSeconds: 30
   rules:
