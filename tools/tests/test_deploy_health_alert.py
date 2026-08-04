@@ -16,6 +16,41 @@ sys.path.insert(0, str(ROOT / "tools"))
 import deploy_health_alert as dha  # noqa: E402
 
 
+# ── in-cluster vs kubectl dispatch (the CronJob runs with no kubectl binary) ──
+def test_in_cluster_false_without_env(monkeypatch):
+    monkeypatch.delenv("KUBERNETES_SERVICE_HOST", raising=False)
+    assert dha.in_cluster() is False
+
+
+def test_collect_uses_kubectl_when_not_in_cluster(monkeypatch):
+    monkeypatch.setattr(dha, "in_cluster", lambda: False)
+    monkeypatch.setattr(dha, "_kubectl_json", lambda args: {"items": [{"via": "kubectl"}]})
+    monkeypatch.setattr(dha, "_api_get", lambda path: {"items": [{"via": "rest"}]})
+    assert dha.collect_pods("ns") == [{"via": "kubectl"}]
+    assert dha.collect_apps("argocd") == [{"via": "kubectl"}]
+
+
+def test_collect_uses_rest_when_in_cluster(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(dha, "in_cluster", lambda: True)
+    monkeypatch.setattr(dha, "_kubectl_json", lambda args: {"items": [{"via": "kubectl"}]})
+    def fake_get(path):
+        seen["path"] = path
+        return {"items": [{"via": "rest"}]}
+    monkeypatch.setattr(dha, "_api_get", fake_get)
+    assert dha.collect_apps("argocd") == [{"via": "rest"}]
+    assert seen["path"] == "/apis/argoproj.io/v1alpha1/namespaces/argocd/applications"
+    assert dha.collect_pods("socioprophet") == [{"via": "rest"}]
+    assert seen["path"] == "/api/v1/namespaces/socioprophet/pods"
+
+
+def test_collect_returns_none_when_api_unreachable(monkeypatch):
+    # a blind in-cluster scan must surface as None → the orchestrator exits 2, never green
+    monkeypatch.setattr(dha, "in_cluster", lambda: True)
+    monkeypatch.setattr(dha, "_api_get", lambda path: None)
+    assert dha.collect_pods("ns") is None
+
+
 # ── ArgoCD app classification ────────────────────────────────────────────────
 def test_healthy_synced_app_is_clean():
     assert dha.classify_app({"status": {"health": {"status": "Healthy"},
@@ -33,9 +68,19 @@ def test_missing_and_unknown_health_flagged():
         assert f"health={h}" in dha.classify_app({"status": {"health": {"status": h}}})
 
 
-def test_outofsync_flagged_but_ignorable():
+def test_bare_outofsync_on_healthy_app_is_not_a_gap():
+    # OutOfSync + Healthy + no sync-failure condition = ArgoCD mid-reconcile, not a gap
     app = {"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"}}}
-    assert "sync=OutOfSync" in dha.classify_app(app)
+    assert dha.classify_app(app) == []
+
+
+def test_outofsync_with_sync_failure_condition_is_a_gap():
+    # the ws-workspace-* case: "one or more objects failed to apply" — real drift
+    app = {"status": {"health": {"status": "Healthy"}, "sync": {"status": "OutOfSync"},
+                      "conditions": [{"type": "SyncError",
+                                      "message": "Failed sync attempt: one or more objects failed to apply"}]}}
+    out = dha.classify_app(app)
+    assert any("sync=OutOfSync" in r for r in out)
     assert dha.classify_app(app, ignore_sync=True) == []
 
 

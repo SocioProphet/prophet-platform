@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: deploy-health-alerter
+  namespace: observability
+spec:
+  # Every 10 minutes. A runtime gap (a pod flipping to CrashLoopBackOff, an app going
+  # Degraded, a missing secret) should be caught in minutes, not the hours arcticdb-gateway
+  # sat broken. Cheaper and faster than the 15-min pvc guard because it only lists+classifies.
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1   # a real gap will still be there next cycle; don't hammer retries
+      template:
+        metadata:
+          labels:
+            app: deploy-health-alerter
+        spec:
+          serviceAccountName: deploy-health-alerter
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: alerter
+              # Digest-pinned stock python (same image the pvc-capacity-guard vetted). The
+              # alerter is stdlib-only and talks to the API server over the mounted SA token,
+              # so a bare python image needs no pip install and no kubectl layer.
+              image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+              # A non-zero exit (1 = gaps found, 2 = could-not-observe) fails the Job, which
+              # surfaces as kube_job_status_failed -> the PrometheusRule alert below. Exit 0
+              # (clean scan) succeeds silently. The gap detail is in the pod logs.
+              command: ["python3", "/opt/alerter/deploy_health_alert.py", "--namespace", "socioprophet"]
+              volumeMounts:
+                - name: alerter
+                  mountPath: /opt/alerter/deploy_health_alert.py
+                  subPath: deploy_health_alert.py
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: alerter
+              configMap:
+                name: deploy-health-alerter
+                defaultMode: 0555

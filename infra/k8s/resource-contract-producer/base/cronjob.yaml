@@ -1,0 +1,68 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: resource-contract-producer
+  namespace: observability
+spec:
+  # Every 30 minutes. Resource limits and enforcement signals change slowly (a deploy edit, an
+  # OOMKill); half-hourly evidence is plenty and each run samples usage over ~24s. The point is
+  # a heartbeat: the loop's evidence half must flow without a human, or every verdict is stale.
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: resource-contract-producer
+        spec:
+          serviceAccountName: resource-contract-producer
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: producer
+              # Digest-pinned stock python (same image the pvc-capacity-guard vetted). The
+              # producer is stdlib-only and reads the API + metrics API over the mounted SA
+              # token, so a bare python image needs no pip install and no kubectl layer.
+              image: python:3.12-slim@sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de
+              # Emits schema-valid ResourceContracts + SufficiencyVerdicts from live cluster
+              # state and best-effort publishes them as resource_contract EventEnvelopes to the
+              # devsecops mesh. Emission always completes; a publish failure is logged, not fatal
+              # (the mesh broker may not be up yet — that is a tracked, separate gap).
+              command:
+                - python3
+                - /opt/producer/emit_resource_contracts.py
+                - --namespace
+                - socioprophet
+                - --publish-url
+                - http://global-devsecops-intelligence.socioprophet.svc.cluster.local:8840/mesh/telemetry
+              volumeMounts:
+                - name: producer
+                  mountPath: /opt/producer/emit_resource_contracts.py
+                  subPath: emit_resource_contracts.py
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+          volumes:
+            - name: producer
+              configMap:
+                name: resource-contract-producer
+                defaultMode: 0555

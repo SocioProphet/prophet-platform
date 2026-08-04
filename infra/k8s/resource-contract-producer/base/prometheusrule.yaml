@@ -1,0 +1,35 @@
+# Meta-monitoring for the ResourceContract producer.
+#
+# The producer is the evidence half of the loop: it emits ResourceContracts + SufficiencyVerdicts
+# from live cluster state. If its CronJob quietly stops, the loop's evidence goes stale while
+# every dashboard still shows the last verdicts — the silent-staleness the program refuses. So
+# the producer's liveness is a rule. (A successful run exits 0 even when everything is
+# INCONCLUSIVE — emitting honest evidence IS the job — so there is no "failing" alert here, only
+# a "stopped running" one.)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: resource-contract-producer
+  namespace: observability
+  labels:
+    bundle: observability
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: resource-contract-producer.meta
+      rules:
+        - alert: ResourceContractProducerNotRunning
+          # Runs every 30 min; no successful completion in 90 min means it has stopped and the
+          # loop's evidence is going stale. The explicit namespace label mirrors the other guards
+          # so the absent() branch still routes.
+          expr: |
+            time() - max(kube_job_status_completion_time{job_name=~"resource-contract-producer-.*"}) > 5400
+            or absent(kube_job_status_completion_time{job_name=~"resource-contract-producer-.*"})
+          for: 30m
+          labels: { severity: warning, namespace: observability }
+          annotations:
+            summary: "resource-contract-producer has not completed a run in over 90m"
+            description: >-
+              The evidence half of the resource-sufficiency loop has stopped emitting. Verdicts on
+              which limits actually have teeth are now stale.
+            runbook: infra/k8s/resource-contract-producer/README.md

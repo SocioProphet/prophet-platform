@@ -1,0 +1,38 @@
+# Least privilege for the deploy-health alerter: it READS pod runtime state estate-wide and
+# reads ArgoCD Applications, and touches nothing else. No create, no patch, no delete, no
+# secrets — an alerter that could mutate is a bigger blast radius than the gaps it watches for.
+#
+# Unlike pvc-capacity-guard, this needs no Workload Identity / GSA: it talks only to the
+# in-cluster Kubernetes API via the mounted ServiceAccount token, never to a GCP API.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deploy-health-alerter
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-health-alerter
+rules:
+  # Pod runtime state (waiting reasons, restart counts) across all namespaces.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  # ArgoCD Application health/sync status (Degraded / Missing / OutOfSync).
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deploy-health-alerter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: deploy-health-alerter
+subjects:
+  - kind: ServiceAccount
+    name: deploy-health-alerter
+    namespace: observability

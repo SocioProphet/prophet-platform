@@ -54,6 +54,13 @@ gates:
     teeth_test: tools/tests/test_verify_evidence_refs.py
     min_negative_tests: 1
 
+  - id: INV-DEP-14
+    name: CronJob-mounted scripts stay byte-identical to their tools/ canonical
+    kind: pytest
+    tool: tools/verify_cronjob_script_mirrors.py
+    teeth_test: tools/tests/test_verify_cronjob_script_mirrors.py
+    min_negative_tests: 1
+
   - id: L1-ephemeral-apply
     name: Ephemeral real-apply preflight (live create/spec-admission)
     kind: workflow

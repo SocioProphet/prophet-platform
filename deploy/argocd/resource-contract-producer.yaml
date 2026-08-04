@@ -1,0 +1,34 @@
+# The ResourceContract producer's heartbeat. The tool (tools/emit_resource_contracts.py) emits
+# schema-valid ResourceContracts + SufficiencyVerdicts from live cluster state — the evidence
+# half of the resource-sufficiency loop. Run by hand it proves the loop; on a schedule it IS the
+# loop. This CronJob is that heartbeat.
+#
+# Lives in deploy/argocd/ (root-recursed), base under infra/k8s/ — same split as
+# pvc-capacity-guard and deploy-health-alerter.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: resource-contract-producer
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: platform-ops
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    # reference, not foundation: a replaceable evidence emitter running a digest-pinned stock
+    # python image, not part of the interoperability spine and not built by images.yml.
+    # Required by tools/preflight_deploy_contract.py check 5.
+    socioprophet.io/tier: "reference"
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  source:
+    repoURL: https://github.com/SocioProphet/prophet-platform
+    targetRevision: main
+    path: infra/k8s/resource-contract-producer/base
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

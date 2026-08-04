@@ -18,6 +18,41 @@ sys.path.insert(0, str(ROOT / "tools"))
 import emit_resource_contracts as erc  # noqa: E402
 
 
+# ── the published EventEnvelope must match the consumer's wire contract ───────
+_SYNTH_CONTRACT = {"schemaVersion": "0.1.0", "kind": "ResourceContract", "contractId": "api-memory",
+                   "resource": "memory", "limit": {"value": 1, "unit": "bytes"}}
+
+
+def test_envelope_shape_keys_on_resource_contract():
+    env = erc.envelope(_SYNTH_CONTRACT)
+    # type is the routing key the resource-contract-measurement-telemetry mapping consumes
+    assert env["type"] == "resource_contract"
+    assert env["data"] == _SYNTH_CONTRACT
+    assert env["data_name"] == "api-memory"
+    assert isinstance(env["timestamp"], int)               # ms epoch for bus ordering
+    assert env["utc_timestamp"].endswith("Z")
+
+
+def test_envelope_validates_against_event_envelope_schema():
+    schema = ROOT.parent / "global-devsecops-intelligence" / "open-ai4it-spec" / "contracts" \
+        / "schemas" / "event-envelope.schema.json"
+    if not schema.is_file():
+        pytest.skip("event-envelope schema not reachable in this environment")
+    import json
+    try:
+        from jsonschema import Draft202012Validator
+    except ImportError:
+        pytest.skip("jsonschema not installed")
+    errs = list(Draft202012Validator(json.loads(schema.read_text())).iter_errors(erc.envelope(_SYNTH_CONTRACT)))
+    assert not errs, f"envelope not schema-valid: {[e.message for e in errs][:3]}"
+
+
+def test_publish_is_best_effort_never_raises():
+    # an unreachable endpoint must not crash emission — publishing is best-effort by design
+    ok, failed = erc.publish("http://127.0.0.1:9/deadendpoint", [_SYNTH_CONTRACT])
+    assert ok == 0 and failed == 1
+
+
 # ── the verdict algebra must discriminate all four branches ──────────────────────
 def test_gate_ineligible_is_inconclusive():
     # e.g. CPU: peak measured but the throttle signal (fired) is unknown → not gate-eligible
