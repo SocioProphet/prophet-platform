@@ -234,6 +234,17 @@ test-tools-hermetic:
 	test -d .venv-tools || python3 -m venv .venv-tools
 	. .venv-tools/bin/activate && python -m pip install --upgrade pip && pip install pytest pyyaml jsonschema && pytest -q tools/tests -k 'not fogstack'
 
+.PHONY: deploy-health
+# Alert on the *gap*, not the event: scan LIVE cluster runtime state and fail on any
+# Degraded/Missing ArgoCD app, stuck/crashlooping pod, or stale/failed job receipt — the
+# class of defect (e.g. arcticdb-gateway broken 20h) that every static gate here misses
+# because it lives only in running state. Requires a cluster credential, so it is NOT part
+# of hermetic `validate`; run it in a scheduled CI job with a read-only cluster role, or
+# locally against the current kube-context. The classifier's teeth are proven hermetically
+# under `test-tools` (tools/tests/test_deploy_health_alert.py) and via `--self-test`.
+deploy-health:
+	python3 tools/deploy_health_alert.py --namespace $(or $(NS),socioprophet)
+
 trustops-art-runner-smoke:
 	PYTHONPATH=apps/trustops-art-runner/src python3 tools/smoke_trustops_art_runner.py
 
