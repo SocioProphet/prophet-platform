@@ -3,7 +3,7 @@
 # Pinned manually: the image built fine, but the images matrix run failed on an UNRELATED service
 # (sherlock-engine), and gitops-promote only fires on a fully-green images run — so one unrelated build
 # failure blocked the auto-promote. (Follow-up: promote per-service on partial success.)
-image: { repository: hellgraph-service, tag: sha-85d830cd278ee7584e7b1ebad0dd78f6be476c4e }
+image: { repository: hellgraph-service, tag: sha-7dbad06f19debc55bccf73f6c7eed25a300d5306 }
 service: { port: 8090, portName: http }
 # The chart's ServiceMonitor (charts/socioprophet-service/templates/servicemonitor.yaml) was
 # OFF for every service because none exposed a real /metrics endpoint. hellgraph-service now
