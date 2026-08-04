@@ -1,0 +1,35 @@
+{
+  "schema_version": "prophet-platform.tritfabric-ui-labels/v0.1",
+  "contract_id": "tritfabric-ui-labels-v0",
+  "labels": [
+    {
+      "surface_id": "community-learning-intake",
+      "display_label": "Community Learning intake readiness",
+      "status_label": "review-gated",
+      "must_show": ["consent", "license", "lineage", "rubric", "manual-review-before-promotion"],
+      "forbidden_badges": ["training-enabled", "auto-promotion", "economic-credit"]
+    },
+    {
+      "surface_id": "network-atlas-framework-catalog",
+      "display_label": "Network Atlas framework catalog",
+      "status_label": "catalog-intake",
+      "must_show": ["adapter-status", "license-status", "claim-boundary"],
+      "forbidden_badges": ["validated-adapter", "production-supported"]
+    },
+    {
+      "surface_id": "model-card-promotion-evidence",
+      "display_label": "Model-card promotion evidence",
+      "status_label": "evidence-display-only",
+      "must_show": ["mathType", "calcOps", "ledgerRef", "artifactRef", "tritStatus"],
+      "forbidden_badges": ["promotion-executor", "transport-exception-only"]
+    },
+    {
+      "surface_id": "serve-readiness",
+      "display_label": "Serve readiness reporting",
+      "status_label": "readiness-only",
+      "must_show": ["readiness-vs-runtime", "rollback-before-active-loop", "claim-boundary"],
+      "forbidden_badges": ["production-ready", "autoscaler-active", "serve-deployed"]
+    }
+  ],
+  "claim_boundary": "UI/readiness label contract only. This does not implement UI components, runtime behavior, event ingestion, workflow execution, model mutation, artifact promotion, adapter validation, Serve deployment, or production readiness."
+}
