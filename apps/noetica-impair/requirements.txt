@@ -28,4 +28,4 @@ pyyaml==6.0.2
 accelerate==1.10.1
 
 # Loading a SentencePiece-tokenizer model (Gemma, Llama) needs this at load time.
-sentencepiece==0.2.1
+sentencepiece==0.2.0

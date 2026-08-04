@@ -38,6 +38,11 @@ DEFAULT_IMAGE = "us-central1-docker.pkg.dev/socioprophet-platform/socioprophet/n
 class GKEPlane(ExecutionPlane):
     name: str = "gke"
     namespace: str = "training"
+    #: REQUIRED. kubectl's current context on this estate is the PRODUCTION GKE
+    #: cluster, so an unqualified `kubectl apply` lands a model-degradation run there.
+    #: See planes/kube.py, which is the preferred plane -- it targets local kind/k3s
+    #: and the cloud twin with one manifest.
+    context: str | None = None
     image: str = DEFAULT_IMAGE
     image_tag: str = "latest"
     accelerator: str = "nvidia-l4"
@@ -127,8 +132,14 @@ class GKEPlane(ExecutionPlane):
         h = self.plan(job)
         if shutil.which("kubectl") is None:
             raise RuntimeError("kubectl not found; use plan() and apply the manifest yourself")
+        if not self.context:
+            raise RuntimeError(
+                "GKEPlane requires an explicit `context`: kubectl's current context "
+                "here is PRODUCTION, and this submits a model-degradation Job. Prefer "
+                "planes/kube.py, which targets local kind/k3s and the twin identically."
+            )
         proc = subprocess.run(
-            ["kubectl", "apply", "-f", "-"], input=h.artifact,
+            ["kubectl", "--context", self.context, "apply", "-f", "-"], input=h.artifact,
             text=True, capture_output=True, check=False,
         )
         if proc.returncode != 0:

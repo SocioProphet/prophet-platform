@@ -1,0 +1,34 @@
+{
+  "capability_id": "caps.research.interpretability.impair-rig@0.1.0",
+  "kind": "capability",
+  "status": "experimental",
+  "name": "Noetica Impairment Rig",
+  "description": "Dose-scaled impairment of locally-held open-weights LLMs, measuring the DISSOCIATION SIGNATURE -- which faculty degrades first -- rather than generic degradation. Runs as a Kubernetes Job; the same manifest targets a local kind/k3s cluster or the cloud twin, per the continuum thesis of one workload without seams.",
+  "backends": [
+    "local",
+    "k8s"
+  ],
+  "composes_with": [
+    "caps.infra.paas.continuum-local@0.1.0",
+    "caps.compute.mesh-plane@0.1.0"
+  ],
+  "links": {
+    "source": "https://github.com/SocioProphet/noetica-impair",
+    "evidence_surface": "Noetica governance trail (lib/impair/ingest.ts)",
+    "attestation": "superconscious interpretability-harness-tier2-binding.v1"
+  },
+  "policy": {
+    "fail_closed": true,
+    "evidence_emitting": true,
+    "paired_sober_control_required": true,
+    "explicit_target_required": true,
+    "forbidden_circuit_gated": true,
+    "no_runtime_weight_fetch": true,
+    "sensitive_never_untrusted": true
+  },
+  "non_claims": [
+    "no_public_claim_promotion",
+    "no_mechanism_claim_without_hooks",
+    "receptor_to_computation_mapping_is_analogy_not_finding"
+  ]
+}
