@@ -1,8 +1,8 @@
 # node-commander — node runtime control API (status / heartbeat), vendored into prophet-platform CI.
 FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY app ./app
 ENV PORT=8080
 EXPOSE 8080

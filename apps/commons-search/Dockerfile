@@ -4,7 +4,7 @@
 # No native addons: the service itself is pure Node/TS (the hellgraph backend emits a JSONL delta outbox for a
 # separate federation tailer rather than embedding autobase, so node:20-slim needs no build toolchain). `minio` is
 # an OPTIONAL dependency — only installed/loaded when COMMONS_STORE=minio; its absence soft-degrades to memory.
-FROM node:20-slim
+FROM node:20-slim@sha256:3d0f05455dea2c82e2f76e7e2543964c30f6b7d673fc1a83286736d44fe4c41c
 
 WORKDIR /app
 

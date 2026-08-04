@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./requirements.txt
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY app ./app
 COPY third_party ./third_party
 EXPOSE 8080

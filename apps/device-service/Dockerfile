@@ -17,7 +17,7 @@
 #
 # python:3.11-slim mirrors apps/market-replay + apps/nugget-extractor. The dependency
 # closure is market-replay's exactly — no apt layer, no native toolchain, no radio stack.
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:00af38ae2ed311628970782e8a2d7f014d8909dbc63cb97bc0a158187f4db045
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt

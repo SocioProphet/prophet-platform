@@ -64,6 +64,11 @@ def unpinned_bases(df: Path) -> list[str]:
             aliases.add(alias.lower())
         if ref.lower() in aliases:
             continue  # referring to an earlier stage, not pulling an image
+        # `scratch` is the empty base, not a pulled image: there is nothing to pin and
+        # `docker manifest inspect scratch` cannot succeed. Excluding it is correctness, not
+        # an exemption — treating it as unpinnable would strand every distroless build.
+        if ref.lower() == "scratch":
+            continue
         if "@sha256:" not in ref:
             out.append(ref)
     return out
@@ -79,8 +84,10 @@ def lock_is_live(rf: Path) -> bool:
     """
     lock = rf.with_name("requirements.lock")
     df = rf.parent / "Dockerfile"
-    if not lock.exists() or not df.exists():
+    if not lock.exists():
         return False
+    if not df.exists():
+        return True  # no image is built here; the lock is the whole pin
     text = df.read_text(encoding="utf-8", errors="replace")
     return "requirements.lock" in text and "--require-hashes" in text
 
@@ -103,8 +110,24 @@ def load_ratchet() -> dict:
     return json.loads(RATCHET_PATH.read_text(encoding="utf-8"))
 
 
-def resolve_digest(ref: str) -> str | None:
-    """Resolve a tag to its immutable digest. Requires network + docker."""
+def resolve_digest(ref: str, attempts: int = 4) -> str | None:
+    """Resolve a tag to its immutable digest. Requires network + docker.
+
+    Retries with backoff: Docker Hub rate-limits and times out, which is the exact fragility
+    this gate exists to remove, and it was failing the healer itself. One transient 429 should
+    not leave an image unpinned forever.
+    """
+    import time
+    for i in range(attempts):
+        out = _try_manifest(ref)
+        if out is not None:
+            return out
+        if i < attempts - 1:
+            time.sleep(2 ** i * 3)
+    return None
+
+
+def _try_manifest(ref: str) -> str | None:
     try:
         out = subprocess.run(["docker", "manifest", "inspect", "-v", ref],
                              capture_output=True, text=True, timeout=120)
@@ -152,18 +175,29 @@ def heal_requirements(rf: Path) -> tuple[bool, str]:
 
     df = rf.parent / "Dockerfile"
     if not df.exists():
-        return True, f"wrote {lock.relative_to(ROOT)} (no Dockerfile to rewire)"
+        return True, f"wrote {lock.relative_to(ROOT)} (no image is built here; the lock is the pin)"
     text = df.read_text(encoding="utf-8")
     before = text
-    text = text.replace("COPY requirements.txt", "COPY requirements.lock")
-    # --require-hashes makes pip refuse any package whose hash is not declared, so a
-    # tampered or substituted wheel fails the build instead of shipping.
-    text = re.sub(r"pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements\.txt",
-                  "pip install --no-cache-dir --require-hashes -r requirements.lock", text)
-    text = re.sub(r"pip install([^\n]*?) -r requirements\.txt",
-                  r"pip install\1 --require-hashes -r requirements.lock", text)
-    if text == before:
-        return True, f"wrote {lock.relative_to(ROOT)} (WARNING: Dockerfile install line not recognised — lock is inert)"
+
+    # Path-agnostic: COPY and RUN may reference the file bare or fully qualified
+    # (`COPY apps/x/requirements.txt /app/requirements.txt` + `pip install -r /app/requirements.txt`),
+    # so rewrite the filename wherever it appears rather than matching one spelling.
+    text = text.replace("requirements.txt", "requirements.lock")
+    # --require-hashes makes pip refuse any wheel whose hash is not declared, so a tampered or
+    # substituted package fails the build instead of shipping. Add it to whichever pip install
+    # consumes the lock, and drop the unpinned `--upgrade pip` that would run before it.
+    text = re.sub(r"pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r ",
+                  "pip install --no-cache-dir --require-hashes -r ", text)
+    if "--require-hashes" not in text:
+        text = re.sub(r"(pip install(?:(?!--require-hashes)[^\n])*?) -r (\S*requirements\.lock)",
+                      r"\1 --require-hashes -r \2", text)
+
+    if text == before or "--require-hashes" not in text:
+        # A lock the build never reads is WORSE than no lock: it looks like the problem is
+        # solved. Remove it and fail loudly rather than leaving a decorative artifact behind.
+        lock.unlink(missing_ok=True)
+        return False, ("could not rewire the Dockerfile to consume the lock — lock removed rather "
+                       "than left inert; this Dockerfile's install line needs a look")
     df.write_text(text, encoding="utf-8")
     return True, f"wrote {lock.relative_to(ROOT)} + rewired Dockerfile to --require-hashes"
 

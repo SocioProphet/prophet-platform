@@ -7,7 +7,7 @@
 #
 # Image name MUST stay "noetica-impair" and match the apps/<dir> name: gitops-promote
 # keys the sha- tag rewrite off that convention.
-FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime
+FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime@sha256:831247999fbf7e08f61b3e39f6d77ee434f38f6f07f769d00db451e853878067
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONUNBUFFERED=1 \
@@ -17,8 +17,8 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # LICENSE comes along because pyproject declares license = { file = "LICENSE" };
 # without it the editable install fails with "License file does not exist".

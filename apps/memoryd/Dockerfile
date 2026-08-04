@@ -1,8 +1,8 @@
 # memoryd — sovereign memory-mesh service (recall/write/retract), vendored into prophet-platform CI.
 FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY src ./src
 ENV PORT=8787
 # Default store is in-memory (MEMORYMESH_STORE_URI=memory://); set postgresql:// / sqlite:/// to persist.

@@ -15,7 +15,7 @@
 # (emit_risk_ep_facts.py is NOT stdlib-only — it dogfoods third_party/open_ep_framework;
 # omitting that tree is what put dashboard-bff in CrashLoopBackOff before #1369 made the
 # import failure degrade to a per-endpoint 503 instead of a whole-service crash.)
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:00af38ae2ed311628970782e8a2d7f014d8909dbc63cb97bc0a158187f4db045
 
 RUN useradd -u 10001 -m -s /usr/sbin/nologin app
 WORKDIR /app

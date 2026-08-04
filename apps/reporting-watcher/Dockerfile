@@ -2,8 +2,8 @@
 # governed doc→SQL workflow on the compute gateway the moment a pack lands.
 FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY main.py ./
 ENV PORT=8080
 EXPOSE 8080

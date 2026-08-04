@@ -1,8 +1,8 @@
 # lattice-studio — the Studio BFF (FastAPI over product_spine + live fabric aggregation). Makes the surface live.
 FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY src ./src
 ENV PORT=8080
 EXPOSE 8080

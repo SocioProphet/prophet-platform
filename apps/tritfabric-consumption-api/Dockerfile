@@ -1,10 +1,10 @@
 # tritfabric-consumption-api — the prophet-platform consumption surface for TritFabric (readiness/contract
 # reporting; deliberately non-mutating). Root build context so the integration contract travels with the app.
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:00af38ae2ed311628970782e8a2d7f014d8909dbc63cb97bc0a158187f4db045
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
-COPY apps/tritfabric-consumption-api/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
+COPY apps/tritfabric-consumption-api/requirements.lock /app/requirements.lock
+RUN pip install --no-cache-dir --require-hashes -r /app/requirements.lock
 COPY apps/tritfabric-consumption-api /app/apps/tritfabric-consumption-api
 COPY contracts/integrations/tritfabric-consumption.v0.json /app/contracts/integrations/tritfabric-consumption.v0.json
 ENV PORT=8080
