@@ -8,10 +8,10 @@ nameOverride: hellgraph-percolator
 
 image:
   repository: hellgraph-percolator
-  # sha-pinned by gitops-promote after the first CI build (materializer/arcticdb-gateway precedent).
-  tag: latest
-  # Guard against the moving-tag+IfNotPresent trap while the tag is still `latest`; harmless once
-  # promotion pins an immutable sha- tag (kubelet re-checks, digests match, no-op).
+  # An IMMUTABLE sha- tag, never a moving `latest` (moving-tag + IfNotPresent never rolls — preflight
+  # doctrine). This placeholder is the source commit; gitops-promote rewrites it to the actual
+  # built-image digest on the first CI build (materializer/arcticdb-gateway precedent).
+  tag: sha-f540aefdbaefdfbd802f44f579ebb64d14e6ffa7
   pullPolicy: Always
 
 service: { port: 8080, portName: http }
