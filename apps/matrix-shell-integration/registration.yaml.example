@@ -1,0 +1,12 @@
+id: sourceos-shell-integration
+url: http://localhost:8501
+as_token: REPLACE_ME
+hs_token: REPLACE_ME
+sender_localpart: sourceos-bot
+rate_limited: false
+namespaces:
+  users:
+    - exclusive: true
+      regex: '@sourceos-bot:.*'
+  rooms: []
+  aliases: []
