@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "BoundaryTransition",
+  "transitionId": "bt-turtleterm-shell-2026-08-04",
+  "timestamp": "2026-08-04T11:45:00Z",
+  "sourceComponent": "TurtleTerm",
+  "targetComponent": "PTY",
+  "boundaryType": "shell_execution",
+  "initiator": "local_user_action",
+  "userVisible": true,
+  "userActionRef": "user-opened-new-tab",
+  "engineManifestRef": "pty-engine-v1"
+}

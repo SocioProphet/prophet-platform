@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "EngineManifest",
+  "engineId": "gecko-renderer-v128",
+  "engineType": "web_renderer",
+  "ownerComponent": "BearBrowser",
+  "invocationSurfaces": ["content_tab", "pdf_viewer", "web_extension"],
+  "allowedContexts": ["user_navigation", "extension_api"],
+  "disallowedContexts": ["background_ad_worker"],
+  "defaultNetworkPolicy": "policy_gated",
+  "defaultFilePolicy": "user_gesture_required",
+  "credentialPolicy": "policy_gated",
+  "observability": {
+    "emitEngineInit": true,
+    "emitBoundaryTransition": true,
+    "emitNetworkOpen": true,
+    "emitFileOpen": false,
+    "emitFaultEnvelope": true
+  }
+}

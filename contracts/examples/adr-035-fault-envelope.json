@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "v0.1",
+  "kind": "FaultEnvelope",
+  "eventId": "fe-bear-renderer-crash-2026-08-04",
+  "timestamp": "2026-08-04T11:30:00Z",
+  "eventType": "renderer_crash",
+  "severity": "component_terminated",
+  "process": {
+    "pid": 5678,
+    "name": "BearBrowser",
+    "binary": "/Applications/BearBrowser.app/Contents/MacOS/BearBrowser",
+    "parent": "launchd",
+    "codeIdentity": "sha256:abc123"
+  },
+  "componentChain": ["BearBrowser", "GeckoRenderer", "ContentProcess"],
+  "fault": {
+    "namespace": "Gecko",
+    "subtype": "content_process_crash",
+    "signalOrException": "SIGSEGV",
+    "intentional": false,
+    "simulated": false,
+    "policyRelated": "no"
+  },
+  "privacy": {
+    "tier": "shareable_default",
+    "stableIdentifiersRedacted": true,
+    "instructionBytesRedacted": true,
+    "pathsRedacted": true
+  }
+}
