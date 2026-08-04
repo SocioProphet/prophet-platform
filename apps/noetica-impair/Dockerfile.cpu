@@ -1,0 +1,43 @@
+# CPU image for the LOCAL dev loop — multi-arch (amd64 + arm64).
+#
+# WHY THIS EXISTS, and why it is not a workaround.
+#
+# The GPU image (./Dockerfile) is based on pytorch/pytorch:*-cuda*, which is published
+# for amd64 ONLY. An Apple Silicon workstation therefore cannot pull or run it at all:
+#
+#   no image found in image index for architecture "arm64", variant "v8", OS "linux"
+#
+# That is a genuine seam in the continuum thesis of "the same workload, without seams".
+# CUDA cannot be arm64 here, so the honest resolution is two variants that differ in
+# exactly one dimension — the accelerator — rather than pretending one image spans both.
+#
+# This is also the shape the rig was designed for: the whole test suite runs on
+# randomly-initialised toy models on CPU, because hook correctness is a property of the
+# HOOKS, not the weights. Local proves the plumbing and the manifest; the GPU image
+# proves the science. A run records which it used via IMPAIR_PLANE, so a CPU toy result
+# can never be mistaken for a weights result.
+FROM python:3.11-slim
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/cache/hf \
+    HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
+WORKDIR /app
+
+# CPU torch from the dedicated index: the default wheel drags in ~2GB of CUDA payload
+# that this image can never use, and on arm64 there is no CUDA wheel at all.
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY pyproject.toml LICENSE ./
+COPY src ./src
+RUN pip install --no-cache-dir --no-deps -e .
+
+RUN useradd -m -u 10001 impair && mkdir -p /cache /out && chown -R impair /cache /out /app
+USER impair
+
+ENTRYPOINT ["python", "-m", "noetica_impair.experiments.run_matrix"]

@@ -22,6 +22,16 @@ convenient.
 What this module does NOT license: any claim about a black box's internals. An
 invariant behavioural signature transports a BEHAVIOURAL measure. Mechanism is
 inferred only where hooks were actually installed.
+
+**The ruler must be identified, not merely named.** ``attribution`` is the dual of this
+module: invariance asks whether a signature is SHARED across models, attribution asks
+whether a fingerprint is SPECIFIC to one. A reading like "reads as ALCOHOL@0.4 on
+gpt-oss-20b's ladder" is only meaningful if the gpt-oss-20b that produced that ladder is
+verifiably the model you think it is, and a name string is not evidence of that. Over a
+longitudinal study the reference can be re-downloaded, re-quantised or silently
+replaced, and the ladder then moves underneath every comparison drawn against it. So a
+reading may carry the reference's LatentSignature, and if that signature fails to
+attribute to the model it claims, the reading is not defensible.
 """
 
 from __future__ import annotations
@@ -181,6 +191,9 @@ class BlackBoxReading:
     invariance: InvarianceReport | None
     scoring_mode: str
     defensible: bool
+    #: Attribution verdict for the white-box reference that supplied the ladder, when
+    #: a signature was provided. None means the ruler was taken on trust.
+    reference_attribution: Any = None
     caveats: tuple[str, ...] = field(default_factory=tuple)
 
     def report(self) -> str:
@@ -190,6 +203,8 @@ class BlackBoxReading:
             f"  ruler: {', '.join(self.reference_models) or '(none)'} "
             f"[kinship={self.kinship}, instrument={self.scoring_mode}]",
         ]
+        if self.reference_attribution is not None:
+            lines.append(f"  ruler identity: {self.reference_attribution.report()}")
         lines += [f"  ! {c}" for c in self.caveats]
         return "\n".join(lines)
 
@@ -203,6 +218,8 @@ def read_black_box(
     kinship: str,
     scoring_mode: str,
     reference_models: Sequence[str] = (),
+    reference_signature: Any = None,
+    reference_registry: Any = None,
 ) -> BlackBoxReading:
     """Assemble a black-box reading with every weakness attached to it.
 
@@ -212,6 +229,36 @@ def read_black_box(
     """
     caveats: list[str] = []
     defensible = True
+
+    # Identify the ruler rather than trusting its name. attribution is the dual of
+    # invariance: this asks whether the reference that produced the ladder is the model
+    # it claims to be, which a longitudinal comparison depends on and a string cannot
+    # establish.
+    attribution_result = None
+    if reference_signature is not None:
+        from ..attribution import attribute, verify_signature_receipt
+        ok, why = verify_signature_receipt(reference_signature)
+        if not ok:
+            defensible = False
+            caveats.append(
+                f"the reference ruler's signature fails its own receipt check ({why}); "
+                "the ladder's provenance is broken, so nothing located on it is anchored"
+            )
+        elif reference_registry is not None:
+            attribution_result = attribute(reference_signature, reference_registry)
+            if not attribution_result.matched:
+                defensible = False
+                caveats.append(
+                    f"the reference ruler does not attribute to a known model "
+                    f"({attribution_result.reason}). It may have been re-quantised or "
+                    "swapped, in which case the ladder moved underneath every "
+                    "comparison drawn against it"
+                )
+    else:
+        caveats.append(
+            "the reference ruler is identified by NAME only; no latent signature was "
+            "supplied, so a silently changed reference would not be detected"
+        )
 
     if invariance is None:
         defensible = False
@@ -241,5 +288,6 @@ def read_black_box(
         target=target, condition=condition, faculty=faculty,
         reference_models=list(reference_models), kinship=kinship,
         invariance=invariance, scoring_mode=scoring_mode,
-        defensible=defensible, caveats=tuple(caveats),
+        defensible=defensible, reference_attribution=attribution_result,
+        caveats=tuple(caveats),
     )

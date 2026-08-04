@@ -17,7 +17,10 @@ from .hedging import HedgingProbe
 from .lookahead import LookaheadProbe
 from .working_memory import WorkingMemoryProbe
 
-BATTERY_VERSION = "battery/v1"
+# v2: every item set raised past the n>=30 power floor. The sets CHANGED, so a v1 score
+# and a v2 score are not comparable -- which is exactly what this version string exists
+# to make visible in provenance rather than leaving someone to discover by surprise.
+BATTERY_VERSION = "battery/v2"
 
 
 @dataclass

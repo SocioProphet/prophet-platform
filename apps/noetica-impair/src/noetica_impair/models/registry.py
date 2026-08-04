@@ -143,6 +143,16 @@ register(ArchMeta(
 ))
 
 register(ArchMeta(
+    key="qwen25-0.5b", hf_id="Qwen/Qwen2.5-0.5B-Instruct", arch="dense", n_layers=24,
+    role="smallest REAL-weights rig — plumbing proof without a GPU",
+    notes="0.99GB and ungated, so the full pipeline (loader, hooks, battery, receipts, "
+          "bundle) is provable on a real TRAINED model on a laptop. The toy fixtures "
+          "prove hook correctness on random weights; this proves the rig runs on a "
+          "model that actually has competence to lose. No SAE exists for it, so "
+          "SAE-dependent presets still skip.",
+))
+
+register(ArchMeta(
     key="gpt-oss-20b", hf_id="openai/gpt-oss-20b", arch="moe", n_layers=24,
     moe=MoEInfo(n_experts=32, top_k=4, has_shared_experts=False),
     role="OpenAI's own open-weights reference (see models.pairing)",

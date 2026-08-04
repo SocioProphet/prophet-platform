@@ -16,8 +16,21 @@ from dataclasses import dataclass
 from .base import Probe, ProbeResult, Subject, choose
 
 DISTANCES = (4, 16, 48, 128, 320)
-KEYS = ("azure", "walnut", "gantry", "puffin", "cobalt", "lantern", "meridian", "thistle")
-VALUES = ("7412", "9038", "2651", "8807", "3194", "5560", "1723", "6489")
+# 32 keys/values so the recall-vs-distance curve is measured at n>=30 per distance
+# rather than 8. At n=8 a single flip moved a point by 12.5 percentage points, which is
+# wider than any dose effect worth reporting.
+KEYS = (
+    "azure", "walnut", "gantry", "puffin", "cobalt", "lantern", "meridian", "thistle",
+    "harbour", "vellum", "quartz", "bramble", "cinder", "falcon", "gossamer", "hollow",
+    "ivory", "juniper", "kestrel", "lattice", "marrow", "nimbus", "obsidian", "pewter",
+    "quarry", "rampart", "saffron", "tundra", "umber", "verdant", "willow", "zephyr",
+)
+VALUES = (
+    "7412", "9038", "2651", "8807", "3194", "5560", "1723", "6489",
+    "4275", "8130", "9642", "3058", "7761", "2394", "6017", "5283",
+    "1946", "8472", "3607", "9251", "4830", "7165", "2578", "6903",
+    "5314", "8749", "1082", "9427", "3695", "7038", "2461", "6852",
+)
 FILLER = (
     "The committee reviewed the schedule. The weather stayed mild. "
     "Deliveries continued as planned. Nothing of note was recorded. "
