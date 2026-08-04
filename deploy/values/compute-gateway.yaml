@@ -46,5 +46,14 @@ secretEnv:
 # seconds of rollout downtime — deliberate; the object-store backend lifts this later.
 autoscaling: { enabled: false }
 replicaCount: 1
+# The gateway hydrates its durable receipt/blob store (/data, 2Gi PVC — thousands of
+# blobs + the hash-chained receipt log) into memory on boot, on top of the hellgraph
+# and embedding libraries. The shared chart default (512Mi) is too tight: the pod was
+# OOMKilled ~9s into startup, before it could serve or even log — 31 restarts, the whole
+# gateway (compute, config-plane, governance receipts) down. Raise the limit for THIS
+# service only (not the chart default, which every service inherits).
+resources:
+  requests: { cpu: 100m, memory: 384Mi }
+  limits:   { cpu: "1",  memory: 1Gi }
 strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 0, maxUnavailable: 1 } }
 persistence: { enabled: true, storageClass: dynamic-rwo, size: 2Gi, mountPath: /data }
