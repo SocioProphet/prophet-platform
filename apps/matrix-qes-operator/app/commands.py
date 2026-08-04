@@ -25,3 +25,10 @@ def parse_command(*, actor: str, room_id: str, thread_id: str | None, body: str)
         room_id=room_id,
         thread_id=thread_id,
     )
+
+def is_dispatch_verb(verb: str) -> bool:
+    """Return True if *verb* is handled by the shell dispatcher."""
+    from .dispatch import DISPATCH_VERBS  # noqa: PLC0415
+
+    return verb in DISPATCH_VERBS
+
