@@ -68,6 +68,39 @@ def decide(kind: str, backend: str) -> dict[str, Any]:
     }
 
 
+def _check_quorum_independence(sigs: list[dict], actor: str, project: str) -> str | None:
+    """Independence checks the DECISION layer owns. Returns a refusal reason, or None.
+
+    Cryptographic signature verification is deliberately NOT here — it belongs to the authority
+    kernel behind the transport seam (see module docstring). But these two properties are decision
+    properties, not transport properties, and this module is where the decision is made:
+
+    1. **Distinct signers.** `len(sigs) >= need` counts signatures, not voices. The same principal
+       twice is one voice; an N-of-M rule satisfied by one repeated signer is not a quorum.
+    2. **No self-signing.** The actor requesting a HIGH-danger grant may not be the human who
+       approves it. A quorum of one in which the one is the requester is not a quorum — it is a
+       self-issued permission wearing a quorum's shape.
+
+    Rule (2) is the same property the estate enforces elsewhere: an attestor must be independent of
+    the subject, not merely distinct in name. Absence of a signer identity is refused rather than
+    skipped — an unidentified signer cannot be shown independent.
+    """
+    seen: set[str] = set()
+    requester = f"{ISSUER}/{project}/{actor}"
+    for s in sigs:
+        sid = (s or {}).get("spiffe_id")
+        if not sid:
+            return "a quorum signature carries no spiffe_id — an unidentified signer cannot be shown independent"
+        if sid in seen:
+            return f"duplicate quorum signer {sid!r} — the same principal twice is one voice, not a quorum"
+        seen.add(sid)
+        # the requester may not approve their own HIGH-danger grant
+        if sid == requester or sid.rstrip("/").endswith(f"/{project}/{actor}"):
+            return (f"quorum signer {sid!r} is the actor requesting the grant — a quorum of one in "
+                    "which the one is the requester is not a quorum")
+    return None
+
+
 def _quorum_proof(operation: str, signatures: list[dict]) -> dict[str, Any]:
     return {
         "rule": "1-of-N-human",
@@ -89,6 +122,13 @@ def request_grant(*, kind: str, backend: str, project: str, actor: str,
         _ledger_add("OP_GRANT_DENY", "-", reason="insufficient quorum", operation=f"{kind}:{backend}")
         return {"decision": decision, "grant": None, "quorum_required": need,
                 "reason": f"HIGH-danger operation requires {need} human quorum signature(s)"}
+    if need:
+        # Counting signatures is not counting voices. Refuse a quorum that is not independent.
+        bad = _check_quorum_independence(sigs, actor, project)
+        if bad:
+            _ledger_add("OP_GRANT_DENY", "-", reason="quorum not independent",
+                        operation=f"{kind}:{backend}", detail=bad)
+            return {"decision": decision, "grant": None, "quorum_required": need, "reason": bad}
 
     effect = _EFFECT.get(kind, "compute")
     gid = "grant-" + uuid.uuid4().hex
