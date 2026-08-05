@@ -11,7 +11,7 @@ image:
   # An IMMUTABLE sha- tag, never a moving `latest` (moving-tag + IfNotPresent never rolls — preflight
   # doctrine). This placeholder is the source commit; gitops-promote rewrites it to the actual
   # built-image digest on the first CI build (materializer/arcticdb-gateway precedent).
-  tag: sha-f540aefdbaefdfbd802f44f579ebb64d14e6ffa7
+  tag: sha-35d243dcc133fdee8032a6b309a7b95063986af0
   pullPolicy: Always
 
 service: { port: 8080, portName: http }
