@@ -49,9 +49,12 @@ function deriveTitle(body: string, url: string): string {
 
 function looksHtml(body: string): boolean { return /<\s*(html|body|div|p|h[1-6]|article)\b/i.test(body.slice(0, 2000)); }
 function stripHtml(body: string): string {
-  // Closing tags tolerate whitespace before '>' (e.g. `</script >`) per the HTML parsing spec —
-  // matching only the exact `</script>` bytes lets that variant slip through un-stripped.
-  return body.replace(/<head[\s\S]*?<\/head\s*>/gi, ' ').replace(/<script[\s\S]*?<\/script\s*>/gi, ' ').replace(/<style[\s\S]*?<\/style\s*>/gi, ' ')
+  // Per the HTML end-tag parsing spec, a closing tag is recognized once the parser sees `</script`
+  // (case-insensitive) — everything up to the next '>' is consumed as part of the tag, including
+  // whitespace, bogus attributes, or other garbage (e.g. `</script foo="bar">`, `</script\t\nbar>`).
+  // Matching only the exact `</script>` bytes — or only tolerating whitespace before '>' — lets any
+  // of those browser-recognized variants slip through un-stripped.
+  return body.replace(/<head[\s\S]*?<\/head[^>]*>/gi, ' ').replace(/<script[\s\S]*?<\/script[^>]*>/gi, ' ').replace(/<style[\s\S]*?<\/style[^>]*>/gi, ' ')
     .replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
